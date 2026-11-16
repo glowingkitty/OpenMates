@@ -692,7 +692,13 @@ final class DevComponentPreviewUITests: XCTestCase {
         attachScreenshot("Projects deployed landing at phone width")
         XCTAssertTrue(name.isHittable)
         name.tap()
-        name.typeText("Synthetic preview Project")
+        // UIKit's tap-to-edit can land after a busy first layout pass; type
+        // only once the tapped editor really owns the keyboard.
+        let nameFocused = landing.textViews.matching(NSPredicate(
+            format: "identifier == %@ AND hasKeyboardFocus == true", "project-input-textarea")).firstMatch
+        XCTAssertTrue(nameFocused.waitForExistence(timeout: 8), "Tapping the project name field must focus it")
+        attachScreenshot("Projects focused composer at phone width")
+        nameFocused.typeText("Synthetic preview Project")
         XCTAssertTrue(landing.buttons["project-input-submit"].isHittable)
         XCTAssertEqual(element(landing, "project-input-composer").frame.height, 64, accuracy: 1)
         attachScreenshot("Projects typed composer at phone width")

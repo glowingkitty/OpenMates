@@ -12,14 +12,21 @@ import SwiftData
 final class ChatStreamingLifecycleParityTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=chat-queued-followups.admission.synced,chat-queued-followups.steering.safe-boundary
     func testQueuedSnapshotHydratesAndStartedReceiptRejectsLateQueuedStatus() async throws {
+        // The reducer only adopts content-free updates for the current signed-in
+        // workspace; an unconfigured shared context has no scope and rejects them.
+        TeamWorkspaceContext.shared.reset(accountID: "synthetic-owner")
+        defer { TeamWorkspaceContext.shared.reset(accountID: nil) }
         let fixture = try terminalSyncFixture()
         let user = Message(id: "queued-user", chatId: fixture.chat.id, role: .user, content: "Synthetic queued request",
             encryptedContent: "synthetic-cipher", createdAt: "2026-10-19T00:00:00Z", updatedAt: nil, appId: nil,
             isStreaming: false, embedRefs: nil, queueRevision: 1, queueMode: "follow_up", queueDispatchStatus: "queued")
         fixture.model.seedIsolatedHistory(chat: fixture.chat, messages: [user], embeds: [])
+        XCTAssertEqual(fixture.model.queuedFollowups[user.id]?.revision, 1, "The queued history row hydrates before any event")
+        XCTAssertTrue(TeamWorkspaceContext.shared.isCurrent(TeamWorkspaceContext.shared.snapshot), "Fixture runs in a current workspace")
         await fixture.model.applyQueuedFollowupEvent(type: "queued_messages_snapshot", fields: ["chat_id": fixture.chat.id,
             "messages": [["message_id": user.id, "queue_revision": 1, "queue_mode": "follow_up"]]])
         XCTAssertEqual(fixture.model.queuedFollowups[user.id]?.revision, 1)
+        XCTAssertNil(fixture.model.queuedFollowupError)
         await fixture.model.applyQueuedFollowupEvent(type: "queued_message_started", fields: ["chat_id": fixture.chat.id, "message_id": user.id])
         XCTAssertNil(fixture.model.queuedFollowups[user.id])
         await fixture.model.applyQueuedFollowupEvent(type: "queued_message_status", fields: ["chat_id": fixture.chat.id,

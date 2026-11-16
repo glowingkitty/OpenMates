@@ -223,16 +223,19 @@ final class NativeEmbedActionController: NSObject, ObservableObject {
     static func makeEvent(_ input: EmbedCalendarEvent, store: EKEventStore) -> EKEvent {
         let event = EKEvent(eventStore: store)
         event.title = input.title
-        event.startDate = input.allDay ? localCivilDate(input.start, timeZone: input.timeZone) : input.start
-        event.endDate = input.allDay ? localCivilDate(input.end, timeZone: input.timeZone) : input.end
+        event.startDate = input.allDay ? deviceCivilDate(input.start) : input.start
+        event.endDate = input.allDay ? deviceCivilDate(input.end) : input.end
         // All-day events are floating: assigning a time zone makes EventKit drop the all-day flag.
         event.isAllDay = input.allDay
         event.timeZone = input.allDay ? nil : input.timeZone; event.location = input.location; event.notes = input.notes; event.url = input.sourceURL
         return event
     }
-    private static func localCivilDate(_ date: Date, timeZone: TimeZone) -> Date {
+    /// EventKit reads a floating all-day date in the device's current time zone,
+    /// so the civil day is rebuilt there; the event's own zone would shift the
+    /// day on devices west of it.
+    private static func deviceCivilDate(_ date: Date) -> Date {
         var utc = Calendar(identifier: .gregorian); utc.timeZone = TimeZone(secondsFromGMT: 0)!
-        var local = Calendar(identifier: .gregorian); local.timeZone = timeZone
+        var local = Calendar(identifier: .gregorian); local.timeZone = .current
         return local.date(from: utc.dateComponents([.year, .month, .day], from: date)) ?? date
     }
     private static func presenter() -> UIViewController? {

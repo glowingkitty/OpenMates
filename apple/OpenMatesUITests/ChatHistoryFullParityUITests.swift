@@ -177,22 +177,26 @@ final class ChatHistoryFullParityUITests: XCTestCase {
     // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence,chats.surface.semantic-parity,message-input.actions.visibility
     func testStreamingThinkingAndComposerStopMatchWebContract() throws {
         let app = launchFixture(extraArguments: ["--ui-test-streaming-presentation"])
-        let stage = element(in: app, identifier: "streaming-banner")
+        // The processing stage is the assistant activity toggle (chat-processing-feedback);
+        // the separate stage banner was retired with the web-aligned activity group.
+        let stage = element(in: app, identifier: "assistant-activity-toggle")
         let stop = element(in: app, identifier: "stop-processing-button")
 
         XCTAssertTrue(stage.waitForExistence(timeout: 12), app.debugDescription)
-        XCTAssertFalse(stage.label.contains("embed."), "Stage status exposed an untranslated key")
+        XCTAssertFalse(stage.label.isEmpty)
+        XCTAssertFalse(stage.label.contains("embed.") || stage.label.contains("chat."), "Stage status exposed an untranslated key")
         // Processing must expose Stop in the compact, unfocused follow-up field.
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         XCTAssertTrue(stop.waitForExistence(timeout: 8), app.debugDescription)
         XCTAssertTrue(stop.isHittable)
         XCTAssertGreaterThanOrEqual(stop.frame.width, 44)
         XCTAssertGreaterThanOrEqual(stop.frame.height, 44)
+        XCTAssertFalse(stop.label.contains("."), "Stop exposed an untranslated key: \(stop.label)")
         XCTAssertFalse(element(in: app, identifier: "send-button").exists)
         XCTAssertFalse(element(in: app, identifier: "record-audio-button").exists)
 
         let history = element(in: app, identifier: "chat-history-container")
-        XCTAssertTrue(element(in: app, identifier: "thinking-section").exists)
+        XCTAssertTrue(element(in: app, identifier: "assistant-activity-group").exists)
         XCTAssertTrue(app.buttons["thinking-toggle"].exists)
         let thinking = element(in: app, identifier: "thinking-content")
         for _ in 0..<5 where !thinking.exists {
@@ -201,7 +205,11 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         XCTAssertTrue(thinking.waitForExistence(timeout: 5), app.debugDescription)
         XCTAssertLessThanOrEqual(thinking.frame.height, 202, "Streaming thinking content must remain bounded")
         XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "**")).count, 0)
-        XCTAssertTrue(app.staticTexts["Bounded thinking detail"].exists)
+        // Markdown paragraphs can expose several lines as one element; the
+        // rendered (not raw **) thinking text must still be readable inside it.
+        XCTAssertTrue(thinking.descendants(matching: .any).matching(NSPredicate(
+            format: "label CONTAINS %@ OR value CONTAINS %@", "Bounded thinking detail", "Bounded thinking detail"
+        )).firstMatch.exists, app.debugDescription)
         let assistant = element(in: app, identifier: "chat-history-fixture-assistant")
         XCTAssertTrue(assistant.exists)
         XCTAssertTrue(assistant.label.hasPrefix("Synthetic assistant history fixture"))

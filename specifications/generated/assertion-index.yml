@@ -28381,37 +28381,37 @@ assertions:
       surface: gui.apple
     - &id3672
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1186
+      line: 1192
       name: testEmbedSelectionSurvivesInsertedAndRemovedResults
       surface: gui.apple
     - &id3673
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1217
+      line: 1223
       name: testFullscreenPeerNavigationRestoresActualParentAfterChildClose
       surface: gui.apple
     - &id3674
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1257
+      line: 1263
       name: testFullscreenHeaderUsesWebBreakpointInRegularWidthEnvironment
       surface: gui.apple
     - &id3675
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1288
+      line: 1294
       name: testSearchResultsUseResponsiveWebGridAndOpenFourthSource
       surface: gui.apple
     - &id3676
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1329
+      line: 1335
       name: testInvalidPreviewPropsStayInPreviewErrorSurface
       surface: gui.apple
     - &id3677
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1541
+      line: 1547
       name: testPhoneCodeMoreUsesRealCopyAndCloseActions
       surface: gui.apple
     - &id3678
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1570
+      line: 1576
       name: testHeaderControlsSwitchStyleWhenScrolledAwayAtNarrowAndWideWidths
       surface: gui.apple
     - &id3679
@@ -57606,17 +57606,17 @@ assertions:
       surface: gui.apple
     - &id7132
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1055
+      line: 1061
       name: testWebSearchOverflowKeepsQueryLeadingAndClipsThumbnailViewport
       surface: gui.apple
     - &id7133
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1600
+      line: 1606
       name: testSearchQueryProviderAndThreeLineQueryRemainVisible
       surface: gui.apple
     - &id7134
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1687
+      line: 1693
       name: testSearchGroupUsesRegularCardsAndTwelvePointGap
       surface: gui.apple
     - &id7135
@@ -58618,7 +58618,7 @@ assertions:
       surface: gui.apple
     - &id7261
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 514
+      line: 521
       name: testForegroundCompletionFinishesOnlyMatchingWidgetTurn
       surface: gui.apple
     - &id7265
@@ -58836,7 +58836,7 @@ assertions:
       surface: gui.apple
     - &id7297
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 514
+      line: 521
       name: testForegroundCompletionFinishesOnlyMatchingWidgetTurn
       surface: gui.apple
     tests:
@@ -60881,7 +60881,7 @@ assertions:
       surface: gui.apple
     - &id7560
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1333
+      line: 1340
       name: testMacAppDeactivationStopsReportingForegroundChatVisibility
       surface: gui.apple
     - &id7561
@@ -62626,22 +62626,22 @@ assertions:
     supporting_tests:
     - &id7796
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 277
+      line: 284
       name: testNotificationCatchUpRejectsChangedIntentAndPreservesNewerTurnDuringRead
       surface: gui.apple
     - &id7797
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 303
+      line: 310
       name: testNotificationReadRejectsAccountScopeReplacementDuringRequest
       surface: gui.apple
     - &id7798
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 477
+      line: 484
       name: testSavedHistoryCannotCompleteProcessingAfterScopeChanges
       surface: gui.apple
     - &id7799
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 489
+      line: 496
       name: testForegroundCompletionRejectsScopeChangedDuringDecryption
       surface: gui.apple
     - &id7802
@@ -96984,7 +96984,7 @@ assertions:
       surface: gui.apple
     - &id12118
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 32
+      line: 39
       name: testContentFreeQueueSnapshotCannotRelabelOlderHistoryCiphertext
       surface: gui.apple
     - &id12119
@@ -97505,12 +97505,12 @@ assertions:
       surface: gui.apple
     - &id12200
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 32
+      line: 39
       name: testContentFreeQueueSnapshotCannotRelabelOlderHistoryCiphertext
       surface: gui.apple
     - &id12201
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 46
+      line: 53
       name: testQueueReducerRejectsOlderOrInconsistentProtectedEvents
       surface: gui.apple
     - &id12205
@@ -97964,7 +97964,7 @@ assertions:
       surface: gui.apple
     - &id12270
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 46
+      line: 53
       name: testQueueReducerRejectsOlderOrInconsistentProtectedEvents
       surface: gui.apple
     - &id12272
@@ -100475,17 +100475,17 @@ assertions:
       surface: gui.apple
     - &id12665
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 710
+      line: 717
       name: testGeneratedMetadataRemainsTransientUntilEncryptedStorageIsAccepted
       surface: gui.apple
     - &id12666
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 741
+      line: 748
       name: testRejectedEncryptedMetadataAcknowledgementCannotAdvancePersistenceVersions
       surface: gui.apple
     - &id12667
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 806
+      line: 813
       name: testGeneratedMetadataReplacesEncryptedEmptyTitlePlaceholder
       surface: gui.apple
     - &id12673
@@ -102333,27 +102333,27 @@ assertions:
       surface: gui.apple
     - &id12660
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 89
+      line: 96
       name: testLiveMemoryReceiptUsesExistingEncryptedSystemMessageAdmission
       surface: gui.apple
     - &id12661
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 253
+      line: 260
       name: testNotificationCatchUpReadsCachedPartialAndKeepsExactSavedCanonicalRow
       surface: gui.apple
     - &id12662
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 322
+      line: 329
       name: testCanonicalSavedAliasCollapsesOnReopenWithoutCollapsingRepeatedText
       surface: gui.apple
     - &id12663
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 362
+      line: 369
       name: testTerminalSyncRejectsUnrelatedOptimisticStreamingAndPendingRows
       surface: gui.apple
     - &id12664
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 400
+      line: 407
       name: testBufferedProcessingAndPartialReplayCannotReopenSavedCompletion
       surface: gui.apple
     - &id12668
@@ -102473,37 +102473,37 @@ assertions:
       surface: gui.apple
     - &id12694
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 63
+      line: 66
       name: testFileDownloadFetchesActualBytesWithSafeNameAndMIME
       surface: gui.apple
     - &id12695
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 78
+      line: 81
       name: testPrivateDOCXUsesNoncePrefixedDecryptionAndNeverFallsBackToPlainURL
       surface: gui.apple
     - &id12696
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 116
+      line: 119
       name: testCancellationAndContextFencesRejectStaleDownloadsAndUnsafeExternalURLs
       surface: gui.apple
     - &id12697
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 134
+      line: 137
       name: testExportFenceRejectsTeamSwitchAndSwitchBackWithinSameAccountAndSelection
       surface: gui.apple
     - &id12698
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 145
+      line: 148
       name: testOldOSCompletionCannotReleaseNewPresentationOrTemporaryDirectory
       surface: gui.apple
     - &id12699
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 162
+      line: 165
       name: testLegacyDOCXIsRealOpenXMLPackageWithSanitizedHTML
       surface: gui.apple
     - &id12700
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 195
+      line: 198
       name: testDesignExportsUseRealValidatedSVGColorAndPaletteWithoutNetwork
       surface: gui.apple
     - &id12701
@@ -107112,27 +107112,27 @@ assertions:
       surface: gui.apple
     - &id13533
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 901
+      line: 908
       name: testStaleAndDuplicateChunksAreRejected
       surface: gui.apple
     - &id13534
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1061
+      line: 1068
       name: testTypingEndedCannotCompleteAnotherActiveMessage
       surface: gui.apple
     - &id13535
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1078
+      line: 1085
       name: testStaleTerminalEventsCannotCompleteCurrentTurn
       surface: gui.apple
     - &id13536
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1103
+      line: 1110
       name: testMessageReadyBeforeCurrentAssistantIdentityIsRejected
       surface: gui.apple
     - &id13537
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1149
+      line: 1156
       name: testStaleQueuedAndUnidentifiedCancelEventsCannotReplaceCurrentTask
       surface: gui.apple
     - &id13541
@@ -107637,57 +107637,57 @@ assertions:
       surface: gui.apple
     - &id13522
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 62
+      line: 69
       name: testSubChatProgressRetainsExactWireMessageIdentityWithoutInventedBatch
       surface: gui.apple
     - &id13523
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 74
+      line: 81
       name: testBatchTransportSeamPreservesDocumentedTaskAliasForMarkerMatching
       surface: gui.apple
     - &id13524
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 140
+      line: 147
       name: testQueuedFollowerNoticePreservesActiveSourceTurn
       surface: gui.apple
     - &id13525
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 181
+      line: 188
       name: testConfirmedMateCreatesTransientIntentWithoutDurableEmptyRow
       surface: gui.apple
     - &id13526
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 253
+      line: 260
       name: testNotificationCatchUpReadsCachedPartialAndKeepsExactSavedCanonicalRow
       surface: gui.apple
     - &id13527
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 322
+      line: 329
       name: testCanonicalSavedAliasCollapsesOnReopenWithoutCollapsingRepeatedText
       surface: gui.apple
     - &id13528
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 344
+      line: 351
       name: testSavedTerminalMatchesTaskBeforeTypingAndPrefersKnownAssistantIdentity
       surface: gui.apple
     - &id13529
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 362
+      line: 369
       name: testTerminalSyncRejectsUnrelatedOptimisticStreamingAndPendingRows
       surface: gui.apple
     - &id13530
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 416
+      line: 423
       name: testForegroundCompletionDuringDecryptionPreservesNewerProcessingTask
       surface: gui.apple
     - &id13531
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 460
+      line: 467
       name: testForegroundMergeAdmitsExactTerminalAndRetainsOtherStreamingRows
       surface: gui.apple
     - &id13532
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 499
+      line: 506
       name: testForegroundCompletionRejectsMessageDeletedDuringDecryption
       surface: gui.apple
     - &id13538
@@ -111463,22 +111463,22 @@ assertions:
     direct_tests:
     - &id14109
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 921
+      line: 928
       name: testFinalChunkCompletesWhenServerReusesOrOmitsSequence
       surface: gui.apple
     - &id14110
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 982
+      line: 989
       name: testLifecycleTransitionsThroughProcessingThinkingStreamingAndFinal
       surface: gui.apple
     - &id14111
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1216
+      line: 1223
       name: testAuthoritativeSyncCompletionClearsActiveStreamingState
       surface: gui.apple
     - &id14112
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1322
+      line: 1329
       name: testNativeLifecycleCompletionCapabilityMatchesPlatformSceneSemantics
       surface: gui.apple
     - &id14116
@@ -111545,102 +111545,102 @@ assertions:
       surface: gui.apple
     - &id14090
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 123
+      line: 130
       name: testReplayOfInterimFinalRetainsTurnActivityWithMaterializedRow
       surface: gui.apple
     - &id14091
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 201
+      line: 208
       name: testInterimSkillFinalCannotFinishTurnViaTypingOrSavedHistory
       surface: gui.apple
     - &id14092
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 222
+      line: 229
       name: testLateMetadataAndThinkingNeverReviveTerminalOrRegressNewTurn
       surface: gui.apple
     - &id14093
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 242
+      line: 249
       name: testInterruptionAndRejectionOverrideAsyncContinuationExactly
       surface: gui.apple
     - &id14094
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 253
+      line: 260
       name: testNotificationCatchUpReadsCachedPartialAndKeepsExactSavedCanonicalRow
       surface: gui.apple
     - &id14095
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 277
+      line: 284
       name: testNotificationCatchUpRejectsChangedIntentAndPreservesNewerTurnDuringRead
       surface: gui.apple
     - &id14096
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 303
+      line: 310
       name: testNotificationReadRejectsAccountScopeReplacementDuringRequest
       surface: gui.apple
     - &id14097
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 344
+      line: 351
       name: testSavedTerminalMatchesTaskBeforeTypingAndPrefersKnownAssistantIdentity
       surface: gui.apple
     - &id14098
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 362
+      line: 369
       name: testTerminalSyncRejectsUnrelatedOptimisticStreamingAndPendingRows
       surface: gui.apple
     - &id14099
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 385
+      line: 392
       name: testForegroundSyncClearsProcessingBeforeFirstTypingFrame
       surface: gui.apple
     - &id14100
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 400
+      line: 407
       name: testBufferedProcessingAndPartialReplayCannotReopenSavedCompletion
       surface: gui.apple
     - &id14101
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 416
+      line: 423
       name: testForegroundCompletionDuringDecryptionPreservesNewerProcessingTask
       surface: gui.apple
     - &id14102
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 432
+      line: 439
       name: testPendingRecoveryRowCannotClearForegroundProcessing
       surface: gui.apple
     - &id14103
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 444
+      line: 451
       name: testOptionalPostprocessingKeepsProcessingAndMessageReadyMatchesTaskBeforeTyping
       surface: gui.apple
     - &id14104
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 460
+      line: 467
       name: testForegroundMergeAdmitsExactTerminalAndRetainsOtherStreamingRows
       surface: gui.apple
     - &id14105
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 477
+      line: 484
       name: testSavedHistoryCannotCompleteProcessingAfterScopeChanges
       surface: gui.apple
     - &id14106
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 489
+      line: 496
       name: testForegroundCompletionRejectsScopeChangedDuringDecryption
       surface: gui.apple
     - &id14107
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 499
+      line: 506
       name: testForegroundCompletionRejectsMessageDeletedDuringDecryption
       surface: gui.apple
     - &id14108
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 514
+      line: 521
       name: testForegroundCompletionFinishesOnlyMatchingWidgetTurn
       surface: gui.apple
     - &id14113
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1333
+      line: 1340
       name: testMacAppDeactivationStopsReportingForegroundChatVisibility
       surface: gui.apple
     - &id14114
@@ -111765,12 +111765,12 @@ assertions:
     direct_tests:
     - &id14134
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1038
+      line: 1045
       name: testQueuedCancelAndTypingEndedStatesAreIdempotent
       surface: gui.apple
     - &id14135
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1203
+      line: 1210
       name: testLifecycleCapturesErrorAndClearsThinkingStreaming
       surface: gui.apple
     - &id14140
@@ -111921,22 +111921,22 @@ assertions:
       surface: gui.apple
     - &id14130
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 150
+      line: 157
       name: testMemoryReceiptsKeepExactResponseAndRevisionAssociation
       surface: gui.apple
     - &id14131
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 222
+      line: 229
       name: testLateMetadataAndThinkingNeverReviveTerminalOrRegressNewTurn
       surface: gui.apple
     - &id14132
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 400
+      line: 407
       name: testBufferedProcessingAndPartialReplayCannotReopenSavedCompletion
       surface: gui.apple
     - &id14133
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 432
+      line: 439
       name: testPendingRecoveryRowCannotClearForegroundProcessing
       surface: gui.apple
     - &id14136
@@ -113579,22 +113579,22 @@ assertions:
     direct_tests:
     - &id14370
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1078
+      line: 1085
       name: testStaleTerminalEventsCannotCompleteCurrentTurn
       surface: gui.apple
     - &id14371
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1103
+      line: 1110
       name: testMessageReadyBeforeCurrentAssistantIdentityIsRejected
       surface: gui.apple
     - &id14374
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1149
+      line: 1156
       name: testStaleQueuedAndUnidentifiedCancelEventsCannotReplaceCurrentTask
       surface: gui.apple
     - &id14375
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1377
+      line: 1384
       name: testInboundStreamingEventsDispatchInEnqueueOrder
       surface: gui.apple
     - &id14379
@@ -113687,22 +113687,22 @@ assertions:
     supporting_tests:
     - &id14368
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 106
+      line: 113
       name: testReplayPreservesConfirmedMateAndModelThroughLaterPreprocessing
       surface: gui.apple
     - &id14369
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 123
+      line: 130
       name: testReplayOfInterimFinalRetainsTurnActivityWithMaterializedRow
       surface: gui.apple
     - &id14372
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1114
+      line: 1121
       name: testReplacedSocketCallbacksCannotActOnCurrentConnection
       surface: gui.apple
     - &id14373
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1130
+      line: 1137
       name: testSupersededConnectionAttemptCannotMutateCurrentSocket
       surface: gui.apple
     - &id14376
@@ -114013,27 +114013,27 @@ assertions:
       surface: gui.apple
     - &id14443
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1166
+      line: 1173
       name: testTerminalEventClearsStreamingMessageSelectionBeforeNextSend
       surface: gui.apple
     - &id14444
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1240
+      line: 1247
       name: testTypingWithoutRenderableContentDoesNotMaterializeAssistantTurn
       surface: gui.apple
     - &id14445
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1259
+      line: 1266
       name: testProtocolOnlyChunkDoesNotMaterializeEmptyAssistantTurn
       surface: gui.apple
     - &id14446
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1284
+      line: 1291
       name: testNonfinalSkillReferenceMaterializesAndPersistsThroughFinalChunk
       surface: gui.apple
     - &id14447
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1377
+      line: 1384
       name: testInboundStreamingEventsDispatchInEnqueueOrder
       surface: gui.apple
     - &id14449
@@ -114171,27 +114171,27 @@ assertions:
       surface: gui.apple
     - &id14438
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 106
+      line: 113
       name: testReplayPreservesConfirmedMateAndModelThroughLaterPreprocessing
       surface: gui.apple
     - &id14439
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 140
+      line: 147
       name: testQueuedFollowerNoticePreservesActiveSourceTurn
       surface: gui.apple
     - &id14440
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 181
+      line: 188
       name: testConfirmedMateCreatesTransientIntentWithoutDurableEmptyRow
       surface: gui.apple
     - &id14441
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 201
+      line: 208
       name: testInterimSkillFinalCannotFinishTurnViaTypingOrSavedHistory
       surface: gui.apple
     - &id14442
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 593
+      line: 600
       name: testTypingStatusUsesTheCurrentTurnMateAndClearsItForTheNextTurn
       surface: gui.apple
     - &id14448
@@ -114555,12 +114555,12 @@ assertions:
     direct_tests:
     - &id14499
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1342
+      line: 1349
       name: testAcceptedSendClearsPriorFollowUpsAndEmptyResponseKeepsThemCleared
       surface: gui.apple
     - &id14500
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1363
+      line: 1370
       name: testLegacyEmptyFollowUpPayloadDoesNotEraseAcceptedSuggestionsWithoutStoredCiphertext
       surface: gui.apple
     - &id14501
@@ -114687,7 +114687,7 @@ assertions:
       surface: gui.apple
     - &id14582
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1007
+      line: 1013
       name: testAssistantSubChatBatchRendersCardsAndOpensChild
       surface: gui.apple
     - &id14590
@@ -115144,12 +115144,12 @@ assertions:
       surface: gui.apple
     - &id14583
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1621
+      line: 1627
       name: testSheetsRenderCellsTitleAndDeclaredDimensions
       surface: gui.apple
     - &id14584
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1670
+      line: 1676
       name: testLargeSheetUsesExpandedColumnAndRowBudget
       surface: gui.apple
     - &id14585
@@ -117537,12 +117537,12 @@ assertions:
       surface: gui.apple
     - &id14915
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1060
+      line: 1066
       name: testImageSearchOverflowKeepsQueryLeadingAndClipsThumbnailViewport
       surface: gui.apple
     - &id14916
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1100
+      line: 1106
       name: testEventBannerStaysWithinFullscreenAndCloseRemainsHittable
       surface: gui.apple
     - &id14917
@@ -119439,7 +119439,7 @@ assertions:
       surface: gui.apple
     - &id15205
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1028
+      line: 1034
       name: testFollowUpSuggestionsRenderAsRightAlignedQuickSendActions
       surface: gui.apple
     - &id15221
@@ -120295,92 +120295,92 @@ assertions:
       surface: gui.apple
     - &id15394
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 685
+      line: 692
       name: testGeneratedMetadataImmediatelyPopulatesActiveChatPresentation
       surface: gui.apple
     - &id15395
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 710
+      line: 717
       name: testGeneratedMetadataRemainsTransientUntilEncryptedStorageIsAccepted
       surface: gui.apple
     - &id15396
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 741
+      line: 748
       name: testRejectedEncryptedMetadataAcknowledgementCannotAdvancePersistenceVersions
       surface: gui.apple
     - &id15397
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 761
+      line: 768
       name: testGeneratedMetadataDoesNotReplaceInitializedHeaderIdentity
       surface: gui.apple
     - &id15398
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 784
+      line: 791
       name: testGeneratedMetadataReplacesUnversionedProvisionalTitle
       surface: gui.apple
     - &id15399
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 806
+      line: 813
       name: testGeneratedMetadataReplacesEncryptedEmptyTitlePlaceholder
       surface: gui.apple
     - &id15400
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 826
+      line: 833
       name: testProvisionalTitleOnlyFillsAnUntitledUnversionedChat
       surface: gui.apple
     - &id15401
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 842
+      line: 849
       name: testGeneratedHeaderLoadsOnlyForAnActiveUntitledFirstTurn
       surface: gui.apple
     - &id15402
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 858
+      line: 865
       name: testGenericAssistantSenderFallsBackToMateCategoryIdentity
       surface: gui.apple
     - &id15404
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 889
+      line: 896
       name: testThinkingChunksAccumulateForOneAssistantMessage
       surface: gui.apple
     - &id15405
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 901
+      line: 908
       name: testStaleAndDuplicateChunksAreRejected
       surface: gui.apple
     - &id15406
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 921
+      line: 928
       name: testFinalChunkCompletesWhenServerReusesOrOmitsSequence
       surface: gui.apple
     - &id15408
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 982
+      line: 989
       name: testLifecycleTransitionsThroughProcessingThinkingStreamingAndFinal
       surface: gui.apple
     - &id15409
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1038
+      line: 1045
       name: testQueuedCancelAndTypingEndedStatesAreIdempotent
       surface: gui.apple
     - &id15410
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1061
+      line: 1068
       name: testTypingEndedCannotCompleteAnotherActiveMessage
       surface: gui.apple
     - &id15413
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1203
+      line: 1210
       name: testLifecycleCapturesErrorAndClearsThinkingStreaming
       surface: gui.apple
     - &id15414
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1216
+      line: 1223
       name: testAuthoritativeSyncCompletionClearsActiveStreamingState
       surface: gui.apple
     - &id15415
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1322
+      line: 1329
       name: testNativeLifecycleCompletionCapabilityMatchesPlatformSceneSemantics
       surface: gui.apple
     - &id15428
@@ -120485,17 +120485,17 @@ assertions:
       surface: gui.apple
     - &id15775
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1007
+      line: 1013
       name: testAssistantSubChatBatchRendersCardsAndOpensChild
       surface: gui.apple
     - &id15776
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1028
+      line: 1034
       name: testFollowUpSuggestionsRenderAsRightAlignedQuickSendActions
       surface: gui.apple
     - &id15782
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1423
+      line: 1429
       name: testSourceQuoteClickHighlightsVisibleExcerptAndOrdinaryOpenClearsIt
       surface: gui.apple
     - &id15799
@@ -121161,82 +121161,82 @@ assertions:
       surface: gui.apple
     - &id15382
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 62
+      line: 69
       name: testSubChatProgressRetainsExactWireMessageIdentityWithoutInventedBatch
       surface: gui.apple
     - &id15383
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 74
+      line: 81
       name: testBatchTransportSeamPreservesDocumentedTaskAliasForMarkerMatching
       surface: gui.apple
     - &id15384
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 89
+      line: 96
       name: testLiveMemoryReceiptUsesExistingEncryptedSystemMessageAdmission
       surface: gui.apple
     - &id15385
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 150
+      line: 157
       name: testMemoryReceiptsKeepExactResponseAndRevisionAssociation
       surface: gui.apple
     - &id15386
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 242
+      line: 249
       name: testInterruptionAndRejectionOverrideAsyncContinuationExactly
       surface: gui.apple
     - &id15387
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 385
+      line: 392
       name: testForegroundSyncClearsProcessingBeforeFirstTypingFrame
       surface: gui.apple
     - &id15388
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 444
+      line: 451
       name: testOptionalPostprocessingKeepsProcessingAndMessageReadyMatchesTaskBeforeTyping
       surface: gui.apple
     - &id15389
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 533
+      line: 540
       name: testChildCompletionRoutesByParentAndPreservesChildIdentity
       surface: gui.apple
     - &id15390
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 593
+      line: 600
       name: testTypingStatusUsesTheCurrentTurnMateAndClearsItForTheNextTurn
       surface: gui.apple
     - &id15391
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 629
+      line: 636
       name: testFirstMessageTitleBridgesHeaderUntilGeneratedMetadataArrives
       surface: gui.apple
     - &id15392
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 649
+      line: 656
       name: testBannerKeepsTitleVisibleWhileCategoryMetadataIsPending
       surface: gui.apple
     - &id15393
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 673
+      line: 680
       name: testContinuationCardsUseActualAvailableGapRatherThanViewportHeight
       surface: gui.apple
     - &id15403
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 865
+      line: 872
       name: testNewTaskClearsPreviousTurnLifecycleState
       surface: gui.apple
     - &id15407
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 950
+      line: 957
       name: testCancellingOneStreamKeepsOtherSubscriberRegistered
       surface: gui.apple
     - &id15411
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1187
+      line: 1194
       name: testCancelAITaskPayloadMatchesWebContract
       surface: gui.apple
     - &id15412
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 1195
+      line: 1202
       name: testCancelAITaskPayloadOmitsMissingChatId
       surface: gui.apple
     - &id15416
@@ -122021,37 +122021,37 @@ assertions:
       surface: gui.apple
     - &id15578
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 63
+      line: 66
       name: testFileDownloadFetchesActualBytesWithSafeNameAndMIME
       surface: gui.apple
     - &id15579
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 97
+      line: 100
       name: testNotebookAndApplicationZIPContainRealSourcesAndRejectMissingChildren
       surface: gui.apple
     - &id15580
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 145
+      line: 148
       name: testOldOSCompletionCannotReleaseNewPresentationOrTemporaryDirectory
       surface: gui.apple
     - &id15581
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 162
+      line: 165
       name: testLegacyDOCXIsRealOpenXMLPackageWithSanitizedHTML
       surface: gui.apple
     - &id15582
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 180
+      line: 183
       name: testMultipleTranscriptAndDiagramExportsPreserveAllActualContent
       surface: gui.apple
     - &id15583
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 195
+      line: 198
       name: testDesignExportsUseRealValidatedSVGColorAndPaletteWithoutNetwork
       surface: gui.apple
     - &id15584
       path: apple/OpenMatesTests/NativeEmbedActionTests.swift
-      line: 211
+      line: 214
       name: testPNGExportHasRequestedPixelDimensionsAndActualIconPixels
       surface: gui.apple
     - &id15585
@@ -122931,37 +122931,37 @@ assertions:
       surface: gui.apple
     - &id15774
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 989
+      line: 995
       name: testAssistantResultsViewDateOnlyAndInvalidReferences
       surface: gui.apple
     - &id15777
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1133
+      line: 1139
       name: testEmbedPreviewOpensChildAndMinimizesBackToCard
       surface: gui.apple
     - &id15778
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1338
+      line: 1344
       name: testTasksSupplementaryLoadFailuresKeepBoardVisible
       surface: gui.apple
     - &id15779
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1349
+      line: 1355
       name: testWorkspaceHomeComposersFocusTypeAndSelectText
       surface: gui.apple
     - &id15780
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1384
+      line: 1390
       name: testLargeContinuationCardIncludesSummaryAndCompactCardOmitsIt
       surface: gui.apple
     - &id15781
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1403
+      line: 1409
       name: testWebsiteFullscreenDescriptionUsesNativeSelectionAndReadOnlyCopy
       surface: gui.apple
     - &id15783
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1687
+      line: 1693
       name: testSearchGroupUsesRegularCardsAndTwelvePointGap
       surface: gui.apple
     - &id15784
@@ -142641,7 +142641,7 @@ assertions:
       surface: gui.apple
     - &id18105
       path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
-      line: 554
+      line: 561
       name: testSendWithoutCurrentChatReportsRejection
       surface: gui.apple
     - &id18106
@@ -156058,12 +156058,12 @@ assertions:
       surface: gui.apple
     - &id19810
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 760
+      line: 766
       name: testProjectsConnectedSourceAndSidebarAtWebPhoneWidth
       surface: gui.apple
     - &id19811
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 786
+      line: 792
       name: testProjectsSearchAcrossNestedStoredFilesAndConnectedSource
       surface: gui.apple
     - &id19812
@@ -160481,12 +160481,12 @@ assertions:
       surface: gui.apple
     - &id20362
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 744
+      line: 750
       name: testProjectsInspirationCyclesToFeatureAtWebPhoneWidth
       surface: gui.apple
     - &id20363
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 808
+      line: 814
       name: testProjectsOverviewAndFilesAtDeployedIPadWidth
       surface: gui.apple
     - &id20364
@@ -161473,17 +161473,17 @@ assertions:
     supporting_tests:
     - &id20482
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 894
+      line: 900
       name: testProjectTasksTabEmbedsLinkedBoardAtWebPhoneWidth
       surface: gui.apple
     - &id20483
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 907
+      line: 913
       name: testProjectTaskReaderKeepsCompleteProjectPageBesideDetailOnWideViewport
       surface: gui.apple
     - &id20484
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 955
+      line: 961
       name: testCompactProjectTaskReaderRestoresLinkedBoardAndSelectedTab
       surface: gui.apple
     - &id20485
@@ -162431,7 +162431,7 @@ assertions:
       surface: gui.apple
     - &id20592
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 907
+      line: 913
       name: testProjectTaskReaderKeepsCompleteProjectPageBesideDetailOnWideViewport
       surface: gui.apple
     - &id20593
@@ -175623,12 +175623,12 @@ assertions:
       surface: gui.apple
     - &id22245
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 907
+      line: 913
       name: testProjectTaskReaderKeepsCompleteProjectPageBesideDetailOnWideViewport
       surface: gui.apple
     - &id22246
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 955
+      line: 961
       name: testCompactProjectTaskReaderRestoresLinkedBoardAndSelectedTab
       surface: gui.apple
     - &id22247
@@ -209896,7 +209896,7 @@ assertions:
       surface: gui.apple
     - &id26557
       path: apple/OpenMatesUITests/DevComponentPreviewUITests.swift
-      line: 1349
+      line: 1355
       name: testWorkspaceHomeComposersFocusTypeAndSelectText
       surface: gui.apple
     - &id26558

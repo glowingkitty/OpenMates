@@ -54,6 +54,10 @@ enum NativeDesignIconActions {
         guard StaticSVGImageSource(data: file.bytes) != nil else { throw URLError(.cannotDecodeContentData) }
         return file.bytes
     }
+    #if DEBUG
+    /// Where the last PNG render attached its web view (tests explain blank output with it).
+    static var lastRenderHost = "none"
+    #endif
     static func png(_ source: StaticSVGImageSource, size: Int) async throws -> Data {
         guard (16...4096).contains(size) else { throw URLError(.dataLengthExceedsMaximum) }
         let renderer = NativeSVGPNGRenderer()
@@ -80,8 +84,15 @@ private final class NativeSVGPNGRenderer: NSObject, WKNavigationDelegate {
             #if os(iOS)
             view.isOpaque = false; view.backgroundColor = .clear; view.scrollView.backgroundColor = .clear
             view.isUserInteractionEnabled = false; view.alpha = 0
-            let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene
-            scene?.windows.first(where: \.isKeyWindow)?.addSubview(view)
+            // WebKit paints only inside a window; prefer the active key window, else any connected one.
+            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
+            let host = scene?.windows.first(where: \.isKeyWindow) ?? scene?.windows.first
+            host?.addSubview(view)
+            #if DEBUG
+            NativeDesignIconActions.lastRenderHost = host == nil ? "no-window scenes=\(scenes.count)"
+                : "window active=\(scene?.activationState == .foregroundActive) key=\(host?.isKeyWindow == true)"
+            #endif
             #elseif os(macOS)
             view.alphaValue = 0
             NSApp.keyWindow?.contentView?.addSubview(view, positioned: .below, relativeTo: nil)
@@ -95,30 +106,47 @@ private final class NativeSVGPNGRenderer: NSObject, WKNavigationDelegate {
         }
     }
     func cancel() { finish(.failure(CancellationError())) }
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        let configuration = WKSnapshotConfiguration(); configuration.rect = webView.bounds
-        webView.takeSnapshot(with: configuration) { [weak self] image, error in
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { snapshot(webView, attempt: 0) }
+    /// WebKit lays the page out to PDF without depending on on-screen
+    /// compositing (screen snapshots of the hidden helper view came back fully
+    /// transparent). Navigation can still finish before the data image is
+    /// decoded, so a blank page is retried a bounded number of times.
+    private static let blankSnapshotRetries = 10
+    private func snapshot(_ webView: WKWebView, attempt: Int) {
+        let configuration = WKPDFConfiguration(); configuration.rect = webView.bounds
+        webView.createPDF(configuration: configuration) { [weak self] result in
             Task { @MainActor in
-                if let error { self?.finish(.failure(error)); return }
-                guard let self else { return }
-                #if os(iOS)
-                let cgImage = image?.cgImage
-                #else
-                let cgImage = image?.cgImage(forProposedRect: nil, context: nil, hints: nil)
-                #endif
+                guard let self, self.continuation != nil, self.webView === webView else { return }
+                let pdf: Data
+                switch result {
+                case .success(let data): pdf = data
+                case .failure(let error): self.finish(.failure(error)); return
+                }
                 let size = self.targetSize
+                guard let provider = CGDataProvider(data: pdf as CFData),
+                      let page = CGPDFDocument(provider)?.page(at: 1),
+                      let context = CGContext(data: nil, width: size, height: size,
+                          bitsPerComponent: 8, bytesPerRow: size * 4, space: CGColorSpaceCreateDeviceRGB(),
+                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+                    self.finish(.failure(URLError(.cannotDecodeContentData))); return
+                }
+                let box = page.getBoxRect(.mediaBox)
+                guard box.width > 0, box.height > 0 else { self.finish(.failure(URLError(.cannotDecodeContentData))); return }
+                context.scaleBy(x: CGFloat(size) / box.width, y: CGFloat(size) / box.height)
+                context.translateBy(x: -box.minX, y: -box.minY)
+                context.drawPDFPage(page)
+                if attempt < Self.blankSnapshotRetries, Self.isFullyTransparent(context, size: size) {
+                    try? await Task.sleep(for: .milliseconds(100))
+                    if self.continuation != nil, self.webView === webView { self.snapshot(webView, attempt: attempt + 1) }
+                    return
+                }
                 var bytes: Data?
-                if let cgImage, let context = CGContext(data: nil, width: size, height: size,
-                    bitsPerComponent: 8, bytesPerRow: size * 4, space: CGColorSpaceCreateDeviceRGB(),
-                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
-                    context.draw(cgImage, in: CGRect(x: 0, y: 0, width: size, height: size))
-                    if let scaled = context.makeImage() {
-                        #if os(iOS)
-                        bytes = UIImage(cgImage: scaled).pngData()
-                        #else
-                        bytes = NSBitmapImageRep(cgImage: scaled).representation(using: .png, properties: [:])
-                        #endif
-                    }
+                if let image = context.makeImage() {
+                    #if os(iOS)
+                    bytes = UIImage(cgImage: image).pngData()
+                    #else
+                    bytes = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
+                    #endif
                 }
                 if let bytes { self.finish(.success(bytes)) }
                 else { self.finish(.failure(URLError(.cannotDecodeContentData))) }
@@ -130,6 +158,12 @@ private final class NativeSVGPNGRenderer: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void) {
         decisionHandler(navigationAction.request.url?.absoluteString == "about:blank" ? .allow : .cancel)
+    }
+    private static func isFullyTransparent(_ context: CGContext, size: Int) -> Bool {
+        guard let base = context.data else { return false }
+        let bytes = base.bindMemory(to: UInt8.self, capacity: size * size * 4)
+        for offset in stride(from: 3, to: size * size * 4, by: 4) where bytes[offset] != 0 { return false }
+        return true
     }
     private func finish(_ result: Result<Data, Error>) {
         guard let continuation else { return }

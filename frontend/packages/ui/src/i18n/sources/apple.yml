@@ -309,3 +309,108 @@ recording_transcription.description.False:
   en: No live transcription. You can still attach your audio recording.
   de: Keine Live-Transkription. Du kannst die Audioaufnahme weiterhin anhängen.
   verified_by_human: []
+common.success:
+  context: Generic success status label
+  en: Success
+  de: Erfolg
+  verified_by_human: []
+common.on:
+  context: Generic switch state label for enabled
+  en: On
+  de: An
+  verified_by_human: []
+common.off:
+  context: Generic switch state label for disabled
+  en: Off
+  de: Aus
+  verified_by_human: []
+common.ok:
+  context: Generic acknowledge button
+  en: OK
+  de: OK
+  verified_by_human: []
+common.explore:
+  context: Title of the native explore overlay
+  en: Explore
+  de: Entdecken
+  verified_by_human: []
+common.tap_to_explore:
+  context: Body of a push notification that opens the app
+  en: Tap to explore
+  de: Tippe zum Entdecken
+  verified_by_human: []
+chat.title_placeholder:
+  context: Placeholder of the chat title field in the rename dialog
+  en: Chat title
+  de: Chat-Titel
+  verified_by_human: []
+chat.interactive_question_clear:
+  context: Button that clears the selection of an interactive question
+  en: Clear
+  de: Zurücksetzen
+  verified_by_human: []
+account.deleted:
+  context: Error text when the account was deleted while a profile picture action ran
+  en: Your account has been deleted.
+  de: Dein Konto wurde gelöscht.
+  verified_by_human: []
+privacy.hide_personal_data_description:
+  context: Description under the Hide personal data setting in native privacy settings
+  en: Replace recognised personal data with placeholders before messages are sent to AI providers.
+  de: Erkannte persönliche Daten werden durch Platzhalter ersetzt, bevor Nachrichten an KI-Anbieter gesendet werden.
+  verified_by_human: []
+billing.loading_products:
+  context: Status while App Store credit products load
+  en: Loading products…
+  de: Produkte werden geladen…
+  verified_by_human: []
+billing.verifying_purchase:
+  context: Status while the server verifies an App Store purchase
+  en: Verifying with server…
+  de: Wird mit dem Server überprüft…
+  verified_by_human: []
+billing.restore_purchases:
+  context: Button that restores earlier App Store purchases
+  en: Restore purchases
+  de: Käufe wiederherstellen
+  verified_by_human: []
+passkeys.add:
+  context: Row that starts adding a passkey in native security settings
+  en: Add passkey
+  de: Passkey hinzufügen
+  verified_by_human: []
+embed.open_in_browser:
+  context: Button that opens an embed link in the browser
+  en: Open in browser
+  de: Im Browser öffnen
+  verified_by_human: []
+embed.load_pdf:
+  context: Button that loads a PDF embed
+  en: Load PDF
+  de: PDF laden
+  verified_by_human: []
+embed.decrypting_pdf:
+  context: Status while a PDF embed is decrypted
+  en: Decrypting PDF…
+  de: PDF wird entschlüsselt…
+  verified_by_human: []
+incognito.on:
+  context: Toast when incognito mode is switched on
+  en: Incognito mode on
+  de: Inkognito-Modus an
+  verified_by_human: []
+incognito.off:
+  context: Toast when incognito mode is switched off
+  en: Incognito mode off
+  de: Inkognito-Modus aus
+  verified_by_human: []
+demo.who_develops.title:
+  context: Banner title of the demo chat about who develops OpenMates
+  en: Who develops OpenMates?
+  de: Wer entwickelt OpenMates?
+  verified_by_human: []
+demo.who_develops.description:
+  context: Banner summary of the demo chat about who develops OpenMates
+  en: Meet the people building OpenMates.
+  de: Lerne die Menschen hinter OpenMates kennen.
+  verified_by_human: []

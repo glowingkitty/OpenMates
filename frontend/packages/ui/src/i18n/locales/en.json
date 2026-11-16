@@ -2165,6 +2165,89 @@
           "text": "No live transcription. You can still attach your audio recording."
         }
       }
+    },
+    "common": {
+      "success": {
+        "text": "Success"
+      },
+      "on": {
+        "text": "On"
+      },
+      "off": {
+        "text": "Off"
+      },
+      "ok": {
+        "text": "OK"
+      },
+      "explore": {
+        "text": "Explore"
+      },
+      "tap_to_explore": {
+        "text": "Tap to explore"
+      }
+    },
+    "chat": {
+      "title_placeholder": {
+        "text": "Chat title"
+      },
+      "interactive_question_clear": {
+        "text": "Clear"
+      }
+    },
+    "account": {
+      "deleted": {
+        "text": "Your account has been deleted."
+      }
+    },
+    "privacy": {
+      "hide_personal_data_description": {
+        "text": "Replace recognised personal data with placeholders before messages are sent to AI providers."
+      }
+    },
+    "billing": {
+      "loading_products": {
+        "text": "Loading products…"
+      },
+      "verifying_purchase": {
+        "text": "Verifying with server…"
+      },
+      "restore_purchases": {
+        "text": "Restore purchases"
+      }
+    },
+    "passkeys": {
+      "add": {
+        "text": "Add passkey"
+      }
+    },
+    "embed": {
+      "open_in_browser": {
+        "text": "Open in browser"
+      },
+      "load_pdf": {
+        "text": "Load PDF"
+      },
+      "decrypting_pdf": {
+        "text": "Decrypting PDF…"
+      }
+    },
+    "incognito": {
+      "on": {
+        "text": "Incognito mode on"
+      },
+      "off": {
+        "text": "Incognito mode off"
+      }
+    },
+    "demo": {
+      "who_develops": {
+        "title": {
+          "text": "Who develops OpenMates?"
+        },
+        "description": {
+          "text": "Meet the people building OpenMates."
+        }
+      }
     }
   },
   "apps": {

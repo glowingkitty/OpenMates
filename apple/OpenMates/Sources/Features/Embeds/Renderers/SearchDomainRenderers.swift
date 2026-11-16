@@ -44,9 +44,12 @@ struct SearchDomainParentModel {
         for key in ["query", "speciality", "specialty", "city"] where inputFields[key] == nil {
             if let value = group[key] { inputFields[key] = AnyCodable(value) }
         }
-        query = AppSkillInputPreviewModel(embed: embed).text ?? (kind == .health ? HealthAppointmentModel.searchSummary(inputFields)
-            : EmbedFieldReader.string(inputFields, keys: ["query", "city", "title"])
-                ?? EmbedType.normalized(rawValue: embed.type)?.displayName ?? AppStrings.search)
+        // Health assembles "Speciality in City" like HealthSearchEmbedFullscreen.svelte;
+        // the generic input preview would join the raw fields instead.
+        let healthSummary = kind == .health ? HealthAppointmentModel.searchSummary(inputFields) : ""
+        query = !healthSummary.isEmpty ? healthSummary : AppSkillInputPreviewModel(embed: embed).text
+            ?? EmbedFieldReader.string(inputFields, keys: ["query", "city", "title"])
+            ?? EmbedType.normalized(rawValue: embed.type)?.displayName ?? AppStrings.search
         provider = EmbedFieldReader.string(raw, keys: ["provider"])
             ?? EmbedFieldReader.stringArray(raw, keys: ["providers"]).first
 
@@ -681,7 +684,9 @@ struct HealthAppointmentModel {
         let speciality = fields.string("speciality", "specialty")
         let city = fields.string("city")
         // HealthSearchEmbedFullscreen.svelte assembles these backend fields.
-        if let speciality, let city { return speciality.prefix(1).uppercased() + speciality.dropFirst() + " in " + city.prefix(1).uppercased() + city.dropFirst() }
+        if let speciality, let city {
+            return speciality.prefix(1).uppercased() + speciality.dropFirst() + " in " + city.prefix(1).uppercased() + city.dropFirst()
+        }
         return speciality ?? city ?? ""
     }
     var name: String? { fields.string("name", "doctor_name") }
