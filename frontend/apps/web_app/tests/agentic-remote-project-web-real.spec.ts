@@ -23,6 +23,8 @@ const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
+const STORAGE_DIAGNOSTIC = /CLIENT_DECRYPT|decryption failed|DUPLICATE PREVENTED|replaceMessageById|replaced a stale local segment|Final AI message|recover|Conflict|sealed|interim|Skipping content regression|could not be applied/i;
+
 const L = ['web-laptop'];
 const B = ['web-laptop', 'web-phone'];
 const proofContract = defineVideoProof({
@@ -229,6 +231,15 @@ test.describe('Flow 2 from the web app: spec to commit on a connected machine (r
     await page.setViewportSize({ width: 1440, height: 900 });
     const proof = createVideoProofRuntime(proofContract, {
       device: 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot({ type: 'png' }),
+    });
+    // Diagnostics for how assistant replies reach local storage (ids, statuses and lengths only;
+    // debug-level lines that print whole messages are not kept).
+    const storageLogPath = testInfo.outputPath('storage-diagnostics.log');
+    require('node:fs').writeFileSync(storageLogPath, '');
+    page.on('console', (message) => {
+      const text = message.text();
+      if (message.type() === 'debug' || !STORAGE_DIAGNOSTIC.test(text)) return;
+      require('node:fs').appendFileSync(storageLogPath, `${new Date().toISOString()} ${message.type()} ${text.slice(0, 300)}\n`);
     });
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
     await loginToTestAccount(page);

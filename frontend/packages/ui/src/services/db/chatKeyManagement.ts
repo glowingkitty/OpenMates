@@ -16,6 +16,7 @@ import {
 } from "../cryptoService";
 import { chatKeyManager } from "../encryption/ChatKeyManager";
 import {
+  failureSubject,
   isKnownDecryptionFailure,
   recordDecryptionFailure,
 } from "./decryptionFailureCache";
@@ -849,7 +850,8 @@ export async function decryptMessageFields(
 
   // Decrypt content if present
   if (message.encrypted_content) {
-    if (isKnownDecryptionFailure(chatId, message.message_id, "content", keyFp)) {
+    const contentSubject = failureSubject(message.message_id, message.encrypted_content);
+    if (isKnownDecryptionFailure(chatId, contentSubject, "content", keyFp)) {
       // Skip — this message/field has permanently failed before with this key
       decryptedMessage.content =
         message.content || "[Content decryption failed]";
@@ -860,14 +862,16 @@ export async function decryptMessageFields(
           chatKey,
           { chatId, fieldName: "content" },
         );
-        if (decryptedContentString) {
+        // Failure is null; "" is a valid plaintext (a streamed reply's first,
+        // still empty chunk is stored encrypted) and must not mark the message failed.
+        if (decryptedContentString !== null) {
           // Content is now a markdown string (never Tiptap JSON on server!)
           decryptedMessage.content = decryptedContentString;
           // Clear encrypted field
           delete decryptedMessage.encrypted_content;
         } else {
           // Decryption failed but didn't throw - encrypted_content might be malformed
-          recordDecryptionFailure(chatId, message.message_id, "content", keyFp);
+          recordDecryptionFailure(chatId, contentSubject, "content", keyFp);
           const prov = chatKeyManager.getProvenance(chatId);
           console.error(
             `[CLIENT_DECRYPT] ❌ Failed to decrypt content for message ${message.message_id} - ` +
@@ -885,7 +889,7 @@ export async function decryptMessageFields(
       } catch (error) {
         // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
         // Also handle database operation errors during logout (OperationError from IndexedDB)
-        recordDecryptionFailure(chatId, message.message_id, "content", keyFp);
+        recordDecryptionFailure(chatId, contentSubject, "content", keyFp);
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         const isOperationError =
@@ -931,22 +935,23 @@ export async function decryptMessageFields(
     onSuccess: (val: string) => void,
     onFailure: () => void,
   ) => {
-    if (isKnownDecryptionFailure(chatId, message.message_id, fieldName, keyFp)) {
+    const subject = failureSubject(message.message_id, encryptedValue);
+    if (isKnownDecryptionFailure(chatId, subject, fieldName, keyFp)) {
       onFailure();
       return;
     }
     fieldDecryptions.push(
       decryptWithChatKey(encryptedValue, chatKey, { chatId, fieldName })
         .then((val) => {
-          if (val) {
+          if (val !== null) {
             onSuccess(val);
           } else {
-            recordDecryptionFailure(chatId, message.message_id, fieldName, keyFp);
+            recordDecryptionFailure(chatId, subject, fieldName, keyFp);
             onFailure();
           }
         })
         .catch((error) => {
-          recordDecryptionFailure(chatId, message.message_id, fieldName, keyFp);
+          recordDecryptionFailure(chatId, subject, fieldName, keyFp);
           console.error(
             `[ChatDatabase] Error decrypting ${fieldName} for message ${message.message_id}:`,
             error,
