@@ -8,7 +8,7 @@ import type { BrowserCoreWorkerHost } from '../workerHost';
 const owner = 'owner-1';
 const chatId = '11111111-1111-1111-1111-111111111111';
 
-function fixture(restoreExisting: 'ok' | 'revoked') {
+function fixture(restoreExisting: 'ok' | 'revoked' | 'offline') {
   const lifecycle = new PriorProfileLifecycle();
   const calls = { workerClosed: 0, workersCreated: 0, operations: [] as string[] };
   const localStatus = { principal: owner, persistence: 'memory_only', localReadOnly: true, handle: 'local', generation: 1 };
@@ -18,7 +18,9 @@ function fixture(restoreExisting: 'ok' | 'revoked') {
       calls.operations.push(body.operation);
       if (body.operation === 'restore_local') return { ok: true, status: localStatus };
       // A revoked session: Rust's server check fails and the Worker refuses.
-      if (body.operation === 'restore_existing') return restoreExisting === 'ok' ? { ok: true, status: onlineStatus } : { ok: false, error: 'unavailable' };
+      // Offline: the server cannot be checked, so Rust admits a local-read-only client.
+      if (body.operation === 'restore_existing') return restoreExisting === 'ok' ? { ok: true, status: onlineStatus }
+        : restoreExisting === 'offline' ? { ok: true, status: { ...localStatus, handle: 'offline' } } : { ok: false, error: 'unavailable' };
       if (body.operation === 'read_local_saved_chat_cursor') return { ok: false, error: 'chat_unavailable' };
       throw new Error('unexpected operation');
     },
@@ -77,6 +79,14 @@ describe('local-first saved chat session', () => {
     expect(local.signal.aborted).toBe(true);
     expect(f.calls.workerClosed, 'the Worker holding the key is closed').toBeGreaterThanOrEqual(1);
     await expect(local.publishCachedPage({ direction: 'latest' }, () => undefined)).rejects.toThrow();
+    expect(f.calls.operations).toEqual(['restore_local', 'restore_existing']);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+  it('an unreachable server fails the upgrade as unavailable, not as a rejected session', async () => {
+    const f = fixture('offline');
+    const local = await f.admit();
+    await expect(local.upgrade(f.common)).rejects.toThrow(/^unavailable$/);
     expect(f.calls.operations).toEqual(['restore_local', 'restore_existing']);
   });
 

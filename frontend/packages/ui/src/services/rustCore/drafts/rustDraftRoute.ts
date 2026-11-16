@@ -46,6 +46,15 @@ export interface RustDraftSaveInput {
  */
 const READBACK_CONFLICT = 'draft_effect_readback_draft';
 const MAX_SAVE_ATTEMPTS = 2;
+/**
+ * Refused before any write because no admitted client could be lent yet (history
+ * admission still starting or restoring its local session; a read in flight). The
+ * same save is requested again until the client appears, so a draft typed during
+ * that window is not lost until the next keystroke.
+ */
+const ADMISSION_WAIT_CODES: ReadonlySet<string> = new Set(['not_admitted', 'core_busy']);
+const ADMISSION_WAIT_MS = 15_000;
+const ADMISSION_RETRY_MS = 250;
 
 interface OpenedUnit { core: SharedRustCore; generation: number; port: UnitPort<DraftsProtocol>; stopCrash: () => void }
 let opened: OpenedUnit | null = null;
@@ -144,6 +153,11 @@ export async function saveDraftWithRustCore(input: RustDraftSaveInput): Promise<
 		const scope = { lifecycleGeneration, workspaceEpoch: input.workspaceEpoch };
 		let attempt = 1;
 		let outcome = await requestSave(drafts, input, scope);
+		const waitStarted = performance.now();
+		while (outcome.kind === 'refused' && ADMISSION_WAIT_CODES.has(outcome.code) && performance.now() - waitStarted < ADMISSION_WAIT_MS) {
+			await new Promise((resolve) => setTimeout(resolve, ADMISSION_RETRY_MS));
+			outcome = await requestSave(drafts, input, scope);
+		}
 		while (outcome.kind === 'refused' && outcome.code === READBACK_CONFLICT && attempt < MAX_SAVE_ATTEMPTS) {
 			console.warn(`[DraftService] Rust draft row changed right after its write (${outcome.code}); saving it once more.`);
 			attempt += 1;

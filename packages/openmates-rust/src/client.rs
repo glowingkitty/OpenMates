@@ -156,6 +156,10 @@ pub use cache_policy::CachedContentLoader;
 pub mod snapshot_sections;
 mod chat_list_freshness;
 mod chat_arrival_order;
+pub mod frame_ingest;
+#[cfg(test)]
+mod frame_ingest_tests;
+pub use frame_ingest::{AdmitChatError, ChangedChat, ChatAdmission, FrameIngestSummary};
 mod chat_tombstones;
 // architecture.sync@2 overview order and incremental chat sync feed.
 pub mod overview;
@@ -658,6 +662,8 @@ pub struct Client {
     chats: BTreeMap<String, Value>,
     original_physical_draft_bounds:BTreeMap<String,browser::original_draft_bounds::OriginalPhysicalDraftBounds>,
     chat_arrival_order: Option<Vec<String>>,
+    /// Frames applied by `ingest_socket_frames`; monotonic ordering barrier.
+    frame_applied_seq: u64,
     /// Account chat count the server reported with the last recent-chats phase.
     chat_total_count: Option<u64>,
     chat_list_freshness: chat_list_freshness::ChatListFreshness,
@@ -806,6 +812,7 @@ impl Client {
             chats: BTreeMap::new(),
             original_physical_draft_bounds:BTreeMap::new(),
             chat_arrival_order: None,
+        frame_applied_seq: 0,
             chat_total_count: None,
             chat_list_freshness: Default::default(),
             cache_clock: None,

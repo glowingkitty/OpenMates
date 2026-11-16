@@ -9,6 +9,7 @@
 // - Duplicate detection and cleanup
 // - Message status priority handling
 
+import type { SavedReadCursor } from "../rustCore/savedReadProtocol";
 import type { Message } from "../../types/chat";
 import { writeWithQuotaRetry } from "./quotaRecovery";
 import { chatKeyManager } from "../encryption/ChatKeyManager";
@@ -80,6 +81,9 @@ export interface MessageWindowResult {
   endCursor: number | null;
   endCursorMessageId: string | null;
   anchorFound: boolean;
+  /** Opaque Rust page cursors (Rust-sourced windows only); chain the next Rust page. */
+  startCursorRef?: SavedReadCursor | null;
+  endCursorRef?: SavedReadCursor | null;
 }
 
 export type MessageWindowPageKind = "normal" | "forgotten";

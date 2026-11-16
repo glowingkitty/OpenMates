@@ -190,8 +190,14 @@ export async function admitSecondDeviceSavedChatSession(input: AdmissionInput): 
     const response = await owned.host.request({ operation: "restore_existing", key: witness.key,
       profile: { ...witness.profile }, persistence: "memory_only" }, lifetime.signal);
     current(); await input.sources.assertCurrent(witness!); current();
+    // A failed restore is a rejected session (the Worker reports every restore error
+    // alike), so it fails closed and ends the local session too.
     if (!response.ok || !response.status || response.status.principal !== input.expectedPrincipal
-      || response.status.persistence !== "memory_only" || response.status.localReadOnly === true) throw new Error("session_expired");
+      || response.status.persistence !== "memory_only") throw new Error("session_expired");
+    // An unreachable server is not a rejection: the core admits a local-read-only
+    // client instead of failing (`Client::browser_session`), so the caller keeps its
+    // offline local session.
+    if (response.status.localReadOnly === true) throw new Error("unavailable");
     const status = Object.freeze({ ...response.status });
     const publishPage = async (selector: SavedPageSelector, publish: (page: SavedChatReadback | LocalChatReadback) => void) => {
       if (busy) throw new Error("unavailable");

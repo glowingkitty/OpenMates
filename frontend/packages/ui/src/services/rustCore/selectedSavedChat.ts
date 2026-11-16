@@ -72,8 +72,10 @@ function sameStatus(current: SessionStatus | null | undefined, expected: Session
 }
 function copyPageSelector(selector:SavedPageSelector):SavedPageSelector {
   if(selector.direction==="latest")return Object.freeze({direction:"latest"});
-  if(selector.direction==="around")return Object.freeze({direction:"around",anchorMessageId:selector.anchorMessageId});
-  return Object.freeze({direction:selector.direction,cursor:Object.freeze({...selector.cursor})});
+  const shape={...(selector.limit!==undefined?{limit:selector.limit}:{}),
+    ...(selector.respectCompressionBoundary!==undefined?{respectCompressionBoundary:selector.respectCompressionBoundary}:{})};
+  if(selector.direction==="around")return Object.freeze({direction:"around",anchorMessageId:selector.anchorMessageId,...shape});
+  return Object.freeze({direction:selector.direction,cursor:Object.freeze({...selector.cursor}),...shape});
 }
 async function publishCanonicalSavedPage<P extends SavedReadWitness>(input:SelectedSavedReadInput<P>&{publish(page:SavedChatReadback):void},selector?:SavedPageSelector):Promise<void>{
   const selectedPage=selector?copyPageSelector(selector):undefined;

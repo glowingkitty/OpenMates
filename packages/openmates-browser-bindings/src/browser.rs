@@ -685,6 +685,9 @@ mod tests {
 mod cache_operations;
 pub use cache_operations::{BrowserCachedReadPublication,BrowserCacheMonitor,BrowserIncomingPublication};
 
+#[path="browser_chat_frames.rs"]
+mod chat_frames;
+
 #[path="browser_owned_message_read.rs"]
 mod owned_message_read;
 pub use owned_message_read::{BrowserOwnedMessageReadHandle,BrowserOwnedMessageReadControl,BrowserOwnedMessageReadStepHandle,BrowserOwnedMetadataContinuationHandle,BrowserOwnedReadTerminalHandle};

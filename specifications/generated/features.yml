@@ -3144,7 +3144,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      unit_test_files: 150
+      unit_test_files: 151
     apple:
       status: failing
       source: tests
@@ -24268,7 +24268,7 @@ features:
       - frontend/packages/ui/src/message_parsing/__tests__/streamingBlocksVectors.test.ts
       - frontend/packages/ui/src/message_parsing/__tests__/voiceCuesVectors.test.ts
       - frontend/packages/ui/src/services/__tests__/applicationProjectZip.test.ts
-      unit_test_files: 46
+      unit_test_files: 48
     apple:
       status: implemented
       source: intent

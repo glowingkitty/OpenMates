@@ -1,8 +1,3 @@
-//! Offline (local-read-only) browser draft publication state. Shared core, browser
-//! binding: a local profile may run only the local draft plans (capture, encrypted
-//! chats_db row, durable intent) on its master key. Publication stays refused until
-//! the same principal is admitted with server validation; the durable intent is then
-//! replayed. Implements `drafts.persistence.local-first-encrypted` (specifications/architecture/drafts).
 //! Offline (local-read-only) browser draft saves in the shared core, used by the
 //! web `drafts` Worker unit. A local profile may persist the encrypted draft row
 //! and its queued encrypted intent, but never publishes: `remote_payload`,

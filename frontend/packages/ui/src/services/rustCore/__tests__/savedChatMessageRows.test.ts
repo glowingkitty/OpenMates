@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { localReadToMessageWindow, RustHistoryRefusal, savedReadToMessages, savedReadToMessageWindow } from '../savedChatMessageRows';
-import { declareRustChatHistorySource, installRustChatHistorySource, readRustChatHistoryWindow } from '../activeChatRustHistory';
+import { declareRustChatHistorySource, installRustChatHistorySource, readRustChatHistoryPage, readRustChatHistoryWindow } from '../activeChatRustHistory';
 import type { LocalChatReadback, SavedChatReadback, SavedMessageMetadata } from '../savedReadProtocol';
 import type { Chat } from '../../../types/chat';
 
@@ -100,6 +100,9 @@ describe('savedReadToMessages', () => {
   it('maps the page window cursors', () => {
     expect(savedReadToMessageWindow(read(), chatId, false)).toMatchObject({ hasMoreBefore: true, hasMoreAfter: false,
       startCursor: 100, startCursorMessageId: 'm-user', endCursor: 101, endCursorMessageId: 'm-ai', anchorFound: true });
+    // The opaque Rust cursors survive the mapping so the next page chains through Rust.
+    expect(savedReadToMessageWindow(read(), chatId, false).startCursorRef).toEqual({ chatId, scope, createdAt: 100, messageId: 'm-user' });
+    expect(savedReadToMessageWindow(read(), chatId, false).endCursorRef).toEqual({ chatId, scope, createdAt: 101, messageId: 'm-ai' });
   });
 
   // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,chats.persistence.client-encrypted
@@ -113,6 +116,7 @@ describe('savedReadToMessages', () => {
     const window = localReadToMessageWindow(cached, chatId, false);
     expect(window.messages).toEqual(savedReadToMessages(server, chatId));
     expect(window).toMatchObject({ hasMoreBefore: false, hasMoreAfter: false, startCursorMessageId: 'm-user', anchorFound: true });
+    expect(window.startCursorRef).toEqual(server.startCursor);
     expect(() => localReadToMessageWindow(cached, chatId, true)).toThrow(new RustHistoryRefusal('anchor_not_found'));
     expect(() => localReadToMessageWindow({ ...cached, messageMetadata: undefined }, chatId, false)).toThrow('protocol');
   });
@@ -121,6 +125,7 @@ describe('savedReadToMessages', () => {
 describe('readRustChatHistoryWindow', () => {
   const chat = { chat_id: chatId, messages_v: 2 } as Chat;
   const input = { anchorMessageId: null, activeTeamId: null, localInitialPending: false };
+  const readPage = vi.fn(async () => savedReadToMessageWindow(read(), chatId, false));
   let uninstall = () => {};
   afterEach(() => { uninstall(); vi.restoreAllMocks(); });
 
@@ -134,7 +139,7 @@ describe('readRustChatHistoryWindow', () => {
     vi.spyOn(console, 'info').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const readWindow = vi.fn(async () => ({ window: savedReadToMessageWindow(read(), chatId, false), source: 'server' as const, reconcile: null }));
-    uninstall = installRustChatHistorySource({ readWindow });
+    uninstall = installRustChatHistorySource({ readWindow, readPage });
     expect((await readRustChatHistoryWindow(chat, input))?.window.messages).toHaveLength(2);
     expect(await readRustChatHistoryWindow({ ...chat, team_id: 'team' } as Chat, input)).toBeNull();
     expect(await readRustChatHistoryWindow({ ...chat, messages_v: 0 } as Chat, input)).toBeNull();
@@ -154,7 +159,7 @@ describe('readRustChatHistoryWindow', () => {
     const readWindow = vi.fn(async () => ({ window: savedReadToMessageWindow(read(), chatId, false), source: 'cache' as const,
       reconcile: async () => savedReadToMessageWindow(read(), chatId, false) }));
     let finish = () => {};
-    declareRustChatHistorySource(new Promise<void>((resolve) => { finish = () => { uninstall = installRustChatHistorySource({ readWindow }); resolve(); }; }));
+    declareRustChatHistorySource(new Promise<void>((resolve) => { finish = () => { uninstall = installRustChatHistorySource({ readWindow, readPage }); resolve(); }; }));
     const pending = readRustChatHistoryWindow(chat, input);
     finish();
     const result = await pending;
@@ -167,5 +172,43 @@ describe('readRustChatHistoryWindow', () => {
   it('keeps the TS path when a declared install provides no source', async () => {
     declareRustChatHistorySource(Promise.reject(new Error('import_failed')));
     expect(await readRustChatHistoryWindow(chat, input)).toBeNull();
+  });
+});
+
+describe('readRustChatHistoryPage', () => {
+  const chat = { chat_id: chatId, messages_v: 2 } as Chat;
+  const selector = { direction: 'before' as const, cursor: { chatId, scope, createdAt: 100, messageId: 'm-user' }, limit: 20, respectCompressionBoundary: false };
+  let uninstall = () => {};
+  afterEach(() => { uninstall(); vi.restoreAllMocks(); });
+
+  // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,chats.persistence.client-encrypted
+  it('pages through the Rust source and refuses only unowned chat shapes', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    expect(await readRustChatHistoryPage(chat, { selector, activeTeamId: null })).toBeNull();
+    const readPage = vi.fn(async () => savedReadToMessageWindow(read(), chatId, false));
+    uninstall = installRustChatHistorySource({ readWindow: vi.fn(), readPage });
+    expect((await readRustChatHistoryPage(chat, { selector, activeTeamId: null }))?.messages).toHaveLength(2);
+    expect(readPage).toHaveBeenCalledWith({ chatId, selector });
+    expect(await readRustChatHistoryPage({ ...chat, team_id: 'team' } as Chat, { selector, activeTeamId: null })).toBeNull();
+    expect(await readRustChatHistoryPage({ ...chat, is_shared_by_others: true } as Chat, { selector, activeTeamId: null })).toBeNull();
+    expect(console.info).toHaveBeenLastCalledWith('[RustCore] saved chat page refused:', 'shared_chat');
+    expect(readPage).toHaveBeenCalledTimes(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,chats.persistence.client-encrypted
+  it('rethrows non-refusal page failures', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    uninstall = installRustChatHistorySource({ readWindow: vi.fn(), readPage: vi.fn(async () => { throw new Error('session_expired'); }) });
+    await expect(readRustChatHistoryPage(chat, { selector, activeTeamId: null })).rejects.toThrow('session_expired');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary,chats.persistence.client-encrypted
+  it('an unreachable server hands older paging back to the local cache', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    for (const code of ['unavailable', 'deadline']) {
+      uninstall = installRustChatHistorySource({ readWindow: vi.fn(), readPage: vi.fn(async () => { throw new Error(code); }) });
+      expect(await readRustChatHistoryPage(chat, { selector, activeTeamId: null }), code).toBeNull();
+      uninstall();
+    }
   });
 });

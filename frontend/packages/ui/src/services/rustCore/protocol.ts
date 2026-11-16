@@ -388,11 +388,25 @@ export function parseBrowserLocalReadPlan(encoded: string): LocalReadPlan {
   } else throw new Error("unavailable");
   return value as unknown as LocalReadPlan;
 }
-export type LocalCursorSelector = { direction: "latest" } | { direction: "before" | "after"; cursor: SavedReadCursor } | { direction: "around"; anchorMessageId: string };
+/** Optional page shaping for `before`/`after`/`around`; Rust owns the bounds (wasm: 1..=20 rows). */
+export interface SavedPageShape { limit?: number; respectCompressionBoundary?: boolean }
+export const MAX_SAVED_PAGE_LIMIT = 20;
+export type LocalCursorSelector = { direction: "latest" }
+  | ({ direction: "before" | "after"; cursor: SavedReadCursor } & SavedPageShape)
+  | ({ direction: "around"; anchorMessageId: string } & SavedPageShape);
+function validPageShape(value: Record<string, unknown>): boolean {
+  if (Object.hasOwn(value, "limit") && !(Number.isInteger(value.limit) && (value.limit as number) >= 1 && (value.limit as number) <= MAX_SAVED_PAGE_LIMIT)) return false;
+  return !Object.hasOwn(value, "respectCompressionBoundary") || typeof value.respectCompressionBoundary === "boolean";
+}
+function pageKeys(value: unknown, base: readonly string[]): readonly string[] {
+  if (!record(value)) return base;
+  return [...base, ...["limit", "respectCompressionBoundary"].filter(key => Object.hasOwn(value, key))];
+}
 export function validLocalCursorSelector(value: unknown, chatId: string): value is LocalCursorSelector {
   if (localCursorData(value, ["direction"]) && value.direction === "latest") return true;
-  if (localCursorData(value, ["direction", "anchorMessageId"]) && value.direction === "around") return validReadMessageId(value.anchorMessageId);
-  if (!localCursorData(value, ["direction", "cursor"]) || !["before", "after"].includes(String(value.direction))) return false;
+  const around = localCursorData(value, pageKeys(value, ["direction", "anchorMessageId"])) && value.direction === "around";
+  if (around) return validReadMessageId(value.anchorMessageId) && validPageShape(value);
+  if (!localCursorData(value, pageKeys(value, ["direction", "cursor"])) || !["before", "after"].includes(String(value.direction)) || !validPageShape(value)) return false;
   const cursor = value.cursor;
   return localCursorData(cursor, ["chatId", "scope", "createdAt", "messageId"]) && cursor.chatId === chatId && localCursorUuid(cursor.chatId)
     && typeof cursor.scope === "string" && cursor.scope.length === 64 && /^[a-f0-9]{64}$/.test(cursor.scope) && localCursorNonnegativeInteger(cursor.createdAt) && localCursorIdentifier(cursor.messageId);

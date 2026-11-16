@@ -109,6 +109,8 @@ export function localReadToMessageWindow(read: LocalChatReadback, chatId: string
     startCursorMessageId: read.startCursor?.messageId ?? null,
     endCursor: cursorTime(read.endCursor),
     endCursorMessageId: read.endCursor?.messageId ?? null,
+    startCursorRef: read.startCursor,
+    endCursorRef: read.endCursor,
     anchorFound: anchored ? read.anchorFound : true,
   };
 }
@@ -124,6 +126,8 @@ export function savedReadToMessageWindow(read: SavedChatReadback, chatId: string
     startCursorMessageId: read.startCursor?.messageId ?? null,
     endCursor: cursorTime(read.endCursor),
     endCursorMessageId: read.endCursor?.messageId ?? null,
+    startCursorRef: read.startCursor,
+    endCursorRef: read.endCursor,
     anchorFound: anchored ? read.anchorFound : true,
   };
 }

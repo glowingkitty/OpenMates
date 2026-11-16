@@ -242,11 +242,16 @@ test('Rust core saves a draft written offline locally and publishes its queued i
 	const offlineText = 'Offline draft written without a connection';
 	await page.keyboard.type(offlineText);
 	const offlineMarker = async () => `marker=${await page.evaluate(() => document.documentElement.dataset.rustCoreDraft ?? null)}`;
-	await expect.poll(async () => {
-		const version = (await page.evaluate(draftRow, chatId))?.draftV ?? 0;
-		if (version <= onlineVersion) offlineSaveState = await offlineMarker();
-		return version;
-	}, { message: () => `the offline draft was saved locally by Rust (route outcome: ${offlineSaveState})`, timeout: 30000 }).toBeGreaterThan(onlineVersion);
+	try {
+		await expect.poll(async () => {
+			const version = (await page.evaluate(draftRow, chatId))?.draftV ?? 0;
+			if (version <= onlineVersion) offlineSaveState = await offlineMarker();
+			return version;
+		}, { message: 'the offline draft was saved locally by Rust', timeout: 30000 }).toBeGreaterThan(onlineVersion);
+	} catch (error) {
+		const draftLines = consoleLines.filter((line) => /DraftService|RustCore|draft/i.test(line)).slice(-25);
+		throw new Error(`the offline draft was not saved by Rust (route outcome: ${offlineSaveState}); draft console lines:\n${draftLines.join('\n')}\n${error instanceof Error ? error.message : String(error)}`);
+	}
 	expect((await page.evaluate(draftRow, chatId))?.hasCiphertext, 'encrypted draft stored in chats_db').toBe(true);
 	expect(await page.evaluate(() => document.documentElement.dataset.rustCoreDraft ?? null), 'no TS writer fallback').toMatch(/^rust-(local|synced)$/);
 	expect(await page.evaluate(queuedIntentCount, chatId), 'an encrypted update is queued offline').toBeGreaterThan(0);

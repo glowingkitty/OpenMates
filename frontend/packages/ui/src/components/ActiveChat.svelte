@@ -50,7 +50,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { chatNavigationReader } from '../services/chatNavigationReader';
     import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
     import { fetchAuthenticatedChatMessageWindow } from '../services/authenticatedChatMessageWindow';
-    import { readRustChatHistoryWindow } from '../services/rustCore/activeChatRustHistory';
+    import { readRustChatHistoryPage, readRustChatHistoryWindow } from '../services/rustCore/activeChatRustHistory';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { VisibleMessageReceipts } from '../services/visibleMessageReceipts';
     import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
@@ -82,6 +82,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { installWorkflowSidePanelE2EHook } from './workflows/workflowSidePanelE2EHook';
     import { workflowSidePanel, closeWorkflowSidePanel } from '../stores/workflowSidePanelStore';
     import type { AudioWaveformData } from '../utils/audioWaveform';
+    import type { SavedReadCursor } from '../services/rustCore/savedReadProtocol';
     import Model3DResultEmbedFullscreen from './embeds/models3d/Model3DResultEmbedFullscreen.svelte';
     import { resolveRegistryKey, hasFullscreenComponent, loadFullscreenComponent } from '../services/embedFullscreenResolver';
     import { CHUNK_ERROR_MESSAGE, forcePageReload, isChunkLoadError, logChunkLoadError } from '../utils/chunkErrorHandler';
@@ -276,6 +277,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     const ON_DEMAND_MESSAGE_LOAD_POLL_DELAY_MS = 500;
     const E2E_DRAFT_FLUSH_TIMEOUT_MS = 10_000;
     const MESSAGE_WINDOW_LIMIT = 30;
+    /** Rust page cap (wasm bound); the Rust older page is shorter than the TS window. */
+    const RUST_OLDER_PAGE_LIMIT = 20;
+    /** Opaque Rust cursor of the first displayed row when the window came from Rust. */
+    let rustWindowStartCursor: SavedReadCursor | null = null;
     const EMBED_ID_IN_REF_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
     function extractPlainIdeaBucketText(markdown: string): string | null {
         const matches = [...markdown.matchAll(/----- Idea \d+ -----\r?\n([\s\S]*?)\r?\n-----------------/g)];
@@ -9889,13 +9894,24 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (!windowStartMessage?.created_at || !windowStartMessage.message_id) return;
             const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
             let windowRevision = getRecentChatRevision(openedChatId);
-            let olderWindow = await chatDB.getMessageWindowForChat(openedChatId, {
+            // Rust-owned chats page older through the Rust core, chained from the opaque cursor of
+            // the displayed Rust window. TS (IndexedDB, then the TS server fetch) stays ONLY when
+            // Rust refuses the chat (RustHistoryRefusal: team_chat, shared_chat, unsynced_chat,
+            // local_fixture_chat), no Rust source is installed, or no matching Rust cursor is known.
+            const rustStartCursor = rustWindowStartCursor?.messageId === windowStartMessage.message_id
+                && rustWindowStartCursor.createdAt === windowStartMessage.created_at ? rustWindowStartCursor : null;
+            const rustOlderWindow = import.meta.env.VITE_OPENMATES_RUST_CORE !== '1' || !rustStartCursor ? null
+                : await readRustChatHistoryPage(currentChat, { activeTeamId: get(activeTeamId),
+                    selector: { direction: 'before', cursor: rustStartCursor, limit: RUST_OLDER_PAGE_LIMIT,
+                        respectCompressionBoundary: !!latestCheckpoint } });
+            if (rustOlderWindow?.startCursorRef !== undefined && currentChat?.chat_id === openedChatId) rustWindowStartCursor = rustOlderWindow.startCursorRef;
+            let olderWindow = rustOlderWindow ?? await chatDB.getMessageWindowForChat(openedChatId, {
                 direction: 'before',
                 beforeTimestamp: windowStartMessage.created_at,
                 beforeMessageId: windowStartMessage.message_id,
                 compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
             });
-            if (olderWindow.messages.length === 0) {
+            if (!rustOlderWindow && olderWindow.messages.length === 0) {
                 olderWindow = await fetchAuthenticatedMessageWindow(openedChatId, {
                     direction: 'before',
                     beforeTimestamp: windowStartMessage.created_at,
@@ -10786,6 +10802,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         .catch((rustError: unknown) => { rustOwnedHistory = true; messageLoadFailed = true; throw rustError; });
                     rustOwnedHistory ||= !!rustRead;
                     const rustWindow = rustRead?.window ?? null;
+                    rustWindowStartCursor = rustWindow?.startCursorRef ?? null;
                     // A Rust cache-first page reconciles exactly like the TS IndexedDB window,
                     // with the Rust server read as the background repair.
                     const rustReconcile = rustRead?.reconcile ?? null;
@@ -10949,6 +10966,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     left.created_at - right.created_at || left.message_id.localeCompare(right.message_id),
                 );
                 currentMessageWindowHasMoreBefore = repairedWindow.hasMoreBefore;
+                // A Rust reconcile page carries the opaque cursor of its first row; the merged window starts there.
+                if (repairedWindow.startCursorRef) rustWindowStartCursor = repairedWindow.startCursorRef;
                 const prunedMergedMessages = await pruneCurrentDecryptedMessageWindowRust(mergedMessages);
                 if ((!isCurrentLoadTarget() || currentChat?.chat_id !== repairChatId)) return;
                 currentMessages = prunedMergedMessages;
