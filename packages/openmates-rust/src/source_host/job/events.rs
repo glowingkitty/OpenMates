@@ -3,10 +3,11 @@
 //!
 //! Port of the event half of `remoteCommandSource.ts` (`#enqueue`, `#flush`,
 //! `#appendModelText`, `completionModelText`). Events are sealed with the
-//! project key in the combined AES-GCM format of `crypto::encrypt_combined`,
-//! which the origin (`client/remote_command_jobs.rs`) opens with
-//! `crypto::decrypt_combined`. The queue does no IO: the driver sends the
-//! frame from [`ExecutionEvents::next_frame`] and reports the ack or failure.
+//! project key in the embed-key envelope of `crypto::encrypt_embed_envelope`
+//! (IV || AES-GCM, as the npm host wrote it), because the web origin opens
+//! them with `decryptWithEmbedKey`; the Rust origin
+//! (`client/remote_command_jobs.rs`) opens them with `crypto::decrypt_combined`.
+//! The queue does no IO: the driver sends the frame from [`ExecutionEvents::next_frame`] and reports the ack or failure.
 //! spec: specifications/features/app-skills/code-run code-run.remote.*
 
 use super::wire::{
@@ -299,8 +300,9 @@ impl ExecutionEvents {
                 item.status,
                 &item.payload,
             )?;
-            item.encrypted =
-                Some(crypto::encrypt_combined(&plaintext, key).map_err(|_| EventError::Seal)?);
+            item.encrypted = Some(
+                crypto::encrypt_embed_envelope(&plaintext, key).map_err(|_| EventError::Seal)?,
+            );
         }
         let sealed = item.encrypted.as_deref().unwrap_or_default();
         let terminal = item.kind == EventKind::Terminal;

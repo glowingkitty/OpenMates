@@ -163299,7 +163299,7 @@ assertions:
       surface: gui.web
     - &id20765
       path: frontend/apps/web_app/tests/agentic-remote-project-web-real.spec.ts
-      line: 336
+      line: 340
       name: 'phone: the same Project views and the chat'
       surface: gui.web
     supporting_tests:

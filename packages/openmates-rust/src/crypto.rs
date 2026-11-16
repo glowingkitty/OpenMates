@@ -167,6 +167,25 @@ pub fn decrypt_combined(ciphertext: &str, key: &[u8; 32]) -> Result<String> {
     Ok(String::from_utf8_lossy(&raw).into_owned())
 }
 
+/// Seal UTF-8 text in the embed-key envelope: base64(`iv[12] || AES-GCM(ciphertext || tag)`),
+/// no `OM` marker and no key fingerprint.
+///
+/// This is the byte format of the web client's `encryptWithEmbedKey` /
+/// `decryptWithEmbedKey` (`MetadataEncryptor.ts`), which reads only this
+/// envelope. Use it for payloads a browser must open with those functions
+/// (remote-command events sealed with the Project key); [`decrypt_combined`]
+/// opens both this and the framed format, so Rust readers are unaffected.
+///
+/// # Errors
+/// [`Error::Crypto`] when AES-GCM sealing fails.
+pub(crate) fn encrypt_embed_envelope(text: &str, key: &[u8; 32]) -> Result<String> {
+    let mut nonce = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce);
+    let mut combined = nonce.to_vec();
+    combined.extend(encrypt_aead(text.as_bytes(), key, &nonce, &[])?);
+    Ok(STANDARD.encode(combined))
+}
+
 pub fn encrypt_bytes(plaintext: &[u8], key: &[u8; 32]) -> Result<String> {
     let mut nonce = [0u8; 12];
     OsRng.fill_bytes(&mut nonce);

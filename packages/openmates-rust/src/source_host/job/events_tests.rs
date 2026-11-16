@@ -144,3 +144,21 @@ fn heartbeat_is_due_only_when_idle_running_and_leased() {
     q.clear_lease();
     assert!(q.next_frame(&KEY).unwrap().is_none());
 }
+
+#[test]
+fn sealed_event_uses_the_web_embed_envelope_the_browser_opens() {
+    use base64::Engine as _;
+    let mut q = queue();
+    q.push_output(1, Stream::Stdout, "ok\n", EventStatus::Running);
+    let out = q.next_frame(&KEY).unwrap().unwrap();
+    let sealed = out.payload["encrypted_event"].as_str().unwrap();
+    let raw = base64::engine::general_purpose::STANDARD
+        .decode(sealed)
+        .unwrap();
+    // `decryptWithEmbedKey` (MetadataEncryptor.ts) reads iv = bytes[0..12] and
+    // the AES-GCM ciphertext+tag after it, with no `OM` marker or fingerprint.
+    let plain = crypto::decrypt_aead(&raw[12..], &KEY, &raw[..12], &[]).unwrap();
+    let event: Value = serde_json::from_slice(&plain).unwrap();
+    assert_eq!(event["text"], "ok\n");
+    assert_eq!(event["sequence"], 0);
+}
