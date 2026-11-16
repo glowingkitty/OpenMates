@@ -25,4 +25,4 @@ from design_embroidery_web_real_test import main
 SPEC = "tests/travel-mixed-routes-real.spec.ts"
 
 if __name__ == "__main__":
-    sys.exit(main(spec=SPEC, title="Travel mixed routes", doc=__doc__))
+    sys.exit(main(spec=SPEC, title="Travel mixed routes", doc=__doc__, grep_option=True))
