@@ -639,7 +639,7 @@ class WebSocketService extends EventTarget {
     // A logout or forced reconnect may have superseded this attempt while its
     // token refresh was pending. Never open a socket for the stale attempt.
     if (generation !== this.connectionGeneration) {
-      throw new Error("Connection attempt superseded");
+      throw Object.assign(new Error("Connection attempt superseded"), { code: WEBSOCKET_CONNECTION_CHANGED });
     }
     if (
       !get(authStore).isAuthenticated ||
@@ -1277,6 +1277,7 @@ class WebSocketService extends EventTarget {
           logFn(
             "[WebSocketService] Connection failed, cannot send message:",
             logMessage,
+            _error,
           );
         }
         throw new Error("WebSocket not connected");

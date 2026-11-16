@@ -1514,8 +1514,10 @@
    */
   async function sendViewedEvent(inspirationId: string): Promise<boolean> {
     if (!get(authStore).isAuthenticated) return true;
+    let superseded: (error: unknown) => boolean = () => false;
     try {
-      const { webSocketService } = await import('../services/websocketService');
+      const { webSocketService, isWebSocketConnectionChanged } = await import('../services/websocketService');
+      superseded = isWebSocketConnectionChanged;
       if (!webSocketService.isConnected()) {
         console.debug('[DailyInspirationBanner] Skipping inspiration_viewed while WebSocket is disconnected:', inspirationId);
         return true;
@@ -1526,7 +1528,9 @@
       console.debug('[DailyInspirationBanner] Sent inspiration_viewed:', inspirationId);
       return true;
     } catch (err) {
-      console.error('[DailyInspirationBanner] Failed to send inspiration_viewed:', err);
+      // A reconnect replacing the socket is an expected race, not a failure.
+      const logFn = superseded(err) ? console.warn : console.error;
+      logFn('[DailyInspirationBanner] Failed to send inspiration_viewed:', err);
       return true;
     }
   }
