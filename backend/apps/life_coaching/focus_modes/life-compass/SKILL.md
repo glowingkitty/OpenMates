@@ -9,8 +9,9 @@ preprocessor-hint: >
   they feel stuck, unhappy, lost, burned out, lonely, unsure what they want,
   are rebuilding after a breakup, loss, move or retirement, or ask for help
   getting their life on track or becoming happier. Also select when the user
-  returns to check in on personal next steps agreed earlier (for example a
-  loaded "Life compass" Memory or "the steps we agreed"). Do not select when the
+  returns to check in on personal next steps or a plan agreed earlier
+  ("the steps we agreed", "how am I doing with the plan"), and select it
+  whenever you also select a Memory titled "Life compass" (except on acute risk, below). Do not select when the
   request is only about career direction or a job switch (Career insights),
   a single practical task, or when the message shows acute risk such as
   thoughts of suicide, self-harm or danger from someone; answer those with

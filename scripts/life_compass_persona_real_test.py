@@ -312,6 +312,14 @@ def run_persona(cli: str, persona: dict, out: Path, timeout: int) -> dict:
                 result["cleanup"][chat_id] = "deleted"
             except (ProofError, subprocess.TimeoutExpired):
                 result["cleanup"][chat_id] = "failed"
+        # Undo can miss a write (a later-chat update, a failed chat cleanup); delete what is left by id so
+        # the next persona never loads this persona's Life compass Memory.
+        for entry in [e for e in memory_entries(cli) if json.dumps(e, sort_keys=True) not in baseline]:
+            if isinstance(entry, dict) and entry.get("id"):
+                try:
+                    native(cli, ["settings", "memories", "delete", "--id", str(entry["id"])])
+                except (ProofError, subprocess.TimeoutExpired):
+                    result["cleanup"][str(entry["id"])] = "delete_failed"
         leftover = [e for e in memory_entries(cli) if json.dumps(e, sort_keys=True) not in baseline]
         result["cleanup"]["memories_left"] = len(leftover)
     write_receipt(out / "result.json", result)
@@ -390,9 +398,17 @@ def main() -> int:
             guard = DraftGuard.start(cli, api_url=API_URL)
         except DraftGuardError as exc:
             raise ProofError(str(exc)) from exc
+        # A Life compass Memory left by an earlier interrupted run would be loaded into every persona.
+        for entry in memory_entries(cli):
+            if isinstance(entry, dict) and (entry.get("data") or {}).get("title") == "Life compass" and entry.get("id"):
+                native(cli, ["settings", "memories", "delete", "--id", str(entry["id"])])
+                receipt.setdefault("stale_memories_deleted", 0)
+                receipt["stale_memories_deleted"] += 1
         selected = [p for p in PERSONAS if not args.persona or p["key"] in args.persona]
         for persona in selected:
             receipt["personas"][persona["key"]] = run_persona(cli, persona, out / persona["key"], args.timeout_seconds)
+            if receipt["personas"][persona["key"]]["cleanup"].get("memories_left"):
+                raise ProofError(f"memory_cleanup_failed_after_{persona['key']}")
         require_runtime_revision(args.revision)
         receipt["status"] = "passed" if all(r["status"] == "passed" for r in receipt["personas"].values()) \
             else "failed"
