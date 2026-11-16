@@ -32,8 +32,9 @@ const SAVE_PROMPT = MOCKED
 const LOAD_PROMPT = MOCKED
   ? 'Which employer should I mention in my cover letter?'
   : 'Which employer should I mention in my cover letter? Use my saved career profile memory.';
+const FOLLOW_UP_PROMPT = 'Thanks. Also, what is the capital of Germany?';
 
-const NOTICE = '[data-testid="context-entry-event"][data-kind="memory"][data-source="assistant"]';
+const NOTICE ='[data-testid="context-entry-event"][data-kind="memory"][data-source="assistant"]';
 
 /** Opens Settings > Memories and returns the private Memory rows titled TITLE. */
 async function leftoverMemoryRows(page: Page) {
@@ -96,6 +97,14 @@ test.describe('assistant memory reuse', () => {
     // The user message names what was shared in readable words, never a raw id.
     await expect(page.getByTestId('app-settings-memory-category-badge')).toHaveText('Memories (1)', { timeout: 20000 });
     await testInfo.attach('answer-uses-career-profile', {
+      body: await page.screenshot(), contentType: 'image/png'
+    });
+
+    // The chat goes on after the Memory continuation: a follow-up is accepted by the server and answered.
+    const answers = await page.getByTestId('mate-message-content').count();
+    await sendMessage(page, withMockMarker(FOLLOW_UP_PROMPT, 'chat_flow_capital', 'fast'), log, screenshot, 'follow-up-after-memory');
+    await expect(page.getByTestId('mate-message-content')).toHaveCount(answers + 1, { timeout: 180000 });
+    await testInfo.attach('follow-up-after-memory-answered', {
       body: await page.screenshot(), contentType: 'image/png'
     });
 

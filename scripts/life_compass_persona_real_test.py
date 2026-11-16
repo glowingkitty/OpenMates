@@ -242,9 +242,21 @@ def judge(cli: str, persona: dict, first: list[dict], later: list[dict], memorie
     return verdict
 
 
+MEMORY_DIAGNOSTIC: dict[str, Path | None] = {"path": None}
+
+
 def memory_entries(cli: str) -> list[dict]:
-    listed = native(cli, ["settings", "memories", "list"])
+    listed = native(cli, ["settings", "memories", "list"], diagnostic_path=MEMORY_DIAGNOSTIC["path"])
     return listed if isinstance(listed, list) else []
+
+
+def delete_memory(cli: str, entry_id: str) -> None:
+    """The native CLI lists account Memory documents read-only; the npm CLI deletes them."""
+    if entry_id.startswith("account-memory-"):
+        command(cli, ["settings", "memories", "delete", "--id", entry_id],
+                diagnostic_path=MEMORY_DIAGNOSTIC["path"] and MEMORY_DIAGNOSTIC["path"].with_name("memory-delete.json"))
+    else:
+        native(cli, ["settings", "memories", "delete", "--id", entry_id])
 
 
 def write_transcript(out: Path, persona: dict, result: dict, first: list[dict], later: list[dict],
@@ -300,7 +312,8 @@ def run_persona(cli: str, persona: dict, out: Path, timeout: int) -> dict:
         result["error_code"] = str(exc) if isinstance(exc, ProofError) else type(exc).__name__
     finally:
         write_transcript(out, persona, result, first, later, memories, tasks)
-        for chat_id in chat_ids:
+        # Newest chat first: the first chat's create can only be undone once the later update is undone.
+        for chat_id in reversed(chat_ids):
             try:
                 listed = command(cli, ["tasks", "list", "--chat", chat_id, "--personal", "--json"])
                 raw = listed.get("tasks") if isinstance(listed, dict) else listed
@@ -320,7 +333,7 @@ def run_persona(cli: str, persona: dict, out: Path, timeout: int) -> dict:
         for entry in [e for e in memory_entries(cli) if json.dumps(e, sort_keys=True) not in baseline]:
             if isinstance(entry, dict) and entry.get("id"):
                 try:
-                    native(cli, ["settings", "memories", "delete", "--id", str(entry["id"])])
+                    delete_memory(cli, str(entry["id"]))
                 except (ProofError, subprocess.TimeoutExpired):
                     result["cleanup"][str(entry["id"])] = "delete_failed"
         leftover = [e for e in memory_entries(cli) if json.dumps(e, sort_keys=True) not in baseline]
@@ -339,6 +352,8 @@ def main() -> int:
     parser.add_argument("--timeout-seconds", type=int, default=300)
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
     parser.add_argument("--throwaway-account", action="store_true")
+    parser.add_argument("--leftover-chat", action="append", default=[],
+                        help="Chat id of an interrupted proof run: its Memory is undone and the chat deleted first")
     parser.add_argument("--native-cli", type=Path, help="Built native openmates binary (target/debug/openmates)")
     parser.add_argument("--native-session-import", type=Path,
                         help="Built scripts/native_cli_session_import binary (required with --native-cli)")
@@ -401,10 +416,22 @@ def main() -> int:
             guard = DraftGuard.start(cli, api_url=API_URL)
         except DraftGuardError as exc:
             raise ProofError(str(exc)) from exc
+        MEMORY_DIAGNOSTIC["path"] = args.output_dir / "memories-list.json"
+        # Account Memories saved in a web chat cannot be deleted by id from the CLI; undo them by chat.
+        for chat_id in args.leftover_chat:
+            cleaned = receipt.setdefault("leftover_chats_cleaned", {})
+            # Not every interrupted chat saved a Memory; the stale-Memory check below still guards the run.
+            for step, step_args in (("memory_undo", ["settings", "memories", "undo", "--chat", chat_id]),
+                                    ("chat_delete", ["chats", "delete", chat_id, "--yes"])):
+                try:
+                    native(cli, step_args)
+                    cleaned[f"{chat_id}:{step}"] = "ok"
+                except ProofError as exc:
+                    cleaned[f"{chat_id}:{step}"] = str(exc)
         # A Life compass Memory left by an earlier interrupted run would be loaded into every persona.
         for entry in memory_entries(cli):
             if isinstance(entry, dict) and (entry.get("data") or {}).get("title") == "Life compass" and entry.get("id"):
-                native(cli, ["settings", "memories", "delete", "--id", str(entry["id"])])
+                delete_memory(cli, str(entry["id"]))
                 receipt.setdefault("stale_memories_deleted", 0)
                 receipt["stale_memories_deleted"] += 1
         selected = [p for p in PERSONAS if not args.persona or p["key"] in args.persona]

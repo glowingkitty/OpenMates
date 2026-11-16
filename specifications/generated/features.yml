@@ -13664,11 +13664,13 @@ features:
       assertions:
         passing: 0
         failing: 0
-        not_run: 5
+        not_run: 6
         missing: 2
-        counted: 7
-      key_tests: []
-      evidence: focus modes in app store UI (app.yml); no dedicated embed
+        counted: 8
+      key_tests:
+      - frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
+      evidence: 'real dev web proof: scripts/life_compass_focus_web_real_test.py (activation, Tasks, consented Memory, later-chat
+        follow-up)'
       e2e_tests:
       - frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
       key_unit_tests: []

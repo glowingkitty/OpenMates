@@ -137,7 +137,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [IdeaBucket](#ideabucket) | impl | — |  | impl | impl | impl | impl | impl | on | on | v0.19.0 |
 | [Images](#images) | **FAIL** 2/34 | partial 1/31 |  | not run 0/31 | impl | partial 26/28 | impl | impl | on | on | v0.1-alpha-1 |
 | [Jobs](#jobs) | **live** 1/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
-| [Life coaching](#life-coaching) | not run 0/7 | wip |  | partial 1/7 | impl | — | impl | wip | on | off | unreleased |
+| [Life coaching](#life-coaching) | not run 0/8 | wip |  | partial 1/7 | impl | — | impl | wip | on | off | unreleased |
 | &nbsp;&nbsp;↳ Life compass focus mode | not run 0/7 | ? |  | partial 1/7 | ? | — | ? | ? | | | |
 | [Mail](#mail) | **FAIL** 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Maps](#maps) | **FAIL** 2/5 | impl |  | partial 1/5 | impl | partial 4/5 | not run 0/5 | not run 0/5 | on | on | v0.5.0-alpha |
@@ -1842,7 +1842,7 @@ Plan your next steps in life: the Life compass focus mode (dev only) learns your
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | not run 0/7 | 0 pass · 0 fail · 5 not run · 2 no test | [life-compass-focus-web-real.spec.ts](../../frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts) |
+| Web | not run 0/8 | 0 pass · 0 fail · 6 not run · 2 no test | [life-compass-focus-web-real.spec.ts](../../frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts)<br>[life-compass-focus-web-real.spec.ts](../../frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts) |
 | Apple | wip | — | — |
 | CLI | partial 1/7 | 1 pass · 0 fail · 0 not run · 6 no test | 1 unit test file(s), e.g. [test_focus_mode_routing.py](../../backend/tests/test_focus_mode_routing.py) |
 | TUI | impl | — | — |

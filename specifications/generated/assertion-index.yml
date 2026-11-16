@@ -32773,7 +32773,7 @@ assertions:
       surface: cli
     - &id4201
       path: frontend/apps/web_app/tests/memory-reuse.spec.ts
-      line: 51
+      line: 52
       name: a saved Memory is requested in a new chat, approved in the dialog and
         used in the answer
       surface: gui.web

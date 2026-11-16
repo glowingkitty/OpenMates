@@ -954,11 +954,13 @@ features:
         assertions: ["life-compass.*"]
     evidence:
       cli: "real dev persona runs: scripts/life_compass_persona_real_test.py"
-      web: "focus modes in app store UI (app.yml); no dedicated embed"
+      web: "real dev web proof: scripts/life_compass_focus_web_real_test.py (activation, Tasks, consented Memory, later-chat follow-up)"
       apple: "apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift"
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
       sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
       sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
+    key_tests:
+      web: [frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts]
   - id: mail
     name: "Mail"
     kind: app
