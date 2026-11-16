@@ -14,10 +14,10 @@ capabilities:
   shells:
     web:
       total: 21
-      ts-only: 5
+      ts-only: 4
       swift-only: 0
       rust-twin: 0
-      rust-default: 6
+      rust-default: 7
       rust-only: 8
       stays-shell: 2
     apple:
@@ -59,8 +59,8 @@ areas:
   unit: capabilities (web cells)
   total: 21
   done: 10
-  partial: 6
-  missing: 5
+  partial: 7
+  missing: 4
   percent: 47.6
   done_definition: capability whose web cell is rust-only (old web code deleted, suite green) or stays-shell (capabilities.yml)
   blockers: ['planned units without installer: embedWrite, embedWriteGuest, embedEdit, projectTimeline, presentRemote',

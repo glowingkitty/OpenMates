@@ -145,10 +145,11 @@ capabilities:
 - id: chat-window
   what: bounded message window, paging, full read
   web:
-    status: ts-only
+    status: rust-default
     old:
     - frontend/packages/ui/src/services/authenticatedChatMessageWindow.ts
-    last_commit: null
+    note: personal saved-chat open, older/around paging (activeChatRustHistory.ts) and the live window (socketFrameForwarder.ts frames and chat admission into the Worker core) run in the core; the TS window still serves team and shared chats, unsynced local chats and the voice-call context (voiceCallMessages.ts)
+    last_commit: 21cab7f8f2
   apple:
     status: rust-default
     old:
