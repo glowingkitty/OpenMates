@@ -129386,7 +129386,7 @@ assertions:
     direct_tests:
     - &id16469
       path: frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
-      line: 163
+      line: 178
       name: activates, agrees steps as Tasks, saves a Memory on yes and follows up
         in a later chat
       surface: gui.web
@@ -129413,7 +129413,7 @@ assertions:
     direct_tests:
     - &id16470
       path: frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
-      line: 163
+      line: 178
       name: activates, agrees steps as Tasks, saves a Memory on yes and follows up
         in a later chat
       surface: gui.web
@@ -129432,7 +129432,7 @@ assertions:
     direct_tests:
     - &id16471
       path: frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
-      line: 163
+      line: 178
       name: activates, agrees steps as Tasks, saves a Memory on yes and follows up
         in a later chat
       surface: gui.web
@@ -129451,7 +129451,7 @@ assertions:
     direct_tests:
     - &id16473
       path: frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
-      line: 163
+      line: 178
       name: activates, agrees steps as Tasks, saves a Memory on yes and follows up
         in a later chat
       surface: gui.web
@@ -129480,7 +129480,7 @@ assertions:
     direct_tests:
     - &id16474
       path: frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
-      line: 163
+      line: 178
       name: activates, agrees steps as Tasks, saves a Memory on yes and follows up
         in a later chat
       surface: gui.web

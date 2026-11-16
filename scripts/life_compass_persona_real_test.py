@@ -229,9 +229,12 @@ def judge(cli: str, persona: dict, first: list[dict], later: list[dict], memorie
               + "\n\nCREATED TASKS:\n" + (json.dumps(tasks, ensure_ascii=False)[:3000] or "none")
               + "\n\nLATER CHAT:\n" + "\n\n".join(transcript_lines(later)))
     text = incognito(cli, prompt, out / "judge.json", response_timeout=600)
-    match = re.search(r"\{.*\}", text, re.DOTALL)
+    # The judge may run web searches first (embed JSON blocks) and get the platform disclaimer
+    # appended; decode the verdict object itself rather than the outermost braces.
+    text = DISCLAIMER.sub("", text)
+    start = text.find('{"criteria"')
     try:
-        verdict = json.loads(match.group(0)) if match else None
+        verdict = json.JSONDecoder().raw_decode(text[start:])[0] if start >= 0 else None
     except json.JSONDecodeError:
         verdict = None
     if not isinstance(verdict, dict) or not isinstance(verdict.get("criteria"), dict):

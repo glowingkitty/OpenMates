@@ -112,9 +112,22 @@ async function waitForIdle(page: Page): Promise<void> {
   }, { timeout: TURN_TIMEOUT, intervals: [1_000] }).toBe(true);
 }
 
+/**
+ * Assistant-saved Memories load as "ask first": any turn, also in the chat that just saved one,
+ * can pause on the permission dialog. The user includes Life compass, as a real user would.
+ */
+async function includeMemoryIfAsked(page: Page): Promise<void> {
+  const dialog = page.getByTestId('app-settings-memories-permission-dialog');
+  if (!(await dialog.isVisible().catch(() => false))) return;
+  await expect(dialog.getByText(MEMORY_TITLE, { exact: true })).toBeVisible({ timeout: 10_000 });
+  await dialog.getByTestId('btn-include').click();
+}
+
 async function waitForTurn(page: Page, assistantsBefore: number): Promise<void> {
-  await expect.poll(() => page.getByTestId('message-assistant').count(), { timeout: TURN_TIMEOUT, intervals: [2_000] })
-    .toBeGreaterThan(assistantsBefore);
+  await expect.poll(async () => {
+    await includeMemoryIfAsked(page);
+    return page.getByTestId('message-assistant').count();
+  }, { timeout: TURN_TIMEOUT, intervals: [2_000] }).toBeGreaterThan(assistantsBefore);
   await waitForAssistantMessage(page, { timeout: TURN_TIMEOUT });
   await waitForIdle(page);
   const generatedBy = page.getByTestId('message-assistant').last().getByTestId('generated-by');
@@ -133,12 +146,14 @@ async function createdTaskCount(page: Page): Promise<number> {
 /** Picks the fixed reply that answers what the last assistant message asks. */
 function nextReply(text: string, state: { facts: boolean; confirmed: boolean; tasks: boolean; saved: boolean }): string {
   if (!state.facts) return FACTS;
-  if (!state.saved && /remember|save|memory/i.test(text)) return REMEMBER;
-  if (!state.confirmed && /(right|accurate|fit|correct|sound)\b[^?]*\?/i.test(text)) {
+  // Answer the closing question only: earlier sentences ("pick up right here") are not questions.
+  const question = (text.match(/[^.!?\n]*\?/g) ?? []).pop() ?? '';
+  if (!state.saved && /remember|save|memory/i.test(question)) return REMEMBER;
+  if (!state.confirmed && /(right|accurate|fit|correct|sound)\b/i.test(question)) {
     state.confirmed = true;
     return CONFIRM;
   }
-  if (!state.tasks && /step|try|todo|task/i.test(text)) return CHOOSE;
+  if (!state.tasks && /step|try|todo|task|realistic|start/i.test(question)) return CHOOSE;
   return MORE;
 }
 
@@ -217,11 +232,6 @@ test.describe('Life compass focus: steps as Tasks, consented Memory, follow-up (
     await startNewChat(page);
     assistants = await page.getByTestId('message-assistant').count();
     await sendWithModel(page, FOLLOW_UP, 'life-compass-follow-up');
-    const dialog = page.getByTestId('app-settings-memories-permission-dialog');
-    if (await dialog.isVisible({ timeout: 120_000 }).catch(() => false)) {
-      await expect(dialog.getByText(MEMORY_TITLE, { exact: true })).toBeVisible({ timeout: 10_000 });
-      await dialog.getByTestId('btn-include').click();
-    }
     await waitForTurn(page, assistants);
     const followUp = (await page.getByTestId('message-assistant').last().textContent()) ?? '';
     expect(followUp, 'the follow-up reacts to the reported progress').toMatch(/climb|email/i);
