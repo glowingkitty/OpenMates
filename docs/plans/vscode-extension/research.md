@@ -8,6 +8,19 @@ Specification `feature.vscode-extension` (pair login, connect folder, review
 changes, privacy) is proposed in the session worktree. It moves to
 `specifications/features/vscode-extension/` only after the owner approves it.
 
+> **Update 2026-11-16:** the removed extension has been reviewed file by file in
+> `old-extension-review.md`. The revised Plan **restores and reuses** its
+> skeleton, bridge, CSP builder, pair-only rule, test harness and workflow, and
+> lists only what changes.
+>
+> Since 14 Nov:
+> - the Rust host runs commands (`56813a6f93`);
+> - `remote-access --json` already prints lifecycle and request events;
+> - a second host for the same folder is already refused.
+>
+> Dependencies 2, 3 and 6 below shrink to a small JSON addition, and the effort
+> drops. The owner decides on 22 Nov.
+
 ## 1. Short answer
 
 - Build it again, but **start the other way round** from last time. First make
@@ -26,8 +39,9 @@ changes, privacy) is proposed in the session worktree. It moves to
     allowlist.
   - Passkeys cannot work inside a webview.
   - The app would ship in a second release train.
-- Rough effort: **MVP about 2 weeks, v1 about 4 weeks** of agent work. Two
-  outside dependencies apply, both listed in section 7.
+- Rough effort, reusing the old code: **MVP about 6 to 8 agent-days, v1
+  about 9 to 11 more**. The main outside dependency is public native binary
+  builds (section 7).
 
 ## 2. History of the old extension
 
@@ -235,27 +249,30 @@ uses C for files.
 1. **The native binary must be publicly built for five platforms**
    (client-core plan TASK-4; no release workflow yet). Owner: the Rust
    migration chat. Without it the VSIX can't bundle the binary.
-2. **`--enable-commands` in the Rust host**
-   (`remote_access.rs:86-99`: "not yet supported in the Rust host").
-   - Without it the AI can edit files but not run tests on the machine.
-   - Owner: the agentic coding chat (R-packages).
-   - The MVP can ship without commands if this isn't done yet.
-3. **A machine-readable status stream from `remote-access`.**
-   - The extension needs connected, offline, revoked and per-request events,
-     plus the list of chat worktrees, as JSON lines, not human text.
-   - Small CLI addition; belongs in the Rust CLI.
+2. **Commands in the Rust host: done** (`56813a6f93`, Rust host runs approved
+   remote commands in the OS sandbox tier).
+3. **Machine-readable status from `remote-access`: mostly done.**
+   - `--json` already prints `remote_access_lifecycle` (connecting, connected,
+     reconnecting, disconnected) and `remote_access_request` lines.
+   - Still missing: a revoked event, the attached source ids per folder, the
+     chat worktree list, and pairing output as JSON. That is a small Rust CLI
+     addition.
 4. **Projects is off in production.** Public release waits for it.
 5. **Flow 2 hasn't been run end to end.** Its A2 acceptance run comes first; the
    extension builds on it.
-6. **Risk: two hosts for one folder** (terminal CLI and extension). The source
-   registration must refuse a second live host for the same source, or the
-   extension must attach to the running one. Check this in Phase 0.
+6. **Two hosts for one folder: handled.** The host already refuses a second
+   owner unless takeover is confirmed interactively. The extension shows that
+   refusal.
 7. **Risk: macOS sandbox for commands** (Seatbelt, R9) is still planned. On
    macOS, commands stay off until it lands.
 
 ## 8. Effort
 
 Agent-days, one lane at a time, including tests and CI.
+
+Revised 16 Nov: the restored skeleton, tests and workflow save about 2 days
+(MVP now about 6 to 8 days, v1 about 9 to 11 more). The original estimates
+were:
 
 **MVP (Phase 1), about 8 to 10 days.** Extension skeleton and CI, child-process
 host with a JSON status stream, pair login with the vault passphrase in
@@ -286,10 +303,7 @@ about half of that time.
 5. **Should AI changes always wait for you to press "Land" in VS Code?**
    Recommendation: edits follow the Project's write mode, but landing on your
    branch always needs a click.
-6. **Ship the first version without running commands if the Rust host isn't
-   ready?**
-   Recommendation: yes. Edits and reviews first, test runs as soon as commands
-   land.
+6. *(Resolved: the Rust host now runs commands.)*
 7. **Publish to both stores (Microsoft and Open VSX) at v1, with pre-release
    files from dev until then?**
    Recommendation: yes. Public release only after Projects is on in production.

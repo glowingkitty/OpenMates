@@ -1,91 +1,99 @@
 schema_version: 2
 profile: concise
 id: vscode-extension
-title: VS Code extension (the open folder as the Project's connected machine)
+title: VS Code extension (restore the removed extension, the open folder as the Project's connected machine)
 status: draft
 
-# Draft awaiting owner approval (TASK-3700, 2026-11-14). Nothing here is to be
-# implemented until the owner approves it. Research, options and costs:
-# docs/plans/vscode-extension/research.md.
+# Draft awaiting the owner's decision on 22 Nov 2026 (TASK-3700). Nothing is to be
+# restored or implemented before that. Research: research.md. Old code review
+# and reuse map: old-extension-review.md (both in this folder).
 
 goal: >
-  Bring OpenMates into VS Code and its forks without a second code path. Phase 1
-  makes the open folder a Project's connected machine (agentic coding Flow 2):
-  the extension starts the native OpenMates binary as the source host, signs in
-  by pairing, and shows each chat's worktree changes in the native diff editor
-  with Land and Discard. Phase 2 adds a chat panel with the current Project's
-  chats from the bundled web app.
+  Bring back the removed OpenMates VS Code extension (frontend/apps/vscode_extension
+  at 1051560ef4^) instead of starting over, and point it at today's stack. Phase 1
+  restores the extension skeleton, tests and workflow and makes the open folder a
+  Project's connected machine by starting the native openmates binary as the
+  remote-access host. Chat worktree changes are reviewed in the native diff editor
+  and landed or discarded there. Phase 3 brings back the old webview panel, slimmed
+  to the Project's chats.
 
 decisions:
-  - Option C (workspace as connected machine) first; a slim webview chat panel (reduced option A) second; no separate native chat UI (option B).
-  - The extension spawns the native openmates binary; it does not link the core through napi or wasm and does not reuse the TypeScript CLI.
-  - Credentials live in the binary's passphrase vault in extension storage; only the passphrase is in SecretStorage.
-  - Old extension code (removed in 1051560ef4) is copied selectively (test harness, CSP builder, bridge checks), not reverted.
-  - Public release only after Projects is enabled in production; dev publishes pre-release VSIX files.
+  - Restore selectively with git checkout 1051560ef4^ -- <files> into a feature session; no full revert (old lockfiles, svelte.config.js branch).
+  - Reuse as is or with small edits - package.json, extension.ts skeleton, bridge.ts, webviewHtml.ts, assetPaths.ts, authMode.ts, state.ts, the @vscode/test-electron harness and the vscode-extension.yml structure, with their unit tests.
+  - Drop - the password and TOTP login smoke in extension.ts, media/openmates-vscode.js, the read-only setup copy, audit_vscode_extension_v1.py, the old vscode-extension-v1 Plan.
+  - The extension runs the native openmates binary (remote-access --json); it gets no transport, crypto or credential code of its own and does not use the TypeScript CLI.
+  - Credentials stay in the binary's passphrase vault in extension storage; only the passphrase is in SecretStorage.
+  - Only stable VS Code APIs, so one VSIX per platform works in VS Code, Cursor, Windsurf and VSCodium.
+  - Public release only after Projects is on in production; dev publishes pre-release VSIX files.
+
+already_available:
+  - "Rust host runs approved remote commands in the OS sandbox tier (56813a6f93); --enable-commands works."
+  - remote-access --json prints remote_access_lifecycle (connecting, connected, reconnecting, disconnected) and remote_access_request lines.
+  - --project and --write-policy allow non-interactive attachment; a second owner of a source is refused unless takeover is confirmed interactively.
+  - Pair login in the native CLI (client/pair.rs); per-chat worktrees with git_status, git_commit and git_land.
 
 dependencies:
   - id: D-1
     owner: Rust migration chat (client-core plan TASK-4)
     need: Public native openmates binary builds for linux-x64, linux-arm64, darwin-x64, darwin-arm64 and win32-x64.
-  - id: D-2
-    owner: Agentic coding chat (native-agentic-coding-readiness R-packages)
-    need: --enable-commands supported in the Rust remote-access host. Phase 1 may ship without it.
   - id: D-3
-    owner: This plan (Rust CLI change, agreed with the agentic coding chat)
-    need: A JSON-lines status stream for remote-access (connected, offline, revoked, per-request events, chat worktree list) and refusal of a second live host for the same source.
+    owner: This plan (small Rust CLI change, agreed with the agentic coding chat)
+    need: In --json mode also emit revoked, the attached source ids per folder and the chat worktree list (or a projects remote command that lists them as JSON), and a pairing mode that prints the code as JSON.
   - id: D-4
     owner: Agentic coding chat
     need: Flow 2 acceptance run A2 green on dev.
 
 phases:
   - id: P0
-    title: Contracts
+    title: Restore and contracts
     tasks:
-      - Add the remote-access JSON status stream and second-host refusal to the Rust CLI (D-3), with Rust tests.
+      - Restore the Reuse files from 1051560ef4^ into a feature session; re-audit dependencies (the removal was for an unpatched braces chain).
+      - Add the D-3 JSON events and pairing JSON output to the Rust CLI, with Rust tests.
       - Add a vscode surface to the Specification schema and specifications/features.yml.
   - id: P1
     title: MVP, connected machine
     tasks:
-      - Extension skeleton under frontend/apps/vscode_extension (extensionKind workspace), CI workflow from the old one, platform VSIX build bundling the binary.
-      - Pair login, vault passphrase in SecretStorage, sign out and revocation handling.
-      - Connect and disconnect folders, status bar, Output channel, Open chat in browser.
-      - Chat changes tree with native diff against the target branch.
-      - E2B UI test template (openmates-ci-runner plus pinned VS Code, wdio-vscode-service, ffmpeg x11grab recording).
+      - "extension.ts: delete the login smoke; add the host process manager for openmates remote-access --json; map folders by source id; support all workspace folders."
+      - Sign in through the binary's pairing (authMode.ts rule unchanged), passphrase in SecretStorage, sign out and revocation handling.
+      - Status bar, Output channel (reused), Open chat in browser.
+      - Chat changes tree with the native diff editor (reuse the vscode.diff call and the path guard).
+      - New audit script replacing audit_vscode_extension_v1.py (no transport, crypto or secrets in extension code; no write messages in the bridge).
+      - Workflow from vscode-extension.yml without the TypeScript CLI tests and web bundle; per-platform VSIX; E2B UI test with video.
   - id: P2
     title: v1, review and reach
     tasks:
-      - Land and Discard through the existing git land operation; multi-root workspaces; SSH, WSL and container windows.
-      - Commands when D-2 is ready, with the macOS sandbox gate.
-      - Publishing to the Microsoft Marketplace and Open VSX (pre-release from dev, stable from main after Projects is on in production).
+      - Land and Discard through the existing git land operation; SSH, WSL and container windows (extensionKind workspace).
+      - Commands shown and approved through the existing remote command flow; macOS stays off until the Seatbelt tier lands.
+      - Publishing to the Microsoft Marketplace (vsce) and Open VSX (ovsx, namespace, publisher agreement, OVSX_PAT); engines.vscode range checked against current forks.
   - id: P3
-    title: Chat panel
+    title: Chat panel (the old webview, slimmed)
     tasks:
-      - Webview panel with the bundled Project chat, pair-only, file actions routed through the connected-machine host.
-      - Resolve the webview Origin with the backend auth owners before building (security review).
+      - Reuse webviewHtml.ts, assetPaths.ts, bridge.ts, prepareWebAppBundle.mjs and build-vscode.js for a Project chat route only.
+      - Resolve the backend Origin allowlist and the Rust core loader origin check (rustCoreLoader.ts) for vscode-webview pages with the auth owners (security review) before building.
+      - Make the web app actually call the bridge (the old app never did) and prove the bundled panel loads in an installed VSIX (the old CI used the bootstrap page).
       - Screenshot comparison of panel components against /dev/preview pages.
 
 checks:
   required:
-    - Rust unit tests for the status stream and second-host refusal (P0).
-    - Extension unit tests (node test) for status parsing, vault passphrase handling and diff mapping.
+    - Rust unit tests for the D-3 JSON events and pairing output (P0).
+    - The restored node test unit suite, extended for status parsing, folder mapping, SecretStorage passphrase handling and diff mapping.
     - "Real-stack E2E on E2B: web approves pairing, extension connects a test Project folder, a web chat edits a file, the change shows in the Chat changes view and diff, Land puts it on the branch; screenshots and a recorded video uploaded with ci_evidence.py."
-    - Installed-VSIX smoke in VS Code and VSCodium builds.
-    - "P3 only: panel component screenshots compared with /dev/preview pages at fixed width and theme."
+    - Installed-VSIX test (reused harness) in VS Code and a VSCodium build, using pairing instead of the old password smoke.
+    - "P3 only: the bundled panel loads in an installed VSIX and panel component screenshots match /dev/preview pages at fixed width and theme."
 
 effort:
-  mvp: About 8 to 10 agent-days (P0 and P1), after D-1.
-  v1: About 10 to 12 more agent-days (P2 and P3); the chat panel is about half.
+  mvp: About 6 to 8 agent-days (P0 and P1) thanks to the restored skeleton, tests and workflow, after D-1.
+  v1: About 9 to 11 more agent-days (P2 and P3); the chat panel is about half.
   test_cost: About 0.06 USD per 10-minute E2B run on 4 vCPU and 8 GiB.
 
 open_questions:
-  - Start with VS Code as the connected machine and add the chat panel later?
+  - Restore the old extension and start with VS Code as the connected machine, chat panel later?
   - Chat panel later shows only the Project's chats, not the whole app?
   - Sign in only by pairing?
   - VS Code as its own revocable device, separate from the terminal CLI?
   - Landing on the branch always needs a click?
-  - Ship the first version without running commands if the Rust host is not ready?
   - Publish to both stores at v1, pre-release files from dev until then?
 
 approval_provenance:
-  source: Draft from the owner's research request via the authenticated dev connector, 2026-11-14 (TASK-3700).
-  note: Not approved. Implementation starts only after explicit owner approval.
+  source: Owner requests via the authenticated dev connector on 2026-11-14 and 2026-11-16 (TASK-3700).
+  note: Not approved. The owner decides on 22 Nov 2026; nothing is restored to dev before that.
