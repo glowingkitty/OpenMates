@@ -198,7 +198,7 @@ def test_oversized_proof_folder_stays_local(tmp_path: Path, monkeypatch) -> None
     assert plan.plan_command(["npx", "playwright", "test", "--config", str(proof / "c.cjs")], ROOT, ROOT) is None
 
 
-# contract-test: supporting surface=cli assertions=test-orchestration.dev-runs.e2b-first-logged-host-fallback
+# contract-test: supporting surface=cli assertions=dev-run-routing.e2b-first-logged-host-fallback
 def test_playwright_proof_reads_env_named_tmp_folders_in_the_sandbox(tmp_path: Path, monkeypatch) -> None:
     """2026-11-13: real voice-call proofs waited 25-60 min for host memory; their speech files
     live in a second /tmp folder, so E2B runs must mirror it (OPENMATES_HEAVY_REMOTE_DIRS)."""
@@ -234,7 +234,7 @@ def _fallbacks(tmp_path: Path) -> list[dict]:
     return [row for row in rows if row["event"] == "heavy_remote_fallback"]
 
 
-# contract-test: supporting surface=cli assertions=test-orchestration.dev-runs.e2b-first-logged-host-fallback
+# contract-test: supporting surface=cli assertions=dev-run-routing.e2b-first-logged-host-fallback
 def test_eligible_run_goes_to_e2b_without_waiting_for_host_memory(monkeypatch, tmp_path: Path) -> None:
     calls = _remote_ready(monkeypatch, tmp_path)
     monkeypatch.setattr(heavy_slot, "admit", lambda *a, **k: pytest.fail("a remote run never waits on the host"))
@@ -244,7 +244,7 @@ def test_eligible_run_goes_to_e2b_without_waiting_for_host_memory(monkeypatch, t
     assert _fallbacks(tmp_path) == []
 
 
-# contract-test: supporting surface=cli assertions=test-orchestration.dev-runs.e2b-first-logged-host-fallback
+# contract-test: supporting surface=cli assertions=dev-run-routing.e2b-first-logged-host-fallback
 def test_every_fallback_to_the_host_is_logged(monkeypatch, tmp_path: Path) -> None:
     _remote_ready(monkeypatch, tmp_path)
     monkeypatch.setattr(heavy_slot.e2b_dev_capacity, "budget_exhausted", lambda: "today's dev E2B spend reached")
@@ -256,7 +256,7 @@ def test_every_fallback_to_the_host_is_logged(monkeypatch, tmp_path: Path) -> No
     assert {row["kind"] for row in _fallbacks(tmp_path)} == {"cargo"}
 
 
-# contract-test: supporting surface=cli assertions=test-orchestration.dev-runs.e2b-first-logged-host-fallback
+# contract-test: supporting surface=cli assertions=dev-run-routing.e2b-first-logged-host-fallback
 def test_real_browser_proof_harness_routes_playwright_through_e2b(monkeypatch) -> None:
     import design_embroidery_web_real_test as harness
 

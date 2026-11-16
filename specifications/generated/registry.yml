@@ -46,6 +46,13 @@ specifications:
     fingerprint: 9b9ddbe244ff9f3c57e625f8fae89effbb2d59ee5b5e8ad2b6fc850219c11743
     required_applies_to:
     - cli
+  architecture.dev-run-routing:
+    version: 1
+    status: approved
+    path: architecture/dev-run-routing
+    fingerprint: 5f989645bdd578a9afd818ec76ba17c928b14ffc348d57acb97ba865219f77f9
+    required_applies_to:
+    - cli
   architecture.drafts:
     version: 1
     status: approved
@@ -133,7 +140,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/test-orchestration
-    fingerprint: db0520c73d2cbfcdb4778871c53f501ce8ee11ab3a3bde8189c360c4fc7e6fb9
+    fingerprint: 013a87f077cd0e333500d0ec2d23abc7e3cef2bdd0e88d48815dbbe7c5734f4f
     required_applies_to:
     - cli
   feature.account-import:
@@ -1788,6 +1795,13 @@ assertions:
     fingerprint: a7440f8ae2669cc996ebed7cde5cc1ceb242196bab51e8967bbfa4f6318631f5
     required_applies_to:
     - cli
+  dev-run-routing.e2b-first-logged-host-fallback:
+    specification: architecture.dev-run-routing@1
+    specification_id: architecture.dev-run-routing
+    type: behavior
+    fingerprint: 004bbf4515736a66c6c1db6d1d97e559e258efba4d75a10e577a5145ba9ba5ef
+    required_applies_to:
+    - cli
   drafts.access.first-party-encrypted:
     specification: architecture.drafts@1
     specification_id: architecture.drafts
@@ -2970,13 +2984,6 @@ assertions:
     specification_id: architecture.test-orchestration
     type: behavior
     fingerprint: 089d32d7b92c9140a336c2cfecb7091041bd15956ff12e89722dee09919e676d
-    required_applies_to:
-    - cli
-  test-orchestration.dev-runs.e2b-first-logged-host-fallback:
-    specification: architecture.test-orchestration@1
-    specification_id: architecture.test-orchestration
-    type: behavior
-    fingerprint: f4f5180417334a068341a903e1dc218d0d430324638b326a1f5dca6da3de8b14
     required_applies_to:
     - cli
   test-orchestration.evidence.privacy-boundary:

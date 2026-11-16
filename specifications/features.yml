@@ -1663,7 +1663,7 @@ features:
     name: "Daily Test Orchestration And Recovery"
     kind: internal
     description: "Scheduled test runs with critical flows first, truthful outcomes and recovery."
-    specifications: [architecture.test-orchestration]
+    specifications: [architecture.test-orchestration, architecture.dev-run-routing]
     release: unverified
     surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: surface-cli

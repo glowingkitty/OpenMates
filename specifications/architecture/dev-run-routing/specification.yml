@@ -1,0 +1,51 @@
+schema_version: 1
+id: architecture.dev-run-routing
+version: 1
+status: approved
+title: Dev Run Routing To E2B
+summary: >
+  Heavy builds, tests and browser proofs that Claude Code chats start on the
+  dev server through heavy_slot run in E2B sandboxes first, within the dev
+  share of the E2B concurrency limit and the daily dev budget. They run on the
+  host only when E2B cannot take them, and every such fallback is logged.
+
+scope:
+  includes:
+    - Routing of dev-host builds, tests and browser proofs (heavy_slot) to E2B within the dev share and daily budget.
+    - Logged host fallbacks and the documented list of commands that must stay on the host.
+  excludes:
+    - The product's own test execution (spec-driven development flow, user E2E tests on E2B or a remote access machine).
+    - GitHub CI scheduling and its E2B overflow runners.
+    - Production servers.
+
+assertions:
+  - id: dev-run-routing.e2b-first-logged-host-fallback
+    type: behavior
+    must: A remote-eligible dev build, test or browser proof (including real-inference Playwright proofs against the dev stack with dev test accounts) goes to an E2B sandbox at once instead of waiting for host memory or a local slot, within 70% of the E2B concurrency limit and the daily dev budget; it runs on the host only when E2B is unavailable, over budget or disabled, every such fallback is logged with its reason, and the commands that must stay on the host are listed with why.
+    depends_on: [examples.dev_run_routing]
+
+applies_to:
+  rest_api:
+    required: false
+    role: Internal dev tooling; no public or developer API.
+  cli:
+    required: true
+    parity: canonical
+    role: scripts/heavy_slot.py run is the canonical surface; fallbacks go to logs/host-load-guard/events.jsonl.
+  sdks:
+    required: false
+    role: Not an npm or pip SDK capability.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: false
+    role: No web or Apple product UI.
+    implementations:
+      web: {required: false}
+      apple: {required: false}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [dev_run_routing]

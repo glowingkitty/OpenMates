@@ -23886,6 +23886,9 @@ features:
   - id: architecture.test-orchestration
     status: draft
     path: specifications/architecture/test-orchestration
+  - id: architecture.dev-run-routing
+    status: approved
+    path: specifications/architecture/dev-run-routing
   apps: []
   product_features: []
   release: unverified

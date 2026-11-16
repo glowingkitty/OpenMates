@@ -1,0 +1,10 @@
+schema_version: 1
+specification: architecture.dev-run-routing@1
+
+dev_run_routing:
+  - id: browser-proof-skips-host-memory-wait
+    given: A chat starts a real voice-call Playwright proof against the dev stack while the host has 5.8 GiB free but a local run needs 6 GiB; dev E2B slots and budget are left.
+    then: The proof runs in an E2B sandbox at once without waiting for host memory; the account lease and draft guard stay on the host, the speech folder is copied in and the screenshots and video are copied back.
+  - id: host-runs-are-logged-or-listed
+    given: A chat runs `cargo test -p openmates-sdk` after the daily dev E2B budget is used up, and another chat runs a `docker build`.
+    then: The cargo test runs on the host and a heavy_remote_fallback event naming the budget is logged; the docker build runs on the host and is listed as host-only, with why, in the heavy_slot.py docstring.

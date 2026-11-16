@@ -1288,7 +1288,7 @@ Personalised daily inspiration cards, with a public default for signed-out visit
 
 Scheduled test runs with critical flows first, truthful outcomes and recovery.
 
-- Specifications: [architecture.test-orchestration](../../specifications/architecture/test-orchestration/specification.yml) (draft) · 8 assertion(s)
+- Specifications: [architecture.test-orchestration](../../specifications/architecture/test-orchestration/specification.yml) (draft), [architecture.dev-run-routing](../../specifications/architecture/dev-run-routing/specification.yml) (approved) · 8 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release unverified
 
 <details><summary>Tests per surface</summary>
