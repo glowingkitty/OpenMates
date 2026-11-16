@@ -6,6 +6,8 @@ for travel.search_connections with a faked runner.
 """
 from __future__ import annotations
 
+import asyncio
+
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
@@ -242,6 +244,33 @@ async def test_planner_ignores_parts_that_resolved_to_a_place_far_from_the_hub()
     await planner.plan_mixed_routes(group, dict(REQUEST), search)
     assert group["mixed_routes"]["composed"] == 0
     assert not any(result.get("route_composition") for result in group["results"])
+
+
+# contract-test: direct surface=rest_api assertions=travel-search.mixed-routes.provider-neutral-and-bounded
+@pytest.mark.asyncio
+async def test_slow_hub_searches_stop_at_the_budget_and_keep_the_direct_results(monkeypatch) -> None:
+    monkeypatch.setattr(planner, "COMPOSE_BUDGET_SECONDS", 0.05)
+
+    async def slow(_item: Dict[str, Any]) -> List[Dict[str, Any]]:
+        await asyncio.sleep(5)
+        return []
+
+    group = _direct_group()
+    await planner.plan_mixed_routes(group, dict(REQUEST), slow)
+    assert group["mixed_routes"]["timed_out"] is True and group["mixed_routes"]["composed"] == 0
+    assert [result["total_price"] for result in group["results"]] == ["18.98"]
+
+
+# contract-test: direct surface=rest_api assertions=travel-search.mixed-routes.provider-neutral-and-bounded
+def test_connection_searches_with_an_owned_pass_get_room_for_hub_searches() -> None:
+    from backend.apps.ai.processing.skill_executor import DEFAULT_SKILL_TIMEOUT, get_skill_timeout
+
+    with_pass = {"requests": [{**REQUEST}]}
+    assert get_skill_timeout("travel", "search_connections", with_pass) == 60.0
+    assert get_skill_timeout("travel", "search_connections", {"requests": [{**REQUEST, "owned_passes": []}]}) \
+        == DEFAULT_SKILL_TIMEOUT
+    # The skill timeout leaves room for the providers' first answer before the hub budget.
+    assert planner.COMPOSE_BUDGET_SECONDS <= 60.0 - 25.0
 
 
 # contract-test: direct surface=rest_api assertions=travel-search.mixed-routes.provider-neutral-and-bounded

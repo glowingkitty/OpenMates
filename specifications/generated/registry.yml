@@ -412,7 +412,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/travel-search
-    fingerprint: 4ebda3ba4724605acb9be0c3c851889d620cc3c1b2cc7e4c34ab8d645387459c
+    fingerprint: 804bf479a56a11778283c67c084113bc9e75ccfbea8b15574677147bd36629ca
     required_applies_to:
     - rest_api
     - cli
@@ -6014,7 +6014,7 @@ assertions:
     specification: feature.app-skill.travel-search@1
     specification_id: feature.app-skill.travel-search
     type: behavior
-    fingerprint: 20889c6e746e172792619a1122394f5338fce7be8a1f3fc2a10d70afcf036a50
+    fingerprint: ba29efbc81fbed1372bc6b1ee5829a65d8af41f9f08d8db69b9d4ac708988e0f
     required_applies_to:
     - rest_api
     - cli
@@ -6026,7 +6026,7 @@ assertions:
     specification: feature.app-skill.travel-search@1
     specification_id: feature.app-skill.travel-search
     type: invariant
-    fingerprint: 1ffa053d828f2984586d1d382a10a2acfdd3771081d3ee52a42d9a5d0764d1d6
+    fingerprint: 9810a4d09ee92166165f95ea0223135e818f122bf199f6d2312a1f8b8698590e
     required_applies_to:
     - rest_api
     - cli
@@ -6038,7 +6038,7 @@ assertions:
     specification: feature.app-skill.travel-search@1
     specification_id: feature.app-skill.travel-search
     type: invariant
-    fingerprint: 52d081efd96dd52599a9070739ba5ebdc02500de4395f9a1ab25645792713e72
+    fingerprint: c84653094b5242695efb69b7902e01f797dd2199b5420ebc61c5c65d4829ba91
     required_applies_to:
     - rest_api
     - cli
@@ -6050,7 +6050,7 @@ assertions:
     specification: feature.app-skill.travel-search@1
     specification_id: feature.app-skill.travel-search
     type: behavior
-    fingerprint: 9143d07163753670effa25bd7cda534cbc279828f7d9d3b519a40a3a2f8092bb
+    fingerprint: f177d6fdc81dc03290be6c63751afe088aa4b7366551dac8f3ca20d873f3ec99
     required_applies_to:
     - rest_api
     - cli
@@ -6062,7 +6062,7 @@ assertions:
     specification: feature.app-skill.travel-search@1
     specification_id: feature.app-skill.travel-search
     type: behavior
-    fingerprint: bcf8b661ba24f088d2629b1e4fa6b09f52cdc1f9100fda25aa434612da52ca49
+    fingerprint: 7ad551e6188571397ee6b630c4ea60bec31ee7cb65b4e26eef67708d529a1ed3
     required_applies_to:
     - rest_api
     - cli
@@ -6074,7 +6074,7 @@ assertions:
     specification: feature.app-skill.travel-search@1
     specification_id: feature.app-skill.travel-search
     type: security
-    fingerprint: a73f89c6363be38565a779e09423ee3d8380d95d8e9cefc0d21ff66e63745853
+    fingerprint: ac37ae623489bc70e2c45419de6a6fd261b6e23278db9e62f689a83cb8302603
     required_applies_to:
     - rest_api
     - cli

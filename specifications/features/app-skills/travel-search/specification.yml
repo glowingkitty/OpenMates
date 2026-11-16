@@ -129,44 +129,33 @@ assertions:
     least detour. Every part is a real result of an installed provider; times, stations and prices are never
     invented, and the single-provider results stay in the list. A composed route that a single-provider route
     beats on both price and duration is left out.
-  depends_on:
-  - examples.mixed_routes
 - id: travel-search.mixed-routes.pass-coverage-conservative
   type: invariant
   must: A part counts as covered by a pass only when its provider says so, or when every segment of the part has
     a product class the pass covers and both ends of every segment lie inside the pass area. Anything else is
     paid or of unknown fare, never free.
-  depends_on:
-  - examples.mixed_routes
 - id: travel-search.mixed-routes.transfer-buffer
   type: invariant
   must: A composed transfer leaves at least the larger of the requested minimum transfer and 20 minutes, and at
     least 45 minutes when the parts change between rail and bus or use different stops. Composed routes say
     that they need separate tickets and carry no connection guarantee.
-  depends_on:
-  - examples.mixed_routes
 - id: travel-search.mixed-routes.total-price-ranking
   type: behavior
   must: With an owned pass, results rank by the amount the traveller pays (pass-covered parts cost nothing,
     routes with a part of unknown fare come after fully priced ones), then by duration, then by changes. A
     composed route states its saving against the cheapest priced single-provider route only when both prices
     are known.
-  depends_on:
-  - examples.mixed_routes
 - id: travel-search.mixed-routes.per-ticket-display
   type: behavior
   must: A composed route lists its tickets in travel order, each with its route part and times, and either the
     pass that covers it or its price and where to book it. REST, CLI, SDKs and web show these parts; the
     assistant's answer names which ticket covers which part.
-  depends_on:
-  - examples.mixed_routes
 - id: travel-search.mixed-routes.provider-neutral-and-bounded
   type: security
   must: Composition works only through the generic installed-provider contract, so public code, data and copy
     name no provider. It adds at most two provider searches per hub, reuses identical searches within 15
-    minutes, and composes nothing when the request names its providers or has no owned pass.
-  depends_on:
-  - examples.mixed_routes
+    minutes, and composes nothing when the request names its providers or has no owned pass. Hub searches
+    stop after 30 seconds; the traveller then still gets the ranked single-provider results.
 - id: travel-search.surface-parity
   type: parity
   must: REST, CLI, npm/pip SDKs and web/Apple preserve the same unavailable behavior for new searches and generic

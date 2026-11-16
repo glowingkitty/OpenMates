@@ -69,5 +69,12 @@ mixed_routes:
   when: The searches run.
   then: The second search reuses the earlier hub searches, and the search that names a provider composes
     nothing. No provider name appears in the public hub data or copy.
+- id: travel-search-mixed-route-slow-hubs
+  given: Alice owns a Deutschland-Ticket and asks for Munich to Zurich while the hub searches are slow.
+  when: The hub searches have not finished 30 seconds after the providers answered.
+  then: She gets the direct connections ranked by what she pays, without composed routes, instead of a failed
+    search; asking again a little later reuses the hub searches that did finish.
+  assertion_ids:
+  - travel-search.mixed-routes.provider-neutral-and-bounded
   assertion_ids:
   - travel-search.mixed-routes.provider-neutral-and-bounded

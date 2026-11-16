@@ -44,6 +44,14 @@ def _names_relevance_criteria(arguments: Any) -> bool:
     )
 
 
+def _names_owned_passes(arguments: Dict[str, Any]) -> bool:
+    requests = arguments.get("requests", [arguments]) if isinstance(arguments, dict) else []
+    return isinstance(requests, list) and any(
+        isinstance(request, dict) and isinstance(request.get("owned_passes"), list) and request["owned_passes"]
+        for request in requests
+    )
+
+
 def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> float:
     """Select the assistant's default envelope without overriding explicit timeouts.
 
@@ -85,6 +93,9 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     # General event discovery also reads public web pages and extracts events from them.
     if (app_id, skill_id) == ("events", "search"):
         return 40.0
+    if (app_id, skill_id) == ("travel", "search_connections"):
+        # An owned pass adds bounded hub searches (mixed routes) after the providers answered.
+        return 60.0 if _names_owned_passes(arguments) else DEFAULT_SKILL_TIMEOUT
     if (app_id, skill_id) == ("travel", "search_stays"):
         # Ranking stays by their photos adds bounded image loading and decision time.
         return 45.0 if _names_relevance_criteria(arguments) else DEFAULT_SKILL_TIMEOUT

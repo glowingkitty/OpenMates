@@ -33,6 +33,8 @@ from backend.apps.travel.routing.passes import TravelPass, resolve_passes
 logger = logging.getLogger(__name__)
 
 SEARCH_CACHE_TTL_SECONDS = 15 * 60
+# Hub searches must finish inside the skill's 60 s envelope after the providers answered.
+COMPOSE_BUDGET_SECONDS = 30.0
 PART_MAX_RESULTS = 10
 GROUND_METHODS = ("train", "bus")
 COPIED_FIELDS = ("passengers", "children", "infants_in_seat", "infants_on_lap", "travel_class", "currency",
@@ -198,6 +200,7 @@ async def plan_mixed_routes(group: Dict[str, Any], contract_input: Dict[str, Any
     trip = _trip(contract_input)
     methods = [m for m in contract_input.get("transport_methods") or [] if m in GROUND_METHODS]
     hubs: List[Hub] = []
+    timed_out = False
     cached = CachedSearch(search, cache_service)
     if trip is not None and methods:
         start = _endpoint_from_results(results, "departure") or (await locate(trip[0]) if locate else None)
@@ -206,11 +209,17 @@ async def plan_mixed_routes(group: Dict[str, Any], contract_input: Dict[str, Any
         if plan is not None:
             kind, travel_pass, covered_end, other_end = plan
             hubs = select_hubs(covered_end, other_end, travel_pass.countries)
-            per_hub = await asyncio.gather(*(
-                _compose_through(hub, kind, contract_input, trip, travel_pass, passes, other_end.country,
-                                 methods, cached)
-                for hub in hubs
-            ))
+            try:
+                per_hub = await asyncio.wait_for(asyncio.gather(*(
+                    _compose_through(hub, kind, contract_input, trip, travel_pass, passes, other_end.country,
+                                     methods, cached)
+                    for hub in hubs
+                )), timeout=COMPOSE_BUDGET_SECONDS)
+            except asyncio.TimeoutError:
+                # Finished part searches stay cached; the traveller still gets the ranked direct results.
+                logger.warning("[MixedRoutes] Hub searches exceeded %.0fs; no composed routes this time",
+                               COMPOSE_BUDGET_SECONDS)
+                per_hub, timed_out = [], True
             composed = prune_composed([route for routes in per_hub for route in routes], results, passes)
     merged = results + composed
     annotate_savings(merged, passes)
@@ -222,6 +231,7 @@ async def plan_mixed_routes(group: Dict[str, Any], contract_input: Dict[str, Any
         "hubs": [hub.name for hub in hubs],
         "composed": len(composed),
         "part_searches": cached.searches,
+        "timed_out": timed_out,
         "ranking": "amount_paid_then_duration_then_changes",
     }
     logger.info("[MixedRoutes] passes=%s hubs=%s composed=%d part_searches=%d",
