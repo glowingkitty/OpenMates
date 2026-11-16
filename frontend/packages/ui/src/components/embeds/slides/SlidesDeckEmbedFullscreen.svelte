@@ -19,7 +19,10 @@
   import EmbedChevron from '../EmbedChevron.svelte';
   import SlideCanvas from './SlideCanvas.svelte';
   import SlidesPresentation from './SlidesPresentation.svelte';
-  import { newPresentSessionId, openAudienceWindow } from './slidesPresentation';
+  import SlidesPresentRemote from './SlidesPresentRemote.svelte';
+  import { createPresentRemotePublisher, watchPresenter, type PresentRemotePublisher } from './slidesPresentRemote';
+  import { authStore } from '../../../stores/authStore';
+  import { applyAction, clampPosition, newPresentSessionId, openAudienceWindow } from './slidesPresentation';
   import { inlineToPlainText, maxStep, parseSlidesMarkup } from './slidesMarkup';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
@@ -128,6 +131,36 @@
   function select(target: number) {
     index = target;
     step = 0;
+  }
+
+  /**
+   * Presenting on another device of the signed-in owner. Only owners subscribe
+   * (share-link viewers are never signed in, so they never listen).
+   */
+  let remotePosition = $state({ index: 0, step: 0 });
+  let presentingElsewhere = $state(false);
+  let remoteOpen = $state(false);
+  let remotePublisher: PresentRemotePublisher | null = null;
+
+  $effect(() => {
+    if (!embedId || !$authStore.isAuthenticated || presenting) return;
+    remotePublisher = createPresentRemotePublisher(embedId, 'remote');
+    const stop = watchPresenter(embedId, (live, state) => {
+      presentingElsewhere = live;
+      if (state) remotePosition = { index: state.index, step: state.step };
+    });
+    return () => {
+      stop();
+      remotePublisher = null;
+      presentingElsewhere = false;
+    };
+  });
+
+  function remoteMove(next: { index: number; step: number }) {
+    remotePosition = next;
+    remotePublisher
+      ?.publish({ ...next, notesVisible: false, presenting: true })
+      .catch((error) => console.warn('[SlidesDeckEmbed] remote move not sent', error));
   }
 
   /** Set while presenting; `popup` is the audience window in presenter mode. */
@@ -316,7 +349,7 @@
       {:else if deck && current}
         <div class="stage" bind:this={stageEl} style:max-width={stageMaxWidth}>
           {#key current.id}
-            <SlideCanvas
+            <SlideCanvas motion={true}
               slide={current}
               width={deck.width}
               height={deck.height}
@@ -393,7 +426,7 @@
               aria-current={position === index ? 'true' : undefined}
               onclick={() => select(position)}
             >
-              <SlideCanvas {slide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
+              <SlideCanvas motion={false} {slide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
             </button>
           {/each}
         </div>
@@ -411,7 +444,29 @@
           sessionId={presenting.sessionId}
           notice={popupBlocked ? $text('embeds.slides_popup_blocked') : ''}
           onExit={stopPresenting}
+          embedId={embedId ?? ''}
         />
+      {/if}
+
+      {#if presentingElsewhere && !presenting}
+        <div class="elsewhere" role="status" data-testid="slides-presenting-elsewhere">
+          <span>{$text('embeds.slides_presenting_elsewhere')}</span>
+          <button type="button" class="present-button primary" data-testid="slides-remote-open" onclick={() => (remoteOpen = true)}>
+            {$text('embeds.slides_remote_open')}
+          </button>
+        </div>
+      {/if}
+      {#if remoteOpen && !presenting}
+        <div class="remote-overlay">
+          <SlidesPresentRemote
+            {markup}
+            position={remotePosition}
+            presenting={presentingElsewhere}
+            onAction={(action) => remoteMove(applyAction(slides, remotePosition, action))}
+            onGoto={(target) => remoteMove(clampPosition(slides, { index: target, step: 0 }))}
+            onClose={() => (remoteOpen = false)}
+          />
+        </div>
       {/if}
 
       {#if embedId && headVersion > 1 && !editing}
@@ -520,6 +575,26 @@
     background: var(--color-button-primary);
     color: var(--color-grey-0);
     box-shadow: none;
+  }
+
+  .elsewhere {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-6);
+    padding: var(--spacing-4) var(--spacing-8);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-small);
+  }
+
+  .remote-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-index-modal, 1000);
+    overflow-y: auto;
+    background: var(--color-grey-0);
   }
 
   .popup-blocked {

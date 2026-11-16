@@ -1,0 +1,26 @@
+schema_version: 2
+profile: concise
+id: slides-presentation-remote
+title: Slides - presentation remote from the user's phone
+status: implementing
+goal: "While a slides embed is presented full screen on the user's laptop (audience view on an external monitor or projector), the same user's phone, in the web app or the Apple app, works as a remote for that embed: next and previous, jump to a slide, speaker notes on demand. The laptop follows the phone in real time through encrypted cross-device sync, with no new plaintext on the server."
+specifications:
+  - feature.slides@2
+scope:
+  - "Rust core (openmates-sdk, client/shared_items/present_remote.rs): remote state schema v1 (embed id, session id, sequence, slide index, build step, notes shown, presenting, origin), encryption and decryption with the deck's embed key, size and version checks, and the ordering rule (newer sequence per session wins, a new session replaces the old). Speaker notes are never part of the state."
+  - "Bindings: wasm export in openmates-browser-bindings for the shared Worker; UniFFI export in openmates-apple-bindings (new file), generated Swift bindings refreshed together with the Apple chat (session fe65)."
+  - "Backend: shell-owned WebSocket frame slides_present_state {embed_id, ciphertext}; the server checks the user can access the embed, bounds size (1 KB) and rate, relays it to the same user's other connected devices with broadcast_to_user excluding the sender device, and stores and logs nothing of the payload."
+  - "Web: the fullscreen presentation publishes its position and presenting flag and follows remote updates; on another device the deck fullscreen shows that it is being presented and offers Remote with Previous, Next, slide list and Show notes; notes come from the remote's own copy of the deck."
+  - "Apple: remote mode in the slides fullscreen view (Previous, Next, slide list, Show notes), using the core functions and the unowned-frame pass-through."
+  - Out of scope - presenting on the Apple device itself, share-link follow-live (plan slides-import-export-presenting), remotes for other users.
+checks:
+  - "Rust unit tests: round trip, wrong embed id, wrong key, oversize, unknown version, ordering across sequences and sessions (rust-check)."
+  - "Backend pytest: relay reaches only the same user's other devices, sender excluded, nothing written to cache or Directus, oversize and rate-limited frames refused, embed of another user refused."
+  - "Web E2E in isolated CI: two browser contexts on one account; laptop context presents full screen, phone context (mobile viewport) opens Remote, Next and slide jump move the laptop, the laptop keyboard moves the phone, notes only on the phone, Escape ends the remote; captured WebSocket frames hold only ciphertext."
+  - "Apple unit tests (apple-unit) for the remote view model using the core functions, and an XCUITest or preview-backed screenshot of the remote UI."
+  - "Real-stack video on dev after deploy: phone (mobile viewport) steering the laptop presentation."
+decisions:
+  - Reuse the deck's embed key; no new key material, so a later follow-live can share the codec.
+  - Pure relay with no storage, modelled on the draft and highlight broadcasts; no presence record on the server.
+  - Transport stays a shell-owned frame for now; state format, crypto and ordering live in the core (client-core rule).
+  - "Owner request 2026-11-15 (receipt 74c4731baa5095f2): separate Task, does not block the queued follow-up fix; build web and Apple with sub-agents on separate files."

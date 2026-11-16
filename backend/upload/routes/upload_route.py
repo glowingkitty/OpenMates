@@ -91,6 +91,8 @@ from backend.upload.billing_payloads import build_pdf_billing_payload
 from backend.upload.s3_keys import upload_s3_prefix
 from backend.upload.services.preview_generator import camera_jpeg_original_hash
 
+from backend.shared.python_utils.svg_sanitizer import SvgSanitizeError, sanitize_svg
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/upload", tags=["Upload"])
@@ -162,6 +164,8 @@ class FileVariantMetadata(BaseModel):
     active_region: Optional[str] = Field(None, description="S3 region that accepted this immutable variant")
     preserved_original_sha256: Optional[str] = Field(None, pattern=r"^[0-9a-f]{64}$",
         description="Server-computed SHA-256 of actual stored original bytes; matching input hash proves exact preservation")
+    sanitized: Optional[bool] = Field(None,
+        description="True when the stored SVG was cleaned of scripts and external references (slides.media.svg-declarative-animation)")
 
 
 class AIDetectionMetadata(BaseModel):
@@ -1226,6 +1230,14 @@ async def upload_file(
     # --- 9. AES-256-GCM encryption ---
     # All three variants share the same AES key and nonce, matching generate_task.py.
     keeps_vector = is_svg_upload(content_type, file_bytes)
+    vector_bytes = file_bytes
+    vector_sanitized = False
+    if keeps_vector:
+        try:
+            vector_bytes = sanitize_svg(file_bytes)
+            vector_sanitized = True
+        except SvgSanitizeError as exc:
+            logger.warning(f"{log_prefix} SVG could not be sanitized; storing original unsanitized: {exc}")
     logger.info(f"{log_prefix} [9/13] Encrypting 3 variants with AES-256-GCM (random key per file)...")
     encrypt_start = time.monotonic()
     write_version = load_media_write_version()
@@ -1237,7 +1249,7 @@ async def upload_file(
             # An uploaded SVG keeps its vector source next to the raster
             # variants, so skills that need the drawing itself (embroidery)
             # read the exact file the user uploaded.
-            **({"vector": file_bytes} if keeps_vector else {}),
+            **({"vector": vector_bytes} if keeps_vector else {}),
         },
         write_version=write_version,
     )
@@ -1369,6 +1381,7 @@ async def upload_file(
             format="svg",
             encryption=encrypted_variants.metadata["vector"].get("encryption"),
             active_region=active_region,
+            sanitized=vector_sanitized,
         )
 
     # --- 13. Store upload record via core API (never touches Directus directly) ---

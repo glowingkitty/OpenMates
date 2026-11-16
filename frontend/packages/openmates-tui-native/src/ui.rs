@@ -280,6 +280,10 @@ pub struct Ui {
     draft: Editor,
     drafts: std::collections::HashMap<String, Zeroizing<String>>,
     pending_send: Option<(String, Zeroizing<String>)>,
+    /// Follow-ups sent while a reply streams, awaiting their user message id.
+    followup_texts: std::collections::VecDeque<Zeroizing<String>>,
+    /// User message ids the server saved behind the active reply (`Queued`).
+    queued_ids: std::collections::HashSet<String>,
     active_turn: Option<ActiveTurn>,
     delivery: Delivery,
     uncertain_turns: std::collections::HashMap<String, UncertainTurn>,
@@ -434,6 +438,8 @@ impl Ui {
             draft: Editor::default(),
             drafts: std::collections::HashMap::new(),
             pending_send: None,
+            followup_texts: Default::default(),
+            queued_ids: Default::default(),
             active_turn: None,
             delivery: Delivery::Staged,
             uncertain_turns: std::collections::HashMap::new(),
@@ -540,6 +546,52 @@ impl Ui {
             }
         }
         self.streaming = false;
+    }
+    /// A reply of the open chat is streaming and its own send is admitted, so
+    /// another message goes to the server at once (it comes back `Queued`).
+    pub fn can_queue_followup(&self) -> bool {
+        self.streaming
+            && self.pending_send.is_some()
+            && self.followup_texts.len() < 8
+            && matches!((&self.chat, &self.active_turn),
+                (Some(chat), Some(turn)) if chat.id == turn.chat_id)
+    }
+    /// Whether the chat is streaming a reply (runtime: a follow-up keeps the
+    /// view epoch so the first send's replies stay current).
+    pub fn is_streaming_chat(&self, chat_id: Option<&str>) -> bool {
+        chat_id.is_some_and(|id| self.streaming && self.active_turn.as_ref().is_some_and(|t| t.chat_id == id))
+    }
+    /// The core returned a `Queued` receipt for a follow-up: its row stays
+    /// labelled until the active reply ends; the running stream is unaffected.
+    pub fn followup_queued(&mut self, chat_id: &str, message_id: Option<&str>) {
+        self.chat_layout = None;
+        if let Some(id) = message_id {
+            self.queued_ids.insert(id.to_string());
+        }
+        if self.chat.as_ref().is_some_and(|c| c.id == chat_id) {
+            self.status = "Queued · it runs after the current reply".into();
+        }
+    }
+    /// A user message the stream announces while a follow-up is pending.
+    fn take_followup_started(&mut self, chat_id: &str, message_id: &str) -> bool {
+        let is_followup = !self.followup_texts.is_empty()
+            && self.active_turn.as_ref().is_some_and(|t| t.chat_id == chat_id && t.user_id != message_id);
+        if !is_followup {
+            return false;
+        }
+        let Some(text) = self.followup_texts.pop_front() else { return false };
+        if let Some(chat) = self.chat.as_mut().filter(|c| c.id == chat_id)
+            && !chat.messages.iter().any(|m| m.id == message_id)
+        {
+            chat.messages.push(Message {
+                id: message_id.to_string(),
+                role: "user".into(),
+                content: text.to_string(),
+                ..Default::default()
+            });
+        }
+        self.queued_ids.insert(message_id.to_string());
+        true
     }
     pub fn send_succeeded(&mut self) {
         self.active_turn = None;
@@ -833,6 +885,11 @@ impl Ui {
         let other_send_streaming = cached_handoff && self.streaming && self.pending_send.is_some()
             && self.active_turn.as_ref().is_some_and(|turn| turn.chat_id != chat.id);
         self.cached_chat_state = None;
+        // A queued row stops being queued once an assistant message follows it.
+        self.queued_ids.retain(|id| {
+            chat.messages.iter().position(|m| &m.id == id)
+                .is_none_or(|at| !chat.messages[at + 1..].iter().any(|m| m.role == "assistant"))
+        });
 
         if self.uncertain_turns.get(&chat.id).is_some_and(|turn| {
             chat.messages
@@ -1122,6 +1179,9 @@ impl Ui {
                 message_id,
                 expects_reply,
             } => {
+                if self.take_followup_started(&chat_id, &message_id) {
+                    return;
+                }
                 if self.chat.as_ref().is_none_or(|c| c.id != chat_id) {
                     self.remember_draft();
                     let migrate = self
@@ -2015,6 +2075,16 @@ impl Ui {
         if self.uncertain_turns.contains_key(&self.draft_key()) {
             self.set_status("Refresh this chat to check its previous message before sending again");
             return vec![];
+        }
+        if self.can_queue_followup() && !self.draft.text.trim().is_empty() {
+            let chat_id = self.chat.as_ref().map(|c| c.id.clone());
+            let key = self.draft_key();
+            let text = self.draft.take().to_string();
+            self.drafts.remove(&key);
+            self.followup_texts.push_back(Zeroizing::new(text.clone()));
+            self.follow_tail = true;
+            self.status = "Queued · sent behind the reply that is streaming".into();
+            return vec![UiCommand::Send { chat_id, text }];
         }
         if self.streaming || self.pending_send.is_some() {
             self.status = "Response in progress · Ctrl+C stops it".into();
@@ -3009,6 +3079,8 @@ impl Ui {
         self.settings = None;
         self.username.clear();
         self.authenticated = false;
+        self.followup_texts.clear();
+        self.queued_ids.clear();
         self.streaming = false;
         self.scroll = 0;
         self.hits.clear();
@@ -3834,6 +3906,11 @@ impl Ui {
                     MUTED
                 } else {
                     app_color(&chat.category)
+                };
+                let label = if user && self.queued_ids.contains(&message.id) {
+                    format!("{label} · Queued")
+                } else {
+                    label.to_string()
                 };
                 rows.push(markdown::styled(label, Style::default().fg(color).bold()));
                 if !message.thinking.is_empty() {
@@ -6691,3 +6768,7 @@ mod embed_carousel_tests;
 #[cfg(test)]
 #[path = "ui_settings_composer_tests.rs"]
 mod settings_composer_tests;
+
+#[cfg(test)]
+#[path = "ui_queued_followup_tests.rs"]
+mod queued_followup_tests;

@@ -89,7 +89,7 @@
         >
           {#if view}
             <span class="thumb" style:aspect-ratio="{view.deck.width} / {view.deck.height}">
-              <SlideCanvas slide={view.slide} width={view.deck.width} height={view.deck.height} template={view.deck.template} theme={view.deck.theme} />
+              <SlideCanvas motion={false} slide={view.slide} width={view.deck.width} height={view.deck.height} template={view.deck.template} theme={view.deck.theme} />
             </span>
           {/if}
           <span class="name">{option.name}</span>

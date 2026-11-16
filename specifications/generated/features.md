@@ -19,7 +19,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Web | 4 | 0 | 19 | 55 | 9 | 19 | 0 | 0 | 0 | 19 |
-| Apple | 0 | 15 | 33 | 6 | 0 | 40 | 6 | 5 | 0 | 20 |
+| Apple | 0 | 14 | 34 | 6 | 0 | 40 | 6 | 5 | 0 | 20 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
 | CLI | 0 | 0 | 16 | 8 | 27 | 41 | 2 | 0 | 0 | 31 |
 | TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 42 |
@@ -163,7 +163,9 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Access, memories and parity | **FAIL** 1/4 | **FAIL** 1/4 |  | partial 1/4 | **FAIL** 0/1 | partial 2/4 | not run 0/4 | not run 0/4 | | | |
 | [Reminder](#reminder) | **FAIL** 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Shopping](#shopping) | partial 1/4 | impl |  | impl | impl | **live** 3/3 | impl | impl | on | on | v0.5.0-alpha |
-| [Slides](#slides) | partial 11/20 | tested 1/1 |  | — | wip | partial 9/20 | impl | — | on | on | untagged-main |
+| [Slides](#slides) | partial 11/24 | partial 1/3 |  | — | wip | partial 9/24 | impl | — | on | on | untagged-main |
+| &nbsp;&nbsp;↳ Presentation remote | not run 0/3 | not run 0/2 |  | — | ? | not run 0/3 | ? | — | | | |
+| &nbsp;&nbsp;↳ Animated SVG images | not run 0/1 | ? |  | — | ? | not run 0/1 | ? | — | | | |
 | [Social Media](#social-media) | impl | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Study](#study) | impl | wip |  | — | impl | — | impl | wip | on | on | v0.5.0-alpha |
 | [Tasks](#tasks) | **FAIL** 9/29 | tested 8/8 |  | partial 2/29 | **FAIL** 0/1 | partial 6/29 | not run 0/29 | not run 0/29 | on | off | unreleased |
@@ -2489,11 +2491,11 @@ Send follow-ups while the assistant is working, edit them across devices, steer 
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 4/5 | 4 pass · 0 fail · 1 not run · 0 no test | [chat-queued-followups.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups.spec.ts)<br>[queued-followup-controls.spec.ts](../../frontend/apps/web_app/tests/components/queued-followup-controls.spec.ts)<br>9 unit test file(s), e.g. [chatSyncServiceHandlersAI.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts), [chatSyncServiceHandlersPhasedSync.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts) |
+| Web | partial 4/5 | 4 pass · 0 fail · 1 not run · 0 no test | [chat-interrupted-followup.spec.ts](../../frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts)<br>[chat-queued-followups-same-tab.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups-same-tab.spec.ts)<br>[chat-queued-followups.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups.spec.ts)<br>[queued-followup-controls.spec.ts](../../frontend/apps/web_app/tests/components/queued-followup-controls.spec.ts)<br>11 unit test file(s), e.g. [chatSyncServiceHandlersAI.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts), [chatSyncServiceHandlersPhasedSync.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts) |
 | Apple | **FAIL** 3/5 | 3 pass · 2 fail · 0 not run · 0 no test | [QueuedFollowupUITests.swift](../../apple/OpenMatesUITests/QueuedFollowupUITests.swift)<br>3 unit test file(s), e.g. [ChatSendPipelineParityTests.swift](../../apple/OpenMatesTests/ChatSendPipelineParityTests.swift), [ChatStreamingLifecycleParityTests.swift](../../apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift)<br>❌ [ChatStreamingLifecycleParityTests.swift › testQueuedSnapshotHydratesAndStartedReceiptRejectsLateQueuedStatus](../../apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift › testQueuedSnapshotHydratesAndStartedReceiptRejectsLateQueuedStatus) |
 | CLI | partial 1/5 | 1 pass · 0 fail · 1 not run · 3 no test | [chat-queued-followups-protocol.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts)<br>[cli-recovery-discovery.spec.ts](../../frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts)<br>1 unit test file(s), e.g. [client.test.ts](../../frontend/packages/openmates-cli/tests/client.test.ts) |
 | TUI | wip | — | — |
-| REST API | partial 4/5 | 4 pass · 0 fail · 0 not run · 1 no test | 9 unit test file(s), e.g. [test_queued_steering.py](../../backend/tests/test_queued_steering.py), [operations.test.js](../../backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js) |
+| REST API | partial 4/5 | 4 pass · 0 fail · 0 not run · 1 no test | 11 unit test file(s), e.g. [test_queued_steering.py](../../backend/tests/test_queued_steering.py), [operations.test.js](../../backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 
@@ -2685,21 +2687,21 @@ Signed-out web and Apple main-app visitors use the ordinary new-chat welcome wit
 
 Create, edit and present slide decks; templates with built-in designs and an account or Team library; Design a template and Plan a presentation focus modes.
 
-- Specifications: [feature.slides](../../specifications/features/slides/specification.yml) (approved) · 20 assertion(s)
+- Specifications: [feature.slides](../../specifications/features/slides/specification.yml) (draft) · 24 assertion(s)
 - Apps: `slides`
 - Flags: `app:slides` · dev on · prod on · release untagged-main
-- Notes: Templates and both focus modes are web only; Apple renders template themes only after its own slides lane.
-- Check intent: CLI: marked not_planned, but 20 required assertion(s) apply to cli
+- Notes: Templates and both focus modes are web only; Apple renders template themes only after its own slides lane. The presentation remote ships on web and Apple.
+- Check intent: CLI: marked not_planned, but 24 required assertion(s) apply to cli
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 11/20 | 11 pass · 0 fail · 0 not run · 9 no test | [slides-deck-embed.spec.ts](../../frontend/apps/web_app/tests/components/slides-deck-embed.spec.ts)<br>[slides-editor.spec.ts](../../frontend/apps/web_app/tests/components/slides-editor.spec.ts)<br>[slides-presenter.spec.ts](../../frontend/apps/web_app/tests/components/slides-presenter.spec.ts)<br>[slides-template-embed.spec.ts](../../frontend/apps/web_app/tests/components/slides-template-embed.spec.ts)<br>[slides-focus-modes-real.spec.ts](../../frontend/apps/web_app/tests/slides-focus-modes-real.spec.ts)<br>[slides-focus-presentation-planner.spec.ts](../../frontend/apps/web_app/tests/slides-focus-presentation-planner.spec.ts)<br>[slides-focus-template-designer.spec.ts](../../frontend/apps/web_app/tests/slides-focus-template-designer.spec.ts)<br>[slides-manual-edit.spec.ts](../../frontend/apps/web_app/tests/slides-manual-edit.spec.ts)<br>9 unit test file(s), e.g. [slidesMarkup.test.ts](../../frontend/packages/ui/src/components/embeds/slides/slidesMarkup.test.ts), [slidesDeckVersion.test.ts](../../frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts) |
-| Apple | tested 1/1 | 1 pass · 0 fail · 0 not run · 0 no test | 1 unit test file(s), e.g. [SlidesDeckRendererTests.swift](../../apple/OpenMatesTests/SlidesDeckRendererTests.swift) |
-| CLI | — | 0 pass · 0 fail · 0 not run · 20 no test | — |
+| Web | partial 11/24 | 11 pass · 0 fail · 4 not run · 9 no test | [slides-deck-embed.spec.ts](../../frontend/apps/web_app/tests/components/slides-deck-embed.spec.ts)<br>[slides-editor.spec.ts](../../frontend/apps/web_app/tests/components/slides-editor.spec.ts)<br>[slides-present-remote.spec.ts](../../frontend/apps/web_app/tests/components/slides-present-remote.spec.ts)<br>[slides-presenter.spec.ts](../../frontend/apps/web_app/tests/components/slides-presenter.spec.ts)<br>[slides-svg-animation.spec.ts](../../frontend/apps/web_app/tests/components/slides-svg-animation.spec.ts)<br>[slides-template-embed.spec.ts](../../frontend/apps/web_app/tests/components/slides-template-embed.spec.ts)<br>[slides-focus-modes-real.spec.ts](../../frontend/apps/web_app/tests/slides-focus-modes-real.spec.ts)<br>[slides-focus-presentation-planner.spec.ts](../../frontend/apps/web_app/tests/slides-focus-presentation-planner.spec.ts)<br>[slides-focus-template-designer.spec.ts](../../frontend/apps/web_app/tests/slides-focus-template-designer.spec.ts)<br>[slides-manual-edit.spec.ts](../../frontend/apps/web_app/tests/slides-manual-edit.spec.ts)<br>[slides-present-remote.spec.ts](../../frontend/apps/web_app/tests/slides-present-remote.spec.ts)<br>11 unit test file(s), e.g. [slidesMarkup.test.ts](../../frontend/packages/ui/src/components/embeds/slides/slidesMarkup.test.ts), [slidesDeckVersion.test.ts](../../frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts) |
+| Apple | partial 1/3 | 1 pass · 0 fail · 2 not run · 0 no test | 2 unit test file(s), e.g. [SlidesPresentRemoteTests.swift](../../apple/OpenMatesTests/SlidesPresentRemoteTests.swift), [SlidesDeckRendererTests.swift](../../apple/OpenMatesTests/SlidesDeckRendererTests.swift) |
+| CLI | — | 0 pass · 0 fail · 0 not run · 24 no test | — |
 | TUI | wip | — | — |
-| REST API | partial 9/20 | 9 pass · 0 fail · 1 not run · 10 no test | 7 unit test file(s), e.g. [test_slides_markup.py](../../backend/tests/test_slides_markup.py), [test_slides_stream_consumer.py](../../backend/tests/test_slides_stream_consumer.py) |
+| REST API | partial 9/24 | 9 pass · 0 fail · 3 not run · 12 no test | 9 unit test file(s), e.g. [test_slides_markup.py](../../backend/tests/test_slides_markup.py), [test_slides_stream_consumer.py](../../backend/tests/test_slides_stream_consumer.py) |
 | npm SDK | impl | — | — |
 | PyPI SDK | — | — | — |
 

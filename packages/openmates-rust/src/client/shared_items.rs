@@ -15,6 +15,7 @@ pub mod deck_operations;
 mod deck_store;
 pub mod deck_theme;
 pub mod deck_values;
+pub mod present_remote;
 
 pub use deck::{DeckDocument, DeckView};
 pub use deck_error::DeckError;

@@ -107,7 +107,7 @@
       <div class="current" data-testid="presenter-current">
         {#if current}
           {#key current.id}
-            <SlideCanvas
+            <SlideCanvas motion={true}
               slide={current}
               width={deck.width}
               height={deck.height}
@@ -149,7 +149,7 @@
             aria-current={i === position.index ? 'true' : undefined}
             onclick={() => onGoto(i)}
           >
-            <SlideCanvas slide={slide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
+            <SlideCanvas motion={false} slide={slide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
           </button>
         {/each}
       </div>
@@ -160,7 +160,7 @@
         <h3>{$text('embeds.slides_next')}</h3>
         {#if upcoming}
           {#key `${upcoming.slide.id}:${upcoming.step}`}
-            <SlideCanvas
+            <SlideCanvas motion={false}
               slide={upcoming.slide}
               width={deck.width}
               height={deck.height}

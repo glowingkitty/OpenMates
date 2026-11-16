@@ -82,7 +82,7 @@
           aria-current={slide.id === currentId ? 'true' : undefined}
           onclick={() => onOpen(slide.id)}
         >
-          <SlideCanvas slide={toRenderSlide(slide)} {width} {height} {template} {theme} />
+          <SlideCanvas motion={false} slide={toRenderSlide(slide)} {width} {height} {template} {theme} />
         </button>
       </div>
     {/each}

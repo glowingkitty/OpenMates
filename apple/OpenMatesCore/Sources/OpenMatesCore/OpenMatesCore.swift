@@ -2090,6 +2090,149 @@ public func FfiConverterTypeOpenMatesCore_lower(_ value: OpenMatesCore) -> UInt6
 
 
 /**
+ * Per-embed ordering of relayed states: decides which state a device applies.
+ * Create one per signed-in session and keep it next to the remote view model.
+ */
+public protocol SlidesRemoteOrderingsProtocol: AnyObject, Sendable {
+    
+    /**
+     * `true` when `state` should be applied (and is remembered).
+     */
+    func accept(state: SlidesRemoteStateRecord)  -> Bool
+    
+}
+/**
+ * Per-embed ordering of relayed states: decides which state a device applies.
+ * Create one per signed-in session and keep it next to the remote view model.
+ */
+open class SlidesRemoteOrderings: SlidesRemoteOrderingsProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_openmates_apple_bindings_fn_clone_slidesremoteorderings(self.handle, $0) }
+    }
+    /**
+     * Empty orderings: the first state of each embed is accepted.
+     */
+public convenience init() {
+    let handle =
+        try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_constructor_slidesremoteorderings_new(uniffiCallStatus
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_openmates_apple_bindings_fn_free_slidesremoteorderings(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * `true` when `state` should be applied (and is remembered).
+     */
+open func accept(state: SlidesRemoteStateRecord) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_slidesremoteorderings_accept(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeSlidesRemoteStateRecord_lower(state),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlidesRemoteOrderings: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = SlidesRemoteOrderings
+
+    public static func lift(_ handle: UInt64) throws -> SlidesRemoteOrderings {
+        return SlidesRemoteOrderings(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: SlidesRemoteOrderings) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlidesRemoteOrderings {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: SlidesRemoteOrderings, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteOrderings_lift(_ handle: UInt64) throws -> SlidesRemoteOrderings {
+    return try FfiConverterTypeSlidesRemoteOrderings.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteOrderings_lower(_ value: SlidesRemoteOrderings) -> UInt64 {
+    return FfiConverterTypeSlidesRemoteOrderings.lower(value)
+}
+
+
+
+
+
+
+/**
  * Event listener implemented in Swift. Called on a core thread in event
  * order; it must not block and hops to `@MainActor` itself.
  */
@@ -3343,6 +3486,25 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * `Internal` for a binding failure only.
      */
     func sessionInfo() async throws  -> SessionInfoRecord?
+    
+    /**
+     * Decrypt a relayed `slides_present_state` ciphertext of `embed_id`.
+     *
+     * # Errors
+     * `CiphertextTooLong`, `Crypto`, `Malformed`, `UnknownVersion`,
+     * `EmbedMismatch`, `SeqOutOfRange`, `Unavailable`.
+     */
+    func slidesRemoteDecrypt(embedId: String, ciphertext: String) async throws  -> SlidesRemoteStateRecord
+    
+    /**
+     * Encrypt `state` with the deck's embed key (resolved in the core) for
+     * the `slides_present_state` frame.
+     *
+     * # Errors
+     * `SeqOutOfRange`, `PlaintextTooLong`, `CiphertextTooLong`, `Crypto`,
+     * `Unavailable` (no embed key, signed out, busy actor).
+     */
+    func slidesRemoteEncrypt(state: SlidesRemoteStateRecord) async throws  -> String
     
     /**
      * Opt in to unowned socket frames: from now on, also after a new
@@ -5609,6 +5771,53 @@ open func sessionInfo()async throws  -> SessionInfoRecord?  {
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterOptionTypeSessionInfoRecord.lift,
             errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Decrypt a relayed `slides_present_state` ciphertext of `embed_id`.
+     *
+     * # Errors
+     * `CiphertextTooLong`, `Crypto`, `Malformed`, `UnknownVersion`,
+     * `EmbedMismatch`, `SeqOutOfRange`, `Unavailable`.
+     */
+open func slidesRemoteDecrypt(embedId: String, ciphertext: String)async throws  -> SlidesRemoteStateRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_slides_remote_decrypt(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterString.lower(ciphertext)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeSlidesRemoteStateRecord_lift,
+            errorHandler: FfiConverterTypeSlidesRemoteError_lift
+        )
+}
+    
+    /**
+     * Encrypt `state` with the deck's embed key (resolved in the core) for
+     * the `slides_present_state` frame.
+     *
+     * # Errors
+     * `SeqOutOfRange`, `PlaintextTooLong`, `CiphertextTooLong`, `Crypto`,
+     * `Unavailable` (no embed key, signed out, busy actor).
+     */
+open func slidesRemoteEncrypt(state: SlidesRemoteStateRecord)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_slides_remote_encrypt(
+                        self.uniffiCloneHandle(),FfiConverterTypeSlidesRemoteStateRecord_lower(state)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeSlidesRemoteError_lift
         )
 }
     
@@ -15778,6 +15987,135 @@ public func FfiConverterTypeSlideTodoItemRecord_lower(_ value: SlideTodoItemReco
 
 
 /**
+ * One presentation state snapshot (same fields as the web `PresentRemoteState`).
+ */
+public struct SlidesRemoteStateRecord: Equatable, Hashable {
+    /**
+     * Deck embed the state belongs to.
+     */
+    public var embedId: String
+    /**
+     * Presentation session id.
+     */
+    public var sessionId: String
+    /**
+     * Ordering number, increasing within a session (at most 2^53 - 1).
+     */
+    public var seq: UInt64
+    /**
+     * Current slide index.
+     */
+    public var index: UInt32
+    /**
+     * Current build step.
+     */
+    public var step: UInt32
+    /**
+     * Whether the presenter shows its notes.
+     */
+    public var notesVisible: Bool
+    /**
+     * False once the presentation ended.
+     */
+    public var presenting: Bool
+    /**
+     * Producer of this snapshot.
+     */
+    public var origin: SlidesRemoteOriginRecord
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Deck embed the state belongs to.
+         */embedId: String, 
+        /**
+         * Presentation session id.
+         */sessionId: String, 
+        /**
+         * Ordering number, increasing within a session (at most 2^53 - 1).
+         */seq: UInt64, 
+        /**
+         * Current slide index.
+         */index: UInt32, 
+        /**
+         * Current build step.
+         */step: UInt32, 
+        /**
+         * Whether the presenter shows its notes.
+         */notesVisible: Bool, 
+        /**
+         * False once the presentation ended.
+         */presenting: Bool, 
+        /**
+         * Producer of this snapshot.
+         */origin: SlidesRemoteOriginRecord) {
+        self.embedId = embedId
+        self.sessionId = sessionId
+        self.seq = seq
+        self.index = index
+        self.step = step
+        self.notesVisible = notesVisible
+        self.presenting = presenting
+        self.origin = origin
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SlidesRemoteStateRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlidesRemoteStateRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlidesRemoteStateRecord {
+        return
+            try SlidesRemoteStateRecord(
+                embedId: FfiConverterString.read(from: &buf), 
+                sessionId: FfiConverterString.read(from: &buf), 
+                seq: FfiConverterUInt64.read(from: &buf), 
+                index: FfiConverterUInt32.read(from: &buf), 
+                step: FfiConverterUInt32.read(from: &buf), 
+                notesVisible: FfiConverterBool.read(from: &buf), 
+                presenting: FfiConverterBool.read(from: &buf), 
+                origin: FfiConverterTypeSlidesRemoteOriginRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SlidesRemoteStateRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterString.write(value.sessionId, into: &buf)
+        FfiConverterUInt64.write(value.seq, into: &buf)
+        FfiConverterUInt32.write(value.index, into: &buf)
+        FfiConverterUInt32.write(value.step, into: &buf)
+        FfiConverterBool.write(value.notesVisible, into: &buf)
+        FfiConverterBool.write(value.presenting, into: &buf)
+        FfiConverterTypeSlidesRemoteOriginRecord.write(value.origin, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteStateRecord_lift(_ buf: RustBuffer) throws -> SlidesRemoteStateRecord {
+    return try FfiConverterTypeSlidesRemoteStateRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteStateRecord_lower(_ value: SlidesRemoteStateRecord) -> RustBuffer {
+    return FfiConverterTypeSlidesRemoteStateRecord.lower(value)
+}
+
+
+/**
  * One entry of `batch_unwrap_chat_keys`, in input order.
  */
 public struct UnwrappedChatKeyRecord: Equatable, Hashable {
@@ -21965,6 +22303,228 @@ public func FfiConverterTypeSlideElementKindRecord_lower(_ value: SlideElementKi
 
 
 /**
+ * Typed refusal; each case has a stable `code` string.
+ */
+public 
+enum SlidesRemoteError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    /**
+     * Ciphertext too long.
+     */
+    case CiphertextTooLong
+    /**
+     * Plaintext too long.
+     */
+    case PlaintextTooLong
+    /**
+     * Wrong key, tampered or malformed ciphertext.
+     */
+    case Crypto
+    /**
+     * Not a valid state document.
+     */
+    case Malformed
+    /**
+     * Unknown wire version.
+     */
+    case UnknownVersion
+    /**
+     * The state belongs to another embed.
+     */
+    case EmbedMismatch
+    /**
+     * `seq` too large.
+     */
+    case SeqOutOfRange
+    /**
+     * The embed key or the session is unavailable; `code` is stable.
+     */
+    case Unavailable(
+        /**
+         * Stable machine code.
+         */code: String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension SlidesRemoteError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlidesRemoteError: FfiConverterRustBuffer {
+    typealias SwiftType = SlidesRemoteError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlidesRemoteError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .CiphertextTooLong
+        case 2: return .PlaintextTooLong
+        case 3: return .Crypto
+        case 4: return .Malformed
+        case 5: return .UnknownVersion
+        case 6: return .EmbedMismatch
+        case 7: return .SeqOutOfRange
+        case 8: return .Unavailable(
+            code: try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SlidesRemoteError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .CiphertextTooLong:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .PlaintextTooLong:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .Crypto:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .Malformed:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .UnknownVersion:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .EmbedMismatch:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .SeqOutOfRange:
+            writeInt(&buf, Int32(7))
+        
+        
+        case let .Unavailable(code):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(code, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteError_lift(_ buf: RustBuffer) throws -> SlidesRemoteError {
+    return try FfiConverterTypeSlidesRemoteError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteError_lower(_ value: SlidesRemoteError) -> RustBuffer {
+    return FfiConverterTypeSlidesRemoteError.lower(value)
+}
+
+
+/**
+ * Which device produced a state.
+ */
+
+public enum SlidesRemoteOriginRecord: Equatable, Hashable {
+    
+    /**
+     * The device showing the full-screen presentation.
+     */
+    case presenter
+    /**
+     * A device acting as the remote.
+     */
+    case remote
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SlidesRemoteOriginRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlidesRemoteOriginRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SlidesRemoteOriginRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlidesRemoteOriginRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .presenter
+        
+        case 2: return .remote
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SlidesRemoteOriginRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .presenter:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .remote:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteOriginRecord_lift(_ buf: RustBuffer) throws -> SlidesRemoteOriginRecord {
+    return try FfiConverterTypeSlidesRemoteOriginRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteOriginRecord_lower(_ value: SlidesRemoteOriginRecord) -> RustBuffer {
+    return FfiConverterTypeSlidesRemoteOriginRecord.lower(value)
+}
+
+
+
+/**
  * Progress of a send or live reply (core `StreamEvent`).
  */
 
@@ -26391,6 +26951,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_session_info() != 51951) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_slides_remote_decrypt() != 51054) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_slides_remote_encrypt() != 37074) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_forward_unowned_frames() != 62339) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -26418,6 +26984,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_remove_chat() != 40529) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_slidesremoteorderings_accept() != 57005) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_voicecallactivityclockhandle_apply_activity() != 57860) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -26443,6 +27012,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_constructor_corechatsearchindex_new() != 11853) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_constructor_slidesremoteorderings_new() != 6215) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_constructor_voicecallactivityclockhandle_new() != 43106) {

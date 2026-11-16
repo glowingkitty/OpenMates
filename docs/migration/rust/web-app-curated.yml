@@ -127,6 +127,18 @@ units:
     rust_paths:
     - packages/openmates-browser-bindings/src/browser_embed_write.rs
     - packages/openmates-rust/src/client/embed_write_session.rs
+  presentRemote:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No flag-on web-rust-core spec yet; slides-present-remote.spec.ts covers the remote flow once the web UI lane lands.
+    spec_assertions:
+    - slides.present.remote-relay-private
+    - slides.present.remote-one-core
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_present_remote.rs
+    - packages/openmates-rust/src/client/shared_items/present_remote.rs
   projectTimeline:
     specs: []
     vectors: []

@@ -87,3 +87,11 @@ fn the_lists_are_disjoint_and_free_of_duplicates() {
     assert_eq!(shared.len(), CORE_AND_SHELL_EVENT_TYPES.len());
     assert!(core.is_disjoint(&shared));
 }
+
+// contract-test: direct surface=sdk.rust assertions=slides.present.remote-relay-private,slides.present.remote-one-core
+#[test]
+fn slides_present_state_is_a_shell_owned_pass_through() {
+    assert_eq!(classify_socket_event("slides_present_state"), SocketEventOwner::Shell);
+    assert!(forwards_to_shell("slides_present_state"));
+    assert!(shell_may_send("slides_present_state"));
+}

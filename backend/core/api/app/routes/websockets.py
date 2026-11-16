@@ -147,6 +147,7 @@ from .handlers.websocket_handlers.store_embed_handler import handle_store_embed 
 from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
 from .handlers.websocket_handlers.store_embed_diff_handler import handle_store_embed_diff # Handler for storing encrypted embed diff rows
 from .handlers.websocket_handlers.commit_embed_revision_handler import handle_commit_embed_revision
+from .handlers.websocket_handlers.slides_present_state_handler import handle_slides_present_state
 from .handlers.websocket_handlers.commit_chat_diagram_revision_handler import handle_commit_chat_diagram_revision
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
@@ -5071,6 +5072,14 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "slides_present_state":
+                await handle_slides_present_state(
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
                 )
             elif message_type == "commit_embed_revision":
                 if not permits_canonical_embed_write(

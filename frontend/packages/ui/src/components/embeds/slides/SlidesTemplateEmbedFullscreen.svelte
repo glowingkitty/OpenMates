@@ -115,7 +115,7 @@
         {#each slides as slide (slide.id)}
           <figure class="sample" data-testid="slides-template-layout-{layoutTestName(slide.layout)}">
             <div class="sample-slide">
-              <SlideCanvas {slide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
+              <SlideCanvas motion={true} {slide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
             </div>
             <figcaption>{layoutName(slide.layout)}</figcaption>
           </figure>

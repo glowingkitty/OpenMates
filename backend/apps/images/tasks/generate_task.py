@@ -33,6 +33,7 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.utils.image_processing import (
     process_image_for_storage,
     process_svg_for_storage,
+    is_sanitized_svg,
 )
 from backend.shared.providers.google.gemini_image import generate_image_google
 from backend.shared.providers.fal.flux import generate_image_fal_flux
@@ -1480,6 +1481,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 "format": ext,
                 "mime_type": stored_mime,
                 **encrypted_variants.metadata[format_key],
+                **({"sanitized": is_sanitized_svg(content)} if output_filetype == "svg" and format_key == "original" else {}),
             }
 
         # 9. Prepare embed content for client-side storage

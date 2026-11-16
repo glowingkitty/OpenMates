@@ -48,7 +48,7 @@ enum SlidesDeckContent {
         case .preview:
             preview(deck: deck)
         case .fullscreen:
-            SlidesDeckFullscreenView(deck: deck, title: SlidesDeckContent.title(data: data, deck: deck))
+            SlidesDeckFullscreenView(deck: deck, title: SlidesDeckContent.title(data: data, deck: deck), embedID: embedID)
         }
     }
 

@@ -2801,6 +2801,9 @@ async def _async_process_ai_skill_ask_task(
         from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
         await require_active_voice_dispatch(cache_service_instance, request_data)
 
+        from backend.apps.ai.tasks.async_skill_continuation import claim_queued_turn_as_latest
+        await claim_queued_turn_as_latest(cache_service_instance, request_data)
+
         from backend.shared.python_utils.focus_continuation_history import bind_focus_execution
         await bind_focus_execution(cache_service_instance, request_data, task_id)
 

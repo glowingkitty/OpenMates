@@ -73,7 +73,7 @@ import { getActiveTeamContextSnapshot } from "../stores/teamStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } from "./ordinaryTeamPreflightRetry";
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement, recoverTimedOutAdmission } from "./preflightAcknowledgement";
-import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, hasRecoveryBoundPersonalChatMessage, markPersonalChatTurnLegacy, type PersonalChatTurn } from "./personalChatTurnBarrier";
+import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, admitPersonalChatTurn, hasRecoveryBoundPersonalChatMessage, markPersonalChatTurnLegacy, type PersonalChatTurn } from "./personalChatTurnBarrier";
 import { isDraftContextDispatchActive, reserveDraftContextDispatch } from "./draftContextDispatchBarrier";
 /** Build-time opt-in to the shared Rust core `sendPrep` unit (default off). */
 const RUST_SEND_PREP_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
@@ -894,7 +894,9 @@ export function shouldSkipClientCodeBlockExtraction(language: string, content: s
 webSocketService.addEventListener("message", (event) => {
   const frame = (event as CustomEvent).detail;
   if (!["new_chat_message", "chat_message_added", "chat_message_confirmed", "message_deleted",
-    "call_message_confirmed", "call_message_changed", "system_message_confirmed"].includes(frame?.type)) return;
+    "call_message_confirmed", "call_message_changed", "system_message_confirmed",
+    // Queueing, editing and steering a queued follow-up advance messages_v without a new row.
+    "message_queued", "queued_message_status", "queued_message_updated"].includes(frame?.type)) return;
   const payload = frame.payload;
   // Call and system receipts must include a server-issued chat version; a
   // call's per-message `revision` is not a substitute for messages_v.
@@ -1594,6 +1596,11 @@ async function dispatchFastPersonalTurn(input: {
 		// consume context only then; a rejected frame cannot publish a phase.
 		void admissionAck.then(async (ack) => {
 			if (ack.state === 'LEGACY') markPersonalChatTurnLegacy(personalTurn);
+			// The server committed this turn's user row at expected+1: a follow-up may
+			// now be admitted at once and waits server-side as Queued
+			// (feature.chat-queued-followups admission.synced). Legacy turns keep
+			// waiting for terminal persistence.
+			else admitPersonalChatTurn(personalTurn, Number(admission.expected_messages_v) + 1);
 			recordSendPreparationPhase('admission_ack');
 			initialChatHistoryGate.acknowledge(message.chat_id, message.message_id, admission.turn_id as string, contextWorkspace);
 			await publishPostAdmissionContext({
@@ -3364,6 +3371,16 @@ export async function sendNewMessageImpl(
 					Number(preflightPayload.expected_messages_v) + 1,
 				);
 				holdAdmissionUntil?.(admissionCompleted);
+				if (usesPersonalRecovery) {
+					// The versioned confirmation commits this user row at expected+1: a
+					// follow-up may be admitted at once and waits server-side as Queued
+					// (feature.chat-queued-followups admission.synced). Legacy turns keep
+					// waiting for terminal persistence.
+					const committedVersion = Number(preflightPayload.expected_messages_v) + 1;
+					void admissionCompleted.then(() => {
+						if (!personalTurn.legacy) admitPersonalChatTurn(personalTurn, committedVersion);
+					});
+				}
 			} catch (error) {
 				await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
 				throw error;

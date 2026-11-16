@@ -42,6 +42,8 @@ use zeroize::{Zeroize, Zeroizing};
 
 #[path = "runtime_core_host.rs"]
 mod core_host;
+#[path = "runtime_send_stream.rs"]
+mod send_stream;
 
 struct TerminalGuard {
     was_raw: bool,
@@ -192,6 +194,8 @@ enum View {
     CachedChat(NativeCachedChatPublication),
     ChatOpenFailed(Error),
     Sent(Chat),
+    /// A follow-up the server saved behind the active reply (`Queued` receipt).
+    SendQueued { chat_id: String, message_id: Option<String> },
     Monitor(Error, CancellationToken),
     AccessDenied(ChatMonitorAccessDenial, CancellationToken),
     Item(Workspace, Item),
@@ -204,6 +208,8 @@ enum View {
     Failed(Error),
     Done,
 }
+/// Each streamed send needs its own core request id; follow-ups share a view epoch.
+static SEND_REQUEST_IDS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 struct Stamp {
     security: u64,
@@ -262,6 +268,8 @@ enum Work {
     PairPoll,
     Monitor,
     Live,
+    /// A streamed send ended: publish its sent chat or settle its error.
+    SendFinished(Box<Result<openmates_sdk::view_model::SendReceipt>>),
 }
 type BootSyncPreempt = std::sync::Arc<std::sync::Mutex<Option<CancellationToken>>>;
 /// Commands the user is waiting on run before the background boot sync.
@@ -458,6 +466,7 @@ async fn run_terminal(args: Args) -> Result<()> {
                     View::LiveItems(items)=>{if let Ok(items)=items.into_inner(){ui.apply_live_chat_items(items);}},
                     View::ChatUnavailable(chat_id)=>ui.apply_live_selection(ChatSelectionUpdate::Unavailable{chat_id}),
                     View::CachedChat(publication)=>apply_cached_chat(&mut ui, publication),
+                    View::SendQueued{chat_id,message_id}=>ui.followup_queued(&chat_id,message_id.as_deref()),
                     View::Sent(chat)=>{ui.send_succeeded();if reply.epoch.view==epoch.view{ui.set_chat(chat);}},
                     View::AccessDenied(denial,lifetime)=>{
                         if lifetime.is_cancelled(){continue}
@@ -573,7 +582,10 @@ async fn run_terminal(args: Args) -> Result<()> {
                         ui.set_error("Sign out before signing in to another account.");
                         continue;
                     }
-                    if matches!(
+                    // A follow-up into the chat that is streaming keeps the view epoch:
+                    // the first send's replies stay current.
+                    let followup = matches!(&command, UiCommand::Send { chat_id, .. } if ui.is_streaming_chat(chat_id.as_deref()));
+                    if !followup && matches!(
                         command,
                         UiCommand::Open(..) | UiCommand::Refresh(_) | UiCommand::Send { .. }
                     ) {
@@ -794,7 +806,12 @@ struct Actor {
     /// The core view-model actor state: the one Client, its session runtime
     /// and the credential backend (lane L6b). Chat list start, boot sync,
     /// refresh, team switch and logout run in the core (`core_host.rs`).
-    core: ViewCore<CacheBytes>,
+    core: send_stream::CoreCell,
+    /// Where streamed sends report their end (`Work::SendFinished`).
+    send_finished: mpsc::UnboundedSender<send_stream::SendOutcome>,
+    /// Set when this request spawned a send stream: its `Done` comes with the
+    /// stream's `SendFinished`, not with the admission.
+    send_streaming: bool,
     store: RuntimeStore,
     passphrase: SharedPassphrase,
     pair_phase: u8,
@@ -832,6 +849,7 @@ async fn actor(
     stop: CancellationToken,
     boot_sync_preempt: BootSyncPreempt,
 ) {
+    let (send_finished, mut finished) = mpsc::unbounded_channel();
     let initial = async {
         let directories = directories::BaseDirs::new().ok_or(Error::Io)?;
         let profile = openmates::profile::resolve(
@@ -872,7 +890,9 @@ async fn actor(
         let core = ViewCore::new(client, store.shell().clone(),
             openmates::session_runtime::shared_credentials(&store, passphrase.clone()));
         Ok::<_, Error>(Actor {
-            core,
+            core: send_stream::CoreCell::new(core),
+            send_finished,
+            send_streaming: false,
             trusted_path,
             trusted_verified: false,
             live_pending: None,
@@ -917,7 +937,7 @@ async fn actor(
     live_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut boot_sync: Option<Stamp> = None;
     let mut inspirations: Option<Stamp> = None;
-    while let Some(request) = tokio::select! {
+    while let Some(request) = { state.core.release(); tokio::select! {
         biased;
         _=stop.cancelled()=>None,
         request=controls.recv()=>request,
@@ -930,9 +950,12 @@ async fn actor(
         },
         _=std::future::ready(()), if inspirations.is_some() && boot_sync.is_none() =>
             inspirations.take().map(|epoch| Request { epoch, work: Work::Inspirations, cancel: state.live_cancel.clone() }),
-        _=live_tick.tick(), if state.core.chat_monitor().is_some_and(|m|m.is_valid()) && !state.live_cancel.is_cancelled()
+        outcome = finished.recv() => outcome.map(|(epoch, result)| Request {
+            epoch, work: Work::SendFinished(Box::new(result)), cancel: CancellationToken::new() }),
+        _=live_tick.tick(), if state.core.monitor_valid() && !state.live_cancel.is_cancelled()
             =>Some(Request{epoch:state.live_epoch,work:Work::Live,cancel:state.live_cancel.clone()}),
-    } {
+    } } {
+        state.core.acquire().await;
         let background = matches!(&request.work, Work::Live | Work::Inspirations | Work::Command(UiCommand::MarkRead(_)));
         let booting = matches!(&request.work, Work::Boot);
         let syncing = matches!(&request.work, Work::BootSync);
@@ -940,6 +963,9 @@ async fn actor(
         let epoch = request.epoch;
         let cancel = request.cancel.clone();
         let mut result = state.dispatch(request, &replies).await;
+        // A send now streams on its own task beside this loop; its end returns
+        // as `Work::SendFinished` and is settled below like any request.
+        if std::mem::take(&mut state.send_streaming) && result.is_ok() { continue; }
         if syncing {
             if let Ok(mut slot) = boot_sync_preempt.lock() { slot.take(); }
             // A preempted background sync resumes once the queue is idle again.
@@ -1017,6 +1043,7 @@ async fn actor(
                 .await;
         }
     }
+    state.core.acquire().await;
     state.retire_cached_views();
     state.core.set_chat_monitor(None);
     if let Some(lifetime) = state.live_lifetime.take() {
@@ -1705,7 +1732,7 @@ impl Actor {
             self.retire_cached_views();
         }
         let logout = matches!(&request.work, Work::Command(UiCommand::Logout));
-        if !matches!(&request.work, Work::Live) {
+        if !matches!(&request.work, Work::Live | Work::SendFinished(_)) {
             self.live_cancel = request.cancel.clone();
         }
         if matches!(
@@ -1803,6 +1830,15 @@ impl Actor {
                 self.recover_before_view(replies, epoch, None, false)
                     .await
                     .map(|_| ())
+            }),
+            Work::SendFinished(result) => Box::pin(async move {
+                let _request_cancel = &cancel;
+                let receipt = (*result)?;
+                if receipt.status == openmates_sdk::SendStatus::Queued {
+                    return Self::emit(replies, epoch, View::SendQueued {
+                        chat_id: receipt.chat_id, message_id: receipt.user_message_id }).await;
+                }
+                Self::emit(replies, epoch, View::Sent(core_host::chat_from_window(&receipt.window)?)).await
             }),
             Work::Live => Box::pin(async move {
                 let _request_cancel = &cancel;
@@ -1943,7 +1979,7 @@ impl Actor {
                 UiCommand::Open(Workspace::Chats, id) => Box::pin(async move {
                     let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel)
                         .owned_by(&self.core, Some(&id));
-                    let command = ViewCommand::OpenChat { request: RequestId(epoch.view), chat_id: id };
+                    let command = ViewCommand::OpenChat { request: RequestId(SEND_REQUEST_IDS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)), chat_id: id };
                     core_view::handle(self, command, &sink, &cancel).await
                 }),
                 UiCommand::Open(workspace, id) => Box::pin(async move {
@@ -1981,11 +2017,17 @@ impl Actor {
                     Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { core_view::arrange_chat_list(self.core.client(), items) } else { items })).await
                 }),
                 UiCommand::Send { chat_id, text } => Box::pin(async move {
-                    // Core send: mentions, streamed turn, persistence even when cancelled.
+                    // Core send: mentions and admission run here; the reply streams
+                    // on its own task so a follow-up send is accepted meanwhile.
                     let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel)
                         .sending(&self.relay);
-                    let sent = core_view::send(self, RequestId(epoch.view), chat_id, text, &sink, &cancel).await?;
-                    Self::emit(replies, epoch, View::Sent(core_host::chat_from_window(&sent)?)).await
+                    let lease = self.core.lease();
+                    let stream = core_view::begin_send_with(self, RequestId(epoch.view), chat_id, text,
+                        core_view::SendTurnOptions::default(), sink, &cancel, lease).await?;
+                    self.core.release();
+                    self.send_streaming = true;
+                    send_stream::spawn(stream, self.send_finished.clone(), epoch);
+                    Ok(())
                 }),
                 UiCommand::Share {
                     chat_id,
@@ -2071,7 +2113,9 @@ mod tests {
         let core = ViewCore::new(Client::new(&session.api_url, Some(session.clone())).unwrap(),
             store.shell().clone(), openmates::session_runtime::shared_credentials(&store, passphrase.clone()));
         let actor = Actor {
-            core,
+            core: send_stream::CoreCell::new(core),
+            send_finished: mpsc::unbounded_channel().0,
+            send_streaming: false,
             store,
             passphrase,
             pair_phase: 0,
@@ -2317,3 +2361,6 @@ mod late_cached_tests;
 #[cfg(test)]
 #[path = "runtime_send_tests.rs"]
 mod send_tests;
+#[cfg(test)]
+#[path = "runtime_send_stream_tests.rs"]
+mod send_stream_tests;

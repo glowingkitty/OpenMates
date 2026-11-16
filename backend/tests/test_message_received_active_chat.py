@@ -979,6 +979,11 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch, 
         directus_service.chat.mark_queued_message_pending.assert_awaited_once()
         assert directus_service.chat.mark_queued_message_pending.await_args.kwargs["recovery_task_id"] == "task-123"
         assert any(call[1] == "message_queued" for call in manager.calls if call[0] == "send_personal_message")
+        queued = next(message for message in manager.messages if message["type"] == "message_queued")
+        # The queued row's committed sync revision is the next follow-up's expected version.
+        assert queued["payload"]["messages_v"] == 5
+        status = next(message for message in manager.broadcasts if message["type"] == "queued_message_status")
+        assert status["payload"]["messages_v"] == 5
         directus_service.chat.release_inference_outbox.assert_not_awaited()
     else:
         assert ("dispatch_skill", "ai", "ask", "team-chat-123") in manager.calls
@@ -1625,6 +1630,7 @@ async def test_atomic_first_personal_plain_history_reuses_saved_row(
         "created_at": 1_700_000_000,
     })
     cache = SimpleNamespace(
+        get=AsyncMock(return_value=None),
         set=AsyncMock(return_value=True),
         get_user_vault_key_id=AsyncMock(return_value="vault-key-123"),
         save_chat_message_and_update_versions=AsyncMock(return_value={

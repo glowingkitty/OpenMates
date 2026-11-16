@@ -114,7 +114,7 @@
     <div class="template-details" data-testid="slides-template-card">
       {#if deck && firstSlide}
         <div class="first-slide" style:aspect-ratio="{deck.width} / {deck.height}" style:--deck-ratio={deck.width / deck.height}>
-          <SlideCanvas slide={firstSlide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
+          <SlideCanvas motion={false} slide={firstSlide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
         </div>
       {:else}
         <div class="template-empty" data-skill-icon="slides"></div>

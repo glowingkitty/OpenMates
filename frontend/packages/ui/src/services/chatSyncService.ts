@@ -3,7 +3,7 @@ import { OutboundMessageSends } from "./outboundMessageSends";
 // frontend/packages/ui/src/services/chatSyncService.ts
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from "./db";
-import { clearPersonalChatTurnBarriers, failPersonalChatMessage, failPersonalChatTurn, reservePersonalChatTurn } from "./personalChatTurnBarrier";
+import { clearPersonalChatTurnBarriers, failPersonalChatMessage, failPersonalChatTurn, markPersonalChatReplyEnded, markPersonalChatReplyRunning, reservePersonalChatTurn } from "./personalChatTurnBarrier";
 import { getApiEndpoint } from '../config/api';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -596,11 +596,20 @@ export class ChatSynchronizationService extends EventTarget {
     });
     this.addEventListener('aiTaskEnded', (event) => {
       const detail = (event as CustomEvent<{ chatId?: string; userMessageId?: string; status?: string }>).detail;
+      // The server stops queueing followers behind an ended run; they wait for
+      // this turn's encrypted reply row instead (personalChatTurnBarrier).
+      if ((detail?.status === 'completed' || detail?.status === 'cancelled') && detail.chatId && detail.userMessageId) {
+        markPersonalChatReplyEnded(detail.chatId, detail.userMessageId);
+      }
       // Cancellation ends inference and playback, not encrypted persistence.
       // A partial reply can still be sealing or awaiting its canonical ACK;
       // keep successors fenced until that exact storage/recovery proof arrives.
       if (detail?.status === 'completed' || detail?.status === 'cancelled' || !detail?.chatId || !detail?.userMessageId) return;
       failPersonalChatMessage(detail.chatId, detail.userMessageId, new Error('The prior AI task ended before encrypted reply persistence.'));
+    });
+    this.addEventListener('aiTaskInitiated', (event) => {
+      const chatId = (event as CustomEvent<{ chat_id?: string }>).detail?.chat_id;
+      if (chatId) markPersonalChatReplyRunning(chatId);
     });
     this.registerWebSocketHandlers();
     // The connection event can precede chat-key hydration. Retry again after

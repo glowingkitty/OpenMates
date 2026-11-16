@@ -119,7 +119,7 @@
   {#if slide && slideWidth > 0}
     <div class="audience-slide" style:width="{slideWidth}px" data-testid="slides-audience-slide">
       {#key slide.id}
-        <SlideCanvas
+        <SlideCanvas motion={true}
           {slide}
           width={deck.width}
           height={deck.height}

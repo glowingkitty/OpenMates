@@ -2,60 +2,19 @@
 /** Real disposable backend cancellation and encrypted recovery; no provider calls. */
 import type { AITypingStartedPayload } from "../../../packages/ui/src/types/chat";
 const { test, expect } = require('./helpers/cookie-audit');
-const { execFileSync } = require('node:child_process');
-const fs = require('node:fs');
-const path = require('node:path');
 const { getTestAccount, withMockMarker } = require('./signup-flow-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { loginToTestAccount, waitForChatReady, sendMessage, waitForAssistantMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { waitForContextSyncComplete, openChatAfterContextSync } = require('./helpers/chat-hydration');
+const { ensureIsolatedRecoveryEpoch } = require('./helpers/recovery-epoch');
 const { email, password, otpKey } = getTestAccount();
-const root = path.resolve(__dirname, '../../../..');
-
-// New spec registration is candidate source, while the runner harness remains
-// separately frozen. Reuse its existing guarded transition from this candidate
-// so this regression always exercises recovery, even before registration lands.
-function ensureIsolatedRecoveryEpoch(): void {
-  expect(process.env.GITHUB_ACTIONS).toBe('true');
-  expect(process.env.RUNNER_ENVIRONMENT).toBe('github-hosted');
-  const compose = path.join(root, 'test-results/ci-private/compose.json');
-  const profile = JSON.parse(fs.readFileSync(compose, 'utf8'));
-  expect(profile.networks.default.internal).toBe(true);
-  expect(profile.services.api.environment.OPENMATES_CI_ISOLATED).toBe('1');
-  expect(profile.services.api.environment.OPENMATES_CI_AI_FIXTURES).toBe('1');
-  const probe = `
-import asyncio,json,logging,os
-logging.disable(logging.CRITICAL)
-assert os.getenv('OPENMATES_CI_ISOLATED') == '1' and os.getenv('MOCK_EXTERNAL_APIS') == 'true'
-from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
-async def main():
-    cache=CacheService(); directus=DirectusService(cache_service=cache)
-    try:
-        print(json.dumps(await ChatRecoveryCutoverController(cache,directus).get_state(authoritative=True)))
-    finally:
-        await directus.close(); await cache.close()
-asyncio.run(main())
-`;
-  const readState = () => JSON.parse(execFileSync('docker', ['compose', '-f', compose, 'exec', '-T',
-    'api', 'python', '-c', probe], { cwd: root, encoding: 'utf8', timeout: 60_000 }).trim().split('\n').at(-1));
-  let state = readState();
-  if (state.protocol_epoch === 0) {
-    execFileSync('python3', ['-c',
-      "import sys; sys.path.insert(0, 'scripts'); from ci_run_tests import activate_isolated_marker_chat_epoch; activate_isolated_marker_chat_epoch('chat-interrupted-followup.spec.ts')"],
-    { cwd: root, env: { ...process.env, OPENMATES_CI_SOURCE_ROOT: root }, encoding: 'utf8', timeout: 90_000 });
-    state = readState();
-  }
-  expect(state).toEqual({ protocol_epoch: 1, sends_paused: false, legacy_in_flight: 0 });
-}
 
 test.describe('Interrupted personal chat follow-ups', () => {
   test.describe.configure({ timeout: 240_000 });
   skipWithoutCredentials(test, email, password, otpKey);
-  test.beforeAll(() => ensureIsolatedRecoveryEpoch());
+  test.beforeAll(() => ensureIsolatedRecoveryEpoch('chat-interrupted-followup.spec.ts'));
   for (const partial of [true, false]) {
-    // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,chats.completion.recovery-takeover,chat-processing-feedback.turn-lifecycle
+    // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,chats.completion.recovery-takeover,chat-processing-feedback.turn-lifecycle,chat-queued-followups.admission.synced
     test(`sends the waiting follow-up after Stop ${partial ? 'during streamed text' : 'before the first text'}`, async ({ page }: { page: any }, testInfo: any) => {
       const frames: Array<{ direction: string; type: string; payload: any }> = [];
       page.on('websocket', (socket: any) => {
@@ -95,9 +54,11 @@ test.describe('Interrupted personal chat follow-ups', () => {
         const followup = page.getByTestId('message-user').last();
         const followupId = await followup.getAttribute('data-message-id');
         expect(followupId).toBeTruthy();
-        // The second send waits locally for the first encrypted completion.
-        expect(frames.filter(f => f.direction === 'sent' && ['chat_message_added', 'chat_turn_admit'].includes(f.type)
-          && (f.payload?.message?.message_id ?? f.payload?.message_id) === followupId)).toHaveLength(0);
+        // A follow-up during a running reply goes to the server at once and
+        // waits there as Queued (feature.chat-queued-followups admission.synced).
+        await expect.poll(() => frames.filter(f => f.direction === 'sent' && ['chat_message_added', 'chat_turn_admit'].includes(f.type)
+          && (f.payload?.message?.message_id ?? f.payload?.message_id) === followupId).length, { timeout: 10_000 }).toBe(1);
+        await expect(followup.getByTestId('queued-followup-status')).toHaveText('Queued', { timeout: 10_000 });
         if (!partial) expect(frames.some(f => f.direction === 'received' && f.payload?.task_id === taskId
           && typeof f.payload?.full_content_so_far === 'string' && f.payload.full_content_so_far.length > 0)).toBe(false);
         await stop.click();

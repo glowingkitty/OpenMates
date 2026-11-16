@@ -69,6 +69,12 @@ type SendMessageOptions = {
 	preserveExistingContent?: boolean;
 	/** Pending-send tests assert server acceptance themselves after observing the visible row. */
 	waitUntil?: 'visible' | 'accepted';
+	/**
+	 * The message has a fenced code block that the composer turns into a code
+	 * embed while typing. The editor then holds the prose before the fence plus
+	 * an embed node, never the raw fence text.
+	 */
+	embedsFencedCode?: boolean;
 };
 
 const lastSendStateByPage = new WeakMap<object, LastSendState>();
@@ -1195,7 +1201,9 @@ async function sendMessage(
 			.textContent({ timeout: 1000 })
 			.catch(() => '')) ?? '').trim()
 		: '';
-	const expectedEditorText = normalizeEditorDraftText(message);
+	const expectedEditorText = normalizeEditorDraftText(
+		options.embedsFencedCode ? message.split('```')[0] : message
+	);
 	const currentEditorText = async (): Promise<string> => normalizeEditorDraftText(
 		await messageEditor
 			.evaluate((editor: HTMLElement) => editor.innerText ?? '')
@@ -1204,6 +1212,13 @@ async function sendMessage(
 	const waitForEditorMessage = async (timeout = 2500): Promise<boolean> => expect
 		.poll(async () => {
 			const editorText = await currentEditorText();
+			if (options.embedsFencedCode) {
+				const embedNodes = await messageEditor
+					.locator('[data-embed-type], [data-embed-preview-type]')
+					.count()
+					.catch(() => 0);
+				return editorText.startsWith(expectedEditorText) && embedNodes > 0;
+			}
 			return options.preserveExistingContent
 				? editorText.includes(expectedEditorText)
 				: editorText === expectedEditorText;

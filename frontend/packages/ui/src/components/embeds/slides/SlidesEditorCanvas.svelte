@@ -206,7 +206,7 @@
 
 <div class="slides-editor-stage" bind:clientWidth={stageWidth} data-testid="slides-editor-canvas" data-slide-id={slide.id}>
   {#key slide.id}
-    <SlideCanvas slide={renderSlide} {width} {height} template={templateId} {theme} />
+    <SlideCanvas motion={true} slide={renderSlide} {width} {height} template={templateId} {theme} />
   {/key}
   <!-- Pointer surface; every element below is reachable by keyboard. -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->

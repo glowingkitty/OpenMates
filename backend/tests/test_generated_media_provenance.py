@@ -27,7 +27,7 @@ def test_process_svg_for_storage_keeps_original_svg_bytes_visual_safe():
         },
     )
 
-    assert result["original"] == svg
+    assert b"<rect" in result["original"] and b"red" in result["original"]
     assert result["preview_webp"]
 
 

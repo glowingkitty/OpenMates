@@ -1,5 +1,6 @@
 <!-- frontend/packages/ui/src/components/enter_message/MessageInput.svelte -->
 <script lang="ts">
+    import { queuedEditFlushDisposition } from './queuedEditDraftFlush';
     import { appsWorkspaceComposerHandoff, takeAppsWorkspaceComposerHandoff,
       isAppsWorkspaceHandoffCurrent, appsRequestContextDocument, recordAppsWorkspaceHandoffPhase, submitAppsWorkspaceHandoffDraft, appsWorkspaceContextOnlyUrls,
       rememberAppsWorkspaceDraftUrls, restoredAppsWorkspaceDraftUrls, forgetAppsWorkspaceDraftUrls, captureAppsWorkspaceDraftUrlCleanup } from '../../services/appsWorkspaceChatHandoffService';
@@ -6027,15 +6028,27 @@
             error: null,
         };
         entryEditor.setEditable(false);
+        let flushed = true;
         try {
-            if (draftFlush && !await draftFlush) throw new Error('Queued edit draft context changed');
-        } catch {
-            if (entryGeneration === queuedEditEntryGeneration && queuedEdit?.messageId === message.message_id &&
-                currentChatId === message.chat_id && editor === entryEditor) {
+            if (draftFlush) flushed = await draftFlush;
+        } catch (error) {
+            console.warn('[MessageInput] Queued edit draft flush threw; continuing with the in-memory draft snapshot', { reason: 'draft_flush_threw', error });
+            flushed = false;
+        }
+        const flushDisposition = queuedEditFlushDisposition({
+            flushed,
+            editorStillCurrent: editor === entryEditor && !entryEditor.isDestroyed,
+            chatStillCurrent: currentChatId === message.chat_id,
+        });
+        if (flushDisposition.action === 'abort') {
+            if (entryGeneration === queuedEditEntryGeneration && queuedEdit?.messageId === message.message_id) {
                 finishQueuedEdit();
                 notificationStore.error($text('chats.queued_followup.unavailable'));
             }
             return;
+        }
+        if (flushDisposition.action === 'continue-unpersisted') {
+            console.warn('[MessageInput] Queued edit entered without persisting the composer draft; Cancel restores the in-memory snapshot', { reason: flushDisposition.reason });
         }
         if (entryGeneration !== queuedEditEntryGeneration || editor !== entryEditor || entryEditor.isDestroyed ||
             currentChatId !== message.chat_id || queuedEdit?.messageId !== message.message_id) return;

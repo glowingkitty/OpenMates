@@ -26,6 +26,12 @@
     type PresentMessage,
     type PresentPosition
   } from './slidesPresentation';
+  import {
+    PRESENT_HEARTBEAT_MS,
+    createPresentRemotePublisher,
+    subscribePresentRemote,
+    type PresentRemotePublisher
+  } from './slidesPresentRemote';
 
   interface Props {
     markup: string;
@@ -37,9 +43,11 @@
     sessionId?: string;
     /** Shown briefly (audience view) or permanently (presenter view) when the second window was blocked. */
     notice?: string;
+    /** Stored embed id: when set, the position is relayed to the owner's other devices. */
+    embedId?: string;
   }
 
-  let { markup, startIndex, mode, onExit, popup = null, sessionId = '', notice = '' }: Props = $props();
+  let { markup, startIndex, mode, onExit, popup = null, sessionId = '', notice = '', embedId = '' }: Props = $props();
 
   const POPUP_POLL_MS = 500;
 
@@ -56,10 +64,37 @@
     channel?.postMessage(message);
   }
 
+  let publisher: PresentRemotePublisher | null = null;
+
+  function publish(presenting: boolean) {
+    publisher
+      ?.publish({ index: position.index, step: position.step, notesVisible: false, presenting })
+      .catch((error) => console.warn('[SlidesPresentation] remote state not sent', error));
+  }
+
   function setPosition(next: PresentPosition) {
     position = next;
     send({ type: 'goto', index: next.index, step: next.step });
+    publish(true);
   }
+
+  /** Relays to the owner's other devices: every move, a heartbeat, and presenting=false at the end. */
+  $effect(() => {
+    if (!embedId) return;
+    publisher = createPresentRemotePublisher(embedId, 'presenter');
+    publish(true);
+    const heartbeat = setInterval(() => publish(true), PRESENT_HEARTBEAT_MS);
+    const unsubscribe = subscribePresentRemote(embedId, (state) => {
+      if (state.origin !== 'remote') return;
+      setPosition(clampPosition(slides, { index: state.index, step: state.step }));
+    });
+    return () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+      publish(false);
+      publisher = null;
+    };
+  });
 
   function onAction(action: Exclude<PresentAction, 'exit'>) {
     setPosition(applyAction(slides, position, action));
@@ -79,7 +114,10 @@
       const message = event.data;
       if (!isPresentMessage(message)) return;
       if (message.type === 'hello') sendDeck();
-      else if (message.type === 'goto') position = clampPosition(slides, message);
+      else if (message.type === 'goto') {
+        position = clampPosition(slides, message);
+        publish(true);
+      }
       else if (message.type === 'bye') onExit();
     };
     const poll = setInterval(() => {

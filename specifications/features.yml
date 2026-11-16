@@ -1245,7 +1245,16 @@ features:
     evidence:
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
       sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
-    notes: "Templates and both focus modes are web only; Apple renders template themes only after its own slides lane."
+    subfeatures:
+      - id: presentation-remote
+        name: "Presentation remote"
+        description: "A phone (web or Apple) steers the same account's fullscreen presentation on another device: next/previous, jump to slide, speaker notes; state relayed encrypted, never stored"
+        assertions: ["slides.present.remote-*"]
+      - id: animated-svg-images
+        name: "Animated SVG images"
+        description: "Sanitized SVG images keep their declarative animation in fullscreen and presenting views; still under reduced motion and in thumbnails"
+        assertions: ["slides.media.svg-declarative-animation"]
+    notes: "Templates and both focus modes are web only; Apple renders template themes only after its own slides lane. The presentation remote ships on web and Apple."
   - id: social-media
     name: "Social Media"
     kind: app

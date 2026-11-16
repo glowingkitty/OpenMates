@@ -60,11 +60,13 @@ struct SlidesDeckNavigation: Equatable {
 @MainActor struct SlidesDeckFullscreenView: View {
     let deck: SlideDeckRecord?
     let title: String
+    var embedID: String?
     @State private var navigation: SlidesDeckNavigation
 
-    init(deck: SlideDeckRecord?, title: String) {
+    init(deck: SlideDeckRecord?, title: String, embedID: String? = nil) {
         self.deck = deck
         self.title = title
+        self.embedID = embedID
         _navigation = State(initialValue: SlidesDeckNavigation(deck: deck))
     }
 
@@ -93,6 +95,9 @@ struct SlidesDeckNavigation: Equatable {
                 step: navigation.step
             )
             .clipShape(RoundedRectangle(cornerRadius: .radius3))
+            if let embedID, let remote = CoreSlidesRemote.live() {
+                SlidesPresentingElsewhereBar(embedId: embedID, deck: deck, client: remote)
+            }
             controls
             strip(deck: deck)
         }

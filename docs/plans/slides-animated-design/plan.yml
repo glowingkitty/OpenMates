@@ -1,0 +1,19 @@
+schema_version: 2
+profile: concise
+id: slides-animated-design
+title: Slides - complex, beautiful and animated slides made easy
+status: clarifying
+goal: "Research how Canva, Gamma, Pitch, Keynote and PowerPoint make beautiful animated slides (layered backgrounds, animated SVG backgrounds, motion paths or morph, per-element timing, themes), compare that with feature.slides for manual and assistant editing, and propose a concrete design with spec changes that makes complex, beautiful slides easy, so the assistant can produce them with animated SVG backgrounds. Build the parts that need no decision."
+specifications:
+  - feature.slides@2
+scope:
+  - "Proposal with competitor findings, gap analysis, design and proposed spec rules: proposal.md in this folder."
+  - "Built now (no decision needed): declarative animation of SVG image embeds in slides with server-side SVG cleaning, still picture under reduced motion and in cards/thumbnails (rule slides.media.svg-declarative-animation)."
+  - "Waiting on owner decisions (Discord push 2026-11-15): inline sanitized SVG in slide markup, animation in cards vs fullscreen only, PowerPoint export of animated SVG."
+  - "Later steps after the decisions (proposal.md section 3.8): layered backgrounds and theme presets, timing model, animated SVG layers and motifs, morph and motion paths, editor panels, export mapping."
+checks:
+  - "Backend pytest for the SVG cleaner and the sanitized flags on uploaded and generated SVGs."
+  - "Vitest for slide image variant selection; focused component spec proving animation, reduced-motion still and still-only cards."
+decisions:
+  - "Owner request 2026-11-15 (receipt f43d8ca281730b8a): two Tasks, lower priority than the queued follow-up fix and the presentation remote."
+  - "SVG images keep rendering through img (browser secure animated mode) and are additionally cleaned before storage; SVGs stored before cleaning stay still pictures."

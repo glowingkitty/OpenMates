@@ -116,9 +116,11 @@ export function installEventSounds(showFirstCueNotice: () => void): void {
   noticeHandler = showFirstCueNotice;
   if (unlockInstalled || typeof window === "undefined") return;
   unlockInstalled = true;
-  const options = { capture: true, passive: true } as const;
-  window.addEventListener("pointerdown", unlockAudio, options);
-  window.addEventListener("keydown", unlockAudio, options);
+  window.addEventListener("pointerdown", unlockAudio, { capture: true, passive: true });
+  // Not passive: the tracing zone shares one native capture listener per event
+  // on window, so a passive keydown here would make every later capture keydown
+  // handler (presentation keys) passive and its preventDefault would be ignored.
+  window.addEventListener("keydown", unlockAudio, { capture: true });
 }
 
 function schedule(audio: AudioContext, cue: EventCue): void {

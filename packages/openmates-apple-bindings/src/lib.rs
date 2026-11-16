@@ -73,6 +73,7 @@ mod view_unowned;
 mod view_vault;
 mod view_session;
 mod view_slides;
+mod view_slides_remote;
 mod view_upload;
 mod view_voice_call;
 
@@ -219,3 +220,5 @@ mod view_window_tests;
 mod view_remote_commands_tests;
 #[cfg(test)]
 mod view_search_tests;
+#[cfg(test)]
+mod view_slides_remote_tests;

@@ -30,7 +30,7 @@ from backend.shared.python_utils.media_encryption import encrypt_media_variants,
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
-from backend.core.api.app.utils.image_processing import process_svg_for_storage
+from backend.core.api.app.utils.image_processing import is_sanitized_svg, process_svg_for_storage
 from backend.shared.providers.recraft.recraft import vectorize_image_recraft
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
@@ -593,6 +593,7 @@ async def _async_vectorize_image(
                 "size_bytes": len(content),
                 "format": stored_format,
                 **encrypted_variants.metadata[format_key],
+                **({"sanitized": is_sanitized_svg(content)} if format_key == "original" else {}),
             }
 
         # 10. Prepare embed content

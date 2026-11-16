@@ -962,10 +962,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.slides:
-    version: 1
-    status: approved
+    version: 2
+    status: draft
     path: features/slides
-    fingerprint: e580ad327655c9c2677756cd6f79f3ac758ac7fd1b4f4bab34a8340400836474
+    fingerprint: 3f8ed75ce0b7522072ba1d41c864d0b9a3be71d16733183674d82e6ca39b7fcc
     required_applies_to:
     - rest_api
     - cli
@@ -12933,7 +12933,7 @@ assertions:
     - gui.web
     - gui.apple
   slides.format.positioned-elements:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: f473d93950da6f1b131108acbfe20ea74529ce255a41aeb30063b449a4770299
@@ -12943,7 +12943,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.render.preview-and-fullscreen:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: f400e221d3ce57250939d67945f73c3828c19a596d7d7aa547e78622a2ee813e
@@ -12953,7 +12953,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.security.host-rendered-and-isolated:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: security
     fingerprint: 31c46b889e8e4465e1b8ff0a739ee0fbab1de2d8c75fbfd9f1f35b883219f3c3
@@ -12963,17 +12963,27 @@ assertions:
     - sdks.rust
     - gui.web
   slides.media.images-from-files-and-embeds:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
-    fingerprint: b3455b5c6108d80435fc0a415ddbde69f61143e54154d3732b73d5c38d320cfc
+    fingerprint: c3c23a4c3a1ab2a9d3a650487216448a04d7b21012fe5323f54dbc4b54a649c3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.media.svg-declarative-animation:
+    specification: feature.slides@2
+    specification_id: feature.slides
+    type: security
+    fingerprint: 67471a4ab4dc859feb8cf8b344aaa60eeb85ad3a822a8114569c22362c16e21a
     required_applies_to:
     - rest_api
     - cli
     - sdks.rust
     - gui.web
   slides.media.video-platform-allowlist:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: privacy
     fingerprint: 6ee14ff2de380f61ebb350501c87b07b9ca867c8f19d497e79ad81ff3d23561b
@@ -12983,7 +12993,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.interactive.notepad-and-todo:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: bb3024f669067b1d5272ff87e75bac11e007a0ef2bfe1a856be6075c92634f70
@@ -12993,7 +13003,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.animations.preset-set:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: d64c668d556032c4964a6626a2d456d22648f8523fadce530645030f646bfc23
@@ -13003,7 +13013,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.templates.library:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: e952ba1d90cfe14217a5a0c2c8970e0d9204128dcb2d66da884be749548e8dce
@@ -13013,7 +13023,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.templates.built-in-set:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: af4a15f6cb1f11c635e34f92678f23528cd8d6f938f3012447fec19802f850dc
@@ -13023,7 +13033,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.templates.apply-to-deck:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: 0477f6fc5f713dbebcf879f09dfcc07523b983060d43118a19b2309bd3288812
@@ -13033,7 +13043,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.focus.template-designer:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: 4c59f9a7002392c1c3ecfc493dd1c34267b837879069aa79f7c51cc4c79d3f28
@@ -13043,7 +13053,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.focus.presentation-planner:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: e2696ddc4ed83ffe3cf66042956edc03499af3e391755081849d0fa6921b4843
@@ -13053,7 +13063,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.assistant.create-and-diff-edit:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: b008b23436142632264270606d87ac798348cdc4742b128ea392882b6ff43b42
@@ -13063,7 +13073,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.editor.direct-manipulation:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: dd87a86578311027ccfb611e7f0238ccd806771b3b8d757083f8599fe199bef8
@@ -13073,7 +13083,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.editor.save-checked-version:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: 99ec8b82407ce9dbc4ffed73a78f36439de29cf366216bf3f544df7926fe2610
@@ -13083,7 +13093,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.present.presenter-view:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: 59a5c1131f0b799bcde52d3999b42296d22ab820be560e4017b500ab6e7c21a6
@@ -13093,7 +13103,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.present.follow-live:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: privacy
     fingerprint: 4876c6ac49e492b5e50178bce6e70271e9e018060d8382b12871692f48cd4ea0
@@ -13102,8 +13112,38 @@ assertions:
     - cli
     - sdks.rust
     - gui.web
+  slides.present.remote-control:
+    specification: feature.slides@2
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: d14dc4e2f21aa99016da2f62c510b95be2ff0758924aae239d49a6ed47027900
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.present.remote-relay-private:
+    specification: feature.slides@2
+    specification_id: feature.slides
+    type: privacy
+    fingerprint: a92cef15141721ea72462bce172c162a7579034bff1001a0ae24c6b0746dd898
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.present.remote-one-core:
+    specification: feature.slides@2
+    specification_id: feature.slides
+    type: invariant
+    fingerprint: f19436ca9333e15956a11770052eb6d3d904fd819453823cf7e8d4606d54737f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
   slides.import.powerpoint:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: 3f0101066c347e0b300f2adea2c0a7f76d3358d16bafd810d97a67923566923f
@@ -13113,7 +13153,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.export.pdf-and-powerpoint-with-loss-notice:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: ae83322e25308fbdad1a00ba45258fd0c6cd00b6b25b75d9b372215d202696d1
@@ -13123,7 +13163,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.surface.text-rendering:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: parity
     fingerprint: 1d53f99969434b778b3a7e8685918837b8f01fd0a87e3f09aa7afa94c55bc220

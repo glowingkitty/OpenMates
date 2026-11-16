@@ -16,8 +16,8 @@ summary:
       implemented: 19
       not_planned: 19
     apple:
-      tested: 15
-      partial: 33
+      tested: 14
+      partial: 34
       failing: 6
       implemented: 40
       in_progress: 6
@@ -2260,6 +2260,8 @@ features:
         counted: 5
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts
+      - frontend/apps/web_app/tests/chat-queued-followups-same-tab.spec.ts
       - frontend/apps/web_app/tests/chat-queued-followups.spec.ts
       - frontend/apps/web_app/tests/components/queued-followup-controls.spec.ts
       key_unit_tests:
@@ -2268,7 +2270,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
       - frontend/packages/ui/src/services/db/__tests__/recentChatMessageMutation.test.ts
       - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
-      unit_test_files: 9
+      unit_test_files: 11
     apple:
       status: failing
       source: tests
@@ -2343,7 +2345,7 @@ features:
       - backend/tests/test_ai_skill_request_schema.py
       - backend/tests/test_legacy_queued_handoff.py
       - backend/tests/test_queued_message_persistence.py
-      unit_test_files: 9
+      unit_test_files: 11
     sdk_npm:
       status: not_planned
       source: intent
@@ -16939,7 +16941,7 @@ features:
     a template and Plan a presentation focus modes.
   specifications:
   - id: feature.slides
-    status: approved
+    status: draft
     path: specifications/features/slides
   apps:
   - slides
@@ -16950,7 +16952,7 @@ features:
     - app:slides
     dev: enabled
     prod: enabled
-  assertions: 20
+  assertions: 24
   surfaces:
     web:
       status: partial
@@ -16959,41 +16961,45 @@ features:
       assertions:
         passing: 11
         failing: 0
-        not_run: 0
+        not_run: 4
         missing: 9
-        counted: 20
+        counted: 24
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/slides-deck-embed.spec.ts
       - frontend/apps/web_app/tests/components/slides-editor.spec.ts
+      - frontend/apps/web_app/tests/components/slides-present-remote.spec.ts
       - frontend/apps/web_app/tests/components/slides-presenter.spec.ts
+      - frontend/apps/web_app/tests/components/slides-svg-animation.spec.ts
       - frontend/apps/web_app/tests/components/slides-template-embed.spec.ts
       - frontend/apps/web_app/tests/slides-focus-modes-real.spec.ts
       - frontend/apps/web_app/tests/slides-focus-presentation-planner.spec.ts
       - frontend/apps/web_app/tests/slides-focus-template-designer.spec.ts
       - frontend/apps/web_app/tests/slides-manual-edit.spec.ts
+      - frontend/apps/web_app/tests/slides-present-remote.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/embeds/slides/slidesMarkup.test.ts
       - frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts
       - frontend/packages/ui/src/components/embeds/slides/slidesTemplates.test.ts
-      - frontend/packages/ui/src/components/embeds/slides/__tests__/slidesDeckFullscreenOwner.test.ts
-      - frontend/packages/ui/src/components/embeds/slides/slidesEditor.test.ts
-      unit_test_files: 9
+      - frontend/packages/ui/src/services/rustCore/presentRemote/__tests__/presentRemoteUnit.test.ts
+      - frontend/packages/ui/src/components/embeds/slides/__tests__/slideImage.test.ts
+      unit_test_files: 11
     apple:
-      status: tested
+      status: partial
       source: tests
       intent: implemented
       assertions:
         passing: 1
         failing: 0
-        not_run: 0
+        not_run: 2
         missing: 0
-        counted: 1
+        counted: 3
       key_tests: []
       e2e_tests: []
       key_unit_tests:
+      - apple/OpenMatesTests/SlidesPresentRemoteTests.swift
       - apple/OpenMatesTests/SlidesDeckRendererTests.swift
-      unit_test_files: 1
+      unit_test_files: 2
       platforms:
       - ios
       - ipados
@@ -17006,9 +17012,9 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 20
-        counted: 20
-      conflict: marked not_planned, but 20 required assertion(s) apply to cli
+        missing: 24
+        counted: 24
+      conflict: marked not_planned, but 24 required assertion(s) apply to cli
       key_tests: []
       e2e_tests: []
       key_unit_tests: []
@@ -17035,9 +17041,9 @@ features:
       assertions:
         passing: 9
         failing: 0
-        not_run: 1
-        missing: 10
-        counted: 20
+        not_run: 3
+        missing: 12
+        counted: 24
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -17046,7 +17052,7 @@ features:
       - backend/tests/test_slides_focus_modes.py
       - backend/tests/test_slides_markup_core_fixed_points.py
       - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
-      unit_test_files: 7
+      unit_test_files: 9
     sdk_npm:
       status: implemented
       source: intent
@@ -17076,7 +17082,167 @@ features:
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
-  notes: Templates and both focus modes are web only; Apple renders template themes only after its own slides lane.
+  notes: Templates and both focus modes are web only; Apple renders template themes only after its own slides lane. The presentation
+    remote ships on web and Apple.
+  subfeatures:
+  - id: presentation-remote
+    name: Presentation remote
+    description: 'A phone (web or Apple) steers the same account''s fullscreen presentation on another device: next/previous,
+      jump to slide, speaker notes; state relayed encrypted, never stored'
+    assertion_ids:
+    - slides.present.remote-control
+    - slides.present.remote-one-core
+    - slides.present.remote-relay-private
+    surfaces:
+      web:
+        status: not_run
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 3
+          missing: 0
+          counted: 3
+      apple:
+        status: not_run
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 2
+          missing: 0
+          counted: 2
+      cli:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 3
+          counted: 3
+        conflict: marked not_planned, but 3 required assertion(s) apply to cli
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_run
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 1
+          missing: 2
+          counted: 3
+      sdk_npm:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+  - id: animated-svg-images
+    name: Animated SVG images
+    description: Sanitized SVG images keep their declarative animation in fullscreen and presenting views; still under reduced
+      motion and in thumbnails
+    assertion_ids:
+    - slides.media.svg-declarative-animation
+    surfaces:
+      web:
+        status: not_run
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 1
+          missing: 0
+          counted: 1
+      apple:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 1
+          counted: 1
+        conflict: marked not_planned, but 1 required assertion(s) apply to cli
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_run
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 1
+          missing: 0
+          counted: 1
+      sdk_npm:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
 - id: social-media
   name: Social Media
   kind: app

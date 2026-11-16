@@ -1399,17 +1399,36 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
         # Fence later client-executed tool continuations to this accepted user
         # turn. A newer message replaces this value before it starts inference.
+        # A follow-up that arrives while a run is active waits in the queue: it
+        # becomes the latest turn only when it is dispatched, so the running
+        # turn's focus or skill continuation is not discarded as superseded
+        # (feature.chat-queued-followups admission.synced).
+        latest_turn_deferred = False
         if role == "user":
             from backend.apps.ai.tasks.async_skill_continuation import (
                 ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
                 async_skill_latest_user_turn_key,
             )
-
-            await cache_service.set(
-                async_skill_latest_user_turn_key(user_id, chat_id),
-                message_id,
-                ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+            from backend.shared.python_utils.queued_turn_marker import (
+                QUEUED_TURN_PENDING,
+                queued_turn_pending_key,
             )
+
+            prior_latest_user_turn = await cache_service.get(
+                async_skill_latest_user_turn_key(user_id, chat_id),
+            )
+            if await cache_service.get_active_ai_task(chat_id):
+                latest_turn_deferred = True
+                await cache_service.set(
+                    queued_turn_pending_key(user_id, chat_id, message_id), QUEUED_TURN_PENDING,
+                    ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+                )
+            else:
+                await cache_service.set(
+                    async_skill_latest_user_turn_key(user_id, chat_id),
+                    message_id,
+                    ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+                )
 
         # DELETE NEW CHAT SUGGESTION if user clicked one before sending this message
         # This ensures used suggestions are removed from the pool on both client and server
@@ -2942,6 +2961,27 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     active_task_id = None
                     stale_legacy_queue = False
             
+            if queued_success and role == "user":
+                from backend.apps.ai.tasks.async_skill_continuation import (
+                    ASYNC_SKILL_CONTINUATION_TTL_SECONDS as _QUEUED_TURN_TTL,
+                    async_skill_latest_user_turn_key as _latest_turn_key,
+                )
+                from backend.shared.python_utils.queued_turn_marker import (
+                QUEUED_TURN_PENDING,
+                queued_turn_pending_key,
+            )
+                if await cache_service.get(_latest_turn_key(user_id, chat_id)) == message_id:
+                    if prior_latest_user_turn:
+                        await cache_service.set(
+                            _latest_turn_key(user_id, chat_id), prior_latest_user_turn,
+                            ttl=_QUEUED_TURN_TTL,
+                        )
+                    else:
+                        await cache_service.delete(_latest_turn_key(user_id, chat_id))
+                await cache_service.set(
+                    queued_turn_pending_key(user_id, chat_id, message_id), QUEUED_TURN_PENDING,
+                    ttl=_QUEUED_TURN_TTL,
+                )
             if queued_success:
                 durable_pending = True
                 if not is_incognito:
@@ -2989,6 +3029,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         "queue_revision": ai_request_payload.queue_revision,
                         "message": "Message queued",
                     }
+                    # Marking the row queued advances the chat's messages_v; clients
+                    # send it as the expected version of their next queued follow-up.
+                    queued_messages_v = (pending_status or {}).get("messages_v") if not is_incognito else None
+                    if isinstance(queued_messages_v, int) and not isinstance(queued_messages_v, bool):
+                        queued_notice["messages_v"] = queued_messages_v
                     await manager.send_personal_message(
                         {"type": "message_queued", "payload": queued_notice},
                         user_id, device_fingerprint_hash,
@@ -3080,6 +3125,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 return
             fresh_task_claim_id = candidate_id
+        if role == "user" and latest_turn_deferred:
+            # The run observed at admission finished before this turn was queued;
+            # it starts now, so it is the latest turn from here on.
+            await cache_service.set(
+                async_skill_latest_user_turn_key(user_id, chat_id), message_id,
+                ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+            )
+            await cache_service.delete(queued_turn_pending_key(user_id, chat_id, message_id))
         if is_incognito:
             ai_request_payload.volatile_dispatch_task_id = fresh_task_claim_id
         if not is_incognito and protocol_epoch == 0:

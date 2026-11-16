@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.slides@1
+specification: feature.slides@2
 
 format:
   - id: same-arrangement-on-every-screen
@@ -40,6 +40,24 @@ media:
     given: Bob asks for a title slide with a newly drawn mountain illustration.
     when: The assistant answers.
     then: It generates the illustration and places it on the title slide in the same answer, and when Bob shares only the deck the illustration is still shown to the recipient.
+
+svg_animation:
+  - id: animated-svg-plays
+    given: Alice places a generated SVG of slowly drifting waves (SVG animate and CSS keyframes) on her title slide.
+    when: She opens the deck fullscreen and presents it.
+    then: The waves move on the slide in fullscreen and while presenting, and the chat card and the slide strip show the waves standing still.
+  - id: hostile-svg-cleaned
+    given: Bob uploads an SVG that contains an animated circle, a script, an onload handler, a foreignObject and an external image link.
+    when: He places it on a slide and opens the deck.
+    then: The circle animates; nothing from the script, handler or foreignObject runs or appears, and no request leaves the browser for the external image.
+  - id: svg-reduced-motion
+    given: Carol's device is set to reduce motion and her deck contains Alice's animated waves SVG.
+    when: She views the slide.
+    then: The waves are shown as a still picture.
+  - id: old-svg-stays-still
+    given: Dave's deck contains an SVG uploaded before SVG cleaning existed.
+    when: He opens the deck.
+    then: The SVG is shown as its still picture and nothing in it animates, runs or loads.
 
 video_platforms:
   - id: youtube-plays-only-after-click
@@ -172,6 +190,32 @@ present:
     given: Slide 3 has the speaker note "Mention the discount only if asked".
     when: Slide 3 is shown.
     then: The note is visible in the presenter view and nowhere in the audience window.
+
+remote:
+  - id: phone-steers-the-laptop
+    given: Mia's laptop shows her deck "Hackathon pitch" (8 slides) in the full-screen presentation on the projector, and she opens the same chat on her phone.
+    when: She opens the deck on the phone, taps "Remote" and then "Next".
+    then: Within about a second the projector shows slide 2, and the phone shows "2 / 8" with Previous, Next and the slide list.
+  - id: jump-and-notes-on-demand
+    given: Mia's phone is the remote for the presentation from the previous example; slide 5 has the speaker note "Mention the demo video".
+    when: She picks slide 5 from the list on the phone and taps "Show notes".
+    then: The projector jumps to slide 5 and shows no note; only the phone shows "Mention the demo video"; tapping "Hide notes" hides it again.
+  - id: laptop-keyboard-moves-the-phone
+    given: Mia's phone is the remote and the projector shows slide 5.
+    when: She presses the right arrow key on the laptop.
+    then: The projector shows slide 6 and the phone updates to "6 / 8" without a tap.
+  - id: remote-ends-with-the-presentation
+    given: Mia's phone is the remote.
+    when: She presses Escape on the laptop to leave the presentation.
+    then: The phone's remote shows that nothing is being presented and offers no slide controls until she presents again.
+  - id: server-learns-nothing
+    given: Mia steers 8 slides from her phone.
+    when: The operator inspects what the server received and stored.
+    then: Each relayed update is unreadable ciphertext with a size of under 1 KB, nothing about the presentation is stored, and no speaker note was ever sent.
+  - id: only-own-devices
+    given: Mia shared the deck with Ben through a share link, and Ben opens it while she presents.
+    when: Ben looks for a remote.
+    then: Ben sees no Remote control and cannot change the slide on Mia's laptop.
 
 follow_live:
   - id: remote-audience-follows

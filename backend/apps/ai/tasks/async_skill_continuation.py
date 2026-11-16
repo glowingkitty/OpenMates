@@ -31,6 +31,7 @@ from backend.apps.ai.utils.embeds_map_view import (
 )
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
+from backend.shared.python_utils.queued_turn_marker import is_queued_turn_pending, queued_turn_pending_key
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,19 @@ def async_skill_completion_key(task_id: str) -> str:
 def async_skill_latest_user_turn_key(user_id: str, chat_id: str) -> str:
     """Return the current user-turn fence for one chat."""
     return f"{ASYNC_SKILL_LATEST_USER_TURN_KEY_PREFIX}:{user_id}:{chat_id}"
+
+
+async def claim_queued_turn_as_latest(cache_service: Any, request: Any) -> bool:
+    """Make a dispatched queued follow-up the latest user turn exactly once."""
+    if not await is_queued_turn_pending(cache_service, request.user_id, request.chat_id, request.message_id):
+        return False
+    marker = queued_turn_pending_key(request.user_id, request.chat_id, request.message_id)
+    await cache_service.set(
+        async_skill_latest_user_turn_key(request.user_id, request.chat_id),
+        request.message_id, ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+    )
+    await cache_service.delete(marker)
+    return True
 
 
 def async_skill_deferred_completion_key(task_id: str) -> str:

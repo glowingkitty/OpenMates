@@ -68,7 +68,13 @@
 		51895686693693CE1C19D92B /* SlideCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFBC335739E9E985215D300E /* SlideCanvasView.swift */; };
 		16EF217222CF7672B8E822CD /* SlideCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFBC335739E9E985215D300E /* SlideCanvasView.swift */; };
 		AC9CF1A2A43CCF1098F5D307 /* SlidesDeckFullscreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08B4CB7F3E0228DDC0AA906A /* SlidesDeckFullscreenView.swift */; };
+		4C5146A47F1D2F0988FBD67B /* SlidesPresentRemoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90A2675CCA34867ADC253459 /* SlidesPresentRemoteView.swift */; };
+		DCE8F5B361BBAEC1960DC7A0 /* CoreSlidesRemote.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE786874AF19CCE3066C08D4 /* CoreSlidesRemote.swift */; };
+		8AA27C716D3DF6C4624D71C3 /* SlidesPresentRemoteModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316255943FD24AC6FA29526F /* SlidesPresentRemoteModel.swift */; };
 		489AC8D5FDF76FB9AFE94BC4 /* SlidesDeckFullscreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08B4CB7F3E0228DDC0AA906A /* SlidesDeckFullscreenView.swift */; };
+		6206848B00D353D8282C790F /* SlidesPresentRemoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90A2675CCA34867ADC253459 /* SlidesPresentRemoteView.swift */; };
+		BAD8171E2E1CA2AC4C5A2CB1 /* CoreSlidesRemote.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE786874AF19CCE3066C08D4 /* CoreSlidesRemote.swift */; };
+		129B9EC94A0A8DD6F71D9046 /* SlidesPresentRemoteModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316255943FD24AC6FA29526F /* SlidesPresentRemoteModel.swift */; };
 		5024C47624B37C667C40C28D /* SlidesDeckEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D06958EEFD5C1FB69B54CD1F /* SlidesDeckEmbedRenderer.swift */; };
 		5FB4FF95E5AB233B09B54E75 /* SlidesDeckEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D06958EEFD5C1FB69B54CD1F /* SlidesDeckEmbedRenderer.swift */; };
 		F6CB9C02F4055DEF9FCAD842 /* ProjectCreateFileEntries.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDA52B6824FFE56234ECC247 /* ProjectCreateFileEntries.swift */; };
@@ -1205,6 +1211,7 @@
 		0C0EC0DE1A2B3C4D5E6FBB02 /* CoreProjectCreateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FBB01 /* CoreProjectCreateTests.swift */; };
 		0C0EC0DE1A2B3C4D5E6FA502 /* AskOpenMatesIntentCoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6FA501 /* AskOpenMatesIntentCoreTests.swift */; };
 		0C0EC0DE1A2B3C4D5E6F7F02 /* CoreQueuedRevisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F7F01 /* CoreQueuedRevisionTests.swift */; };
+		54239072EA8DCCC9D8AB0365 /* SlidesPresentRemoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 964BB484DAA35B77C544E24A /* SlidesPresentRemoteTests.swift */; };
 		0D0EC0DE1A2B3C4D5E6F7C05 /* CoreDraftsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D0EC0DE1A2B3C4D5E6F7C04 /* CoreDraftsTests.swift */; };
 		0E0EC0DE1A2B3C4D5E6F7D05 /* CoreSendMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E0EC0DE1A2B3C4D5E6F7D04 /* CoreSendMappingTests.swift */; };
 		0C0EC0DE1A2B3C4D5E6F71A2 /* CoreLegacyAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C0EC0DE1A2B3C4D5E6F71A1 /* CoreLegacyAccess.swift */; };
@@ -2726,6 +2733,9 @@
 		A74EE79E6801371EA680FF0F /* VideoTimelineModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoTimelineModel.swift; sourceTree = "<group>"; };
 		DFBC335739E9E985215D300E /* SlideCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideCanvasView.swift; sourceTree = "<group>"; };
 		08B4CB7F3E0228DDC0AA906A /* SlidesDeckFullscreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlidesDeckFullscreenView.swift; sourceTree = "<group>"; };
+		90A2675CCA34867ADC253459 /* SlidesPresentRemoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlidesPresentRemoteView.swift; sourceTree = "<group>"; };
+		EE786874AF19CCE3066C08D4 /* CoreSlidesRemote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreSlidesRemote.swift; sourceTree = "<group>"; };
+		316255943FD24AC6FA29526F /* SlidesPresentRemoteModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlidesPresentRemoteModel.swift; sourceTree = "<group>"; };
 		D06958EEFD5C1FB69B54CD1F /* SlidesDeckEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlidesDeckEmbedRenderer.swift; sourceTree = "<group>"; };
 		54CFD2FA997F2BAD24B4E60A /* ImageAuthenticityBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageAuthenticityBadge.swift; sourceTree = "<group>"; };
 		649BDF7452FB345F49DEDC54 /* EmbroideryDesignModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbroideryDesignModel.swift; sourceTree = "<group>"; };
@@ -2793,6 +2803,7 @@
 		0C0EC0DE1A2B3C4D5E6FBB01 /* CoreProjectCreateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreProjectCreateTests.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6FA501 /* AskOpenMatesIntentCoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskOpenMatesIntentCoreTests.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6F7F01 /* CoreQueuedRevisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreQueuedRevisionTests.swift; sourceTree = "<group>"; };
+		964BB484DAA35B77C544E24A /* SlidesPresentRemoteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlidesPresentRemoteTests.swift; sourceTree = "<group>"; };
 		0D0EC0DE1A2B3C4D5E6F7C04 /* CoreDraftsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDraftsTests.swift; sourceTree = "<group>"; };
 		0E0EC0DE1A2B3C4D5E6F7D04 /* CoreSendMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreSendMappingTests.swift; sourceTree = "<group>"; };
 		0C0EC0DE1A2B3C4D5E6F71A1 /* CoreLegacyAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreLegacyAccess.swift; sourceTree = "<group>"; };
@@ -3227,6 +3238,9 @@
 				A74EE79E6801371EA680FF0F /* VideoTimelineModel.swift */,
 				DFBC335739E9E985215D300E /* SlideCanvasView.swift */,
 				08B4CB7F3E0228DDC0AA906A /* SlidesDeckFullscreenView.swift */,
+				90A2675CCA34867ADC253459 /* SlidesPresentRemoteView.swift */,
+				EE786874AF19CCE3066C08D4 /* CoreSlidesRemote.swift */,
+				316255943FD24AC6FA29526F /* SlidesPresentRemoteModel.swift */,
 				D06958EEFD5C1FB69B54CD1F /* SlidesDeckEmbedRenderer.swift */,
 				54CFD2FA997F2BAD24B4E60A /* ImageAuthenticityBadge.swift */,
 				649BDF7452FB345F49DEDC54 /* EmbroideryDesignModel.swift */,
@@ -3733,6 +3747,7 @@
 				0C0EC0DE1A2B3C4D5E6FAA01 /* ApplicationTestRunEmbedTests.swift */,
 				0C0EC0DE1A2B3C4D5E6FA501 /* AskOpenMatesIntentCoreTests.swift */,
 				0C0EC0DE1A2B3C4D5E6F7F01 /* CoreQueuedRevisionTests.swift */,
+				964BB484DAA35B77C544E24A /* SlidesPresentRemoteTests.swift */,
 				0D0EC0DE1A2B3C4D5E6F7C04 /* CoreDraftsTests.swift */,
 				0E0EC0DE1A2B3C4D5E6F7D04 /* CoreSendMappingTests.swift */,
 				0C0EC0DE1A2B3C4D5E6F71F1 /* AuthManagerCoreTests.swift */,
@@ -5995,6 +6010,9 @@
 				14FC0947063B26B45D97F76B /* BodyEmbedSlotProjection.swift in Sources */,
 				16EF217222CF7672B8E822CD /* SlideCanvasView.swift in Sources */,
 				489AC8D5FDF76FB9AFE94BC4 /* SlidesDeckFullscreenView.swift in Sources */,
+				6206848B00D353D8282C790F /* SlidesPresentRemoteView.swift in Sources */,
+				BAD8171E2E1CA2AC4C5A2CB1 /* CoreSlidesRemote.swift in Sources */,
+				129B9EC94A0A8DD6F71D9046 /* SlidesPresentRemoteModel.swift in Sources */,
 				5FB4FF95E5AB233B09B54E75 /* SlidesDeckEmbedRenderer.swift in Sources */,
 				E0F69297EA7FA996BF6E087F /* ProjectCreateFileEntries.swift in Sources */,
 				F8A1C64469A5F7F884569FA5 /* CoreProjectFiles.swift in Sources */,
@@ -6866,6 +6884,9 @@
 				BBAA984B4E0D17A790884EA1 /* BodyEmbedSlotProjection.swift in Sources */,
 				51895686693693CE1C19D92B /* SlideCanvasView.swift in Sources */,
 				AC9CF1A2A43CCF1098F5D307 /* SlidesDeckFullscreenView.swift in Sources */,
+				4C5146A47F1D2F0988FBD67B /* SlidesPresentRemoteView.swift in Sources */,
+				DCE8F5B361BBAEC1960DC7A0 /* CoreSlidesRemote.swift in Sources */,
+				8AA27C716D3DF6C4624D71C3 /* SlidesPresentRemoteModel.swift in Sources */,
 				5024C47624B37C667C40C28D /* SlidesDeckEmbedRenderer.swift in Sources */,
 				F6CB9C02F4055DEF9FCAD842 /* ProjectCreateFileEntries.swift in Sources */,
 				0A71324F6D232895DA9D07E3 /* CoreProjectFiles.swift in Sources */,
@@ -7474,6 +7495,7 @@
 				0C0EC0DE1A2B3C4D5E6FAA02 /* ApplicationTestRunEmbedTests.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6FA502 /* AskOpenMatesIntentCoreTests.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F7F02 /* CoreQueuedRevisionTests.swift in Sources */,
+				54239072EA8DCCC9D8AB0365 /* SlidesPresentRemoteTests.swift in Sources */,
 				0D0EC0DE1A2B3C4D5E6F7C05 /* CoreDraftsTests.swift in Sources */,
 				0E0EC0DE1A2B3C4D5E6F7D05 /* CoreSendMappingTests.swift in Sources */,
 				0C0EC0DE1A2B3C4D5E6F71F2 /* AuthManagerCoreTests.swift in Sources */,

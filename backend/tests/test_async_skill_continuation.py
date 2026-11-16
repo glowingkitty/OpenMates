@@ -1331,3 +1331,35 @@ async def test_continue_mode_defers_completion_until_initial_response_finishes(m
     )
     assert dispatched == ["continuation-task-1"]
     assert len(fake_celery_app.sent) == 1
+
+
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+@pytest.mark.asyncio
+async def test_queued_followup_becomes_latest_turn_only_when_dispatched() -> None:
+    from types import SimpleNamespace
+    from backend.apps.ai.tasks.async_skill_continuation import (
+        async_skill_latest_user_turn_key, claim_queued_turn_as_latest,
+    )
+    from backend.shared.python_utils.queued_turn_marker import QUEUED_TURN_PENDING, queued_turn_pending_key
+
+    store = {async_skill_latest_user_turn_key("u", "c"): "source"}
+
+    class Cache:
+        async def get(self, key):
+            return store.get(key)
+
+        async def set(self, key, value, ttl=None):
+            store[key] = value
+            return True
+
+        async def delete(self, key):
+            return store.pop(key, None) is not None
+
+    request = SimpleNamespace(user_id="u", chat_id="c", message_id="follower")
+    assert await claim_queued_turn_as_latest(Cache(), request) is False
+    assert store[async_skill_latest_user_turn_key("u", "c")] == "source"
+    store[queued_turn_pending_key("u", "c", "follower")] = QUEUED_TURN_PENDING
+    assert await claim_queued_turn_as_latest(Cache(), request) is True
+    assert store[async_skill_latest_user_turn_key("u", "c")] == "follower"
+    assert queued_turn_pending_key("u", "c", "follower") not in store
+    assert await claim_queued_turn_as_latest(Cache(), request) is False
