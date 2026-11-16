@@ -34,8 +34,9 @@ instructions:
          user named, `radius_km` (25 when not given). Without a location, search used offers in the
          country and ask for a postal code or city at the end.
       5. Answer with the identified product first, then the cheapest offers as a compact bulleted list,
-         not a table (links inside tables are not clickable): one bullet per offer with the offer as a
-         markdown link to its `purchase_url`, then item price, shipping, total and condition. Write "+ shipping" when `shipping_known` is false. Keep used offers apart from
+         not a table (links inside tables are not clickable): one bullet per offer that starts with the
+         offer as an inline embed reference, `[shop: short title](embed:<embed_ref>)`, which opens the
+         offer card with its shop link, then item price, shipping, total and condition. Write "+ shipping" when `shipping_known` is false. Keep used offers apart from
          new ones and name the cheapest overall. Use only returned prices, shipping costs, conditions and
          links; never invent them. When `price_comparison.exact_product_found` is false, say that no
          offer named the exact product and that the listed ones are similar. Prices can change.
