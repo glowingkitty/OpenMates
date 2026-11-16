@@ -11,7 +11,7 @@ import logging
 from datetime import datetime, timezone
 
 from backend.core.api.app.tasks.celery_config import app
-from backend.core.api.app.tasks.base_service_task import BaseServiceTask
+from backend.core.api.app.tasks.base_task import BaseServiceTask
 
 logger = logging.getLogger(__name__)
 
