@@ -7049,7 +7049,25 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             existingMessage.thinking_signature !== updatedFinalMessage.thinking_signature ||
                             existingMessage.thinking_token_count !== updatedFinalMessage.thinking_token_count ||
                             existingMessage.has_thinking !== updatedFinalMessage.has_thinking;
-                        if (shouldSaveFinalMessage) {
+                        // The final chunk's content is authoritative for this message id. A
+                        // reply finished by async skill continuations reuses the id of an
+                        // earlier segment that a fallback may already have stored as
+                        // 'synced'; the duplicate policy then refuses equal-status rows with
+                        // different content, the short segment stays the local copy and the
+                        // next turn's history (built from it) drops the real reply.
+                        const replacesStaleSegment =
+                            !!existingMessage &&
+                            existingMessage.role === 'assistant' &&
+                            existingMessage.status === updatedFinalMessage.status &&
+                            existingMessage.content !== updatedFinalMessage.content &&
+                            !shouldUseAnonymousStorage(updatedFinalMessage);
+                        if (replacesStaleSegment) {
+                            const replaced = await chatDB.replaceMessageById(
+                                $state.snapshot(updatedFinalMessage) as ChatMessageModel,
+                                { allowedExistingStatuses: ['streaming', 'synced'], expectedExistingRole: 'assistant' },
+                            );
+                            console.info(`[ActiveChat] Final AI message ${updatedFinalMessage.message_id} replaced a stale local segment: ${replaced}`);
+                        } else if (shouldSaveFinalMessage) {
                             await saveMessageToCurrentStorage(updatedFinalMessage);
                         } else {
                             console.debug('[ActiveChat] Final AI message already persisted, skipping save');
