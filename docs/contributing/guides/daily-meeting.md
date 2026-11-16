@@ -168,6 +168,44 @@ review exists yet, it is due on the next meeting until a `Last weekly review:` d
 milestone (the mission and goals once a quarter or when asked)? the next milestone split into 3-7 Tasks and the
 week's priority order. Data: `scripts/daily_meeting_goals.py`.
 
+## Opportunities (events and jobs, in their own chats)
+
+Events, jobs and (later) email are handled in their own dedicated chats with the founder,
+so each keeps its full context; the daily meeting only shows one line per area ("5 new
+events waiting; continue in the Events chat") plus deadlines in the next 3 days. It never
+goes through items one by one and never runs the jobs-profile setup.
+
+Shared memory: `scripts/daily_meeting_opportunities.py` keeps everything in one private
+folder on the dev host, `~/.local/state/openmates/opportunities/` (mode 0700, files 0600;
+`OPENMATES_OPPORTUNITIES_DIR` overrides it in tests). It is outside the git checkout and
+never committed:
+
+- `jobs-profile.md`: living memory (experience and CV, jobs wanted, criteria, later the
+  writing style for applications) plus a `## Search` block of `key: value` lines
+  (`queries`, `countries`, `locations`, `remote`, `employment_type`, `relevance`). It starts
+  empty; while `queries` is empty no job search runs and the Jobs chat runs the setup.
+- `events-profile.md`: interests and a `## Search` block (`queries`, `cities` with dates such
+  as `<City> from YYYY-MM-DD until YYYY-MM-DD`, `window_days`, `relevance`). Cities are
+  asked, never assumed.
+- `tracking.json`: every event and job ever found with status (`new`, `interested`,
+  `signed_up`, `applied`, `skipped`), dates, deadline, links, notes and history. Nothing is
+  shown twice.
+- `last-search.json` (counts and quality warnings of the last search) and `history/` (the
+  previous version of a file before each change).
+
+Each briefing build (cron and `meeting_refresh`) runs the searches with the dev server's
+own skills through the installed CLI, logged in as the personal dev account against the
+dev API (`openmates apps events search` with Meetup, Luma and Eventbrite;
+`openmates apps jobs search`), and appends the top 5 new events (next 14 days, per city and
+date range) and top 5 new jobs. A failed search is a data gap, never a failed briefing.
+
+The dedicated chats read and write the memory through the script's commands (`read`,
+`set-status`, `add-item`, `profile`, `summary`; see its docstring), which the private dev
+connector exposes to the Claude app. Poor results or a missing search feature become an
+OpenMates Task to improve the event or job search skill.
+
+The folder lives on the dev host disk only; no off-host backup of it is configured here.
+
 ## Improving the meeting itself
 Every meeting ends with a two-minute "improve the meeting" block: the assistant proposes one change with its
 recommendation, based on evidence from that meeting, and asks whether to adopt it, replace it or do nothing.

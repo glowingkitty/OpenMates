@@ -31,6 +31,7 @@ sys.path.insert(0, str(SCRIPTS))
 import daily_meeting_context as context  # noqa: E402 - sibling scripts, path set above
 import mac_reminders  # noqa: E402
 import daily_meeting_growth  # noqa: E402
+import daily_meeting_opportunities  # noqa: E402
 import claude_idle_chats  # noqa: E402
 import worktree_wip  # noqa: E402
 
@@ -225,6 +226,10 @@ swap it.
 reminder needs a **time of day**, never just a date — suggest one. Offer one optional \
 midday reminder "Still on <focus>?" as a gentle anchor. Spread moved reminders over several \
 days so no day is overloaded.
+    **Opportunities (one sentence, at the end of Block 4):** read the two lines of the \
+"Opportunities" section (new events and jobs waiting) and any deadline in the next 3 days, then say \
+"continue in the Events chat / the Jobs chat". Never go through events or jobs one by one here and \
+never run the jobs-profile setup in this meeting: both happen in their own chats.
   - **Block 5 — Parking lot and week goals.** Additions/removals and week-goal changes. \
 Read back anything parked during the meeting.
   - **Block 6 on Mondays — Goals and milestones (about 10 minutes; this replaces the backlog \
@@ -549,6 +554,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     if ev.get("gaps"):
         out += ["", "**Data gaps:** " + " · ".join(ev["gaps"])]
 
+    out += daily_meeting_opportunities.render(ev.get("opportunities"))
     out += [""] + _cleanup_section(ev.get("cleanup") or {})
     out += ["---", "", "## Appendix A — Reminders, next 7 days", ""]
     by_day: dict[str, list[str]] = {}
@@ -680,6 +686,10 @@ def main(argv: list[str] | None = None) -> int:
                 break
         summary = summarize_chats(evidence.get("claude_chats", []), evidence.setdefault("gaps", []))
         summarize_waiting(evidence.get("waiting_chats") or {}, evidence["gaps"])
+        try:  # personal searches must never stop the briefing; a failure shows as a data gap
+            evidence["opportunities"] = daily_meeting_opportunities.collect(today, evidence["gaps"])
+        except (OSError, ValueError) as error:
+            evidence["gaps"].append(f"opportunities unavailable ({context.clean(str(error), 200)})")
         path.write_text(render(evidence, summary, today, now))
         path.chmod(0o600)
         result: dict = {"briefing": str(path)}
