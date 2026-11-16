@@ -2,8 +2,9 @@
 
 Hybrid: the dev server prepares a briefing, the founder holds the meeting by
 voice in the Claude app, and the decisions are written back on the dev server.
-What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
-(Marketing Week / Build Week cycle, week goals, today's focus, parking lot).
+[`FOCUS.md`](../../../FOCUS.md) records the week goals, today's focus and the
+parking lot as information for the meeting; it does not restrict which work
+chats may take on.
 
 ## Flow
 1. **Every 30 minutes** `scripts/mac_reminders.py sync` copies the open
@@ -22,7 +23,7 @@ What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
      container with the Vault key) summarizes the chats — Claude Code stores only
      titles, no summaries;
    - renders `logs/daily-meetings/YYYY-MM-DD-briefing.md` (private): meeting
-     instructions for Claude, phase rules, FOCUS.md, progress, reminders, then
+     instructions for Claude, FOCUS.md, progress, reminders, then
      appendices with all reminders/chats/Tasks/commits;
    - renders it as a PDF (`scripts/daily_meeting_pdf.py`; the Claude app cannot
      fetch the long Markdown from a link) and uploads that with
@@ -141,7 +142,7 @@ lecture. Every meeting, at the end of Block 1, it compares the commits and the c
 meeting with the current milestone, states the rough share of the work that served it, names the
 drift and where the time went, and asks exactly one question that lets the founder draw the
 conclusion. Background work the founder approved to run on its own (the Rust rewrite, migrations named
-in the phase rules or the agreed adjustments) is named separately and does not count as drift. The
+in the agreed adjustments) is named separately and does not count as drift. The
 result is the note's `Drift:` line, so the next meeting can say whether it got better or worse. Right
 after the drift share, Claude gives the production growth numbers in about one minute, with their trend,
 related to the milestone (small numbers are named as noise).

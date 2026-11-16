@@ -1,5 +1,5 @@
 # contract-test-file: tooling
-"""Daily meeting briefing: phase calendar, rendering from sparse evidence, Discord text."""
+"""Daily meeting briefing: rendering from sparse evidence, Discord text, no phase rules."""
 
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -9,11 +9,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import daily_meeting_briefing as briefing  # noqa: E402 - scripts dir added to path above
 
 
-def test_phase_alternates_from_marketing_week_on_2_november_2026():
-    assert briefing.phase(date(2026, 11, 2))[0] == "Marketing Week"
-    assert briefing.phase(date(2026, 11, 8))[0] == "Marketing Week"
-    assert briefing.phase(date(2026, 11, 9))[0] == "Build Week"
-    assert briefing.phase(date(2026, 11, 16))[0] == "Marketing Week"
+def test_briefing_has_no_marketing_or_build_week_phase():
+    assert not hasattr(briefing, "phase") and not hasattr(briefing, "PHASE_ANCHOR")
+    for word in ("Marketing Week", "Build Week", "Phase rules", "push back"):
+        assert word not in briefing.MEETING_SCRIPT
 
 
 def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps():
@@ -32,7 +31,8 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
     }
     text = briefing.render(evidence, {"themes": [], "loose_ends": [], "chats": []},
                            date(2026, 11, 3), datetime(2026, 11, 3, 9, tzinfo=timezone.utc))
-    assert "Marketing Week" in text
+    assert "Marketing Week" not in text and "Build Week" not in text and "Phase" not in text
+    assert "## 1. Focus file (FOCUS.md)" in text
     assert "DECISIONS 2026-11-03" in text
     assert "38% of the weekly limit left" in text
     assert "runs out **Fri 06 Nov 04:12**" in text
@@ -48,7 +48,7 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
 def test_discord_text_carries_link_not_document():
     text = briefing.discord_text(date(2026, 11, 3), "https://example.invalid/briefing.md")
     assert "https://example.invalid/briefing.md" in text
-    assert "Marketing Week" in text and len(text) < 600
+    assert "Marketing Week" not in text and len(text) < 600
 
 
 def test_meeting_script_asks_exactly_one_question_at_a_time():

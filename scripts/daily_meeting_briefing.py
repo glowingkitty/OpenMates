@@ -35,16 +35,9 @@ import claude_idle_chats  # noqa: E402
 import worktree_wip  # noqa: E402
 
 TZ = ZoneInfo("Europe/Berlin")
-PHASE_ANCHOR = date(2026, 11, 2)  # Monday of the first Marketing Week; weeks alternate
 WEBHOOK_KEYS = ("DISCORD_WEBHOOK_DAILY_MEETING", "DISCORD_WEBHOOK_DEV_NIGHTLY")
 LINK_SECONDS = 48 * 3600
 SCHEDULED_AT = (11, 30)  # Berlin time of the cron run; the crontab fires at 09:30 and 10:30 UTC
-
-
-def phase(day: date) -> tuple[str, date, date]:
-    monday = day - timedelta(days=day.weekday())
-    marketing = ((monday - PHASE_ANCHOR).days // 7) % 2 == 0
-    return ("Marketing Week" if marketing else "Build Week"), monday, monday + timedelta(days=6)
 
 
 def configured_value(root: Path, key: str) -> str:
@@ -153,8 +146,7 @@ RETRY_WAIT_SECONDS = 60
 MEETING_SCRIPT = """\
 ## How to run this meeting (instructions for Claude)
 You are running a ~20-minute **voice** daily meeting with the founder of OpenMates, \
-a solo founder who has ADHD, often has 10–15 agent chats running and keeps getting \
-pulled into new features and bugs while marketing (videos, press) slips. \
+a solo founder who has ADHD and often has 10–15 agent chats running. \
 The meeting must lower overwhelm, not add to it.
 - **Mentor stance:** you are the founder's critical mentor, not a note-taker and not a \
 cheerleader. Be honest and constructive: say plainly what the evidence in this briefing shows, \
@@ -168,8 +160,6 @@ ids), an agent name (e.g. "agent-33bc") or a task bare. Always say what it is in
 words ("the Projects editing task", "the chat about PDF uploads"). In the decisions note, write \
 the plain description first and the ID only in brackets after it.
 - Ask **exactly one question at a time**, with your recommendation where one applies, then wait.
-- Respect the phase rules below. In a Marketing Week, gently push back on features, \
-refactors, UX polish and bug fixes that do not block marketing; offer the parking lot.
 - **ADHD-friendly rules:** (a) open by naming the 6 blocks (plus a 2-minute closing "improve the meeting") and the time \
 budget, and say "Block N of 6" when you move on, so the founder always knows where we are; (b) never more \
 than **3** commitments for the day, each with a concrete **first step that takes 5 minutes** \
@@ -204,7 +194,7 @@ started or active (Appendix B) — with the current milestone ("Goals and milest
 rough share that served the milestone ("about a third of the work served the press release; the \
 rest went into …"), name the drift plainly and say where the time went instead. Work the founder \
 has approved to run on its own in the background (the Rust rewrite and any migration named in the \
-phase rules or the agreed adjustments) is named separately and does not count as drift. If the \
+agreed adjustments) is named separately and does not count as drift. If the \
 previous decisions note has a `Drift:` line, say whether it got better or worse. Then the \
 **growth numbers** (about one minute, plain language, rounded, never a list read aloud), from \
 "Marketing and growth numbers (production)": total users, new signups since the last meeting and \
@@ -249,10 +239,9 @@ priority order for the week. One question at a time, with your recommendation. I
 meeting already ran 20 minutes).** The meeting also keeps the to-do lists healthy. Take \
 **one** batch in groups of 3-5 related items (one question per group, with your \
 recommendation): which can be **closed or deleted** (obsolete, done, no longer wanted), \
-**merged** into another (duplicates), **delayed** (park for a later Build Week) or **kept**. \
-Be critical: say when an item looks stale, vague or contradicts the current goals. In a \
-Marketing Week, recommend delaying non-marketing items. Never decide for the founder; \
-deletion needs a clear "yes".
+**merged** into another (duplicates), **delayed** (parked for later) or **kept**. \
+Be critical: say when an item looks stale, vague or contradicts the current goals. \
+Never decide for the founder; deletion needs a clear "yes".
 - Ask clarifying questions in these directions when relevant: what blocks this week's goals; \
 deadlines at risk; whether too many chats are running (and whether the remaining weekly \
 Claude usage covers the planned agent work — if it runs out before the reset, cut agent \
@@ -467,8 +456,6 @@ def _reminders_banner(rem: dict) -> list[str]:
 
 
 def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> str:
-    name, monday, sunday = phase(today)
-    next_name, next_monday, _ = phase(monday + timedelta(days=7))
     rem = ev.get("reminders") or {}
     tasks = ev.get("tasks") or {}
     nightly = ev.get("nightly") or {}
@@ -478,8 +465,6 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     out = [f"# OpenMates daily meeting briefing — {today.strftime('%A %d %B %Y')}", ""]
     out += _tasks_banner(ev.get("tasks_status") or {})
     out += _reminders_banner(ev.get("reminders") or {})
-    out.append(f"**Phase:** {name} ({monday:%d %b}–{sunday:%d %b}); next: {next_name} from "
-               f"{next_monday:%a %d %b}.  ")
     source = rem.get("source")
     rem_note = ("live from the Mac" if source == "live" else
                 f"Mac offline — copy synced {rem.get('fetched_at', '?')[:16]} UTC" if source else "unavailable")
@@ -512,12 +497,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
             out.append(product["description"])
         if product.get("features"):
             out += ["", "Core features:"] + [f"- {feature}" for feature in product["features"]]
-    out += ["", MEETING_SCRIPT.replace("{date}", today.isoformat()), "", *_meeting_adjustments(ev.get("goals") or {}), "## Phase rules", "",
-            "- **Marketing Week:** marketing work (storyboards, Remotion video editing, screen "
-            "recordings, press outreach, marketing copy) plus bug fixes that clearly block "
-            "marketing. Everything else goes to the parking lot.",
-            "- **Build Week:** features, bug fixes, UX from the parking lot; marketing still "
-            "matters but need not fill the week.", ""]
+    out += ["", MEETING_SCRIPT.replace("{date}", today.isoformat()), "", *_meeting_adjustments(ev.get("goals") or {})]
     focus_text = re.sub(r"^(#{1,2}) ", "### ", ev.get("focus_file", "").strip(), flags=re.M)
     out += ["## 1. Focus file (FOCUS.md)", "", focus_text or "_FOCUS.md missing._", ""]
     out += _goals_section(ev.get("goals") or {}, today)
@@ -645,10 +625,9 @@ def freshness(evidence: dict) -> list[str]:
 
 
 def discord_text(today: date, url: str, problems: list[str] | None = None, generated: str = "") -> str:
-    name, _, _ = phase(today)
     status = ("✅ Tasks, reminders and Claude chats are live" + (f" as of {generated}" if generated else "")
               if not problems else "⚠️ Not up to date: " + "; ".join(problems))
-    return (f"**Daily meeting briefing — {today:%a %d %b}** ({name})\n{status}\n"
+    return (f"**Daily meeting briefing — {today:%a %d %b}**\n{status}\n"
             f"Download the PDF and attach it in the daily-meeting chat. Claude: read all of it, "
             f"then run today's voice daily meeting exactly as its \"How to run this meeting\" "
             f"section describes.\n{url}\n(private link, valid 48 h)")

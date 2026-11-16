@@ -120,7 +120,7 @@ briefing line shows a bare ID, say what it is before using it.
    agent task — `create_session` with the `dev-server:OpenMates…` bridge
    environment and a handoff naming the Task ID, goal, done-criterion and "read
    FOCUS.md and run `sessions.py start` first"; resume an existing chat with
-   `send_message`. Respect the current phase in FOCUS.md.
+   `send_message`.
 
 Close with ≤6 lines: focus, tasks with Task IDs, reminders changed, items cleaned up,
 parking-lot changes, chats started.

@@ -114,13 +114,6 @@ when a skill or this file points to it.
 - When the user names a top priority, work only on it until it ships; log side
   findings as Tasks (`/new-task`) instead of detouring.
 
-## Focus (Marketing Week / Build Week)
-- Before any task read `FOCUS.md` in the canonical checkout (private and gitignored,
-  so worktrees do not have it; never commit it or copy its content into the repo). In a Marketing Week, briefly and kindly push
-  back on features, refactors and non-marketing bug fixes and offer the parking
-  lot; proceed if the user names a marketing link or insists. The Rust rewrite
-  chat is exempt.
-
 ## Verification (details: `.claude/rules/testing.md`)
 - Every behavior fix/feature updates relevant E2E coverage; never weaken tests.
 - Testing Projects: use clear natural-language Project names ("Kitchen
