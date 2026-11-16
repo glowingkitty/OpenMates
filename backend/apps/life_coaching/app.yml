@@ -14,3 +14,23 @@ focuses:
     name_translation_key: life_coaching.crisis_support
     description_translation_key: life_coaching.crisis_support.description
     discount: 0.5 # Reduce the price for this focus by 50% to make it more accessible.
+  - id: life_compass
+    auto_activate_when_relevant: true
+    icon_image: heart.svg
+    name_translation_key: life_coaching.life_compass
+    description_translation_key: life_coaching.life_compass.description
+    process_translation_key: focus_modes.life_coaching_life_compass.process
+    systemprompt_translation_key: focus_modes.life_coaching_life_compass.systemprompt
+    how_to_use:
+      - Everything looks fine on paper, but I'm not happy and don't know what I actually want.
+      - I feel stuck since my breakup. Can you help me get back on track?
+      - I just retired and my days feel empty. Where do I start?
+    preprocessor_hint: >
+      Select when the user wants help with the overall direction of their life:
+      they feel stuck, unhappy, lost, burned out, lonely, unsure what they want,
+      are rebuilding after a breakup, loss, move or retirement, or ask for help
+      getting their life on track or becoming happier. Do not select when the
+      request is only about career direction or a job switch (Career insights),
+      a single practical task, or when the message shows acute risk such as
+      thoughts of suicide, self-harm or danger from someone; answer those with
+      support instead.

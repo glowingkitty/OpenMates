@@ -60,24 +60,33 @@ def brand_naming_research_skill_scope(
 
 
 SPEC_AUTHORING_FOCUS_ID = "code-write_specification"
-SPEC_AUTHORING_SKILLS = ("plans-specification", "plans-check", "plans-create", "tasks-create")
+LIFE_COMPASS_FOCUS_ID = "life_coaching-life_compass"
+# Skills an active focus keeps offered on every turn, because its instructions
+# call them at moments preprocessing does not recognise as tool turns.
+FOCUS_OFFERED_SKILLS: dict[str, tuple[str, ...]] = {
+    SPEC_AUTHORING_FOCUS_ID: ("plans-specification", "plans-check", "plans-create", "tasks-create"),
+    # Agreed next steps become Tasks (reminders where Tasks are off); follow-ups read existing Tasks.
+    LIFE_COMPASS_FOCUS_ID: ("tasks-create", "tasks-search", "reminder-set-reminder"),
+}
 
 
-def spec_authoring_skill_scope(
+def focus_offered_skill_scope(
     *, active_focus_id: str | None, selected_skills: list[str],
     available_skills: set[str], exact_request: bool,
 ) -> list[str]:
-    """Keep the Specification, Check, Plan and Task skills offered in spec authoring.
+    """Keep the skills an active focus's instructions rely on offered every turn.
 
-    Preprocessing picks tools per turn and drops the plans skills once the talk
-    reads as design or business detail, so the drafted Specification ended up
-    as chat text. Focus allowlists are not enforced yet; this offers the skills
-    the focus phases name, and the phase instructions decide when to call them.
-    Explicit skill requests stay exact and unavailable skills stay excluded.
+    Preprocessing picks tools per turn: in spec authoring it dropped the plans
+    skills once the talk read as design detail, so the Specification ended up as
+    chat text; a Life compass "yes, let's do those" reads as small talk, not a
+    Task request. Focus allowlists are not enforced yet; this offers the skills
+    and the focus instructions decide when to call them. Explicit skill requests
+    stay exact and unavailable skills (Tasks off) stay excluded.
     """
-    if active_focus_id != SPEC_AUTHORING_FOCUS_ID or exact_request:
+    offered = FOCUS_OFFERED_SKILLS.get(active_focus_id or "")
+    if not offered or exact_request:
         return selected_skills
-    added = [skill for skill in SPEC_AUTHORING_SKILLS if skill in available_skills and skill not in selected_skills]
+    added = [skill for skill in offered if skill in available_skills and skill not in selected_skills]
     return [*selected_skills, *added]
 
 

@@ -1,0 +1,115 @@
+schema_version: 1
+id: feature.focus-modes.life-compass
+version: 1
+status: draft
+title: Life compass focus mode
+summary: A warm, practical focus mode that learns the user's background, names their biggest current issues and
+  strengths, agrees on a few concrete next steps, turns them into Tasks or reminders and follows up gently in later
+  chats, saving personal context only with clear consent and always yielding to wellbeing safety.
+
+inherits: [feature.focus-modes@2]
+scope:
+  includes:
+  - Life coaching Life compass focus (runtime id life_coaching-life_compass) on dev, with its activation hint,
+    process, examples and instructions.
+  - Consent-gated saving of background, strengths, issues and agreed steps as personal Memories through the
+    existing assistant memory write.
+  - Agreed next steps as Tasks assigned to the user, or reminders where Tasks are unavailable.
+  - Gentle follow-up in later chats from approved Memories and existing Tasks.
+  - Behavior when wellbeing risk signals appear.
+  excludes:
+  - Therapy, diagnoses, medication, legal or financial advice.
+  - The platform wellbeing layer itself (risk scoring, helpline card, crisis-provider API), owned by the safety work;
+    this focus follows it.
+  - New storage, routes or memory types; Crisis support focus content; production enablement.
+assertions:
+- id: life-compass.activation
+  type: behavior
+  must: A natural request about overall life direction, feeling stuck, unhappy or unsure what the user wants proposes
+    Life compass with the shared countdown; naming it (@focus or "turn on Life compass") activates it at once. A
+    request only about career direction keeps Career insights, and a message with acute risk signals is not answered
+    with a goal-setting proposal.
+  depends_on:
+  - examples.activation
+- id: life-compass.tone
+  type: behavior
+  must: Every reply is warm, curious, practical and non-judgmental, short enough to read in under a minute, and asks
+    at most one question. The assistant never lectures, moralizes, diagnoses or labels the user, never claims to be
+    a therapist, and treats every choice as the user's; the user can skip any question or the whole intake.
+  depends_on:
+  - examples.tone
+- id: life-compass.flow
+  type: behavior
+  must: The focus first uses what is already known (approved Memories, earlier messages) and asks only for what is
+    missing, one question per turn, across the areas that matter to the user. It then reflects back the two or three
+    biggest current issues and the strongest strengths in the user's own words and asks them to confirm or correct
+    them, then proposes one to three small, concrete next steps for the coming week or two and lets the user choose,
+    change or drop them. It never states facts about the user that the user did not give.
+  depends_on:
+  - examples.flow
+- id: life-compass.memory-consent
+  type: privacy
+  must: Before saving anything, the assistant says in one short list exactly what it would save and asks; it saves
+    only after a clear yes and saves nothing after no, skip or silence. Saved context is a personal Memory written by
+    the existing assistant memory write, client-encrypted, Ask first by default, and editable, deletable and undoable
+    like any other Memory. It contains only what the user said and agreed to save, without diagnoses, third-party
+    details the user did not ask to keep, or risk signals; the assistant says it was saved only after the save
+    succeeded.
+  depends_on:
+  - examples.memory_consent
+- id: life-compass.next-steps
+  type: behavior
+  must: Only agreed next steps become todos. Where Tasks are available each becomes one Task assigned to the user
+    with a short concrete title; elsewhere the assistant offers a reminder instead. Nothing is created without the
+    user's agreement, and the assistant says a todo exists only after the skill succeeded. It may offer one gentle
+    check-in reminder, set only on a yes.
+  depends_on:
+  - examples.next_steps
+- id: life-compass.follow-up
+  type: behavior
+  must: In a later chat with Life compass active, the assistant uses approved Memories and the user's existing Tasks
+    to ask briefly how the agreed steps went, without pressure or guilt; it celebrates progress, treats missed steps
+    as information, and adjusts, replaces or drops steps with the user. Context the user did not approve is not used.
+  depends_on:
+  - examples.follow_up
+- id: life-compass.wellbeing
+  type: security
+  must: When risk signals appear (thoughts of suicide or self-harm, a plan or means, abuse or danger from others,
+    eating-disorder risk, or deep hopelessness), the assistant stops goal work in that reply, responds with warmth,
+    encourages reaching someone now and points to local crisis lines or emergency services for the user's country,
+    or asks the country when unknown. It never pushes goals, todos or memory saving at that moment, never blocks or
+    lectures, and never saves risk signals. The platform wellbeing layer and safety policy override this focus.
+  depends_on:
+  - examples.wellbeing
+applies_to:
+  rest_api:
+    required: false
+    role: Existing inference and memory/task paths only; no new route.
+  cli:
+    required: true
+    parity: semantic
+    role: Real dev CLI persona runs prove conversation, memory consent, todos and safety.
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web:
+        required: true
+      apple:
+        required: false
+        role: Apple shows the focus through the shared catalog; no Apple-specific behavior.
+examples:
+  file: examples.yml
+  required_groups:
+  - activation
+  - tone
+  - flow
+  - memory_consent
+  - next_steps
+  - follow_up
+  - wellbeing

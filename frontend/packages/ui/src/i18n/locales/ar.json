@@ -315,6 +315,12 @@
         "description": {
           "text": "تقنية قوية للتدريب على الحياة."
         }
+      },
+      "life_compass": {
+        "text": "بوصلة الحياة",
+        "description": {
+          "text": "اعثر على اتجاهك نحو حياة أسعد، خطوة صغيرة في كل مرة."
+        }
       }
     },
     "news": {
@@ -8581,6 +8587,27 @@
     },
     "slides_template_library_empty": {
       "text": "لا توجد قوالب محفوظة بعد"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -11082,6 +11109,12 @@
       "text": "التحدث عن المستقبل",
       "description": {
         "text": "تقنية قوية للتدريب على الحياة."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "بوصلة الحياة",
+      "description": {
+        "text": "اعثر على اتجاهك نحو حياة أسعد، خطوة صغيرة في كل مرة."
       }
     },
     "health_prepare_doctor_report": {

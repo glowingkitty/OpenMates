@@ -315,6 +315,12 @@
         "description": {
           "text": "Una poderosa técnica de coaching de vida."
         }
+      },
+      "life_compass": {
+        "text": "Brújula vital",
+        "description": {
+          "text": "Encuentra tu rumbo hacia una vida más feliz, paso a paso."
+        }
       }
     },
     "news": {
@@ -8608,6 +8614,27 @@
     },
     "slides_template_library_empty": {
       "text": "Aún no hay plantillas guardadas"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -11109,6 +11136,12 @@
       "text": "Hablar del futuro",
       "description": {
         "text": "Una poderosa técnica de coaching de vida."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "Brújula vital",
+      "description": {
+        "text": "Encuentra tu rumbo hacia una vida más feliz, paso a paso."
       }
     },
     "health_prepare_doctor_report": {

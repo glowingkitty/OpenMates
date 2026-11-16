@@ -315,6 +315,12 @@
         "description": {
           "text": "Eine kraftvolle Lebensberatungstechnik."
         }
+      },
+      "life_compass": {
+        "text": "Lebenskompass",
+        "description": {
+          "text": "Finde deine Richtung zu einem glücklicheren Leben, einen kleinen Schritt nach dem anderen."
+        }
       }
     },
     "news": {
@@ -10724,6 +10730,27 @@
     },
     "slides_template_library_empty": {
       "text": "Noch keine gespeicherten Vorlagen"
+    },
+    "slides_remote_open": {
+      "text": "Fernbedienung"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Wird auf einem anderen Gerät präsentiert"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Es wird gerade nicht präsentiert"
+    },
+    "slides_remote_show_notes": {
+      "text": "Notizen anzeigen"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Notizen ausblenden"
+    },
+    "slides_remote_slides": {
+      "text": "Folien"
+    },
+    "slides_remote_close": {
+      "text": "Fernbedienung schließen"
     }
   },
   "embeds_input": {
@@ -13256,6 +13283,12 @@
       "text": "Zukunftsgespräch",
       "description": {
         "text": "Eine kraftvolle Lebensberatungstechnik."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "Lebenskompass",
+      "description": {
+        "text": "Finde deine Richtung zu einem glücklicheren Leben, einen kleinen Schritt nach dem anderen."
       }
     },
     "health_prepare_doctor_report": {

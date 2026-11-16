@@ -52,7 +52,7 @@ from backend.apps.ai.processing.chat_request_safety import (
 )
 from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
-    spec_authoring_skill_scope,
+    focus_offered_skill_scope,
 )
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev, _complete_public_decisions
 from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, has_active_app_focus, select_explicit_plan_focus
@@ -4257,12 +4257,12 @@ async def handle_preprocessing(
                 "search or app skill."
             )
 
-    scoped_skills = spec_authoring_skill_scope(
+    scoped_skills = focus_offered_skill_scope(
         active_focus_id=request_data.active_focus_id, selected_skills=validated_relevant_skills,
         available_skills=set(available_skill_ids or []), exact_request=user_requested_skills_only,
     )
     if scoped_skills != validated_relevant_skills:
-        logger.info(f"{log_prefix} [FOCUS_SKILLS] Active spec authoring focus offers "
+        logger.info(f"{log_prefix} [FOCUS_SKILLS] Active focus offers "
                     f"{scoped_skills[len(validated_relevant_skills):]}")
         validated_relevant_skills = scoped_skills
 

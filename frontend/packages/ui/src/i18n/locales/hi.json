@@ -315,6 +315,12 @@
         "description": {
           "text": "एक शक्तिशाली जीवन कोचिंग तकनीक।"
         }
+      },
+      "life_compass": {
+        "text": "जीवन कम्पास",
+        "description": {
+          "text": "एक-एक छोटे कदम से, अधिक खुशहाल जीवन की ओर अपनी दिशा खोजें।"
+        }
       }
     },
     "news": {
@@ -8581,6 +8587,27 @@
     },
     "slides_template_library_empty": {
       "text": "अभी कोई सहेजा गया टेम्पलेट नहीं"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -11082,6 +11109,12 @@
       "text": "भविष्य की बातचीत",
       "description": {
         "text": "एक शक्तिशाली जीवन कोचिंग तकनीक।"
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "जीवन कम्पास",
+      "description": {
+        "text": "एक-एक छोटे कदम से, अधिक खुशहाल जीवन की ओर अपनी दिशा खोजें।"
       }
     },
     "health_prepare_doctor_report": {

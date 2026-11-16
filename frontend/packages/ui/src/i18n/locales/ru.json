@@ -315,6 +315,12 @@
         "description": {
           "text": "Мощная техника коучинга жизни."
         }
+      },
+      "life_compass": {
+        "text": "Жизненный компас",
+        "description": {
+          "text": "Найдите своё направление к более счастливой жизни, шаг за шагом."
+        }
       }
     },
     "news": {
@@ -8581,6 +8587,27 @@
     },
     "slides_template_library_empty": {
       "text": "Сохранённых шаблонов пока нет"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -11082,6 +11109,12 @@
       "text": "Разговор о будущем",
       "description": {
         "text": "Мощная техника коучинга жизни."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "Жизненный компас",
+      "description": {
+        "text": "Найдите своё направление к более счастливой жизни, шаг за шагом."
       }
     },
     "health_prepare_doctor_report": {

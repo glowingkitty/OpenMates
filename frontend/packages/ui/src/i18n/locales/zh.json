@@ -315,6 +315,12 @@
         "description": {
           "text": "一种强大的生活指导技巧。"
         }
+      },
+      "life_compass": {
+        "text": "人生指南针",
+        "description": {
+          "text": "一步一个脚印，找到通往更幸福生活的方向。"
+        }
       }
     },
     "news": {
@@ -8581,6 +8587,27 @@
     },
     "slides_template_library_empty": {
       "text": "还没有已保存的模板"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -11082,6 +11109,12 @@
       "text": "未来对话",
       "description": {
         "text": "一种强大的生活指导技巧。"
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "人生指南针",
+      "description": {
+        "text": "一步一个脚印，找到通往更幸福生活的方向。"
       }
     },
     "health_prepare_doctor_report": {

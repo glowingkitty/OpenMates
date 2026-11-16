@@ -6,14 +6,14 @@ results_as_of: '2026-11-16'
 summary:
   features: 125
   enabled_on_prod: 109
-  enabled_on_dev: 113
+  enabled_on_dev: 114
   status_by_surface:
     web:
       live: 4
       partial: 20
       failing: 54
-      not_run: 9
-      implemented: 19
+      not_run: 10
+      implemented: 18
       not_planned: 19
     apple:
       tested: 15
@@ -29,12 +29,12 @@ summary:
       failing: 1
       not_run: 2
     cli:
-      partial: 16
+      partial: 17
       failing: 8
       not_run: 27
       implemented: 41
       in_progress: 2
-      not_planned: 31
+      not_planned: 30
     tui:
       live: 2
       failing: 13
@@ -13640,8 +13640,12 @@ features:
 - id: life-coaching
   name: Life coaching
   kind: app
-  description: Plan your next steps in life.
-  specifications: []
+  description: 'Plan your next steps in life: the Life compass focus mode (dev only) learns your background, names issues
+    and strengths, agrees on small next steps as Tasks or reminders, remembers context only with consent and follows up gently.'
+  specifications:
+  - id: feature.focus-modes.life-compass
+    status: draft
+    path: specifications/features/focus-modes/life-compass
   apps:
   - life_coaching
   product_features: []
@@ -13649,23 +13653,24 @@ features:
   flags:
     ids:
     - app:life_coaching
-    dev: disabled
+    dev: enabled
     prod: disabled
-  assertions: 0
+  assertions: 7
   surfaces:
     web:
-      status: implemented
-      source: intent
+      status: not_run
+      source: tests
       intent: implemented
       assertions:
         passing: 0
         failing: 0
-        not_run: 0
-        missing: 0
-        counted: 0
+        not_run: 5
+        missing: 2
+        counted: 7
       key_tests: []
       evidence: focus modes in app store UI (app.yml); no dedicated embed
-      e2e_tests: []
+      e2e_tests:
+      - frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
       key_unit_tests: []
       unit_test_files: 0
     apple:
@@ -13688,19 +13693,21 @@ features:
       - ipados
       - macos
     cli:
-      status: not_planned
-      source: intent
-      intent: not_planned
+      status: partial
+      source: tests
+      intent: implemented
       assertions:
-        passing: 0
+        passing: 1
         failing: 0
         not_run: 0
-        missing: 0
-        counted: 0
+        missing: 6
+        counted: 7
       key_tests: []
+      evidence: 'real dev persona runs: scripts/life_compass_persona_real_test.py'
       e2e_tests: []
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - backend/tests/test_focus_mode_routing.py
+      unit_test_files: 1
     tui:
       status: implemented
       source: intent
@@ -13760,6 +13767,90 @@ features:
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
+  subfeatures:
+  - id: life-compass
+    name: Life compass focus mode
+    description: One question at a time, consent-gated encrypted Memory, agreed steps as Tasks or reminders, gentle follow-up
+      in later chats, wellbeing-safe
+    assertion_ids:
+    - life-compass.activation
+    - life-compass.flow
+    - life-compass.follow-up
+    - life-compass.memory-consent
+    - life-compass.next-steps
+    - life-compass.tone
+    - life-compass.wellbeing
+    surfaces:
+      web:
+        status: not_run
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 5
+          missing: 2
+          counted: 7
+      apple:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: partial
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 1
+          failing: 0
+          not_run: 0
+          missing: 6
+          counted: 7
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_npm:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
 - id: mail
   name: Mail
   kind: app

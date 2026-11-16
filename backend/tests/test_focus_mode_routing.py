@@ -15,7 +15,7 @@ from backend.apps.ai.processing.focus_mode_routing import (
     should_force_deep_research_delegation,
     should_enable_subchats_for_active_focus,
     workflow_clarification_skill_scope,
-    spec_authoring_skill_scope,
+    focus_offered_skill_scope,
     resolve_automatic_focus_proposal,
 )
 
@@ -378,16 +378,29 @@ def test_conference_talk_focus_targets_the_attached_event_card_and_always_states
 def test_active_spec_authoring_focus_keeps_plans_and_tasks_skills_offered() -> None:
     available = {"plans-specification", "plans-check", "plans-create", "tasks-create", "web-search"}
     # A design-phase turn where preprocessing picked no plans skill still offers them.
-    assert spec_authoring_skill_scope(active_focus_id="code-write_specification", selected_skills=["web-search"],
+    assert focus_offered_skill_scope(active_focus_id="code-write_specification", selected_skills=["web-search"],
                                       available_skills=available, exact_request=False) == [
         "web-search", "plans-specification", "plans-check", "plans-create", "tasks-create"]
     # Other focus modes, explicit skill requests and unavailable skills are unchanged.
-    assert spec_authoring_skill_scope(active_focus_id="web-research", selected_skills=[],
+    assert focus_offered_skill_scope(active_focus_id="web-research", selected_skills=[],
                                       available_skills=available, exact_request=False) == []
-    assert spec_authoring_skill_scope(active_focus_id="code-write_specification", selected_skills=["web-search"],
+    assert focus_offered_skill_scope(active_focus_id="code-write_specification", selected_skills=["web-search"],
                                       available_skills=available, exact_request=True) == ["web-search"]
-    assert spec_authoring_skill_scope(active_focus_id="code-write_specification", selected_skills=[],
+    assert focus_offered_skill_scope(active_focus_id="code-write_specification", selected_skills=[],
                                       available_skills={"plans-check"}, exact_request=False) == ["plans-check"]
+
+
+# contract-test: supporting surface=cli assertions=life-compass.next-steps
+def test_active_life_compass_focus_keeps_tasks_and_reminder_skills_offered() -> None:
+    available = {"tasks-create", "tasks-search", "reminder-set-reminder", "web-search"}
+    # "Yes, let's do those" reads as small talk to preprocessing; the todo skills stay offered.
+    assert focus_offered_skill_scope(active_focus_id="life_coaching-life_compass", selected_skills=[],
+                                     available_skills=available, exact_request=False) == [
+        "tasks-create", "tasks-search", "reminder-set-reminder"]
+    # Where Tasks are disabled only the reminder fallback is offered.
+    assert focus_offered_skill_scope(active_focus_id="life_coaching-life_compass", selected_skills=[],
+                                     available_skills={"reminder-set-reminder"}, exact_request=False) == [
+        "reminder-set-reminder"]
 
 
 def _request_app_focus_source() -> str:

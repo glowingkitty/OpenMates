@@ -942,12 +942,18 @@ features:
   - id: life-coaching
     name: "Life coaching"
     kind: app
-    description: "Plan your next steps in life."
-    specifications: []
+    description: "Plan your next steps in life: the Life compass focus mode (dev only) learns your background, names issues and strengths, agrees on small next steps as Tasks or reminders, remembers context only with consent and follows up gently."
+    specifications: [feature.focus-modes.life-compass]
     apps: [life_coaching]
     release: unreleased
-    surfaces: {web: implemented, apple: in_progress, cli: not_planned, tui: implemented, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: in_progress}
+    surfaces: {web: implemented, apple: in_progress, cli: implemented, tui: implemented, rest_api: not_planned, sdk_npm: implemented, sdk_pypi: in_progress}
+    subfeatures:
+      - id: life-compass
+        name: "Life compass focus mode"
+        description: "One question at a time, consent-gated encrypted Memory, agreed steps as Tasks or reminders, gentle follow-up in later chats, wellbeing-safe"
+        assertions: ["life-compass.*"]
     evidence:
+      cli: "real dev persona runs: scripts/life_compass_persona_real_test.py"
       web: "focus modes in app store UI (app.yml); no dedicated embed"
       apple: "apple/OpenMates/Sources/Features/Chat/Views/FocusModeView.swift"
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"

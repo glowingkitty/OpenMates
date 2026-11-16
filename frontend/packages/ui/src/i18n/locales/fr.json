@@ -315,6 +315,12 @@
         "description": {
           "text": "Une technique puissante de coaching de vie."
         }
+      },
+      "life_compass": {
+        "text": "Boussole de vie",
+        "description": {
+          "text": "Trouvez votre direction vers une vie plus heureuse, un petit pas à la fois."
+        }
       }
     },
     "news": {
@@ -8608,6 +8614,27 @@
     },
     "slides_template_library_empty": {
       "text": "Aucun modèle enregistré pour l'instant"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -11109,6 +11136,12 @@
       "text": "Parler du futur",
       "description": {
         "text": "Une technique puissante de coaching de vie."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "Boussole de vie",
+      "description": {
+        "text": "Trouvez votre direction vers une vie plus heureuse, un petit pas à la fois."
       }
     },
     "health_prepare_doctor_report": {

@@ -764,6 +764,14 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.focus-modes.life-compass:
+    version: 1
+    status: draft
+    path: features/focus-modes/life-compass
+    fingerprint: 7ab94dc49645bec7b8811c265b69e2ca78cbaf50ab4d0d9b3f7b9314eed01b59
+    required_applies_to:
+    - cli
+    - gui.web
   feature.focus-modes:
     version: 2
     status: approved
@@ -9965,6 +9973,62 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  life-compass.activation:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: behavior
+    fingerprint: 2dc34c07ee57c6ebf1b1456b46c3267888b547b559f02c387c372268f7082f5e
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.tone:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: behavior
+    fingerprint: b364789a6e48840186555ebdfc4a88c504d5066d8342419b7707aaba7297a5b3
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.flow:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: behavior
+    fingerprint: 1193849b04a24009aca349eb1a0238876934a31a11ca3d2de4a5a434ffc0532f
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.memory-consent:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: privacy
+    fingerprint: b7246d0776f84bb58ff97953e58301b68ee02007f64566915fd17bfd40731d07
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.next-steps:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: behavior
+    fingerprint: cf52b771f6d64e2b265e2c9f9752979ec90402a640603544e91b7a489bc852dd
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.follow-up:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: behavior
+    fingerprint: df898c9b08ad364dd1c8a13ee6af27e86b882fb30f49878787735ee0586129ac
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.wellbeing:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: security
+    fingerprint: 6c509bc83785b6f9eaa5a2f37659a46ac9b7325fbc43b9e9869d2b68f06ec42d
+    required_applies_to:
+    - cli
+    - gui.web
   focus-modes.project-write-gate:
     specification: feature.focus-modes@2
     specification_id: feature.focus-modes

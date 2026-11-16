@@ -315,6 +315,12 @@
         "description": {
           "text": "Kỹ thuật huấn luyện cuộc sống mạnh mẽ."
         }
+      },
+      "life_compass": {
+        "text": "La bàn cuộc sống",
+        "description": {
+          "text": "Tìm hướng đi đến một cuộc sống hạnh phúc hơn, từng bước nhỏ một."
+        }
       }
     },
     "news": {
@@ -8581,6 +8587,27 @@
     },
     "slides_template_library_empty": {
       "text": "Chưa có mẫu nào được lưu"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -11082,6 +11109,12 @@
       "text": "Nói về tương lai",
       "description": {
         "text": "Kỹ thuật huấn luyện cuộc sống mạnh mẽ."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "La bàn cuộc sống",
+      "description": {
+        "text": "Tìm hướng đi đến một cuộc sống hạnh phúc hơn, từng bước nhỏ một."
       }
     },
     "health_prepare_doctor_report": {

@@ -14,14 +14,14 @@ Flags: dev/prod enablement from committed config (`backend_config.dev.yml` / `ba
 Apple covers the shared iOS, iPadOS and macOS app (TestFlight); Watch is shown where relevant.
 Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface apple`.
 
-**125 features** · enabled on prod: 109 · enabled on dev: 113
+**125 features** · enabled on prod: 109 · enabled on dev: 114
 
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Web | 4 | 0 | 20 | 54 | 9 | 19 | 0 | 0 | 0 | 19 |
+| Web | 4 | 0 | 20 | 54 | 10 | 18 | 0 | 0 | 0 | 19 |
 | Apple | 0 | 15 | 34 | 5 | 0 | 40 | 6 | 5 | 0 | 20 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
-| CLI | 0 | 0 | 16 | 8 | 27 | 41 | 2 | 0 | 0 | 31 |
+| CLI | 0 | 0 | 17 | 8 | 27 | 41 | 2 | 0 | 0 | 30 |
 | TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 42 |
 | REST API | 6 | 2 | 32 | 16 | 23 | 17 | 0 | 2 | 0 | 27 |
 | npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 52 |
@@ -137,7 +137,8 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [IdeaBucket](#ideabucket) | impl | — |  | impl | impl | impl | impl | impl | on | on | v0.19.0 |
 | [Images](#images) | **FAIL** 2/34 | partial 1/31 |  | not run 0/31 | impl | partial 26/28 | impl | impl | on | on | v0.1-alpha-1 |
 | [Jobs](#jobs) | **live** 1/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
-| [Life coaching](#life-coaching) | impl | wip |  | — | impl | — | impl | wip | off | off | unreleased |
+| [Life coaching](#life-coaching) | not run 0/7 | wip |  | partial 1/7 | impl | — | impl | wip | on | off | unreleased |
+| &nbsp;&nbsp;↳ Life compass focus mode | not run 0/7 | ? |  | partial 1/7 | ? | — | ? | ? | | | |
 | [Mail](#mail) | **FAIL** 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Maps](#maps) | **FAIL** 2/5 | impl |  | partial 1/5 | impl | partial 4/5 | not run 0/5 | not run 0/5 | on | on | v0.5.0-alpha |
 | [Math](#math) | **FAIL** 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
@@ -1829,19 +1830,19 @@ Age-tiered teaching mode with term definitions and collaborative building, also 
 ### Life coaching
 <a id="life-coaching"></a>
 
-Plan your next steps in life.
+Plan your next steps in life: the Life compass focus mode (dev only) learns your background, names issues and strengths, agrees on small next steps as Tasks or reminders, remembers context only with consent and follows up gently.
 
-- Specifications: none, so no cell can be derived from assertions
+- Specifications: [feature.focus-modes.life-compass](../../specifications/features/focus-modes/life-compass/specification.yml) (draft) · 7 assertion(s)
 - Apps: `life_coaching`
-- Flags: `app:life_coaching` · dev off · prod off · release unreleased
+- Flags: `app:life_coaching` · dev on · prod off · release unreleased
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | impl | — | — |
+| Web | not run 0/7 | 0 pass · 0 fail · 5 not run · 2 no test | [life-compass-focus-web-real.spec.ts](../../frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts) |
 | Apple | wip | — | — |
-| CLI | — | — | — |
+| CLI | partial 1/7 | 1 pass · 0 fail · 0 not run · 6 no test | 1 unit test file(s), e.g. [test_focus_mode_routing.py](../../backend/tests/test_focus_mode_routing.py) |
 | TUI | impl | — | — |
 | REST API | — | — | — |
 | npm SDK | impl | — | — |

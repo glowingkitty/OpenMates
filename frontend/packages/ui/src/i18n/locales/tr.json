@@ -315,6 +315,12 @@
         "description": {
           "text": "Güçlü bir yaşam koçluğu tekniği."
         }
+      },
+      "life_compass": {
+        "text": "Hayat pusulası",
+        "description": {
+          "text": "Daha mutlu bir hayata giden yönünü, küçük adımlarla bul."
+        }
       }
     },
     "news": {
@@ -8581,6 +8587,27 @@
     },
     "slides_template_library_empty": {
       "text": "Henüz kayıtlı şablon yok"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -11082,6 +11109,12 @@
       "text": "Gelecek konuşması",
       "description": {
         "text": "Güçlü bir yaşam koçluğu tekniği."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "Hayat pusulası",
+      "description": {
+        "text": "Daha mutlu bir hayata giden yönünü, küçük adımlarla bul."
       }
     },
     "health_prepare_doctor_report": {
