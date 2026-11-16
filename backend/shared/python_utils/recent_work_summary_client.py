@@ -196,6 +196,9 @@ async def write_response_summary_completion(request: object, task_id: str, summa
     )
 
 
+CONTEXT_HANDOFF_TIMEOUT_SECONDS = 20.0
+
+
 class RecentWorkSummaryClient:
     """Worker-facing runtime IPC. Errors are optional cache misses without logging."""
 
@@ -208,18 +211,27 @@ class RecentWorkSummaryClient:
     async def _post(self, path: str, payload: dict) -> dict | None:
         if not self._token:
             return None
-
+        # A private context handoff carries required turn content (Project file results).
+        # It waits longer than an optional summary call, and a miss is never silent:
+        # the turn would otherwise tell the user the files could not be read.
+        handoff = path.startswith("context/")
         try:
-            async with httpx.AsyncClient(transport=self._transport, timeout=5.0, trust_env=False) as client:
+            async with httpx.AsyncClient(transport=self._transport,
+                                         timeout=CONTEXT_HANDOFF_TIMEOUT_SECONDS if handoff else 5.0,
+                                         trust_env=False) as client:
                 response = await client.post(
                     f"{self._base_url}/internal/recent-work/{path}", json=payload,
                     headers={"X-Internal-Service-Token": self._token},
                 )
                 if response.status_code != 200:
+                    if handoff:
+                        logger.warning("Private context %s refused with status %s", path, response.status_code)
                     return None
                 result = response.json()
                 return result if isinstance(result, dict) else None
-        except Exception:
+        except Exception as error:  # IPC miss stays a cache miss; handoffs are logged by type only.
+            if handoff:
+                logger.warning("Private context %s unavailable: %s", path, type(error).__name__)
             return None
 
     async def seal_context(self, *, owner_id: str, chat_id: str, turn_id: str,

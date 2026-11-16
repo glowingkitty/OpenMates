@@ -544,3 +544,23 @@ async def test_focus_executor_uses_admitted_recent_work_authority_and_preserves_
     assert not await mark_response_summary_active(stale, child, client=ipc)
     await mint_response_summary_completion(stale, child, client=ipc)
     assert not getattr(stale, "_recent_summary_completion_ticket", None)
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.idempotent-resume
+@pytest.mark.asyncio
+async def test_private_context_handoff_waits_longer_and_is_never_a_silent_miss(caplog):
+    """A busy API once took over 5 s to open a Project file result; the turn lost it silently."""
+    timeouts = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        timeouts[request.url.path.rsplit("/", 1)[-1]] = request.extensions["timeout"]["read"]
+        return httpx.Response(503 if request.url.path.endswith("context/open") else 200, json={"stored": True})
+
+    ipc = RecentWorkSummaryClient(base_url="http://runtime", token="service-token",
+                                  transport=httpx.MockTransport(handler))
+    with caplog.at_level("WARNING"):
+        assert await ipc.open_context(owner_id="owner", chat_id="current", turn_id="turn",
+                                      request_id="operation", reference="ref") is None
+        assert await ipc.mark_active(owner_id="owner", chat_id="current", task_id="task", turn_id="turn")
+    assert timeouts["open"] == 20.0 and timeouts["active"] == 5.0
+    assert "Private context context/open refused with status 503" in caplog.text
