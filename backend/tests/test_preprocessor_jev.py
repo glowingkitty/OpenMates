@@ -117,13 +117,25 @@ async def test_upload_turn_keeps_near_threshold_app_the_text_only_router_cannot_
             for question, question_row in kwargs["questions"].items()})
     monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
     upload = "```toon\napp_id: images\nskill_id: upload\ntype: image\nfilename: desk_item.jpg\n```\n"
-    async def route(content):
+    async def route(content, **flag):
         return (await jev_preprocessing.decide_app_and_project_routing_with_jev(
             model_id="jev", secrets_manager=None, message_history=[{"role": "user", "content": content}],
-            available_apps=["shopping", "web"], available_skills=[], available_focus_modes=[],
+            available_apps=["shopping", "web"], available_skills=[], available_focus_modes=[], **flag,
         ))["selected_app_ids"]
+    reference = '```json\n{"type": "image", "embed_id": "e1"}\n```\n'
     assert await route(upload + "Where is this cheapest?") == ["shopping"]
+    assert await route(reference + "Where is this cheapest?") == ["shopping"]
+    # The preprocessor's current-turn flag wins over the message text.
+    assert await route("Where is this cheapest?", latest_request_has_upload=True) == ["shopping"]
     assert await route("Where is this cheapest?") == []
+    assert await route('```json\n{"type": "app_skill_use", "embed_id": "e2"}\n```\nWhere is this cheapest?') == []
+    assert jev_preprocessing._messages([{"role": "user", "content": reference + "Where?"}])[0]["content"] == (
+        "[Attached image]\nWhere?")
+    request = SimpleNamespace(current_user_content="Where is this cheapest?", message_history=[],
+                              has_image_upload_embed=True)
+    assert preprocessor._current_turn_has_image_upload(request)
+    assert not preprocessor._current_turn_has_image_upload(SimpleNamespace(
+        current_user_content="Where is this cheapest?", message_history=[], has_image_upload_embed=False))
 
 
 # contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way,ai-model-routing.defaults.google-tier-profiles

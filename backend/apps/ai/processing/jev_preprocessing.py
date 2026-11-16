@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from typing import Any, Awaitable, Callable, Iterable, Mapping, Optional
@@ -191,12 +192,24 @@ def _latest_user_text(message_history: list[Any]) -> str:
     return next((row["content"] for row in reversed(_messages(message_history)) if row["role"] == "user"), "")
 
 
-# A resolved upload embed in the user's message: a TOON block with app_id and
-# skill_id: upload. Its storage keys, hashes and sizes say nothing about the
-# request, and in a long decision prompt they outweigh a short question such as
-# "where is this cheapest?" about the attached photo.
+# An upload in the user's message reaches routing either as the client's embed
+# reference (a json block with type image and embed_id) or, once resolved, as a
+# TOON block with skill_id: upload. Neither says anything the decision model can
+# use except that a file is attached; storage keys and hashes only add noise.
 _UPLOAD_BLOCK = re.compile(r"```toon\n(?P<body>(?:(?!```)[\s\S])*?\bskill_id: upload\b[\s\S]*?)\n```")
+_EMBED_REFERENCE_BLOCK = re.compile(r"```(?:json|json_embed)\s*\n(?P<body>(?:(?!```)[\s\S])*?)\n```")
 _TOON_FIELD = r"^{}: *(?P<value>[^\n]+)$"
+
+
+def _image_reference_marker(match: re.Match[str]) -> str:
+    try:
+        reference = json.loads(match.group("body").strip())
+    except json.JSONDecodeError:
+        return match.group(0)
+    if (isinstance(reference, dict) and reference.get("type") == "image"
+            and isinstance(reference.get("embed_id"), str) and reference["embed_id"].strip()):
+        return "[Attached image]"
+    return match.group(0)
 
 
 def _compact_uploads(content: str) -> str:
@@ -210,7 +223,7 @@ def _compact_uploads(content: str) -> str:
         kind = field("type") or field("app_id") or "file"
         name = field("filename") or field("embed_ref")
         return f"[Attached {kind}: {name}]" if name else f"[Attached {kind}]"
-    return _UPLOAD_BLOCK.sub(marker, content)
+    return _EMBED_REFERENCE_BLOCK.sub(_image_reference_marker, _UPLOAD_BLOCK.sub(marker, content))
 
 
 APP_SELECTION_THRESHOLD = 0.65
@@ -228,7 +241,7 @@ def _latest_request_has_upload(message_history: list[Any]) -> bool:
         if role != "user" or sender == "async_tool_result":
             continue
         content = message.get("content") if isinstance(message, dict) else getattr(message, "content", None)
-        return isinstance(content, str) and _UPLOAD_BLOCK.search(content) is not None
+        return isinstance(content, str) and _compact_uploads(content) != content
     return False
 
 
@@ -534,6 +547,7 @@ async def decide_app_and_project_routing_with_jev(
     precomputed_stage_one: dict[str, Any] | None = None,
     voice_heard_context: str | None = None,
     authoring_definitions: Mapping[str, Mapping[str, Any]] | None = None,
+    latest_request_has_upload: bool | None = None,
 ) -> dict[str, Any]:
     """Choose public app/Project routing before any private or detailed catalogue.
 
@@ -579,8 +593,9 @@ async def decide_app_and_project_routing_with_jev(
         state=state, questions=questions, secrets_manager=secrets_manager,
         model_id=model_id, telemetry_task_id=telemetry_task_id,
     ) if questions and project_routing_focus_id is None and precomputed_stage_one is None else None
-    threshold = (APP_SELECTION_THRESHOLD_WITH_UPLOAD if _latest_request_has_upload(message_history)
-                 else APP_SELECTION_THRESHOLD)
+    if latest_request_has_upload is None:
+        latest_request_has_upload = _latest_request_has_upload(message_history)
+    threshold = APP_SELECTION_THRESHOLD_WITH_UPLOAD if latest_request_has_upload else APP_SELECTION_THRESHOLD
     selected = ([app_id for question, app_id in app_map.items()
                  if response is not None and noul_value(response, question) >= threshold]
                 if selected_app_ids is None else [app for app in selected_app_ids if app in valid_apps])
@@ -588,7 +603,8 @@ async def decide_app_and_project_routing_with_jev(
         # Content-free: app ids and scores only, to explain a missed or extra app.
         scored = sorted(((noul_value(response, question), app_id) for question, app_id in app_map.items()),
                         reverse=True)
-        logger.info("Stage-one app scores task=%s threshold=%.2f top=%s", telemetry_task_id, threshold,
+        logger.info("Stage-one app scores task=%s upload=%s threshold=%.2f top=%s", telemetry_task_id,
+                    threshold == APP_SELECTION_THRESHOLD_WITH_UPLOAD, threshold,
                     ", ".join(f"{app_id}={score:.2f}" for score, app_id in scored[:6]))
     selected.extend(app for app in (forced_app_ids or []) if app in valid_apps)
     result: dict[str, Any] = {"selected_app_ids": list(dict.fromkeys(selected)),
@@ -723,6 +739,7 @@ async def decide_preprocessing_with_jev(
     related_discovery_complete: bool = False,
     voice_heard_context: str | None = None,
     authoring_definitions: Mapping[str, Mapping[str, Any]] | None = None,
+    latest_request_has_upload: bool | None = None,
 ) -> dict[str, Any]:
     """Return preprocessing arguments matching the existing structured-output schema."""
 
@@ -760,6 +777,7 @@ async def decide_preprocessing_with_jev(
             topic_areas=topic_areas, skip_mate_routing=skip_mate_routing,
             voice_heard_context=voice_heard_context,
             authoring_definitions=authoring_definitions,
+            latest_request_has_upload=latest_request_has_upload,
         )
         selected = routing["selected_app_ids"]
         early_decisions = routing.get("early_decisions")

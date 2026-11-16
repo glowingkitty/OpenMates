@@ -277,6 +277,14 @@ def _content_has_image_upload_embed(content: Any) -> bool:
     return False
 
 
+def _current_turn_has_image_upload(request_data: AskSkillRequest) -> bool:
+    """The latest user request itself carries an uploaded image (history images do not count)."""
+    latest = getattr(request_data, "current_user_content", None)
+    if not isinstance(latest, str):
+        latest = _latest_user_text_from_history(getattr(request_data, "message_history", None) or [])
+    return bool(getattr(request_data, "has_image_upload_embed", False)) or _content_has_image_upload_embed(latest)
+
+
 def _embed_ref_is_image_upload(embed_ref: Any) -> bool:
     return isinstance(embed_ref, str) and embed_ref.lower().strip().endswith(IMAGE_UPLOAD_REF_EXTENSIONS)
 
@@ -2812,6 +2820,7 @@ async def handle_preprocessing(
                 message_history=sanitized_message_history,
                 voice_heard_context=voice_heard_context,
                 authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
+                latest_request_has_upload=_current_turn_has_image_upload(request_data),
                 available_apps=list(discovered_apps_metadata or {}),
                 available_skills=public_skills, available_focus_modes=public_focuses,
                 project_candidates=request_data.project_focus_candidates,
@@ -3323,6 +3332,7 @@ async def handle_preprocessing(
                     message_history=sanitized_message_history,
                     voice_heard_context=voice_heard_context,
                     authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
+                    latest_request_has_upload=_current_turn_has_image_upload(request_data),
                     available_apps=list(discovered_apps_metadata or {}),
                     available_skills=available_skills_list,
                     available_focus_modes=available_focus_modes_list,
@@ -3520,6 +3530,7 @@ async def handle_preprocessing(
                 available_rules=[], available_workflows=[], effective_focus={},
                 telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
                 authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
+                latest_request_has_upload=_current_turn_has_image_upload(request_data),
                 available_apps=[], selected_app_ids=[], early_decisions=early_routing["early_decisions"],
                 candidate_discovery_complete=True,
                 related_discovery_complete=True,
@@ -3623,6 +3634,7 @@ async def handle_preprocessing(
                 effective_focus={"id": request_data.active_focus_id,
                                  "phase": ((request_data.focus_phase_state or {}).get(request_data.active_focus_id or "") or {}).get("phase_id")},
                 authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
+                latest_request_has_upload=_current_turn_has_image_upload(request_data),
                 available_apps=available_app_ids,
                 forced_app_ids=forced_app_ids,
                 selected_app_ids=selected_app_ids,
