@@ -220,7 +220,9 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertEqual(cancel.frame.width, field.frame.width, accuracy: 1)
         XCTAssertEqual(cancel.frame.minX, field.frame.minX, accuracy: 1)
         XCTAssertTrue(backdrop.exists, "Expansion keeps the whole transcript suppressed even after keyboard blur")
-        XCTAssertGreaterThanOrEqual(backdrop.frame.height, 48,
+        // 48pt lane; half a point absorbs accessibility frame rounding
+        // (CI measured 47.999999999999986 for an exact 48pt lane).
+        XCTAssertGreaterThanOrEqual(backdrop.frame.height, 47.5,
                                     "Expanded editing must retain an actual outside tap lane")
         backdrop.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
         XCTAssertTrue(backdrop.waitForNonExistence(timeout: 5))
@@ -229,7 +231,16 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         let summary = app.buttons["message-draft-summary"]
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
         XCTAssertTrue(summary.label.contains(shortDraft))
-        XCTAssertFalse(editor.exists, "The retained editor is hidden from accessibility while its summary is visible")
+        // The summary and the editor's accessibility switch over in one 0.25 s
+        // animation; judge the retained editor once that transition settled.
+        let editorHidden = editor.waitForNonExistence(timeout: 3)
+        if !editorHidden {
+            let diagnostic = XCTAttachment(string: editor.debugDescription)
+            diagnostic.name = "Retained editor still exposed beside summary"
+            diagnostic.lifetime = .keepAlways
+            add(diagnostic)
+        }
+        XCTAssertTrue(editorHidden, "The retained editor is hidden from accessibility while its summary is visible")
         XCTAssertFalse(app.buttons["send-button"].exists)
         XCTAssertFalse(app.buttons["composer-attachment-toggle"].exists)
         XCTAssertTrue(app.buttons["record-audio-button"].isHittable)

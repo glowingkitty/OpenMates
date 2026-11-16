@@ -38,6 +38,23 @@ enum MessageComposerMetric {
     /// Fullscreen hosts retain this dismissal/outside budget; plaintext no
     /// longer adds it above the editor. The icon shares its first text line.
     static let expandedTopReservedHeight: CGFloat = .spacing20 + .spacing10
+    /// Smallest strip kept above an expanded chat composer for the outside tap
+    /// that collapses it (message-input: "Cancel or an outside tap collapses
+    /// expansion"). One compact-field height, above the 44pt minimum hit target.
+    static let expandedOutsideTapLaneHeight: CGFloat = inlineCompactHeight
+    /// Measured heights of the chat composer field and the transcript area above
+    /// it. The Cancel row also comes out of the top reserve, which left the
+    /// outside strip near zero on phones once the keyboard closed.
+    struct OutsideLaneHeights: Equatable {
+        var field: CGFloat = 0
+        var above: CGFloat = 0
+        /// The field and the area above share one height, so shrinking the field
+        /// by the lane deficit grows the strip by exactly that much: stable.
+        func fieldCap(viewportCap: CGFloat) -> CGFloat {
+            guard field > 0 else { return viewportCap }
+            return max(0, min(viewportCap, field + above - expandedOutsideTapLaneHeight))
+        }
+    }
     static let expandControlSize: CGFloat = 44
     static let expandControlTopInset: CGFloat = 10
     static let expandControlTrailingInset: CGFloat = 15

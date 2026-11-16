@@ -10,8 +10,8 @@ summary:
   status_by_surface:
     web:
       live: 4
-      partial: 19
-      failing: 55
+      partial: 20
+      failing: 54
       not_run: 9
       implemented: 19
       not_planned: 19
@@ -637,8 +637,6 @@ features:
         privacy projection in actual followup requests
       - frontend/apps/web_app/tests/components/apps-request-composer.spec.ts › event fullscreen forwards visible event fields
         while excluding raw and nested transport metadata
-      - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts › connects Google Calendar through settings
-        using encrypted OAuth handoff storage
       - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts › guest settings routes replace AI after opening a dynamic
         provider page
       - frontend/packages/ui/src/services/rustCore/__tests__/unitPortRetire.test.ts › leaves pre-bind ports opened unbound
@@ -2109,6 +2107,8 @@ features:
         with legacy sub-chat cards
       - frontend/apps/web_app/tests/landing-web-laptop.spec.ts › web search example verifies header, complete transcript and
         successful results on laptop
+      - frontend/apps/web_app/tests/landing-web-phone.spec.ts › web search example verifies header, complete transcript and
+        successful results on phone
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts
@@ -2948,8 +2948,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 11
-        failing: 12
+        passing: 9
+        failing: 14
         not_run: 4
         missing: 2
         counted: 29
@@ -2998,12 +2998,15 @@ features:
         after reload
       - frontend/apps/web_app/tests/components/svg-image-embed.spec.ts › SVG code cards render as image cards and open the
         image viewer
+      - frontend/apps/web_app/tests/connection-resilience.spec.ts › secondary client recovers exactly one saved assistant
+        message after origin disconnect and cold boot
       - frontend/apps/web_app/tests/embed-preview-backfill-replay.spec.ts › legacy web search preview backfill replays with
         canonical catalog context
       - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts › renders the CLI-backed Berlin founder events map example
         without provider calls
       - frontend/apps/web_app/tests/example-chat-embed-uuid-isolation.spec.ts › authorized source preview renders while another
         chat is active and unavailable source stops retrying
+      - frontend/apps/web_app/tests/fork-conversation.spec.ts › forks a conversation after the first message
       - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts › shared image carousel fills mobile messages with
         visible navigation controls
       - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts › shared image search keeps its six referenced images
@@ -3373,6 +3376,8 @@ features:
           missing: 1
           counted: 4
         failing_tests:
+        - frontend/apps/web_app/tests/connection-resilience.spec.ts › secondary client recovers exactly one saved assistant
+          message after origin disconnect and cold boot
         - frontend/apps/web_app/tests/startup-sync-contract.spec.ts › startup sync is bounded and older content hydrates on
           demand
       apple:
@@ -3572,14 +3577,16 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 2
-          failing: 3
+          passing: 1
+          failing: 4
           not_run: 0
           missing: 0
           counted: 5
         failing_tests:
         - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts › browser renders recovered initial title and summary
           before any assistant completion, then refines both after reconnect
+        - frontend/apps/web_app/tests/connection-resilience.spec.ts › secondary client recovers exactly one saved assistant
+          message after origin disconnect and cold boot
         - frontend/apps/web_app/tests/example-chat-embed-uuid-isolation.spec.ts › authorized source preview renders while
           another chat is active and unavailable source stops retrying
         - frontend/apps/web_app/tests/native-cache-selected-tools.spec.ts › native cache keeps selected math tools and settled
@@ -3885,15 +3892,17 @@ features:
     - chats.fork.non-destructive-boundary
     surfaces:
       web:
-        status: live
+        status: failing
         source: tests
         intent: unverified
         assertions:
-          passing: 1
-          failing: 0
+          passing: 0
+          failing: 1
           not_run: 0
           missing: 0
           counted: 1
+        failing_tests:
+        - frontend/apps/web_app/tests/fork-conversation.spec.ts › forks a conversation after the first message
       apple:
         status: unverified
         source: intent
@@ -4910,9 +4919,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 3
+        passing: 4
         failing: 0
-        not_run: 9
+        not_run: 8
         missing: 14
         counted: 26
       key_tests: []
@@ -6117,8 +6126,12 @@ features:
         and artifacts on ${viewport}
       - frontend/apps/web_app/tests/landing-web-laptop.spec.ts › web search example verifies header, complete transcript and
         successful results on laptop
+      - frontend/apps/web_app/tests/landing-web-phone.spec.ts › web search example verifies header, complete transcript and
+        successful results on phone
       - frontend/apps/web_app/tests/legal-website-navigation.spec.ts › legacy legal ${slug} chat link leaves the app for the
         public document
+      - frontend/apps/web_app/tests/marketing-landing-route.spec.ts › landing composer preserves a guest draft and Open Web
+        App opens chats (${name})
       - frontend/apps/web_app/tests/marketing-landing-workspaces.spec.ts › public landing server-renders and opens real app
         workspaces
       - frontend/apps/web_app/tests/openmates-events.spec.ts › human event SEO navigation forwards to the matching app event
@@ -6807,8 +6820,6 @@ features:
           errors or resurrection
         - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts › stop during new chat creation restores the sent message
           as a draft
-        - frontend/apps/web_app/tests/web-rust-core-drafts.spec.ts › Rust core saves a draft written offline locally and publishes
-          its queued intent after reconnect
       apple:
         status: tested
         source: tests
@@ -8002,6 +8013,7 @@ features:
       - frontend/apps/web_app/tests/example-chat-speech.spec.ts › plays reviewed immutable fixtures while logged out
       - frontend/apps/web_app/tests/example-chats-load.spec.ts › generated audio examples use natural prompts and recording-style
         playback
+      - frontend/apps/web_app/tests/example-chats-load.spec.ts › nutrition example renders Edamam recipe search embed card
       - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts › does not leak an active focus pill into the Finance
         example chat
       - frontend/apps/web_app/tests/landing-app-examples-laptop-a.spec.ts › ${appId} landing example admits its complete real
@@ -8040,6 +8052,8 @@ features:
         on ${viewport}
       - frontend/apps/web_app/tests/landing-web-laptop.spec.ts › web search example verifies header, complete transcript and
         successful results on laptop
+      - frontend/apps/web_app/tests/landing-web-phone.spec.ts › web search example verifies header, complete transcript and
+        successful results on phone
       - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts › ${profile.device} protects approved fictional plumber
         contacts
       - frontend/apps/web_app/tests/questionnaire-recipe-options-public.spec.ts › public vegetarian questionnaire reuses real
@@ -11512,9 +11526,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 6
+        passing: 7
         failing: 1
-        not_run: 12
+        not_run: 11
         missing: 16
         counted: 35
       failing_tests:
@@ -11570,9 +11584,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 1
+        passing: 9
         failing: 0
-        not_run: 14
+        not_run: 6
         missing: 18
         counted: 33
       key_tests: []
@@ -11605,9 +11619,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 7
+        passing: 16
         failing: 0
-        not_run: 11
+        not_run: 2
         missing: 15
         counted: 33
       key_tests: []
@@ -15686,9 +15700,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 19
+        passing: 21
         failing: 0
-        not_run: 18
+        not_run: 16
         missing: 21
         counted: 58
       key_tests: []
@@ -16169,13 +16183,13 @@ features:
           missing: 2
           counted: 3
       cli:
-        status: not_run
+        status: partial
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 1
           failing: 0
-          not_run: 2
+          not_run: 1
           missing: 1
           counted: 3
       tui:
@@ -16257,9 +16271,9 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 2
+          passing: 3
           failing: 0
-          not_run: 2
+          not_run: 1
           missing: 1
           counted: 5
       tui:
@@ -17661,9 +17675,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 2
+        passing: 3
         failing: 0
-        not_run: 3
+        not_run: 2
         missing: 2
         counted: 7
       key_tests:
@@ -21963,24 +21977,15 @@ features:
   assertions: 9
   surfaces:
     web:
-      status: failing
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 1
-        failing: 2
+        passing: 3
+        failing: 0
         not_run: 1
         missing: 5
         counted: 9
-      failing_tests:
-      - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts › opens shared Privacy account details and updates
-        only missing Calendar write access
-      - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts › shows Calendar OAuth capability toggles and sends
-        only selected capabilities
-      - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts › connects Google Calendar through settings
-        using encrypted OAuth handoff storage
-      - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts › shows a safe error when connected accounts
-        cannot be loaded
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
@@ -22126,8 +22131,6 @@ features:
         errors or resurrection
       - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts › stop during new chat creation restores the sent message
         as a draft
-      - frontend/apps/web_app/tests/web-rust-core-drafts.spec.ts › Rust core saves a draft written offline locally and publishes
-        its queued intent after reconnect
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts

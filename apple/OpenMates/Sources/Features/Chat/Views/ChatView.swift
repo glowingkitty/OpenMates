@@ -552,6 +552,7 @@ struct ChatView: View {
     @State private var highlightComment = ""
     @State private var explanationChatID: String?
     @State private var chatViewportHeight: CGFloat = 0
+    @State private var composerOutsideLane = MessageComposerMetric.OutsideLaneHeights()
     @State private var chatContainerWidth: CGFloat = 0
     @State private var historyNavigationTask: Task<Void, Never>?
     @State private var historyNavigationID = UUID()
@@ -760,6 +761,7 @@ struct ChatView: View {
                         returnToParentButton
 
                     }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { composerOutsideLane.above = $0 }
                     .workspacePromptBackground(active: isInputFocused || isComposerExpanded,
                         identifier: "chat-composer-workspace-backdrop",
                         activeOpacity: !displayedChatMessages.isEmpty || (presentedChat?.messagesV ?? 0) > 0 ? 0.35 : 0,
@@ -3408,7 +3410,8 @@ struct ChatView: View {
             hasActiveOverlay: overlayActive || editingContextMessage != nil || recordAttemptActive
         )
         let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) && !piiExcludedValues.contains($0.value) }
-        let maximumViewportFieldHeight = max(0, chatViewportHeight - MessageComposerMetric.expandedTopReservedHeight)
+        let maximumViewportFieldHeight = composerOutsideLane.fieldCap(
+            viewportCap: max(0, chatViewportHeight - MessageComposerMetric.expandedTopReservedHeight))
         let recordingOverlayActive = composerOverlay == .recording || isUITestRecordingOverlayForced
         let overlayHeight = recordingOverlayActive
             ? ComposerRecordingOverlay.recordingPanelHeight
@@ -3564,6 +3567,7 @@ struct ChatView: View {
                 }.frame(height: 56)
 
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { composerOutsideLane.field = $0 }
             .environment(\.composerFieldMaximumHeight, chatViewportHeight > 0 ? maximumViewportFieldHeight : nil)
             .environment(\.composerFullscreen, isComposerExpanded)
             .environment(\.composerFullscreenControlHandler,
