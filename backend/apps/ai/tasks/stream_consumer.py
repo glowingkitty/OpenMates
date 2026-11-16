@@ -7241,13 +7241,17 @@ async def _consume_main_processing_stream(
                                      kwargs={"batch_id": batch_id}, countdown=deadline_seconds + 2,
                                      queue="app_ai")
                 inference_id = request_data.recovery_task_id or request_data.recovery_inference_task_id
+                # A Focus continuation runs under the admitted root's durable delivery; the
+                # recovery pause and the Stop fence must name that root, not this child task.
+                from backend.shared.python_utils.focus_continuation_history import focus_authority_root
+                authority_delivery_id = focus_authority_root(request_data, task_id)
                 await register_barrier(
                     cache_service, batch_id=batch_id,
                     user_id=request_data.user_id, chat_id=request_data.chat_id,
                     turn_id=request_data.message_id, task_ids=task_ids,
                     checkpoint_ref=sealed["agentic_context_ref"],
                     deadline=deadline, logical_task_id=assistant_message_id,
-                    source_delivery_task_id=task_id,
+                    source_delivery_task_id=authority_delivery_id,
                     recovery_inference_task_id=inference_id if request_data.recovery_preflight_id else None,
                     handoff_ttl_seconds=handoff_ttl_seconds,
                 )
@@ -7258,7 +7262,7 @@ async def _consume_main_processing_stream(
                     pause = await ChatRecoveryService(directus_service).execute(
                         "pause_inference_for_skill", {
                             "protocol_version": 1, "inference_task_id": inference_id,
-                            "delivery_task_id": task_id, "step_id": batch_id,
+                            "delivery_task_id": authority_delivery_id, "step_id": batch_id,
                             "deadline_seconds": min(90 * 60, deadline_seconds + 4 * 60),
                         },
                     )

@@ -4365,9 +4365,11 @@ async def _async_process_ai_skill_ask_task(
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
             if getattr(request_data, "_pending_async_recovery_handoff", None):
                 # Reuse the canonical atomic queue drain/transfer, including
-                # accepted followers that arrived before this source paused.
+                # accepted followers that arrived before this source paused. A Focus
+                # continuation releases the admitted root's marker, as cleanup does.
+                from backend.shared.python_utils.focus_continuation_history import focus_authority_root
                 handoff = await _handoff_queued_after_task_failure(
-                    request_data, skill_config_dict, task_id,
+                    request_data, skill_config_dict, focus_authority_root(request_data, task_id),
                     cache_service_instance, directus_service_instance,
                 )
                 if handoff is _FailureHandoffOutcome.OWNED_MARKER_CLEARED:

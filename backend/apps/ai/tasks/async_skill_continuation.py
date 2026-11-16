@@ -151,10 +151,15 @@ async def _prepare_async_recovery_handoff(
     """Pause only the verified source delivery before offering Project work."""
     from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
     from backend.apps.ai.tasks.same_turn_skill_barrier import _set_once
+    from backend.shared.python_utils.focus_continuation_history import focus_authority_root
 
     inference_id = request.resolved_recovery_inference_task_id()
     if not source_delivery_id or directus is None or not inference_id:
         raise RuntimeError("Async recovery handoff lacks source authority")
+    # The logical assistant message stays this execution's; the durable delivery and the chat
+    # marker belong to the admitted root, which a Focus continuation runs under.
+    logical_message_id = request.continuation_message_id or source_delivery_id
+    source_delivery_id = focus_authority_root(request, source_delivery_id)
     if await cache.get_active_ai_task(request.chat_id) != source_delivery_id:
         raise RuntimeError("Async recovery source no longer owns the chat")
     seconds = max(1, min(int(ttl_seconds), 90 * 60))
@@ -163,7 +168,7 @@ async def _prepare_async_recovery_handoff(
         "message_id": request.message_id, "inference_task_id": inference_id,
         "preflight_id": request.recovery_preflight_id, "turn_id": request.recovery_turn_id,
         "producer_id": producer_id, "source_delivery_id": source_delivery_id,
-        "logical_message_id": request.continuation_message_id or source_delivery_id,
+        "logical_message_id": logical_message_id,
         "delivery_id": str(uuid.uuid5(uuid.UUID(inference_id), f"async:{producer_id}")),
         "step_id": f"async:{producer_id}", "deadline": time.time() + seconds,
         "claimed": False,

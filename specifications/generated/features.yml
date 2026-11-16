@@ -4976,7 +4976,7 @@ features:
       - backend/tests/test_project_write_authorization.py
       - backend/tests/test_focus_phases.py
       - backend/tests/test_focus_continuation_history.py
-      unit_test_files: 30
+      unit_test_files: 31
     sdk_npm:
       status: implemented
       source: intent
