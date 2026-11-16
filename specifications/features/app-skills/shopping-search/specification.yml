@@ -59,7 +59,8 @@ assertions:
   type: behavior
   must: For a product shown in a photo or described in text, the assistant first names the exact product (brand and
     model), then searches with them, and answers with the cheapest offers, each with shop, total or item price plus
-    shipping note, condition and a link, and says when shipping is unknown or the exact product was not found.
+    shipping note, condition and a clickable link (a list, not a table), and says when shipping is unknown or the
+    exact product was not found.
   depends_on:
   - examples.price_comparison
 - id: shopping-search.providers.repeat-cached

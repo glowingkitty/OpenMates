@@ -50225,7 +50225,7 @@ assertions:
     current_direct_proof: false
   shopping-search.answer.identify-then-compare:
     specification: feature.app-skill.shopping-search@3
-    fingerprint: e091cc0fada83096b9ea48b20328b6548b2572ff7f3a065c04c50439f24ad061
+    fingerprint: 6e3dc81a6ffc56c85823592942ba59fb5d550cb4462630337565989e4245408d
     direct_tests:
     - &id6246
       path: frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts

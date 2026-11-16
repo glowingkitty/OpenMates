@@ -389,7 +389,7 @@ specifications:
     version: 3
     status: draft
     path: features/app-skills/shopping-search
-    fingerprint: 4e2438c945f62f2e78975e701061fb8f7bc38924a46727e2b311b445d900f68e
+    fingerprint: 3c5fc8cd602fc887db5039d76336da7f235fbbbe45388a0c2f647160ed183c4c
     required_applies_to:
     - rest_api
     - cli
@@ -5876,7 +5876,7 @@ assertions:
     specification: feature.app-skill.shopping-search@3
     specification_id: feature.app-skill.shopping-search
     type: behavior
-    fingerprint: e091cc0fada83096b9ea48b20328b6548b2572ff7f3a065c04c50439f24ad061
+    fingerprint: 6e3dc81a6ffc56c85823592942ba59fb5d550cb4462630337565989e4245408d
     required_applies_to:
     - rest_api
     - cli

@@ -140,8 +140,9 @@ test.describe('shopping price comparison (real dev inference)', () => {
 			const answer = page.getByTestId('message-assistant').last();
 			const text = (await answer.innerText()).trim();
 			const cards = await shoppingCards(answer);
-			// "Used the Shopping app" (with any other apps) in the reasoning header names the skills that ran.
-			const usedApps = ((await answer.getByTestId('thinking-header').first().innerText().catch(() => '')) || '').trim();
+			// "Thought & used the Shopping app" in the activity summary names the apps that ran.
+			const summary = answer.getByTestId('assistant-activity-summary-text').first();
+			const usedApps = (await summary.count()) ? (await summary.innerText({ timeout: 10_000 })).trim() : '';
 			const inlineOffers = await answer.locator('.embed-inline-link').count();
 			const links = await answer.locator('a[href^="http"]').evaluateAll((nodes: any[]) =>
 				nodes.map((node) => node.href)
