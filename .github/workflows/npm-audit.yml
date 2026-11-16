@@ -3,6 +3,16 @@
 # Scheduled npm advisory check for the pnpm workspace. This catches advisories
 # that appear after a dependency has already entered the lockfile.
 #
+# Recorded exceptions (package.json pnpm.auditConfig.ignoreGhsas), reviewed
+# 2026-11-16 (TASK-4304). Each has no patched release inside the version range
+# its consumers declare, and is reachable only from build/lint tooling with
+# repository-controlled patterns, never from user input at runtime. Remove an
+# entry as soon as its consumers accept the patched major.
+# - GHSA-3g3m-2fjr-6pw4 (glob AbortSignal bypass, fixed in 14.0.2): only
+#   @vercel/nft (adapter-vercel build tracing) uses glob, and it requires ^13.
+# - GHSA-g3hv-75wg-m249 (minimatch pattern DoS, fixed in 11.0.1): used by
+#   eslint, typescript-eslint and glob 13, which require ^3 or ^10.
+#
 # Architecture: docs/architecture/github-actions-ci.md
 
 name: "NPM Audit"
