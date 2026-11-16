@@ -1304,7 +1304,7 @@ features:
     name: "Travel"
     kind: app
     description: "Plan trips and keep saved travel information."
-    specifications: [feature.app-skill.travel-search]
+    specifications: [feature.app-skill.travel-search, feature.focus-modes.trip-planning]
     apps: [travel]
     flags: ["skill:travel:get_flight"]
     release: v0.1-alpha-1
@@ -1323,6 +1323,12 @@ features:
         assertions: [travel-search.mixed-routes.*]
         surfaces: {web: implemented, apple: planned, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
         notes: "Apple shows composed routes as ordinary connections until its card gains the ticket list; CLI/TUI use generic embed rendering."
+      - id: trip-planning
+        name: "Trip planning focus mode"
+        description: "Compare candidate places on cost, travel time, weather and fit, then plan legs, stays (duplicates merged across providers, full-price comparison) and a weather-aware itinerary with booking todos and consented preference Memories."
+        assertions: [trip-planning.*]
+        surfaces: {web: planned, apple: planned, cli: planned, tui: planned, rest_api: planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+        notes: "Draft Specification awaiting owner approval; nothing built yet (Plan docs/plans/trip-planning-focus)."
   - id: tv
     name: "TV"
     kind: app

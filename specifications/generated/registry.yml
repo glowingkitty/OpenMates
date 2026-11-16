@@ -784,6 +784,15 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.focus-modes.trip-planning:
+    version: 1
+    status: draft
+    path: features/focus-modes/trip-planning
+    fingerprint: 1bc175b6b6233b30d4bea3a36701961238ec3159384746017655c0e07f63a9bf
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
   feature.instance-app-packages:
     version: 1
     status: draft
@@ -10473,6 +10482,114 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  trip-planning.activation:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 1c95ed0c4c881777a6ab19ddfc59411538efabac47291e8151083e509106d3df
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.pacing:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 477e3eac4abd373127f390f651c31bfd5b9474586f6eaf406036984105242a8a
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.destination-comparison:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 1144d475bf4c8a00cac0aa06fc694af9ea17223650fd01368d87518b8dd1037d
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.connections:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 987cc77830a2d519f8e71eb945976f34ae1e7656034a881000ea13f8c705747b
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.stays-duplicates:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 0fa4072a4157c6598e1d826609219961bbd7ff9bf177ebd52409666591d407c0
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.stays-price-comparison:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 92c0e88edc2976a0b9580fdcb87ba7125f19356d18aec84463c1793c164ab432
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.weather-sources:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 0770cb3467e0174b772719ff74b101effee8c86756a3a0a8accafe6b6f6ff098
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.weather-adjustments:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 7ff78689cd498582c42afa1641a06f79683e88763a86f994b65fdb6ec4289664
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.itinerary:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 925f079bd08d54e308fc1db5d4326d9dd8fc2c00ddf48faf29f10e4ec4c57083
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.booking-todos:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 7d1a8eb6832b2831f39775a7c8b4726de17ef4a4b33f13eedabd21b36387bb82
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.memory-consent:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: privacy
+    fingerprint: 96fdd67b585951bb75380fcdc425e195c3186e369f84bb79b03a33d0599d83fa
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.bounded-and-neutral:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: invariant
+    fingerprint: d90f6d3206cbd5ad7a98fc9ed63862080d355b78dfc0036c153067d5af4549fe
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
   instance-app-packages.manifest-validation:
     specification: feature.instance-app-packages@1
     specification_id: feature.instance-app-packages

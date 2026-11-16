@@ -17753,6 +17753,9 @@ features:
   - id: feature.app-skill.travel-search
     status: draft
     path: specifications/features/app-skills/travel-search
+  - id: feature.focus-modes.trip-planning
+    status: draft
+    path: specifications/features/focus-modes/trip-planning
   apps:
   - travel
   product_features: []
@@ -17763,7 +17766,7 @@ features:
     - skill:travel:get_flight
     dev: partial
     prod: partial
-  assertions: 10
+  assertions: 22
   surfaces:
     web:
       status: partial
@@ -17773,8 +17776,8 @@ features:
         passing: 4
         failing: 0
         not_run: 5
-        missing: 5
-        counted: 14
+        missing: 17
+        counted: 26
       key_tests:
       - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
       - frontend/apps/web_app/tests/skill-travel-stays.spec.ts
@@ -17816,8 +17819,8 @@ features:
         passing: 0
         failing: 0
         not_run: 2
-        missing: 8
-        counted: 10
+        missing: 20
+        counted: 22
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -17846,8 +17849,8 @@ features:
         passing: 0
         failing: 0
         not_run: 6
-        missing: 4
-        counted: 10
+        missing: 16
+        counted: 22
       key_tests: []
       evidence: POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/travel/skills
       e2e_tests: []
@@ -17969,6 +17972,95 @@ features:
           counted: 6
     notes: Apple shows composed routes as ordinary connections until its card gains the ticket list; CLI/TUI use generic embed
       rendering.
+  - id: trip-planning
+    name: Trip planning focus mode
+    description: Compare candidate places on cost, travel time, weather and fit, then plan legs, stays (duplicates merged
+      across providers, full-price comparison) and a weather-aware itinerary with booking todos and consented preference Memories.
+    assertion_ids:
+    - trip-planning.activation
+    - trip-planning.booking-todos
+    - trip-planning.bounded-and-neutral
+    - trip-planning.connections
+    - trip-planning.destination-comparison
+    - trip-planning.itinerary
+    - trip-planning.memory-consent
+    - trip-planning.pacing
+    - trip-planning.stays-duplicates
+    - trip-planning.stays-price-comparison
+    - trip-planning.weather-adjustments
+    - trip-planning.weather-sources
+    surfaces:
+      web:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 12
+          counted: 12
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 12
+          counted: 12
+      tui:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 12
+          counted: 12
+      sdk_npm:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+    notes: Draft Specification awaiting owner approval; nothing built yet (Plan docs/plans/trip-planning-focus).
 - id: tv
   name: TV
   kind: app

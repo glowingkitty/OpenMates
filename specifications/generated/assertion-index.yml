@@ -133097,6 +133097,102 @@ assertions:
         - *id16921
         supporting_tests: []
     current_direct_proof: false
+  trip-planning.activation:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: 1c95ed0c4c881777a6ab19ddfc59411538efabac47291e8151083e509106d3df
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  trip-planning.pacing:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: 477e3eac4abd373127f390f651c31bfd5b9474586f6eaf406036984105242a8a
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  trip-planning.destination-comparison:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: 1144d475bf4c8a00cac0aa06fc694af9ea17223650fd01368d87518b8dd1037d
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  trip-planning.connections:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: 987cc77830a2d519f8e71eb945976f34ae1e7656034a881000ea13f8c705747b
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  trip-planning.stays-duplicates:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: 0fa4072a4157c6598e1d826609219961bbd7ff9bf177ebd52409666591d407c0
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  trip-planning.stays-price-comparison:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: 92c0e88edc2976a0b9580fdcb87ba7125f19356d18aec84463c1793c164ab432
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  trip-planning.weather-sources:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: 0770cb3467e0174b772719ff74b101effee8c86756a3a0a8accafe6b6f6ff098
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  trip-planning.weather-adjustments:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: 7ff78689cd498582c42afa1641a06f79683e88763a86f994b65fdb6ec4289664
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  trip-planning.itinerary:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: 925f079bd08d54e308fc1db5d4326d9dd8fc2c00ddf48faf29f10e4ec4c57083
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  trip-planning.booking-todos:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: 7d1a8eb6832b2831f39775a7c8b4726de17ef4a4b33f13eedabd21b36387bb82
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  trip-planning.memory-consent:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: 96fdd67b585951bb75380fcdc425e195c3186e369f84bb79b03a33d0599d83fa
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  trip-planning.bounded-and-neutral:
+    specification: feature.focus-modes.trip-planning@1
+    fingerprint: d90f6d3206cbd5ad7a98fc9ed63862080d355b78dfc0036c153067d5af4549fe
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   instance-app-packages.manifest-validation:
     specification: feature.instance-app-packages@1
     fingerprint: 6c72336e908d1997b2d3931a54825ee3518c39169edb2e9aea4537aa37cb52d4

@@ -170,8 +170,9 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Social Media](#social-media) | impl | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Study](#study) | impl | wip |  | — | impl | — | impl | wip | on | on | v0.5.0-alpha |
 | [Tasks](#tasks) | **FAIL** 9/29 | tested 8/8 |  | partial 2/29 | **FAIL** 0/1 | partial 6/29 | not run 0/29 | not run 0/29 | on | off | unreleased |
-| [Travel](#travel) | partial 4/14 | partial 1/10 |  | not run 0/10 | impl | not run 0/10 | impl | impl | partly on | partly on | v0.1-alpha-1 |
+| [Travel](#travel) | partial 4/26 | partial 1/10 |  | not run 0/22 | impl | not run 0/22 | impl | impl | partly on | partly on | v0.1-alpha-1 |
 | &nbsp;&nbsp;↳ Mixed routes with owned passes | partial 1/6 | planned |  | impl | impl | not run 0/6 | impl | impl | | | |
+| &nbsp;&nbsp;↳ Trip planning focus mode | planned | planned |  | planned | planned | planned | — | — | | | |
 | [TV](#tv) | **live** 4/4 | planned |  | not run 0/4 | impl | not run 0/4 | impl | wip | on | on | v0.5.0-alpha |
 | [Videos](#videos) | **FAIL** 13/29 | partial 3/27 |  | impl | impl | **FAIL** 5/27 | impl | impl | on | on | v0.1-alpha-1 |
 | [Weather](#weather) | not run 0/2 | impl |  | impl | impl | impl | impl | impl | on | on | v0.1-alpha-1 |
@@ -2828,7 +2829,7 @@ Teams: shared contexts with members and roles, team credits, connected accounts 
 
 Plan trips and keep saved travel information.
 
-- Specifications: [feature.app-skill.travel-search](../../specifications/features/app-skills/travel-search/specification.yml) (draft) · 10 assertion(s)
+- Specifications: [feature.app-skill.travel-search](../../specifications/features/app-skills/travel-search/specification.yml) (draft), [feature.focus-modes.trip-planning](../../specifications/features/focus-modes/trip-planning/specification.yml) (draft) · 22 assertion(s)
 - Apps: `travel`
 - Flags: `app:travel`, `skill:travel:get_flight` · dev partly on · prod partly on · release v0.1-alpha-1
 
@@ -2836,11 +2837,11 @@ Plan trips and keep saved travel information.
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 4/14 | 4 pass · 0 fail · 5 not run · 5 no test | [skill-travel-connections.spec.ts](../../frontend/apps/web_app/tests/skill-travel-connections.spec.ts)<br>[skill-travel-stays.spec.ts](../../frontend/apps/web_app/tests/skill-travel-stays.spec.ts)<br>[skill-travel-train-connections.spec.ts](../../frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts)<br>[travel-mixed-routes-real.spec.ts](../../frontend/apps/web_app/tests/travel-mixed-routes-real.spec.ts)<br>[result-overview-design.spec.ts](../../frontend/apps/web_app/tests/components/result-overview-design.spec.ts)<br>[result-travel-event-design.spec.ts](../../frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts)<br>[travel-mixed-routes-real.spec.ts](../../frontend/apps/web_app/tests/travel-mixed-routes-real.spec.ts)<br>3 unit test file(s), e.g. [GroupRenderer.test.ts](../../frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts), [embedPreviewRegistry.test.ts](../../frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts) |
+| Web | partial 4/26 | 4 pass · 0 fail · 5 not run · 17 no test | [skill-travel-connections.spec.ts](../../frontend/apps/web_app/tests/skill-travel-connections.spec.ts)<br>[skill-travel-stays.spec.ts](../../frontend/apps/web_app/tests/skill-travel-stays.spec.ts)<br>[skill-travel-train-connections.spec.ts](../../frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts)<br>[travel-mixed-routes-real.spec.ts](../../frontend/apps/web_app/tests/travel-mixed-routes-real.spec.ts)<br>[result-overview-design.spec.ts](../../frontend/apps/web_app/tests/components/result-overview-design.spec.ts)<br>[result-travel-event-design.spec.ts](../../frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts)<br>[travel-mixed-routes-real.spec.ts](../../frontend/apps/web_app/tests/travel-mixed-routes-real.spec.ts)<br>3 unit test file(s), e.g. [GroupRenderer.test.ts](../../frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts), [embedPreviewRegistry.test.ts](../../frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts) |
 | Apple | partial 1/10 | 1 pass · 0 fail · 0 not run · 9 no test | 1 unit test file(s), e.g. [EmbedCardParityFixesTests.swift](../../apple/OpenMatesTests/EmbedCardParityFixesTests.swift) |
-| CLI | not run 0/10 | 0 pass · 0 fail · 2 not run · 8 no test | 1 unit test file(s), e.g. [cli.test.ts](../../frontend/packages/openmates-cli/tests/cli.test.ts) |
+| CLI | not run 0/22 | 0 pass · 0 fail · 2 not run · 20 no test | 1 unit test file(s), e.g. [cli.test.ts](../../frontend/packages/openmates-cli/tests/cli.test.ts) |
 | TUI | impl | — | — |
-| REST API | not run 0/10 | 0 pass · 0 fail · 6 not run · 4 no test | 1 unit test file(s), e.g. [test_travel_mixed_routes.py](../../backend/tests/test_travel_mixed_routes.py) |
+| REST API | not run 0/22 | 0 pass · 0 fail · 6 not run · 16 no test | 1 unit test file(s), e.g. [test_travel_mixed_routes.py](../../backend/tests/test_travel_mixed_routes.py) |
 | npm SDK | impl | 0 pass · 0 fail · 0 not run · 10 no test | — |
 | PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 10 no test | — |
 
