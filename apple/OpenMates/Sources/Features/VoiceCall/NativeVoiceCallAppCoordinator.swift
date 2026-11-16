@@ -29,6 +29,10 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
     @Published private(set) var recoverableDrafts: [NativeVoiceCallDraftTicket] = []
     /// Camera of the running call; stopped on hangup, owner invalidation and call end.
     let camera: NativeVoiceCallCameraModel
+    /// Generated images/videos of this call's assistant answers (video-call.video.generated-media-stage).
+    let media = NativeVoiceCallMediaModel()
+    /// User turn ids of the running call; assistant answers to them feed the media stage.
+    private var callTurnIDs: Set<String> = []
     #if os(iOS)
     /// Latest frame of the iOS broadcast extension while the user shares the screen.
     let screenShare = NativeVoiceCallScreenShareReader()
@@ -81,6 +85,8 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
             sendFrame: { [weak driver] frame in await driver?.sendCameraFrame(frame) })
         self.driver = driver; self.accepted = accepted; self.restore = restore
         self.artifacts = artifacts; self.usage = usage
+        media.expand = { [weak camera = self.camera] in camera?.setStageExpanded(true) }
+        camera.keepsStageExpanded = { [weak media = self.media] in media?.displayed != nil }
         driver.bind(consent: { [weak self] in await self?.requestConsent() ?? false },
                     event: { [weak self] event in await self?.receive(event) })
         driver.bindMeter { [weak self] levels in
@@ -185,6 +191,7 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
     func hangup() async {
         if let id = consentRequestID { decideConsent(id: id, accepted: false) }
         camera.shutdown()
+        endCallMedia()
         await endPlatformCallSurfaces()
         await driver.hangup()
     }
@@ -194,9 +201,27 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
         if let id = consentRequestID { decideConsent(id: id, accepted: false) }
         tools.invalidateOwner(); ticker?.cancel(); ticker = nil
         camera.shutdown()
+        endCallMedia()
         await endPlatformCallSurfaces()
         await driver.invalidate(); finishDrafts(); meterLevels = []
     }
+    /// The bound chat's window reports its messages and decrypted embeds; answers to this
+    /// call's turns name the candidate artifacts, newest first (web refreshCallMedia).
+    func considerChatMedia(chatID: String, messages: [Message], embeds: [String: EmbedRecord]) {
+        guard state.status == .live, state.scope?.chatID == chatID, !callTurnIDs.isEmpty else { return }
+        var candidates: [String] = []
+        for message in messages.reversed() where message.role == .assistant {
+            guard let turn = message.userMessageId, callTurnIDs.contains(turn) else { continue }
+            for ref in (message.embedRefs ?? []).reversed() where !candidates.contains(ref.id) { candidates.append(ref.id) }
+        }
+        media.update(candidates: candidates, embeds: embeds)
+    }
+
+    private func endCallMedia() {
+        media.reset()
+        callTurnIDs = []
+    }
+
     func updateMeter(_ levels: [Float], scope: NativeVoiceCallScope, callID: String) {
         guard state.status == .live, state.scope == scope, state.callID == callID else { return }
         meterLevels = Array(levels.suffix(48)).map { $0.isFinite ? min(1, max(0, $0)) : 0 }
@@ -212,11 +237,13 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
             if snapshot.status == .ended || snapshot.status == .failed {
                 finishDrafts()
                 camera.shutdown()
+                endCallMedia()
             }
             await updatePlatformCallSurfaces(snapshot)
         case .transcript(let transcript):
             guard transcript.final, transcript.role == .user,
                   transcript.callID == state.callID else { return }
+            if callTurnIDs.count < 512 { callTurnIDs.insert(transcript.messageID) }
             if let ticket = pending.removeValue(forKey: transcript.messageID) {
                 guard ticket.text == transcript.text else { retainForRecovery(ticket); integrationError = .invalidResponse; return }
                 accepted(ticket, transcript.messageID)

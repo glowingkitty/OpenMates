@@ -799,3 +799,73 @@ private final class VoiceCallTestClock: @unchecked Sendable {
     var now: Date { lock.lock(); defer { lock.unlock() }; return Date(timeIntervalSince1970: seconds) }
     func set(_ value: TimeInterval) { lock.lock(); seconds = value; lock.unlock() }
 }
+
+/// The call media stage runs real EmbedRecords through the core policy; only the encrypted fetch is faked.
+@MainActor
+final class NativeVoiceCallMediaStageTests: XCTestCase {
+    private func record(_ id: String, raw: [String: Any]) -> EmbedRecord {
+        EmbedRecord(id: id, type: "app:images:generate", status: .finished,
+                    data: .raw(raw.mapValues(AnyCodable.init)), parentEmbedId: nil,
+                    appId: "images", skillId: "generate", embedIds: nil, createdAt: nil)
+    }
+    private func child(_ id: String, status: String = "finished") -> EmbedRecord {
+        record(id, raw: ["type": "generated_image", "app_id": "images", "skill_id": "generate", "status": status,
+                         "s3_base_url": "https://example.org/media", "aes_key": "00", "aes_nonce": "00",
+                         "files": ["original": ["s3_key": "fixture/\(id).png"]]])
+    }
+    private func group(_ id: String, _ children: [String]) -> EmbedRecord {
+        record(id, raw: ["app_id": "images", "skill_id": "generate", "status": "finished", "embed_ids": children])
+    }
+    private func pixel() -> CGImage {
+        let context = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        return context.makeImage()!
+    }
+    private func settle(_ model: NativeVoiceCallMediaModel, until: () -> Bool) async {
+        for _ in 0..<100 where !until() { try? await Task.sleep(for: .milliseconds(10)) }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.video.generated-media-stage
+    func testFinishedGenerationExpandsStageAndNewResultReplacesTheShownOne() async {
+        let fetched = MediaFetchRecorder()
+        let image = pixel()
+        let model = NativeVoiceCallMediaModel(loader: { media, _ in
+            fetched.ids.append(media.embedID)
+            return .init(id: media.embedID, kind: .image, image: image, videoURL: nil)
+        })
+        var expansions = 0
+        model.expand = { expansions += 1 }
+        var embeds = ["gen-1": group("gen-1", ["img-1", "img-2"]),
+                      "img-1": child("img-1"), "img-2": child("img-2", status: "processing")]
+        model.update(candidates: ["gen-1"], embeds: embeds)
+        await settle(model) { model.displayed != nil }
+        XCTAssertEqual(model.items.map(\.id), ["img-1"], "Only finished outputs reach the stage")
+        XCTAssertEqual(model.displayed?.id, "img-1")
+        XCTAssertEqual(expansions, 1, "A completed result expands the call stage")
+
+        // The second output finishes: it is fresh, so it becomes the displayed one; img-1 is not fetched again.
+        embeds["img-2"] = child("img-2")
+        model.update(candidates: ["gen-1"], embeds: embeds)
+        await settle(model) { model.items.count == 2 }
+        XCTAssertEqual(model.items.map(\.id), ["img-1", "img-2"])
+        XCTAssertEqual(model.displayed?.id, "img-2")
+        XCTAssertEqual(fetched.ids, ["img-1", "img-2"])
+
+        model.select(0)
+        XCTAssertEqual(model.displayed?.id, "img-1", "Previous/next paging selects other outputs")
+        model.showCamera()
+        XCTAssertNil(model.displayed, "Returning to the camera hides the generated result")
+
+        // Re-reporting the same results does not re-open the stage over the camera.
+        model.update(candidates: ["gen-1"], embeds: embeds)
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertNil(model.displayed)
+        XCTAssertEqual(expansions, 3)
+
+        model.reset()
+        XCTAssertTrue(model.items.isEmpty)
+        XCTAssertNil(model.displayed)
+    }
+}
+
+@MainActor private final class MediaFetchRecorder { var ids: [String] = [] }

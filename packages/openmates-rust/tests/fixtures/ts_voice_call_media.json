@@ -1,0 +1,2672 @@
+{
+  "embeds": {
+    "grp": {
+      "embed_id": "grp",
+      "app_id": "images",
+      "skill_id": "generate",
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "embed_ids": [
+          "c1",
+          "c2",
+          "c3"
+        ],
+        "status": "finished"
+      }
+    },
+    "c1": {
+      "embed_id": "c1",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/c1",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "c2": {
+      "embed_id": "c2",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "processing",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/c2",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "c3": {
+      "embed_id": "c3",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/c3",
+            "mime_type": "image/webp"
+          }
+        }
+      }
+    },
+    "legacy": {
+      "embed_id": "legacy",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "preview": {
+            "s3_key": "k/legacy-prev"
+          }
+        }
+      }
+    },
+    "vid": {
+      "embed_id": "vid",
+      "app_id": "videos",
+      "skill_id": "generate",
+      "embed_type": null,
+      "status": "finished",
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "files": {
+          "original": {
+            "s3_key": "k/vid",
+            "mime_type": "video/mp4"
+          }
+        },
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5"
+      }
+    },
+    "vidprev": {
+      "embed_id": "vidprev",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_video",
+        "status": "finished",
+        "s3_base_url": "b",
+        "aes_key": "k",
+        "files": {
+          "preview": {
+            "s3_key": "k/vp"
+          }
+        }
+      }
+    },
+    "broken": {
+      "embed_id": "broken",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": true,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/broken",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "pend": {
+      "embed_id": "pend",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": true,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/pend",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "nokey": {
+      "embed_id": "nokey",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/nokey",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "nobase": {
+      "embed_id": "nobase",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/nobase",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "text": {
+      "embed_id": "text",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": "not an object"
+    },
+    "web": {
+      "embed_id": "web",
+      "app_id": "web",
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "web_search",
+        "status": "finished"
+      }
+    },
+    "rowfallback": {
+      "embed_id": "rowfallback",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": "generated_image",
+      "status": "finished",
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "s3_base_url": "b",
+        "aes_key": "k",
+        "files": {
+          "original": {
+            "s3_key": "k/rf"
+          }
+        }
+      }
+    },
+    "m0": {
+      "embed_id": "m0",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m0",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m1": {
+      "embed_id": "m1",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m1",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m2": {
+      "embed_id": "m2",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m2",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m3": {
+      "embed_id": "m3",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m3",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m4": {
+      "embed_id": "m4",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m4",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m5": {
+      "embed_id": "m5",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m5",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m6": {
+      "embed_id": "m6",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m6",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m7": {
+      "embed_id": "m7",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m7",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m8": {
+      "embed_id": "m8",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m8",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m9": {
+      "embed_id": "m9",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m9",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m10": {
+      "embed_id": "m10",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m10",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m11": {
+      "embed_id": "m11",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m11",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m12": {
+      "embed_id": "m12",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m12",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m13": {
+      "embed_id": "m13",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m13",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m14": {
+      "embed_id": "m14",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m14",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m15": {
+      "embed_id": "m15",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m15",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m16": {
+      "embed_id": "m16",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m16",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m17": {
+      "embed_id": "m17",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m17",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m18": {
+      "embed_id": "m18",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m18",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m19": {
+      "embed_id": "m19",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m19",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m20": {
+      "embed_id": "m20",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m20",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m21": {
+      "embed_id": "m21",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m21",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m22": {
+      "embed_id": "m22",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m22",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m23": {
+      "embed_id": "m23",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m23",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m24": {
+      "embed_id": "m24",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m24",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m25": {
+      "embed_id": "m25",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m25",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m26": {
+      "embed_id": "m26",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m26",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m27": {
+      "embed_id": "m27",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m27",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m28": {
+      "embed_id": "m28",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m28",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m29": {
+      "embed_id": "m29",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m29",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m30": {
+      "embed_id": "m30",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m30",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m31": {
+      "embed_id": "m31",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m31",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m32": {
+      "embed_id": "m32",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m32",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m33": {
+      "embed_id": "m33",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m33",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m34": {
+      "embed_id": "m34",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m34",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m35": {
+      "embed_id": "m35",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m35",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m36": {
+      "embed_id": "m36",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m36",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m37": {
+      "embed_id": "m37",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m37",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m38": {
+      "embed_id": "m38",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m38",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m39": {
+      "embed_id": "m39",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m39",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m40": {
+      "embed_id": "m40",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m40",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m41": {
+      "embed_id": "m41",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m41",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m42": {
+      "embed_id": "m42",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m42",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m43": {
+      "embed_id": "m43",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m43",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m44": {
+      "embed_id": "m44",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m44",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m45": {
+      "embed_id": "m45",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m45",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m46": {
+      "embed_id": "m46",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m46",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m47": {
+      "embed_id": "m47",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m47",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m48": {
+      "embed_id": "m48",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m48",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m49": {
+      "embed_id": "m49",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m49",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m50": {
+      "embed_id": "m50",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m50",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m51": {
+      "embed_id": "m51",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m51",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m52": {
+      "embed_id": "m52",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m52",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m53": {
+      "embed_id": "m53",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m53",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m54": {
+      "embed_id": "m54",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m54",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m55": {
+      "embed_id": "m55",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m55",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m56": {
+      "embed_id": "m56",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m56",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m57": {
+      "embed_id": "m57",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m57",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m58": {
+      "embed_id": "m58",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m58",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m59": {
+      "embed_id": "m59",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m59",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m60": {
+      "embed_id": "m60",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m60",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m61": {
+      "embed_id": "m61",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m61",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m62": {
+      "embed_id": "m62",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m62",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m63": {
+      "embed_id": "m63",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m63",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m64": {
+      "embed_id": "m64",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m64",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m65": {
+      "embed_id": "m65",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m65",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m66": {
+      "embed_id": "m66",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m66",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m67": {
+      "embed_id": "m67",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m67",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m68": {
+      "embed_id": "m68",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m68",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    },
+    "m69": {
+      "embed_id": "m69",
+      "app_id": null,
+      "skill_id": null,
+      "embed_type": null,
+      "status": null,
+      "decryption_failed": false,
+      "decryption_pending": false,
+      "content": {
+        "type": "generated_image",
+        "status": "finished",
+        "s3_base_url": "https://s3.example.org/b",
+        "aes_key": "a2V5",
+        "aes_nonce": "bm9uY2U=",
+        "files": {
+          "original": {
+            "s3_key": "k/m69",
+            "mime_type": "image/png"
+          }
+        }
+      }
+    }
+  },
+  "resolves": [
+    {
+      "name": "group_expands_children_skips_processing",
+      "candidate_ids": [
+        "grp"
+      ],
+      "expected": [
+        {
+          "embed_id": "c1",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/c1",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "c3",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/c3",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "name": "legacy_preview_only",
+      "candidate_ids": [
+        "legacy"
+      ],
+      "expected": [
+        {
+          "embed_id": "legacy",
+          "kind": "image",
+          "variant": "preview",
+          "s3_key": "k/legacy-prev",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": null
+        }
+      ]
+    },
+    {
+      "name": "video_original_and_preview_only_video_rejected",
+      "candidate_ids": [
+        "vid",
+        "vidprev"
+      ],
+      "expected": [
+        {
+          "embed_id": "vid",
+          "kind": "video",
+          "variant": "original",
+          "s3_key": "k/vid",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "video/mp4"
+        }
+      ]
+    },
+    {
+      "name": "decryption_failed_and_pending_skipped",
+      "candidate_ids": [
+        "broken",
+        "pend",
+        "c1"
+      ],
+      "expected": [
+        {
+          "embed_id": "c1",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/c1",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "missing_key_or_base_skipped",
+      "candidate_ids": [
+        "nokey",
+        "nobase",
+        "c1"
+      ],
+      "expected": [
+        {
+          "embed_id": "c1",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/c1",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "non_object_content_and_other_types_skipped",
+      "candidate_ids": [
+        "text",
+        "web",
+        "missing",
+        "c1"
+      ],
+      "expected": [
+        {
+          "embed_id": "c1",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/c1",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "row_fields_fallback",
+      "candidate_ids": [
+        "rowfallback"
+      ],
+      "expected": [
+        {
+          "embed_id": "rowfallback",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/rf",
+          "s3_base_url": "b",
+          "mime_type": null
+        }
+      ]
+    },
+    {
+      "name": "newest_first_with_duplicates",
+      "candidate_ids": [
+        "c3",
+        "grp",
+        "c1",
+        "c3"
+      ],
+      "expected": [
+        {
+          "embed_id": "c3",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/c3",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/webp"
+        },
+        {
+          "embed_id": "c1",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/c1",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "visit_bound_64",
+      "candidate_ids": [
+        "m0",
+        "m1",
+        "m2",
+        "m3",
+        "m4",
+        "m5",
+        "m6",
+        "m7",
+        "m8",
+        "m9",
+        "m10",
+        "m11",
+        "m12",
+        "m13",
+        "m14",
+        "m15",
+        "m16",
+        "m17",
+        "m18",
+        "m19",
+        "m20",
+        "m21",
+        "m22",
+        "m23",
+        "m24",
+        "m25",
+        "m26",
+        "m27",
+        "m28",
+        "m29",
+        "m30",
+        "m31",
+        "m32",
+        "m33",
+        "m34",
+        "m35",
+        "m36",
+        "m37",
+        "m38",
+        "m39",
+        "m40",
+        "m41",
+        "m42",
+        "m43",
+        "m44",
+        "m45",
+        "m46",
+        "m47",
+        "m48",
+        "m49",
+        "m50",
+        "m51",
+        "m52",
+        "m53",
+        "m54",
+        "m55",
+        "m56",
+        "m57",
+        "m58",
+        "m59",
+        "m60",
+        "m61",
+        "m62",
+        "m63",
+        "m64",
+        "m65",
+        "m66",
+        "m67",
+        "m68",
+        "m69"
+      ],
+      "expected": [
+        {
+          "embed_id": "m0",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m0",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m1",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m1",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m2",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m2",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m3",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m3",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m4",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m4",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m5",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m5",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m6",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m6",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m7",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m7",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m8",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m8",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m9",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m9",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m10",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m10",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m11",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m11",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m12",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m12",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m13",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m13",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m14",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m14",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m15",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m15",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m16",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m16",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m17",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m17",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m18",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m18",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m19",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m19",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m20",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m20",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m21",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m21",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m22",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m22",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m23",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m23",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m24",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m24",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m25",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m25",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m26",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m26",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m27",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m27",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m28",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m28",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m29",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m29",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m30",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m30",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m31",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m31",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m32",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m32",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m33",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m33",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m34",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m34",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m35",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m35",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m36",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m36",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m37",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m37",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m38",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m38",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m39",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m39",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m40",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m40",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m41",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m41",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m42",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m42",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m43",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m43",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m44",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m44",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m45",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m45",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m46",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m46",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m47",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m47",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m48",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m48",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m49",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m49",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m50",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m50",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m51",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m51",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m52",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m52",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m53",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m53",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m54",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m54",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m55",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m55",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m56",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m56",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m57",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m57",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m58",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m58",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m59",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m59",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m60",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m60",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m61",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m61",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m62",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m62",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        },
+        {
+          "embed_id": "m63",
+          "kind": "image",
+          "variant": "original",
+          "s3_key": "k/m63",
+          "s3_base_url": "https://s3.example.org/b",
+          "mime_type": "image/png"
+        }
+      ]
+    }
+  ],
+  "selections": [
+    {
+      "items": [
+        "a",
+        "b",
+        "c"
+      ],
+      "presented": [],
+      "displayed": null,
+      "expected": {
+        "displayed_index": 0,
+        "fresh": true,
+        "newly_presented": [
+          "a",
+          "b",
+          "c"
+        ]
+      }
+    },
+    {
+      "items": [
+        "a",
+        "b",
+        "c"
+      ],
+      "presented": [
+        "a"
+      ],
+      "displayed": "a",
+      "expected": {
+        "displayed_index": 1,
+        "fresh": true,
+        "newly_presented": [
+          "a",
+          "b",
+          "c"
+        ]
+      }
+    },
+    {
+      "items": [
+        "a",
+        "b",
+        "c"
+      ],
+      "presented": [
+        "a",
+        "b",
+        "c"
+      ],
+      "displayed": "b",
+      "expected": {
+        "displayed_index": 1,
+        "fresh": false,
+        "newly_presented": [
+          "a",
+          "b",
+          "c"
+        ]
+      }
+    },
+    {
+      "items": [
+        "a",
+        "b"
+      ],
+      "presented": [
+        "a",
+        "b"
+      ],
+      "displayed": "gone",
+      "expected": {
+        "displayed_index": 0,
+        "fresh": false,
+        "newly_presented": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "items": [
+        "a",
+        "b"
+      ],
+      "presented": [
+        "a",
+        "b"
+      ],
+      "displayed": null,
+      "expected": {
+        "displayed_index": 0,
+        "fresh": false,
+        "newly_presented": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "items": [],
+      "presented": [
+        "a"
+      ],
+      "displayed": "a",
+      "expected": {
+        "displayed_index": null,
+        "fresh": false,
+        "newly_presented": []
+      }
+    }
+  ]
+}

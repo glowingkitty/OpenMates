@@ -44,3 +44,25 @@ fn notice_round_trips_and_rejects_invalid_ids() {
     assert!(voice_call_notice_from_message("user".into(), built.content_json).is_none());
     assert!(build_voice_call_notice(VoiceCallNoticeAction::Started, "bad".into(), 1, 0.0).is_err());
 }
+
+#[test]
+fn stage_media_selects_finished_image_and_prefers_fresh_item() {
+    let embed = VoiceCallStageEmbedInput {
+        embed_id: "e1".into(),
+        app_id: None,
+        skill_id: None,
+        embed_type: Some("generated_image".into()),
+        status: Some("finished".into()),
+        decryption_failed: false,
+        decryption_pending: false,
+        content_json: r#"{"s3_base_url":"https://s3.example.org","aes_key":"k","files":{"original":{"s3_key":"k/e1"}}}"#.into(),
+    };
+    let items = voice_call_stage_media_items(vec!["e1".into(), "gone".into()], vec![embed]);
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].variant, VoiceCallStageMediaVariant::Original);
+    let fresh = voice_call_stage_media_selection(vec!["e1".into()], vec![], None);
+    assert_eq!((fresh.displayed_index, fresh.fresh), (Some(0), true));
+    let kept =
+        voice_call_stage_media_selection(vec!["e1".into()], vec!["e1".into()], Some("zz".into()));
+    assert_eq!((kept.displayed_index, kept.fresh), (Some(0), false));
+}

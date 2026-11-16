@@ -2,7 +2,7 @@
 # Do not edit by hand. Refresh: python3 scripts/feature_overview.py   Verify: --check
 schema_version: 2
 source: specifications/features.yml
-results_as_of: '2026-11-15'
+results_as_of: '2026-11-16'
 summary:
   features: 125
   enabled_on_prod: 109
@@ -16,8 +16,8 @@ summary:
       implemented: 19
       not_planned: 19
     apple:
-      tested: 14
-      partial: 34
+      tested: 15
+      partial: 33
       failing: 6
       implemented: 40
       in_progress: 6
@@ -3016,8 +3016,6 @@ features:
       - frontend/apps/web_app/tests/search-parent-preview-stress.spec.ts › opens dense synthetic chat with useful parent previews
       - frontend/apps/web_app/tests/startup-sync-contract.spec.ts › startup sync is bounded and older content hydrates on
         demand
-      - frontend/apps/web_app/tests/voice-call.spec.ts › uses one canonical turn for voice and typed input, preserves rich
-        replies and retains its chat across navigation and reload
       - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts › voice-first chat preflights before persisting its
         speech preference
       - frontend/apps/web_app/tests/web-rust-core-chat.spec.ts › opens a saved chat in the normal chat UI from Rust-decrypted
@@ -3249,9 +3247,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 1
         failing: 5
-        not_run: 11
+        not_run: 10
         missing: 13
         counted: 29
       failing_tests:
@@ -3381,8 +3379,6 @@ features:
         failing_tests:
         - frontend/apps/web_app/tests/startup-sync-contract.spec.ts › startup sync is bounded and older content hydrates on
           demand
-        - frontend/apps/web_app/tests/voice-call.spec.ts › uses one canonical turn for voice and typed input, preserves rich
-          replies and retains its chat across navigation and reload
       apple:
         status: failing
         source: tests
@@ -4019,13 +4015,13 @@ features:
           missing: 0
           counted: 0
       cli:
-        status: not_run
+        status: partial
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 1
           failing: 0
-          not_run: 4
+          not_run: 3
           missing: 0
           counted: 4
       tui:
@@ -6437,7 +6433,6 @@ features:
         counted: 24
       failing_tests:
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
-      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomeComposerExpandsAndCollapsesAcrossRotation
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
       - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
@@ -7140,7 +7135,6 @@ features:
           counted: 3
         failing_tests:
         - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
-        - apple/OpenMatesUITests/ComposerVisualParityUITests.swift › testWelcomeComposerExpandsAndCollapsesAcrossRotation
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
         - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft
@@ -9903,8 +9897,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 22
-        failing: 12
+        passing: 28
+        failing: 6
         not_run: 5
         missing: 11
         counted: 50
@@ -9921,9 +9915,6 @@ features:
         actions while saving
       - frontend/apps/web_app/tests/components/voice-call-privacy.spec.ts › uses the shared global notification and cancels
         without saving
-      - frontend/apps/web_app/tests/voice-call.spec.ts
-      - frontend/apps/web_app/tests/voice-call.spec.ts › uses one canonical turn for voice and typed input, preserves rich
-        replies and retains its chat across navigation and reload
       key_tests:
       - frontend/apps/web_app/tests/voice-call.spec.ts
       e2e_tests:
@@ -9960,15 +9951,16 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 28
+        passing: 29
         failing: 0
         not_run: 0
-        missing: 13
+        missing: 12
         counted: 41
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift
       - apple/OpenMatesUITests/VoiceCallEventNoticePreviewUITests.swift
+      - apple/OpenMatesUITests/VoiceCallMediaStagePreviewUITests.swift
       key_unit_tests:
       - apple/OpenMatesTests/NativeVoiceCallTests.swift
       - apple/OpenMatesTests/NativeVoiceCallAppCoordinatorTests.swift
@@ -16959,9 +16951,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 11
+        passing: 15
         failing: 0
-        not_run: 4
+        not_run: 0
         missing: 9
         counted: 24
       key_tests: []
@@ -16985,13 +16977,13 @@ features:
       - frontend/packages/ui/src/components/embeds/slides/__tests__/slideImage.test.ts
       unit_test_files: 11
     apple:
-      status: partial
+      status: tested
       source: tests
       intent: implemented
       assertions:
-        passing: 1
+        passing: 3
         failing: 0
-        not_run: 2
+        not_run: 0
         missing: 0
         counted: 3
       key_tests: []
@@ -17039,9 +17031,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 9
+        passing: 11
         failing: 0
-        not_run: 3
+        not_run: 1
         missing: 12
         counted: 24
       key_tests: []
@@ -17095,23 +17087,23 @@ features:
     - slides.present.remote-relay-private
     surfaces:
       web:
-        status: not_run
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 3
           failing: 0
-          not_run: 3
+          not_run: 0
           missing: 0
           counted: 3
       apple:
-        status: not_run
+        status: tested
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 2
           failing: 0
-          not_run: 2
+          not_run: 0
           missing: 0
           counted: 2
       cli:
@@ -17136,13 +17128,13 @@ features:
           missing: 0
           counted: 0
       rest_api:
-        status: not_run
+        status: partial
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 1
           failing: 0
-          not_run: 1
+          not_run: 0
           missing: 2
           counted: 3
       sdk_npm:
@@ -17173,13 +17165,13 @@ features:
     - slides.media.svg-declarative-animation
     surfaces:
       web:
-        status: not_run
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 1
           failing: 0
-          not_run: 1
+          not_run: 0
           missing: 0
           counted: 1
       apple:
@@ -17214,13 +17206,13 @@ features:
           missing: 0
           counted: 0
       rest_api:
-        status: not_run
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 1
           failing: 0
-          not_run: 1
+          not_run: 0
           missing: 0
           counted: 1
       sdk_npm:
@@ -22998,9 +22990,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 2
+        passing: 3
         failing: 2
-        not_run: 3
+        not_run: 2
         missing: 11
         counted: 18
       failing_tests:

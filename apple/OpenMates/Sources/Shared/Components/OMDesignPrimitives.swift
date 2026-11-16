@@ -206,8 +206,17 @@ struct OMMessageInputField<ActionButtons: View>: View {
     // fit that lane instead of introducing a blank row above the document.
     private var topReservedHeight: CGFloat { 0 }
     private var controlVisible: Bool {
+        // A short landscape viewport can be shorter than the control's top
+        // inset plus size; the topTrailing overlay would then cover the
+        // Send/mic action row, so the control only shows when it fits above it.
         fullscreenControl.isVisible(compact: compact, fullscreen: fullscreen,
-            contentOverflows: nativeContentOverflows)
+            contentOverflows: nativeContentOverflows && controlFitsAboveActionRow)
+    }
+    // Uses the host's height cap, not the measured editor, so the control's
+    // own lane reservation can never feed back into its visibility.
+    private var controlFitsAboveActionRow: Bool {
+        maximumUnscrolledEditorHeight >= MessageComposerMetric.expandControlTopInset
+            + MessageComposerMetric.expandControlSize
     }
     private var reservesControlLane: Bool { controlVisible }
     private var maximumUnscrolledEditorHeight: CGFloat {

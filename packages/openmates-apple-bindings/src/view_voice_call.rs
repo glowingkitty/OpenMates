@@ -6,11 +6,16 @@
 //! and `voiceCallMessages.ts`). Spec `video-call` (`video-call.chat.call-events`).
 use crate::CoreError;
 use openmates_sdk::client::voice_call_activity::{
-    BillingActivity, VoiceCallActivityClock, VoiceCallActivitySnapshot, parse_billing_activity,
+    parse_billing_activity, BillingActivity, VoiceCallActivityClock, VoiceCallActivitySnapshot,
 };
 use openmates_sdk::client::voice_call_lifecycle::{
-    VoiceCallAction, VoiceCallLifecycleEvent, parse_notice,
+    parse_notice, VoiceCallAction, VoiceCallLifecycleEvent,
 };
+use openmates_sdk::client::voice_call_media::{
+    voice_call_stage_media, voice_call_stage_selection, VoiceCallMediaEmbed, VoiceCallMediaKind,
+    VoiceCallMediaVariant, VoiceCallStageMedia,
+};
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 /// One reading of the call clock.
@@ -175,6 +180,150 @@ pub fn build_voice_call_notice(
         .map_err(|error| CoreError::Invalid {
             message: error.to_string(),
         })
+}
+
+/// Kind of a stage media item.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
+pub enum VoiceCallStageMediaKind {
+    /// Still image.
+    Image,
+    /// Video clip.
+    Video,
+}
+
+/// Which stored file variant to fetch.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
+pub enum VoiceCallStageMediaVariant {
+    /// `files.original`.
+    Original,
+    /// `files.preview` (images only).
+    Preview,
+}
+
+/// One embed handed to the stage policy: row fields plus decrypted content JSON.
+#[derive(Clone, Debug, PartialEq, uniffi::Record)]
+pub struct VoiceCallStageEmbedInput {
+    /// Embed id.
+    pub embed_id: String,
+    /// Row-level app id.
+    pub app_id: Option<String>,
+    /// Row-level skill id.
+    pub skill_id: Option<String>,
+    /// Row-level embed type.
+    pub embed_type: Option<String>,
+    /// Row-level status.
+    pub status: Option<String>,
+    /// Decryption failed.
+    pub decryption_failed: bool,
+    /// Decryption pending.
+    pub decryption_pending: bool,
+    /// Decrypted content as a JSON object string.
+    pub content_json: String,
+}
+
+/// A displayable stage item; the shell fetches and decrypts the file itself.
+#[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
+pub struct VoiceCallStageMediaRecord {
+    /// Owning embed id.
+    pub embed_id: String,
+    /// Image or video.
+    pub kind: VoiceCallStageMediaKind,
+    /// File variant to fetch.
+    pub variant: VoiceCallStageMediaVariant,
+    /// Object key of the encrypted file.
+    pub s3_key: String,
+    /// Object store base URL.
+    pub s3_base_url: String,
+    /// Declared mime type.
+    pub mime_type: Option<String>,
+}
+
+/// Displayed-item choice after a resolve.
+#[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
+pub struct VoiceCallStageSelectionRecord {
+    /// Index to display; `None` leaves the stage unchanged.
+    pub displayed_index: Option<u32>,
+    /// A not-yet-presented item was chosen.
+    pub fresh: bool,
+    /// Ids to add to the presented set.
+    pub newly_presented: Vec<String>,
+}
+
+fn media_record(item: VoiceCallStageMedia) -> VoiceCallStageMediaRecord {
+    VoiceCallStageMediaRecord {
+        embed_id: item.embed_id,
+        kind: match item.kind {
+            VoiceCallMediaKind::Image => VoiceCallStageMediaKind::Image,
+            VoiceCallMediaKind::Video => VoiceCallStageMediaKind::Video,
+        },
+        variant: match item.variant {
+            VoiceCallMediaVariant::Original => VoiceCallStageMediaVariant::Original,
+            VoiceCallMediaVariant::Preview => VoiceCallStageMediaVariant::Preview,
+        },
+        s3_key: item.s3_key,
+        s3_base_url: item.s3_base_url,
+        mime_type: item.mime_type,
+    }
+}
+
+/// Picks the generated media the call stage shows: `candidate_ids_newest_first`
+/// are the call's media embed ids newest first. Embeds with unparseable
+/// content JSON are treated as having no content (the web skips them too).
+#[uniffi::export]
+pub fn voice_call_stage_media_items(
+    candidate_ids_newest_first: Vec<String>,
+    embeds: Vec<VoiceCallStageEmbedInput>,
+) -> Vec<VoiceCallStageMediaRecord> {
+    let map: HashMap<String, VoiceCallMediaEmbed> = embeds
+        .into_iter()
+        .map(|e| {
+            (
+                e.embed_id.clone(),
+                VoiceCallMediaEmbed {
+                    embed_id: e.embed_id,
+                    app_id: e.app_id,
+                    skill_id: e.skill_id,
+                    embed_type: e.embed_type,
+                    status: e.status,
+                    decryption_failed: e.decryption_failed,
+                    decryption_pending: e.decryption_pending,
+                    content: serde_json::from_str(&e.content_json)
+                        .unwrap_or(serde_json::Value::Null),
+                },
+            )
+        })
+        .collect();
+    voice_call_stage_media(&candidate_ids_newest_first, &map)
+        .into_iter()
+        .map(media_record)
+        .collect()
+}
+
+/// Chooses which resolved item to display (web `refreshCallMedia` rule).
+#[uniffi::export]
+pub fn voice_call_stage_media_selection(
+    item_embed_ids: Vec<String>,
+    presented: Vec<String>,
+    displayed_embed_id: Option<String>,
+) -> VoiceCallStageSelectionRecord {
+    // Selection only reads embed ids, so ids stand in for full items.
+    let items: Vec<VoiceCallStageMedia> = item_embed_ids
+        .into_iter()
+        .map(|embed_id| VoiceCallStageMedia {
+            embed_id,
+            kind: VoiceCallMediaKind::Image,
+            variant: VoiceCallMediaVariant::Original,
+            s3_key: String::new(),
+            s3_base_url: String::new(),
+            mime_type: None,
+        })
+        .collect();
+    let s = voice_call_stage_selection(&items, &presented, displayed_embed_id.as_deref());
+    VoiceCallStageSelectionRecord {
+        displayed_index: s.displayed_index,
+        fresh: s.fresh,
+        newly_presented: s.newly_presented,
+    }
 }
 
 #[cfg(test)]

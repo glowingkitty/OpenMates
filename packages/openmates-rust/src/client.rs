@@ -225,6 +225,7 @@ mod team;
 mod view_projection;
 pub mod voice_call_activity;
 pub mod voice_call_lifecycle;
+pub mod voice_call_media;
 mod toon;
 pub(crate) mod transport;
 #[cfg(not(target_arch = "wasm32"))] pub mod upload;

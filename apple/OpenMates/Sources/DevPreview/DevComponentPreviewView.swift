@@ -647,6 +647,8 @@ private struct DevComponentPreviewCanvas: View {
                 DevAssistantActivityFixture(variant: configuration.variant)
             } else if configuration.variant == "project-focus-commit" {
                 DevProjectFocusCommitFixture()
+            } else if configuration.variant.hasPrefix("voice-call-media-") {
+                DevVoiceCallMediaStageFixture(variant: configuration.variant).padding(.spacing6)
             } else if configuration.variant.hasPrefix("voice-call-") {
                 // Same fixed instants as the web /dev/preview fixture (12:31 / 12:33 UTC).
                 let ended = configuration.variant == "voice-call-ended"

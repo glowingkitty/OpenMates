@@ -49,7 +49,7 @@ struct NativeVoiceCallOverlay: View {
                             Text(AppStrings.nativeCall(failure.rawValue)).font(.omSmall)
                                 .accessibilityIdentifier("voice-call-camera-error")
                         }
-                        NativeVoiceCallCameraPreview(model: coordinator.camera)
+                        NativeVoiceCallMediaStage(camera: coordinator.camera, media: coordinator.media)
                         if !stripHostedInChat {
                             NativeVoiceCallBar(coordinator: coordinator, returnToChat: returnToChat)
                         }

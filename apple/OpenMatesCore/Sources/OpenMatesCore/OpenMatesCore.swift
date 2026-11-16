@@ -16973,6 +16973,323 @@ public func FfiConverterTypeVoiceCallNoticeRecord_lower(_ value: VoiceCallNotice
 
 
 /**
+ * One embed handed to the stage policy: row fields plus decrypted content JSON.
+ */
+public struct VoiceCallStageEmbedInput: Equatable, Hashable {
+    /**
+     * Embed id.
+     */
+    public var embedId: String
+    /**
+     * Row-level app id.
+     */
+    public var appId: String?
+    /**
+     * Row-level skill id.
+     */
+    public var skillId: String?
+    /**
+     * Row-level embed type.
+     */
+    public var embedType: String?
+    /**
+     * Row-level status.
+     */
+    public var status: String?
+    /**
+     * Decryption failed.
+     */
+    public var decryptionFailed: Bool
+    /**
+     * Decryption pending.
+     */
+    public var decryptionPending: Bool
+    /**
+     * Decrypted content as a JSON object string.
+     */
+    public var contentJson: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Embed id.
+         */embedId: String, 
+        /**
+         * Row-level app id.
+         */appId: String?, 
+        /**
+         * Row-level skill id.
+         */skillId: String?, 
+        /**
+         * Row-level embed type.
+         */embedType: String?, 
+        /**
+         * Row-level status.
+         */status: String?, 
+        /**
+         * Decryption failed.
+         */decryptionFailed: Bool, 
+        /**
+         * Decryption pending.
+         */decryptionPending: Bool, 
+        /**
+         * Decrypted content as a JSON object string.
+         */contentJson: String) {
+        self.embedId = embedId
+        self.appId = appId
+        self.skillId = skillId
+        self.embedType = embedType
+        self.status = status
+        self.decryptionFailed = decryptionFailed
+        self.decryptionPending = decryptionPending
+        self.contentJson = contentJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceCallStageEmbedInput: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallStageEmbedInput: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallStageEmbedInput {
+        return
+            try VoiceCallStageEmbedInput(
+                embedId: FfiConverterString.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf), 
+                skillId: FfiConverterOptionString.read(from: &buf), 
+                embedType: FfiConverterOptionString.read(from: &buf), 
+                status: FfiConverterOptionString.read(from: &buf), 
+                decryptionFailed: FfiConverterBool.read(from: &buf), 
+                decryptionPending: FfiConverterBool.read(from: &buf), 
+                contentJson: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceCallStageEmbedInput, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
+        FfiConverterOptionString.write(value.skillId, into: &buf)
+        FfiConverterOptionString.write(value.embedType, into: &buf)
+        FfiConverterOptionString.write(value.status, into: &buf)
+        FfiConverterBool.write(value.decryptionFailed, into: &buf)
+        FfiConverterBool.write(value.decryptionPending, into: &buf)
+        FfiConverterString.write(value.contentJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageEmbedInput_lift(_ buf: RustBuffer) throws -> VoiceCallStageEmbedInput {
+    return try FfiConverterTypeVoiceCallStageEmbedInput.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageEmbedInput_lower(_ value: VoiceCallStageEmbedInput) -> RustBuffer {
+    return FfiConverterTypeVoiceCallStageEmbedInput.lower(value)
+}
+
+
+/**
+ * A displayable stage item; the shell fetches and decrypts the file itself.
+ */
+public struct VoiceCallStageMediaRecord: Equatable, Hashable {
+    /**
+     * Owning embed id.
+     */
+    public var embedId: String
+    /**
+     * Image or video.
+     */
+    public var kind: VoiceCallStageMediaKind
+    /**
+     * File variant to fetch.
+     */
+    public var variant: VoiceCallStageMediaVariant
+    /**
+     * Object key of the encrypted file.
+     */
+    public var s3Key: String
+    /**
+     * Object store base URL.
+     */
+    public var s3BaseUrl: String
+    /**
+     * Declared mime type.
+     */
+    public var mimeType: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Owning embed id.
+         */embedId: String, 
+        /**
+         * Image or video.
+         */kind: VoiceCallStageMediaKind, 
+        /**
+         * File variant to fetch.
+         */variant: VoiceCallStageMediaVariant, 
+        /**
+         * Object key of the encrypted file.
+         */s3Key: String, 
+        /**
+         * Object store base URL.
+         */s3BaseUrl: String, 
+        /**
+         * Declared mime type.
+         */mimeType: String?) {
+        self.embedId = embedId
+        self.kind = kind
+        self.variant = variant
+        self.s3Key = s3Key
+        self.s3BaseUrl = s3BaseUrl
+        self.mimeType = mimeType
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceCallStageMediaRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallStageMediaRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallStageMediaRecord {
+        return
+            try VoiceCallStageMediaRecord(
+                embedId: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterTypeVoiceCallStageMediaKind.read(from: &buf), 
+                variant: FfiConverterTypeVoiceCallStageMediaVariant.read(from: &buf), 
+                s3Key: FfiConverterString.read(from: &buf), 
+                s3BaseUrl: FfiConverterString.read(from: &buf), 
+                mimeType: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceCallStageMediaRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterTypeVoiceCallStageMediaKind.write(value.kind, into: &buf)
+        FfiConverterTypeVoiceCallStageMediaVariant.write(value.variant, into: &buf)
+        FfiConverterString.write(value.s3Key, into: &buf)
+        FfiConverterString.write(value.s3BaseUrl, into: &buf)
+        FfiConverterOptionString.write(value.mimeType, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaRecord_lift(_ buf: RustBuffer) throws -> VoiceCallStageMediaRecord {
+    return try FfiConverterTypeVoiceCallStageMediaRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaRecord_lower(_ value: VoiceCallStageMediaRecord) -> RustBuffer {
+    return FfiConverterTypeVoiceCallStageMediaRecord.lower(value)
+}
+
+
+/**
+ * Displayed-item choice after a resolve.
+ */
+public struct VoiceCallStageSelectionRecord: Equatable, Hashable {
+    /**
+     * Index to display; `None` leaves the stage unchanged.
+     */
+    public var displayedIndex: UInt32?
+    /**
+     * A not-yet-presented item was chosen.
+     */
+    public var fresh: Bool
+    /**
+     * Ids to add to the presented set.
+     */
+    public var newlyPresented: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Index to display; `None` leaves the stage unchanged.
+         */displayedIndex: UInt32?, 
+        /**
+         * A not-yet-presented item was chosen.
+         */fresh: Bool, 
+        /**
+         * Ids to add to the presented set.
+         */newlyPresented: [String]) {
+        self.displayedIndex = displayedIndex
+        self.fresh = fresh
+        self.newlyPresented = newlyPresented
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceCallStageSelectionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallStageSelectionRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallStageSelectionRecord {
+        return
+            try VoiceCallStageSelectionRecord(
+                displayedIndex: FfiConverterOptionUInt32.read(from: &buf), 
+                fresh: FfiConverterBool.read(from: &buf), 
+                newlyPresented: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceCallStageSelectionRecord, into buf: inout [UInt8]) {
+        FfiConverterOptionUInt32.write(value.displayedIndex, into: &buf)
+        FfiConverterBool.write(value.fresh, into: &buf)
+        FfiConverterSequenceString.write(value.newlyPresented, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageSelectionRecord_lift(_ buf: RustBuffer) throws -> VoiceCallStageSelectionRecord {
+    return try FfiConverterTypeVoiceCallStageSelectionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageSelectionRecord_lower(_ value: VoiceCallStageSelectionRecord) -> RustBuffer {
+    return FfiConverterTypeVoiceCallStageSelectionRecord.lower(value)
+}
+
+
+/**
  * Marks a turn as the user's utterance of a live voice call.
  */
 public struct VoiceCallTurnRecord: Equatable, Hashable {
@@ -23793,6 +24110,156 @@ public func FfiConverterTypeVoiceCallNoticeAction_lower(_ value: VoiceCallNotice
 }
 
 
+
+/**
+ * Kind of a stage media item.
+ */
+
+public enum VoiceCallStageMediaKind: Equatable, Hashable {
+    
+    /**
+     * Still image.
+     */
+    case image
+    /**
+     * Video clip.
+     */
+    case video
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension VoiceCallStageMediaKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallStageMediaKind: FfiConverterRustBuffer {
+    typealias SwiftType = VoiceCallStageMediaKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallStageMediaKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .image
+        
+        case 2: return .video
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VoiceCallStageMediaKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .image:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .video:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaKind_lift(_ buf: RustBuffer) throws -> VoiceCallStageMediaKind {
+    return try FfiConverterTypeVoiceCallStageMediaKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaKind_lower(_ value: VoiceCallStageMediaKind) -> RustBuffer {
+    return FfiConverterTypeVoiceCallStageMediaKind.lower(value)
+}
+
+
+
+/**
+ * Which stored file variant to fetch.
+ */
+
+public enum VoiceCallStageMediaVariant: Equatable, Hashable {
+    
+    /**
+     * `files.original`.
+     */
+    case original
+    /**
+     * `files.preview` (images only).
+     */
+    case preview
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension VoiceCallStageMediaVariant: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallStageMediaVariant: FfiConverterRustBuffer {
+    typealias SwiftType = VoiceCallStageMediaVariant
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallStageMediaVariant {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .original
+        
+        case 2: return .preview
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VoiceCallStageMediaVariant, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .original:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .preview:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaVariant_lift(_ buf: RustBuffer) throws -> VoiceCallStageMediaVariant {
+    return try FfiConverterTypeVoiceCallStageMediaVariant.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaVariant_lower(_ value: VoiceCallStageMediaVariant) -> RustBuffer {
+    return FfiConverterTypeVoiceCallStageMediaVariant.lower(value)
+}
+
+
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
@@ -25715,6 +26182,56 @@ fileprivate struct FfiConverterSequenceTypeVideoTrackRecord: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeVoiceCallStageEmbedInput: FfiConverterRustBuffer {
+    typealias SwiftType = [VoiceCallStageEmbedInput]
+
+    public static func write(_ value: [VoiceCallStageEmbedInput], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVoiceCallStageEmbedInput.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VoiceCallStageEmbedInput] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VoiceCallStageEmbedInput]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVoiceCallStageEmbedInput.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVoiceCallStageMediaRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [VoiceCallStageMediaRecord]
+
+    public static func write(_ value: [VoiceCallStageMediaRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVoiceCallStageMediaRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VoiceCallStageMediaRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VoiceCallStageMediaRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVoiceCallStageMediaRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeWrappedChatKeyRecord: FfiConverterRustBuffer {
     typealias SwiftType = [WrappedChatKeyRecord]
 
@@ -26515,6 +27032,33 @@ public func voiceCallNoticeFromMessage(role: String, content: String) -> VoiceCa
     )
 })
 }
+/**
+ * Picks the generated media the call stage shows: `candidate_ids_newest_first`
+ * are the call's media embed ids newest first. Embeds with unparseable
+ * content JSON are treated as having no content (the web skips them too).
+ */
+public func voiceCallStageMediaItems(candidateIdsNewestFirst: [String], embeds: [VoiceCallStageEmbedInput]) -> [VoiceCallStageMediaRecord]  {
+    return try!  FfiConverterSequenceTypeVoiceCallStageMediaRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_voice_call_stage_media_items(
+        FfiConverterSequenceString.lower(candidateIdsNewestFirst),
+        FfiConverterSequenceTypeVoiceCallStageEmbedInput.lower(embeds),uniffiCallStatus
+    )
+})
+}
+/**
+ * Chooses which resolved item to display (web `refreshCallMedia` rule).
+ */
+public func voiceCallStageMediaSelection(itemEmbedIds: [String], presented: [String], displayedEmbedId: String?) -> VoiceCallStageSelectionRecord  {
+    return try!  FfiConverterTypeVoiceCallStageSelectionRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_voice_call_stage_media_selection(
+        FfiConverterSequenceString.lower(itemEmbedIds),
+        FfiConverterSequenceString.lower(presented),
+        FfiConverterOptionString.lower(displayedEmbedId),uniffiCallStatus
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -26658,6 +27202,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_func_voice_call_notice_from_message() != 43754) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_voice_call_stage_media_items() != 21749) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_voice_call_stage_media_selection() != 35621) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_corecancellation_cancel() != 32025) {

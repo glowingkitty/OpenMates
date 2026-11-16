@@ -876,6 +876,13 @@ struct ChatView: View {
         .onReceive(NotificationCenter.default.publisher(for: .embedVersionHeadChanged)) { _ in
             Task { await viewModel.refreshEmbedsAfterVersionChange() }
         }
+        // Generated media of this chat's live call (video-call.video.generated-media-stage).
+        .onReceive(viewModel.$embedRecords) { records in
+            voiceCallRuntime?.coordinator?.considerChatMedia(chatID: chatId, messages: viewModel.messages, embeds: records)
+        }
+        .onReceive(viewModel.$messages) { messages in
+            voiceCallRuntime?.coordinator?.considerChatMedia(chatID: chatId, messages: messages, embeds: viewModel.embedRecords)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .wsSyncEvent)) { note in
             receiveCompressionCheckpoint(note)
         }

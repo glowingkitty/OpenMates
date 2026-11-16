@@ -36,7 +36,16 @@ final class NativeVoiceCallCameraModel: ObservableObject {
         self.sendFrame = sendFrame
     }
 
+    /// True while a generated result is displayed; the camera's auto-collapse then keeps the stage open.
+    var keepsStageExpanded: () -> Bool = { false }
+
     func toggle() async { await setEnabled(!enabled && !pending) }
+
+    /// User or media-driven stage expansion; cancels the pending camera auto-collapse.
+    func setStageExpanded(_ value: Bool) {
+        collapse?.cancel(); collapse = nil
+        expanded = value
+    }
 
     func setEnabled(_ on: Bool) async {
         if !on {
@@ -116,7 +125,7 @@ final class NativeVoiceCallCameraModel: ObservableObject {
         collapse?.cancel()
         collapse = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2))
-            guard !Task.isCancelled, let self, self.generation == mine else { return }
+            guard !Task.isCancelled, let self, self.generation == mine, !self.keepsStageExpanded() else { return }
             self.expanded = false
         }
     }
@@ -142,44 +151,18 @@ struct NativeVoiceCallVideoButton: View {
 }
 
 /// The live preview (web `voice-call-media` with `voice-call-camera-preview`).
-struct NativeVoiceCallCameraPreview: View {
+/// Bare camera layer; the call media stage (NativeVoiceCallMediaStage) owns the chrome.
+struct NativeVoiceCallCameraSurface: View {
     @ObservedObject var model: NativeVoiceCallCameraModel
     var body: some View {
         if model.enabled, let session = model.session {
-            ZStack {
-                NativeVoiceCallCameraLayer(session: session, mirrored: model.mirrored)
-                    .accessibilityLabel(AppStrings.nativeCall("camera_preview"))
-                    .accessibilityIdentifier("voice-call-camera-preview")
-                #if os(iOS)
-                round("camera", id: "voice-call-camera-flip", label: "flip_camera") { Task { await model.flip() } }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                #endif
-                round("up", id: "voice-call-media-expand", label: model.expanded ? "minimize" : "expand",
-                      flipped: !model.expanded) { model.expanded.toggle() }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: model.expanded ? 512 : 96)
-            .background(Color.grey90)
-            .clipShape(RoundedRectangle(cornerRadius: .radius6))
-            .animation(.easeInOut(duration: 0.18), value: model.expanded)
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("voice-call-media")
+            NativeVoiceCallCameraLayer(session: session, mirrored: model.mirrored)
+                .accessibilityLabel(AppStrings.nativeCall("camera_preview"))
+                .accessibilityIdentifier("voice-call-camera-preview")
         }
-    }
-
-    private func round(_ icon: String, id: String, label: String, flipped: Bool = false,
-                       action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Icon(icon, size: 20).rotationEffect(.degrees(flipped ? 180 : 0)).foregroundStyle(Color.fontPrimary)
-                .frame(width: 40, height: 40).background(Color.grey0).clipShape(Circle())
-        }
-        .buttonStyle(.plain).padding(.spacing4)
-        .accessibilityLabel(AppStrings.nativeCall(label)).accessibilityIdentifier(id)
     }
 }
 
-/// Hosts an `AVCaptureVideoPreviewLayer` (platform video surface; aspect-fit like web `object-fit: contain`).
 #if os(iOS)
 private struct NativeVoiceCallCameraLayer: UIViewRepresentable {
     let session: AVCaptureSession

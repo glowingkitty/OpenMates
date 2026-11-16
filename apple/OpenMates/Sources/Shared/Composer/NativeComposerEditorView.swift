@@ -451,7 +451,10 @@ struct NativeComposerEditorView: UIViewRepresentable {
                     // The text inset belongs to the document, not each scroll
                     // viewport. Adding it again after scrolling skips the real
                     // partially visible first row beside the sticky control.
-                    y: max(textView.bounds.minY, textView.textContainerInset.top))) ?? textView.beginningOfDocument
+                    // While scrolled, a row showing less than half its height
+                    // sits under the top fade and is not the visible first line.
+                    y: max(textView.bounds.minY + (active ? (textView.font?.lineHeight ?? 0) / 2 : 0),
+                           textView.textContainerInset.top))) ?? textView.beginningOfDocument
                 let first = textView.caretRect(for: position)
                 let selected = textView.caretRect(for: textView.selectedTextRange?.end ?? textView.beginningOfDocument)
                 let right = textView.bounds.maxX - textView.textContainerInset.right - textView.textContainer.lineFragmentPadding
