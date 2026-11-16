@@ -7720,12 +7720,58 @@ export const APP_SKILL_METADATA = [
                 },
                 "description": "Up to three exact image embed_refs from the conversation, including uploaded and generated images. Authenticated API/CLI callers can supply their uploaded image embed UUIDs. Uses available product photos AND descriptions to rank and filter visual matches; preserves structured product and price results. An empty array leaves normal search behavior unchanged. No raw image URLs or base64. Inspect visual_evaluation and visual_match for unavailable comparisons.\n"
               },
+              "brand": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "maxLength": 80,
+                "description": "Brand of one exact product to compare prices for, e.g. \"Sony\". Offers whose title lacks the brand are dropped. Omit for open product discovery.\n"
+              },
+              "model": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "maxLength": 120,
+                "description": "Model of one exact product, ideally its model number, e.g. \"WH-1000XM5\". Offers whose title lacks a model token with a digit are dropped, so accessories and neighbouring models do not appear as the cheapest offer. Omit when unknown.\n"
+              },
+              "condition": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "enum": [
+                  "any",
+                  "new",
+                  "used"
+                ],
+                "default": "any",
+                "description": "Offer condition: \"used\" for second-hand or \"used nearby\" questions, \"new\" when the user wants new, otherwise \"any\".\n"
+              },
+              "location": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "maxLength": 120,
+                "description": "Postal code or city for nearby (pickup) offers, e.g. \"10115\" or \"Berlin\". Only when the user names a place or asks for offers near them.\n"
+              },
+              "radius_km": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "description": "Search radius around `location` in km (default 25)."
+              },
               "sort": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "string",
-                "description": "Requested result ordering when product search becomes available.",
+                "description": "Result order. \"price_asc\" returns offers from all shops cheapest first by total price including shipping; use it for \"cheapest\", \"best price\" and \"where can I buy it\".\n",
                 "enum": [
                   "relevance",
                   "price_asc",

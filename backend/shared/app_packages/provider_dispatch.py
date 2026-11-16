@@ -12,6 +12,9 @@ that carry the same ``dedupe_key`` (a provider-chosen identity such as a
 normalized listing or departure). Of several results with one key the highest
 ``dedupe_priority`` wins (default 0, ties keep the first); both fields are
 removed before the results leave this module.
+
+Successful outcomes are cached for a short time (``result_cache``), so the same
+search does not reach the provider's upstream again within that window.
 """
 from __future__ import annotations
 
@@ -23,6 +26,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tup
 
 from backend.shared.app_packages.contracts import validate_contract_results
 from backend.shared.app_packages.loader import get_installed_provider
+from backend.shared.app_packages.result_cache import cached_results, result_cache_key, store_results
 from backend.shared.app_packages.runner_client import run_provider
 from backend.shared.app_packages.secrets import resolve_declared_secrets
 
@@ -58,6 +62,11 @@ async def _run_one(app_id: str, skill_id: str, provider_id: str, input_item: Dic
     secrets = await resolve_declared_secrets(provider, secrets_manager)
     if secrets is None:
         return InstalledProviderOutcome(provider_id, error=f"{provider.name} is not configured on this server.")
+    cache_key = result_cache_key(provider, input_item)
+    cached = await cached_results(cache_key)
+    if cached is not None:
+        logger.info("[AppPackages] Provider '%s' answered from the result cache", provider_id)
+        return InstalledProviderOutcome(provider_id, results=cached)
     outcome = await run_provider(provider, input_item, secrets)
     if not outcome.ok:
         logger.warning("[AppPackages] Provider '%s' (%s@%s) failed with %s", provider_id, provider.package_id,
@@ -69,6 +78,7 @@ async def _run_one(app_id: str, skill_id: str, provider_id: str, input_item: Dic
     discarded = len(outcome.results) - len(results)
     if discarded > 0:
         logger.info("[AppPackages] Discarded %d contract-invalid result(s) from '%s'", discarded, provider_id)
+    await store_results(cache_key, results)
     return InstalledProviderOutcome(provider_id, results=results)
 
 

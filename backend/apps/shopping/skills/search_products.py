@@ -1,5 +1,5 @@
 """Product search contract, unavailable until an authorized provider is configured."""
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 from backend.apps.base_skill import BaseSkill
 
@@ -17,6 +17,13 @@ class SearchProductsRequestItem(BaseModel):
     department: Optional[str] = None
     min_price: Optional[float] = None
     max_price: Optional[float] = None
+    # Price comparison of one exact product (see backend/shared/app_packages/price_comparison.py).
+    brand: Optional[str] = Field(default=None, max_length=80)
+    model: Optional[str] = Field(default=None, max_length=120)
+    condition: Literal["new", "used", "any"] = "any"
+    # Used offers near the user: German postal code or city, and a search radius.
+    location: Optional[str] = Field(default=None, max_length=120)
+    radius_km: Optional[int] = Field(default=None, ge=1, le=200)
 
 
 class SearchProductsRequest(BaseModel):

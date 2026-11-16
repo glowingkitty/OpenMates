@@ -1227,7 +1227,7 @@ features:
   - id: shopping
     name: "Shopping"
     kind: app
-    description: "Product search is currently unavailable."
+    description: "Product search through operator-installed providers: identify a product from a photo or text, compare the exact product across providers by total price incl. shipping, new and used, with links; unavailable without an installed provider."
     specifications: [feature.app-skill.shopping-search]
     apps: [shopping]
     release: v0.5.0-alpha

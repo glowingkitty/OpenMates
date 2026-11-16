@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.app-skill.shopping-search@2
+specification: feature.app-skill.shopping-search@3
 boundary_and_history:
 - id: shopping-search-products-supplied-gallery
   given: A saved product contains a primary photo and three supplied gallery images.
@@ -19,3 +19,36 @@ boundary_and_history:
   then: The query fails visibly without disclosing or decrypting that image for a product integration.
   assertion_ids:
   - shopping-search.privacy.minimized
+price_comparison:
+- id: shopping-search-compare-exact-product
+  given: Two installed shops return offers for "Example Audio X100", "Example Audio X10" and an X100 boom-arm bundle.
+  when: Alice asks for the cheapest Example Audio X100.
+  then: Only X100 offers are compared; the X10 is left out, and the answer does not present an accessory as the product.
+  assertion_ids:
+  - shopping-search.compare.exact-product
+- id: shopping-search-compare-total-price
+  given: Shop A offers the X100 for 52 EUR plus 6 EUR shipping, shop B for 55 EUR with free shipping, and a used one for
+    31 EUR plus 5.50 EUR shipping.
+  when: Alice asks where the X100 is cheapest.
+  then: The offers appear as 36.50 EUR (used), 55 EUR and 58 EUR totals, cheapest first, each with its link.
+  assertion_ids:
+  - shopping-search.compare.total-price
+- id: shopping-search-compare-used-nearby
+  given: Alice asks for a used X100 near postal code 10115 within 20 km.
+  when: The search runs.
+  then: Providers receive condition used, location and radius; offers stated as new are left out.
+  assertion_ids:
+  - shopping-search.compare.condition
+- id: shopping-search-identify-photo
+  given: Alice uploads a photo of a microphone and asks where to buy it cheapest.
+  when: The assistant answers.
+  then: It names brand and model first, searches with them and lists the cheapest offers with price, shipping note,
+    condition and link.
+  assertion_ids:
+  - shopping-search.answer.identify-then-compare
+- id: shopping-search-repeat-cached
+  given: Alice asks the same product question twice within fifteen minutes.
+  when: The second search runs.
+  then: The installed provider is not called again and the same offers are shown.
+  assertion_ids:
+  - shopping-search.providers.repeat-cached

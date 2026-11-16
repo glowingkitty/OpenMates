@@ -386,10 +386,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.app-skill.shopping-search:
-    version: 2
+    version: 3
     status: draft
     path: features/app-skills/shopping-search
-    fingerprint: b1d4343840d5ed5f82d142ee3b7611127a1471e39bc8d5ac051bf1bda49b051d
+    fingerprint: 4e2438c945f62f2e78975e701061fb8f7bc38924a46727e2b311b445d900f68e
     required_applies_to:
     - rest_api
     - cli
@@ -5813,7 +5813,7 @@ assertions:
     - gui.web
     - gui.apple
   shopping-search.products.supplied-gallery:
-    specification: feature.app-skill.shopping-search@2
+    specification: feature.app-skill.shopping-search@3
     specification_id: feature.app-skill.shopping-search
     type: invariant
     fingerprint: d72ac56d9756ce09da521f91ee274cd332ca4fc7d3071ae40bb191a590ef2e6a
@@ -5825,7 +5825,7 @@ assertions:
     - gui.web
     - gui.apple
   shopping-search.relevance.truthful-fallback:
-    specification: feature.app-skill.shopping-search@2
+    specification: feature.app-skill.shopping-search@3
     specification_id: feature.app-skill.shopping-search
     type: behavior
     fingerprint: 61508a03ccf6809ddbd8f639b4d2fe02b53577c4204f897c6186454ad7b716d9
@@ -5836,8 +5836,68 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  shopping-search.compare.exact-product:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: 43e63ede5550b680142bc824176c5761c20e7cd3d4e0d86907e3d8fc215d9f60
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.compare.total-price:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: ff91380483a30a8bc265ae920547ed83ddf687425b6dde3452d63f14503230ba
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.compare.condition:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: 3cce090a1e62ab8c36871e55ffea531aa173b7f28bb659fdcd1f820098f54e5c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.answer.identify-then-compare:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: e091cc0fada83096b9ea48b20328b6548b2572ff7f3a065c04c50439f24ad061
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.providers.repeat-cached:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: a47c444efdf2a0b8d2ff38c9c92038c19f447f15a12608531033c16c369a0c79
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   shopping-search.privacy.minimized:
-    specification: feature.app-skill.shopping-search@2
+    specification: feature.app-skill.shopping-search@3
     specification_id: feature.app-skill.shopping-search
     type: privacy
     fingerprint: ccc26584f119473aa57388b13f5bcea89eb9d5971ffb5277f2cc60a6ceae7790

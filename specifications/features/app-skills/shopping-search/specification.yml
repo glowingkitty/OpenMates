@@ -1,20 +1,25 @@
 schema_version: 1
 id: feature.app-skill.shopping-search
-version: 2
+version: 3
 status: draft
-title: Shopping Product Search and Reference Images
-summary: Product discovery is unavailable; saved product identities, prices, galleries and visual-evaluation uncertainty
-  remain readable.
+title: Shopping Product Search, Price Comparison and Reference Images
+summary: Product discovery runs on operator-installed providers and compares the exact product across them by total price
+  incl. shipping, new and used; without an installed provider it stays unavailable. Saved product identities, prices,
+  galleries and visual-evaluation uncertainty remain readable.
 
 inherits: [architecture.app-skill-execution@1]
 
 scope:
   includes:
-  - Explicit unavailable behavior for new product discovery through the shared provider boundary.
+  - New product discovery through operator-installed providers (generic contract), and explicit unavailable behavior
+    when none is installed.
+  - Identifying a product from a photo or description, then one price comparison across all providers (exact product,
+    condition new or used, shipping-inclusive totals, cheapest first, with links).
+  - Short-lived reuse of identical provider searches.
   - Generic saved product result and photo-gallery rendering without replacement source retrieval.
   excludes:
-  - Image-search supplementation, extra paid product-detail enrichment, purchases, exact-identity guarantees and
-    inferred unseen qualities.
+  - Image-search supplementation, extra paid product-detail enrichment, purchases, exact-identity guarantees,
+    inferred unseen qualities, invented prices, shipping costs or conditions, and guaranteed distance filtering.
 
 assertions:
 - id: shopping-search.products.supplied-gallery
@@ -30,6 +35,40 @@ assertions:
     history rendering nor an unavailable new search claims a fresh visual comparison or visually verified match.
   depends_on:
   - examples.boundary_and_history
+- id: shopping-search.compare.exact-product
+  type: behavior
+  must: When a search names a brand and/or model, offers that lack the brand or any model token containing a digit are
+    left out (X100 keeps X100, not X10, X100S or accessories). When no offer names the product, similar offers stay and
+    the result says the exact product was not found.
+  depends_on:
+  - examples.price_comparison
+- id: shopping-search.compare.total-price
+  type: behavior
+  must: Offers from all providers of one search are compared together. An offer with a known item price and shipping
+    cost carries their total; a cheapest-first search orders by that total (item price when shipping is unknown, marked
+    as such), puts unpriced or other-currency offers after, and applies the requested limit only after ordering.
+  depends_on:
+  - examples.price_comparison
+- id: shopping-search.compare.condition
+  type: behavior
+  must: A search for new or used offers leaves out offers that state another condition (refurbished counts as used);
+    offers that state no condition stay. Location and radius reach the providers unchanged.
+  depends_on:
+  - examples.price_comparison
+- id: shopping-search.answer.identify-then-compare
+  type: behavior
+  must: For a product shown in a photo or described in text, the assistant first names the exact product (brand and
+    model), then searches with them, and answers with the cheapest offers, each with shop, total or item price plus
+    shipping note, condition and a link, and says when shipping is unknown or the exact product was not found.
+  depends_on:
+  - examples.price_comparison
+- id: shopping-search.providers.repeat-cached
+  type: behavior
+  must: An identical provider search (same package version, provider and input) within the cache lifetime is answered
+    from the shared cache without a new upstream request; errors are never cached and secrets never form part of the
+    key.
+  depends_on:
+  - examples.price_comparison
 - id: shopping-search.privacy.minimized
   type: privacy
   must: New unavailable product searches fail before private image resolution, provider disclosure or visual inference.
@@ -56,6 +95,7 @@ examples:
   file: examples.yml
   required_groups:
   - boundary_and_history
+  - price_comparison
 
 approval_source:
   instruction: The user approved the provider-boundary plan and requested implementation in the current Codex task

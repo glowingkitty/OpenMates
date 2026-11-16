@@ -7453,7 +7453,33 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         'Use separate entries for distinct user '
                                                         'requirements, not alternative sorts of '
                                                         'one visual requirement.\n',
-                                         'items': {'properties': {'category': {'description': 'Optional '
+                                         'items': {'properties': {'brand': {'description': 'Brand '
+                                                                                           'of one '
+                                                                                           'exact '
+                                                                                           'product '
+                                                                                           'to '
+                                                                                           'compare '
+                                                                                           'prices '
+                                                                                           'for, '
+                                                                                           'e.g. '
+                                                                                           '"Sony". '
+                                                                                           'Offers '
+                                                                                           'whose '
+                                                                                           'title '
+                                                                                           'lacks '
+                                                                                           'the '
+                                                                                           'brand '
+                                                                                           'are '
+                                                                                           'dropped. '
+                                                                                           'Omit '
+                                                                                           'for '
+                                                                                           'open '
+                                                                                           'product '
+                                                                                           'discovery.\n',
+                                                                            'maxLength': 80,
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
+                                                                  'category': {'description': 'Optional '
                                                                                               'product '
                                                                                               'category.',
                                                                                'enum': ['grocery',
@@ -7479,12 +7505,63 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'baby'],
                                                                                'type': 'string',
                                                                                'x-ui': {'basic': True}},
+                                                                  'condition': {'default': 'any',
+                                                                                'description': 'Offer '
+                                                                                               'condition: '
+                                                                                               '"used" '
+                                                                                               'for '
+                                                                                               'second-hand '
+                                                                                               'or '
+                                                                                               '"used '
+                                                                                               'nearby" '
+                                                                                               'questions, '
+                                                                                               '"new" '
+                                                                                               'when '
+                                                                                               'the '
+                                                                                               'user '
+                                                                                               'wants '
+                                                                                               'new, '
+                                                                                               'otherwise '
+                                                                                               '"any".\n',
+                                                                                'enum': ['any',
+                                                                                         'new',
+                                                                                         'used'],
+                                                                                'type': 'string',
+                                                                                'x-ui': {'basic': True}},
                                                                   'country': {'description': 'Optional '
                                                                                              'destination '
                                                                                              'country '
                                                                                              'code.',
                                                                               'type': 'string',
                                                                               'x-ui': {'basic': False}},
+                                                                  'location': {'description': 'Postal '
+                                                                                              'code '
+                                                                                              'or '
+                                                                                              'city '
+                                                                                              'for '
+                                                                                              'nearby '
+                                                                                              '(pickup) '
+                                                                                              'offers, '
+                                                                                              'e.g. '
+                                                                                              '"10115" '
+                                                                                              'or '
+                                                                                              '"Berlin". '
+                                                                                              'Only '
+                                                                                              'when '
+                                                                                              'the '
+                                                                                              'user '
+                                                                                              'names '
+                                                                                              'a '
+                                                                                              'place '
+                                                                                              'or '
+                                                                                              'asks '
+                                                                                              'for '
+                                                                                              'offers '
+                                                                                              'near '
+                                                                                              'them.\n',
+                                                                               'maxLength': 120,
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': True}},
                                                                   'max_price': {'description': 'Optional '
                                                                                                'maximum '
                                                                                                'price '
@@ -7542,6 +7619,43 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'currency.',
                                                                                 'type': 'number',
                                                                                 'x-ui': {'basic': False}},
+                                                                  'model': {'description': 'Model '
+                                                                                           'of one '
+                                                                                           'exact '
+                                                                                           'product, '
+                                                                                           'ideally '
+                                                                                           'its '
+                                                                                           'model '
+                                                                                           'number, '
+                                                                                           'e.g. '
+                                                                                           '"WH-1000XM5". '
+                                                                                           'Offers '
+                                                                                           'whose '
+                                                                                           'title '
+                                                                                           'lacks '
+                                                                                           'a '
+                                                                                           'model '
+                                                                                           'token '
+                                                                                           'with a '
+                                                                                           'digit '
+                                                                                           'are '
+                                                                                           'dropped, '
+                                                                                           'so '
+                                                                                           'accessories '
+                                                                                           'and '
+                                                                                           'neighbouring '
+                                                                                           'models '
+                                                                                           'do not '
+                                                                                           'appear '
+                                                                                           'as the '
+                                                                                           'cheapest '
+                                                                                           'offer. '
+                                                                                           'Omit '
+                                                                                           'when '
+                                                                                           'unknown.\n',
+                                                                            'maxLength': 120,
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'query': {'description': 'Search '
                                                                                            'query, '
                                                                                            'e.g. '
@@ -7553,6 +7667,18 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'mouse".\n',
                                                                             'type': 'string',
                                                                             'x-ui': {'basic': True}},
+                                                                  'radius_km': {'description': 'Search '
+                                                                                               'radius '
+                                                                                               'around '
+                                                                                               '`location` '
+                                                                                               'in '
+                                                                                               'km '
+                                                                                               '(default '
+                                                                                               '25).',
+                                                                                'maximum': 200,
+                                                                                'minimum': 1,
+                                                                                'type': 'integer',
+                                                                                'x-ui': {'basic': False}},
                                                                   'reference_images': {'description': 'Up '
                                                                                                       'to '
                                                                                                       'three '
@@ -7680,14 +7806,31 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                          'type': 'string',
                                                                                          'x-ui': {'basic': True}},
                                                                   'sort': {'default': 'relevance',
-                                                                           'description': 'Requested '
-                                                                                          'result '
-                                                                                          'ordering '
-                                                                                          'when '
-                                                                                          'product '
-                                                                                          'search '
-                                                                                          'becomes '
-                                                                                          'available.',
+                                                                           'description': 'Result '
+                                                                                          'order. '
+                                                                                          '"price_asc" '
+                                                                                          'returns '
+                                                                                          'offers '
+                                                                                          'from '
+                                                                                          'all '
+                                                                                          'shops '
+                                                                                          'cheapest '
+                                                                                          'first '
+                                                                                          'by '
+                                                                                          'total '
+                                                                                          'price '
+                                                                                          'including '
+                                                                                          'shipping; '
+                                                                                          'use it '
+                                                                                          'for '
+                                                                                          '"cheapest", '
+                                                                                          '"best '
+                                                                                          'price" '
+                                                                                          'and '
+                                                                                          '"where '
+                                                                                          'can I '
+                                                                                          'buy '
+                                                                                          'it".\n',
                                                                            'enum': ['relevance',
                                                                                     'price_asc',
                                                                                     'price_desc',

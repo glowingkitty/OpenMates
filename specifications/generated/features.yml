@@ -43,9 +43,9 @@ summary:
       in_progress: 10
       not_planned: 42
     rest_api:
-      live: 6
+      live: 5
       tested: 2
-      partial: 32
+      partial: 33
       failing: 16
       not_run: 23
       implemented: 17
@@ -16878,7 +16878,9 @@ features:
 - id: shopping
   name: Shopping
   kind: app
-  description: Product search is currently unavailable.
+  description: 'Product search through operator-installed providers: identify a product from a photo or text, compare the
+    exact product across providers by total price incl. shipping, new and used, with links; unavailable without an installed
+    provider.'
   specifications:
   - id: feature.app-skill.shopping-search
     status: draft
@@ -16892,7 +16894,7 @@ features:
     - app:shopping
     dev: enabled
     prod: enabled
-  assertions: 3
+  assertions: 8
   surfaces:
     web:
       status: partial
@@ -16901,13 +16903,14 @@ features:
       assertions:
         passing: 1
         failing: 0
-        not_run: 1
-        missing: 2
-        counted: 4
+        not_run: 4
+        missing: 4
+        counted: 9
       key_tests:
       - frontend/apps/web_app/tests/skill-shopping-search.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/components/shopping-product-gallery.spec.ts
+      - frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts
       - frontend/apps/web_app/tests/skill-shopping-images.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/embeds/shopping/shoppingProductImages.test.ts
@@ -16920,8 +16923,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 3
-        counted: 3
+        missing: 8
+        counted: 8
       key_tests: []
       evidence: apple/OpenMates/Sources/EmbedType shopping-product, ShoppingSearchIntent
       e2e_tests: []
@@ -16939,8 +16942,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 3
-        counted: 3
+        missing: 8
+        counted: 8
       key_tests: []
       evidence: openmates apps shopping search_products
       e2e_tests: []
@@ -16962,22 +16965,23 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: live
+      status: partial
       source: tests
       intent: implemented
       assertions:
         passing: 3
         failing: 0
-        not_run: 0
-        missing: 0
-        counted: 3
+        not_run: 4
+        missing: 1
+        counted: 8
       key_tests: []
       e2e_tests: []
       key_unit_tests:
+      - backend/tests/test_app_packages_price_comparison.py
       - backend/tests/test_shopping_visual_ranking.py
       - backend/tests/test_shopping_visual_metadata.py
       - backend/tests/test_main_processor_invalid_tool_calls.py
-      unit_test_files: 3
+      unit_test_files: 4
     sdk_npm:
       status: implemented
       source: intent
@@ -16986,8 +16990,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 3
-        counted: 3
+        missing: 8
+        counted: 8
       key_tests: []
       evidence: src/generated/appSkills.ts apps.shopping (generic skill call)
       e2e_tests: []
@@ -17001,8 +17005,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 3
-        counted: 3
+        missing: 8
+        counted: 8
       key_tests: []
       evidence: generated/app_skills.py apps.shopping (generic skill call)
       e2e_tests: []
