@@ -9503,6 +9503,8 @@ async def handle_main_processing(
                 # --- Hosted-Project code-run: the Project snapshot comes from the client ---
                 if app_id == "code" and skill_id == "run" and isinstance(parsed_args, dict):
                     from backend.apps.ai.processing import project_test_snapshot as _pts
+                    if active_project_focus:
+                        parsed_args = _pts.route_machine_test_run(parsed_args, active_project_sources)
                     if _pts.needs_snapshot(parsed_args) and active_project_focus and cache_service:
                         _snapshot = await _pts.take_snapshot(
                             cache_service,

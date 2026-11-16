@@ -747,3 +747,24 @@ def test_uncertain_boundary_logs_choices_and_question_id_only(caplog):
     assert "requirement_understood" in caplog.text and "'met', 0.2" in caplog.text
     assert "retaining phase: unreliable requirement_understood" in caplog.text
     assert "Skip remaining questions" not in caplog.text and "Proceed." not in caplog.text
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.phases
+def test_evaluator_sees_which_evidence_came_after_the_phase_began():
+    seen = {}
+
+    async def capture(**kwargs):
+        seen.update(kwargs["state"])
+        return await evaluator()(**kwargs)
+
+    entered = state().model_copy(update={"phase_id": "confirm", "entered_after_message_id": "turn-1"})
+    asyncio.run(evaluate_boundary(
+        focus(), entered, boundary="user", boundary_id="boundary-2", turn_id="turn-2",
+        latest_user="Confirmed.", secrets_manager=None, evaluator=capture,
+        messages=[{"role": "user", "message_id": "turn-1", "content": "Yes, go ahead."},
+                  {"role": "assistant", "message_id": "reply-1", "content": "Here is the profile."},
+                  {"role": "user", "message_id": "turn-2", "content": "Confirmed."}],
+    ))
+    assert [item["after_phase_start"] for item in seen["evidence"]] == [False, True, True]
+    assert seen["latest_user_message_after_phase_start"] is True
+    assert "entered_after_message_id" not in seen

@@ -48,6 +48,33 @@ async def take_snapshot(
     return snapshot
 
 
+def route_machine_test_run(arguments: Any, sources: list[dict[str, Any]]) -> Any:
+    """Send a test run without a target to the Project's machine source.
+
+    Tool contract (code app ``test_run.target``): an omitted target means the
+    connected source that grants run_command, else E2B. A Project whose files live
+    on its only remote source (created on the user's machine) has no hosted
+    snapshot, so its test run also goes to that source, where a missing
+    run_command grant is reported instead of collecting an empty snapshot again
+    and again. ``sources`` is the routing context of the active Project.
+    """
+    if not isinstance(arguments, dict):
+        return arguments
+    test_run = arguments.get("test_run")
+    if not isinstance(test_run, dict) or test_run.get("target") is not None or test_run.get("source_id"):
+        return arguments
+    from backend.apps.ai.processing.project_file_tools import default_operation_source_id
+
+    source_id = next(
+        (str(source["source_id"]) for source in sources
+         if "run_command" in set(source.get("capabilities") or [])),
+        None,
+    ) or default_operation_source_id(sources, "write_request")
+    if source_id is None:
+        return arguments
+    return {**arguments, "test_run": {**test_run, "target": "remote_source", "source_id": source_id}}
+
+
 def needs_snapshot(arguments: Any) -> bool:
     if not isinstance(arguments, dict):
         return False
