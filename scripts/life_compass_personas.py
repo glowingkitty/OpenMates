@@ -162,8 +162,9 @@ CHAT1_RUBRIC = {
 }
 
 FOLLOWUP_RUBRIC = {
-    "follow_up_context": "In the later chat the assistant recalls the agreed steps from the approved Memory or "
-                         "existing Tasks (or, when nothing was saved, does not pretend to know) and asks how they went.",
+    "follow_up_context": "In the later chat the assistant recalls the agreed steps from the approved Memory and asks "
+                         "how they went; when nothing was saved it says it has no saved notes, asks what the user "
+                         "tried and never guesses the earlier steps.",
     "follow_up_tone": "Progress is acknowledged concretely, missed steps are treated as information without guilt, "
                       "and the steps are adjusted with the user; one question per reply.",
     "no_invented_facts": "The assistant never states facts about the user that the user or the saved Memory did "

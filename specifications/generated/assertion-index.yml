@@ -129466,7 +129466,7 @@ assertions:
     current_direct_proof: false
   life-compass.follow-up:
     specification: feature.focus-modes.life-compass@1
-    fingerprint: df898c9b08ad364dd1c8a13ee6af27e86b882fb30f49878787735ee0586129ac
+    fingerprint: 6e8a8d470a3e3ee950fd50cf7d4902030acf4bcd7b6e6cfc411dd8fe6c9e52c6
     direct_tests:
     - &id16473
       path: frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts

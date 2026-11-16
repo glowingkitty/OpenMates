@@ -396,7 +396,7 @@ def test_active_life_compass_focus_keeps_tasks_and_reminder_skills_offered() -> 
     # "Yes, let's do those" reads as small talk to preprocessing; the todo skills stay offered.
     assert focus_offered_skill_scope(active_focus_id="life_coaching-life_compass", selected_skills=[],
                                      available_skills=available, exact_request=False) == [
-        "tasks-create", "tasks-search", "reminder-set-reminder"]
+        "tasks-create", "reminder-set-reminder"]
     # Where Tasks are disabled only the reminder fallback is offered.
     assert focus_offered_skill_scope(active_focus_id="life_coaching-life_compass", selected_skills=[],
                                      available_skills={"reminder-set-reminder"}, exact_request=False) == [

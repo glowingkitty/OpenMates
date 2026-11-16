@@ -65,8 +65,9 @@ LIFE_COMPASS_FOCUS_ID = "life_coaching-life_compass"
 # call them at moments preprocessing does not recognise as tool turns.
 FOCUS_OFFERED_SKILLS: dict[str, tuple[str, ...]] = {
     SPEC_AUTHORING_FOCUS_ID: ("plans-specification", "plans-check", "plans-create", "tasks-create"),
-    # Agreed next steps become Tasks (reminders where Tasks are off); follow-ups read existing Tasks.
-    LIFE_COMPASS_FOCUS_ID: ("tasks-create", "tasks-search", "reminder-set-reminder"),
+    # Agreed next steps become Tasks (reminders where Tasks are off). tasks-search is not offered:
+    # no client answers its pending search yet, so follow-ups recall steps from the approved Memory.
+    LIFE_COMPASS_FOCUS_ID: ("tasks-create", "reminder-set-reminder"),
 }
 
 

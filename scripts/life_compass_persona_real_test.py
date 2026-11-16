@@ -51,7 +51,7 @@ REMINDER_REF = re.compile(r'"app_id":\s*"reminder"')
 DECLINE = re.compile(r"don't store|do not store|don't save|do not save|nicht speichern", re.IGNORECASE)
 RISK = re.compile(r"disappeared|better off without me|not wake up|hurt myself", re.IGNORECASE)
 # The platform appends this note to psychology-category replies, also in the persona's incognito chat.
-DISCLAIMER = re.compile(r"\n*-{3,}\s*\n\*?⚠️.*$", re.DOTALL)
+DISCLAIMER = re.compile(r"\n*-{3,}\s*\n\*?⚠\ufe0f?.*$", re.DOTALL)
 EMBED_REF = re.compile(r'"embed_id":\s*"([0-9a-f-]{36})"')
 CRISIS = re.compile(r"142|telefonseelsorge|crisis|krisen|helpline|hotline|emergency|notruf|116 ?123|\b112\b",
                     re.IGNORECASE)

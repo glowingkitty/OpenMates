@@ -15,13 +15,14 @@ scope:
   - Consent-gated saving of background, strengths, issues and agreed steps as personal Memories through the
     existing assistant memory write.
   - Agreed next steps as Tasks assigned to the user, or reminders where Tasks are unavailable.
-  - Gentle follow-up in later chats from approved Memories and existing Tasks.
+  - Gentle follow-up in later chats from the approved Life compass Memory.
   - Behavior when wellbeing risk signals appear.
   excludes:
   - Therapy, diagnoses, medication, legal or financial advice.
   - The platform wellbeing layer itself (risk scoring, helpline card, crisis-provider API), owned by the safety work;
     this focus follows it.
   - New storage, routes or memory types; Crisis support focus content; production enablement.
+  - Finding earlier steps through Task search in chat (no client answers tasks-search yet).
 assertions:
 - id: life-compass.activation
   type: behavior
@@ -67,9 +68,11 @@ assertions:
   - examples.next_steps
 - id: life-compass.follow-up
   type: behavior
-  must: In a later chat with Life compass active, the assistant uses approved Memories and the user's existing Tasks
-    to ask briefly how the agreed steps went, without pressure or guilt; it celebrates progress, treats missed steps
-    as information, and adjusts, replaces or drops steps with the user. Context the user did not approve is not used.
+  must: In a later chat with Life compass active, the assistant uses the approved Life compass Memory to ask
+    briefly how the agreed steps went, without pressure or guilt; it celebrates progress, treats missed steps
+    as information, and adjusts, replaces or drops steps with the user. Without a loaded Memory it says it has no
+    saved notes and asks what the user tried, never guessing earlier steps. Context the user did not approve is
+    not used.
   depends_on:
   - examples.follow_up
 - id: life-compass.wellbeing
