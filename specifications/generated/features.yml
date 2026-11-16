@@ -18627,7 +18627,7 @@ features:
       - backend/tests/test_web_browse_transport.py
       - backend/tests/test_web_search_contract.py
       - scripts/tests/test_web_search_live_contract_surfaces.py
-      unit_test_files: 27
+      unit_test_files: 28
     sdk_npm:
       status: not_run
       source: tests

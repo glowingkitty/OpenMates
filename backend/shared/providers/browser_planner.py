@@ -10,6 +10,7 @@ take and which URLs may be opened.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
@@ -45,6 +46,9 @@ BLOCK_REASONS: dict[str, str] = {
 }
 
 REDACTED_MARK = "[redacted]"
+# Client-side privacy placeholders ([EMAIL_1_org], [PHONE_567], [CARD_111]):
+# the server never holds the real value, so typing one would enter a wrong one.
+PRIVACY_PLACEHOLDER = re.compile(r"\[[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*_[^\]\s]{1,16}\]")
 
 PLANNER_INSTRUCTIONS = (
     'Return only JSON {"notes":[{"fact":"...","quote":"..."}],"actions":[...],"done":false,"blocked":null}, '
@@ -74,7 +78,8 @@ PLANNER_INSTRUCTIONS = (
     "the visible questions are noted. Moving to the next form page (Next, Continue) is allowed when the goal asks "
     "for it. A final submit, send, start or apply button that hands the form over is sending: never click it unless "
     "the goal states the user explicitly confirmed submitting; otherwise set done once every given value is "
-    "entered. "
+    "entered. A value written as a bracketed placeholder such as [EMAIL_1_org] is hidden from you: never type "
+    "it, leave that field to the user and continue with the other given values. "
     "Never buy, send, delete, publish, change accounts or "
     "disclose secrets. When done or blocked, actions is []. Do not repeat actions that recent_results show made no progress. "
     "previous_plan_rejected, when present, says why your last reply was refused; correct exactly that."
@@ -310,6 +315,11 @@ def _action(raw: Any, controls: dict[str, dict[str, Any]]) -> dict[str, Any]:
         if not isinstance(raw["text"], str) or len(raw["text"]) > 2000:
             raise _reject(
                 "bad_field", "Typed text must be a string of at most 2000 characters."
+            )
+        if PRIVACY_PLACEHOLDER.search(raw["text"]):
+            raise _reject(
+                "bad_field",
+                "Typed text must not contain a privacy placeholder; the user types that value.",
             )
         action["text"] = raw["text"]
         if "submit" in raw:

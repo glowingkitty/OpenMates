@@ -4726,6 +4726,11 @@ class EmbedService(SlidesEmbedMixin):
             skill_id = decoded.get("skill_id")
             embed_type = decoded.get("type")
 
+            if app_id == "web" and skill_id == "browse":
+                # Screenshot bytes and metrics are client-only; keep the form view.
+                from backend.shared.python_utils.web_browse_llm_view import browse_embed_for_model
+                decoded = browse_embed_for_model(decoded)
+
             if embed_type == "authored_results":
                 # The actual typed children are expanded separately. Never repeat
                 # the raw authoring envelope or expose transport-only UUIDs.

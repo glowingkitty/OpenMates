@@ -15,6 +15,9 @@
  *  - the call duration counter runs;
  *  - the expected skill result shows (video search scenario);
  *  - a turn that pauses for a Memory approval still answers aloud after Include (memory scenario);
+ *  - a form started by a typed message continues by voice in the same chat: the spoken answer is
+ *    filled through the same Browse session and the spoken reply asks one question (form scenario;
+ *    the form link lives outside the repository in VOICE_CALL_FORM_PROMPT);
  *  - no error or warning notification appears, in particular not
  *    "canonical embed revision changed or is immutable".
  * Held out of isolated CI: real provider inference with the personal dev account.
@@ -27,6 +30,7 @@ const { expect, test } = require('@playwright/test');
 const {
   deleteActiveChat, loginToTestAccount, sendMessage, setChatSidebarOpen, startNewChat, waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
+const { expandActivity } = require('./helpers/assistant-activity');
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 const ENABLED = process.env.VOICE_CALL_REAL_DEV === '1';
@@ -44,7 +48,13 @@ interface Scenario {
   videos: boolean;
   /** Saves an ask-first Memory by a typed message first; the spoken question then needs it. */
   memory?: boolean;
+  /** Starts filling a web form by a typed message first; the call continues it in that chat. */
+  form?: boolean;
 }
+
+// The typed request with the form link (kept out of the repository; passed by the runner).
+const FORM_PROMPT = process.env.VOICE_CALL_FORM_PROMPT || '';
+const BROWSE_EMBED = '[data-testid="embed-preview"][data-app-id="web"][data-skill-id="browse"]';
 
 const MEMORY_TITLE = 'Job application profile';
 const MEMORY_SAVE_PROMPT = `Save a memory titled "${MEMORY_TITLE}" for my job applications: I work as a sales lead at `
@@ -62,6 +72,9 @@ const SCENARIOS: Scenario[] = [
   // must still be spoken in the Mate's voice.
   { slug: 'memory', question: 'Which employer should I mention in my cover letter? Use my saved job application profile memory.',
     heard: /cover letter/i, answer: /Example Retail/i, videos: false, memory: true },
+  // Marco's "fill a form together" flow by voice: one spoken answer, one spoken question back.
+  { slug: 'form', question: "I'm not sure. What would you suggest? Please go with your suggestion.",
+    heard: /suggest/i, answer: /\?/, videos: false, form: true },
 ];
 
 /** Settings > Memories rows titled MEMORY_TITLE (left over from an aborted run when non-empty). */
@@ -89,6 +102,18 @@ async function saveMemoryFirst(page: Page, log: any, screenshot: any): Promise<s
   log('memory saved for the voice question');
   await startNewChat(page, log);
   return chatId as string;
+}
+
+/** Typed first turn that opens the form with Browse; the call then continues in this chat. */
+async function startFormFirst(page: Page, log: any, screenshot: any) {
+  await startNewChat(page, log);
+  await sendMessage(page, FORM_PROMPT, log, screenshot, 'form-typed-request');
+  await waitForAssistantMessage(page, { which: 'last', timeout: 300_000, logCheckpoint: log });
+  await expect(page.getByTestId('stop-processing-button')).toHaveCount(0, { timeout: 300_000 });
+  await expandActivity(page);
+  await expect(page.getByTestId('message-assistant').last().locator(BROWSE_EMBED).first(),
+    'the typed form request opens the form with Browse').toBeVisible({ timeout: 30_000 });
+  log('form opened with Browse by the typed request');
 }
 
 /** Undo the save notice so reruns start clean, then delete that typed chat. */
@@ -175,7 +200,8 @@ for (const scenario of SCENARIOS) {
     // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.audio.localized-waiting,video-call.audio.spoken-rich-response
     test(`a spoken question in a new chat is transcribed, answered aloud${scenario.videos ? ' with videos' : ''} and raises no error`,
       async ({ page }: { page: Page }, testInfo: TestInfo) => {
-        test.setTimeout(420_000);
+        test.skip(Boolean(scenario.form) && !FORM_PROMPT, 'VOICE_CALL_FORM_PROMPT names no form request.');
+        test.setTimeout(scenario.form ? 900_000 : 420_000);
         expect(getTestAccount().email, 'test account credentials').toBeTruthy();
         expect(fs.existsSync(path.join(SPEECH_DIR, `${scenario.slug}.wav`)), 'generated speaker audio').toBe(true);
         await page.setViewportSize({ width: 1400, height: 1000 });
@@ -209,6 +235,8 @@ for (const scenario of SCENARIOS) {
         let memoryChatId: string | null = null;
         try {
           if (scenario.memory) memoryChatId = await saveMemoryFirst(page, log, screenshot);
+          if (scenario.form) await startFormFirst(page, log, screenshot);
+          const repliesBeforeCall = await page.getByTestId('message-assistant').count();
           const microphone = await page.evaluate(async () => {
             const devices = await navigator.mediaDevices.enumerateDevices();
             return devices.filter((device) => device.kind === 'audioinput').length;
@@ -252,8 +280,11 @@ for (const scenario of SCENARIOS) {
             log('memory approval included');
           }
 
+          // The spoken question gets its own new reply (the form chat already has one).
+          await expect.poll(async () => page.getByTestId('message-assistant').count(), { timeout: 240_000 })
+            .toBeGreaterThan(repliesBeforeCall);
           const reply = page.getByTestId('message-assistant').last();
-          await expect(reply).toContainText(scenario.answer, { timeout: 150_000 });
+          await expect(reply).toContainText(scenario.answer, { timeout: 240_000 });
           if (scenario.videos) {
             const videos = page.locator('[data-testid="embed-preview"][data-app-id="videos"]');
             await expect(videos.first()).toBeVisible({ timeout: 180_000 });
@@ -281,9 +312,12 @@ for (const scenario of SCENARIOS) {
           log(`played audio: ${JSON.stringify(played.map((entry) => ({
             src: entry.src.startsWith('blob:') ? 'blob' : entry.src.replace(/^https?:\/\/[^/]+/, '').split('?')[0], seconds: Math.round(entry.maxTime * 10) / 10 })))}`);
           log(`acknowledgements: ${JSON.stringify(acknowledgementUrls.map((url) => url.replace(/^https?:\/\/[^/]+/, '')))}; clip downloads: ${JSON.stringify(clipDownloads)}`);
-          expect(acknowledgementUrls.filter((url) => url.includes(`${ACK_ROOT}system/`)),
-            'a new chat confirms once with the neutral system clip').toHaveLength(1);
-          expect(clipDownloads.some((url) => url.includes(`${ACK_ROOT}system/`)), 'the system clip is fetched for playback').toBe(true);
+          if (!scenario.form) {
+            // Only a call that starts a new chat confirms with the system clip.
+            expect(acknowledgementUrls.filter((url) => url.includes(`${ACK_ROOT}system/`)),
+              'a new chat confirms once with the neutral system clip').toHaveLength(1);
+            expect(clipDownloads.some((url) => url.includes(`${ACK_ROOT}system/`)), 'the system clip is fetched for playback').toBe(true);
+          }
           expect([...acknowledgementUrls, ...clipDownloads].filter((url) => MATE_WAITING_CLIP.test(url)),
             'no guessed Mate waiting clip').toHaveLength(0);
           const speech = played.filter((entry) => !entry.src.includes(ACK_ROOT));
@@ -293,6 +327,14 @@ for (const scenario of SCENARIOS) {
           const timerNow = await timerSeconds(page);
           log(`call duration: ${timerAtStart}s -> ${timerNow}s`);
           expect(timerNow, 'call duration counter runs').toBeGreaterThan(timerAtStart + 5);
+          if (scenario.form) {
+            await expandActivity(page);
+            const browse = await reply.locator(BROWSE_EMBED).count();
+            const questions = ((await reply.innerText()).match(/\?/g) || []).length;
+            log(`form voice reply: browse embeds ${browse}; question marks ${questions}`);
+            expect(browse, 'the spoken answer is filled through Browse in the same chat').toBeGreaterThan(0);
+            expect(questions, 'one question per spoken turn').toBeLessThanOrEqual(2);
+          }
           const generatedBy = reply.getByTestId('generated-by');
           if (await generatedBy.isVisible().catch(() => false)) log(`reply generated by: ${(await generatedBy.textContent())?.trim()}`);
           await snap(page, testInfo, `${scenario.slug}-05-answered`);

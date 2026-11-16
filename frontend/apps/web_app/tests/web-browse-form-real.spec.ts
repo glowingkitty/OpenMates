@@ -27,6 +27,7 @@ import type { Page } from '@playwright/test';
 
 const fs = require('fs');
 const { expect, test } = require('./helpers/cookie-audit');
+const { expandActivity } = require('./helpers/assistant-activity');
 const {
 	focusMessageEditor,
 	loginToTestAccount,
@@ -110,8 +111,10 @@ function personaAnswer(item: FormCase, question: string, used: Set<number>): str
 	return item.answers[index].answer;
 }
 
+const BROWSE_EMBED = '[data-testid="embed-preview"][data-app-id="web"][data-skill-id="browse"]';
+
 async function browseEmbeds(answer: any): Promise<number> {
-	return answer.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="browse"]').count();
+	return answer.locator(BROWSE_EMBED).count();
 }
 
 test.describe('web browse form with the user (real dev inference)', () => {
@@ -141,8 +144,12 @@ test.describe('web browse form with the user (real dev inference)', () => {
 			await send(page, message);
 			await waitForAssistantMessage(page, { which: 'last', timeout: TURN_TIMEOUT_MS, logCheckpoint: log });
 			await waitForIdle(page);
+			// A finished reply folds its Browse embed into the activity summary; open it so the
+			// recording shows the browser view with what is filled.
+			await expandActivity(page);
 			const answer = page.getByTestId('message-assistant').last();
-			await answer.scrollIntoViewIfNeeded();
+			const browseEmbed = answer.locator(BROWSE_EMBED).last();
+			await (((await browseEmbed.count()) > 0) ? browseEmbed : answer).scrollIntoViewIfNeeded();
 			const text = (await answer.innerText()).trim();
 			const record = {
 				turn,

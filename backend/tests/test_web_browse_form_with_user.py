@@ -14,6 +14,10 @@ from backend.apps.ai.processing.browse_routing import (
 from backend.core.api.app.services.web_browse_evidence import form_view
 from backend.core.api.app.services.web_browse_service import user_given_url
 from backend.shared.providers.browser_planner import PlanInvalid, validate_plan
+from backend.shared.python_utils.web_browse_llm_view import (
+    browse_embed_for_model,
+    browse_result_for_model,
+)
 
 SKILLS = ["web-search", "web-read", "web-browse"]
 FORM_URL = "https://forms.example.org/matching-form?event=founder-matching"
@@ -116,3 +120,64 @@ def test_result_shows_the_users_own_start_url_instead_of_its_redacted_observatio
 def test_planner_cannot_navigate_to_a_redacted_url(url):
     with pytest.raises(PlanInvalid):
         validate_plan({"actions": [{"kind": "goto", "url": url}]}, {"controls": []})
+
+
+EMAIL_FIELD = {"controls": [{"id": "c1", "kind": "type", "label": "Email address"}]}
+
+
+@pytest.mark.parametrize("text", ["[EMAIL_1_org]", "Contact: [PHONE_567]", "[CARD_111]"])
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user
+def test_planner_never_types_a_privacy_placeholder(text):
+    with pytest.raises(PlanInvalid):
+        validate_plan({"actions": [{"kind": "type", "target": "c1", "text": text}]}, EMAIL_FIELD)
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user
+def test_planner_types_an_ordinary_answer():
+    plan = validate_plan(
+        {"actions": [{"kind": "type", "target": "c1", "text": "alex.rivera.demo@example.org"}]}, EMAIL_FIELD
+    )
+    assert plan["actions"][0]["text"] == "alex.rivera.demo@example.org"
+
+
+FORM = [{"label": "Email address", "kind": "type", "value": ""}]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user
+def test_answer_turn_gets_the_form_view_but_no_screenshot_or_metrics():
+    payload = {
+        "status": "needs_user",
+        "data": None,
+        "observations": {"form": FORM, "text": "unverified page text"},
+        "screenshot_base64": "A" * 60000,
+        "screenshot_ref": {"embed_id": "s1"},
+        "metrics": {"steps": 3},
+    }
+    assert browse_result_for_model(payload) == {
+        "status": "needs_user",
+        "data": None,
+        "observations": {"form": FORM},
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user
+def test_saved_browse_embed_reaches_history_without_screenshot_bytes():
+    saved = {
+        "app_id": "web",
+        "skill_id": "browse",
+        "embed_ref": "browse-form-abc",
+        "results": [
+            {
+                "status": "completed",
+                "data_json": "{}",
+                "observations_form": FORM,
+                "observations_text": "page text",
+                "screenshot_base64": "A" * 60000,
+                "screenshot_ref_embed_id": "s1",
+                "metrics_steps": 3,
+            }
+        ],
+    }
+    view = browse_embed_for_model(saved)
+    assert view["embed_ref"] == "browse-form-abc"
+    assert view["results"] == [{"status": "completed", "data_json": "{}", "observations_form": FORM}]
