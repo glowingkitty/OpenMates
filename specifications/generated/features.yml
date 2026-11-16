@@ -11509,8 +11509,8 @@ features:
       assertions:
         passing: 6
         failing: 1
-        not_run: 11
-        missing: 17
+        not_run: 12
+        missing: 16
         counted: 35
       failing_tests:
       - frontend/apps/web_app/tests/skill-code-docs.spec.ts
@@ -11530,11 +11530,11 @@ features:
       - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/codeRunService.test.ts
+      - backend/tests/test_remote_command_service.py
       - frontend/packages/ui/src/components/embeds/code/__tests__/codeRunSupport.test.ts
       - frontend/packages/ui/src/config/__tests__/apiProjectFileCapability.test.ts
       - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
-      - frontend/packages/ui/src/services/__tests__/browserRemoteCommandClient.test.ts
-      unit_test_files: 11
+      unit_test_files: 12
     apple:
       status: partial
       source: tests

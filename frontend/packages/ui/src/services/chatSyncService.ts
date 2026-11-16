@@ -1145,8 +1145,12 @@ export class ChatSynchronizationService extends EventTarget {
       return;
     try {
       await this.remoteCommandClient[kind](payload);
-    } catch {
-      console.warn(`[ChatSyncService] Remote command ${kind} event failed`);
+    } catch (error) {
+      // The reason is a fixed validation/state code (never command text), so a
+      // review that cannot be shown is diagnosable instead of silently lost.
+      console.warn(
+        `[ChatSyncService] Remote command ${kind} event failed: ${error instanceof Error ? error.message : "unknown"}`,
+      );
     }
   }
 

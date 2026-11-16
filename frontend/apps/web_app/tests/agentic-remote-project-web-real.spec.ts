@@ -24,7 +24,7 @@ const { getTestAccount } = require('./signup-flow-helpers');
 const { expandActivity } = require('./helpers/assistant-activity');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
-const STORAGE_DIAGNOSTIC = /CLIENT_DECRYPT|decryption failed|DUPLICATE PREVENTED|replaceMessageById|replaced a stale local segment|Final AI message|recover|Conflict|sealed|interim|Skipping content regression|could not be applied/i;
+const STORAGE_DIAGNOSTIC = /CLIENT_DECRYPT|decryption failed|DUPLICATE PREVENTED|replaceMessageById|replaced a stale local segment|Final AI message|recover|Conflict|sealed|interim|Skipping content regression|could not be applied|Remote command/i;
 
 const L = ['web-laptop'];
 const B = ['web-laptop', 'web-phone'];

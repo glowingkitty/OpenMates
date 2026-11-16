@@ -14,6 +14,7 @@ from backend.core.api.app.services.remote_command_service import (
     RemoteCommandError,
     RemoteCommandService,
     explain_remote_command,
+    normalize_remote_command_explanation,
 )
 from backend.shared.providers.typesafe.models import DecisionResponse
 
@@ -412,9 +413,35 @@ async def test_explanation_call_is_isolated_and_fixed_to_flash_lite() -> None:
         caller=caller,
     )
     assert result["summary"] == "Runs tests"
+    # Every client validates uncertainty as a list; a single string becomes one item.
+    assert result["uncertainty"] == ["Indirect scripts may change."]
+    schema = captured["tool_definition"]["function"]["parameters"]["properties"]["uncertainty"]
+    assert schema["type"] == "array"
     assert captured["model_id"] == "google/gemini-3.5-flash-lite"
     assert captured["fallback_models"] == []
     assert len(captured["message_history"]) == 1
     serialized = repr(captured["message_history"])
     assert "test script body" in serialized
     assert "Project focus" not in serialized
+
+
+# contract-test: supporting surface=gui.web assertions=code-run.remote.explanation,code-run.remote.explicit-approval
+def test_explanation_is_normalized_to_the_review_contract_shape() -> None:
+    explanation = normalize_remote_command_explanation(
+        {"summary": "Runs tests", "effects": "Writes coverage files", "risks": None, "uncertainty": ["a", "b"]}
+    )
+    assert explanation == {
+        "summary": "Runs tests", "effects": ["Writes coverage files"], "risks": [], "uncertainty": ["a", "b"],
+    }
+
+
+# contract-test: supporting surface=gui.web assertions=code-run.remote.explanation,code-run.remote.explicit-approval
+@pytest.mark.parametrize("arguments", [
+    {"summary": "", "effects": [], "risks": [], "uncertainty": []},
+    {"summary": "Runs tests", "effects": [1], "risks": [], "uncertainty": []},
+    {"summary": "Runs tests", "effects": [], "risks": {"a": 1}, "uncertainty": []},
+])
+def test_explanation_no_client_can_show_is_refused(arguments) -> None:
+    with pytest.raises(RemoteCommandError) as error:
+        normalize_remote_command_explanation(arguments)
+    assert error.value.code == "command_explanation_unavailable"
