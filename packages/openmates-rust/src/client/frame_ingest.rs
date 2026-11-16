@@ -13,6 +13,25 @@
 use super::*;
 use crate::view_model::{classify_socket_event, SocketEventOwner};
 
+/// Server receipts that only advance a chat's `messages_v` (no content).
+///
+/// Their features (calls, system messages, queued follow-ups, message deletion)
+/// are still shell-owned, so [`classify_socket_event`] names them `Shell` and the
+/// socket keeps forwarding them to the shell. The core still applies their
+/// version so a turn it commits next uses the current baseline. The first three
+/// carry the authoritative chat version in `messages_v` only (a call's
+/// per-message `revision` is no substitute); the rest use
+/// `versions.messages_v`, `new_messages_v` or `messages_v`.
+pub(crate) const VERSION_RECEIPT_FRAMES: &[&str] = &[
+    "call_message_confirmed",
+    "call_message_changed",
+    "system_message_confirmed",
+    "message_deleted",
+    "message_queued",
+    "queued_message_status",
+    "queued_message_updated",
+];
+
 /// One chat whose row or history changed while ingesting frames.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -147,7 +166,8 @@ impl Client {
                 ignored += 1;
                 continue;
             };
-            if classify_socket_event(kind) == SocketEventOwner::Shell || !self.frame_in_scope(payload) {
+            let receipt = VERSION_RECEIPT_FRAMES.contains(&kind);
+            if (!receipt && classify_socket_event(kind) == SocketEventOwner::Shell) || !self.frame_in_scope(payload) {
                 ignored += 1;
                 continue;
             }
@@ -205,6 +225,19 @@ impl Client {
                 if version.is_none() {
                     return Ok(None);
                 }
+                raise_version(row, "messages_v", version);
+                Ok(Some(chat))
+            }
+            k if VERSION_RECEIPT_FRAMES.contains(&k) => {
+                let direct = matches!(k, "call_message_confirmed" | "call_message_changed" | "system_message_confirmed");
+                let version = if direct {
+                    payload["messages_v"].as_u64()
+                } else {
+                    versions["messages_v"].as_u64()
+                        .or_else(|| payload["new_messages_v"].as_u64())
+                        .or_else(|| payload["messages_v"].as_u64())
+                };
+                let (Some(row), Some(_)) = (self.chats.get_mut(&chat), version) else { return Ok(None) };
                 raise_version(row, "messages_v", version);
                 Ok(Some(chat))
             }

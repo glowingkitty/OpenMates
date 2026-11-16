@@ -31,12 +31,18 @@ export interface SocketFrameSink {
 	admit(chatId: string, teamId: string | null): Promise<ChatAdmission>;
 }
 
-/** Frame types the core applies (mirror of `client/frame_ingest.rs`). */
+/** Frame types the core applies (mirror of `client/frame_ingest.rs`, incl. its `VERSION_RECEIPT_FRAMES`). */
 const APPLIED_TYPES: ReadonlySet<string> = new Set([
 	'new_chat_message', 'chat_message_added', 'team_chat_message_created', 'ai_message_ready', 'ai_message_update',
 	'chat_message_confirmed', 'chat_turn_preflight_ack', 'chat_turn_admit', 'chat_title_updated',
-	'encrypted_chat_metadata', 'chat_deleted'
+	'encrypted_chat_metadata', 'chat_deleted',
+	// messages_v receipts of shell-owned features (calls, system messages, queued follow-ups, deletion)
+	'call_message_confirmed', 'call_message_changed', 'system_message_confirmed', 'message_deleted',
+	'message_queued', 'queued_message_status', 'queued_message_updated'
 ]);
+
+/** Longest one forward-chain link (an ingest batch or an admission) may hold the chain. */
+const CHAIN_LINK_MAX_MS = 8_000;
 
 let sink: SocketFrameSink | null = null;
 let queued: Record<string, unknown>[] = [];
@@ -105,7 +111,8 @@ function flush(): void {
 	queued = [];
 	for (let start = 0; start < frames.length; start += SOCKET_FRAME_MAX_COUNT) {
 		const batch = frames.slice(start, start + SOCKET_FRAME_MAX_COUNT);
-		tail = tail.then(() => send(batch));
+		// Each link is bounded: one Worker request that never answers must not stall every later forward.
+		tail = tail.then(() => bounded(send(batch), undefined, CHAIN_LINK_MAX_MS, 'ingest_timeout').catch((error: unknown) => logOnce(failureCode(error))));
 	}
 }
 
@@ -119,10 +126,20 @@ export function forwardSocketFrame(frame: unknown): void {
 	if (!scheduled) { scheduled = true; queueMicrotask(flush); }
 }
 
+/**
+ * Admission stage on `<html data-rust-core-admit>` (fixed codes only), so an E2E
+ * that sees a stalled call can tell where: `sink`, `server_session`, `chain`
+ * (behind earlier forwarded frames), `request` (Worker op in flight), `ok`, or
+ * `failed:<code>`.
+ */
+function markAdmit(stage: string): void {
+	if (typeof document !== 'undefined') document.documentElement.dataset.rustCoreAdmit = stage;
+}
+
 /** Admission on the forward chain (behind every frame already queued); emits `chatWindowChanged`. */
 async function admitOnChain(chatId: string, teamId: string | null): Promise<ChatAdmission> {
-	const run = tail.then(() => admitWithRetry(chatId, teamId));
-	tail = run.then(() => undefined, () => undefined);
+	const run = tail.then(() => { markAdmit('request'); return admitWithRetry(chatId, teamId); });
+	tail = bounded(run, undefined, CHAIN_LINK_MAX_MS, 'admit_timeout').then(() => undefined, () => undefined);
 	const admission = await run;
 	emitChatWindowChanged({ chatId: admission.chatId, messagesV: admission.messagesV });
 	return admission;
@@ -138,13 +155,16 @@ export async function admitChatInRustCore(chatId: string, teamId: string | null)
  * Why a chat was not admitted. `flag_off`: not the Rust build; `no_sink`: no Rust
  * history session registered within the wait; `local_only`: the server-checked
  * session could not be reached and only the local-read-only one is live;
- * `no_session`: no session at all; `server_session_timeout`; `cancelled`;
+ * `no_session`: no session at all; `server_session_timeout`; `admit_timeout`
+ * (the admission itself did not settle within `ADMIT_CHAT_WAIT_MS`); `cancelled`;
  * otherwise the core's typed failure code (`chat_unknown`, `forbidden`, ...).
  */
 export type ChatAdmissionOutcome = { ok: true; admission: ChatAdmission } | { ok: false; reason: string };
 
 export const ADMIT_SINK_WAIT_MS = 5_000;
 export const ADMIT_SERVER_SESSION_WAIT_MS = 10_000;
+/** Overall bound of the admission itself (chain wait + Worker op + retries). */
+export const ADMIT_CHAT_WAIT_MS = 8_000;
 
 /** Settles with `run`, or rejects `cancelled` on abort / `timeoutCode` past `ms`. */
 function bounded<T>(run: Promise<T>, signal: AbortSignal | undefined, ms: number, timeoutCode: string, cleanup: () => void = () => undefined): Promise<T> {
@@ -172,10 +192,19 @@ function waitForSink(signal: AbortSignal | undefined): Promise<SocketFrameSink> 
  * session, then admits on the forward chain. Never throws.
  */
 export async function admitChatInRustCoreDetailed(chatId: string, teamId: string | null, signal?: AbortSignal): Promise<ChatAdmissionOutcome> {
+	const outcome = await admitDetailed(chatId, teamId, signal);
+	// The non-strict tsconfig does not narrow the union on `ok`; narrow by field.
+	markAdmit('reason' in outcome ? `failed:${outcome.reason}` : 'ok');
+	return outcome;
+}
+
+async function admitDetailed(chatId: string, teamId: string | null, signal: AbortSignal | undefined): Promise<ChatAdmissionOutcome> {
 	if (!rustBuild()) return { ok: false, reason: 'flag_off' };
 	let active: SocketFrameSink;
+	markAdmit('sink');
 	try { active = await waitForSink(signal); } catch (error) { return { ok: false, reason: failureCode(error) }; }
 	if (!active.hasServerSession()) {
+		markAdmit('server_session');
 		try {
 			await bounded(active.ensureServerSession(), signal, ADMIT_SERVER_SESSION_WAIT_MS, 'server_session_timeout');
 		} catch (error) {
@@ -187,7 +216,10 @@ export async function admitChatInRustCoreDetailed(chatId: string, teamId: string
 		if (!active.hasServerSession()) return { ok: false, reason: active.hasLocalSession() ? 'local_only' : 'no_session' };
 	}
 	if (signal?.aborted) return { ok: false, reason: 'cancelled' };
-	try { return { ok: true, admission: await admitOnChain(chatId, teamId) }; } catch (error) {
+	markAdmit('chain');
+	try {
+		return { ok: true, admission: await bounded(admitOnChain(chatId, teamId), signal, ADMIT_CHAT_WAIT_MS, 'admit_timeout') };
+	} catch (error) {
 		const code = failureCode(error);
 		logOnce(code);
 		return { ok: false, reason: code };

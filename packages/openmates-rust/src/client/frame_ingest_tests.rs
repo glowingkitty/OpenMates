@@ -91,6 +91,23 @@ async fn ack_and_confirmation_raise_messages_v_forward_only() {
 }
 
 #[tokio::test]
+async fn call_and_queue_receipts_raise_messages_v_only_from_their_version_field() {
+    let mut c = known();
+    let frames = [
+        json!({"type":"call_message_confirmed","payload":{"chat_id":CHAT,"request_id":"r1","revision":99,"messages_v":4}}),
+        json!({"type":"call_message_changed","payload":{"chat_id":CHAT,"revision":120}}),
+        json!({"type":"message_queued","payload":{"chat_id":CHAT,"versions":{"messages_v":5}}}),
+        json!({"type":"message_deleted","payload":{"chat_id":CHAT,"new_messages_v":6}}),
+        json!({"type":"call_message_changed","payload":{"chat_id":CHAT,"messages_v":3}}),
+    ];
+    let summary = c.ingest_socket_frames(&frames).await.unwrap();
+    assert_eq!(summary.ignored, 1, "a call receipt without messages_v is not applied; revision is no substitute");
+    assert_eq!(summary.applied_seq, 4);
+    assert_eq!(c.chats[CHAT]["messages_v"], 6, "versions only move forward");
+    assert!(c.history.get(CHAT).is_none_or(Vec::is_empty), "receipts never add history rows");
+}
+
+#[tokio::test]
 async fn title_update_changes_the_row_and_metadata_version() {
     let mut c = known();
     let frame = json!({"event":"chat_title_updated","chat_id":CHAT,"data":{"encrypted_title":"t2"},"versions":{"metadata_v":7}});

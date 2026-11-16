@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { validRequest, validResponse } from '../protocol';
 import { onChatWindowChanged } from '../chatWindowEvents';
-import { ADMIT_SINK_WAIT_MS, admitChatInRustCore, admitChatInRustCoreDetailed, forwardSocketFrame, isCoreAppliedFrame, registerSocketFrameSink, settleSocketFrameForwards } from '../socketFrameForwarder';
+import { ADMIT_CHAT_WAIT_MS, ADMIT_SINK_WAIT_MS, admitChatInRustCore, admitChatInRustCoreDetailed, forwardSocketFrame, isCoreAppliedFrame, registerSocketFrameSink, settleSocketFrameForwards } from '../socketFrameForwarder';
 import type { SocketFrameSink } from '../socketFrameForwarder';
 import { dispatch } from '../workerDispatch';
 import { drainPendingSocketFrames, newSocketQueue } from '../workerSocketQueue';
@@ -134,6 +134,28 @@ describe('socket frame forwarding', () => {
 		vi.stubEnv('VITE_OPENMATES_RUST_CORE', '0');
 		expect(await admitChatInRustCoreDetailed(CHAT, null)).toEqual({ ok: false, reason: 'flag_off' });
 		warn.mockRestore();
+	});
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('detailed admission is bounded overall and marks the stage it stalled in', async () => {
+		vi.useFakeTimers();
+		try {
+			(sink.admit as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(() => undefined));
+			const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+			const stalled = admitChatInRustCoreDetailed(CHAT, null);
+			await vi.advanceTimersByTimeAsync(10);
+			expect(document.documentElement.dataset.rustCoreAdmit).toBe('request');
+			await vi.advanceTimersByTimeAsync(ADMIT_CHAT_WAIT_MS);
+			expect(await stalled).toEqual({ ok: false, reason: 'admit_timeout' });
+			expect(document.documentElement.dataset.rustCoreAdmit).toBe('failed:admit_timeout');
+			warn.mockRestore();
+		} finally { vi.useRealTimers(); }
+	});
+	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
+	it('forwards the messages_v receipts of calls, system messages and queued follow-ups', async () => {
+		for (const type of ['call_message_confirmed', 'call_message_changed', 'system_message_confirmed', 'message_deleted',
+			'message_queued', 'queued_message_status', 'queued_message_updated']) {
+			expect(isCoreAppliedFrame({ type, payload: { chat_id: CHAT, messages_v: 3 } }), type).toBe(true);
+		}
 	});
 	// contract-test: supporting surface=gui.web assertions=sdk.client.thin-platform-boundary
 	it('detailed admission waits a bounded time for the sink to register', async () => {

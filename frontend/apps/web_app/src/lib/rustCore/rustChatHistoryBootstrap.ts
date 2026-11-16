@@ -261,7 +261,11 @@ export function installRustChatHistory(): () => void {
 		hasLocalSession: () => !!local && !local.signal.aborted,
 		ensureServerSession: () => ensureSession().then(() => undefined),
 		ingest: (frames) => enqueue(() => session && !session.signal.aborted ? session.ingestSocketFrames(frames) : Promise.reject(new Error('session_expired'))),
-		admit: (chatId, teamId) => enqueue(() => session && !session.signal.aborted ? session.admitChat(chatId, teamId) : Promise.reject(new Error('session_expired')))
+		admit: (chatId, teamId) => enqueue(() => {
+			// Admission stage marker (see socketFrameForwarder.markAdmit): past the page read queue, Worker op in flight.
+			document.documentElement.dataset.rustCoreAdmit = 'worker';
+			return session && !session.signal.aborted ? session.admitChat(chatId, teamId) : Promise.reject(new Error('session_expired'));
+		})
 	});
 	const uninstall = installRustChatHistorySource({
 		readWindow: ({ chatId, anchorMessageId }) => enqueue(() => read(chatId, anchorMessageId)),
