@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.language-preferences
 version: 1
-status: draft
+status: approved
 title: Website and Web App Language Preferences
 summary: Website and web-app visitors receive their selected or best-supported browser language from the first visible text, with consistent manual controls and localized German content.
 scope:

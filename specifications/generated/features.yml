@@ -5678,7 +5678,7 @@ features:
   description: Website and web app open in the selected or best-supported browser language.
   specifications:
   - id: feature.language-preferences
-    status: draft
+    status: approved
     path: specifications/features/language-preferences
   apps: []
   product_features: []

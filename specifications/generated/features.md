@@ -2987,7 +2987,7 @@ Outside systems react to OpenMates events and workflow updates.
 
 Website and web app open in the selected or best-supported browser language.
 
-- Specifications: [feature.language-preferences](../../specifications/features/language-preferences/specification.yml) (draft) · 5 assertion(s)
+- Specifications: [feature.language-preferences](../../specifications/features/language-preferences/specification.yml) (approved) · 5 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.5.0-alpha
 
 <details><summary>Tests per surface</summary>
