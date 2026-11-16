@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-15'
-generated_at: '2026-11-16T00:20:51+00:00'
+generated_at: '2026-11-16T00:50:57+00:00'
 range:
   since: '2026-11-15T00:00:00+00:00'
   until: '2026-11-16T00:00:00+00:00'
@@ -5969,38 +5969,55 @@ sources:
     related_feature_ids:
     - app:ai
 llm_summary:
-  overview: OpenMates focused on heavy development of the Slides application and Project management features, alongside significant
-    progress toward Apple platform parity. The project also hardened its infrastructure with a new public status page, automated
-    backups, and enhanced AI safety pipelines.
+  overview: 'Work on November 15 focused on three major unreleased pillars: the new Slides application, the Project Timeline
+    for version control, and achieving feature parity for the Apple native apps. Significant progress was also made on infrastructure
+    hardening, including a new public status page, enhanced image safety pipelines, and automated production backup systems.
+    Core AI improvements targeted response latency through advanced context caching and parallelized preprocessing.'
   released_changes: []
   bug_fixes:
-  - text: Project mentions in chat now correctly display access chip labels instead of empty pills.
+  - text: Chat interface fixes ensure Project mentions display correct access labels and metadata follows the user's UI language
+      preferences.
     evidence:
       commits:
       - b158c1a93e
+      - f134d4effb
+      - 867ed826e5
     release_status: dev_only
-  - text: Focus mode continuations now maintain chat ownership and client capabilities, ensuring persistent access to Project
-      file tools.
+  - text: Focus mode continuations now correctly retain client capabilities and chat ownership, allowing persistent access
+      to file tools in AI-driven sessions.
     evidence:
       commits:
       - 92aa167fb4
       - f50c16793a
       - e674e9cf09
+      - 6ed4dbb498
     release_status: dev_only
-  - text: AI-driven diff edits were improved to handle escaped quotes and ambiguous line numbers more reliably.
+  - text: Refinements to travel and calendar results include station-local time displays, sticky calendar axes, and improved
+      reuse of connection cards in authored results.
+    evidence:
+      commits:
+      - f8d5039e36
+      - 69e58d3cf0
+      - ff7331e42a
+    release_status: dev_only
+  - text: AI processing updates fix issues with single-result skill embeds in anonymous chats and improve the accuracy of
+      Gemini stream usage logging.
+    evidence:
+      commits:
+      - 88af4a8158
+      - 9a6670b74f
+      - 6c2256499d
+    release_status: dev_only
+  - text: AI diff editing logic now handles escaped quotes and unique line contexts more robustly when applying patches to
+      stored embeds.
     evidence:
       commits:
       - e351b3db7d
       - 995afd8de4
     release_status: dev_only
-  - text: Chat metadata and early titles now correctly follow the user's displayed UI language.
-    evidence:
-      commits:
-      - 867ed826e5
-    release_status: dev_only
   unreleased_progress:
-  - text: The Slides app added a template designer, presentation planner, and a library of built-in templates with 'Apply'
-      functionality.
+  - text: The Slides application added a template library, presentation planner focus modes, and a designer that allows for
+      iterative refinement of slide decks.
     evidence:
       commits:
       - 43ae33ea1f
@@ -6008,18 +6025,22 @@ llm_summary:
       - 5128c79eab
       - 60fc15e6f8
       - 2d93f990d1
+      - 30d44c23c9
     release_status: dev_only
-  - text: A new Project Timeline tab was implemented, allowing users to restore previous commits across web, Apple, and CLI
-      interfaces.
+  - text: Project management capabilities were expanded with a Timeline tab for commit restoration and improved support for
+      running assistant file jobs on remote machine folders.
     evidence:
       commits:
       - a1174eb203
       - 12e0af807a
+      - 4d3ef58b29
+      - d3e6e0a27e
       - 583c4994e1
       - b86778d65d
+      - e492935f83
     release_status: dev_only
-  - text: Apple platform parity was advanced with call timers, voice event notices, and improved rendering for code and task
-      embeds.
+  - text: Native Apple app development achieved parity with web features for voice call event notices, fullscreen embed layouts,
+      and translated assistant speech bars.
     evidence:
       commits:
       - 1ae0a8cb2e
@@ -6028,75 +6049,107 @@ llm_summary:
       - d48f7da03e
       - 14a8602333
     release_status: dev_only
-  - text: The web application's authentication sessions and settings were migrated to run exclusively on the shared Rust client
+  - text: The web application's authentication and settings logic began migrating to run exclusively on the shared Rust client
       core.
     evidence:
       commits:
       - 1c9cda9073
+      - b81d270143
+    release_status: dev_only
+  - text: The 'Write Specification' focus mode for the Code app was refined to better handle drafting phases, though it remains
+      disabled in production.
+    evidence:
+      commits:
+      - 73ffae68f0
     release_status: dev_only
   internal_progress:
-  - text: OpenMates established an external uptime monitor and public status page hosted on UpCloud.
+  - text: OpenMates established an external uptime monitor and public status page infrastructure, utilizing UpCloud hosting
+      and automated Vault-based setup.
     evidence:
       commits:
       - 75e7864c4a
       - 2b791c3bb1
       - be41eb4aef
+      - 6aca7b43fe
     release_status: dev_only
-  - text: The image safety pipeline was updated to use Jev for primary classification of prompts and images, with Sightengine
-      as a fallback.
+  - text: The image safety pipeline was upgraded to prioritize Jev classification for prompts and images, with Sightengine
+      serving as a secondary safeguard for policy reviews.
     evidence:
       commits:
       - 125aef061f
-      - 2e5832eaf1
       - 72572a6d8e
+      - 2e5832eaf1
+      - 7709132eae
+      - 8fc24bc15a
     release_status: dev_only
-  - text: System latency was reduced through the implementation of explicit Gemini context caching and parallelized URL safety
-      checks.
+  - text: Production reliability was bolstered with hourly TLS certificate checks, nightly encrypted backups with staleness
+      alerts, and improved transactional email monitoring.
     evidence:
       commits:
-      - 4e214b9f90
-      - fea9afef0c
-      - 6c2256499d
-    release_status: dev_only
-  - text: Operational reliability was enhanced with nightly encrypted production backups and hourly TLS certificate health
-      checks.
-    evidence:
-      commits:
-      - d1695bef23
       - ff3fab88f4
+      - d1695bef23
       - 892d0488c1
+      - 35e0e79a63
+    release_status: dev_only
+  - text: Latency optimizations introduced explicit Gemini context caching for AI Studio requests and pipelined safety checks
+      for voice interactions.
+    evidence:
+      commits:
+      - fea9afef0c
+      - 4e214b9f90
+      - f7483a0b18
+    release_status: dev_only
+  - text: Dev host resource management now includes WIP snapshots of uncommitted worktrees and improved idle chat detection
+      to prevent lost work during broker restarts.
+    evidence:
+      commits:
+      - 2e7c850a4d
+      - 1558796c6f
+      - 3e1cd77c8e
+      - 3615a74fdc
+      - 3618da2d5d
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: New Slides template designer and presentation planner.
+    - text: Slides App and Template Designer
       evidence:
         commits:
         - 43ae33ea1f
-      reason: The Slides application and its associated focus modes are currently disabled.
-    - text: Project Timeline and commit restore functionality.
+      reason: The Slides application and its associated focus modes are currently in development and not yet released to the
+        main branch.
+    - text: Project Timeline and Commit Restore
       evidence:
         commits:
         - a1174eb203
-      reason: The Projects platform and its timeline features are currently disabled.
-    - text: Apple platform parity updates for voice calls and embeds.
+      reason: The Projects feature and Timeline functionality are explicitly disabled in the current production configuration.
+    - text: Apple Platform Native Parity
       evidence:
         commits:
         - 1ae0a8cb2e
         - 9a4130c9df
-        - 826a8c8e37
-      reason: iOS and macOS platforms are currently disabled.
-    rationale: All user-facing features developed during this period are associated with platforms or applications that are
-      currently disabled in the project configuration. Internal infrastructure and safety improvements are not typically included
-      in public newsletters.
+      reason: The iOS and macOS platforms are currently disabled in feature availability settings.
+    rationale: All user-facing features and improvements from this period are currently in development (dev_only) and have
+      not yet been merged into the main release branch. Major initiatives like the Slides app, Project Timeline, and Apple
+      platform parity remain gated by feature flags.
   social_video_recommendations:
-  - idea: A demonstration of the new Project Timeline, showing how to browse history and restore previous versions of a project.
-    priority: medium
-    reason: The timeline provides a highly visual way to interact with project history that translates well to video.
+  - idea: A demonstration of the new Project Timeline, showing how users can browse commit history and restore previous versions
+      of a project directly from the web or CLI.
+    priority: High
+    reason: This is a concrete, visual product story that highlights the 'no more lost work' theme and the power of the integrated
+      version control.
     evidence:
       commits:
       - a1174eb203
+  - idea: A walkthrough of the Slides Template Designer focus mode, showing an AI assistant helping to refine a presentation's
+      visual style in real-time.
+    priority: Medium
+    reason: The Slides app is a major new functional area with high visual appeal for social platforms.
+    evidence:
+      commits:
+      - 43ae33ea1f
   quality_notes:
-  - Extensive test coverage was added for new Slides focus modes and Project timeline logic.
-  - Latency benchmarks were introduced to monitor the impact of new AI routing and caching strategies.
+  - Extensive automated test coverage was added for the new Slides focus modes and Project Timeline restore logic.
+  - Real-inference 'smoke tests' were implemented to verify travel results and AI focus transitions in the web environment.
+  - Infrastructure changes include new watchdog timers and staleness alerts for production backups.
   validation_warnings: []

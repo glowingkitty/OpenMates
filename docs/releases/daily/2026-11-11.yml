@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-11'
-generated_at: '2026-11-12T00:20:47+00:00'
+generated_at: '2026-11-16T00:47:25+00:00'
 range:
   since: '2026-11-11T00:00:00+00:00'
   until: '2026-11-12T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 2
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 26
   user_facing_items: 35
-  dev_only_items: 61
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -60,13 +60,13 @@ feature_availability:
     override: disabled
     parent_id: null
     source: backend/apps/tasks/app.yml
-  - id: embed:web:browse
-    kind: embed
+  - id: focus:code:write_specification
+    kind: platform
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: app:web
-    source: backend/apps/web/app.yml
+    parent_id: null
+    source: admin_config
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
@@ -151,13 +151,6 @@ feature_availability:
     override: null
     parent_id: app:travel
     source: backend/apps/travel/app.yml
-  - id: skill:web:browse
-    kind: skill
-    default_enabled: true
-    effective_enabled: false
-    override: disabled
-    parent_id: app:web
-    source: backend/apps/web/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
 sections:
@@ -274,9 +267,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -334,7 +327,7 @@ sections:
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:images, embed:images:generate, embed:images:generate_draft, embed:images:generated_image,
       embed:images:modify, embed:images:vectorize'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(memories,workflows): memories settings as list and pages, the regular workflow editor in chat, chat-linked
       billing'
     section: features
@@ -432,8 +425,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -463,7 +456,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, platform:projects, platform:workflows'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects, platform:workflows'
   - title: 'feat(images): text-only draft images use Recraft V4.1 Flash'
     section: features
     commits:
@@ -485,9 +479,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:images
@@ -502,7 +496,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:images'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(core): Swift gets full chat row and message fields, per-message stream updates, and one core-owned session
       for REST'
     section: features
@@ -550,7 +544,7 @@ sections:
     - packages/openmates-rust/src/view_model/send_turn.rs
     - packages/openmates-rust/src/view_model/window.rs
     - packages/openmates-rust/src/view_model/window_tests.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -558,7 +552,7 @@ sections:
     feature_metadata_changed: true
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(design): drawn lines given as filled outlines are sewn as satin bands across the line'
     section: features
     commits:
@@ -577,9 +571,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:design
@@ -594,7 +588,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:design'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(projects): web shows the created-Project activation card and the application inside its folder'
     section: features
     commits:
@@ -613,8 +607,8 @@ sections:
     - frontend/packages/ui/src/services/__tests__/projectBrowserTree.test.ts
     - frontend/packages/ui/src/services/projectBrowserTree.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -630,7 +624,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:projects'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
   - title: 'feat(projects): assistant-created Project shows creation and active focus in chat; application sits in its folder'
     section: features
     commits:
@@ -657,9 +652,9 @@ sections:
     - specifications/features/projects/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -674,7 +669,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(core): Swift can sign in through the client core (password, pair login) and send messages'
     section: features
     commits:
@@ -702,7 +697,7 @@ sections:
     - packages/openmates-rust/src/shell_session/login.rs
     - packages/openmates-rust/src/shell_session/mod.rs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -725,7 +720,7 @@ sections:
     rationale:
     - classified as new features from commit subject/path rules
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(tasks-cli): tasks edit sets a due date; the daily meeting gets a mentor stance and a daily drift check'
     section: features
     commits:
@@ -743,16 +738,16 @@ sections:
     - scripts/tests/test_daily_meeting_apply.py
     - scripts/tests/test_daily_meeting_goals.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(images): picture prompts that name someone are decided by the safeguard model'
     section: features
     commits:
@@ -771,9 +766,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:images
@@ -802,7 +797,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:images, embed:images:generate, skill:images:generate'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(core): send, streaming reply and cancel run in the client core; Swift can open chats; a new session can begin
       after logout'
     section: features
@@ -845,7 +840,7 @@ sections:
     - packages/openmates-rust/src/view_model/window.rs
     - packages/openmates-rust/src/view_model/window_tests.rs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -868,7 +863,7 @@ sections:
     rationale:
     - classified as new features from commit subject/path rules
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(tooling): close Claude chat processes idle for more than 24 hours'
     section: features
     commits:
@@ -878,7 +873,7 @@ sections:
     - scripts/claude-idle-chats-setup.sh
     - scripts/claude_idle_chats.py
     - scripts/tests/test_claude_idle_chats.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -886,7 +881,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(core): chat open, paging and live window run in the client core; Apple binding starts the core and receives
       the chat list'
     section: features
@@ -935,8 +930,8 @@ sections:
     - packages/openmates-rust/src/view_model/window_flows.rs
     - packages/openmates-rust/src/view_model/window_tests.rs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -959,7 +954,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'feat(projects): application files are Project files, with rename and delete, in the Rust core and CLI'
     section: features
     commits:
@@ -1038,9 +1034,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1062,7 +1058,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:code'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(core): chat list, start, boot sync, refresh, team switch and logout run in the client core''s view-model
       actor'
     section: features
@@ -1086,7 +1082,7 @@ sections:
     - packages/openmates-rust/src/view_model/arrange_tests.rs
     - packages/openmates-rust/src/view_model/events.rs
     - packages/openmates-rust/src/view_model/mod.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1094,7 +1090,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(core): encrypted cache records, chat sections, async cache store and shell session in the client core'
     section: features
     commits:
@@ -1135,8 +1131,8 @@ sections:
     - packages/openmates-rust/src/shell_session/receipt.rs
     - packages/openmates-rust/src/shell_session/session.rs
     - packages/openmates-rust/src/shell_session/session_tests.rs
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1159,7 +1155,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'feat(apple): chat keys, chat list metadata and message windows decrypt in batched core calls'
     section: features
     commits:
@@ -1179,8 +1176,8 @@ sections:
     - packages/openmates-apple-bindings/src/chat_crypto_tests.rs
     - packages/openmates-apple-bindings/src/lib.rs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1203,7 +1200,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'feat(core): cache file layer and typed view-model records in the client core, Watch arm64_32 build fixed'
     section: features
     commits:
@@ -1231,7 +1229,7 @@ sections:
     - packages/openmates-rust/src/view_model/events_tests.rs
     - packages/openmates-rust/src/view_model/mod.rs
     - packages/openmates-rust/src/view_model/records.rs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1239,7 +1237,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(apps): paused skills with a flat input accept operator-installed providers'
     section: features
     commits:
@@ -1258,7 +1256,7 @@ sections:
     - specifications/features/instance-app-packages/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1266,7 +1264,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(apple): Apple apps link the shared Rust client core through a UniFFI bridge'
     section: features
     commits:
@@ -1333,8 +1331,8 @@ sections:
     - scripts/tests/test_security_monitoring_inventory_matching.py
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1357,7 +1355,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   - title: 'feat(jobs): listing facts as separate fields with request filters, any country'
     section: features
     commits:
@@ -1381,9 +1380,9 @@ sections:
     - specifications/features/instance-app-packages/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:jobs
@@ -1412,7 +1411,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:jobs, embed:jobs:search, skill:jobs:search'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   bug_fixes:
   - title: 'fix(embeds): user-made versions accept generated images stored without a catalog stamp'
     section: bug_fixes
@@ -1423,7 +1422,7 @@ sections:
     - backend/core/directus/extensions/embed-version-transaction/src/user-revisions.js
     - backend/core/directus/extensions/embed-version-transaction/test/user-revisions.test.js
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1431,7 +1430,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(embeds): image fullscreen uses the available width and height; tap opens only the image in a new tab'
     section: bug_fixes
     commits:
@@ -1442,9 +1441,9 @@ sections:
     - frontend/packages/ui/src/components/embeds/ResultEmbedFullscreen.svelte
     - frontend/packages/ui/src/components/embeds/images/ImageGenerateEmbedFullscreen.svelte
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: embed:images:generate
@@ -1488,7 +1487,7 @@ sections:
     - contains user-facing product paths
     - 'matches feature availability gates: embed:images:generate, embed:images:generate_draft, embed:images:generated_image,
       embed:images:modify, embed:images:vectorize'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(images): Enhance recognises images by the owner''s file index'
     section: bug_fixes
     commits:
@@ -1498,16 +1497,16 @@ sections:
     - backend/core/api/app/routes/images_enhance.py
     - backend/tests/test_images_enhance.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web): chat version updates settle from their own IndexedDB commit so voice call events save'
     section: bug_fixes
     commits:
@@ -1519,7 +1518,7 @@ sections:
     - frontend/packages/ui/src/services/db/__tests__/chatComponentVersionUpdate.test.ts
     - frontend/packages/ui/src/services/db/offlineChangesAndUpdates.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1527,7 +1526,7 @@ sections:
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(jobs): application mode writes the letter when asked to skip questions; matching focus modes are entered before
       answering'
     section: bug_fixes
@@ -1543,9 +1542,9 @@ sections:
     - frontend/packages/ui/src/i18n/sources/focus_modes/jobs_prepare_interview.yml
     - frontend/packages/ui/src/i18n/sources/focus_modes/jobs_write_application.yml
     - frontend/packages/ui/src/i18n/sources/recommendations.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1567,7 +1566,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:jobs'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(tooling): idle Claude chat processes close after 3 hours instead of 24'
     section: bug_fixes
     commits:
@@ -1577,7 +1576,7 @@ sections:
     - scripts/claude-idle-chats-setup.sh
     - scripts/claude_idle_chats.py
     - scripts/tests/test_claude_idle_chats.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1585,7 +1584,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(core): a chat whose newest message is too large for one page opens that message with the Rust core on'
     section: bug_fixes
     commits:
@@ -1598,16 +1597,16 @@ sections:
     - packages/openmates-rust/src/client/saved_chat_oversized_join_tests.rs
     - packages/openmates-rust/src/client/saved_chat_read.rs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(tooling): whole-package type-checks need the heavy slot, and a heavy run starts only when its memory fits'
     section: bug_fixes
     commits:
@@ -1621,7 +1620,7 @@ sections:
     - scripts/tests/test_heavy_local_guard.py
     - scripts/tests/test_heavy_slot.py
     - scripts/tests/test_safe_bash_guard.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1629,7 +1628,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(memories): the proxy lets the web app reach the memory suggestion routes'
     section: bug_fixes
     commits:
@@ -1640,7 +1639,7 @@ sections:
     - deployment/dev_server/Caddyfile
     - deployment/prod_server/Caddyfile
     - scripts/tests/test_production_caddy_route_parity.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1648,7 +1647,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ai): follow-up, workflow and memory suggestions are generated again after a continued turn'
     section: bug_fixes
     commits:
@@ -1659,9 +1658,9 @@ sections:
     - backend/apps/ai/tasks/ask_skill_task.py
     - backend/tests/test_postprocessing_recommendations.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1676,7 +1675,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(drafts): a device that was closed during a draft delete drops that draft when it reconnects'
     section: bug_fixes
     commits:
@@ -1713,16 +1712,16 @@ sections:
     - packages/openmates-rust/src/web_sync/stale_drafts.rs
     - packages/openmates-rust/src/web_sync/stale_drafts_tests.rs
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(projects): chat activity row names the assistant-created Project; file rows in folder cards use a file icon'
     section: bug_fixes
     commits:
@@ -1743,8 +1742,8 @@ sections:
     - frontend/packages/ui/src/utils/__tests__/assistantActivitySummary.test.ts
     - frontend/packages/ui/src/utils/assistantActivitySummary.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1760,7 +1759,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:projects'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
   - title: 'fix(web): an assistant message no longer flashes its raw source before it renders'
     section: bug_fixes
     commits:
@@ -1772,16 +1772,16 @@ sections:
     - frontend/packages/ui/src/message_parsing/__tests__/renderPlanBranch.test.ts
     - frontend/packages/ui/src/services/rustCore/parse/renderPlanBranch.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(memories): a second device no longer shows ''Entry not found'' errors for entries another device already deleted'
     section: bug_fixes
     commits:
@@ -1796,16 +1796,16 @@ sections:
     - frontend/packages/ui/src/services/appSettingsMemoriesEntryDeleted.ts
     - frontend/packages/ui/src/services/chatSyncService.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web): three recurring console errors are gone (memory migration, warm-up status, draft delete of a chat without
       a local row)'
     section: bug_fixes
@@ -1825,16 +1825,16 @@ sections:
     - frontend/packages/ui/src/services/sendersSync.ts
     - frontend/packages/ui/src/services/websocketService.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web): the activity summary keeps its full text while a message is still appearing'
     section: bug_fixes
     commits:
@@ -1842,16 +1842,16 @@ sections:
     authored_at: '2026-11-11T13:43:01+00:00'
     changed_paths:
     - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(privacy): an upload''s embed reference is never rewritten by personal data redaction'
     section: bug_fixes
     commits:
@@ -1880,8 +1880,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -1897,7 +1897,8 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:projects'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:projects'
   - title: 'fix(web): Rust core units answer in Safari; a failed formatting request is retried'
     section: bug_fixes
     commits:
@@ -1908,16 +1909,16 @@ sections:
     - frontend/apps/web_app/src/lib/rustCore/shared/shared.worker.ts
     - frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts
     - frontend/packages/ui/src/services/rustCore/parse/renderPlanBranch.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web): the first voice call turn is answered when the Rust core is on'
     section: bug_fixes
     commits:
@@ -1925,7 +1926,7 @@ sections:
     authored_at: '2026-11-11T11:37:33+00:00'
     changed_paths:
     - frontend/packages/ui/src/services/sendersChatMessages.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1933,7 +1934,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(design): an uploaded SVG is never sent to the model for adjustment'
     section: bug_fixes
     commits:
@@ -1945,9 +1946,9 @@ sections:
     - specifications/features/app-skills/design-embroidery/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:design
@@ -1962,7 +1963,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:design'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web): a dropped connection is handled when the Rust core is on'
     section: bug_fixes
     commits:
@@ -1972,7 +1973,7 @@ sections:
     - docs/migration/rust/overview.yml
     - docs/migration/rust/web-app.yml
     - frontend/packages/ui/src/services/websocketService.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1980,7 +1981,7 @@ sections:
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(design): separate shapes are no longer joined by a stitch, narrow bands are sewn across'
     section: bug_fixes
     commits:
@@ -1996,9 +1997,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:design
@@ -2020,7 +2021,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:design, app:images'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(web): long chat timelines load fast and Rust core units load before going offline'
     section: bug_fixes
     commits:
@@ -2035,16 +2036,16 @@ sections:
     - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
     - frontend/packages/ui/src/components/ChatHistory.svelte
     - frontend/packages/ui/src/services/drafts/draftSave.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(projects): a new web app in a focused Project is emitted as one application block'
     section: bug_fixes
     commits:
@@ -2055,9 +2056,9 @@ sections:
     - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -2072,7 +2073,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(design): an SVG file the user uploads is sewn as uploaded'
     section: bug_fixes
     commits:
@@ -2089,9 +2090,9 @@ sections:
     - specifications/features/app-skills/design-embroidery/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:images
@@ -2106,7 +2107,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:images'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ci): builds without the Rust core no longer bundle the Rust embed recovery units'
     section: bug_fixes
     commits:
@@ -2116,7 +2117,7 @@ sections:
     - apple/PairOpaqueBridge/local-runtime-symbols.txt
     - docs/migration/rust/web-app.yml
     - frontend/packages/ui/src/services/rustCore/embeds/rustRecoveredChildRevision.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2124,7 +2125,7 @@ sections:
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(chat,embeds): assistant name always resolves; authored result groups use the standard results view and event
       cards show a venue map'
     section: bug_fixes
@@ -2200,9 +2201,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -2238,7 +2239,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, embed:ai:authored_results, embed:events:search, skill:ai:ask'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(design): embroidery is sewn at the width asked for'
     section: bug_fixes
     commits:
@@ -2254,9 +2255,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:design
@@ -2271,7 +2272,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:design'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements:
   - title: 'perf(apple): a decrypted message rebuilds its rendered form once, not once per field'
     section: improvements
@@ -2283,8 +2284,8 @@ sections:
     - apple/OpenMates/Sources/Core/Models/ChatModels.swift
     - apple/OpenMatesTests/NativeEncryptedSyncPerformanceTests.swift
     - docs/plans/apple-client-core-migration/results.md
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -2307,7 +2308,8 @@ sections:
     - classified as improvements from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: platform:ios, platform:macos'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos'
   docs:
   - title: 'docs: backend Rust migration Plan gains coexistence rules, isolation measures and staged agent instructions'
     section: docs
@@ -2316,7 +2318,7 @@ sections:
     authored_at: '2026-11-11T19:48:47+00:00'
     changed_paths:
     - docs/plans/backend-rust-migration/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2324,7 +2326,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: draft Plan for the step-by-step backend migration from Python to Rust'
     section: docs
     commits:
@@ -2332,7 +2334,7 @@ sections:
     authored_at: '2026-11-11T17:43:49+00:00'
     changed_paths:
     - docs/plans/backend-rust-migration/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2340,7 +2342,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(images): named-person examples are split into the two deciding cases and the limits'
     section: docs
     commits:
@@ -2351,7 +2353,7 @@ sections:
     - specifications/features/app-skills/images-generate/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2359,7 +2361,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(tooling): a closed Claude chat restarts when it receives a message'
     section: docs
     commits:
@@ -2367,7 +2369,7 @@ sections:
     authored_at: '2026-11-11T10:28:19+00:00'
     changed_paths:
     - scripts/claude_idle_chats.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2375,7 +2377,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs(plan): Apple client core migration progress after the chat window and Apple binding lanes'
     section: docs
     commits:
@@ -2383,7 +2385,7 @@ sections:
     authored_at: '2026-11-11T09:41:55+00:00'
     changed_paths:
     - docs/plans/apple-client-core-migration/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2391,7 +2393,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: how to show screenshots to the user when SendUserFile is missing'
     section: docs
     commits:
@@ -2400,7 +2402,7 @@ sections:
     changed_paths:
     - .claude/rules/testing.md
     - CLAUDE.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2408,7 +2410,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests:
   - title: 'test(sync): schema-repair spec tells a repair loss apart from the server removing an unknown chat'
     section: tests
@@ -2418,7 +2420,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2426,7 +2428,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test(images): real chat check reads answers like a reader and opens the image from its Details button'
     section: tests
     commits:
@@ -2435,7 +2437,7 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2443,7 +2445,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test(ci): run the application-files CLI spec at recovery epoch 1'
     section: tests
     commits:
@@ -2452,7 +2454,7 @@ sections:
     changed_paths:
     - scripts/ci_run_tests.py
     - scripts/tests/test_ci_maps_recovery_profile.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2460,7 +2462,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure:
   - title: 'build(web): production and main web builds use the shared Rust client core'
     section: infrastructure
@@ -2472,7 +2474,7 @@ sections:
     - docs/releases/daily/2026-11-11.yml
     - frontend/apps/web_app/scripts/vercel-build.mjs
     - frontend/apps/web_app/scripts/vercel-build.test.mjs
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2480,7 +2482,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore(ai): log why an authored results card ended without any member'
     section: infrastructure
     commits:
@@ -2488,7 +2490,7 @@ sections:
     authored_at: '2026-11-11T16:21:51+00:00'
     changed_paths:
     - backend/core/api/app/services/authored_result_service.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2496,846 +2498,18 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'fix(embeds): user-made versions accept generated images stored without a catalog stamp'
-    commits:
-    - 050e724865
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(embeds): image fullscreen uses the available width and height; tap opens only the image in a new tab'
-    commits:
-    - 788e8aa2cb
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: embed:images:generate
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:generate_draft
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:generated_image
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:modify
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:vectorize
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-  - title: 'fix(images): Enhance recognises images by the owner''s file index'
-    commits:
-    - 3580882d60
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(web): chat version updates settle from their own IndexedDB commit so voice call events save'
-    commits:
-    - 535922db85
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(embeds): user-made embed versions, image Enhance and the embed-updated chat event (server, client core, web
-      components)'
-    commits:
-    - 32b672579c
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-    - id: embed:images:generate
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:generate_draft
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:generated_image
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:modify
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:vectorize
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-  - title: 'feat(memories,workflows): memories settings as list and pages, the regular workflow editor in chat, chat-linked
-      billing'
-    commits:
-    - b84bb098b8
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-    - id: platform:workflows
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(jobs): application mode writes the letter when asked to skip questions; matching focus modes are entered before
-      answering'
-    commits:
-    - 0f3827de47
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:jobs
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/jobs/app.yml
-  - title: 'docs: backend Rust migration Plan gains coexistence rules, isolation measures and staged agent instructions'
-    commits:
-    - b92fde98ca
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(tooling): idle Claude chat processes close after 3 hours instead of 24'
-    commits:
-    - 8927917d05
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(core): a chat whose newest message is too large for one page opens that message with the Rust core on'
-    commits:
-    - 58ebd0d138
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(images): text-only draft images use Recraft V4.1 Flash'
-    commits:
-    - 662f5ab4f2
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-  - title: 'fix(tooling): whole-package type-checks need the heavy slot, and a heavy run starts only when its memory fits'
-    commits:
-    - 2a1c89c814
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: draft Plan for the step-by-step backend migration from Python to Rust'
-    commits:
-    - cb332e3a8e
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'build(web): production and main web builds use the shared Rust client core'
-    commits:
-    - 06da1b2448
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(memories): the proxy lets the web app reach the memory suggestion routes'
-    commits:
-    - 0ad0c4f7f8
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(core): Swift gets full chat row and message fields, per-message stream updates, and one core-owned session
-      for REST'
-    commits:
-    - 6d15ee29da
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'chore(ai): log why an authored results card ended without any member'
-    commits:
-    - 43894c04a9
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(design): drawn lines given as filled outlines are sewn as satin bands across the line'
-    commits:
-    - 3fab01e191
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:design
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/design/app.yml
-  - title: 'fix(ai): follow-up, workflow and memory suggestions are generated again after a continued turn'
-    commits:
-    - df0d921126
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(drafts): a device that was closed during a draft delete drops that draft when it reconnects'
-    commits:
-    - 4693790c4e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(projects): chat activity row names the assistant-created Project; file rows in folder cards use a file icon'
-    commits:
-    - ef6f1b5e05
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'fix(web): an assistant message no longer flashes its raw source before it renders'
-    commits:
-    - 9387c8f073
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(projects): web shows the created-Project activation card and the application inside its folder'
-    commits:
-    - bd1e6ed0a8
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'feat(projects): assistant-created Project shows creation and active focus in chat; application sits in its folder'
-    commits:
-    - f007d2e389
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix(memories): a second device no longer shows ''Entry not found'' errors for entries another device already deleted'
-    commits:
-    - 6b71cf4d0a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(core): Swift can sign in through the client core (password, pair login) and send messages'
-    commits:
-    - 5bf66aed1d
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(web): three recurring console errors are gone (memory migration, warm-up status, draft delete of a chat without
-      a local row)'
-    commits:
-    - 35afed7a0e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'docs(images): named-person examples are split into the two deciding cases and the limits'
-    commits:
-    - 6420b6a9ef
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(tasks-cli): tasks edit sets a due date; the daily meeting gets a mentor stance and a daily drift check'
-    commits:
-    - 351b67a13d
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(web): the activity summary keeps its full text while a message is still appearing'
-    commits:
-    - ade966ade4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat(images): picture prompts that name someone are decided by the safeguard model'
-    commits:
-    - c6370d9b97
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-    - id: embed:images:generate
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: skill:images:generate
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-  - title: 'fix(privacy): an upload''s embed reference is never rewritten by personal data redaction'
-    commits:
-    - 35dbf89f93
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-  - title: 'fix(web): Rust core units answer in Safari; a failed formatting request is retried'
-    commits:
-    - 1164c58318
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(web): the first voice call turn is answered when the Rust core is on'
-    commits:
-    - 18ffa6a947
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(core): send, streaming reply and cancel run in the client core; Swift can open chats; a new session can begin
-      after logout'
-    commits:
-    - b8a01f6935
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(design): an uploaded SVG is never sent to the model for adjustment'
-    commits:
-    - 1cf3262c1c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:design
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/design/app.yml
-  - title: 'fix(web): a dropped connection is handled when the Rust core is on'
-    commits:
-    - 6c67df588b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs(tooling): a closed Claude chat restarts when it receives a message'
-    commits:
-    - fbca809d32
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(tooling): close Claude chat processes idle for more than 24 hours'
-    commits:
-    - f86aaa8b46
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(design): separate shapes are no longer joined by a stitch, narrow bands are sewn across'
-    commits:
-    - 433c8492d9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:design
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/design/app.yml
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-  - title: 'fix(web): long chat timelines load fast and Rust core units load before going offline'
-    commits:
-    - b8b83bbba0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'docs(plan): Apple client core migration progress after the chat window and Apple binding lanes'
-    commits:
-    - 0598d07be0
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(core): chat open, paging and live window run in the client core; Apple binding starts the core and receives
-      the chat list'
-    commits:
-    - 583ebb3255
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(projects): a new web app in a focused Project is emitted as one application block'
-    commits:
-    - b844812366
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'feat(projects): application files are Project files, with rename and delete, in the Rust core and CLI'
-    commits:
-    - 01acb8e246
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:code
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/code/app.yml
-  - title: 'feat(core): chat list, start, boot sync, refresh, team switch and logout run in the client core''s view-model
-      actor'
-    commits:
-    - 62b8bc156d
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'perf(apple): a decrypted message rebuilds its rendered form once, not once per field'
-    commits:
-    - 941bac92aa
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'feat(core): encrypted cache records, chat sections, async cache store and shell session in the client core'
-    commits:
-    - 5ec99227f1
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'test(sync): schema-repair spec tells a repair loss apart from the server removing an unknown chat'
-    commits:
-    - d935b9cf99
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(design): an SVG file the user uploads is sewn as uploaded'
-    commits:
-    - e13486f130
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-  - title: 'feat(apple): chat keys, chat list metadata and message windows decrypt in batched core calls'
-    commits:
-    - fbd4396131
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'test(images): real chat check reads answers like a reader and opens the image from its Details button'
-    commits:
-    - f1441a24da
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ci): builds without the Rust core no longer bundle the Rust embed recovery units'
-    commits:
-    - bf964a9c71
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(core): cache file layer and typed view-model records in the client core, Watch arm64_32 build fixed'
-    commits:
-    - 0b16254066
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test(ci): run the application-files CLI spec at recovery epoch 1'
-    commits:
-    - fe16c17a45
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(chat,embeds): assistant name always resolves; authored result groups use the standard results view and event
-      cards show a venue map'
-    commits:
-    - 3f3c8db298
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: embed:ai:authored_results
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-    - id: embed:events:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-    - id: skill:ai:ask
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:ai
-      source: backend/apps/ai/app.yml
-  - title: 'feat(apps): paused skills with a flat input accept operator-installed providers'
-    commits:
-    - d66c12e49d
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(apple): Apple apps link the shared Rust client core through a UniFFI bridge'
-    commits:
-    - 3d1c5cf4e1
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(design): embroidery is sewn at the width asked for'
-    commits:
-    - edca0a3641
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:design
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/design/app.yml
-  - title: 'feat(jobs): listing facts as separate fields with request filters, any country'
-    commits:
-    - 9e4f6da63d
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:jobs
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/jobs/app.yml
-    - id: embed:jobs:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:jobs
-      source: backend/apps/jobs/app.yml
-    - id: skill:jobs:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:jobs
-      source: backend/apps/jobs/app.yml
-  - title: 'docs: how to show screenshots to the user when SendUserFile is missing'
-    commits:
-    - a963462b41
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'fix(web): chat version updates settle from their own IndexedDB commit so voice call events save'
     commits:
     - 535922db85
     section: bug_fixes
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features: []
   - title: 'feat(memories,workflows): memories settings as list and pages, the regular workflow editor in chat, chat-linked
@@ -3343,8 +2517,8 @@ unreleased_progress:
     commits:
     - b84bb098b8
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -3371,8 +2545,8 @@ unreleased_progress:
     commits:
     - 662f5ab4f2
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:images
       kind: app
@@ -3386,15 +2560,15 @@ unreleased_progress:
     commits:
     - 6d15ee29da
     section: features
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features: []
   - title: 'feat(design): drawn lines given as filled outlines are sewn as satin bands across the line'
     commits:
     - 3fab01e191
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:design
       kind: app
@@ -3407,15 +2581,15 @@ unreleased_progress:
     commits:
     - 4693790c4e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'fix(projects): chat activity row names the assistant-created Project; file rows in folder cards use a file icon'
     commits:
     - ef6f1b5e05
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:projects
       kind: platform
@@ -3428,15 +2602,15 @@ unreleased_progress:
     commits:
     - 9387c8f073
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'feat(projects): web shows the created-Project activation card and the application inside its folder'
     commits:
     - bd1e6ed0a8
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:projects
       kind: platform
@@ -3449,23 +2623,23 @@ unreleased_progress:
     commits:
     - 6b71cf4d0a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'fix(web): three recurring console errors are gone (memory migration, warm-up status, draft delete of a chat without
       a local row)'
     commits:
     - 35afed7a0e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'fix(privacy): an upload''s embed reference is never rewritten by personal data redaction'
     commits:
     - 35dbf89f93
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: platform:projects
       kind: platform
@@ -3478,28 +2652,28 @@ unreleased_progress:
     commits:
     - 1164c58318
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'fix(web): a dropped connection is handled when the Rust core is on'
     commits:
     - 6c67df588b
     section: bug_fixes
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features: []
   - title: 'fix(web): long chat timelines load fast and Rust core units load before going offline'
     commits:
     - b8b83bbba0
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
   - title: 'fix(ci): builds without the Rust core no longer bundle the Rust embed recovery units'
     commits:
     - bf964a9c71
     section: bug_fixes
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     related_features: []
   - title: 'fix(chat,embeds): assistant name always resolves; authored result groups use the standard results view and event
@@ -3507,8 +2681,8 @@ unreleased_progress:
     commits:
     - 3f3c8db298
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3542,8 +2716,8 @@ unreleased_progress:
     commits:
     - 9e4f6da63d
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:jobs
       kind: app
@@ -3567,14 +2741,13 @@ unreleased_progress:
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
 marketing_candidates:
-  newsletter: []
-  social_or_video:
+  newsletter:
   - title: 'fix(embeds): image fullscreen uses the available width and height; tap opens only the image in a new tab'
     commits:
     - 788e8aa2cb
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: embed:images:generate
       kind: embed
@@ -3611,22 +2784,20 @@ marketing_candidates:
       override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
-    newsletter_ready: false
   - title: 'fix(images): Enhance recognises images by the owner''s file index'
     commits:
     - 3580882d60
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat(embeds): user-made embed versions, image Enhance and the embed-updated chat event (server, client core, web
       components)'
     commits:
     - 32b672579c
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3677,44 +2848,13 @@ marketing_candidates:
       override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
-    newsletter_ready: false
-  - title: 'feat(memories,workflows): memories settings as list and pages, the regular workflow editor in chat, chat-linked
-      billing'
-    commits:
-    - b84bb098b8
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-    - id: platform:workflows
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    newsletter_ready: false
   - title: 'fix(jobs): application mode writes the letter when asked to skip questions; matching focus modes are entered before
       answering'
     commits:
     - 0f3827de47
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3730,21 +2870,19 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/jobs/app.yml
-    newsletter_ready: false
   - title: 'fix(core): a chat whose newest message is too large for one page opens that message with the Rust core on'
     commits:
     - 58ebd0d138
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat(images): text-only draft images use Recraft V4.1 Flash'
     commits:
     - 662f5ab4f2
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:images
       kind: app
@@ -3753,13 +2891,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/images/app.yml
-    newsletter_ready: false
   - title: 'feat(design): drawn lines given as filled outlines are sewn as satin bands across the line'
     commits:
     - 3fab01e191
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:design
       kind: app
@@ -3768,13 +2905,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/design/app.yml
-    newsletter_ready: false
   - title: 'fix(ai): follow-up, workflow and memory suggestions are generated again after a continued turn'
     commits:
     - df0d921126
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3783,59 +2919,26 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix(drafts): a device that was closed during a draft delete drops that draft when it reconnects'
     commits:
     - 4693790c4e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
-  - title: 'fix(projects): chat activity row names the assistant-created Project; file rows in folder cards use a file icon'
-    commits:
-    - ef6f1b5e05
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-    newsletter_ready: false
   - title: 'fix(web): an assistant message no longer flashes its raw source before it renders'
     commits:
     - 9387c8f073
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
-  - title: 'feat(projects): web shows the created-Project activation card and the application inside its folder'
-    commits:
-    - bd1e6ed0a8
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-    newsletter_ready: false
   - title: 'feat(projects): assistant-created Project shows creation and active focus in chat; application sits in its folder'
     commits:
     - f007d2e389
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -3844,46 +2947,41 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'fix(memories): a second device no longer shows ''Entry not found'' errors for entries another device already deleted'
     commits:
     - 6b71cf4d0a
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix(web): three recurring console errors are gone (memory migration, warm-up status, draft delete of a chat without
       a local row)'
     commits:
     - 35afed7a0e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat(tasks-cli): tasks edit sets a due date; the daily meeting gets a mentor stance and a daily drift check'
     commits:
     - 351b67a13d
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix(web): the activity summary keeps its full text while a message is still appearing'
     commits:
     - ade966ade4
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'feat(images): picture prompts that name someone are decided by the safeguard model'
     commits:
     - c6370d9b97
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:images
       kind: app
@@ -3906,36 +3004,19 @@ marketing_candidates:
       override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
-    newsletter_ready: false
-  - title: 'fix(privacy): an upload''s embed reference is never rewritten by personal data redaction'
-    commits:
-    - 35dbf89f93
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:projects
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: disabled
-      parent_id: null
-      source: platform
-    newsletter_ready: false
   - title: 'fix(web): Rust core units answer in Safari; a failed formatting request is retried'
     commits:
     - 1164c58318
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix(design): an uploaded SVG is never sent to the model for adjustment'
     commits:
     - 1cf3262c1c
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:design
       kind: app
@@ -3944,13 +3025,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/design/app.yml
-    newsletter_ready: false
   - title: 'fix(design): separate shapes are no longer joined by a stitch, narrow bands are sewn across'
     commits:
     - 433c8492d9
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:design
       kind: app
@@ -3966,44 +3046,19 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/images/app.yml
-    newsletter_ready: false
   - title: 'fix(web): long chat timelines load fast and Rust core units load before going offline'
     commits:
     - b8b83bbba0
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
-  - title: 'feat(core): chat open, paging and live window run in the client core; Apple binding starts the core and receives
-      the chat list'
-    commits:
-    - 583ebb3255
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    newsletter_ready: false
   - title: 'fix(projects): a new web app in a focused Project is emitted as one application block'
     commits:
     - b844812366
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -4012,13 +3067,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'feat(projects): application files are Project files, with rename and delete, in the Rust core and CLI'
     commits:
     - 01acb8e246
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -4034,57 +3088,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/code/app.yml
-    newsletter_ready: false
-  - title: 'perf(apple): a decrypted message rebuilds its rendered form once, not once per field'
-    commits:
-    - 941bac92aa
-    section: improvements
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    newsletter_ready: false
-  - title: 'feat(core): encrypted cache records, chat sections, async cache store and shell session in the client core'
-    commits:
-    - 5ec99227f1
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    newsletter_ready: false
   - title: 'fix(design): an SVG file the user uploads is sewn as uploaded'
     commits:
     - e13486f130
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:images
       kind: app
@@ -4093,36 +3102,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/images/app.yml
-    newsletter_ready: false
-  - title: 'feat(apple): chat keys, chat list metadata and message windows decrypt in batched core calls'
-    commits:
-    - fbd4396131
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    newsletter_ready: false
   - title: 'fix(chat,embeds): assistant name always resolves; authored result groups use the standard results view and event
       cards show a venue map'
     commits:
     - 3f3c8db298
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -4152,35 +3138,12 @@ marketing_candidates:
       override: null
       parent_id: app:ai
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
-  - title: 'feat(apple): Apple apps link the shared Rust client core through a UniFFI bridge'
-    commits:
-    - 3d1c5cf4e1
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    newsletter_ready: false
   - title: 'fix(design): embroidery is sewn at the width asked for'
     commits:
     - edca0a3641
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:design
       kind: app
@@ -4189,13 +3152,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/design/app.yml
-    newsletter_ready: false
   - title: 'feat(jobs): listing facts as separate fields with request filters, any country'
     commits:
     - 9e4f6da63d
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:jobs
       kind: app
@@ -4218,7 +3180,657 @@ marketing_candidates:
       override: null
       parent_id: app:jobs
       source: backend/apps/jobs/app.yml
+  social_or_video:
+  - title: 'fix(embeds): image fullscreen uses the available width and height; tap opens only the image in a new tab'
+    commits:
+    - 788e8aa2cb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: true
+  - title: 'fix(images): Enhance recognises images by the owner''s file index'
+    commits:
+    - 3580882d60
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(embeds): user-made embed versions, image Enhance and the embed-updated chat event (server, client core, web
+      components)'
+    commits:
+    - 32b672579c
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: true
+  - title: 'feat(memories,workflows): memories settings as list and pages, the regular workflow editor in chat, chat-linked
+      billing'
+    commits:
+    - b84bb098b8
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
     newsletter_ready: false
+  - title: 'fix(jobs): application mode writes the letter when asked to skip questions; matching focus modes are entered before
+      answering'
+    commits:
+    - 0f3827de47
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    newsletter_ready: true
+  - title: 'fix(core): a chat whose newest message is too large for one page opens that message with the Rust core on'
+    commits:
+    - 58ebd0d138
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(images): text-only draft images use Recraft V4.1 Flash'
+    commits:
+    - 662f5ab4f2
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    newsletter_ready: true
+  - title: 'feat(design): drawn lines given as filled outlines are sewn as satin bands across the line'
+    commits:
+    - 3fab01e191
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    newsletter_ready: true
+  - title: 'fix(ai): follow-up, workflow and memory suggestions are generated again after a continued turn'
+    commits:
+    - df0d921126
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix(drafts): a device that was closed during a draft delete drops that draft when it reconnects'
+    commits:
+    - 4693790c4e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(projects): chat activity row names the assistant-created Project; file rows in folder cards use a file icon'
+    commits:
+    - ef6f1b5e05
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(web): an assistant message no longer flashes its raw source before it renders'
+    commits:
+    - 9387c8f073
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(projects): web shows the created-Project activation card and the application inside its folder'
+    commits:
+    - bd1e6ed0a8
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(projects): assistant-created Project shows creation and active focus in chat; application sits in its folder'
+    commits:
+    - f007d2e389
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix(memories): a second device no longer shows ''Entry not found'' errors for entries another device already deleted'
+    commits:
+    - 6b71cf4d0a
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(web): three recurring console errors are gone (memory migration, warm-up status, draft delete of a chat without
+      a local row)'
+    commits:
+    - 35afed7a0e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(tasks-cli): tasks edit sets a due date; the daily meeting gets a mentor stance and a daily drift check'
+    commits:
+    - 351b67a13d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(web): the activity summary keeps its full text while a message is still appearing'
+    commits:
+    - ade966ade4
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(images): picture prompts that name someone are decided by the safeguard model'
+    commits:
+    - c6370d9b97
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: skill:images:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: true
+  - title: 'fix(privacy): an upload''s embed reference is never rewritten by personal data redaction'
+    commits:
+    - 35dbf89f93
+    section: bug_fixes
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(web): Rust core units answer in Safari; a failed formatting request is retried'
+    commits:
+    - 1164c58318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(design): an uploaded SVG is never sent to the model for adjustment'
+    commits:
+    - 1cf3262c1c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    newsletter_ready: true
+  - title: 'fix(design): separate shapes are no longer joined by a stitch, narrow bands are sewn across'
+    commits:
+    - 433c8492d9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    newsletter_ready: true
+  - title: 'fix(web): long chat timelines load fast and Rust core units load before going offline'
+    commits:
+    - b8b83bbba0
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat(core): chat open, paging and live window run in the client core; Apple binding starts the core and receives
+      the chat list'
+    commits:
+    - 583ebb3255
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(projects): a new web app in a focused Project is emitted as one application block'
+    commits:
+    - b844812366
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'feat(projects): application files are Project files, with rename and delete, in the Rust core and CLI'
+    commits:
+    - 01acb8e246
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    newsletter_ready: true
+  - title: 'perf(apple): a decrypted message rebuilds its rendered form once, not once per field'
+    commits:
+    - 941bac92aa
+    section: improvements
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(core): encrypted cache records, chat sections, async cache store and shell session in the client core'
+    commits:
+    - 5ec99227f1
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(design): an SVG file the user uploads is sewn as uploaded'
+    commits:
+    - e13486f130
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    newsletter_ready: true
+  - title: 'feat(apple): chat keys, chat list metadata and message windows decrypt in batched core calls'
+    commits:
+    - fbd4396131
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(chat,embeds): assistant name always resolves; authored result groups use the standard results view and event
+      cards show a venue map'
+    commits:
+    - 3f3c8db298
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: embed:ai:authored_results
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'feat(apple): Apple apps link the shared Rust client core through a UniFFI bridge'
+    commits:
+    - 3d1c5cf4e1
+    section: features
+    release_status: released_main
+    communication_status: unreleased_feature
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(design): embroidery is sewn at the width asked for'
+    commits:
+    - edca0a3641
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    newsletter_ready: true
+  - title: 'feat(jobs): listing facts as separate fields with request filters, any country'
+    commits:
+    - 9e4f6da63d
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: embed:jobs:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    - id: skill:jobs:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:jobs
+      source: backend/apps/jobs/app.yml
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -4230,7 +3842,7 @@ sources:
     short_sha: 050e724865
     authored_at: '2026-11-11T23:20:12+00:00'
     subject: 'fix(embeds): user-made versions accept generated images stored without a catalog stamp'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/directus/extensions/embed-version-transaction/src/user-revisions.js
@@ -4241,7 +3853,7 @@ sources:
     short_sha: 788e8aa2cb
     authored_at: '2026-11-11T23:12:29+00:00'
     subject: 'fix(embeds): image fullscreen uses the available width and height; tap opens only the image in a new tab'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/components/media-result-layout.spec.ts
@@ -4258,7 +3870,7 @@ sources:
     short_sha: 3580882d60
     authored_at: '2026-11-11T23:07:41+00:00'
     subject: 'fix(images): Enhance recognises images by the owner''s file index'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/images_enhance.py
@@ -4269,7 +3881,7 @@ sources:
     short_sha: 535922db85
     authored_at: '2026-11-11T22:56:44+00:00'
     subject: 'fix(web): chat version updates settle from their own IndexedDB commit so voice call events save'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/overview.yml
@@ -4283,7 +3895,7 @@ sources:
     authored_at: '2026-11-11T22:29:12+00:00'
     subject: 'feat(embeds): user-made embed versions, image Enhance and the embed-updated chat event (server, client core,
       web components)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/embed_update_history.py
@@ -4404,7 +4016,7 @@ sources:
     authored_at: '2026-11-11T21:34:39+00:00'
     subject: 'feat(memories,workflows): memories settings as list and pages, the regular workflow editor in chat, chat-linked
       billing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/memory_create_draft.py
@@ -4506,7 +4118,7 @@ sources:
     authored_at: '2026-11-11T21:05:49+00:00'
     subject: 'fix(jobs): application mode writes the letter when asked to skip questions; matching focus modes are entered
       before answering'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -4524,7 +4136,7 @@ sources:
     short_sha: b92fde98ca
     authored_at: '2026-11-11T19:48:47+00:00'
     subject: 'docs: backend Rust migration Plan gains coexistence rules, isolation measures and staged agent instructions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/backend-rust-migration/plan.yml
@@ -4533,7 +4145,7 @@ sources:
     short_sha: 8927917d05
     authored_at: '2026-11-11T19:47:05+00:00'
     subject: 'fix(tooling): idle Claude chat processes close after 3 hours instead of 24'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/claude-idle-chats-setup.sh
@@ -4544,7 +4156,7 @@ sources:
     short_sha: 58ebd0d138
     authored_at: '2026-11-11T19:37:32+00:00'
     subject: 'fix(core): a chat whose newest message is too large for one page opens that message with the Rust core on'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
@@ -4558,7 +4170,7 @@ sources:
     short_sha: 662f5ab4f2
     authored_at: '2026-11-11T19:26:57+00:00'
     subject: 'feat(images): text-only draft images use Recraft V4.1 Flash'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/images/app.yml
@@ -4582,7 +4194,7 @@ sources:
     short_sha: 2a1c89c814
     authored_at: '2026-11-11T19:23:50+00:00'
     subject: 'fix(tooling): whole-package type-checks need the heavy slot, and a heavy run starts only when its memory fits'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/rules/testing.md
@@ -4597,7 +4209,7 @@ sources:
     short_sha: cb332e3a8e
     authored_at: '2026-11-11T17:43:49+00:00'
     subject: 'docs: draft Plan for the step-by-step backend migration from Python to Rust'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/backend-rust-migration/plan.yml
@@ -4606,7 +4218,7 @@ sources:
     short_sha: 06da1b2448
     authored_at: '2026-11-11T17:37:20+00:00'
     subject: 'build(web): production and main web builds use the shared Rust client core'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/releases/daily/2026-11-11.md
@@ -4618,7 +4230,7 @@ sources:
     short_sha: 0ad0c4f7f8
     authored_at: '2026-11-11T16:34:57+00:00'
     subject: 'fix(memories): the proxy lets the web app reach the memory suggestion routes'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - deployment/Caddyfile.example
@@ -4631,7 +4243,7 @@ sources:
     authored_at: '2026-11-11T16:30:26+00:00'
     subject: 'feat(core): Swift gets full chat row and message fields, per-message stream updates, and one core-owned session
       for REST'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - Cargo.lock
@@ -4679,7 +4291,7 @@ sources:
     short_sha: 43894c04a9
     authored_at: '2026-11-11T16:21:51+00:00'
     subject: 'chore(ai): log why an authored results card ended without any member'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/authored_result_service.py
@@ -4688,7 +4300,7 @@ sources:
     short_sha: 3fab01e191
     authored_at: '2026-11-11T16:19:35+00:00'
     subject: 'feat(design): drawn lines given as filled outlines are sewn as satin bands across the line'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/design/app.yml
@@ -4709,7 +4321,7 @@ sources:
     short_sha: df0d921126
     authored_at: '2026-11-11T16:12:07+00:00'
     subject: 'fix(ai): follow-up, workflow and memory suggestions are generated again after a continued turn'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/rule_context.py
@@ -4722,7 +4334,7 @@ sources:
     short_sha: 4693790c4e
     authored_at: '2026-11-11T16:07:38+00:00'
     subject: 'fix(drafts): a device that was closed during a draft delete drops that draft when it reconnects'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/delete_draft_handler.py
@@ -4760,7 +4372,7 @@ sources:
     short_sha: ef6f1b5e05
     authored_at: '2026-11-11T15:41:26+00:00'
     subject: 'fix(projects): chat activity row names the assistant-created Project; file rows in folder cards use a file icon'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/overview.yml
@@ -4783,7 +4395,7 @@ sources:
     short_sha: 9387c8f073
     authored_at: '2026-11-11T15:18:55+00:00'
     subject: 'fix(web): an assistant message no longer flashes its raw source before it renders'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/web-app.yml
@@ -4796,7 +4408,7 @@ sources:
     short_sha: bd1e6ed0a8
     authored_at: '2026-11-11T15:14:13+00:00'
     subject: 'feat(projects): web shows the created-Project activation card and the application inside its folder'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/overview.yml
@@ -4817,7 +4429,7 @@ sources:
     short_sha: f007d2e389
     authored_at: '2026-11-11T15:09:29+00:00'
     subject: 'feat(projects): assistant-created Project shows creation and active focus in chat; application sits in its folder'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -4847,7 +4459,7 @@ sources:
     authored_at: '2026-11-11T15:03:43+00:00'
     subject: 'fix(memories): a second device no longer shows ''Entry not found'' errors for entries another device already
       deleted'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/delete_app_settings_memories_handler.py
@@ -4863,7 +4475,7 @@ sources:
     short_sha: 5bf66aed1d
     authored_at: '2026-11-11T14:28:43+00:00'
     subject: 'feat(core): Swift can sign in through the client core (password, pair login) and send messages'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMatesCore/README.md
@@ -4895,7 +4507,7 @@ sources:
     authored_at: '2026-11-11T14:22:22+00:00'
     subject: 'fix(web): three recurring console errors are gone (memory migration, warm-up status, draft delete of a chat
       without a local row)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/overview.yml
@@ -4915,7 +4527,7 @@ sources:
     short_sha: 6420b6a9ef
     authored_at: '2026-11-11T13:55:56+00:00'
     subject: 'docs(images): named-person examples are split into the two deciding cases and the limits'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - specifications/features/app-skills/images-generate/examples.yml
@@ -4927,7 +4539,7 @@ sources:
     short_sha: 351b67a13d
     authored_at: '2026-11-11T13:46:26+00:00'
     subject: 'feat(tasks-cli): tasks edit sets a due date; the daily meeting gets a mentor stance and a daily drift check'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
@@ -4946,7 +4558,7 @@ sources:
     short_sha: ade966ade4
     authored_at: '2026-11-11T13:43:01+00:00'
     subject: 'fix(web): the activity summary keeps its full text while a message is still appearing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
@@ -4955,7 +4567,7 @@ sources:
     short_sha: c6370d9b97
     authored_at: '2026-11-11T13:39:54+00:00'
     subject: 'feat(images): picture prompts that name someone are decided by the safeguard model'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/images/skills/generate_skill.py
@@ -4978,7 +4590,7 @@ sources:
     short_sha: 35dbf89f93
     authored_at: '2026-11-11T13:29:00+00:00'
     subject: 'fix(privacy): an upload''s embed reference is never rewritten by personal data redaction'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/overview.yml
@@ -5009,7 +4621,7 @@ sources:
     short_sha: 1164c58318
     authored_at: '2026-11-11T12:56:32+00:00'
     subject: 'fix(web): Rust core units answer in Safari; a failed formatting request is retried'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/web-app.yml
@@ -5021,7 +4633,7 @@ sources:
     short_sha: 18ffa6a947
     authored_at: '2026-11-11T11:37:33+00:00'
     subject: 'fix(web): the first voice call turn is answered when the Rust core is on'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/services/sendersChatMessages.ts
@@ -5031,7 +4643,7 @@ sources:
     authored_at: '2026-11-11T11:27:52+00:00'
     subject: 'feat(core): send, streaming reply and cancel run in the client core; Swift can open chats; a new session can
       begin after logout'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMatesCore/README.md
@@ -5076,7 +4688,7 @@ sources:
     short_sha: 1cf3262c1c
     authored_at: '2026-11-11T11:18:46+00:00'
     subject: 'fix(design): an uploaded SVG is never sent to the model for adjustment'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/design/embroidery/pipeline.py
@@ -5090,7 +4702,7 @@ sources:
     short_sha: 6c67df588b
     authored_at: '2026-11-11T10:35:53+00:00'
     subject: 'fix(web): a dropped connection is handled when the Rust core is on'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/overview.yml
@@ -5101,7 +4713,7 @@ sources:
     short_sha: fbca809d32
     authored_at: '2026-11-11T10:28:19+00:00'
     subject: 'docs(tooling): a closed Claude chat restarts when it receives a message'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/claude_idle_chats.py
@@ -5110,7 +4722,7 @@ sources:
     short_sha: f86aaa8b46
     authored_at: '2026-11-11T10:26:49+00:00'
     subject: 'feat(tooling): close Claude chat processes idle for more than 24 hours'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/claude-idle-chats-setup.sh
@@ -5121,7 +4733,7 @@ sources:
     short_sha: 433c8492d9
     authored_at: '2026-11-11T10:23:54+00:00'
     subject: 'fix(design): separate shapes are no longer joined by a stitch, narrow bands are sewn across'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/design/embroidery_sandbox/geometry.py
@@ -5140,7 +4752,7 @@ sources:
     short_sha: b8b83bbba0
     authored_at: '2026-11-11T09:56:41+00:00'
     subject: 'fix(web): long chat timelines load fast and Rust core units load before going offline'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/migration/rust/overview.yml
@@ -5156,7 +4768,7 @@ sources:
     short_sha: 0598d07be0
     authored_at: '2026-11-11T09:41:55+00:00'
     subject: 'docs(plan): Apple client core migration progress after the chat window and Apple binding lanes'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/apple-client-core-migration/plan.yml
@@ -5166,7 +4778,7 @@ sources:
     authored_at: '2026-11-11T09:39:10+00:00'
     subject: 'feat(core): chat open, paging and live window run in the client core; Apple binding starts the core and receives
       the chat list'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - Cargo.lock
@@ -5217,7 +4829,7 @@ sources:
     short_sha: b844812366
     authored_at: '2026-11-11T06:59:47+00:00'
     subject: 'fix(projects): a new web app in a focused Project is emitted as one application block'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/project_file_tools.py
@@ -5230,7 +4842,7 @@ sources:
     short_sha: 01acb8e246
     authored_at: '2026-11-11T06:15:15+00:00'
     subject: 'feat(projects): application files are Project files, with rename and delete, in the Rust core and CLI'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/main_processor.py
@@ -5313,7 +4925,7 @@ sources:
     authored_at: '2026-11-11T06:02:31+00:00'
     subject: 'feat(core): chat list, start, boot sync, refresh, team switch and logout run in the client core''s view-model
       actor'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - config/sdk-capabilities.json
@@ -5337,7 +4949,7 @@ sources:
     short_sha: 941bac92aa
     authored_at: '2026-11-11T05:02:12+00:00'
     subject: 'perf(apple): a decrypted message rebuilds its rendered form once, not once per field'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
@@ -5351,7 +4963,7 @@ sources:
     short_sha: 5ec99227f1
     authored_at: '2026-11-11T04:27:30+00:00'
     subject: 'feat(core): encrypted cache records, chat sections, async cache store and shell session in the client core'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
@@ -5395,7 +5007,7 @@ sources:
     short_sha: d935b9cf99
     authored_at: '2026-11-11T03:47:55+00:00'
     subject: 'test(sync): schema-repair spec tells a repair loss apart from the server removing an unknown chat'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
@@ -5405,7 +5017,7 @@ sources:
     short_sha: e13486f130
     authored_at: '2026-11-11T03:29:32+00:00'
     subject: 'fix(design): an SVG file the user uploads is sewn as uploaded'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/images/modify_request.py
@@ -5424,7 +5036,7 @@ sources:
     short_sha: fbd4396131
     authored_at: '2026-11-11T03:09:07+00:00'
     subject: 'feat(apple): chat keys, chat list metadata and message windows decrypt in batched core calls'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/App/MainAppView.swift
@@ -5447,7 +5059,7 @@ sources:
     short_sha: f1441a24da
     authored_at: '2026-11-11T02:42:28+00:00'
     subject: 'test(images): real chat check reads answers like a reader and opens the image from its Details button'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
@@ -5457,7 +5069,7 @@ sources:
     short_sha: bf964a9c71
     authored_at: '2026-11-11T02:27:06+00:00'
     subject: 'fix(ci): builds without the Rust core no longer bundle the Rust embed recovery units'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/PairOpaqueBridge/local-runtime-symbols.txt
@@ -5468,7 +5080,7 @@ sources:
     short_sha: 0b16254066
     authored_at: '2026-11-11T02:10:23+00:00'
     subject: 'feat(core): cache file layer and typed view-model records in the client core, Watch arm64_32 build fixed'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMatesCore/README.md
@@ -5497,7 +5109,7 @@ sources:
     short_sha: fe16c17a45
     authored_at: '2026-11-11T02:04:39+00:00'
     subject: 'test(ci): run the application-files CLI spec at recovery epoch 1'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_run_tests.py
@@ -5508,7 +5120,7 @@ sources:
     authored_at: '2026-11-11T01:50:27+00:00'
     subject: 'fix(chat,embeds): assistant name always resolves; authored result groups use the standard results view and event
       cards show a venue map'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/app.yml
@@ -5588,7 +5200,7 @@ sources:
     short_sha: d66c12e49d
     authored_at: '2026-11-11T01:26:57+00:00'
     subject: 'feat(apps): paused skills with a flat input accept operator-installed providers'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/app_packages/delegate_flat_skill.py
@@ -5608,7 +5220,7 @@ sources:
     short_sha: 3d1c5cf4e1
     authored_at: '2026-11-11T01:24:56+00:00'
     subject: 'feat(apple): Apple apps link the shared Rust client core through a UniFFI bridge'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/rules/client-core.md
@@ -5678,7 +5290,7 @@ sources:
     short_sha: edca0a3641
     authored_at: '2026-11-11T01:14:42+00:00'
     subject: 'fix(design): embroidery is sewn at the width asked for'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/design/embroidery_sandbox/limits.py
@@ -5696,7 +5308,7 @@ sources:
     short_sha: 9e4f6da63d
     authored_at: '2026-11-11T01:04:06+00:00'
     subject: 'feat(jobs): listing facts as separate fields with request filters, any country'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/jobs/app.yml
@@ -5724,144 +5336,192 @@ sources:
     short_sha: a963462b41
     authored_at: '2026-11-11T00:15:55+00:00'
     subject: 'docs: how to show screenshots to the user when SendUserFile is missing'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/rules/testing.md
     - CLAUDE.md
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused heavily on the cross-platform migration to a shared Rust client core, alongside significant
-    advancements in AI image generation safeguards and embroidery design geometry. Work also progressed on integrating Projects
-    and Workflows more deeply into the chat experience.
-  released_changes: []
+  overview: OpenMates focused on enhancing image generation and design tools, introducing image enhancement features and satin
+    band textures for embroidery. Significant stability improvements were made to the web application, particularly regarding
+    message rendering and cross-device synchronization. Meanwhile, extensive foundational work continued on the Apple client
+    core and project management features, which remain unreleased.
+  released_changes:
+  - text: OpenMates introduced user-made embed versions and an image 'Enhance' feature, supported by a new embed-updated chat
+      event.
+    evidence:
+      commits:
+      - 32b672579c
+    release_status: released_main
+  - text: Draft image generation for text-only prompts now uses the Recraft V4.1 Flash model.
+    evidence:
+      commits:
+      - 662f5ab4f2
+    release_status: released_main
+  - text: A new safeguard model has been implemented to review image prompts that name specific individuals.
+    evidence:
+      commits:
+      - c6370d9b97
+    release_status: released_main
+  - text: The design app now converts drawn lines into filled outlines sewn as satin bands.
+    evidence:
+      commits:
+      - 3fab01e191
+    release_status: released_main
+  - text: Job search functionality now supports global country codes and advanced listing filters.
+    evidence:
+      commits:
+      - 9e4f6da63d
+    release_status: released_main
+  - text: Assistant-created Projects now show active focus in chat, and project files support rename and delete operations
+      via the CLI and Rust core.
+    evidence:
+      commits:
+      - f007d2e389
+      - 01acb8e246
+      - b844812366
+    release_status: released_main
+  - text: The CLI now supports setting due dates for tasks and includes a mentor stance for daily meetings.
+    evidence:
+      commits:
+      - 351b67a13d
+    release_status: released_main
   bug_fixes:
-  - text: Image fullscreen views now utilize the full available screen dimensions, and tapping an image correctly opens the
-      source file in a new tab.
-    evidence:
-      commits:
-      - 788e8aa2cb
-    release_status: dev_only
-  - text: Resolved issues where assistant names failed to resolve in chat; authored result groups now use standard views and
-      event cards include venue maps.
-    evidence:
-      commits:
-      - 3f3c8db298
-    release_status: dev_only
-  - text: Embroidery design logic was corrected to prevent separate shapes from being joined by unintended stitches and to
-      ensure sewing widths match user requests.
-    evidence:
-      commits:
-      - 433c8492d9
-      - edca0a3641
-    release_status: dev_only
-  - text: The web interface no longer flashes raw message source before rendering, and several console errors related to memory
-      migration and draft deletion were resolved.
+  - text: Assistant messages no longer flash raw source text before rendering.
     evidence:
       commits:
       - 9387c8f073
-      - 35afed7a0e
-    release_status: dev_only
-  - text: Privacy protections were strengthened to ensure personal data redaction does not inadvertently rewrite embed references
-      for uploaded files.
+    release_status: released_main
+  - text: Chats containing oversized messages now load correctly when the Rust core is active.
     evidence:
       commits:
-      - 35dbf89f93
-    release_status: dev_only
+      - 58ebd0d138
+    release_status: released_main
+  - text: Improved Safari compatibility for Rust core units and added retries for failed formatting requests.
+    evidence:
+      commits:
+      - 1164c58318
+    release_status: released_main
+  - text: Resolved synchronization issues where deleted drafts or memory entries would reappear or cause errors on reconnected
+      devices.
+    evidence:
+      commits:
+      - 4693790c4e
+      - 6b71cf4d0a
+    release_status: released_main
+  - text: Fixed several embroidery design issues, ensuring uploaded SVGs are sewn as intended and shapes are not incorrectly
+      joined.
+    evidence:
+      commits:
+      - 1cf3262c1c
+      - e13486f130
+      - edca0a3641
+      - 433c8492d9
+    release_status: released_main
+  - text: Assistant name resolution is now more reliable, and event cards have been updated to include venue maps.
+    evidence:
+      commits:
+      - 3f3c8db298
+    release_status: released_main
   unreleased_progress:
-  - text: Significant progress was made on the Apple client core migration, including UniFFI bridging, encrypted cache records,
-      and batched decryption for chat metadata and message windows.
+  - text: Extensive development on the Apple client core, including Swift bindings for chat, encrypted caching, and session
+      management for iOS and macOS.
     evidence:
       commits:
       - 3d1c5cf4e1
       - 5ec99227f1
-      - fbd4396131
-      - 6d15ee29da
+      - b8a01f6935
       - 583ebb3255
-    release_status: dev_only
-  - text: AI image capabilities were expanded with Recraft V4.1 Flash for text-only drafts, a new safeguard model for named-person
-      prompts, and server-side support for image enhancement jobs.
-    evidence:
-      commits:
-      - 662f5ab4f2
-      - c6370d9b97
-      - 32b672579c
-    release_status: dev_only
-  - text: Project integration was enhanced with new activation cards in chat, support for application files within project
-      folders, and file management operations (rename/delete) in the Rust core.
-    evidence:
-      commits:
-      - bd1e6ed0a8
-      - f007d2e389
-      - 01acb8e246
-    release_status: dev_only
-  - text: Workflows and Memories received UI updates, including a list-based memory editor and the ability to access the regular
-      workflow editor directly within chat.
+      - fbd4396131
+      - 0b16254066
+      - 941bac92aa
+      - 6d15ee29da
+      - 5bf66aed1d
+    release_status: released_main
+  - text: Progress on the workflow editor and memory settings UI, including chat-linked billing for workflow authoring.
     evidence:
       commits:
       - b84bb098b8
-    release_status: dev_only
-  - text: The design engine now supports sewing drawn lines as satin bands, improving the quality of embroidery output for
-      outline-based geometry.
+    release_status: released_main
+  - text: Ongoing work on Project UI components, including activation cards and folder-based application views.
     evidence:
       commits:
-      - 3fab01e191
-    release_status: dev_only
+      - bd1e6ed0a8
+      - ef6f1b5e05
+      - 35dbf89f93
+    release_status: released_main
   internal_progress:
-  - text: Initial planning and architectural measures were established for the staged migration of the backend from Python
-      to Rust.
-    evidence:
-      commits:
-      - b92fde98ca
-      - cb332e3a8e
-    release_status: dev_only
-  - text: New tooling was implemented to automatically close idle Claude chat processes after three hours of inactivity to
-      optimize resource usage.
+  - text: Implemented automated cleanup of idle Claude chat processes to manage resources.
     evidence:
       commits:
       - f86aaa8b46
       - 8927917d05
-      - fbca809d32
-    release_status: dev_only
-  - text: CI and build pipelines were updated to handle heavy type-checks more efficiently and to manage Rust core bundling
-      across production web builds.
+    release_status: released_main
+  - text: Optimized CI builds by refining type-check slots and excluding recovery units from non-Rust builds.
     evidence:
       commits:
       - 2a1c89c814
       - bf964a9c71
-      - 06da1b2448
-    release_status: dev_only
+    release_status: released_main
   newsletter_recommendation:
-    include: []
+    include:
+    - text: OpenMates added user-made embed versions and an image 'Enhance' feature, allowing for more control over generated
+        content.
+      evidence:
+        commits:
+        - 32b672579c
+      reason: Introduces user-facing versioning and enhancement tools for AI-generated content.
+    - text: Text-only draft images now utilize Recraft V4.1 Flash for improved generation speed and quality.
+      evidence:
+        commits:
+        - 662f5ab4f2
+      reason: Significant performance and quality update for draft image generation.
+    - text: The design app now supports sewing drawn lines as satin bands, providing more realistic embroidery textures.
+      evidence:
+        commits:
+        - 3fab01e191
+      reason: Concrete improvement to the design and embroidery application.
+    - text: Job search capabilities have been expanded to support any country with new listing filters and field-specific
+        facts.
+      evidence:
+        commits:
+        - 9e4f6da63d
+      reason: Expands the utility of the jobs search feature globally.
+    - text: Assistant-created Projects now display their creation and active focus status directly within the chat interface.
+      evidence:
+        commits:
+        - f007d2e389
+      reason: Improves the visibility of assistant-driven project creation.
     exclude:
-    - text: Client Core Migration (Apple & Web)
+    - text: Workflow editor and memory settings updates.
+      evidence:
+        commits:
+        - b84bb098b8
+      reason: Related features (platform:workflows, platform:projects) are currently disabled.
+    - text: Apple client core migration progress.
       evidence:
         commits:
         - 3d1c5cf4e1
         - 5ec99227f1
-        - 62b8bc156d
-      reason: The comprehensive migration to the Rust-based client core for Apple and Web platforms is currently in development
-        and not yet released to the public.
-    - text: AI Image Generation Updates
-      evidence:
-        commits:
-        - 662f5ab4f2
-        - c6370d9b97
-        - 32b672579c
-      reason: New image generation models and enhancement features are currently in dev-only status.
-    rationale: All user-facing features and improvements from this period are currently in dev-only status or tied to disabled
-      platforms (iOS, macOS, Projects, Workflows) and are not yet ready for public communication.
+        - b8a01f6935
+      reason: Apple platforms (iOS, macOS) are currently disabled.
+    rationale: The newsletter highlights significant user-facing improvements in image generation, design tools, and global
+      search capabilities while excluding work on disabled platforms and features.
   social_video_recommendations:
-  - idea: Demonstrate the new 'satin band' sewing logic for embroidery, showing how drawn lines are converted into high-quality
-      stitched paths.
-    priority: Medium
-    reason: This provides a clear visual product story for the design-focused user base.
+  - idea: A 'before and after' video showing the new image 'Enhance' feature in action within the chat.
+    priority: high
+    reason: Visual product updates like image enhancement are highly engaging for social media.
+    evidence:
+      commits:
+      - 32b672579c
+  - idea: A short clip demonstrating how a simple drawn line is transformed into a complex satin band embroidery pattern.
+    priority: medium
+    reason: Shows off the unique capabilities of the design and embroidery app.
     evidence:
       commits:
       - 3fab01e191
   quality_notes:
-  - The project is prioritizing architectural consistency by moving critical logic (session management, encryption, and paging)
-    into a shared Rust core used by both Apple and Web platforms.
-  - Privacy remains a focus with fixes to PII redaction logic ensuring it does not break functional embed references.
-  - Performance improvements were noted in Apple message rendering, reducing redundant rebuilds during decryption.
+  - The update includes a high volume of bug fixes (28) targeting web app performance and sync reliability.
+  - Foundational work on the Rust client core is progressing across multiple platforms, though remains gated.
   validation_warnings: []

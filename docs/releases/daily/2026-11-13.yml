@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-13'
-generated_at: '2026-11-14T00:20:56+00:00'
+generated_at: '2026-11-16T00:50:04+00:00'
 range:
   since: '2026-11-13T00:00:00+00:00'
   until: '2026-11-14T00:00:00+00:00'
@@ -60,6 +60,13 @@ feature_availability:
     override: disabled
     parent_id: null
     source: backend/apps/tasks/app.yml
+  - id: focus:code:write_specification
+    kind: platform
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: admin_config
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
@@ -9386,114 +9393,32 @@ sources:
     - app:workflows
     - platform:workflows
 llm_summary:
-  overview: OpenMates introduced significant privacy enhancements for Memories, refined the voice call experience, and improved
-    the visibility of agentic coding results. A major internal milestone was reached with the migration of core web application
-    logic to the Rust core. Work also progressed on unreleased orchestration features and Apple platform parity.
+  overview: OpenMates implemented a privacy-centric update to the Memory system, masking sensitive details with client-side
+    placeholders. The project also reached a major milestone in its web architecture, migrating six core subsystems—including
+    search, caching, and WebSocket management—to the Rust-based shared core. Additionally, agentic coding features were improved
+    with integrated video playback for test results and better dependency management.
   released_changes:
-  - text: OpenMates now protects sensitive data by keeping real details in stored Memories and using placeholders when data
-      is sent to the AI.
+  - text: OpenMates now masks sensitive details in stored Memories using client-side placeholders before they are transmitted
+      to the AI.
     evidence:
       commits:
       - c8a17d4380
     release_status: released_main
-  - text: Project Memories now support 'Ask first' and 'Mention only' permissions. The CLI and terminal UI now support binding
-      new chats to specific Projects.
+  - text: Project Memories now support 'Ask first' and '@Mention' functionality, matching the behavior of personal Memories.
     evidence:
       commits:
       - e6a416b33f
       - ee0b6d6e9f
+      - f146e0bccc
     release_status: released_main
-  - text: Gemini 4 Carbon is now available for @mentions across the CLI, TUI, and Rust core.
-    evidence:
-      commits:
-      - d63fcca1cb
-    release_status: released_main
-  - text: Unfenced application script files are now automatically treated as Project files.
-    evidence:
-      commits:
-      - 6e93e37f66
-    release_status: released_main
-  bug_fixes:
-  - text: The first call turn in a new chat now plays a neutral system voice and chime instead of a guessed Mate voice.
-    evidence:
-      commits:
-      - 21372775f6
-    release_status: released_main
-  - text: Voice calls now use the selected Mate's voice from the first word and accurately highlight spoken words.
-    evidence:
-      commits:
-      - f681e015e6
-    release_status: released_main
-  - text: Recorded test videos and preview frames can now be played directly within the web test result cards.
+  - text: Web test result cards now support playback of recorded test videos and preview frames.
     evidence:
       commits:
       - 912a4b2f67
-    release_status: released_main
-  - text: Test run evidence is now stored correctly under test result embeds to ensure video links resolve properly.
-    evidence:
-      commits:
-      - 92419d9563
-    release_status: released_main
-  - text: Assistant replies now consistently include test results for coding turns, including those requiring dependency installation.
-    evidence:
-      commits:
-      - 5dbcdbf621
       - 437aa3714b
     release_status: released_main
-  - text: Deleting a chat now correctly frees its AI context slot, preventing new chat refusals.
-    evidence:
-      commits:
-      - 564926cf30
-    release_status: released_main
-  - text: The web source now respects site terms that forbid automated data collection.
-    evidence:
-      commits:
-      - aec57d7b3c
-    release_status: released_main
-  - text: Concurrent artifact storage by different clients of the same account no longer causes turn refusals.
-    evidence:
-      commits:
-      - 2cdf27c60b
-    release_status: released_main
-  - text: Rejected project operations no longer block subsequent writes or turn completion.
-    evidence:
-      commits:
-      - 8c770a3ddf
-    release_status: released_main
-  unreleased_progress:
-  - text: Development continued on Apple platform parity, including macOS core linking, project file entries, and test-result
-      previews for iOS.
-    evidence:
-      commits:
-      - 7127adf367
-      - 07addd1b93
-      - bcc20ba144
-    release_status: dev_only
-  - text: New orchestration features are in progress, allowing chats to coordinate other main chats and handle automatic interpreting
-      turns during active calls.
-    evidence:
-      commits:
-      - e835939a16
-      - c88dd5f969
-      - dd50cc1235
-    release_status: dev_only
-  - text: The project is preparing file editing capabilities for docs, sheets, and code within Project folders, along with
-      new focus mode suggestions.
-    evidence:
-      commits:
-      - 7512c73eb1
-      - 4ef635ec3d
-    release_status: dev_only
-  - text: Event search capabilities are being expanded to include public web pages and official schedules with usage-based
-      billing.
-    evidence:
-      commits:
-      - d114c85b2b
-      - 722732024d
-    release_status: dev_only
-  internal_progress:
-  - text: OpenMates completed a major migration of web application logic to the Rust core, including cache decisions, WebSocket
-      lifecycles, workspace requests, and search.
+  - text: The web application now uses the Rust core for search, IndexedDB persistence, WebSocket lifecycle, and workspace
+      management.
     evidence:
       commits:
       - aabaaf74c9
@@ -9503,85 +9428,162 @@ llm_summary:
       - e2fde9611d
       - 80d5d8e6c7
     release_status: released_main
-  - text: A new read-only aggregate admin endpoint now provides production growth metrics for briefings.
+  - text: The CLI and terminal UI now automatically include active Project Memories in every turn.
+    evidence:
+      commits:
+      - ee0b6d6e9f
+    release_status: released_main
+  - text: The daily meeting briefing now includes production growth metrics via a new aggregate admin endpoint.
     evidence:
       commits:
       - c83de9c2be
     release_status: released_main
-  - text: CI infrastructure was upgraded with E2B overflow runners, isolated GitHub runners, and improved failure reporting.
+  bug_fixes:
+  - text: Fixed an issue where video links in chat test runs would not resolve by storing evidence directly under the test
+      result embed.
+    evidence:
+      commits:
+      - 92419d9563
+    release_status: released_main
+  - text: Resolved a bug where voice call turns would stop being spoken after a Memory approval request.
+    evidence:
+      commits:
+      - 264bb294db
+    release_status: released_main
+  - text: Deleting a chat now correctly frees its AI context slot, preventing new chat requests from being refused after multiple
+      deletions.
+    evidence:
+      commits:
+      - 564926cf30
+    release_status: released_main
+  - text: The web search source now respects site terms by automatically skipping domains that forbid automated data collection.
+    evidence:
+      commits:
+      - aec57d7b3c
+    release_status: released_main
+  - text: The first turn of a new chat now uses a neutral system voice and chime instead of an incorrectly guessed Mate voice.
+    evidence:
+      commits:
+      - 21372775f6
+    release_status: released_main
+  unreleased_progress:
+  - text: Work continues on Apple platform parity, including Project file entries, Slides rendering, and native voice call
+      orchestration on the Rust core.
+    evidence:
+      commits:
+      - 7127adf367
+      - bcc20ba144
+      - 07addd1b93
+    release_status: dev_only
+  - text: New orchestration features are in development to allow chats to coordinate other main chats and maintain continuity
+      across voice and text.
+    evidence:
+      commits:
+      - e835939a16
+      - c88dd5f969
+      - dd50cc1235
+    release_status: dev_only
+  - text: Event search is being updated to support usage-based billing and indexing of public web pages.
+    evidence:
+      commits:
+      - d114c85b2b
+      - 722732024d
+    release_status: dev_only
+  - text: Skill decisions for search, images, and videos are being updated to strictly follow user-defined AI model restrictions.
+    evidence:
+      commits:
+      - a2c0c3ab8d
+      - 303476dbfc
+      - 4c3c6e4ca0
+    release_status: dev_only
+  internal_progress:
+  - text: The CI coordinator now provides a unified failure report and supports re-running only failed targets.
     evidence:
       commits:
       - 6f6c0dc7b5
+    release_status: dev_only
+  - text: Infrastructure now supports automatic overflow of end-to-end test jobs to E2B runners when local capacity is reached.
+    evidence:
+      commits:
       - aaedbc166b
       - 8b27e67835
       - 934dbb9106
+    release_status: dev_only
+  - text: Heavy development jobs now run in remote environments under a 70% capacity cap to preserve local resources.
+    evidence:
+      commits:
       - 479a13eab0
     release_status: dev_only
   newsletter_recommendation:
     include:
-    - text: 'Enhanced Memory privacy: Real details now stay in stored Memories while the client uses placeholders when communicating
-        with the AI.'
+    - text: 'Privacy-first Memories: OpenMates now uses client-side placeholders to mask sensitive details before sending
+        stored Memories to the AI.'
       evidence:
         commits:
         - c8a17d4380
-      reason: Significant privacy improvement for how user data is handled during AI interactions.
-    - text: 'Project Memory controls: ''Ask first'' and ''Mention only'' settings are now available for Project Memories,
-        with new CLI support for project-bound chats.'
+      reason: This is a core privacy improvement for the Memory feature and is ready for public communication.
+    - text: 'Project Memory parity: ''Ask first'' and ''@Mention'' controls now work for Project-bound Memories, and the CLI
+        now supports binding new chats to specific Projects.'
       evidence:
         commits:
         - e6a416b33f
         - ee0b6d6e9f
-      reason: Improves user control over how the AI accesses specific project contexts.
-    - text: 'Integrated video playback for test results: Users can now view recorded test runs and preview frames directly
-        in the web interface.'
+      reason: These updates bring Project-level Memories to parity with personal Memories and are marked ready for communication.
+    - text: 'Enhanced coding results: Recorded test videos and preview frames now play directly within web test result cards.'
       evidence:
         commits:
         - 912a4b2f67
-      reason: Visual improvement to the agentic coding experience.
-    - text: 'Polished voice call experience: Calls now feature neutral system introductions and improved word-level highlighting.'
+        - 437aa3714b
+        - 5dbcdbf621
+      reason: These improvements to the agentic coding experience are released and ready for user feedback.
+    - text: 'Web performance boost: Six major subsystems, including search, WebSocket management, and IndexedDB caching, have
+        been migrated to the high-performance Rust core.'
       evidence:
         commits:
-        - 21372775f6
-        - f681e015e6
-      reason: Refines the voice interaction experience to be more professional and responsive.
+        - aabaaf74c9
+        - c17164fa5b
+        - b6af4d0c38
+        - 5dff8a2680
+        - e2fde9611d
+        - 80d5d8e6c7
+      reason: This represents a major architectural milestone for the web application's performance and reliability.
     exclude:
     - text: Apple platform parity and native core linking.
       evidence:
         commits:
         - 7127adf367
-        - 07addd1b93
         - bcc20ba144
-      reason: Apple platforms (iOS, macOS, Apple Watch) are currently disabled features.
-    - text: Usage-based event search and production enablement.
+        - 07addd1b93
+      reason: Apple platform support (iOS, macOS, Apple Watch) is currently listed as a disabled feature.
+    - text: Event search pricing and public web page indexing.
       evidence:
         commits:
         - d114c85b2b
         - 722732024d
-      reason: The event search skill is currently disabled.
-    - text: Cross-chat messaging and automatic interpreting turns.
+      reason: The event search skill is currently disabled in the application configuration.
+    - text: Cross-chat orchestration and spawned chat coordination.
       evidence:
         commits:
         - e835939a16
         - c88dd5f969
         - dd50cc1235
-      reason: Advanced chat orchestration features are currently dev-only.
-    - text: Project folder file editing and focus suggestions.
-      evidence:
-        commits:
-        - 7512c73eb1
-        - 4ef635ec3d
-      reason: The Projects app and platform are currently disabled.
-    rationale: The newsletter highlights focus on released privacy enhancements, improved project context controls, and visual
-      updates to the coding and voice experiences. Unreleased orchestration and disabled platform features are excluded.
+      reason: Chat orchestration features are currently in dev_only status and not reachable from the main branch.
+    rationale: The newsletter should highlight the significant privacy improvements to the Memory system and the major architectural
+      shift of the web app to the Rust core, which improves performance and consistency across platforms. Coding improvements
+      provide a concrete visual update for technical users.
   social_video_recommendations:
-  - idea: Showcase the new test result video playback.
-    priority: Medium
-    reason: Demonstrates the 'agentic coding' story by showing how the AI provides visual proof of its work.
+  - idea: Show a screen recording of an agentic coding turn where the assistant runs a test and the user plays back the resulting
+      video directly in the chat.
+    priority: high
+    reason: This provides a clear, high-value visual demonstration of the agentic coding workflow and the new integrated media
+      capabilities.
     evidence:
       commits:
       - 912a4b2f67
   quality_notes:
-  - The project successfully migrated six major web subsystems to the Rust core, improving cross-platform consistency.
-  - Privacy was prioritized with the introduction of client-side placeholders for Memories sent to the AI.
-  - Agentic coding workflows are now more transparent with integrated video evidence in test results.
+  - The migration of web subsystems to Rust is a significant refactor that removes redundant TypeScript logic and ensures
+    behavior parity with the CLI.
+  - Memory privacy implementation relies on client-side placeholder mapping, ensuring raw sensitive data is not transmitted
+    during AI turns.
+  - Agentic coding tests now include real-world verification of video playback and dependency installation.
   validation_warnings: []

@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-11-09'
-generated_at: '2026-11-10T00:20:45+00:00'
+generated_at: '2026-11-16T00:45:55+00:00'
 range:
   since: '2026-11-09T00:00:00+00:00'
   until: '2026-11-10T00:00:00+00:00'
@@ -19,9 +19,9 @@ summary:
     infrastructure: 2
     internal: 0
     other: 0
-  newsletter_ready_items: 0
+  newsletter_ready_items: 10
   user_facing_items: 11
-  dev_only_items: 34
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -60,13 +60,13 @@ feature_availability:
     override: disabled
     parent_id: null
     source: backend/apps/tasks/app.yml
-  - id: embed:web:browse
-    kind: embed
+  - id: focus:code:write_specification
+    kind: platform
     default_enabled: true
     effective_enabled: false
     override: disabled
-    parent_id: app:web
-    source: backend/apps/web/app.yml
+    parent_id: null
+    source: admin_config
   - id: platform:apple-watch
     kind: platform
     default_enabled: false
@@ -151,13 +151,6 @@ feature_availability:
     override: null
     parent_id: app:travel
     source: backend/apps/travel/app.yml
-  - id: skill:web:browse
-    kind: skill
-    default_enabled: true
-    effective_enabled: false
-    override: disabled
-    parent_id: app:web
-    source: backend/apps/web/app.yml
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
 sections:
@@ -214,9 +207,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:images
@@ -247,6 +240,13 @@ sections:
       override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
@@ -266,8 +266,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:images, embed:images:generate, embed:images:generate_draft, embed:images:generated_image,
-      embed:images:vectorize, skill:images:generate'
-    - commit is not reachable from main, so it is not newsletter-ready
+      embed:images:modify, embed:images:vectorize, skill:images:generate'
+    - commit is reachable from main
   - title: 'feat(images): draw and modify SVGs inside images-generate with a reviewed LLM vector author'
     section: features
     commits:
@@ -325,9 +325,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -365,6 +365,13 @@ sections:
       override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
@@ -384,8 +391,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:images, embed:images:generate, embed:images:generate_draft, embed:images:generated_image,
-      embed:images:vectorize, skill:images:generate'
-    - commit is not reachable from main, so it is not newsletter-ready
+      embed:images:modify, embed:images:vectorize, skill:images:generate'
+    - commit is reachable from main
   - title: 'feat(ai): use-case model routing for vector graphics, direct SVG authoring, progressive SVG/HTML embed rendering'
     section: features
     commits:
@@ -422,9 +429,9 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -453,7 +460,7 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, app:images, embed:code:code'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: chat Recommendations replace quick tips (memory and workflow suggestions)'
     section: features
     commits:
@@ -658,8 +665,8 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     newsletter_ready: false
     user_facing: true
     related_features:
@@ -696,7 +703,8 @@ sections:
     - classified as new features from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai, platform:ios, platform:macos, platform:workflows'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
+    - 'related feature is disabled or unreleased, so it is not newsletter-ready: platform:ios, platform:macos, platform:workflows'
   - title: 'feat: daily meeting weekly goals block, meeting retro and verified structured note tables'
     section: features
     commits:
@@ -713,7 +721,7 @@ sections:
     - scripts/tests/test_daily_meeting_apply.py
     - scripts/tests/test_daily_meeting_goals.py
     - scripts/tests/test_daily_meeting_issues.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -721,7 +729,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat(ci): apple-core and apple-unit isolated modes on macos-26'
     section: features
     commits:
@@ -733,7 +741,7 @@ sections:
     - scripts/ci_apple.py
     - scripts/ci_coordinator.py
     - scripts/ci_results.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -741,7 +749,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: daily meeting shows plain-language titles instead of bare IDs'
     section: features
     commits:
@@ -753,7 +761,7 @@ sections:
     - scripts/daily_meeting_briefing.py
     - scripts/daily_meeting_waiting.py
     - scripts/tests/test_daily_meeting_waiting.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -761,7 +769,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'feat: daily meeting opens with a check-in, ADHD-friendly 6 blocks, freshness gate before Discord'
     section: features
     commits:
@@ -772,7 +780,7 @@ sections:
     - docs/contributing/guides/daily-meeting.md
     - scripts/daily_meeting_briefing.py
     - scripts/tests/test_daily_meeting_freshness.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -780,7 +788,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as new features from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   bug_fixes:
   - title: 'fix(web): keep a streaming code embed mounted so SVG/HTML previews build up without flicker'
     section: bug_fixes
@@ -792,16 +800,16 @@ sections:
     - frontend/packages/ui/src/components/ActiveChat.svelte
     - scripts/ci_coverage_manifest.json
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ai): stream SVG and HTML code blocks line by line so the embed draws while it is written'
     section: bug_fixes
     commits:
@@ -812,9 +820,9 @@ sections:
     - backend/apps/ai/utils/tool_protocol_guard.py
     - backend/tests/test_progressive_code_streaming.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -829,7 +837,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(billing): renew verified cache tariffs, update Mistral Large 4 price, bill full input when a review lapses'
     section: bug_fixes
     commits:
@@ -846,9 +854,9 @@ sections:
     - backend/tests/test_mistral_large4.py
     - backend/tests/test_temporary_model_pricing.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -863,7 +871,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(billing): expired cache tariffs fall back to ordinary billing instead of failing chats'
     section: bug_fixes
     commits:
@@ -873,7 +881,7 @@ sections:
     - backend/shared/python_utils/model_pricing.py
     - backend/tests/test_temporary_model_pricing.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -881,7 +889,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(pdf): forward the prefetch rerank width to pdf.search (base_app)'
     section: bug_fixes
     commits:
@@ -889,16 +897,16 @@ sections:
     authored_at: '2026-11-09T15:17:12+00:00'
     changed_paths:
     - backend/apps/base_app.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(pdf): forward the prefetch rerank width to pdf.search'
     section: bug_fixes
     commits:
@@ -907,7 +915,7 @@ sections:
     changed_paths:
     - backend/tests/test_base_app_dispatch_context.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -915,7 +923,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(pdf): keep attachment link markup out of the prefetch question'
     section: bug_fixes
     commits:
@@ -925,9 +933,9 @@ sections:
     - backend/apps/ai/processing/pdf_prefetch.py
     - backend/tests/test_pdf_prefetch.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -942,7 +950,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ci): apple-unit installs lucide/meteocons for token generation'
     section: bug_fixes
     commits:
@@ -950,7 +958,7 @@ sections:
     authored_at: '2026-11-09T13:46:24+00:00'
     changed_paths:
     - .github/workflows/isolated-tests.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -958,7 +966,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ci): apple-unit generates design tokens and locales before xcodebuild'
     section: bug_fixes
     commits:
@@ -967,7 +975,7 @@ sections:
     changed_paths:
     - .github/workflows/isolated-tests.yml
     - scripts/ci_apple.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -975,7 +983,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ci): apple-core runs cargo tests with a symlink-free TMPDIR'
     section: bug_fixes
     commits:
@@ -983,7 +991,7 @@ sections:
     authored_at: '2026-11-09T13:33:15+00:00'
     changed_paths:
     - scripts/ci_apple.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -991,7 +999,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ci): apple-core scopes cargo to openmates-sdk, admits skipped sibling job'
     section: bug_fixes
     commits:
@@ -1001,7 +1009,7 @@ sections:
     - docs/architecture/isolated-github-tests.md
     - scripts/ci_apple.py
     - scripts/ci_results.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1009,7 +1017,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(upload): copy the PDF triage module into the upload image'
     section: bug_fixes
     commits:
@@ -1017,7 +1025,7 @@ sections:
     authored_at: '2026-11-09T13:12:09+00:00'
     changed_paths:
     - backend/upload/Dockerfile
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1025,7 +1033,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(upload): include the PDF triage module in the upload image'
     section: bug_fixes
     commits:
@@ -1034,7 +1042,7 @@ sections:
     changed_paths:
     - backend/tests/test_upload_image_pdf_triage.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1042,7 +1050,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(learning-mode): sanitize guest context in postprocessing, availability-aware Diagrams guidance, translations,
       stale guest-nav spec'
     section: bug_fixes
@@ -1056,16 +1064,16 @@ sections:
     - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
     - frontend/packages/ui/src/i18n/sources/settings/main.yml
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix(ai): adapt requested reasoning effort to provider-supported values on Mistral'
     section: bug_fixes
     commits:
@@ -1075,9 +1083,9 @@ sections:
     - backend/apps/ai/llm_providers/mistral_client.py
     - backend/providers/deepseek.yml
     - backend/tests/test_mistral_large4.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features:
     - id: app:ai
@@ -1092,7 +1100,7 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep dispatched Claude chats online in zellij instead of retiring --bg jobs'
     section: bug_fixes
     commits:
@@ -1103,7 +1111,7 @@ sections:
     - scripts/claude_dispatch.py
     - scripts/tests/test_claude_dispatch.py
     - specifications/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1111,7 +1119,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements: []
   docs:
   - title: 'docs(specs): approve Memories v4 (chat Recommendations)'
@@ -1125,7 +1133,7 @@ sections:
     - specifications/generated/assertion-index.yml
     - specifications/generated/coverage.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1133,7 +1141,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore(claude): add Haiku ci-runner agent for CI/deploy waits'
     section: docs
     commits:
@@ -1142,7 +1150,7 @@ sections:
     changed_paths:
     - .claude/agents/ci-runner.md
     - CLAUDE.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1150,7 +1158,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: plan chat Recommendations replacing quick tips'
     section: docs
     commits:
@@ -1158,7 +1166,7 @@ sections:
     authored_at: '2026-11-09T16:31:58+00:00'
     changed_paths:
     - docs/plans/chat-recommendations/plan.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1166,7 +1174,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: remove instruction conflicts with client-core architecture'
     section: docs
     commits:
@@ -1198,7 +1206,7 @@ sections:
     - specifications/architecture/client-core/specification.yml
     - specifications/generated/assertion-index.yml
     - specifications/generated/registry.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1206,7 +1214,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: align SDK rollout assertion with client-core order'
     section: docs
     commits:
@@ -1218,7 +1226,7 @@ sections:
     - specifications/generated/registry.yml
     - specifications/surfaces/sdk/examples.yml
     - specifications/surfaces/sdk/specification.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1226,7 +1234,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: client core architecture (one Rust core, three shells)'
     section: docs
     commits:
@@ -1260,7 +1268,7 @@ sections:
     - specifications/generated/registry.yml
     - specifications/surfaces/sdk/examples.yml
     - specifications/surfaces/sdk/specification.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1268,7 +1276,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: daily meeting sends chat replies itself'
     section: docs
     commits:
@@ -1277,7 +1285,7 @@ sections:
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
     - docs/contributing/guides/daily-meeting.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1285,7 +1293,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'docs: mark Tasks Done once deployed to dev'
     section: docs
     commits:
@@ -1295,7 +1303,7 @@ sections:
     - .claude/rules/task-management.md
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
     - CLAUDE.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1303,7 +1311,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as documentation from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   tests: []
   infrastructure:
   - title: 'chore(claude): sub-agent 1h cache, lean lane-worker agent, deny unused tools, CI cost rules'
@@ -1315,7 +1323,7 @@ sections:
     - .claude/agents/lane-worker.md
     - .claude/settings.json
     - CLAUDE.md
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1323,7 +1331,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as infrastructure from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'chore(pdf): log the prefetch question and best rated pages'
     section: infrastructure
     commits:
@@ -1331,7 +1339,7 @@ sections:
     authored_at: '2026-11-09T14:51:25+00:00'
     changed_paths:
     - backend/apps/ai/processing/pdf_prefetch.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -1347,433 +1355,19 @@ sections:
     rationale:
     - classified as infrastructure from commit subject/path rules
     - 'matches feature availability gates: app:ai'
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   internal: []
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'feat(images): script engine and requirement-checked follow-ups for SVG generation'
-    commits:
-    - 9cd90bd077
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-    - id: embed:images:generate
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:generate_draft
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:generated_image
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:vectorize
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: skill:images:generate
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-  - title: 'feat(images): draw and modify SVGs inside images-generate with a reviewed LLM vector author'
-    commits:
-    - c27b7248ce
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-    - id: embed:images:generate
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:generate_draft
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:generated_image
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: embed:images:vectorize
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-    - id: skill:images:generate
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:images
-      source: backend/apps/images/app.yml
-  - title: 'fix(web): keep a streaming code embed mounted so SVG/HTML previews build up without flicker'
-    commits:
-    - 47e91ae77d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(ai): stream SVG and HTML code blocks line by line so the embed draws while it is written'
-    commits:
-    - f4a317825e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'docs(specs): approve Memories v4 (chat Recommendations)'
-    commits:
-    - 5ef4cbd24e
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(ai): use-case model routing for vector graphics, direct SVG authoring, progressive SVG/HTML embed rendering'
-    commits:
-    - 9deb5631c2
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:images
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/images/app.yml
-    - id: embed:code:code
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:code
-      source: backend/apps/code/app.yml
-  - title: 'chore(claude): add Haiku ci-runner agent for CI/deploy waits'
-    commits:
-    - 5ac798ca27
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: chat Recommendations replace quick tips (memory and workflow suggestions)'
-    commits:
-    - 3e051ecb01
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: platform:ios
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:macos
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-    - id: platform:workflows
-      kind: platform
-      default_enabled: false
-      effective_enabled: false
-      override: null
-      parent_id: null
-      source: platform
-  - title: 'fix(billing): renew verified cache tariffs, update Mistral Large 4 price, bill full input when a review lapses'
-    commits:
-    - 005a2524d6
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'chore(claude): sub-agent 1h cache, lean lane-worker agent, deny unused tools, CI cost rules'
-    commits:
-    - 2c70b3f11d
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(billing): expired cache tariffs fall back to ordinary billing instead of failing chats'
-    commits:
-    - d3cdef75f9
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: daily meeting weekly goals block, meeting retro and verified structured note tables'
-    commits:
-    - bae98d257f
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: plan chat Recommendations replacing quick tips'
-    commits:
-    - c912cb6747
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(pdf): forward the prefetch rerank width to pdf.search (base_app)'
-    commits:
-    - 9e1e1b16cb
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix(pdf): forward the prefetch rerank width to pdf.search'
-    commits:
-    - 8f4efda3f6
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(pdf): keep attachment link markup out of the prefetch question'
-    commits:
-    - 1cccd90b58
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'chore(pdf): log the prefetch question and best rated pages'
-    commits:
-    - cf73539bb9
-    section: infrastructure
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'docs: remove instruction conflicts with client-core architecture'
-    commits:
-    - 3a4af22834
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ci): apple-unit installs lucide/meteocons for token generation'
-    commits:
-    - 9954b647db
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ci): apple-unit generates design tokens and locales before xcodebuild'
-    commits:
-    - 8a7a380c50
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ci): apple-core runs cargo tests with a symlink-free TMPDIR'
-    commits:
-    - 1ad4ca6a96
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ci): apple-core scopes cargo to openmates-sdk, admits skipped sibling job'
-    commits:
-    - 185daf90fb
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: align SDK rollout assertion with client-core order'
-    commits:
-    - 87683ea485
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: client core architecture (one Rust core, three shells)'
-    commits:
-    - b3e2db1692
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(upload): copy the PDF triage module into the upload image'
-    commits:
-    - 41bc85c665
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(upload): include the PDF triage module in the upload image'
-    commits:
-    - 52c9fb5501
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat(ci): apple-core and apple-unit isolated modes on macos-26'
-    commits:
-    - 444c11db70
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: daily meeting sends chat replies itself'
-    commits:
-    - 9b29b35473
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'feat: daily meeting shows plain-language titles instead of bare IDs'
-    commits:
-    - f0faca1a0a
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(learning-mode): sanitize guest context in postprocessing, availability-aware Diagrams guidance, translations,
-      stale guest-nav spec'
-    commits:
-    - 2ed043cfc8
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'feat: daily meeting opens with a check-in, ADHD-friendly 6 blocks, freshness gate before Discord'
-    commits:
-    - 2f757f3cb8
-    section: features
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'docs: mark Tasks Done once deployed to dev'
-    commits:
-    - 336e38a9f0
-    section: docs
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix(ai): adapt requested reasoning effort to provider-supported values on Mistral'
-    commits:
-    - 4f6825c2ed
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - title: 'fix: keep dispatched Claude chats online in zellij instead of retiring --bg jobs'
-    commits:
-    - c0e15f564c
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
+  dev_only: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: 'feat(images): script engine and requirement-checked follow-ups for SVG generation'
     commits:
     - 9cd90bd077
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:images
       kind: app
@@ -1803,6 +1397,13 @@ unreleased_progress:
       override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
@@ -1821,8 +1422,8 @@ unreleased_progress:
     commits:
     - c27b7248ce
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1859,6 +1460,13 @@ unreleased_progress:
       override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
@@ -1877,8 +1485,8 @@ unreleased_progress:
     commits:
     - 9deb5631c2
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -1905,8 +1513,8 @@ unreleased_progress:
     commits:
     - 3e051ecb01
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -1937,14 +1545,13 @@ unreleased_progress:
       parent_id: null
       source: platform
 marketing_candidates:
-  newsletter: []
-  social_or_video:
+  newsletter:
   - title: 'feat(images): script engine and requirement-checked follow-ups for SVG generation'
     commits:
     - 9cd90bd077
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:images
       kind: app
@@ -1974,6 +1581,13 @@ marketing_candidates:
       override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
@@ -1988,13 +1602,12 @@ marketing_candidates:
       override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
-    newsletter_ready: false
   - title: 'feat(images): draw and modify SVGs inside images-generate with a reviewed LLM vector author'
     commits:
     - c27b7248ce
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2031,6 +1644,13 @@ marketing_candidates:
       override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
     - id: embed:images:vectorize
       kind: embed
       default_enabled: true
@@ -2045,21 +1665,19 @@ marketing_candidates:
       override: null
       parent_id: app:images
       source: backend/apps/images/app.yml
-    newsletter_ready: false
   - title: 'fix(web): keep a streaming code embed mounted so SVG/HTML previews build up without flicker'
     commits:
     - 47e91ae77d
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix(ai): stream SVG and HTML code blocks line by line so the embed draws while it is written'
     commits:
     - f4a317825e
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2068,13 +1686,12 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
   - title: 'feat(ai): use-case model routing for vector graphics, direct SVG authoring, progressive SVG/HTML embed rendering'
     commits:
     - 9deb5631c2
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2097,13 +1714,243 @@ marketing_candidates:
       override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
-    newsletter_ready: false
+  - title: 'fix(billing): renew verified cache tariffs, update Mistral Large 4 price, bill full input when a review lapses'
+    commits:
+    - 005a2524d6
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(pdf): forward the prefetch rerank width to pdf.search (base_app)'
+    commits:
+    - 9e1e1b16cb
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(pdf): keep attachment link markup out of the prefetch question'
+    commits:
+    - 1cccd90b58
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(learning-mode): sanitize guest context in postprocessing, availability-aware Diagrams guidance, translations,
+      stale guest-nav spec'
+    commits:
+    - 2ed043cfc8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix(ai): adapt requested reasoning effort to provider-supported values on Mistral'
+    commits:
+    - 4f6825c2ed
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  social_or_video:
+  - title: 'feat(images): script engine and requirement-checked follow-ups for SVG generation'
+    commits:
+    - 9cd90bd077
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: skill:images:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: true
+  - title: 'feat(images): draw and modify SVGs inside images-generate with a reviewed LLM vector author'
+    commits:
+    - c27b7248ce
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generate_draft
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:generated_image
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:modify
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: embed:images:vectorize
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    - id: skill:images:generate
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:images
+      source: backend/apps/images/app.yml
+    newsletter_ready: true
+  - title: 'fix(web): keep a streaming code embed mounted so SVG/HTML previews build up without flicker'
+    commits:
+    - 47e91ae77d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix(ai): stream SVG and HTML code blocks line by line so the embed draws while it is written'
+    commits:
+    - f4a317825e
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'feat(ai): use-case model routing for vector graphics, direct SVG authoring, progressive SVG/HTML embed rendering'
+    commits:
+    - 9deb5631c2
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: true
   - title: 'feat: chat Recommendations replace quick tips (memory and workflow suggestions)'
     commits:
     - 3e051ecb01
     section: features
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: unreleased_feature
     related_features:
     - id: app:ai
       kind: app
@@ -2138,8 +1985,8 @@ marketing_candidates:
     commits:
     - 005a2524d6
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2148,21 +1995,21 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(pdf): forward the prefetch rerank width to pdf.search (base_app)'
     commits:
     - 9e1e1b16cb
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(pdf): keep attachment link markup out of the prefetch question'
     commits:
     - 1cccd90b58
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2171,22 +2018,22 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(learning-mode): sanitize guest context in postprocessing, availability-aware Diagrams guidance, translations,
       stale guest-nav spec'
     commits:
     - 2ed043cfc8
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+    newsletter_ready: true
   - title: 'fix(ai): adapt requested reasoning effort to provider-supported values on Mistral'
     commits:
     - 4f6825c2ed
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features:
     - id: app:ai
       kind: app
@@ -2195,7 +2042,7 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-    newsletter_ready: false
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -2207,7 +2054,7 @@ sources:
     short_sha: 9cd90bd077
     authored_at: '2026-11-09T23:50:12+00:00'
     subject: 'feat(images): script engine and requirement-checked follow-ups for SVG generation'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/images/app.yml
@@ -2261,13 +2108,14 @@ sources:
     - embed:images:generate
     - embed:images:generate_draft
     - embed:images:generated_image
+    - embed:images:modify
     - embed:images:vectorize
     - skill:images:generate
   - sha: c27b7248ce05055cdf13f0f8437f25595070b73e
     short_sha: c27b7248ce
     authored_at: '2026-11-09T23:22:50+00:00'
     subject: 'feat(images): draw and modify SVGs inside images-generate with a reviewed LLM vector author'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/base_instructions.yml
@@ -2327,13 +2175,14 @@ sources:
     - embed:images:generate
     - embed:images:generate_draft
     - embed:images:generated_image
+    - embed:images:modify
     - embed:images:vectorize
     - skill:images:generate
   - sha: 47e91ae77d2d3ebc3b3403004cfee9269c09def5
     short_sha: 47e91ae77d
     authored_at: '2026-11-09T22:53:31+00:00'
     subject: 'fix(web): keep a streaming code embed mounted so SVG/HTML previews build up without flicker'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
@@ -2345,7 +2194,7 @@ sources:
     short_sha: f4a317825e
     authored_at: '2026-11-09T22:32:01+00:00'
     subject: 'fix(ai): stream SVG and HTML code blocks line by line so the embed draws while it is written'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/utils/stream_utils.py
@@ -2358,7 +2207,7 @@ sources:
     short_sha: 5ef4cbd24e
     authored_at: '2026-11-09T22:09:52+00:00'
     subject: 'docs(specs): approve Memories v4 (chat Recommendations)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - specifications/features/app-memories/examples.yml
@@ -2371,7 +2220,7 @@ sources:
     short_sha: 9deb5631c2
     authored_at: '2026-11-09T22:02:34+00:00'
     subject: 'feat(ai): use-case model routing for vector graphics, direct SVG authoring, progressive SVG/HTML embed rendering'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/base_instructions.yml
@@ -2412,7 +2261,7 @@ sources:
     short_sha: 5ac798ca27
     authored_at: '2026-11-09T21:56:39+00:00'
     subject: 'chore(claude): add Haiku ci-runner agent for CI/deploy waits'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/agents/ci-runner.md
@@ -2422,7 +2271,7 @@ sources:
     short_sha: 3e051ecb01
     authored_at: '2026-11-09T21:53:06+00:00'
     subject: 'feat: chat Recommendations replace quick tips (memory and workflow suggestions)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - apple/OpenMates/Sources/Core/Models/AuthModels.swift
@@ -2632,7 +2481,7 @@ sources:
     short_sha: 005a2524d6
     authored_at: '2026-11-09T21:31:52+00:00'
     subject: 'fix(billing): renew verified cache tariffs, update Mistral Large 4 price, bill full input when a review lapses'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/model_usage_tracker.py
@@ -2651,7 +2500,7 @@ sources:
     short_sha: 2c70b3f11d
     authored_at: '2026-11-09T20:59:48+00:00'
     subject: 'chore(claude): sub-agent 1h cache, lean lane-worker agent, deny unused tools, CI cost rules'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/agents/lane-worker.md
@@ -2662,7 +2511,7 @@ sources:
     short_sha: d3cdef75f9
     authored_at: '2026-11-09T20:59:32+00:00'
     subject: 'fix(billing): expired cache tariffs fall back to ordinary billing instead of failing chats'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/shared/python_utils/model_pricing.py
@@ -2673,7 +2522,7 @@ sources:
     short_sha: bae98d257f
     authored_at: '2026-11-09T18:13:49+00:00'
     subject: 'feat: daily meeting weekly goals block, meeting retro and verified structured note tables'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
@@ -2691,7 +2540,7 @@ sources:
     short_sha: c912cb6747
     authored_at: '2026-11-09T16:31:58+00:00'
     subject: 'docs: plan chat Recommendations replacing quick tips'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/chat-recommendations/plan.yml
@@ -2700,7 +2549,7 @@ sources:
     short_sha: 9e1e1b16cb
     authored_at: '2026-11-09T15:17:12+00:00'
     subject: 'fix(pdf): forward the prefetch rerank width to pdf.search (base_app)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/base_app.py
@@ -2709,7 +2558,7 @@ sources:
     short_sha: 8f4efda3f6
     authored_at: '2026-11-09T15:16:43+00:00'
     subject: 'fix(pdf): forward the prefetch rerank width to pdf.search'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/tests/test_base_app_dispatch_context.py
@@ -2719,7 +2568,7 @@ sources:
     short_sha: 1cccd90b58
     authored_at: '2026-11-09T15:03:37+00:00'
     subject: 'fix(pdf): keep attachment link markup out of the prefetch question'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/pdf_prefetch.py
@@ -2731,7 +2580,7 @@ sources:
     short_sha: cf73539bb9
     authored_at: '2026-11-09T14:51:25+00:00'
     subject: 'chore(pdf): log the prefetch question and best rated pages'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/processing/pdf_prefetch.py
@@ -2741,7 +2590,7 @@ sources:
     short_sha: 3a4af22834
     authored_at: '2026-11-09T14:02:31+00:00'
     subject: 'docs: remove instruction conflicts with client-core architecture'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/agents/apple-native-debugger.md
@@ -2774,7 +2623,7 @@ sources:
     short_sha: 9954b647db
     authored_at: '2026-11-09T13:46:24+00:00'
     subject: 'fix(ci): apple-unit installs lucide/meteocons for token generation'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -2783,7 +2632,7 @@ sources:
     short_sha: 8a7a380c50
     authored_at: '2026-11-09T13:43:40+00:00'
     subject: 'fix(ci): apple-unit generates design tokens and locales before xcodebuild'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -2793,7 +2642,7 @@ sources:
     short_sha: 1ad4ca6a96
     authored_at: '2026-11-09T13:33:15+00:00'
     subject: 'fix(ci): apple-core runs cargo tests with a symlink-free TMPDIR'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/ci_apple.py
@@ -2802,7 +2651,7 @@ sources:
     short_sha: 185daf90fb
     authored_at: '2026-11-09T13:22:29+00:00'
     subject: 'fix(ci): apple-core scopes cargo to openmates-sdk, admits skipped sibling job'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/isolated-github-tests.md
@@ -2813,7 +2662,7 @@ sources:
     short_sha: 87683ea485
     authored_at: '2026-11-09T13:22:15+00:00'
     subject: 'docs: align SDK rollout assertion with client-core order'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/plans/client-core-one-core-three-shells/plan.yml
@@ -2826,7 +2675,7 @@ sources:
     short_sha: b3e2db1692
     authored_at: '2026-11-09T13:14:22+00:00'
     subject: 'docs: client core architecture (one Rust core, three shells)'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/agents/apple-performance-detective.md
@@ -2861,7 +2710,7 @@ sources:
     short_sha: 41bc85c665
     authored_at: '2026-11-09T13:12:09+00:00'
     subject: 'fix(upload): copy the PDF triage module into the upload image'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/upload/Dockerfile
@@ -2870,7 +2719,7 @@ sources:
     short_sha: 52c9fb5501
     authored_at: '2026-11-09T13:08:30+00:00'
     subject: 'fix(upload): include the PDF triage module in the upload image'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/tests/test_upload_image_pdf_triage.py
@@ -2880,7 +2729,7 @@ sources:
     short_sha: 444c11db70
     authored_at: '2026-11-09T13:03:39+00:00'
     subject: 'feat(ci): apple-core and apple-unit isolated modes on macos-26'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .github/workflows/isolated-tests.yml
@@ -2893,7 +2742,7 @@ sources:
     short_sha: 9b29b35473
     authored_at: '2026-11-09T12:44:29+00:00'
     subject: 'docs: daily meeting sends chat replies itself'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
@@ -2903,7 +2752,7 @@ sources:
     short_sha: f0faca1a0a
     authored_at: '2026-11-09T12:09:09+00:00'
     subject: 'feat: daily meeting shows plain-language titles instead of bare IDs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
@@ -2917,7 +2766,7 @@ sources:
     authored_at: '2026-11-09T12:07:46+00:00'
     subject: 'fix(learning-mode): sanitize guest context in postprocessing, availability-aware Diagrams guidance, translations,
       stale guest-nav spec'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/anonymous.py
@@ -2931,7 +2780,7 @@ sources:
     short_sha: 2f757f3cb8
     authored_at: '2026-11-09T11:12:19+00:00'
     subject: 'feat: daily meeting opens with a check-in, ADHD-friendly 6 blocks, freshness gate before Discord'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/skills/daily-meeting-and-orchestration/SKILL.md
@@ -2943,7 +2792,7 @@ sources:
     short_sha: 336e38a9f0
     authored_at: '2026-11-09T10:58:35+00:00'
     subject: 'docs: mark Tasks Done once deployed to dev'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - .claude/rules/task-management.md
@@ -2954,7 +2803,7 @@ sources:
     short_sha: 4f6825c2ed
     authored_at: '2026-11-09T10:31:32+00:00'
     subject: 'fix(ai): adapt requested reasoning effort to provider-supported values on Mistral'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/apps/ai/llm_providers/mistral_client.py
@@ -2966,7 +2815,7 @@ sources:
     short_sha: c0e15f564c
     authored_at: '2026-11-09T10:30:09+00:00'
     subject: 'fix: keep dispatched Claude chats online in zellij instead of retiring --bg jobs'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - docs/architecture/infrastructure/claude-dispatch.md
@@ -2975,70 +2824,88 @@ sources:
     - specifications/generated/assertion-index.yml
     related_feature_ids: []
 llm_summary:
-  overview: 'OpenMates focused on two major architectural shifts: the introduction of a vector graphics engine for SVG generation
-    and the replacement of ''quick tips'' with a more robust Chat Recommendations system. Significant documentation was also
-    added regarding the ''one Rust core, three shells'' client architecture.'
-  released_changes: []
-  bug_fixes:
-  - text: Refined AI billing logic to include updated Mistral Large 4 pricing and implemented a fallback to ordinary billing
-      for expired cache tariffs to prevent chat failures.
-    evidence:
-      commits:
-      - 005a2524d6
-      - d3cdef75f9
-    release_status: dev_only
-  - text: Improved PDF search accuracy by forwarding prefetch rerank widths and sanitizing prefetch questions to remove attachment
-      link markup.
-    evidence:
-      commits:
-      - 9e1e1b16cb
-      - 8f4efda3f6
-      - 1cccd90b58
-    release_status: dev_only
-  - text: Adapted AI reasoning effort requests to match provider-supported values specifically for Mistral models.
-    evidence:
-      commits:
-      - 4f6825c2ed
-    release_status: dev_only
-  unreleased_progress:
-  - text: Development is underway for a vector graphics suite that includes a script engine for SVG generation, an LLM-based
-      vector author, and progressive rendering to prevent flicker during streaming.
+  overview: OpenMates introduced a major update to its image generation capabilities, featuring a new SVG script engine and
+    a specialized LLM vector author for drawing and modifying graphics. This update also includes progressive rendering for
+    code embeds, ensuring that SVG and HTML visuals draw line-by-line without flicker. Additionally, the project refined AI
+    billing, PDF prefetch logic, and guest learning modes.
+  released_changes:
+  - text: OpenMates added a script engine and a reviewed LLM vector author to support direct SVG generation and modification.
     evidence:
       commits:
       - 9cd90bd077
       - c27b7248ce
+    release_status: released_main
+  - text: The AI now utilizes use-case model routing to select optimized models for vector graphics and interactive HTML visuals.
+    evidence:
+      commits:
       - 9deb5631c2
+    release_status: released_main
+  - text: Progressive rendering was implemented for SVG and HTML embeds, allowing content to appear as it is being generated.
+    evidence:
+      commits:
+      - 9deb5631c2
+    release_status: released_main
+  bug_fixes:
+  - text: The web application now keeps streaming code embeds mounted during generation to prevent flicker when SVG and HTML
+      previews are updated.
+    evidence:
+      commits:
       - 47e91ae77d
+    release_status: released_main
+  - text: SVG and HTML code blocks now stream line-by-line, allowing embeds to draw progressively as the AI writes the code.
+    evidence:
+      commits:
       - f4a317825e
-    release_status: dev_only
-  - text: A new Chat Recommendations system is being built to replace static quick tips, integrating memory and workflow suggestions
-      into the chat interface.
+    release_status: released_main
+  - text: AI billing logic was updated to renew verified cache tariffs and adjust pricing for Mistral Large 4.
+    evidence:
+      commits:
+      - 005a2524d6
+    release_status: released_main
+  - text: PDF search reliability was improved by refining prefetch questions and correctly forwarding rerank parameters.
+    evidence:
+      commits:
+      - 9e1e1b16cb
+      - 1cccd90b58
+    release_status: released_main
+  - text: Learning mode now features improved guest context sanitization and availability-aware guidance for diagrams.
+    evidence:
+      commits:
+      - 2ed043cfc8
+    release_status: released_main
+  - text: Reasoning effort parameters are now automatically adapted to supported values when using Mistral providers.
+    evidence:
+      commits:
+      - 4f6825c2ed
+    release_status: released_main
+  unreleased_progress:
+  - text: Work began on Chat Recommendations to replace quick tips with memory and workflow-aware suggestions; this remains
+      unreleased as it depends on disabled workflow and mobile platforms.
     evidence:
       commits:
       - 3e051ecb01
       - 5ef4cbd24e
       - c912cb6747
-    release_status: dev_only
-  - text: The project finalized architectural specifications for the 'client-core' initiative, which aims to share a single
-      Rust core across web, CLI, and mobile shells.
-    evidence:
-      commits:
-      - b3e2db1692
-      - 3a4af22834
-      - 87683ea485
-    release_status: dev_only
-  internal_progress:
-  - text: The internal daily meeting orchestration tool was updated with ADHD-friendly block structures, weekly goal tracking,
-      and plain-language task titles.
+    release_status: released_main
+  - text: Internal daily meeting tools were updated with ADHD-friendly blocks, weekly goal tracking, and automated Discord
+      briefing gates.
     evidence:
       commits:
       - bae98d257f
       - f0faca1a0a
       - 2f757f3cb8
       - 9b29b35473
-    release_status: dev_only
-  - text: CI infrastructure added isolated test modes for Apple platforms on macOS-26 runners, including automated design
-      token generation.
+    release_status: released_main
+  - text: Documentation and specifications were updated to align with the 'one Rust core, three shells' architecture for future
+      cross-platform rollouts.
+    evidence:
+      commits:
+      - b3e2db1692
+      - 3a4af22834
+      - 87683ea485
+    release_status: released_main
+  internal_progress:
+  - text: CI infrastructure added isolated test modes for Apple-specific core and unit tests on macOS-26 runners.
     evidence:
       commits:
       - 444c11db70
@@ -3046,36 +2913,62 @@ llm_summary:
       - 8a7a380c50
       - 1ad4ca6a96
       - 185daf90fb
-    release_status: dev_only
+    release_status: released_main
+  - text: New Claude-based agents and dispatching logic were implemented to manage CI runner waits and background job persistence.
+    evidence:
+      commits:
+      - 5ac798ca27
+      - 2c70b3f11d
+      - c0e15f564c
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: Vector graphic generation and progressive SVG rendering.
+    include:
+    - text: New SVG generation engine and vector authoring tools.
       evidence:
         commits:
         - 9cd90bd077
         - c27b7248ce
+      reason: Significant new user-facing capability for generating and modifying vector graphics.
+    - text: Progressive rendering for SVG and HTML embeds.
+      evidence:
+        commits:
         - 9deb5631c2
-      reason: These features are currently in dev_only status and not reachable from the main branch.
-    - text: Chat Recommendations system.
+      reason: Improves the user experience of AI-generated code by showing results as they are created.
+    - text: Flicker-free streaming for interactive AI visuals.
+      evidence:
+        commits:
+        - 47e91ae77d
+        - f4a317825e
+      reason: Directly improves the visual quality of the new vector generation features.
+    exclude:
+    - text: Chat Recommendations replacing quick tips.
       evidence:
         commits:
         - 3e051ecb01
-      reason: This item is dev_only and involves multiple disabled platforms including iOS, macOS, and Workflows.
-    rationale: No items from this period have been merged to the main branch or marked as ready for public communication.
-      Significant work on vector graphics and recommendations remains in development.
+      reason: This feature relies on workflows, iOS, and macOS platforms which are currently listed as disabled features.
+    - text: Internal daily meeting orchestration tools.
+      evidence:
+        commits:
+        - bae98d257f
+        - f0faca1a0a
+        - 2f757f3cb8
+      reason: These are internal project management scripts and not user-facing features.
+    rationale: The primary story for this release is the introduction of advanced vector graphic generation and progressive
+      rendering, which provides a highly interactive experience for users creating SVGs or HTML snippets. Internal tools and
+      features tied to disabled platforms (Workflows/iOS) are excluded.
   social_video_recommendations:
-  - idea: Demonstrate the new progressive SVG rendering where vector graphics draw line-by-line in real-time as the AI generates
-      code.
+  - idea: A screen recording showing a user asking for a complex SVG icon and watching it draw line-by-line in real-time without
+      flicker.
     priority: high
-    reason: This is a highly visual feature that demonstrates the project's advanced AI routing and frontend rendering capabilities.
+    reason: The progressive rendering of vector graphics is a highly visual and impressive product update that demonstrates
+      technical sophistication.
     evidence:
       commits:
       - 9cd90bd077
-      - c27b7248ce
       - 9deb5631c2
       - f4a317825e
   quality_notes:
-  - Extensive test coverage was added for the new vector authoring and progressive rendering logic.
-  - Billing edge cases for AI model usage were addressed to ensure system stability during tariff transitions.
+  - The introduction of progressive rendering (9deb5631c2) and the flicker fix (47e91ae77d) significantly improves the perceived
+    performance of AI code generation.
+  - Billing logic now includes safer fallbacks for expired cache tariffs (d3cdef75f9) to prevent chat failures.
   validation_warnings: []
