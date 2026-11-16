@@ -10,15 +10,15 @@ summary:
   status_by_surface:
     web:
       live: 4
-      partial: 19
-      failing: 55
+      partial: 20
+      failing: 54
       not_run: 9
       implemented: 19
       not_planned: 19
     apple:
       tested: 15
-      partial: 33
-      failing: 6
+      partial: 34
+      failing: 5
       implemented: 40
       in_progress: 6
       planned: 5
@@ -1239,18 +1239,15 @@ features:
   assertions: 26
   surfaces:
     web:
-      status: failing
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 13
-        failing: 2
+        passing: 15
+        failing: 0
         not_run: 5
         missing: 6
         counted: 26
-      failing_tests:
-      - frontend/apps/web_app/tests/backup-code-login-flow.spec.ts › sets up backup codes in settings and logs in with a backup
-        code
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/account-recovery-flow.spec.ts
@@ -2948,8 +2945,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 10
-        failing: 13
+        passing: 11
+        failing: 12
         not_run: 4
         missing: 2
         counted: 29
@@ -3004,7 +3001,6 @@ features:
         without provider calls
       - frontend/apps/web_app/tests/example-chat-embed-uuid-isolation.spec.ts › authorized source preview renders while another
         chat is active and unavailable source stops retrying
-      - frontend/apps/web_app/tests/fork-conversation.spec.ts › forks a conversation after the first message
       - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts › shared image carousel fills mobile messages with
         visible navigation controls
       - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts › shared image search keeps its six referenced images
@@ -3020,8 +3016,6 @@ features:
         speech preference
       - frontend/apps/web_app/tests/web-rust-core-chat.spec.ts › opens a saved chat in the normal chat UI from Rust-decrypted
         history
-      - frontend/apps/web_app/tests/web-rust-core-sync.spec.ts › phased sync decisions run on the shared Rust sync unit and
-        existing chats still sync and decrypt
       - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts › acknowledges equivalent historical
         duplicate wrappers without rewriting encrypted records
       - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts › preserves encrypted data and
@@ -3156,8 +3150,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 10
-        failing: 6
+        passing: 12
+        failing: 4
         not_run: 0
         missing: 13
         counted: 29
@@ -3168,7 +3162,6 @@ features:
       - apple/OpenMatesTests/NativeEmbedActionTests.swift › testSystemEditorEventPreservesAllDayCivilDatesAndTimedOffsetWithoutSaving
       - apple/OpenMatesTests/SearchDomainRenderersTests.swift › testHealthSearchSummaryUsesSpecialityAndCityWithoutInventingQuery
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
-      - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/AppSkillInputPreviewUITests.swift
@@ -3380,17 +3373,15 @@ features:
         - frontend/apps/web_app/tests/startup-sync-contract.spec.ts › startup sync is bounded and older content hydrates on
           demand
       apple:
-        status: failing
+        status: partial
         source: tests
         intent: unverified
         assertions:
-          passing: 2
-          failing: 1
+          passing: 3
+          failing: 0
           not_run: 0
           missing: 1
           counted: 4
-        failing_tests:
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
       watchos:
         status: tested
         source: tests
@@ -3500,7 +3491,6 @@ features:
           counted: 4
         failing_tests:
         - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
       watchos:
         status: unverified
         source: intent
@@ -3594,17 +3584,15 @@ features:
         - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts › voice-first chat preflights before persisting
           its speech preference
       apple:
-        status: failing
+        status: partial
         source: tests
         intent: unverified
         assertions:
-          passing: 2
-          failing: 1
+          passing: 3
+          failing: 0
           not_run: 0
           missing: 2
           counted: 5
-        failing_tests:
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
       watchos:
         status: tested
         source: tests
@@ -3894,17 +3882,15 @@ features:
     - chats.fork.non-destructive-boundary
     surfaces:
       web:
-        status: failing
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 0
-          failing: 1
+          passing: 1
+          failing: 0
           not_run: 0
           missing: 0
           counted: 1
-        failing_tests:
-        - frontend/apps/web_app/tests/fork-conversation.spec.ts › forks a conversation after the first message
       apple:
         status: unverified
         source: intent
@@ -4203,8 +4189,6 @@ features:
           its speech preference
         - frontend/apps/web_app/tests/web-rust-core-chat.spec.ts › opens a saved chat in the normal chat UI from Rust-decrypted
           history
-        - frontend/apps/web_app/tests/web-rust-core-sync.spec.ts › phased sync decisions run on the shared Rust sync unit
-          and existing chats still sync and decrypt
         - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts › acknowledges equivalent historical
           duplicate wrappers without rewriting encrypted records
         - frontend/packages/ui/src/services/__tests__/recoveryCanonicalTransientRetry.test.ts › preserves encrypted data and
@@ -4957,14 +4941,13 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 14
-        failing: 2
+        passing: 15
+        failing: 1
         not_run: 2
         missing: 8
         counted: 26
       failing_tests:
       - backend/tests/test_delegated_primary_read.py › test_observed_search_only_catalog_adds_real_read_only_for_authorized_synthesis
-      - backend/tests/test_focus_phases.py › test_private_active_focus_main_path_does_not_log_or_raise_validation_input
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/jev-project-context-api.spec.ts
@@ -6087,8 +6070,8 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 0
-        failing: 15
+        passing: 1
+        failing: 14
         not_run: 0
         missing: 1
         counted: 16
@@ -6099,10 +6082,10 @@ features:
         encryption, PII and permission scene
       - frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts › section stories show natural requests and clicks,
         then preserve completed reading views (${width}px)
-      - frontend/apps/web_app/tests/components/landing-hero-motion.spec.ts › touch input uses Tap and the German title has
-        no highlight
       - frontend/apps/web_app/tests/components/landing-mobile-hero.spec.ts › composer waits for availability and chooses the
         free-testing or signup destination
+      - frontend/apps/web_app/tests/components/landing-mobile-stories.spec.ts › feature animations fit clear of fixed controls
+        at ${profile.width}x${profile.height} ${profile.language}
       - frontend/apps/web_app/tests/components/landing-native-touch-momentum.spec.ts › trusted vertical touch release continues
         native momentum without section snapping
       - frontend/apps/web_app/tests/components/marketing-landing.spec.ts › landing app rail crosses its automatic loop without
@@ -6426,18 +6409,13 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 4
-        failing: 6
+        passing: 9
+        failing: 1
         not_run: 1
         missing: 13
         counted: 24
       failing_tests:
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
-      - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard
-      - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
-      - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
-      - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft
-      - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/ChatFlowParityUITests.swift
@@ -6464,9 +6442,9 @@ features:
       - apple/OpenMatesUITests/TasksWorkspaceInteractionUITests.swift
       - apple/OpenMatesUITests/WorkflowsParityUITests.swift
       key_unit_tests:
+      - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
       - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
       - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
-      - apple/OpenMatesTests/NativeComposerTextViewAdapterTests.swift
       - apple/OpenMatesTests/APIClientUploadTransportTests.swift
       - apple/OpenMatesTests/AudioRealtimeTranscriptionClientTests.swift
       unit_test_files: 33
@@ -6738,17 +6716,15 @@ features:
         - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts › voice-first chat preflights before persisting
           its speech preference
       apple:
-        status: failing
+        status: partial
         source: tests
         intent: unverified
         assertions:
-          passing: 0
-          failing: 1
+          passing: 1
+          failing: 0
           not_run: 0
           missing: 1
           counted: 2
-        failing_tests:
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews
       cli:
         status: unverified
         source: intent
@@ -6829,18 +6805,15 @@ features:
         - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts › stop during new chat creation restores the sent message
           as a draft
       apple:
-        status: failing
+        status: tested
         source: tests
         intent: unverified
         assertions:
-          passing: 3
-          failing: 2
+          passing: 5
+          failing: 0
           not_run: 0
           missing: 0
           counted: 5
-        failing_tests:
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews
       cli:
         status: unverified
         source: intent
@@ -7022,21 +6995,15 @@ features:
         - frontend/apps/web_app/tests/teams-image-upload.spec.ts › keeps a pending Team image local, then shares the encrypted
           image with a member after reload
       apple:
-        status: failing
+        status: partial
         source: tests
         intent: unverified
         assertions:
-          passing: 1
-          failing: 2
+          passing: 3
+          failing: 0
           not_run: 1
           missing: 0
           counted: 4
-        failing_tests:
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAuthoritativeProcessingCompletionRestoresComposerAfterStaleReplay
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews
       cli:
         status: unverified
         source: intent
@@ -7128,16 +7095,13 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 0
-          failing: 2
+          passing: 1
+          failing: 1
           not_run: 0
           missing: 1
           counted: 3
         failing_tests:
         - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedFollowUpClosesComposerAndDismissesKeyboard
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testAcceptedSendClosesExpandedComposerAndDismissesKeyboard
-        - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testChatFocusAndExpansionDimTranscriptAndOutsideCancelRestoreDraft
       cli:
         status: unverified
         source: intent
@@ -8533,9 +8497,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 1
         failing: 7
-        not_run: 1
+        not_run: 0
         missing: 1
         counted: 9
       failing_tests:
@@ -9170,13 +9134,13 @@ features:
     - settings-ui.parity.web-apple-shell
     surfaces:
       web:
-        status: not_run
+        status: live
         source: tests
         intent: unverified
         assertions:
-          passing: 0
+          passing: 1
           failing: 0
-          not_run: 1
+          not_run: 0
           missing: 0
           counted: 1
       apple:
@@ -9553,9 +9517,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 11
+        passing: 12
         failing: 6
-        not_run: 2
+        not_run: 1
         missing: 2
         counted: 21
       failing_tests:
@@ -9951,10 +9915,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 29
+        passing: 30
         failing: 0
         not_run: 0
-        missing: 12
+        missing: 11
         counted: 41
       key_tests: []
       e2e_tests:
@@ -22157,17 +22121,15 @@ features:
       - frontend/packages/ui/src/services/__tests__/chatSyncMergeDraftPromotion.test.ts
       unit_test_files: 30
     apple:
-      status: failing
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 5
-        failing: 1
+        passing: 6
+        failing: 0
         not_run: 0
         missing: 2
         counted: 8
-      failing_tests:
-      - apple/OpenMatesUITests/NativeComposerDraftEditUITests.swift › testWelcomeImageAudioAutosaveKeepsSameComposerAndPreviews
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/ChatNavigationParityUITests.swift
@@ -24265,8 +24227,6 @@ features:
         history
       - frontend/apps/web_app/tests/web-rust-core-chatstate.spec.ts › chat list ordering and grouping run on the shared Rust
         chatState unit and the sidebar renders the same chats
-      - frontend/apps/web_app/tests/web-rust-core-sync.spec.ts › phased sync decisions run on the shared Rust sync unit and
-        existing chats still sync and decrypt
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts

@@ -17,7 +17,7 @@ final class NativeVoiceCallLiveActivityHangUp {
 }
 
 @MainActor
-final class NativeVoiceCallLiveActivity {
+final class NativeVoiceCallLiveActivity: NativeVoiceCallLiveActivityControlling {
     private var activity: Activity<NativeVoiceCallActivityAttributes>?
 
     /// Start (or replace) the activity for a call. No-op when Live Activities are disabled.

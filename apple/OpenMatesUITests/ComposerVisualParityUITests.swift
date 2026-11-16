@@ -1300,12 +1300,24 @@ enum NativeComposerRenderedLayoutAssertions {
     // again for every converted coordinate inside the three-second readiness poll.
     static func selectedCaretClears(_ data: [String: Any], fieldFrame: CGRect,
                                     controlFrame: CGRect, requiresScroll: Bool) -> Bool {
-        guard let viewport = viewport(data), containsWithinRounding(fieldFrame, viewport),
-              let selected = rect("selected", in: data),
-              let offset = data["offset"] as? NSNumber, offset.doubleValue.isFinite,
-              let right = rightEdge(data) else { return false }
-        return (!requiresScroll || offset.doubleValue > 0) && viewport.insetBy(dx: -2, dy: -2).contains(selected)
-            && selected.maxX + 4 <= controlFrame.minX && right + 4 <= controlFrame.minX
+        selectedCaretFailure(data, fieldFrame: fieldFrame, controlFrame: controlFrame,
+                             requiresScroll: requiresScroll) == nil
+    }
+    /// The first unmet caret condition, or nil when the selected caret is visible and clear.
+    static func selectedCaretFailure(_ data: [String: Any], fieldFrame: CGRect,
+                                     controlFrame: CGRect, requiresScroll: Bool) -> String? {
+        guard let viewport = viewport(data) else { return "no viewport" }
+        guard containsWithinRounding(fieldFrame, viewport) else { return "viewport \(viewport) outside field \(fieldFrame)" }
+        guard let selected = rect("selected", in: data) else { return "no selected rect" }
+        guard let offset = data["offset"] as? NSNumber, offset.doubleValue.isFinite else { return "no offset" }
+        guard let right = rightEdge(data) else { return "no right edge" }
+        let checks: [(Bool, String)] = [
+            (!requiresScroll || offset.doubleValue > 0, "offset \(offset) not scrolled"),
+            (viewport.insetBy(dx: -2, dy: -2).contains(selected), "caret \(selected) outside viewport \(viewport)"),
+            (selected.maxX + 4 <= controlFrame.minX, "caret \(selected) in control lane \(controlFrame)"),
+            (right + 4 <= controlFrame.minX, "text right edge \(right) in control lane \(controlFrame)"),
+        ]
+        return checks.first(where: { !$0.0 })?.1
     }
     static func assertBeside(_ control: XCUIElement, field: XCUIElement, editor: XCUIElement,
                              file: StaticString = #filePath, line: UInt = #line) {
@@ -1323,8 +1335,11 @@ enum NativeComposerRenderedLayoutAssertions {
             return selectedCaretClears(data, fieldFrame: field.frame, controlFrame: control.frame,
                                        requiresScroll: requiresScroll)
         }
+        let reason = payload(field).flatMap {
+            selectedCaretFailure($0, fieldFrame: field.frame, controlFrame: control.frame, requiresScroll: requiresScroll)
+        } ?? "met after timeout or no payload"
         XCTAssertEqual(result, .completed,
-            "Real native multiline scrolling must keep the selected caret visible and outside the sticky icon lane", file: file, line: line)
+            "Real native multiline scrolling must keep the selected caret visible and outside the sticky icon lane (\(reason)). field=\(field.frame) control=\(control.frame) value=\(String(describing: field.value))", file: file, line: line)
     }
 }
 

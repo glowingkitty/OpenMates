@@ -228,6 +228,64 @@ final class NativeVoiceCallAppCoordinatorTests: XCTestCase {
     }
 }
 
+#if os(iOS)
+/// The Lock Screen / Dynamic Island activity follows the call; the real ActivityKit wrapper is replaced by a recorder.
+@MainActor
+final class NativeVoiceCallLiveActivityLifecycleTests: XCTestCase {
+    private func make(_ driver: AppCallDriver, _ activity: RecordingLiveActivity) -> NativeVoiceCallAppCoordinator {
+        .init(driver: driver, accepted: { _, _ in }, restore: { _ in true },
+              artifacts: { _, _, _ in .unsupported }, usage: { _, _, _ in }, liveActivity: activity)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.apple.live-activity
+    func testActivityShowsConnectingThenLiveAndHangUpControlEndsTheCallLikeTheInAppButton() async {
+        let driver = AppCallDriver(); let activity = RecordingLiveActivity()
+        let coordinator = make(driver, activity)
+        await driver.emit(.state(.init(status: .connecting, scope: driver.scope, callID: driver.callID)))
+        XCTAssertTrue(coordinator.isActive)
+        driver.state = .init(status: .live, scope: driver.scope, callID: driver.callID)
+        await driver.emit(.state(driver.state))
+        await driver.emit(.state(driver.state)) // repeated live snapshot changes nothing
+        XCTAssertEqual(activity.events, ["start call connecting", "start call live"])
+
+        // The Live Activity's Hang up button reaches the same coordinator hang-up as the in-app control.
+        await NativeVoiceCallLiveActivityHangUp.shared.hangUp(callID: "another-call")
+        XCTAssertEqual(driver.hangups, 0, "A stale activity for another call never ends this one")
+        await NativeVoiceCallLiveActivityHangUp.shared.hangUp(callID: driver.callID)
+        XCTAssertEqual(driver.hangups, 1)
+        XCTAssertEqual(activity.events.last, "end")
+        XCTAssertFalse(coordinator.isActive)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.apple.live-activity
+    func testActivityNeverOutlivesTheCall() async {
+        for ending in ["failed", "ended", "owner"] {
+            let driver = AppCallDriver(); let activity = RecordingLiveActivity()
+            let coordinator = make(driver, activity)
+            await coordinator.start(.existing(chatID: driver.scope.chatID))
+            switch ending {
+            case "failed": var failed = driver.state; failed.status = .failed; await driver.emit(.state(failed))
+            case "ended": var ended = driver.state; ended.status = .ended; await driver.emit(.state(ended))
+            default: await coordinator.invalidateOwner()
+            }
+            XCTAssertEqual(activity.events.first, "start call live", ending)
+            XCTAssertEqual(activity.events.last, "end", "The activity ends when the call ends (\(ending))")
+            XCTAssertNil(activity.running, ending)
+        }
+    }
+}
+
+@MainActor
+private final class RecordingLiveActivity: NativeVoiceCallLiveActivityControlling {
+    var events: [String] = []
+    var running: String?
+    func start(callID: String, mateName: String, startedAt: Date, live: Bool) async {
+        running = callID; events.append("start \(callID) \(live ? "live" : "connecting")")
+    }
+    func end() async { running = nil; events.append("end") }
+}
+#endif
+
 @MainActor
 private final class AppCallDriver: NativeVoiceCallAppDriving {
     let scope = NativeVoiceCallScope(accountID: "owner", profileID: "development", workspaceGeneration: UUID(),

@@ -21,6 +21,14 @@ struct NativeVoiceCallDraftTicket: Identifiable, Equatable, Sendable {
     let originalComposerState: Data
 }
 
+/// What the call coordinator needs from the Lock Screen / Dynamic Island activity; tests inject a recorder.
+/// Built for every platform so the coordinator init is shared; only iOS has an implementation.
+@MainActor
+protocol NativeVoiceCallLiveActivityControlling: AnyObject {
+    func start(callID: String, mateName: String, startedAt: Date, live: Bool) async
+    func end() async
+}
+
 @MainActor
 final class NativeVoiceCallAppCoordinator: ObservableObject {
     @Published private(set) var state = NativeVoiceCallSnapshot()
@@ -36,7 +44,7 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
     #if os(iOS)
     /// Latest frame of the iOS broadcast extension while the user shares the screen.
     let screenShare = NativeVoiceCallScreenShareReader()
-    private let liveActivity = NativeVoiceCallLiveActivity()
+    private let liveActivity: any NativeVoiceCallLiveActivityControlling
     private var liveActivityKey: String?
     private var screenShareSink: AnyCancellable?
     /// True after `camera_state` on was sent for the screen (camera off meanwhile).
@@ -78,8 +86,12 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
          restore: @escaping @MainActor (NativeVoiceCallDraftTicket) -> Bool,
          artifacts: @escaping @MainActor @Sendable (NativeVoiceCallScope, String, NativeVoiceCallFrame) async throws -> NativeVoiceCallArtifactDisposition,
          usage: @escaping @MainActor @Sendable (NativeVoiceCallScope, String, NativeVoiceCallFrame) async -> Void,
-         cuePlayer: any NativeVoiceCallCuePlaying = NativeVoiceCallCuePlayer()) {
+         cuePlayer: any NativeVoiceCallCuePlaying = NativeVoiceCallCuePlayer(),
+         liveActivity: (any NativeVoiceCallLiveActivityControlling)? = nil) {
         self.cuePlayer = cuePlayer
+        #if os(iOS)
+        self.liveActivity = liveActivity ?? NativeVoiceCallLiveActivity()
+        #endif
         camera = NativeVoiceCallCameraModel(
             sendState: { [weak driver] enabled in await driver?.sendCameraState(enabled) },
             sendFrame: { [weak driver] frame in await driver?.sendCameraFrame(frame) })
@@ -271,7 +283,7 @@ final class NativeVoiceCallAppCoordinator: ObservableObject {
             let key = callID + (snapshot.status == .live ? ":live" : ":connecting")
             if liveActivityKey != key {
                 liveActivityKey = key
-                await liveActivity.start(callID: callID, mateName: "OpenMates", live: snapshot.status == .live)
+                await liveActivity.start(callID: callID, mateName: "OpenMates", startedAt: Date(), live: snapshot.status == .live)
             }
             if snapshot.status == .live { screenShare.start() }
         case .idle, .ended, .failed:

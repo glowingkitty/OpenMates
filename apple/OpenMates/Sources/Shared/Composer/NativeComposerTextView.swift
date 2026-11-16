@@ -414,12 +414,20 @@ extension NativeComposerTextView: UITextViewDelegate {
     /// request, never because a tapped control (follow-up, microphone) left the
     /// screen. Assistive technologies keep their own activation paths.
     func textViewShouldBeginEditing(_ textView: UITextView) -> Bool {
+        let allowed = shouldBeginEditing(textView)
+        #if DEBUG && !OPENMATES_SHARE_EXTENSION
+        (textView as? NativeComposerFocusProbeTextView)?.recordFocusProbe(phase: 13, outcome: allowed)
+        #endif
+        return allowed
+    }
+
+    private func shouldBeginEditing(_ textView: UITextView) -> Bool {
         if focusRequested || UIAccessibility.isVoiceOverRunning || UIAccessibility.isSwitchControlRunning {
             return true
         }
         if UIFocusSystem.focusSystem(for: textView)?.focusedItem === textView { return true }
         guard let editor = textView as? NativeComposerEditorTextView else { return true }
-        return editor.hasRecentDirectTouch
+        return editor.latestTouchDownWasOnEditor
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) { onScroll(scrollView) }
@@ -549,29 +557,41 @@ extension NativeComposerTextView: NSTextViewDelegate {
 #endif
 
 #if canImport(UIKit)
-/// Composer text view that remembers its last direct touch, so editing can be
-/// limited to a user tap or the host's explicit focus request.
+/// Composer text view that knows whether the latest touch-down in its window
+/// landed on it, so editing can be limited to a user tap or the host's explicit
+/// focus request. No clock: a busy main thread can delay UIKit's tap-to-edit by
+/// seconds, and a tap on any other control is a newer touch-down that revokes it.
 class NativeComposerEditorTextView: UITextView {
-    private var lastTouchBeganUptime: TimeInterval = -.infinity
     private var touchObserver: NativeComposerTouchObserver?
-    var hasRecentDirectTouch: Bool { ProcessInfo.processInfo.systemUptime - lastTouchBeganUptime < 1.5 }
+    private(set) var latestWindowTouchDownWasInside = false
+    var latestTouchDownWasOnEditor: Bool { latestWindowTouchDownWasInside }
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        guard touchObserver == nil else { return }
-        // UITextView's own text interaction consumes the touch before the
-        // view's touchesBegan; a recognizer sees every touch-down first.
-        let observer = NativeComposerTouchObserver { [weak self] in
-            self?.lastTouchBeganUptime = ProcessInfo.processInfo.systemUptime
+        if let observer = touchObserver, observer.view !== window {
+            observer.view?.removeGestureRecognizer(observer)
+            touchObserver = nil
+            latestWindowTouchDownWasInside = false
         }
-        addGestureRecognizer(observer)
+        guard touchObserver == nil, let window else { return }
+        // UITextView's own text interaction consumes the touch before the
+        // view's touchesBegan; a window recognizer sees every touch-down first,
+        // including those on other controls.
+        let observer = NativeComposerTouchObserver { [weak self] touchedViews in
+            guard let self else { return }
+            self.didObserveTouchDown(inside: touchedViews.contains { $0 === self || $0.isDescendant(of: self) })
+        }
+        window.addGestureRecognizer(observer)
         touchObserver = observer
+    }
+    func didObserveTouchDown(inside: Bool) {
+        latestWindowTouchDownWasInside = inside
     }
 }
 
 /// Records a touch-down and fails at once: never claims, delays or cancels it.
 private final class NativeComposerTouchObserver: UIGestureRecognizer {
-    private let onTouchDown: () -> Void
-    init(onTouchDown: @escaping () -> Void) {
+    private let onTouchDown: ([UIView]) -> Void
+    init(onTouchDown: @escaping ([UIView]) -> Void) {
         self.onTouchDown = onTouchDown
         super.init(target: nil, action: nil)
         cancelsTouchesInView = false
@@ -579,7 +599,7 @@ private final class NativeComposerTouchObserver: UIGestureRecognizer {
         delaysTouchesEnded = false
     }
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
-        onTouchDown()
+        onTouchDown(touches.compactMap(\.view))
         state = .failed
     }
 }
@@ -599,7 +619,8 @@ final class NativeComposerFocusProbeTextView: NativeComposerEditorTextView {
 
     // Phases: 1 hitTest, 2 touchesBegan, 3 touchesEnded, 4 touchesCancelled,
     // 5 become result, 6 resign result, 7 delegate began, 8 delegate ended,
-    // 9 reconcile become, 10 reconcile resign, 11 window change, 12 dismantle.
+    // 9 reconcile become, 10 reconcile resign, 11 window change, 12 dismantle,
+    // 13 should-begin-editing decision, 14 window touch-down (ok = on this editor).
     func recordFocusProbe(phase: Int, point: CGPoint? = nil, hit: UIView? = nil,
                           outcome: Bool? = nil) {
         guard probeSequence < 256 else { return }
@@ -660,6 +681,10 @@ final class NativeComposerFocusProbeTextView: NativeComposerEditorTextView {
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         recordFocusProbe(phase: 4, point: touches.first?.location(in: self))
         super.touchesCancelled(touches, with: event)
+    }
+    override func didObserveTouchDown(inside: Bool) {
+        super.didObserveTouchDown(inside: inside)
+        recordFocusProbe(phase: 14, outcome: inside)
     }
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()

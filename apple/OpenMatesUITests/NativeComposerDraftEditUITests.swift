@@ -95,7 +95,9 @@ final class NativeComposerDraftEditUITests: XCTestCase {
                        "Fallback processing must not add an unsolicited welcome composer paragraph")
         let input = app.textViews["message-editor"].firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 5))
-        guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
+        // A text-free attachment draft shows the compact draft summary while the
+        // retained editor stays off-screen; a user restores it by tapping the summary.
+        guard restoreDraftFromSummary(in: app) else { return }
         input.typeText("Synthetic attachment draft text")
         func assertSaved(expectsExpandedEditor: Bool = true) {
             let saved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
@@ -136,8 +138,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(greeting.waitForExistence(timeout: 5))
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         assertSaved(expectsExpandedEditor: false)
-        app.buttons["message-draft-summary"].tap()
-        guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
+        guard restoreDraftFromSummary(in: app) else { return }
         XCTAssertTrue((input.value as? String ?? "").contains("Synthetic attachment draft text and later text"))
         assertSaved()
         XCTAssertFalse(greeting.exists)
@@ -156,8 +157,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(greeting.waitForExistence(timeout: 5))
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         assertSaved(expectsExpandedEditor: false)
-        app.buttons["message-draft-summary"].tap()
-        guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
+        guard restoreDraftFromSummary(in: app) else { return }
         XCTAssertTrue((input.value as? String ?? "").contains("Synthetic attachment draft text and later text"))
         assertSaved()
         let longSuffix = String(repeating: " synthetic long draft", count: 12)
@@ -628,5 +628,23 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    /// Restores a compact draft the way a user does: one tap on the visible
+    /// summary. The retained editor is off-screen until then, so the test never
+    /// taps the editor's stale coordinates (that would land outside and collapse it).
+    private func restoreDraftFromSummary(in app: XCUIApplication,
+                                         file: StaticString = #filePath, line: UInt = #line) -> Bool {
+        let summary = app.buttons["message-draft-summary"]
+        guard summary.waitForExistence(timeout: 5) else {
+            XCTFail("A saved draft must show the compact draft summary", file: file, line: line); return false
+        }
+        summary.tap()
+        let focused = app.textViews.matching(NSPredicate(
+            format: "identifier == %@ AND hasKeyboardFocus == true", "message-editor")).firstMatch
+        guard focused.waitForExistence(timeout: 5) else {
+            XCTFail("Tapping the draft summary must focus the restored editor", file: file, line: line); return false
+        }
+        return true
     }
 }

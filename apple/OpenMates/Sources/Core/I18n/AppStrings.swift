@@ -441,7 +441,14 @@ enum AppStrings {
     static var editMessage: String { L("chats.context_menu.edit.text") }
     static var deleteMessage: String { L("chats.context_menu.delete_message.text") }
     static var forkConversation: String { L("chats.context_menu.fork.text") }
-    static var chatMessageInput: String { L("chat.message_input") }
+    /// Web MessageInput uses its placeholder as the editor's aria-label.
+    static var chatMessageInput: String {
+        #if os(macOS)
+        L("enter_message.placeholder.desktop")
+        #else
+        L("enter_message.placeholder.touch")
+        #endif
+    }
     static var typeMessage: String { L("enter_message.placeholder.touch") }
     static var typeFollowup: String { L("enter_message.placeholder.followup_touch") }
     static var startTyping: String { L("chat.start_typing") }
