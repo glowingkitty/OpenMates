@@ -26,12 +26,20 @@ def language_name(code: str) -> str:
 
 
 def conversation_language_instruction(fallback_language: str) -> str:
-    """Prompt rule for models that generate metadata from the conversation."""
+    """Prompt rule for models that generate metadata from the conversation.
+
+    Name the fallback language once per prompt: repeating it (e.g. in every tool
+    field) made the dev real-model check write English chats in the UI language.
+    """
     return (
-        "Write in the language the user writes in (their own words, not quoted text, code or data). "
-        "Only if that is unclear, for example a very short or mixed message, use "
-        f"{language_name(fallback_language)} ({fallback_language}), the user's interface language."
+        "Write in the same language as the user's own words (ignore quoted text, code and data); "
+        "never translate them into another language. Only if the user's language cannot be told, "
+        f"for example a very short or mixed message, use {language_name(fallback_language)} ({fallback_language})."
     )
+
+
+# Tool field rule that complements the system prompt without naming the fallback again.
+CONVERSATION_LANGUAGE_FIELD_RULE = "Use the same language as the user's own words; never translate them."
 
 
 def resolve_metadata_language(conversation_language: str | None, fallback_language: str,

@@ -29,8 +29,8 @@ async def test_voice_metadata_uses_shared_model_and_title_policy(monkeypatch):
     assert set(calls[0]["tool_definition"]["function"]["parameters"]["properties"]) == {"updated_chat_title", "chat_summary"}
     prompt = calls[0]["message_history"][0]["content"]
     assert module.chat_title_instruction(None) in prompt
-    assert "Write in the language the user writes in" in prompt
-    assert "use German (de), the user's interface language" in prompt
+    assert "Write in the same language as the user's own words" in prompt
+    assert "very short or mixed message, use German (de)" in prompt
     assert "system/UI language" not in module.chat_title_instruction(None)
     assert "greetings" in prompt and "call_turn=true" in prompt
 

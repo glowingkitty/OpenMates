@@ -135549,7 +135549,7 @@ assertions:
     supporting_tests:
     - &id17245
       path: backend/tests/test_early_chat_metadata.py
-      line: 140
+      line: 144
       name: test_english_interface_german_request_asks_for_german_metadata
       surface: rest_api
     - &id17246

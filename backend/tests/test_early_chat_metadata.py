@@ -25,8 +25,8 @@ def test_projection_is_bounded_and_excludes_tool_private_context():
         {"role": "user", "content": "b" * 10000 + " important final constraint"},
         {"role": "user", "sender_name": "async_tool_result", "content": "private tool reply"},
     ], "fr")
-    assert "language the user writes in" in messages[0]["content"]
-    assert "French (fr), the user's interface language" in messages[0]["content"]
+    assert "same language as the user's own words" in messages[0]["content"]
+    assert "very short or mixed message, use French (fr)" in messages[0]["content"]
     context = json.loads(messages[1]["content"])["conversation"]
     assert len(context) == 2 and len(context[0]["content"]) == 800
     assert context[-1]["content"].endswith("important final constraint")
@@ -64,7 +64,11 @@ async def test_mercury_primary_has_small_structured_intent_only_prompt(monkeypat
     assert kwargs["fallback_models"] == [] and not kwargs["allow_retries"]
     assert "NOT been produced" in kwargs["message_history"][0]["content"]
     properties = kwargs["tool_definition"]["function"]["parameters"]["properties"]
-    assert all("German (de)" in properties[field]["description"] for field in ("title", "summary"))
+    # The interface fallback is named once in the system prompt; each field repeats only the
+    # writing-language rule (spec language-preferences.chat-metadata-language).
+    assert "use German (de)" in kwargs["message_history"][0]["content"]
+    assert all(metadata.CONVERSATION_LANGUAGE_FIELD_RULE in properties[field]["description"]
+               for field in ("title", "summary"))
 
 
 def test_natural_spanish_title_is_valid_navigation_metadata():
@@ -150,7 +154,10 @@ async def test_english_interface_german_request_asks_for_german_metadata(monkeyp
     kwargs = call.call_args.kwargs
     system = kwargs["message_history"][0]["content"]
     fields = kwargs["tool_definition"]["function"]["parameters"]["properties"]
-    for text in (system, fields["title"]["description"], fields["summary"]["description"]):
-        assert "Write in the language the user writes in" in text
-        assert "very short or mixed message, use English (en)" in text
-        assert "even if the request is in another language" not in text
+    assert "Write in the same language as the user's own words" in system
+    assert "very short or mixed message, use English (en)" in system
+    for text in (fields["title"]["description"], fields["summary"]["description"]):
+        # The fallback language is named once; repeating it pulled real models toward it.
+        assert "same language as the user's own words; never translate" in text
+        assert "English" not in text
+    assert "even if the request is in another language" not in system

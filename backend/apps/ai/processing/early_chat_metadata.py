@@ -13,7 +13,9 @@ import json
 import logging
 from typing import Any
 
-from backend.apps.ai.processing.metadata_language import conversation_language_instruction
+from backend.apps.ai.processing.metadata_language import (
+    CONVERSATION_LANGUAGE_FIELD_RULE, conversation_language_instruction,
+)
 
 logger = logging.getLogger(__name__)
 PRIMARY_MODEL = "inception/mercury-3"
@@ -100,7 +102,7 @@ async def generate_early_chat_metadata(*, task_id: str, message_history: list[di
         return _validated(fixture, "isolated_voice_fixture")
 
     messages = metadata_messages(message_history, user_system_language)
-    language_instruction = conversation_language_instruction(user_system_language)
+    language_instruction = CONVERSATION_LANGUAGE_FIELD_RULE
     tool = {"type": "function", "function": {"name": "early_chat_metadata",
         "description": "Name the pending chat and describe the user's intent without answering it.",
         "parameters": {"type": "object", "properties": {

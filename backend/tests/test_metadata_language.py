@@ -24,5 +24,6 @@ def test_resolve_metadata_language(detected, fallback, expected):
 # contract-test: supporting surface=rest_api assertions=language-preferences.chat-metadata-language
 def test_instruction_prefers_the_writing_language_and_names_the_fallback():
     text = conversation_language_instruction("en")
-    assert text.startswith("Write in the language the user writes in")
+    assert text.startswith("Write in the same language as the user's own words")
+    assert "never translate" in text
     assert "very short or mixed message, use English (en)" in text
