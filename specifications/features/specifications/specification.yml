@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.specifications
 version: 1
-status: draft
+status: approved
 title: Specifications
 summary: >
   Specifications are versioned, approval-bound definitions of durable product truth.

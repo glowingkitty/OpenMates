@@ -23776,7 +23776,7 @@ features:
   description: Specifications are versioned, approval-bound definitions of durable product truth.
   specifications:
   - id: feature.specifications
-    status: draft
+    status: approved
     path: specifications/features/specifications
   apps: []
   product_features: []

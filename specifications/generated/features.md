@@ -2735,7 +2735,7 @@ Research posts and community comments.
 
 Specifications are versioned, approval-bound definitions of durable product truth.
 
-- Specifications: [feature.specifications](../../specifications/features/specifications/specification.yml) (draft) · 18 assertion(s)
+- Specifications: [feature.specifications](../../specifications/features/specifications/specification.yml) (approved) · 18 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.19.0
 - Check intent: npm SDK: marked not_planned, but 18 required assertion(s) apply to sdk_npm; PyPI SDK: marked not_planned, but 18 required assertion(s) apply to sdk_pypi
 
