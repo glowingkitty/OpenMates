@@ -122,8 +122,8 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Create, update and delete | ? | ? |  | ? | ? | **live** 4/4 | ? | ? | | | |
 | &nbsp;&nbsp;↳ Workflows | ? | ? |  | ? | ? | ? | ? | ? | | | |
 | [Code](#code) | **FAIL** 6/35 | partial 9/33 |  | partial 1/33 | impl | partial 7/33 | not run 0/33 | impl | on | on | v0.1-alpha-1 |
-| [Design](#design) | partial 7/22 | impl |  | impl | impl | partial 21/22 | impl | impl | on | on | v0.19.0 |
-| &nbsp;&nbsp;↳ Figma designs | partial 4/8 | planned |  | wip | ? | partial 7/8 | wip | wip | | | |
+| [Design](#design) | partial 7/28 | impl |  | impl | impl | partial 21/28 | impl | impl | on | on | v0.19.0 |
+| &nbsp;&nbsp;↳ Figma and Penpot designs | partial 4/14 | planned |  | wip | ? | partial 7/14 | wip | wip | | | |
 | [Diagrams](#diagrams) | impl | impl |  | wip | wip | — | impl | wip | on | on | untagged-main |
 | [Docs](#docs) | partial 2/4 | impl |  | — | — | — | impl | impl | on | on | v0.5.0-alpha |
 | [Electronics](#electronics) | not run 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.11.0-alpha |
@@ -1308,9 +1308,9 @@ Scheduled test runs with critical flows first, truthful outcomes and recovery.
 ### Design
 <a id="design"></a>
 
-Find icons and visual assets, and read your Figma designs to build them.
+Find icons and visual assets, and read your Figma or Penpot designs to build them.
 
-- Specifications: [feature.app-skill.design-embroidery](../../specifications/features/app-skills/design-embroidery/specification.yml) (draft), [feature.app-skills.design-figma](../../specifications/features/app-skills/design-figma/specification.yml) (draft) · 22 assertion(s)
+- Specifications: [feature.app-skill.design-embroidery](../../specifications/features/app-skills/design-embroidery/specification.yml) (draft), [feature.app-skills.design-figma](../../specifications/features/app-skills/design-figma/specification.yml) (draft) · 28 assertion(s)
 - Apps: `design`
 - Flags: `app:design` · dev on · prod on · release v0.19.0
 
@@ -1318,13 +1318,13 @@ Find icons and visual assets, and read your Figma designs to build them.
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 7/22 | 7 pass · 0 fail · 2 not run · 13 no test | [design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[figma-connected-accounts.spec.ts](../../frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>5 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [designEmbroideryText.test.ts](../../frontend/packages/ui/src/data/__tests__/designEmbroideryText.test.ts) |
+| Web | partial 7/28 | 7 pass · 0 fail · 2 not run · 19 no test | [design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[figma-connected-accounts.spec.ts](../../frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>5 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [designEmbroideryText.test.ts](../../frontend/packages/ui/src/data/__tests__/designEmbroideryText.test.ts) |
 | Apple | impl | 0 pass · 0 fail · 0 not run · 14 no test | — |
-| CLI | impl | 0 pass · 0 fail · 0 not run · 22 no test | — |
+| CLI | impl | 0 pass · 0 fail · 0 not run · 28 no test | — |
 | TUI | impl | — | — |
-| REST API | partial 21/22 | 21 pass · 0 fail · 0 not run · 1 no test | 11 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [test_design_embroidery_task.py](../../backend/tests/test_design_embroidery_task.py) |
-| npm SDK | impl | 0 pass · 0 fail · 0 not run · 22 no test | — |
-| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 22 no test | — |
+| REST API | partial 21/28 | 21 pass · 0 fail · 0 not run · 7 no test | 11 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [test_design_embroidery_task.py](../../backend/tests/test_design_embroidery_task.py) |
+| npm SDK | impl | 0 pass · 0 fail · 0 not run · 28 no test | — |
+| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 28 no test | — |
 
 </details>
 

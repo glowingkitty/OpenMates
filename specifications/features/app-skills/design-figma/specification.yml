@@ -1,60 +1,85 @@
 schema_version: 1
 id: feature.app-skills.design-figma
-version: 1
+version: 2
 status: draft
-title: Design Get Design (Figma)
+title: Design Files (Figma and Penpot)
 summary: >
-  Users connect their own Figma account through OAuth and the design get_design
-  skill reads a real Figma file they can open: pages and frames, the node tree
-  of selected frames, components, styles, variables when the plan and grant
-  allow it, and exported frame images. The result is compact design context the
-  assistant uses directly, including a design-to-code hand-off (design tokens,
-  screens, components, assets) that agentic coding in Projects builds from.
-  Figma is reached only through its official REST API and OAuth 2 app flow:
-  https://developers.figma.com/docs/rest-api/ and
-  https://developers.figma.com/docs/rest-api/oauth-apps/
+  Users connect their own Figma account (OAuth) or Penpot account (personal
+  access token, design.penpot.app or a self-hosted instance) and the Design app
+  reads their real designs without flooding the context window: design.get_design
+  first returns a cheap outline (pages, frames or boards with names and sizes),
+  then reads only the frames the request needs, within fixed node and size
+  budgets; design.export_assets renders chosen frames and stores them as
+  OpenMates files. Results use one provider-neutral design model with a
+  design-to-code hand-off (tokens, screens, components, assets) that agentic
+  coding in Projects builds from. Figma is reached only through its REST API and
+  OAuth app flow (https://developers.figma.com/docs/rest-api/), Penpot only
+  through its documented RPC API (https://help.penpot.app/technical-guide/integration/).
+  Plain-language API notes: docs/apis/figma-penpot.md. Version 2 adds Penpot,
+  outline-first reads, context budgets, frame selection and export_assets; the
+  v1 Figma implementation on dev still returns images from get_design.
 inherits:
   - architecture.connected-accounts@2
   - architecture.app-skill-execution@1
 
 scope:
   includes:
-    - Figma OAuth 2 connection (authorization code with PKCE S256) through the shared connected-account platform, with client-side encrypted token storage.
-    - Minimal scopes per selected capability, an opt-in variables capability, reconnect and disconnect.
-    - The design.get_design skill for one Figma file URL or file key with optional node selection.
-    - Frames, node tree summaries, components and component sets, styles, variables, and exported frame images.
-    - Rate-limit aware execution with explicit Figma plan/seat limit reporting and no hidden retries.
-    - Design-to-code hand-off (tokens as CSS custom properties, screens, components, assets) used by agentic coding in Projects.
-    - Web connection in Settings > Apps > Design, CLI and SDK execution of the skill with an already connected account.
+    - Figma OAuth 2 connection (authorization code with PKCE S256) and Penpot personal-access-token connection through the shared connected-account platform, with client-side encrypted credentials.
+    - design.get_design with an outline mode and a targeted read mode for both providers, with context budgets and summaries.
+    - Frame selection for large files by the assistant, with an optional Jev relevance ranking of outline entries.
+    - design.export_assets for rendered frames and placed images, stored as OpenMates files or Project files.
+    - Tokens from Figma styles and variables and from Penpot design tokens, components, and a design-to-code hand-off for agentic coding in Projects.
+    - Rate-limit and plan-limit aware execution with no hidden retries and per-chat reuse of reads of the same file version.
+    - A provider-neutral design model that a later built-in OpenMates design editor can serve as a third provider.
   excludes:
-    - Writing to Figma (comments, variables, dev resources, webhooks), Figma plugins, and the Figma MCP server.
-    - Team/project file browsing and file search; the user names the file.
-    - Personal access tokens entered by users; the OAuth app is the only connection path.
-    - Server-side storage of Figma file content outside the user's encrypted chat/embed data.
-    - Apple connection UI in this version (Apple follows web in a later stage).
+    - Creating or editing designs in any provider (a later design.edit_design skill; Penpot and the built-in editor only, since Figma's REST API cannot edit the canvas).
+    - Figma comments, variable writes, dev resources, webhooks, the Plugin API and the Figma or Penpot MCP servers.
+    - Browsing or searching team files; the user gives a link or file id.
+    - Figma personal access tokens; Figma connects only through the OAuth app.
+    - Server-side storage of design content outside the user's encrypted chat, embed and Project data.
+    - Apple connection UI in this version (Apple follows web).
+    - Planning or building the built-in design editor.
 
 models:
+  Provider:
+    id: {type: enum, values: [figma, penpot], constraints: {later: [openmates_editor]}}
   FigmaScopes:
-    base: {type: array, values: [file_content:read, current_user:read]}
-    optional_variables: {type: array, values: [file_variables:read]}
-    never_requested: {type: array, values: [files:read, file_comments:write, file_variables:write, webhooks:write, file_dev_resources:write, projects:read]}
+    base: {type: array, values: [file_content:read, file_metadata:read, current_user:read]}
+    optional_variables: {type: array, values: [file_variables:read], constraints: {figma_enterprise_only: true}}
+    never_requested: {type: array, values: [files:read, projects:read, file_comments:write, file_variables:write, webhooks:write, file_dev_resources:write]}
+  PenpotConnection:
+    instance_url: {type: string, constraints: {https_only: true, default: 'https://design.penpot.app', public_dns_only: true}}
+    access_token: {type: secret, constraints: {client_encrypted: true, never_shown_again: true, expiry_recommended_days: 90}}
+    allowed_methods: {type: array, values: [get-profile, get-file, get-file-summary, get-page, get-file-object-thumbnails]}
+  DesignReference:
+    url: {type: string, constraints: {figma_design_file_proto_board_or_branch_url_or_penpot_workspace_or_view_url: true, max_length: 2048}}
+    file_id: {type: string, constraints: {either_url_or_file_id: true}}
+    node_ids: {type: array, constraints: {max_items: 10, provider_native_ids: true}}
   GetDesignRequest:
-    figma_url: {type: string, constraints: {figma_file_design_proto_or_board_url: true}}
-    file_key: {type: string, constraints: {either_url_or_key: true}}
-    node_ids: {type: array, constraints: {max_items: 10, colon_or_dash_form_normalized: true}}
-    include: {type: array, values: [frames, components, styles, variables, images]}
-    image_format: {type: enum, values: [png, svg, jpg, pdf], default: png}
-    image_scale: {type: number, constraints: {min: 0.5, max: 2, default: 1}}
-    depth: {type: integer, constraints: {min: 1, max: 4, default: 2}}
-  GetDesignResult:
-    file: {type: object, fields: [file_key, name, last_modified, version, editor_type, link]}
-    frames: {type: array, constraints: {max_items: 200}}
-    nodes: {type: array, constraints: {max_nodes_per_request: 800, truncated_flag: true}}
+    reference: {type: DesignReference}
+    mode: {type: enum, values: [auto, outline, read], default: auto}
+    page: {type: string, constraints: {page_id_or_exact_name: true}}
+    include: {type: array, values: [structure, components, styles, tokens], default: [structure, components, styles]}
+    depth: {type: integer, constraints: {min: 1, max: 6, default: 4}}
+  DesignOutline:
+    file: {type: object, fields: [provider, file_id, name, version, last_modified, link]}
+    pages: {type: array, fields: [id, name, frame_count], constraints: {max_items: 100}}
+    frames: {type: array, fields: [id, name, page_id, type, width, height, section, child_count], constraints: {max_listed: 150, per_page_max: 60, rest_as_counts: true}}
+    counts: {type: object, fields: [pages, frames, components, styles, tokens]}
+    ranked_by: {type: enum, values: [file_order, jev_relevance]}
+  DesignRead:
+    nodes: {type: array, constraints: {max_nodes: 800, budget_chars: 60000, depth_beyond_budget_summarized: true}}
     components: {type: array}
     styles: {type: array}
-    variables: {type: object, constraints: {status_when_unavailable: [not_granted, plan_limited, not_requested]}}
-    images: {type: array, constraints: {max_items: 10, url_expires_after_days: 30}}
-    code_handoff: {type: object, fields: [tokens_css, screens, components, assets, notes]}
+    tokens: {type: object, constraints: {status_when_unavailable: [not_granted, plan_limited, not_supported, not_requested]}}
+    code_handoff: {type: object, fields: [tokens_css, tokens_dtcg, screens, components, assets, notes]}
+    truncated: {type: object, fields: [nodes_omitted, reason]}
+  ExportAssetsRequest:
+    reference: {type: DesignReference, constraints: {node_ids_required: true}}
+    format: {type: enum, values: [png, svg, jpg, pdf], default: png}
+    scale: {type: number, constraints: {min: 0.5, max: 2, default: 1}}
+    include_image_fills: {type: boolean, default: false}
+    destination: {type: enum, values: [chat_files, project_files], default: chat_files}
 
 assertions:
   - id: design-figma.connection.oauth
@@ -76,114 +101,200 @@ assertions:
   - id: design-figma.connection.minimal-scopes
     type: security
     must: >
-      The default connection requests only file_content:read (files, nodes and
-      image exports, which also carry component and style metadata) and
-      current_user:read (the account label). Variables are a separate opt-in
-      capability that adds file_variables:read through reconnect; it is never
-      requested silently. Deprecated or write scopes are never requested. The
-      requested scope set is recorded in the encrypted account's scope context.
-      A scope Figma rejects is reported as missing (reconnect_required for file
-      content, variables status not_granted for variables) with the capability
-      to enable, never as empty content.
+      The default Figma connection requests only file_content:read (trees,
+      nodes, renders, component and style metadata), file_metadata:read (the
+      Tier 3 version check that lets repeated reads skip Tier 1 calls) and
+      current_user:read (the account label). Variables are an opt-in capability,
+      offered as Figma Enterprise only, that adds file_variables:read through
+      reconnect; it is never requested silently. Deprecated or write scopes are
+      never requested. The granted scope set is recorded in the encrypted
+      account's scope context. A rejected scope is reported as missing
+      (reconnect_required for file content, tokens status not_granted for
+      variables) with the capability to enable, never as empty content.
     depends_on: [models.FigmaScopes, examples.connection]
+  - id: design-figma.connection.penpot-token
+    type: security
+    must: >
+      Penpot offers no OAuth for third-party apps, so connecting Penpot asks for
+      the instance URL (default https://design.penpot.app) and a personal access
+      token the user creates in Penpot (Your account > Integrations), and tells
+      the user that the token can do everything their Penpot account can, that
+      OpenMates only reads, and to create a dedicated token with an expiry. The
+      client verifies the token once with get-profile through the first-party
+      proxy, encrypts it with its master key and stores it as the connected
+      account credential; the server keeps no copy. Instance URLs must be https,
+      resolve only to public addresses (checked again on every request), and
+      redirects are not followed. The Penpot adapter calls only the allowlisted
+      read methods with Accept application/json; any other method is a
+      programming error.
+    depends_on: [models.PenpotConnection, examples.connection]
   - id: design-figma.execution.token-lifecycle
     type: security
     must: >
-      The skill runs only with a broker-issued access-token handle for the active
-      turn, exactly like Calendar: the client submits the encrypted account's
-      refresh-token envelope, the broker exchanges it at
-      https://api.figma.com/v1/oauth/refresh (Basic auth) only when the skill
-      runs, and the access token lives only in the short handle. Refreshing
-      invalidates the previous Figma access token, so a token rejected because a
-      parallel turn refreshed it is reported as a retryable superseded token,
-      not as a revoked account. Figma rejecting the refresh token itself
-      (invalid_grant, invalid_client, HTTP 401) is reported as reconnect
-      required. Disconnecting revokes the encrypted account (connector status
-      revoked, server access off) so no later turn can use it; Figma documents
-      no revoke endpoint, so the user is told to remove the app in their Figma
-      settings.
+      Both providers run only with a broker-issued access-token handle for the
+      active turn: the client submits the encrypted credential envelope, the
+      broker turns it into a short-lived handle only when the skill runs, and
+      the credential never enters model context, logs or results. For Figma the
+      broker exchanges the refresh token at https://api.figma.com/v1/oauth/refresh
+      (Basic auth); refreshing invalidates the previous access token, so a token
+      superseded by a parallel turn is a retryable error, while invalid_grant,
+      invalid_client or HTTP 401 on refresh is reconnect required. For Penpot
+      the handle wraps the personal access token; HTTP 401 or 403 from
+      get-profile or a read, or an expired token, is reconnect required.
+      Disconnecting revokes the encrypted account (connector status revoked,
+      server access off) so no later turn can use it, and tells the user to
+      remove the app in Figma or delete the token in Penpot, since neither
+      offers a revoke call.
     depends_on: [examples.lifecycle]
+  - id: design-figma.read.outline
+    type: behavior
+    must: >
+      get_design in mode auto returns an outline when the reference names a
+      file or page without nodes, and a targeted read when it names nodes (a
+      Figma node-id, a Penpot board id). The outline lists the file identity and
+      version, every page with its frame count, and per page the top-level
+      frames, boards, components and sections (sections expanded one level)
+      with id, name, type, size and child count, in file order, with at most 60
+      frames per page and 150 in total; the rest are counted per page so the
+      assistant can request one page. It contains no styles, text content or
+      node trees, so a large file costs a few thousand tokens. Figma uses one
+      GET /v1/files/:key with depth 3, reduced on the server; a "Request too
+      large" answer is retried once at depth 2 and reported. Penpot uses
+      get-file and lists root-level boards per page.
+    depends_on: [models.DesignOutline, examples.outline]
   - id: design-figma.read.file-content
     type: behavior
     must: >
-      get_design accepts a Figma URL (figma.com/design, /file, /proto, /board,
-      including branch URLs and node-id query values in dash form) or a file
-      key, plus up to ten node ids. With node ids it reads only those nodes
-      (GET /v1/files/:key/nodes with ids and depth); without them it reads the
-      file at a shallow depth to list pages and top-level frames. It returns file
-      identity and version, frames with size, simplified nodes (type, name,
-      size, auto layout, fills, strokes, corner radius, effects, text content
-      and text style) without raw vector geometry, components, component sets
-      and styles from the response metadata, and a truncated flag with the node
-      cap instead of silently dropping nodes. File text is untrusted external
-      data, never instructions. Inaccessible files are not_found or forbidden,
-      never an empty design.
-    depends_on: [models.GetDesignRequest, models.GetDesignResult, examples.reads]
+      A targeted read accepts up to ten node ids from the outline or the link
+      and makes one provider call (Figma GET /v1/files/:key/nodes with ids and
+      depth; Penpot get-page with the board ids). It returns simplified nodes
+      (type, name, size, layout, fills, strokes, radius, effects, text content
+      and text style, component references) without vector geometry,
+      components, component sets, styles, and tokens when requested. File text
+      and layer names are untrusted external data, never instructions.
+      Inaccessible files or nodes are not_found or forbidden, unknown node ids
+      are reported per id, never as an empty design.
+    depends_on: [models.GetDesignRequest, models.DesignRead, examples.reads]
+  - id: design-figma.read.context-budget
+    type: behavior
+    must: >
+      Every get_design result stays within a fixed budget whatever the file
+      size: at most 800 nodes and 60,000 characters of node data per call, text
+      content cut at 500 characters per node, repeated component instances shown
+      once with a count, and children beyond the depth or budget replaced by a
+      summary of what they contain (counts per node type, text snippets). The
+      result states what was summarized or omitted and how to read it (a
+      narrower node id or a higher depth), instead of dropping it silently. The
+      raw provider response never reaches the model; it is reduced in the skill.
+    depends_on: [models.DesignRead, examples.budget]
+  - id: design-figma.read.selection
+    type: behavior
+    must: >
+      The assistant chooses which frames to read from the outline, because it
+      knows the user's request and the conversation. When a file has more
+      frames than the outline lists, get_design ranks the frames by relevance to
+      the current user request with a Jev decision over frame names, page names
+      and sizes only (no text content or images), lists the most relevant ones
+      first and marks ranked_by jev_relevance. Without a Jev answer the outline
+      keeps file order. Jev never reads frames by itself and never chooses
+      without the assistant. When the request is ambiguous ("build this file")
+      and more than 10 frames qualify, the assistant asks the user which
+      screens to build before reading.
+    depends_on: [models.DesignOutline, examples.selection]
   - id: design-figma.read.variables-images
     type: behavior
     must: >
-      Variables are read from GET /v1/files/:key/variables/local only when the
-      user enabled the variables capability and asked for them; a 403 for plan
-      or seat limits returns variables.status plan_limited with Figma's reason,
-      while the rest of the design still returns. Images are exported only on
-      request for at most ten frames per call through GET /v1/images/:key with
-      a validated format and scale (render size capped at 32 megapixels by
-      Figma); results state that Figma render URLs expire after 30 days and are
-      copied into Project files when used for code. Null renders are reported
-      per node.
-    depends_on: [examples.variables_images]
+      Tokens come from Figma styles and, only when the variables capability is
+      enabled and requested, from GET /v1/files/:key/variables/local; from
+      Penpot they come from the file's design tokens (W3C Design Tokens sets and
+      themes). A Figma 403 for plan or seat limits returns tokens status
+      plan_limited with Figma's reason, a missing scope not_granted, a Penpot
+      version without tokens not_supported; the rest of the design still
+      returns. get_design returns no rendered images; renders come only from
+      design.export_assets.
+    depends_on: [examples.tokens]
+  - id: design-figma.assets.export
+    type: behavior
+    must: >
+      design.export_assets renders up to ten chosen nodes per call and, when
+      asked, the photos placed in them, and stores every result as an OpenMates
+      file in the chat or in the active Project's files, so no expiring provider
+      URL reaches the model or the code. Figma uses one GET /v1/images/:key with
+      a validated format and scale (renders above 32 megapixels are scaled down
+      by Figma; null renders are reported per node) and, for placed photos, one
+      GET /v1/files/:key/images. Penpot documents no render call, so it returns
+      the stored board thumbnails from get-file-object-thumbnails marked as
+      thumbnails, and reports full renders as not_supported. Exported files
+      count against the user's storage like uploads.
+    depends_on: [models.ExportAssetsRequest, examples.assets]
   - id: design-figma.limits.rate-aware
     type: behavior
     must: >
-      Figma rate limits are per user, plan and app, and file, node and image
-      reads are Tier 1 (as low as 20 calls per month for View and Collab seats).
-      One get_design request makes at most one content call, one image call and
-      one variables call, never pages through the whole file and never retries a
-      429 automatically. A 429 returns figma_rate_limited with retry_after
-      seconds, the plan tier, the rate limit type (low means a View or Collab
-      seat) and Figma's upgrade link when provided, so the assistant can explain
-      the limit. One get_design call carries at most three file requests, and
-      OpenMates limits the OAuth start and callback routes per IP. Repeated reads of the same file version
-      in a chat reuse the earlier result in the chat instead of calling Figma
-      again when the assistant already has it.
+      Figma file, node and image reads are Tier 1: View and Collab seats get at
+      most 20 per month (Figma's examples go as low as 2 to 6), Dev and Full
+      seats 10 to 20 per minute by plan; limits count per user, plan and app.
+      One outline costs one Tier 1 call, one targeted read one, one export one
+      or two, and a link with a node id skips the outline. Before repeating a
+      read the skill checks the file version with Tier 3 GET /v1/files/:key/meta
+      and reuses the earlier result in the chat when the version is unchanged.
+      A 429 is never retried automatically and returns rate_limited with
+      retry_after seconds, plan tier, rate limit type (low means a View or
+      Collab seat) and Figma's upgrade link. Penpot publishes no quota; a 429
+      from an instance is reported the same way. One call carries at most three
+      requests, and the OAuth and Penpot verify routes are rate limited per user
+      and IP.
     depends_on: [examples.limits]
   - id: design-figma.handoff.design-to-code
     type: behavior
     must: >
-      Every successful result includes code_handoff: design tokens derived only
-      from the file (colors, typography, spacing, radii, shadows; variables when
-      available) as CSS custom properties with Figma names, the screens to build
-      (frame id, name, size, exported image when requested), the component
-      inventory, image assets, and notes on what could not be mapped. When the
-      user asks to build the design, the assistant uses this hand-off for
-      agentic coding in a Project: it creates or uses the Project, copies the
-      exported images into Project files before the render URLs expire, and
-      implements screens with the given tokens rather than invented values.
-      The hand-off never includes OAuth data or provider internals.
+      Every targeted read includes code_handoff: tokens derived only from the
+      file as CSS custom properties with the design's names and as W3C Design
+      Tokens JSON, the screens to build (node id, name, size, exported file when
+      present), the component inventory, assets, and notes on what could not be
+      mapped. When the user asks to build or implement the design, the assistant
+      uses this hand-off for agentic coding in a Project: it reads the frames to
+      build, exports their assets into Project files with export_assets, maps
+      design tokens to tokens the Project already defines (listing differences
+      instead of adding duplicates), and implements screens with the given values
+      rather than invented ones. The hand-off never contains credentials or
+      provider internals.
     depends_on: [examples.handoff]
+  - id: design-figma.model.provider-neutral
+    type: behavior
+    must: >
+      Skills, arguments and results are provider-neutral: the same get_design
+      and export_assets calls, outline, node, token and hand-off shapes serve
+      Figma and Penpot, with provider ids kept as opaque node references and the
+      provider named only in file identity and errors. A later built-in
+      OpenMates design editor is added as another provider behind the same
+      skills; a later design.edit_design applies neutral node changes (add,
+      update, delete, move) to providers that support writing (Penpot,
+      the built-in editor) and reports not_supported for Figma.
+    depends_on: [models.Provider, examples.neutral]
   - id: design-figma.surface.parity
     type: parity
     must: >
-      The skill is a registered first-party OpenMates app skill run through the
-      shared connected-account execution boundary, not a public or developer
-      API-key endpoint. Web offers connect, reconnect (including enabling
-      variables) and disconnect in Settings > Apps > Design and the shared
-      permission prompt in chats. CLI and npm/pip SDKs run get_design with an
-      already connected account and return the same structured result and
-      errors. Tests use mocked Figma responses and a synthetic fixture file;
-      real-account acceptance runs on the deployed dev stack with the owner's
-      Figma app and a file the owner chose.
+      The skills are registered first-party OpenMates app skills run through the
+      shared connected-account execution boundary, not public or developer
+      API-key endpoints. Web offers connect, reconnect (including enabling Figma
+      variables) and disconnect for Figma and Penpot in Settings > Apps > Design
+      and the shared permission prompt in chats. CLI and npm/pip SDKs run
+      get_design and export_assets with an already connected account and return
+      the same structured results and errors, so developer agents can point at a
+      design from the terminal. Tests use mocked Figma and Penpot responses and
+      synthetic fixture files; real-account acceptance runs on the deployed dev
+      stack with the owner's accounts and files the owner chose.
     depends_on: [examples.surfaces]
 
 applies_to:
   rest_api:
     required: true
-    role: First-party OAuth start/callback and connected-account execution only; no developer API-key exposure of get_design.
+    role: First-party Figma OAuth start/callback, Penpot token verification and connected-account execution only; no developer API-key exposure of the design skills.
   cli: {required: true, parity: semantic}
   sdks:
     required: true
     parity: semantic
-    role: get_design execution against an account connected on web; SDK connection is unsupported.
+    role: get_design and export_assets execution against an account connected on web; SDK connection is unsupported.
     implementations:
       npm: {required: true}
       pip: {required: true}
@@ -196,4 +307,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [connection, lifecycle, reads, variables_images, limits, handoff, surfaces]
+  required_groups: [connection, lifecycle, outline, reads, budget, selection, tokens, assets, limits, handoff, neutral, surfaces]

@@ -723,7 +723,7 @@ features:
   - id: design
     name: "Design"
     kind: app
-    description: "Find icons and visual assets, and read your Figma designs to build them."
+    description: "Find icons and visual assets, and read your Figma or Penpot designs to build them."
     specifications: [feature.app-skill.design-embroidery, feature.app-skills.design-figma]
     apps: [design]
     release: v0.19.0
@@ -736,11 +736,11 @@ features:
       sdk_pypi: "sdk.design facade (py)"
     subfeatures:
       - id: figma-get-design
-        name: "Figma designs"
-        description: "Connect Figma (OAuth), read frames, components, styles, variables and images, design-to-code hand-off"
+        name: "Figma and Penpot designs"
+        description: "Connect Figma (OAuth) or Penpot (access token), outline then targeted reads within context budgets, tokens, export_assets, design-to-code hand-off"
         assertions: ["design-figma.*"]
         surfaces: {web: in_progress, apple: planned, cli: in_progress, tui: unverified, rest_api: in_progress, sdk_npm: in_progress, sdk_pypi: in_progress}
-        notes: "Unreleased; real-account check with the owner's Figma app on dev pending."
+        notes: "Unreleased. Spec v2 (draft) adds Penpot, outline-first reads, budgets and export_assets; dev code implements v1 (Figma only). Real-account check with the owner's Figma app on dev pending."
   - id: diagrams
     name: "Diagrams"
     kind: app

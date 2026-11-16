@@ -11649,7 +11649,7 @@ features:
 - id: design
   name: Design
   kind: app
-  description: Find icons and visual assets, and read your Figma designs to build them.
+  description: Find icons and visual assets, and read your Figma or Penpot designs to build them.
   specifications:
   - id: feature.app-skill.design-embroidery
     status: draft
@@ -11666,7 +11666,7 @@ features:
     - app:design
     dev: enabled
     prod: enabled
-  assertions: 22
+  assertions: 28
   surfaces:
     web:
       status: partial
@@ -11676,8 +11676,8 @@ features:
         passing: 7
         failing: 0
         not_run: 2
-        missing: 13
-        counted: 22
+        missing: 19
+        counted: 28
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
@@ -11717,8 +11717,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 22
-        counted: 22
+        missing: 28
+        counted: 28
       key_tests: []
       evidence: openmates apps design search_icons|export-icon
       e2e_tests: []
@@ -11747,8 +11747,8 @@ features:
         passing: 21
         failing: 0
         not_run: 0
-        missing: 1
-        counted: 22
+        missing: 7
+        counted: 28
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -11766,8 +11766,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 22
-        counted: 22
+        missing: 28
+        counted: 28
       key_tests: []
       evidence: sdk.design facade (npm)
       e2e_tests: []
@@ -11781,8 +11781,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 22
-        counted: 22
+        missing: 28
+        counted: 28
       key_tests: []
       evidence: sdk.design facade (py)
       e2e_tests: []
@@ -11790,15 +11790,22 @@ features:
       unit_test_files: 0
   subfeatures:
   - id: figma-get-design
-    name: Figma designs
-    description: Connect Figma (OAuth), read frames, components, styles, variables and images, design-to-code hand-off
+    name: Figma and Penpot designs
+    description: Connect Figma (OAuth) or Penpot (access token), outline then targeted reads within context budgets, tokens,
+      export_assets, design-to-code hand-off
     assertion_ids:
+    - design-figma.assets.export
     - design-figma.connection.minimal-scopes
     - design-figma.connection.oauth
+    - design-figma.connection.penpot-token
     - design-figma.execution.token-lifecycle
     - design-figma.handoff.design-to-code
     - design-figma.limits.rate-aware
+    - design-figma.model.provider-neutral
+    - design-figma.read.context-budget
     - design-figma.read.file-content
+    - design-figma.read.outline
+    - design-figma.read.selection
     - design-figma.read.variables-images
     - design-figma.surface.parity
     surfaces:
@@ -11810,8 +11817,8 @@ features:
           passing: 4
           failing: 0
           not_run: 0
-          missing: 4
-          counted: 8
+          missing: 10
+          counted: 14
       apple:
         status: planned
         source: intent
@@ -11830,8 +11837,8 @@ features:
           passing: 0
           failing: 0
           not_run: 0
-          missing: 8
-          counted: 8
+          missing: 14
+          counted: 14
       tui:
         status: unverified
         source: intent
@@ -11850,8 +11857,8 @@ features:
           passing: 7
           failing: 0
           not_run: 0
-          missing: 1
-          counted: 8
+          missing: 7
+          counted: 14
       sdk_npm:
         status: in_progress
         source: intent
@@ -11860,8 +11867,8 @@ features:
           passing: 0
           failing: 0
           not_run: 0
-          missing: 8
-          counted: 8
+          missing: 14
+          counted: 14
       sdk_pypi:
         status: in_progress
         source: intent
@@ -11870,9 +11877,10 @@ features:
           passing: 0
           failing: 0
           not_run: 0
-          missing: 8
-          counted: 8
-    notes: Unreleased; real-account check with the owner's Figma app on dev pending.
+          missing: 14
+          counted: 14
+    notes: Unreleased. Spec v2 (draft) adds Penpot, outline-first reads, budgets and export_assets; dev code implements v1
+      (Figma only). Real-account check with the owner's Figma app on dev pending.
 - id: diagrams
   name: Diagrams
   kind: app

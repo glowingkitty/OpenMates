@@ -43889,8 +43889,8 @@ assertions:
         - *id5528
     current_direct_proof: false
   design-figma.connection.oauth:
-    specification: feature.app-skills.design-figma@1
-    fingerprint: 0e75b97716e176be9b4fa96a6f1b3dc6f9c2be393797f252eb4df7d4ed0f3a26
+    specification: feature.app-skills.design-figma@2
+    fingerprint: 35f6b0c652d8329c36f6909a4eefa0ba50ed088c3cd09ee9be018efb33e19047
     direct_tests: []
     supporting_tests:
     - &id5529
@@ -43966,8 +43966,8 @@ assertions:
         - *id5537
     current_direct_proof: false
   design-figma.connection.minimal-scopes:
-    specification: feature.app-skills.design-figma@1
-    fingerprint: 0a1e70d80e6c1c536d43c9f9e42bc0f0a4fe786c56b1d5db09a95efd4b206238
+    specification: feature.app-skills.design-figma@2
+    fingerprint: 8fda71d291acb5c0ff4b2de3e4d29d94f2561af743615fcc7f0adfbf50357f73
     direct_tests: []
     supporting_tests:
     - &id5538
@@ -44014,9 +44014,17 @@ assertions:
         supporting_tests:
         - *id5542
     current_direct_proof: false
+  design-figma.connection.penpot-token:
+    specification: feature.app-skills.design-figma@2
+    fingerprint: 2d9c142165ec961708b645855fe6d9f206a4756bb9df4823df4d23232c4fff2d
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   design-figma.execution.token-lifecycle:
-    specification: feature.app-skills.design-figma@1
-    fingerprint: 2f7bd295eeeb8a2873b10d7d7ad60cdbdf58490e6cf860921037c3e5916524ff
+    specification: feature.app-skills.design-figma@2
+    fingerprint: ada771fd271af6cd2c1304e75e21991bfb97a75c36de8de07f821edcb7079dd4
     direct_tests: []
     supporting_tests:
     - &id5543
@@ -44098,9 +44106,17 @@ assertions:
         - *id5551
         - *id5552
     current_direct_proof: false
+  design-figma.read.outline:
+    specification: feature.app-skills.design-figma@2
+    fingerprint: c454e9af41bea1c2cfd5905c227de62742fce2171efaca1a30ce24005d5bcce8
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   design-figma.read.file-content:
-    specification: feature.app-skills.design-figma@1
-    fingerprint: a160f2a5dced7c5acd70c9caf58e19e71fe8bfecd572fc150acd01c149614e16
+    specification: feature.app-skills.design-figma@2
+    fingerprint: 33e9be784b9715c213c84652eb2c57b055473d28344abfc61b0a3a5f5bd10fbd
     direct_tests: []
     supporting_tests:
     - &id5553
@@ -44172,9 +44188,25 @@ assertions:
         - *id5560
         - *id5561
     current_direct_proof: false
+  design-figma.read.context-budget:
+    specification: feature.app-skills.design-figma@2
+    fingerprint: 4b9bdf8bb35a2d12ed96729cf46b3bcb5d73305598ca35ba43394bbd8a18d798
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  design-figma.read.selection:
+    specification: feature.app-skills.design-figma@2
+    fingerprint: 7ebc3fd13ce70bded65e0f8ac467a34f38f2fa5850a1f05e816942aaa2ce8baf
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   design-figma.read.variables-images:
-    specification: feature.app-skills.design-figma@1
-    fingerprint: 208b816f501f67be8e198ecba5fbea04e485f5b137f7151d0b775c027606536c
+    specification: feature.app-skills.design-figma@2
+    fingerprint: 6ba50345de6673edf29dab6b48626f60610c58e4c159087743dc91f99d82fcf7
     direct_tests: []
     supporting_tests:
     - &id5562
@@ -44211,9 +44243,17 @@ assertions:
         - *id5564
         - *id5565
     current_direct_proof: false
+  design-figma.assets.export:
+    specification: feature.app-skills.design-figma@2
+    fingerprint: b12fe221f01076ecdc42312cc5969263d30cc94a6b4b641266135f2a8252544b
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   design-figma.limits.rate-aware:
-    specification: feature.app-skills.design-figma@1
-    fingerprint: ee7680a054806e06fbea0f73103f9ed44add408b3067cdd9bf72c5d338cdd5cc
+    specification: feature.app-skills.design-figma@2
+    fingerprint: 04e59bca5887394891472303e1cc73f77fb67435525537a6fd411392ee42f4a5
     direct_tests: []
     supporting_tests:
     - &id5566
@@ -44244,8 +44284,8 @@ assertions:
         - *id5568
     current_direct_proof: false
   design-figma.handoff.design-to-code:
-    specification: feature.app-skills.design-figma@1
-    fingerprint: 0295542443308762fd8bca9b100dd5e119a70ba425486115d2299cc876d2373d
+    specification: feature.app-skills.design-figma@2
+    fingerprint: 51f03f29bc899d246d01d6e277c8e09478d77af6a8096399e99f7a7e97299e48
     direct_tests: []
     supporting_tests:
     - &id5569
@@ -44268,9 +44308,17 @@ assertions:
         - *id5569
         - *id5570
     current_direct_proof: false
+  design-figma.model.provider-neutral:
+    specification: feature.app-skills.design-figma@2
+    fingerprint: 89d49187229e3975c393b4b8436009df1d2e34f97bd91942ebd1ffff5973b0e5
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   design-figma.surface.parity:
-    specification: feature.app-skills.design-figma@1
-    fingerprint: da67e01e598b48882f07ebb74924a48058054b97c0b0d77581d7704ecd4e4835
+    specification: feature.app-skills.design-figma@2
+    fingerprint: 8e2880f04bb700cc7271e5a7b319a6d35b1c543574901ba964c64eaaa9ed9431
     direct_tests: []
     supporting_tests:
     - &id5571
