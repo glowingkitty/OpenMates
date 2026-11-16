@@ -27,7 +27,16 @@
   import ResultEmbedMapPreview from '../ResultEmbedMapPreview.svelte';
   import { extractResultRoute } from '../resultMapRoutes';
   import { proxyImage, MAX_WIDTH_AIRLINE_LOGO } from '../../../utils/imageProxy';
-  import { formatTravelFare, type TravelFare } from './fareDisplay';
+  import {
+    extractRouteComposition,
+    extractTravelFare,
+    extractTravelTickets,
+    formatPassName,
+    formatPrice,
+    formatRouteSavings,
+    formatTravelFare,
+    type TravelFare,
+  } from './fareDisplay';
 
   
   /**
@@ -161,11 +170,34 @@
   let _carriers = $derived(normalizeStringArray(carriersProp as string[] | string | undefined));
   let carrierCodes = $derived(normalizeStringArray(carrierCodesProp as string[] | string | undefined));
   
-  // Format price/fare state for display.
+  // Stored child embeds carry the fare as flattened fare_* fields.
+  let effectiveFare = $derived(fare ?? extractTravelFare((connection ?? {}) as Record<string, unknown>));
+
+  // Mixed routes: several tickets, one of them covered by an owned pass.
+  let ticketCount = $derived(extractTravelTickets((connection ?? {}) as Record<string, unknown>).length);
+  let routeComposition = $derived(extractRouteComposition((connection ?? {}) as Record<string, unknown>));
+
+  // Format price/fare state for display. A mixed route's card shows only the amount paid;
+  // the pass is named on the tickets line so the price stays readable on narrow cards.
   let formattedPrice = $derived.by(() => {
-    return formatTravelFare({ fare, total_price: price, currency: effectiveCurrency, fare_is_partial: fareIsPartial });
+    if (ticketCount > 1) {
+      const paid = formatPrice(effectiveFare?.amount ?? price, effectiveFare?.currency ?? effectiveCurrency);
+      if (paid) return paid;
+    }
+    return formatTravelFare({ fare: effectiveFare, total_price: price, currency: effectiveCurrency, fare_is_partial: fareIsPartial });
   });
-  
+
+  let ticketsBadge = $derived.by(() => {
+    if (ticketCount < 2) return '';
+    const passLabel = routeComposition?.passLabel
+      ?? effectiveFare?.covered_by_passes?.map(formatPassName).filter(Boolean).join(', ');
+    // Each part stays on one line; the line only wraps between parts.
+    return [passLabel ? `+ ${passLabel}` : '', `${ticketCount} tickets`, formatRouteSavings(routeComposition)]
+      .filter(Boolean)
+      .map((part) => part.replace(/ /g, '\u00a0'))
+      .join(' · ');
+  });
+
   // Station-local times, as in the fullscreen.
   function formatTime(value?: string): string {
     return formatStationTime(value);
@@ -302,6 +334,7 @@
         </div>
         {#if realtimeStatus}<div class="realtime-status" data-testid="connection-realtime-status">{realtimeStatus}</div>{/if}
         {#if optimizationBadge}<div class="optimization-badge" data-testid="connection-optimization-badge">{optimizationBadge}</div>{/if}
+        {#if ticketsBadge}<div class="optimization-badge" data-testid="connection-tickets-badge">{ticketsBadge}</div>{/if}
       </div>
       {#if routeMap.length > 1}<div class="connection-map"><ResultEmbedMapPreview center={routeMap[0]} path={routeMap} zoom={5} interactive /></div>{/if}
     </div>
@@ -322,7 +355,7 @@
   .journey-departure :global(.time-badge), .journey-arrival :global(.time-badge) { font-size: var(--font-size-xxs); padding: 3px 7px; gap: 4px; }
   .journey-arrival { display: none; }
   .connection-footer { position: absolute; bottom: 8px; left: 48px; right: 48px; display: flex; justify-content: center; align-items: center; gap: 6px; }
-  .connection-price { font-size: 1.2rem; font-weight: 800; line-height: 1.2; color: var(--color-success); white-space: nowrap; }
+  .connection-price { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 1.2rem; font-weight: 800; line-height: 1.2; color: var(--color-success); white-space: nowrap; }
   .luggage-excluded { position: relative; display: inline-flex; color: var(--color-font-secondary); }
   .luggage-slash { position: absolute; inset: -2px; display: inline-flex; transform: scaleX(-1); }
   .realtime-status, .optimization-badge { font-size: var(--font-size-xxs); line-height: 1.2; text-align: center; }

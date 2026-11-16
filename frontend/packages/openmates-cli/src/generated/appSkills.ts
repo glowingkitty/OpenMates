@@ -8481,7 +8481,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "array",
-                "description": "Fare or mobility pass IDs the traveller already owns, such as \"deutschland_ticket\". Use for pass-aware train pricing when the user says they have a Deutschlandticket.\n",
+                "description": "Fare or mobility pass IDs the traveller already owns: \"deutschland_ticket\", \"klimaticket_oesterreich\" or \"swiss_ga\". Pass them whenever the user says they have one. For a trip leaving the pass area the search then also adds mixed routes: the pass-covered regional train to a transfer hub plus a paid ticket from there, ranked by the amount actually paid. Such a result has \"tickets\" (one per part) and \"route_composition\"; tell the user it needs separate tickets, which part the pass covers, the price of the paid part, the transfer time at the hub and the saving when one is given.\n",
                 "items": {
                   "type": "string"
                 }

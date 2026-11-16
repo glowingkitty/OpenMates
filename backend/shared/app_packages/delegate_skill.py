@@ -15,7 +15,12 @@ keeps the original path in ``delegated_class_path``. This class:
    skill's response model defaults when one can be resolved. Skills in
    ``price_comparison.PRICE_COMPARED_SKILLS`` turn the merged offers into a
    comparison (exact product, condition, shipping-inclusive totals, cheapest
-   first for ``sort: price_asc``; see ``price_comparison``).
+   first for ``sort: price_asc``; see ``price_comparison``);
+4. lets the original skill class refine each group when it defines
+   ``refine_installed_group(group, contract_input, search, secrets_manager)``
+   (e.g. compose and rank results); ``search`` runs further request items on the
+   installed providers covering their regions. Skipped when the item names its
+   providers.
 
 Provider failures become short safe per-group messages. Billing never reads
 this output: the registry decides (``billing.served_only_by_installed_providers``).
@@ -62,6 +67,7 @@ MAX_REQUESTS_PER_CALL = 10
 MAX_VALIDATION_ERRORS_SHOWN = 3
 UNAVAILABLE_ERROR = "No installed provider is available for this capability."
 TOO_MANY_REQUESTS_ERROR = f"At most {MAX_REQUESTS_PER_CALL} requests are served per call."
+GROUP_REFINER_ATTRIBUTE = "refine_installed_group"
 
 
 class DelegateConfigurationError(RuntimeError):
@@ -76,6 +82,8 @@ class OriginalSkillModels:
     response_defaults: Dict[str, Any]
     # True when the original response lists providers as {"id", "name"} objects.
     provider_objects: bool = False
+    # Optional ``refine_installed_group`` of the original skill class.
+    group_refiner: Optional[Callable[..., Awaitable[None]]] = None
 
 
 # --------------------------------------------------------------------------
@@ -192,8 +200,10 @@ def resolve_original_skill_models(class_path: str) -> OriginalSkillModels:
     if item_model is None:
         logger.info("[AppPackages] No request item model found for %s; items are passed as JSON objects", class_path)
     response_defaults, provider_objects = _resolve_response_shape(module)
+    refiner = getattr(skill_class, GROUP_REFINER_ATTRIBUTE, None)
     return OriginalSkillModels(item_model=item_model, response_defaults=response_defaults,
-                               provider_objects=provider_objects)
+                               provider_objects=provider_objects,
+                               group_refiner=refiner if callable(refiner) else None)
 
 
 # --------------------------------------------------------------------------
@@ -408,6 +418,8 @@ class InstalledProviderSkill(BaseSkill):
         outcomes, *web_outcomes = await asyncio.gather(*searches)
         outcomes = [*outcomes, *web_outcomes]
         group = build_group(request_id, outcomes)
+        if models.group_refiner is not None and not names_providers(raw) and not group.get("error"):
+            await models.group_refiner(group, contract_input, self._search_more(secrets_manager), secrets_manager)
         if compared:
             group["results"], group["price_comparison"] = compare_offers(group["results"], contract_input)
         if ranked and group["results"]:
@@ -420,6 +432,17 @@ class InstalledProviderSkill(BaseSkill):
             group["results"] = ordered[:limit] if limit else ordered
             group["providers"] = list(dict.fromkeys(result["provider_id"] for result in group["results"]))
         return group
+
+    def _search_more(self, secrets_manager: Any) -> Callable[[Dict[str, Any]], Awaitable[List[Dict[str, Any]]]]:
+        """Search callback for a group refiner: one more item on the providers covering its regions."""
+        async def search(item: Dict[str, Any]) -> List[Dict[str, Any]]:
+            covered, _, coverage_error = covered_providers(item, self._providers())
+            if coverage_error or not covered:
+                return []
+            outcomes = await run_installed_providers(
+                self.app_id, self.skill_id, [provider.provider_id for provider in covered], item, secrets_manager)
+            return interleave_results([outcome.results for outcome in outcomes])
+        return search
 
     async def _search_web(self, kind: str, contract_input: Dict[str, Any], secrets_manager: Any,
                           progress: Optional[SkillProgress]) -> InstalledProviderOutcome:

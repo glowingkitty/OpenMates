@@ -412,7 +412,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/travel-search
-    fingerprint: 4530a4633c317e6d546a1683487899e46552b96b4decd31fba7a53558333d442
+    fingerprint: 4ebda3ba4724605acb9be0c3c851889d620cc3c1b2cc7e4c34ab8d645387459c
     required_applies_to:
     - rest_api
     - cli
@@ -6003,6 +6003,78 @@ assertions:
     specification_id: feature.app-skill.travel-search
     type: failure
     fingerprint: eeed38b493d908d7cd7eed03142cfe4aa84a8c3e8d87ff73ad86837e3e197521
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.pass-hub-composition:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: behavior
+    fingerprint: 20889c6e746e172792619a1122394f5338fce7be8a1f3fc2a10d70afcf036a50
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.pass-coverage-conservative:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: invariant
+    fingerprint: 1ffa053d828f2984586d1d382a10a2acfdd3771081d3ee52a42d9a5d0764d1d6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.transfer-buffer:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: invariant
+    fingerprint: 52d081efd96dd52599a9070739ba5ebdc02500de4395f9a1ab25645792713e72
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.total-price-ranking:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: behavior
+    fingerprint: 9143d07163753670effa25bd7cda534cbc279828f7d9d3b519a40a3a2f8092bb
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.per-ticket-display:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: behavior
+    fingerprint: bcf8b661ba24f088d2629b1e4fa6b09f52cdc1f9100fda25aa434612da52ca49
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.provider-neutral-and-bounded:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: security
+    fingerprint: a73f89c6363be38565a779e09423ee3d8380d95d8e9cefc0d21ff66e63745853
     required_applies_to:
     - rest_api
     - cli

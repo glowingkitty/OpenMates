@@ -47,8 +47,8 @@ summary:
       tested: 2
       partial: 33
       failing: 16
-      not_run: 23
-      implemented: 17
+      not_run: 24
+      implemented: 16
       planned: 2
       not_planned: 27
     sdk_npm:
@@ -17763,25 +17763,27 @@ features:
     - skill:travel:get_flight
     dev: partial
     prod: partial
-  assertions: 4
+  assertions: 10
   surfaces:
     web:
       status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 3
+        passing: 4
         failing: 0
-        not_run: 2
-        missing: 2
-        counted: 7
+        not_run: 5
+        missing: 5
+        counted: 14
       key_tests:
       - frontend/apps/web_app/tests/skill-travel-connections.spec.ts
       - frontend/apps/web_app/tests/skill-travel-stays.spec.ts
       - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+      - frontend/apps/web_app/tests/travel-mixed-routes-real.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/components/result-overview-design.spec.ts
       - frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts
+      - frontend/apps/web_app/tests/travel-mixed-routes-real.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
       - frontend/packages/ui/src/services/__tests__/embedPreviewRegistry.test.ts
@@ -17795,8 +17797,8 @@ features:
         passing: 1
         failing: 0
         not_run: 0
-        missing: 3
-        counted: 4
+        missing: 9
+        counted: 10
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -17814,8 +17816,8 @@ features:
         passing: 0
         failing: 0
         not_run: 2
-        missing: 2
-        counted: 4
+        missing: 8
+        counted: 10
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -17837,20 +17839,21 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: implemented
-      source: intent
+      status: not_run
+      source: tests
       intent: implemented
       assertions:
         passing: 0
         failing: 0
-        not_run: 0
+        not_run: 6
         missing: 4
-        counted: 4
+        counted: 10
       key_tests: []
       evidence: POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/travel/skills
       e2e_tests: []
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - backend/tests/test_travel_mixed_routes.py
+      unit_test_files: 1
     sdk_npm:
       status: implemented
       source: intent
@@ -17859,8 +17862,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 4
-        counted: 4
+        missing: 10
+        counted: 10
       key_tests: []
       evidence: src/generated/appSkills.ts apps.travel (generic skill call)
       e2e_tests: []
@@ -17874,13 +17877,98 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 4
-        counted: 4
+        missing: 10
+        counted: 10
       key_tests: []
       evidence: generated/app_skills.py apps.travel (generic skill call)
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
+  subfeatures:
+  - id: travel-mixed-routes
+    name: Mixed routes with owned passes
+    description: With an owned pass, connection searches add routes that use the pass to a transfer hub and a paid ticket
+      from there, ranked by the amount paid, with one ticket per part.
+    assertion_ids:
+    - travel-search.mixed-routes.pass-coverage-conservative
+    - travel-search.mixed-routes.pass-hub-composition
+    - travel-search.mixed-routes.per-ticket-display
+    - travel-search.mixed-routes.provider-neutral-and-bounded
+    - travel-search.mixed-routes.total-price-ranking
+    - travel-search.mixed-routes.transfer-buffer
+    surfaces:
+      web:
+        status: partial
+        source: tests
+        intent: implemented
+        assertions:
+          passing: 1
+          failing: 0
+          not_run: 2
+          missing: 3
+          counted: 6
+      apple:
+        status: planned
+        source: intent
+        intent: planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 6
+          counted: 6
+      cli:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 6
+          counted: 6
+      tui:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: not_run
+        source: tests
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 6
+          missing: 0
+          counted: 6
+      sdk_npm:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 6
+          counted: 6
+      sdk_pypi:
+        status: implemented
+        source: intent
+        intent: implemented
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 6
+          counted: 6
+    notes: Apple shows composed routes as ordinary connections until its card gains the ticket list; CLI/TUI use generic embed
+      rendering.
 - id: tv
   name: TV
   kind: app
