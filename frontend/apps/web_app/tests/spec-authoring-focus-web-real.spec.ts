@@ -19,6 +19,7 @@ const {
 } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
+const { expandActivity } = require('./helpers/assistant-activity');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const proofContract = defineVideoProof({
@@ -131,27 +132,6 @@ const PLANS_EMBED_TESTIDS: Record<'specification' | 'check' | 'create', string> 
 
 function plansEmbed(page: Page, skillId: keyof typeof PLANS_EMBED_TESTIDS): Locator {
   return page.getByTestId(PLANS_EMBED_TESTIDS[skillId]);
-}
-
-/**
- * A finished reply folds its skill embeds into the collapsed activity summary
- * ("… used 1 app"); open the summaries of the newest replies, where a new
- * Specification, Check or Plan embed lands, so the real embed nodes render.
- * Older replies are left alone: scrolling to them remounts them collapsed.
- */
-async function expandActivity(page: Page): Promise<void> {
-  const replies = page.getByTestId('message-assistant');
-  const total = await replies.count();
-  for (let r = Math.max(0, total - 2); r < total; r += 1) {
-    const toggles = replies.nth(r).getByTestId('assistant-activity-toggle');
-    for (let t = 0; t < await toggles.count(); t += 1) {
-      const toggle = toggles.nth(t);
-      await expect(async () => {
-        if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
-        await expect(toggle).toHaveAttribute('aria-expanded', 'true', { timeout: 2_000 });
-      }).toPass({ timeout: 20_000 });
-    }
-  }
 }
 
 /** Hand-off Tasks show up as a tasks embed or as "created" Task event lines in the chat. */

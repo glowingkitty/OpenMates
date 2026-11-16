@@ -324,7 +324,7 @@ def test_private_active_focus_main_path_does_not_log_or_raise_validation_input(c
     processor = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
                      and node.name == "handle_main_processing")
     active_focus = next(node for node in ast.walk(processor) if isinstance(node, ast.If)
-                        and ast.get_source_segment(source, node.test) == "request_data.active_focus_id"
+                        and (ast.get_source_segment(source, node.test) or "").startswith("request_data.active_focus_id")
                         and "Private Project Focus instruction unavailable" in
                         (ast.get_source_segment(source, node) or ""))
     wrapper = ast.parse("async def exercise():\n    pass\n")
@@ -332,7 +332,7 @@ def test_private_active_focus_main_path_does_not_log_or_raise_validation_input(c
     private_document = ("---\nphases_version: 1\nphases:\n  - id: inspect\n"
                         "    name: PRIVATE-SENTINEL\n    instructions: Inspect.\n---\nGlobal guidance.")
     scope = dict(
-        request_data=SimpleNamespace(active_focus_id="project-focus:project:item"),
+        request_data=SimpleNamespace(active_focus_id="project-focus:project:item"), project_bound_focus=False,
         agentic_context=SimpleNamespace(private_focus_document=AsyncMock(return_value={
             "instruction": private_document,
         })),
@@ -737,3 +737,13 @@ def test_study_phases_use_brief_intake_and_learner_evidence(slug, phase_ids):
     assert "at least five rounds" not in prompt
     requirements = " ".join(r.text for p in f.phases for r in p.requirements)
     assert "learner" in requirements and "unassessed" in requirements
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.phases
+def test_uncertain_boundary_logs_choices_and_question_id_only(caplog):
+    with caplog.at_level(logging.INFO, logger="backend.apps.ai.processing.focus_phases"):
+        kept = evaluate(state(), confidence=0.2)
+    assert kept.phase_id == "clarify"
+    assert "requirement_understood" in caplog.text and "'met', 0.2" in caplog.text
+    assert "retaining phase: unreliable requirement_understood" in caplog.text
+    assert "Skip remaining questions" not in caplog.text and "Proceed." not in caplog.text

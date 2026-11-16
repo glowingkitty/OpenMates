@@ -21,6 +21,7 @@ const {
 } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
+const { expandActivity } = require('./helpers/assistant-activity');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const STORAGE_DIAGNOSTIC = /CLIENT_DECRYPT|decryption failed|DUPLICATE PREVENTED|replaceMessageById|replaced a stale local segment|Final AI message|recover|Conflict|sealed|interim|Skipping content regression|could not be applied/i;
@@ -266,19 +267,26 @@ test.describe('Flow 2 from the web app: spec to commit on a connected machine (r
     await shot(page, testInfo, 'laptop-01-specification-questions');
     // The Project file tools stay available while a named focus is active (focus continuation keeps them).
     await expect(lastAssistant(page)).not.toContainText(/tools?[^.]{0,80}not (currently )?available/i);
-    // The Specification focus asks clarifying questions with recommendations first; a user accepts them.
+    // The Specification focus walks its phases (scope, requirements, design, then Specification and
+    // Checks) and advances one phase per confirmed summary (feature.focus-modes guided-spec-authoring),
+    // so the user confirms each summary and accepts the recommendations until the draft appears.
     const specEmbed = page.locator('[data-testid="message-assistant"] [data-testid="specification-embed-card"], [data-testid="embed-preview"][data-app-id="plans"]');
-    for (let answer = 0; answer < 2 && await specEmbed.count() === 0; answer += 1) {
-      await send(page, 'Go with your recommendations for all open questions and write the Specification with its Checks now.');
+    // A finished reply folds its embeds into the collapsed activity summary; open it first.
+    await expandActivity(page);
+    for (let answer = 0; answer < 5 && await specEmbed.count() === 0; answer += 1) {
+      await send(page, 'Confirmed. Go with your recommendations for all open questions and continue towards the Specification with its Checks.');
       await waitForTurn(page, testInfo);
+      await expandActivity(page);
+      await shot(page, testInfo, `laptop-01-specification-phase-${answer + 1}`);
     }
-    await shot(page, testInfo, 'laptop-01-specification');
     await proof.assert('flow2.specification', () => expect(specEmbed.first(),
       'a Specification embed in the chat').toBeVisible({ timeout: 120_000 }));
+    await specEmbed.first().scrollIntoViewIfNeeded();
+    await shot(page, testInfo, 'laptop-01-specification');
     await proof.checkpoint('flow2-specification');
 
     // 2. The Plan.
-    await send(page, 'Thanks, the Specification looks right. Now create the Plan for implementing it.',
+    await send(page, 'I approve the Specification and its Checks as drafted. Now create the Plan for implementing it.',
       '@focus:code:project_planner');
     await waitForTurn(page, testInfo);
     await shot(page, testInfo, 'laptop-02-plan');
