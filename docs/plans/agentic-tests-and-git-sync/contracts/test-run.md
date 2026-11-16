@@ -11,7 +11,7 @@ Source of truth in code: `backend/shared/python_schemas/code_test_run.py`
 | --- | --- |
 | `kind` | `unit` \| `browser` \| `cli` |
 | `target` | optional `e2b` \| `remote_source`. Default: `remote_source` when the active Project focus has a connected (not offline/revoked) source granting `run_command`, else `e2b`. An explicit value always wins. |
-| `project_id`, `source_id` | required for `remote_source` (filled from focus when defaulted) |
+| `project_id`, `source_id` | required for `remote_source`; filled from the active Project focus when missing (defaulted or explicit `remote_source`); the remote executor refuses a run whose ids are still missing |
 | `files` (skill field, E2B) | the Project snapshot contents for this run only; no Project or chat keys reach the sandbox |
 | `revisions[]` | `{path, revision}` for exactly the files supplied; the runner rejects a mismatch with `files`. Echoed in the result. |
 | `setup_commands[]` | ordered `{argv, cwd=".", timeout_seconds=300}`; stop at the first failure (status `error`) |

@@ -57,8 +57,8 @@ def test_spec_validation_accepts_unit_and_rejects_bad_input() -> None:
         validate_test_run_spec(_spec(server={"command": {"argv": ["npm", "start"]}, "ready_url": "http://localhost:3000"}))
     with pytest.raises(ValidationError):
         validate_test_run_spec(_spec(kind="browser", server={"command": {"argv": ["npm", "start"]}, "ready_url": "http://evil.example/"}))
-    with pytest.raises(ValidationError):
-        validate_test_run_spec(_spec(target="remote_source"))
+    # remote_source ids are resolved from the Project focus after validation.
+    assert validate_test_run_spec(_spec(target="remote_source")).project_id is None
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.tests.project-snapshot
@@ -99,6 +99,11 @@ async def test_resolve_target_uses_focus_remote_source_and_honors_override() -> 
     override = validate_test_run_spec(_spec(target="e2b"))
     assert await resolve_test_run_target(override, directus_service=directus, focus=focus, user_id="u") == ("e2b", "p1", None)
     assert await resolve_test_run_target(spec, directus_service=directus, focus=None, user_id="u") == ("e2b", None, None)
+    explicit = validate_test_run_spec(_spec(target="remote_source"))
+    assert await resolve_test_run_target(explicit, directus_service=directus, focus=focus, user_id="u") == ("remote_source", "p1", "s1")
+    named = validate_test_run_spec(_spec(target="remote_source", source_id="s9"))
+    assert await resolve_test_run_target(named, directus_service=directus, focus=focus, user_id="u") == ("remote_source", "p1", "s9")
+    assert await resolve_test_run_target(explicit, directus_service=directus, focus=None, user_id="u") == ("remote_source", None, None)
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.tests.project-snapshot

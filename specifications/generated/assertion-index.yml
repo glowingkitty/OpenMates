@@ -38892,7 +38892,7 @@ assertions:
       surface: rest_api
     - &id4929
       path: backend/tests/test_code_test_run.py
-      line: 239
+      line: 244
       name: test_unit_run_executes_setup_then_tests_and_names_revisions
       surface: rest_api
     - &id4933
@@ -38943,42 +38943,42 @@ assertions:
       surface: rest_api
     - &id4924
       path: backend/tests/test_code_test_run.py
-      line: 105
+      line: 110
       name: test_recorder_report_parsing_and_preview_step
       surface: rest_api
     - &id4925
       path: backend/tests/test_code_test_run.py
-      line: 124
+      line: 129
       name: test_result_is_stale_when_revisions_differ
       surface: rest_api
     - &id4926
       path: backend/tests/test_code_test_run.py
-      line: 133
+      line: 138
       name: test_build_result_error_when_non_unit_has_no_report_and_when_report_malformed
       surface: rest_api
     - &id4927
       path: backend/tests/test_code_test_run.py
-      line: 144
+      line: 149
       name: test_build_result_failed_test_overrides_zero_exit_and_collects_evidence
       surface: rest_api
     - &id4928
       path: backend/tests/test_code_test_run.py
-      line: 157
+      line: 162
       name: test_command_to_shell_quotes_argv_and_sets_env
       surface: rest_api
     - &id4930
       path: backend/tests/test_code_test_run.py
-      line: 258
+      line: 263
       name: test_unit_run_stops_after_failed_setup_and_reports_error_status
       surface: rest_api
     - &id4931
       path: backend/tests/test_code_test_run.py
-      line: 268
+      line: 273
       name: test_unit_run_failing_tests_is_failed_and_mismatched_revisions_rejected
       surface: rest_api
     - &id4932
       path: backend/tests/test_code_test_run.py
-      line: 278
+      line: 283
       name: test_browser_run_starts_server_waits_for_readiness_then_tests
       surface: rest_api
     tests:
@@ -39229,7 +39229,7 @@ assertions:
       surface: rest_api
     - &id4976
       path: backend/tests/test_code_test_run.py
-      line: 164
+      line: 169
       name: test_test_run_discovery_allows_video_and_cast_with_caps_only_for_test_runs
       surface: rest_api
     - &id4977
