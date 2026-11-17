@@ -488,6 +488,36 @@ async def test_cache_async_skill_continuation_context_stores_original_request(as
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+async def test_dispatch_async_skill_continuation_inherits_legacy_admission_as_root(monkeypatch, async_skill_continuation):
+    """A turn admitted without a sealed recovery turn passes its admission on."""
+    cache = _FakeCache()
+    fake_celery_app = _FakeCeleryApp()
+    monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
+    request = _request()
+    for field in ("recovery_task_id", "recovery_preflight_id", "recovery_turn_id", "recovery_public_key"):
+        setattr(request, field, None)
+    request.legacy_cutover_task_id = "legacy-admission-1"
+    await async_skill_continuation.cache_async_skill_continuation_context(
+        cache_service=cache, async_task_id="async-task-1", request_data=request,
+        skill_config_dict=_skill_config_dict(), app_id="social_media", skill_id="search",
+        tool_name="social_media-search", tool_arguments={"requests": [{"query": "privacy AI"}]},
+    )
+
+    await async_skill_continuation.dispatch_async_skill_continuation(
+        cache_service=cache, async_task_id="async-task-1",
+        completed_results=[{"title": "A useful post", "url": "https://example.com/post", "embed_ref": "useful-post-a1B"}],
+        request_metadata={"query": "privacy AI"},
+    )
+
+    request_payload = fake_celery_app.sent[0]["kwargs"]["request_data_dict"]
+    assert request_payload["is_async_skill_continuation"] is True
+    assert request_payload["recovery_inference_task_id"] is None
+    assert request_payload["root_legacy_cutover_task_id"] == "legacy-admission-1"
+    assert request_payload["legacy_cutover_task_id"] is None
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("assistant_tail", [False, True])
 @pytest.mark.parametrize("voice_mode", [False, True])
 # contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.audio.spoken-rich-response

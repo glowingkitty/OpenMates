@@ -3323,7 +3323,7 @@ features:
       - backend/tests/test_stream_consumer_recovery.py
       - backend/tests/test_agent_context_history_transport.py
       - backend/tests/test_chat_completion_recovery_retention.py
-      unit_test_files: 69
+      unit_test_files: 70
     sdk_npm:
       status: not_run
       source: tests

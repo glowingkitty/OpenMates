@@ -797,6 +797,54 @@ def test_sub_chat_parent_continuation_preserves_inference_without_reusing_execut
     assert request_payload["budget_spent"] == original_request.budget_spent
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+def test_sub_chat_parent_continuation_inherits_legacy_admission_as_root(monkeypatch) -> None:
+    """A parent admitted without a sealed recovery turn keeps its admission authority.
+
+    Production 2026-11-17: the continuation dropped the legacy cutover identity,
+    so the worker refused it ("Saved AI task lacks durable admission authority")
+    and the parent never answered after its sub-chats finished.
+    """
+    import hashlib
+
+    user_id = "44444444-4444-4444-8444-444444444444"
+    chat_id = "22222222-2222-4222-8222-222222222222"
+    message_id = "33333333-3333-4333-8333-333333333333"
+    legacy_identity = hashlib.sha256(f"{user_id}:{chat_id}:{message_id}".encode()).hexdigest()
+    original_request = AskSkillRequest(
+        chat_id=chat_id, message_id=message_id, user_id=user_id, user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(role="user", content="research this", created_at=100)],
+        legacy_cutover_task_id=legacy_identity,
+    )
+    captured: dict[str, object] = {}
+
+    def fake_send_task(*, name: str, kwargs: dict, queue: str, task_id: str | None = None):
+        captured.update(kwargs=kwargs, task_id=task_id)
+        return SimpleNamespace(id=task_id)
+
+    monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", fake_send_task)
+    asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(
+        cache_service=SimpleNamespace(set=AsyncMock(return_value=True)),
+        pending_context={
+            "parent_request_data": original_request.model_dump(mode="json"),
+            "skill_config_dict": {},
+            "expected_sub_chat_ids": ["child-1"],
+            "completed": {"child-1": {"summary": "Child report", "chat_id": "child-1"}},
+        },
+        parent_chat_id=chat_id,
+        log_prefix="test",
+    ))
+
+    continuation = AskSkillRequest(**captured["kwargs"]["request_data_dict"])
+    assert continuation.is_sub_chat_continuation is True
+    assert continuation.resolved_recovery_inference_task_id() is None
+    # Inherited as the root admission: the worker admits it, but the
+    # continuation never claims or completes the parent's admission again.
+    assert continuation.root_legacy_cutover_task_id == legacy_identity
+    assert continuation.legacy_cutover_task_id is None
+    assert (continuation.chat_id, continuation.message_id) == (chat_id, message_id)
+
+
 # contract-test: supporting surface=rest_api assertions=chats.rendering.inline-entity-interaction
 def test_sub_chat_web_citations_use_only_exact_child_and_task_authority() -> None:
     parent = AskSkillRequest(

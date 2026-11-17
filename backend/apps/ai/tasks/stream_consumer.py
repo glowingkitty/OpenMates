@@ -1382,6 +1382,13 @@ async def _dispatch_sub_chat_parent_continuation(
         recovery_turn_id=original_request.recovery_turn_id,
         recovery_public_key=original_request.recovery_public_key,
         chat_key_version=original_request.chat_key_version,
+        # A parent admitted under the legacy cutover identity (no sealed recovery
+        # turn) passes that admission on as the continuation's root admission;
+        # without it the worker refuses the continuation before inference.
+        root_legacy_cutover_task_id=(
+            original_request.root_legacy_cutover_task_id or original_request.legacy_cutover_task_id
+        ),
+        root_user_message_id=original_request.root_user_message_id,
         preprocessing_resume_ref=original_request.preprocessing_resume_ref,
         parent_id=original_request.parent_id,
         is_sub_chat=original_request.is_sub_chat,
