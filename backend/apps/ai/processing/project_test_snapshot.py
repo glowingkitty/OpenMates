@@ -13,11 +13,40 @@ caches, so the short TTL (15 minutes) and read-once deletion are the controls.
 from __future__ import annotations
 
 import hashlib
+import json
 import uuid
 from typing import Any
 
 SNAPSHOT_TTL_SECONDS = 900
 SNAPSHOT_OPERATION = "snapshot"
+
+
+# Arguments of the paused code-run call that the model repeats after the snapshot.
+REPEATABLE_CALL_KEYS = ("target", "argv", "cwd", "background", "ready_url", "timeout_seconds", "test_run")
+
+
+def repeat_call_key(operation_id: str) -> str:
+    return f"project_snapshot_repeat_call:{operation_id}"
+
+
+def repeatable_call(arguments: dict[str, Any]) -> dict[str, Any]:
+    """The paused code-run call without files or pipeline-only fields.
+
+    Quoted back in the snapshot result so the model repeats this exact call after
+    the pause instead of choosing a different one (for example a test run in
+    place of a command, whose file changes would not sync back).
+    """
+    return {key: arguments[key] for key in REPEATABLE_CALL_KEYS if arguments.get(key) is not None}
+
+
+async def take_repeat_call(cache: Any, operation_id: str) -> dict[str, Any] | None:
+    """The paused call stored for this snapshot job, read once."""
+    key = repeat_call_key(operation_id)
+    call = await cache.get(key)
+    if not isinstance(call, dict):
+        return None
+    await cache.delete(key)
+    return call
 
 
 def snapshot_cache_key(user_id: str, chat_id: str, project_id: str) -> str:
@@ -147,24 +176,37 @@ def inject_snapshot(arguments: dict[str, Any], snapshot: dict[str, Any]) -> dict
     return result
 
 
-def compact_snapshot_result(operation_id: str, files: list[Any], truncated: bool) -> dict[str, Any]:
-    return {
+def compact_snapshot_result(
+    operation_id: str, files: list[Any], truncated: bool, repeat_call: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if repeat_call:
+        message = (
+            "Project snapshot ready. Repeat the paused code-run call now with exactly these "
+            f"arguments and no files: {json.dumps(repeat_call, sort_keys=True)}. "
+            "The snapshot is attached automatically."
+        )
+    else:
+        message = (
+            "Project snapshot ready. Call code-run again with the same test_run or "
+            "command arguments and no files; the snapshot is attached automatically."
+        )
+    result = {
         "status": "completed",
         "operation": SNAPSHOT_OPERATION,
         "operation_id": operation_id,
         "file_count": len(files),
         "truncated": bool(truncated),
-        "message": (
-            "Project snapshot ready. Call code-run again with the same test_run or "
-            "command arguments and no files; the snapshot is attached automatically."
-        ),
+        "message": message,
     }
+    if repeat_call:
+        result["repeat_call"] = repeat_call
+    return result
 
 
 async def dispatch_snapshot_operation(
     *, cache_service: Any, directus_service: Any, request_data: Any,
     active_project_focus: dict[str, Any], skill_config_dict: Any, task_id: Any,
-    preprocessing_results: Any, prefix: str | None,
+    preprocessing_results: Any, prefix: str | None, repeat_call: dict[str, Any] | None = None,
 ) -> str:
     """Create the client-executed snapshot job; returns its operation id.
 
@@ -195,6 +237,10 @@ async def dispatch_snapshot_operation(
         raise PermissionError("Project focus changed before snapshot dispatch")
     operation_id = str(uuid.uuid4())
     arguments = {"prefix": prefix} if prefix else {}
+    if repeat_call:
+        await cache_service.set(
+            repeat_call_key(operation_id), repeat_call, ttl=PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
+        )
     await cache_async_skill_continuation_context(
         cache_service=cache_service, async_task_id=operation_id, request_data=request_data,
         skill_config_dict=skill_config_dict, app_id="system",

@@ -182,3 +182,19 @@ def test_parked_completion_is_taken_once_with_sync_back_outcome():
                                           "sync_back": {"status": "completed", "applied": 2, "refused": 0}}]
     assert taken["result_status"] == "finished" and taken["request_metadata"] == {"chat_id": "c"}
     assert asyncio.run(cce.take_parked_completion(cache, "op-1", "completed", {})) is None
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.commands,code-run.cloud.workspace
+def test_snapshot_result_quotes_the_paused_call_once():
+    paused = {"argv": ["npm", "install"], "cwd": "web-app", "files": [{"path": "x", "code": "y"}],
+              "_chat_id": "c", "project_snapshot": True, "timeout_seconds": None}
+    call = pts.repeatable_call(paused)
+    assert call == {"argv": ["npm", "install"], "cwd": "web-app"}
+    result = pts.compact_snapshot_result("op-1", [{"path": "a"}], False, call)
+    assert result["repeat_call"] == call
+    assert '"argv": ["npm", "install"]' in result["message"] and "exactly" in result["message"]
+    assert "repeat_call" not in pts.compact_snapshot_result("op-1", [], False)
+    cache = FakeCache()
+    cache.values[pts.repeat_call_key("op-1")] = call
+    assert asyncio.run(pts.take_repeat_call(cache, "op-1")) == call
+    assert asyncio.run(pts.take_repeat_call(cache, "op-1")) is None

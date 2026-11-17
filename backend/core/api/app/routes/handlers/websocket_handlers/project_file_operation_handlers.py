@@ -247,7 +247,7 @@ async def handle_project_file_operation_result(
             # Snapshot files go to a short-lived cache for the repeated code-run
             # call; the model only sees a compact result, never file contents.
             from backend.apps.ai.processing.project_test_snapshot import (
-                compact_snapshot_result, store_snapshot,
+                compact_snapshot_result, store_snapshot, take_repeat_call,
             )
             snapshot_files = validated_result.get("files")
             snapshot_files = snapshot_files if isinstance(snapshot_files, list) else []
@@ -257,7 +257,8 @@ async def handle_project_file_operation_result(
                 project_id=submitted.project_id, files=snapshot_files, truncated=truncated,
             )
             validated_result = compact_snapshot_result(
-                submitted.operation_id, snapshot_files, truncated
+                submitted.operation_id, snapshot_files, truncated,
+                await take_repeat_call(cache_service, submitted.operation_id),
             )
         parked = None
         if outcome["job"].get("operation") == "apply_changes":

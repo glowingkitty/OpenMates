@@ -80,6 +80,24 @@ function embedIdsOfType(value: unknown, type: string, out: string[] = []): strin
   return out;
 }
 
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+
+/** Every embed id a decoded value references: reply embed blocks and embed_id(s) fields. */
+function referencedEmbedIds(value: unknown, out: Set<string> = new Set()): Set<string> {
+  if (typeof value === 'string') {
+    for (const block of value.matchAll(/"embed_ids?":\s*(\[[^\]]*\]|"[^"]*")/g)) {
+      for (const id of block[1].matchAll(UUID)) out.add(id[0]);
+    }
+  } else if (Array.isArray(value)) value.forEach((entry) => referencedEmbedIds(entry, out));
+  else if (value && typeof value === 'object') {
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      if (/^embed_?ids?$/i.test(key)) for (const id of JSON.stringify(entry).matchAll(UUID)) out.add(id[0]);
+      else referencedEmbedIds(entry, out);
+    }
+  }
+  return out;
+}
+
 // contract-test: direct surface=cli assertions=projects.files.application-single-source,projects.files.adopt-embed,code-run.cloud.commands,code-run.cloud.command-changes-sync-back
 // eslint-disable-next-line no-empty-pattern -- Playwright requires an object pattern; this test launches its own browser
 test('real Gemini turn builds a hosted recipe app into a new Project via the native CLI', async ({}, info: TestInfo) => {
@@ -235,14 +253,30 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
     // npm install and the build run in the Project workspace; a lockfile the
     // install writes comes back as a Project file.
     if (created.length) {
-      // Each command gets its own bash code card (terminal.sh); count the code
-      // embeds this turn added to the chat's embed list.
-      const codeCardsBefore = new Set(embedIdsOfType(await run(['chats', 'show', chatId, '--json']), 'code'));
+      // Each command gets its own bash code card (terminal.sh). The reply text
+      // references only the "Used the Code app" group embed, so walk the embeds
+      // the turn's replies reference (with `embeds show`) and count terminal cards.
+      const refsBefore = referencedEmbedIds(await run(['chats', 'show', chatId, '--json']));
+      const terminalCardIds = async (roots: Set<string>): Promise<string[]> => {
+        const seen = new Set<string>(); const queue = [...roots]; const cards: string[] = [];
+        while (queue.length && seen.size < 60) {
+          const id = queue.shift() as string;
+          if (seen.has(id)) continue;
+          seen.add(id);
+          const shownEmbed = await runRust(binary, env, ['embeds', 'show', id, '--json']);
+          if (shownEmbed.code !== 0) continue;
+          const item = parseJson(shownEmbed);
+          if (collect(item, ['filename', 'file_path', 'path']).includes('terminal.sh')) cards.push(id);
+          for (const child of referencedEmbedIds(item)) if (!seen.has(child)) queue.push(child);
+        }
+        return cards;
+      };
       const sentCommands = await runRust(binary, env, ['chats', 'send', '--chat', chatId, COMMAND_PROMPT, '--response-timeout-seconds', '840', '--json'], 900_000);
       expect.soft(sentCommands.code, `command turn exit ${sentCommands.code}\nstderr: ${String(sentCommands.stderr).slice(-600)}`).toBe(0);
       const commandTurn = sentCommands.code === 0 ? parseJson(sentCommands) : { status: `exit ${sentCommands.code}` };
       const shownCommands = await run(['chats', 'show', chatId, '--json']);
-      const terminalCards = embedIdsOfType(shownCommands, 'code').filter((id) => !codeCardsBefore.has(id));
+      const turnRefs = new Set([...referencedEmbedIds(shownCommands)].filter((id) => !refsBefore.has(id)));
+      const terminalCards = await terminalCardIds(turnRefs);
       const commandModels = collect(shownCommands, ['modelName', 'model_name']);
       const listedAfterCommands = collect(await run(['projects', 'hosted', 'list', created[0], '--json']), ['path']);
       const lockfile = listedAfterCommands.some((path) => /^web-app\/(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(path));
@@ -448,7 +482,8 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       if (r.code !== 0) failures.push(`${label}: exit ${r.code} ${r.stderr.slice(0, 300)}`);
       return r;
     };
-    if (chatId) await attempt('chat delete', ['chats', 'delete', chatId, '--yes', '--personal']);
+    // AGENTIC_APP_KEEP_CHAT=1 keeps the chat so its stored rows can be inspected after a failure.
+    if (chatId && process.env.AGENTIC_APP_KEEP_CHAT !== '1') await attempt('chat delete', ['chats', 'delete', chatId, '--yes', '--personal']);
     for (const id of created) await attempt('project delete', ['projects', 'delete', id, '--confirm', id, '--personal', '--json']);
     if (signedIn) {
       const drafts = await attempt('drafts list', ['drafts', 'list', '--refresh', '--json']);

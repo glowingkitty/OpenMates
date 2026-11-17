@@ -9576,6 +9576,7 @@ async def handle_main_processing(
                                     task_id=task_id,
                                     preprocessing_results=preprocessing_results,
                                     prefix=_pts.snapshot_prefix(parsed_args),
+                                    repeat_call=_pts.repeatable_call(parsed_args),
                                 )
                                 request_data.awaiting_async_skill_continuation = True
                                 _snapshot_tool_result = {
