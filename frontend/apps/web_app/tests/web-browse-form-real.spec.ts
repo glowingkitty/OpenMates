@@ -113,6 +113,18 @@ function lastQuestion(text: string): string {
 	return questions.length ? questions[questions.length - 1] : text.slice(-400);
 }
 
+/**
+ * Questions the assistant itself asks: lines ending with "?". A quoted form
+ * question ("…?") and a filled-field line ("How do you prefer to work?: Balanced")
+ * are page content, not a question to the user.
+ */
+function askedQuestions(text: string): number {
+	return text
+		.split(/\n+/)
+		.map((line) => line.trim())
+		.filter((line) => /\?\)?$/.test(line) && !/^["“‘'(]/.test(line)).length;
+}
+
 function personaAnswer(item: FormCase, question: string, used: Set<number>): string {
 	const index = item.answers.findIndex((entry, i) => !used.has(i) && new RegExp(entry.match, 'i').test(question));
 	if (index < 0) return item.fallback;
@@ -214,7 +226,7 @@ test.describe('web browse form with the user (real dev inference)', () => {
 				hidden: Boolean(item!.manual && message === item!.manual.value),
 				assistant: text,
 				browseEmbeds: await browseEmbeds(answer),
-				questions: (text.match(/\?/g) || []).length,
+				questions: askedQuestions(text),
 				generatedBy: ((await answer.getByTestId('generated-by').first().textContent({ timeout: 10_000 }).catch(() => '')) || '').trim()
 			};
 			turns.push(record);
@@ -262,7 +274,7 @@ test.describe('web browse form with the user (real dev inference)', () => {
 			}
 			if (item!.manual) expect.soft(manualDone, 'the hidden value was typed through Take control').toBe(true);
 			for (const record of turns.slice(0, -1)) {
-				expect.soft(record.questions, `turn ${record.turn}: at most one question per reply`).toBeLessThanOrEqual(2);
+				expect.soft(record.questions, `turn ${record.turn}: at most one question per reply`).toBeLessThanOrEqual(1);
 				expect.soft(record.assistant, `turn ${record.turn}: the form is never lost`).not.toMatch(NOT_FOUND);
 				expect.soft(record.generatedBy, `turn ${record.turn}: answered by Gemini 3.8 Flash`).toMatch(/Gemini 3\.8 Flash/i);
 			}

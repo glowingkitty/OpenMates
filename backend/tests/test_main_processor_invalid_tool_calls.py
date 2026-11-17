@@ -1054,6 +1054,9 @@ async def test_browse_form_guidance_loads_only_when_browse_is_selected(monkeypat
     prompt = calls[0]["system_prompt"]
     assert ("Filling a web form together with the user" in prompt) is (selected == ["web-browse"])
     assert "Never submit, send or finish the form yourself" in prompt or selected != ["web-browse"]
+    # The session cap covers the whole form and cannot be raised later; a reached
+    # cap is reported, never hidden behind claimed fills.
+    assert ("`max_credits: 1000`" in prompt and "`budget_exceeded`" in prompt) is (selected == ["web-browse"])
 
 def _baseline_search_test_catalog():
     def metadata(app_id, skill_ids):
