@@ -7,6 +7,7 @@ key_files:
 - scripts/claude_idle_chats.py
 - scripts/claude_chat_waiters.py
 - scripts/disk_coordinator.py
+- scripts/host_disk_root.py
 - scripts/claude_dispatch.py
 - scripts/zellij/chat-session.kdl
 - scripts/heavy_slot.py
@@ -235,6 +236,40 @@ that had ended or been stopped (TASK-9700). Now:
   Owners without a transcript on the host are listed for the owner.
 - Rule (`CLAUDE.md`, `AGENTS.md`): done means committed, tested and deployed
   to dev; a chat never ends its work with uncommitted changes.
+
+## 5. Disk budgets (TASK-7646)
+
+On 2026-11-16 three chats waited on the disk coordinator at 90% used. Measured
+causes: the admission floor (30 GiB plus a 2 GiB margin, on top of 12 GiB of
+ext4 root reserve) blocked work with 31 GiB still free; reservations were sized
+far above real use (a CI result reserved 768 MB, median use 1.6 MB); and the
+cleanup reached none of the large holders: about 49 GB of Rust build output
+(per-worktree `target/` and `target/apple-core/cargo`), 38 GB of overlay2 layer
+folders no image or container uses (invisible to `docker system prune`), 4 GB
+of container json logs and a 2.8 GB journal. Approved by the owner on
+2026-11-17: per-category size budgets that the coordinator enforces, one hard
+floor of 10 GiB as an emergency line only, and alerts at 75% and 85%. The
+target steady state is about 57% of the 300 GB disk.
+
+Root-only part (`scripts/host_disk_root.py`, installed by
+`sudo bash scripts/host-disk-root-setup.sh` as `/usr/local/sbin/openmates-host-disk-root`,
+timer `openmates-host-disk-root.timer`, Sundays 03:30 UTC):
+
+- Orphaned overlay2 layers: a folder is kept when Docker's layer database
+  (`cache-id`, `mount-id`, `init-id`), the GraphDriver data of any image or
+  container, or any BuildKit state file outside `content/` names it, or when a
+  kept folder stacks on it (`lower` chain). Of the rest, only folders untouched
+  for 7 days are deleted, with their `l/` short link. With no reference at all,
+  or more than 90% of folders unreferenced, the tool refuses to delete. Folder
+  names are 64 hex characters (older engines) or 25 base-36 characters.
+- Container json logs over 100 MB are truncated in place.
+- The journal is vacuumed to 1 GiB and capped there by
+  `/etc/systemd/journald.conf.d/openmates-size.conf`.
+- `openmates-host-disk-root report` lists without deleting; every run writes
+  `/var/lib/openmates-host-disk/report.json` (world-readable).
+
+The setup script also runs the cleanup once. The ext4 root reserve is lowered
+once by hand to 3 GiB (`sudo tune2fs -r 786432 <root device>`).
 
 ## Setup
 
