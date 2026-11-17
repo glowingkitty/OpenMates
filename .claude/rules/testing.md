@@ -102,6 +102,11 @@ paths:
   lease `playwright-account:personal-dev`); when that lease is busy,
   `scripts/dev_test_account.py` creates a throwaway account for the test, backs
   up its chats to `~/.openmates/test-chat-backups` (kept 7 days) and deletes it.
+  Credits: a dev test account that is low or out of credits is topped up with
+  the existing operator script (`backend/scripts/top_up_test_account_credits.py`;
+  `python3 scripts/dev_test_account.py top-up-personal`). `acquire_real_test_account`
+  does this automatically before every personal-account run. Never ask the owner
+  for credits and never use a throwaway account for a final proof because of credits.
   Numbered `OPENMATES_TEST_ACCOUNT_<n>_*` slots are CI accounts and may not exist
   on dev. If a login fails, stop and report; never sign up or repair accounts by
   hand. Details: `docs/contributing/guides/testing.md`.

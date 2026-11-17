@@ -32,6 +32,7 @@ def world(monkeypatch, tmp_path):
         lambda prefix, sid, timeout: calls.append("wait") or [("acct", "o", {"a"}, "exclusive")],
     )
     monkeypatch.setattr(dta, "release_leases", lambda leases: calls.append("release") or [])
+    monkeypatch.setattr(dta, "top_up_personal_account", lambda environment: calls.append("top-up") or "ok")
 
     def provision(name):
         calls.append("provision")
@@ -54,6 +55,7 @@ def test_personal_free_uses_personal(world):
     calls, _ = world
     account = dta.acquire_real_test_account("p", "s", "t", stack_timeout=1)
     assert account.kind == "personal" and len(account.leases) == 2 and "provision" not in calls
+    assert calls == ["top-up"]
 
 
 def test_busy_provisions_throwaway(world):
@@ -68,7 +70,40 @@ def test_busy_personal_only_waits(world):
     calls, state = world
     state["personal_busy"] = True
     account = dta.acquire_real_test_account("p", "s", "t", stack_timeout=1, allow_throwaway=False)
-    assert account.kind == "personal" and calls == ["wait"]
+    assert account.kind == "personal" and calls == ["wait", "top-up"]
+
+
+def test_failed_personal_top_up_releases_leases_and_never_falls_back(world, monkeypatch):
+    calls, _ = world
+
+    def refuse(environment):
+        raise dta.ThrowawayAccountError("personal_top_up_failed: failed slots=personal reason=x")
+
+    monkeypatch.setattr(dta, "top_up_personal_account", refuse)
+    with pytest.raises(dta.ThrowawayAccountError):
+        dta.acquire_real_test_account("p", "s", "t", stack_timeout=1)
+    assert calls == ["release"] and "provision" not in calls
+
+
+def test_top_up_runs_operator_script_with_minimum_and_target(monkeypatch):
+    seen = {}
+
+    def fake_docker(*args, stdin=None, timeout=60):
+        if args[:3] == ("exec", "api", "printenv"):
+            return "development\n"
+        seen.update(args=args, stdin=stdin)
+        return "accounts_checked=1\nupdated slots=personal before=12 after=50000\n"
+
+    monkeypatch.setattr(dta, "_docker", fake_docker)
+    status = dta.top_up_personal_account({"OPENMATES_TEST_ACCOUNT_EMAIL": "personal@example.org"})
+    assert status == "updated slots=personal before=12 after=50000"
+    assert dta.TOP_UP_SCRIPT in seen["args"] and "--minimum" in seen["args"] and "personal@example.org" in seen["stdin"]
+
+
+def test_top_up_refuses_outside_development(monkeypatch):
+    monkeypatch.setattr(dta, "_docker", lambda *args, stdin=None, timeout=60: "production\n")
+    with pytest.raises(dta.ThrowawayAccountError, match="not_development"):
+        dta.top_up_personal_account({"OPENMATES_TEST_ACCOUNT_EMAIL": "personal@example.org"})
 
 
 def test_finish_exports_then_deletes(world):

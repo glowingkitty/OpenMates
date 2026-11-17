@@ -64,6 +64,12 @@ deployed and the affected services restarted with `sessions.py docker restart`.
   keys in process; never print or source the whole `.env`. Take the
   `playwright-account:personal-dev` lease (exclusive) before the `dev-stack`
   lease (shared) and hold both for the whole run.
+- **Credits:** before every personal-account run `acquire_real_test_account`
+  tops the account up to 50,000 credits when it is below 20,000, using the
+  operator script `backend/scripts/top_up_test_account_credits.py` in the dev
+  API container (refused on non-development servers). Run it by hand with
+  `python3 scripts/dev_test_account.py top-up-personal`. A low balance is never a
+  reason to ask the owner or to record a final proof on a throwaway account.
 - **Throwaway fallback:** when the personal account lease is busy,
   `scripts/dev_test_account.py` (`acquire_real_test_account` /
   `finish_real_test_account`) signs up a fresh dev account for that one test,
