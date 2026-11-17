@@ -101,7 +101,7 @@ def scan_transcript(path: Path) -> dict | None:
 
 
 def waiting_chats(base: Path, now: datetime, tasks: list[dict] | None = None,
-                  reviewed: dict[str, str] | None = None, current: str = "") -> list[dict]:
+                  reviewed: dict[str, str] | None = None, current: str = "", topics=paused_mod.PRIORITY_TOPICS) -> list[dict]:
     """Chats waiting on the founder, longest-waiting first, with their Task if one is linked."""
     reviewed, found = reviewed or {}, []
     by_chat = {t["chat"].split(":", 1)[1]: t for t in tasks or [] if str(t.get("chat", "")).startswith("claude:")}
@@ -129,12 +129,12 @@ def waiting_chats(base: Path, now: datetime, tasks: list[dict] | None = None,
         if task and (task.get("status") == "done" or "paused" in (task.get("labels") or [])):
             continue
         last_prompt = re.sub(r"\s+", " ", scan["human"][1]).strip()[:300] if scan["human"] else ""
-        rank = paused_mod.importance({"title": scan["title"], "last_prompt": last_prompt, "last_reply": reply}, task)
+        rank = paused_mod.importance({"title": scan["title"], "last_prompt": last_prompt, "last_reply": reply}, task, topics)
         found.append({
             "session": path.stem, "title": plain_title(scan["title"], last_prompt, reply), "branch": scan["branch"],
             "idle_hours": round(idle.total_seconds() / 3600, 1), "age_days": idle.days, "signal": verdict,
             "needs": paused_mod.question_of(reply),
-            "priority_topic": paused_mod.topic_name(rank[0]), "_rank": rank,
+            "priority_topic": paused_mod.topic_name(rank[0], topics), "_rank": rank,
             "last_reply": re.sub(r"\s+", " ", reply).strip()[:600],
             "last_prompt": last_prompt,
             "task": f"{task['id']} ({task['status']})" if task else "",

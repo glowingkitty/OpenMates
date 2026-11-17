@@ -26,7 +26,8 @@ _HEAD = re.compile(r"^PAUSED\s+(\d{4}-\d{2}-\d{2})\s+until\s+(\d{4}-\d{2}-\d{2})
                    re.M)
 _FIELD = re.compile(r"^(Done|Not done|Next step|Open decisions):[ \t]*", re.M)
 
-# Current priorities, most important first (FOCUS.md "Current priorities"); keep in sync with it.
+# Built-in fallback priorities, most important first; the live ones are read from the
+# `## Current priorities` section of FOCUS.md (scripts/daily_meeting_triage.py read_priorities).
 PRIORITY_TOPICS = (
     ("marketing", re.compile(r"\b(marketing|seo|landing|newsletter|launch|social|campaign|blog|growth)\b", re.I)),
     ("agentic coding", re.compile(r"\b(agentic|agent(s)?\b|claude code|sub-?agent|coding agent|dev server|worktree|ci\b)", re.I)),
@@ -84,16 +85,16 @@ def paused_chats(tasks: list[dict] | None, now: datetime) -> list[dict]:
     return found
 
 
-def importance(chat: dict, task: dict | None = None) -> tuple[int, int]:
+def importance(chat: dict, task: dict | None = None, topics=PRIORITY_TOPICS) -> tuple[int, int]:
     """(current-priority rank, Task priority rank); lower is more important."""
     text = " ".join(str(v) for v in (chat.get("title"), chat.get("last_prompt"), chat.get("last_reply"),
                                       (task or {}).get("title"), " ".join((task or {}).get("labels") or [])))
-    topic = next((i for i, (_, rx) in enumerate(PRIORITY_TOPICS) if rx.search(text)), len(PRIORITY_TOPICS))
+    topic = next((i for i, (_, rx) in enumerate(topics) if rx.search(text)), len(topics))
     return topic, TASK_PRIORITY.get((task or {}).get("priority"), 4)
 
 
-def topic_name(rank: int) -> str:
-    return PRIORITY_TOPICS[rank][0] if rank < len(PRIORITY_TOPICS) else ""
+def topic_name(rank: int, topics=PRIORITY_TOPICS) -> str:
+    return topics[rank][0] if rank < len(topics) else ""
 
 
 def question_of(reply: str) -> str:

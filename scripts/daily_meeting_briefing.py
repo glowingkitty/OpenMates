@@ -32,6 +32,7 @@ import daily_meeting_context as context  # noqa: E402 - sibling scripts, path se
 import mac_reminders  # noqa: E402
 import daily_meeting_growth  # noqa: E402
 import daily_meeting_opportunities  # noqa: E402
+import daily_meeting_triage as triage  # noqa: E402
 import claude_idle_chats  # noqa: E402
 import worktree_wip  # noqa: E402
 
@@ -162,6 +163,20 @@ blame: one clear observation, then one question that lets the founder draw the c
 founder decides; you make sure the decision is made with open eyes. Honest does not mean heavy: \
 keep it short and move on.
 - Speak short, plain sentences. Never read IDs, links or long lists aloud; summarize.
+- **Triage rule (the briefing has already sorted every item):** the founder is easily pulled \
+away by small issues, so every item (production and dev errors, reported issues, waiting and paused \
+chats, Tasks, reminders) carries a proposed label and a one-line reason, read from FOCUS.md \
+"Current priorities". **NOW** = serves a current priority or is evidence that real users are \
+affected (failed requests, outages, payment or signup problems, user reports not yet addressed) \
+or is due today. **LATER** = still useful, with a proposed date. **DROP** = fits no priority, no \
+reason to keep: close or archive. **Talk through NOW items only**, in the order of the sections; \
+the founder just confirms or changes each proposed label. LATER and DROP items sit in the single \
+"Side notes" section at the very end: do not discuss them unless the founder asks; at the end of the \
+meeting say only "N side notes, proposals unchanged, confirm?". Confirming executes the proposals \
+(LATER chat: park until the date; DROP chat: archive; DROP Task or issue: close). Noise (unused \
+providers, dev-only errors, cache warnings, test timing) and reported issues that recent commits \
+likely fixed are already side notes; never raise them. If the founder changes a label, that line \
+goes into the `Triage:` part of the decisions note.
 - **Plain-language rule:** never mention an ID (TASK-…, issue numbers, session or commit \
 ids), an agent name (e.g. "agent-33bc") or a task bare. Always say what it is in a few plain \
 words ("the Projects editing task", "the chat about PDF uploads"). In the decisions note, write \
@@ -214,13 +229,14 @@ If the section says the numbers are unavailable, say that in one sentence and ne
 about today?"); do not answer it for them and do not bring the point up again later in the meeting.
   - **Block 2 — Safety net.** If the briefing opens with a ⚠ warning that the OpenMates \
 Tasks or the reminders are not up to date, say so first. Then **production first**: \
-summarize the "Alerts" section in a few sentences — reported production issues (new or not \
-processed yet), then dev reports, then the errors that repeat most — and ask whether anything \
+summarize the NOW items of the "Alerts" section in a few sentences — reported production issues (new or not \
+processed yet), then the production errors that repeat most; dev items are side notes unless labelled NOW — and ask whether anything \
 needs attention before planning; production reports outrank everything else. Then the \
 **chats waiting on the founder** and the **paused chats**: discuss the top 3 waiting chats \
 aloud, one at a time (the list is sorted by importance, then wait): say in one sentence what the chat \
-needs (the "Needs" line) and ask what to do, with your recommendation. **Every chat in "Chats waiting \
-on you" and in "Paused chats" ends the meeting in exactly one outcome**: *answer now* (the reply), \
+needs (the "Needs" line) and ask what to do, with your recommendation. **Every NOW chat in "Chats waiting \
+on you" and in "Paused chats" ends the meeting in exactly one outcome (a LATER or DROP chat gets \
+its outcome from its confirmed side-note proposal: park until the date, or archive)**: *answer now* (the reply), \
 *park* (with a resume date; the chat saves done / not done / next step / open decisions in its Task, \
 label `paused`, `PAUSED <today> until <date>` line), *reschedule* (a new date to discuss it again, same \
 pause note) or *archive*. "Keep" is not an outcome. Chats beyond the top 3 are not read aloud: after the \
@@ -308,8 +324,11 @@ Goals:
 | Level | Item | Action | Done when | By |
 |---|---|---|---|---|
 | mission / goal / milestone | <plain wording> | add / edit / done / drop / keep | <measurable result> | YYYY-MM-DD |
-Chats (EVERY chat of "Chats waiting on you" and "Paused chats", one line each, exactly one outcome):
-- <chat title> [<Task id>] -> answer now: <reply text> | park until YYYY-MM-DD HH:MM: <done / not done / next step / open decisions> | reschedule to YYYY-MM-DD: <reason> | archive | resume now: <first step>
+Triage (labels the founder CHANGED, one line each; "Side notes: proposals confirmed" if none):
+- <item title> -> NOW | LATER YYYY-MM-DD | DROP (<reason in a few words>)
+Side notes: proposals confirmed | changed as listed above
+Chats (EVERY NOW chat of "Chats waiting on you" and "Paused chats", one line each, exactly one outcome, the label first; side-note chats get theirs from the confirmed proposal):
+- <NOW|LATER YYYY-MM-DD|DROP> <chat title> [<Task id>] -> answer now: <reply text> | park until YYYY-MM-DD HH:MM: <done / not done / next step / open decisions> | reschedule to YYYY-MM-DD: <reason> | archive | resume now: <first step>
 Cleanup:
 - <plain title> (<GitHub #123 | Linear ABC-1 | TASK-123>) -> close | delete | merge <other id> | delay | keep
 Parking lot:
@@ -333,20 +352,22 @@ def _issue_section(title: str, rows: list[dict] | None, extra: str) -> list[str]
     return out + [""]
 
 
-def _alerts_section(alerts: dict) -> list[str]:
+def _alerts_section(alerts: dict, tri: "triage.Triage | None" = None) -> list[str]:
     out = ["", "## Alerts — production and dev (reported issues first, errors of the last 24 h)", ""]
     if not alerts:
         return out + ["_Alerts unavailable — see data gaps._"]
-    for env, title in (("production", "Production"), ("dev", "Dev server")):
+    for env, title in (("production", "Production"), ("dev", "Dev server")):  # title.split()[0] names the Side-notes kind
         part = alerts.get(env) or {}
         issues, errors = part.get("issues"), part.get("errors")
         out.append(f"### {title} — reported issues (last 48 h)")
         if issues is None:
             out.append("- unavailable (see data gaps)")
         else:
+            rows = [i for i in issues["recent"]
+                    if not tri or tri.keep(f"{title.split()[0]} report", f"{i['id']} {i['title']}", tri.issue(env, i))]
             out += [f"- **{i['id']}** ({i['age']}{', admin' if i['admin'] else ''}, "
                     f"{'processed' if i['processed'] else '**not processed yet**'}): {i['title']}"
-                    for i in issues["recent"]] or ["- none"]
+                    + (tri.tag(tri.issue(env, i)) if tri else "") for i in rows] or ["- none to discuss"]
             older = issues.get("older_unprocessed_in_latest_batch", 0)
             if older:
                 out.append(f"- plus {older} older unprocessed reports in the latest batch")
@@ -356,13 +377,15 @@ def _alerts_section(alerts: dict) -> list[str]:
         else:
             out.append(f"{errors['total']} ERROR/CRITICAL rows, {errors['distinct']} distinct"
                        + (" (query truncated)" if errors.get("truncated") else "") + ".")
+            rows = [e for e in errors["top"] if not tri or tri.keep(
+                f"{title.split()[0]} error", f"{e['count']}× `{e['service']}` {e['message'][:90]}", tri.error(env, e))]
             out += [f"- {e['count']}× `{e['service']}` {e['where']}: {e['message']}"
-                    for e in errors["top"]] or ["- none"]
+                    + (tri.tag(tri.error(env, e)) if tri else "") for e in rows] or ["- none to discuss"]
         out.append("")
     return out
 
 
-def _cleanup_section(cleanup: dict) -> list[str]:
+def _cleanup_section(cleanup: dict, tri: "triage.Triage | None" = None) -> list[str]:
     out = ["## 4. Backlog cleanup", "",
            "The meeting also tidies the to-do lists. Review this batch (oldest first): "
            "close/delete what is obsolete, merge duplicates, delay what should wait, keep the rest.", ""]
@@ -373,8 +396,11 @@ def _cleanup_section(cleanup: dict) -> list[str]:
                                                     f"last activity {i['updated']})"))
     for key, title, line in labels:
         part = cleanup.get(key) or {}
-        out.append(f"**{title}: {part.get('total', 0)} open, {len(part.get('batch', []))} to review today**")
-        out += [f"- {line(item)}" for item in part.get("batch", [])] or ["- nothing to review"]
+        check = (tri.task if key == "tasks" else tri.external) if tri else None
+        batch = [i for i in part.get("batch", []) if not tri or tri.keep(
+            "Task" if key == "tasks" else "Issue", f"{i['title']} ({i['id']})", check(i))]
+        out.append(f"**{title}: {part.get('total', 0)} open, {len(batch)} to review today**")
+        out += [f"- {line(item)}" + (tri.tag(check(item)) if tri else "") for item in batch] or ["- nothing to review" if not tri else "- nothing to discuss (see Side notes)"]
         out.append("")
     return out
 
@@ -412,34 +438,40 @@ def _task_text(chat: dict) -> str:
     return f"Task {chat['task']}" if chat.get("task") else "no linked Task"
 
 
-def _waiting_section(waiting: dict) -> list[str]:
-    """EVERY chat waiting on the founder, most important first (never capped), then the paused chats."""
-    chats = waiting.get("chats") or []
-    out = ["", f"## Chats waiting on you ({len(chats)}; the assistant spoke last)", "",
-           "_Complete list, sorted by importance (marketing, agentic coding, Projects, safety), then by wait. "
-           "The meeting discusses the top 3 aloud; each chat here still needs one outcome: "
-           "answer now, park, reschedule or archive._", "", *_chat_lifecycle_line()]
+def _waiting_section(waiting: dict, tri: "triage.Triage | None" = None) -> list[str]:
+    """NOW chats waiting on the founder, most important first (never capped); the rest go to the Side notes."""
+    all_chats = waiting.get("chats") or []
+    verdicts = {c["session"]: tri.chat(c, None) for c in all_chats} if tri else {}
+    chats = [c for c in all_chats if not tri or tri.keep("Chat", f"{c['title']} (waited {_waited(c['idle_hours'])})",
+                                                          verdicts[c["session"]])]
+    out = ["", f"## Chats waiting on you ({len(chats)}{f' NOW of {len(all_chats)}' if tri else ''}; the assistant spoke last)", "",
+           "_Sorted by importance (current priorities in FOCUS.md), then by wait. The meeting discusses the top 3 "
+           "aloud; each NOW chat here needs one outcome: answer now, park, reschedule or archive. LATER and DROP "
+           "chats are in the Side notes at the very end, nothing is dropped._", "", *_chat_lifecycle_line()]
     if not chats:
-        out.append("_None: every recent dev-server chat has your last word or is finished._")
+        out.append("_None to discuss: every waiting chat is a side note or the founder has the last word._")
     for number, chat in enumerate(chats, 1):
         topic = f" · {chat['priority_topic']}" if chat.get("priority_topic") else ""
         out.append(f"{number}. **{chat['title']}** — waited {_waited(chat['idle_hours'])} · {_task_text(chat)}"
-                   f"{topic} · id `{chat['session'][:8]}`")
+                   f"{topic} · id `{chat['session'][:8]}`" + (tri.tag(verdicts[chat["session"]]) if tri else ""))
         out.append(f"   - Needs: {chat.get('needs') or chat['signal']}")
         if chat.get("summary"):
             out.append(f"   - _{chat['summary']}_")
         elif chat.get("last_reply"):
             out.append(f"   - {chat['signal']}: {chat['last_reply'][:300]}")
-    return out + _paused_section(waiting.get("paused") or []) + _no_decision_section(waiting.get("flags") or [])
+    return out + _paused_section(waiting.get("paused") or [], tri) + _no_decision_section(waiting.get("flags") or [])
 
 
-def _paused_section(paused: list[dict]) -> list[str]:
+def _paused_section(paused: list[dict], tri: "triage.Triage | None" = None) -> list[str]:
     """Fixed section: every chat or Task paused with the pause convention (docs/contributing/guides/daily-meeting.md)."""
-    out = ["", f"## Paused chats ({len(paused)})", "",
-           "_Every chat or Task labelled `paused`, soonest resume date first. Each needs one outcome too: "
-           "resume now, keep parked (new resume date), reschedule or archive._", ""]
+    total, verdicts = len(paused), {r["task"]: tri.paused(r) for r in paused} if tri else {}
+    paused = [r for r in paused if not tri or tri.keep("Paused chat", f"{r['title']} ({r['task']})", verdicts[r["task"]])]
+    out = ["", f"## Paused chats ({len(paused)}{f' NOW of {total}' if tri else ''})", "",
+           "_Every chat or Task labelled `paused`, soonest resume date first; paused chats whose resume date has not "
+           "come are LATER side notes. Each NOW one needs an outcome: resume now, park (new resume date), "
+           "reschedule or archive._", ""]
     if not paused:
-        return out + ["_None: no chat or Task is paused._", ""]
+        return out + ["_None to discuss: no chat or Task is paused, or all resume later (see Side notes)._", ""]
     for number, row in enumerate(paused, 1):
         resume = f"{row['resume']} {row['resume_at']}".strip() if row["resume"] else "NO RESUME DATE"
         reason = f" ({row['reason']})" if row["reason"] else ""
@@ -448,7 +480,7 @@ def _paused_section(paused: list[dict]) -> list[str]:
         for name in ("Done", "Not done", "Next step", "Open decisions"):
             out.append(f"   - {name}: {row.get(name) or '**missing**: the chat must save it in its Task'}")
         if row.get("flag"):
-            out.append(f"   - ⚠ {row['flag']}")
+            out.append(f"   - ⚠ {row['flag']}" + (tri.tag(verdicts[row["task"]]) if tri else ""))
     return out + [""]
 
 
@@ -545,9 +577,10 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
                     f"if it differs).{pace} Plan agent work to fit what is left."]
     else:
         out += ["", "**Claude subscription:** weekly usage unavailable (see data gaps)."]
-    out += _alerts_section(ev.get("alerts") or {})
+    tri = triage.Triage(ev.get("focus_file", ""), ev.get("git", {}).get("commits_on_dev", []), today)
+    out += _alerts_section(ev.get("alerts") or {}, tri)
     out += daily_meeting_growth.render(ev.get("growth"))
-    out += _waiting_section(ev.get("waiting_chats") or {})
+    out += _waiting_section(ev.get("waiting_chats") or {}, tri)
     out += ["", "## Unfinished work in worktrees (dev→main readiness)", "", *worktree_wip.briefing_lines()]
     product = ev.get("product") or {}
     if product:
@@ -598,10 +631,12 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
         today_items = [i for i in rem.get("due_next_days", []) if mac_reminders.due_date(i) == today]
         tomorrow = [i for i in rem.get("due_next_days", [])
                     if mac_reminders.due_date(i) == today + timedelta(days=1)]
-        out += ["**Still open from the past 7 days:**"] + (
-            [_reminder_line(i) for i in rem.get("overdue_recent", [])] or ["- none"])
-        out += ["", "**Due today:**"] + ([_reminder_line(i) for i in today_items] or ["- none"])
-        out += ["", "**Due tomorrow:**"] + ([_reminder_line(i) for i in tomorrow] or ["- none"])
+        def now(items):
+            return [_reminder_line(i) + tri.tag(v) for i in items if tri.keep(
+                "Reminder", f"{i['title']} ({_due_label(i)})", v := tri.reminder(i, mac_reminders.due_date(i)))] or ["- none to discuss"]
+        out += ["**Still open from the past 7 days (NOW only):**"] + now(rem.get("overdue_recent", []))
+        out += ["", "**Due today (NOW only):**"] + now(today_items)
+        out += ["", "**Due tomorrow (NOW only):**"] + now(tomorrow)
         counts = rem.get("counts", {})
         out += ["", f"Next 7 days in total: {sum(counts.get('due_next_days', {}).values())} (full list in "
                 f"Appendix A). Without date: {sum(counts.get('undated', {}).values())}. Older overdue "
@@ -612,7 +647,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
         out += ["", "**Data gaps:** " + " · ".join(ev["gaps"])]
 
     out += daily_meeting_opportunities.render(ev.get("opportunities"))
-    out += [""] + _cleanup_section(ev.get("cleanup") or {})
+    out += [""] + _cleanup_section(ev.get("cleanup") or {}, tri)
     out += ["---", "", "## Appendix A — Reminders, next 7 days", ""]
     by_day: dict[str, list[str]] = {}
     for item in rem.get("due_next_days", []):
@@ -638,8 +673,8 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
         out.append(f"- … {len(changed) - 25} more")
     out.append("")
     for label, key in (("In progress", "in_progress"), ("Blocked", "blocked"), ("Top todo", "todo_top")):
-        rows = (tasks.get("open") or {}).get(key, [])
-        out.append(f"**{label} ({len(rows)}):**")
+        rows = [t for t in (tasks.get("open") or {}).get(key, []) if tri.keep("Task", f"{t.get('title')} ({t.get('id')})", tri.task(t))]
+        out.append(f"**{label} (NOW {len(rows)}):**")
         out += [f"- {t.get('id')} {t.get('title')}" + (f" [{t['priority']}]" if t.get("priority") else "")
                 for t in rows[:25]]
         if len(rows) > 25:
@@ -653,6 +688,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     out += [f"- {c['when']} {c['subject']}" for c in commits[:80]]
     if len(commits) > 80:
         out.append(f"- … {len(commits) - 80} more")
+    out += triage.side_note_lines(tri.notes, tri.gap)
     return "\n".join(out).rstrip() + "\n"
 
 

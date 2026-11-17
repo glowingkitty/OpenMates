@@ -172,10 +172,77 @@ def test_paused_and_flag_sections_render_the_saved_state():
     assert "## Paused chats (1)" in text and "resume after **2026-11-20 11:00**" in text
     assert "Next step: wire the list" in text and "No-decision check: no waiting or paused" in text
     empty = "\n".join(briefing._waiting_section({}))
-    assert "## Paused chats (0)" in empty and "None: no chat or Task is paused" in empty
+    assert "## Paused chats (0)" in empty and "None to discuss: no chat or Task is paused" in empty
 
 
 def test_meeting_script_requires_one_outcome_per_chat_and_notes_capture_it():
     script = briefing.MEETING_SCRIPT
     assert "exactly one outcome" in script and "answer now" in script and "reschedule" in script
     assert "-> answer now:" in script and "park until" in script and "| archive |" in script
+
+
+FOCUS = """# focus
+## Current priorities
+- marketing and sales: press, launch
+- agentic coding: claude code
+- Projects: project
+Noise: baseten, cache warning
+
+## Current week's goals
+"""
+
+
+def _tri(commits=()):
+    import daily_meeting_triage as triage
+    return triage.Triage(FOCUS, list(commits), NOW.date())
+
+
+def test_priorities_and_noise_are_read_from_focus_md_with_a_visible_fallback():
+    import daily_meeting_triage as triage
+    topics, noise, gap = triage.read_priorities(FOCUS)
+    assert [n for n, _ in topics] == ["marketing and sales", "agentic coding", "Projects"] and noise == ("baseten", "cache warning") and not gap
+    assert "no 'Current priorities'" in triage.read_priorities("# nothing")[2]
+
+
+def test_triage_labels_now_later_drop_with_reasons():
+    tri = _tri([{"subject": "fix(upload): pdf upload stops after first page"}])
+    assert tri.chat({"title": "Press release draft", "needs": "ok?"})["label"] == "NOW"
+    assert tri.chat({"title": "Tidy icons", "needs": "which?", "signal": "asks you a question"}) == {
+        "label": "LATER", "reason": "fits no current priority, still useful", "date": "2026-11-13"}
+    assert tri.chat({"title": "Tidy icons", "needs": "", "signal": "reports it is done"})["label"] == "DROP"
+    assert tri.chat({"title": "Baseten provider", "needs": "keep?"})["reason"] == "noise (baseten)"
+    assert tri.chat({"title": "Payment failed for a user"})["label"] == "NOW"
+    assert tri.task({"title": "Old idea", "status": "backlog", "priority": "none"})["label"] == "DROP"
+    assert tri.task({"title": "Rate limits", "status": "todo", "priority": "high"})["label"] == "NOW"
+    assert tri.paused({"resume": "2026-11-20", "flag": ""}) == {"label": "LATER", "reason": "paused, state saved", "date": "2026-11-20"}
+    assert tri.paused({"resume": "2026-11-01", "resume_due": True})["label"] == "NOW"
+    assert tri.reminder({"title": "Call the dentist", "list": "Personal Tasks"}, NOW.date())["reason"] == "due today"
+
+
+def test_errors_and_reports_follow_the_triage_rule_and_likely_fixed_issues_are_side_notes():
+    tri = _tri([{"subject": "fix(upload): pdf upload stops after first page"}])
+    assert tri.error("dev", {"service": "api", "message": "boom"})["reason"] == "dev-only error"
+    assert tri.error("production", {"service": "api", "message": "cache warning x"})["reason"] == "noise (cache warning)"
+    assert tri.error("production", {"service": "api", "message": "stream failed"})["label"] == "NOW"
+    fixed = tri.issue("production", {"title": "PDF upload stops after the first page", "processed": False})
+    assert fixed["label"] == "LATER" and "likely fixed" in fixed["reason"]
+    assert tri.issue("production", {"title": "Cannot open settings", "processed": False})["label"] == "NOW"
+    assert tri.issue("production", {"title": "Cannot open settings", "processed": True})["label"] == "LATER"
+
+
+def test_sections_show_now_only_and_side_notes_collect_the_rest_once():
+    tri = _tri()
+    chats = [{"title": "Press release", "session": "s1", "idle_hours": 5.0, "needs": "ok?", "signal": "asks you a question", "task": ""},
+             {"title": "Tidy icons", "session": "s2", "idle_hours": 9.0, "needs": "which?", "signal": "asks you a question", "task": ""}]
+    text = "\n".join(briefing._waiting_section({"chats": chats}, tri))
+    assert "(1 NOW of 2" in text and "Press release" in text and "Tidy icons" not in text and "[NOW: serves marketing and sales]" in text
+    tri.keep("Chat", "Tidy icons (waited 9 h)", tri.chat(chats[1]))  # same item again: still one note
+    side = "\n".join(briefing.triage.side_note_lines(tri.notes, "gap text"))
+    assert side.count("Tidy icons") == 1 and "**LATER 2026-11-13**" in side and "Triage gap: gap text" in side
+    assert "Nothing: every item is NOW" in "\n".join(briefing.triage.side_note_lines([]))
+
+
+def test_meeting_script_has_the_triage_rule_and_decisions_record_labels():
+    script = briefing.MEETING_SCRIPT
+    assert "Triage rule" in script and "Talk through NOW items only" in script and "Side notes" in script
+    assert "Triage (labels the founder CHANGED" in script and "<NOW|LATER YYYY-MM-DD|DROP> <chat title>" in script

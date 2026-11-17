@@ -110,6 +110,13 @@ briefing line shows a bare ID, say what it is before using it.
    `logs/daily-meetings/meeting-changelog.md` (`- <date> <plain change> (trial until <date>)`). `revert`
    removes the change from the settings file and logs it; `none` does nothing. Every change is a
    one-week trial; never two at once.
+4a. **Triage** (the `Triage:` lines and `Side notes:`): the briefing's last section "Side notes" holds every
+   LATER and DROP proposal. `Side notes: proposals confirmed` executes them: LATER chat → park until the
+   date (pause convention below), DROP chat → archive, DROP Task/issue → close (`openmates tasks done` /
+   `delete` per the proposal text, GitHub/Linear close), LATER Task → set the due date. Each `Triage:` line
+   overrides one proposal first (`-> NOW` means: raise it in a work chat or the next meeting, nothing is
+   closed). The priorities come from `FOCUS.md` section `## Current priorities`; keep that section when
+   rewriting FOCUS.md and change its words when the founder changes the priorities.
 4b. **Chats** (the `Chats:` lines, one per chat of the briefing's "Chats waiting on you" and "Paused chats"; each has exactly one outcome, `keep` is not valid, ask for the missing outcome in your report):
    `answer now: <text>` → send the reply yourself to that chat (`send_message` to its Remote session, matched by title/last prompt; the user never pastes into chats you can answer), then report each result; if a chat cannot be reached, say so and print the reply; a reply that would need a production or other user-only action (e.g. 3FA SSH) is not carried out: report it to the user instead;
    `park until <date>` / `reschedule to <date>` → write the pause convention into the chat's Task

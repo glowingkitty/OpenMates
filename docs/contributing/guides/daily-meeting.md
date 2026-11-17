@@ -118,6 +118,30 @@ plus a data-gap line. Cron has a minimal PATH, so the Tasks script finds the `op
 `~/.npm-global/bin` itself and the crontab lines set that PATH. `mac_reminders.py` sets a task
 identity for the Apple no-delete guard, which otherwise refused every cron run.
 
+## Triage: NOW, LATER, DROP
+The founder is easily pulled away by small issues, so the briefing pre-sorts **every** item (production
+and dev errors, reported issues, waiting and paused chats, Tasks, reminders, GitHub/Linear cleanup
+items) and proposes a label with a one-line reason; the founder only confirms or changes it
+(`scripts/daily_meeting_triage.py`).
+
+| Label | Rule | Where it shows |
+|---|---|---|
+| NOW | serves a current priority, or is evidence that real users are affected (production errors, unprocessed production reports, failed requests, payment or signup problems), or is a reminder due today | in its section, tagged `[NOW: reason]`; the only items the meeting discusses |
+| LATER | still useful, otherwise fits no priority; gets a proposed date (7 days, off the weekend; a paused chat's resume date; a reminder's own date) | "Side notes" at the very end |
+| DROP | fits no priority and has no reason to keep: noise, finished chat with no open question, backlog Task with no priority, issue untouched 60+ days | "Side notes": propose close or archive |
+
+Clear noise (the `Noise:` words: unused providers like Baseten, cache warnings, test timing), dev-only
+errors and dev reports without a priority are side notes automatically. A production report whose
+words overlap two or more with a recent `fix` commit is marked "likely fixed by ..." (LATER, next day)
+instead of being raised. **The priorities are read from `FOCUS.md` section `## Current priorities`**
+(`- <priority>: word, word`, then a `Noise:` line); edit that section when the priorities change.
+Without the section the built-in defaults are used and a "Triage gap" line in Side notes says so.
+Side notes are not discussed unless asked; at the end the meeting asks once "N side notes, proposals
+unchanged, confirm?". Confirming executes the proposals (LATER chat: park until the date; DROP chat:
+archive; DROP Task or issue: close). The decisions note records the labels the founder changed under
+`Triage:` and the label in front of every `Chats:` line. Nothing is hidden: LATER and DROP chats,
+Tasks and reports remain listed in the Side notes, and the no-decision check still covers them.
+
 ## Chats waiting on you
 After the alerts the briefing lists **every** dev-server Claude Code chat whose last real message
 came from the assistant (idle at least 2 h, last 30 days; no cap and no age cut-off, also for

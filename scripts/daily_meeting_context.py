@@ -401,15 +401,18 @@ def growth(root: Path, out: Path, since: datetime, day: str, gaps: list[str]) ->
     return daily_meeting_growth.collect(root, out, since, day, gaps)
 
 
-def waiting(tasks: list[dict] | None, out: Path, now: datetime) -> dict:
+def waiting(tasks: list[dict] | None, out: Path, now: datetime, focus_text: str = "") -> dict:
     """Dev-server Claude chats whose last message came from the assistant (scripts/daily_meeting_waiting.py)."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import daily_meeting_issues  # noqa: E402 - sibling scripts, path set just above
     import daily_meeting_waiting  # noqa: E402
 
     reviewed = daily_meeting_issues.load_reviewed(out / "waiting-reviewed.json")
+    import daily_meeting_triage  # noqa: E402
+
+    topics = daily_meeting_triage.read_priorities(focus_text)[0]
     chats = daily_meeting_waiting.waiting_chats(TRANSCRIPTS, now, tasks, reviewed,
-                                                os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
+                                                os.environ.get("CLAUDE_CODE_SESSION_ID", ""), topics)
     return daily_meeting_waiting.waiting_summary(chats, tasks, now)
 
 
@@ -564,7 +567,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "tasks": task_summary(tasks, previous, {c["session"] for c in chats}),
         "nightly": nightly(root, since),
         "tasks_status": tasks_status,
-        "waiting_chats": waiting(tasks, out, now),
+        "waiting_chats": waiting(tasks, out, now, focus(root)),
         "alerts": alerts(gaps),
         "growth": growth(root, out, since, today, gaps),
         "goals": goals(root, out, tasks, now.astimezone(TZ).date()),
