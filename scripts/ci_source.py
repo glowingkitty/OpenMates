@@ -27,7 +27,7 @@ except ModuleNotFoundError:
     import lane_ci_source
     from ci_candidate_artifact import upload_patch
 
-DISK_RESERVE = 30 * 1024**3
+DISK_RESERVE = 10 * 1024**3  # the host's one hard floor (resource_budget.MIN_FREE)
 MAX_CHANGED_BYTES = 100 * 1024**2
 MIN_REUSE_LIFETIME = dt.timedelta(minutes=30)
 
@@ -230,7 +230,6 @@ def publish(
     except ModuleNotFoundError:
         from resource_budget import reserve
     common_dir = Path(git(root, "rev-parse", "--path-format=absolute", "--git-common-dir"))
-    # Publication keeps its 30 GiB guard; 85% gates new worktrees only.
     with reserve(common_dir.resolve().parent, MAX_CHANGED_BYTES,
                  operation=f"ci-source:{session_id}",
                  min_free=DISK_RESERVE, max_used_percent=100):

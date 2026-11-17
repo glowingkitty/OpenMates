@@ -23,7 +23,10 @@ import tempfile
 import time
 import zipfile
 
-RESERVE = 30 * 1024**3
+RESERVE = 10 * 1024**3  # the host's one hard floor (resource_budget.MIN_FREE)
+# Admission accounting for one CI result download: 1,480 runs used a median of
+# 1.6 MB and at most 124 MB; the archive limits below still bound the worst case.
+RESULT_RESERVE = 256 * 1024**2
 MAX_ARCHIVE = 256 * 1024**2
 MAX_EXPANDED = 512 * 1024**2
 DOWNLOAD_SECONDS = 60
@@ -1676,7 +1679,7 @@ def fetch(github, job: dict, root: Path) -> dict:
     )
     with reserve(
         root,
-        MAX_ARCHIVE + MAX_EXPANDED + diagnostic_reserve,
+        RESULT_RESERVE + diagnostic_reserve,
         min_free=RESERVE,
         max_used_percent=100,
         operation=f"ci-result:{job['id']}",

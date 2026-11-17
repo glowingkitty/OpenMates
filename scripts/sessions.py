@@ -201,9 +201,11 @@ WORKTREE_INACTIVE_EXPIRY_HOURS = 24
 # Expiry recovery archives are deleted automatically after this long.
 WORKTREE_EXPIRY_ARCHIVE_RETENTION_HOURS = 7 * 24
 WORKTREE_MAX_COUNT = int(os.environ.get("OPENMATES_WORKTREE_MAX_COUNT", "200"))
-WORKTREE_MIN_FREE_BYTES = int(float(os.environ.get("OPENMATES_WORKTREE_MIN_FREE_GIB", "30")) * 1024**3)
-WORKTREE_MAX_DISK_PERCENT = int(os.environ.get("OPENMATES_WORKTREE_MAX_DISK_PERCENT", "85"))
+WORKTREE_MIN_FREE_BYTES = int(float(os.environ.get("OPENMATES_WORKTREE_MIN_FREE_GIB", "10")) * 1024**3)
+WORKTREE_MAX_DISK_PERCENT = int(os.environ.get("OPENMATES_WORKTREE_MAX_DISK_PERCENT", "100"))
 WORKTREE_MANIFEST_RETENTION_HOURS = 30 * 24
+# A new worktree measured 400-600 MB before its first build (TASK-7646).
+WORKTREE_RESERVE_BYTES = 512 * 1024**2
 WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES = 15
 WORKTREE_AUTO_INTEGRATION_BINDING_MODES = {"native", "pilot_fallback", "worktree_routed"}
 WORKTREE_AUTO_INTEGRATION_SENSITIVE_PREFIXES = (
@@ -1806,7 +1808,7 @@ def ensure_session_worktree(session_id: str) -> dict:
         from scripts.resource_budget import reserve
     except ModuleNotFoundError:
         from resource_budget import reserve
-    with reserve(CONTROL_PLANE_ROOT, 1024**3, operation=f"workspace:{session_id}",
+    with reserve(CONTROL_PLANE_ROOT, WORKTREE_RESERVE_BYTES, operation=f"workspace:{session_id}",
                  min_free=WORKTREE_MIN_FREE_BYTES,
                  max_used_percent=WORKTREE_MAX_DISK_PERCENT):
         return _ensure_session_worktree_impl(session_id)

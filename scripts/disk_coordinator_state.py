@@ -30,7 +30,8 @@ except ModuleNotFoundError:
 GIB = 1024**3
 GRANT_SECONDS = 300
 CLEANUP_BACKOFF = 300
-RECOVERY_MARGIN = 2 * GIB
+# No extra margin under pressure: the 10 GiB floor is the only line (TASK-7646).
+RECOVERY_MARGIN = 0
 MIN_INODES = 10000
 KINDS = ("managed", "worktrees", "docker", "proof", "host")
 # Proactive maintenance by the elected service: every enabled kind runs at least
