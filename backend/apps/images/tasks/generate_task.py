@@ -87,13 +87,16 @@ from backend.shared.python_utils.image_safety import (
     get_pipeline,
     get_strike_counter,
 )
+from backend.shared.python_utils.image_safety.account_suspension import (
+    rejection_decision,
+    suspend_account_for_strikes,
+)
 from backend.shared.python_utils.image_safety.audit_log import write_audit_entry
 from backend.shared.python_utils.image_safety.explanations import (
     has_explanation,
     localized_rejection_payload,
 )
 from backend.shared.python_utils.image_safety.strike_policy import (
-    delete_account_for_strikes,
     is_technical_failure,
     strike_warning,
     unavailable_message,
@@ -520,8 +523,8 @@ async def _handle_safety_rejection(
     only owner of the count), writes the audit log, caches the rejection for the
     remainder of the assistant response, and returns the structured tool
     response for the LLM. Strike 1 and 2 carry a localized warning
-    ("This is strike N of 3."); the third strike deletes the account with the
-    regular refund-on-deletion task.
+    ("This is strike N of 3."); strike 2 suspends the account for 7 days and strike 3 suspends it until
+    an admin review; nothing here ever deletes an account.
     """
     if is_technical_failure(rejection.category):
         # The safety check itself failed: refuse (fail closed) but never count a
@@ -592,12 +595,14 @@ async def _handle_safety_rejection(
         f"ban={strike_result.ban_triggered} debounced={strike_result.debounced}"
     )
 
-    if strike_result.ban_triggered and not strike_result.debounced:
-        await delete_account_for_strikes(
+    if strike_result.new_count >= 2 and strike_result.recorded and not strike_result.debounced:
+        await suspend_account_for_strikes(
             user_id=user_id,
             strike_count=strike_result.new_count,
-            reason=f"repeated_safety_violations:{rejection.category}",
+            category=rejection.category,
             directus_service=task._directus_service,
+            cache_service=task._cache_service,
+            decision=rejection_decision(rejection),
         )
 
     return tool_response

@@ -89,7 +89,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Public Example Chats](#public-example-chats) | **FAIL** 4/9 | tested 1/1 |  | not run 0/1 | — | not run 0/2 | — | — | on (no flag) | on (no flag) | v0.8.0-alpha |
 | [Public News, Blog, Press, and Social Publications](#public-publications) | **FAIL** 1/9 | — |  | — | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Queued Chat Follow-ups and Steering](#chat-queued-followups) | partial 4/5 | **FAIL** 3/5 |  | partial 1/5 | wip | partial 4/5 | — | — | on (no flag) | on (no flag) | untagged-main |
-| [Safety Strikes, Suspension, Appeal and Policy Account Deletion](#safety-strikes) | partial 1/15 | planned |  | — | — | partial 9/15 | — | — | on (no flag) | on (no flag) | unverified |
+| [Safety Strikes, Suspension, Appeal and Policy Account Deletion](#safety-strikes) | partial 1/20 | planned |  | — | — | partial 14/20 | — | — | on (no flag) | on (no flag) | unverified |
 | [Settings UI](#settings-ui) | **FAIL** 1/9 | partial 6/9 | not run 0/2 | — | impl | not run 0/1 | — | — | on (no flag) | on (no flag) | v0.8.0-alpha |
 | &nbsp;&nbsp;↳ Settings shell and routing | **FAIL** 0/1 | tested 1/1 | ? | — | ? | ? | — | — | | | |
 | &nbsp;&nbsp;↳ Navigation | **FAIL** 0/2 | tested 2/2 | not run 0/1 | — | ? | ? | — | — | | | |
@@ -2555,19 +2555,19 @@ Set reminders for specific or random times.
 
 Strikes, warnings, suspension and appeal when safety checks reject image or video requests.
 
-- Specifications: [feature.safety-strikes](../../specifications/features/safety-strikes/specification.yml) (draft) · 15 assertion(s)
+- Specifications: [feature.safety-strikes](../../specifications/features/safety-strikes/specification.yml) (draft) · 20 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release unverified
-- Check intent: CLI: marked not_planned, but 15 required assertion(s) apply to cli
+- Check intent: CLI: marked not_planned, but 20 required assertion(s) apply to cli
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 1/15 | 1 pass · 0 fail · 1 not run · 13 no test | [image-safety-explanations-real.spec.ts](../../frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts)<br>1 unit test file(s), e.g. [test_generated_media_graph.py](../../backend/tests/test_generated_media_graph.py) |
-| Apple | planned | 0 pass · 0 fail · 0 not run · 15 no test | — |
-| CLI | — | 0 pass · 0 fail · 0 not run · 15 no test | — |
+| Web | partial 1/20 | 1 pass · 0 fail · 1 not run · 18 no test | [image-safety-explanations-real.spec.ts](../../frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts)<br>1 unit test file(s), e.g. [test_generated_media_graph.py](../../backend/tests/test_generated_media_graph.py) |
+| Apple | planned | 0 pass · 0 fail · 0 not run · 20 no test | — |
+| CLI | — | 0 pass · 0 fail · 0 not run · 20 no test | — |
 | TUI | — | — | — |
-| REST API | partial 9/15 | 9 pass · 0 fail · 0 not run · 6 no test | 6 unit test file(s), e.g. [test_image_safety_pipeline.py](../../backend/tests/test_image_safety_pipeline.py), [test_safety_strikes.py](../../backend/tests/test_safety_strikes.py) |
+| REST API | partial 14/20 | 14 pass · 0 fail · 2 not run · 4 no test | 9 unit test file(s), e.g. [test_safety_strikes.py](../../backend/tests/test_safety_strikes.py), [test_image_safety_pipeline.py](../../backend/tests/test_image_safety_pipeline.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 

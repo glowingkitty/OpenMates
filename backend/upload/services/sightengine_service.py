@@ -33,13 +33,25 @@
 # encryption/storage. Credentials never come from env vars.
 
 import logging
+from dataclasses import replace
 from typing import Optional
 
 import httpx
 
+from backend.upload.services.upload_safety_policy import (
+    NUDITY_SIGNAL_AT,
+    SecondOpinion,
+    UploadSafetyScores,
+    resolve_upload_safety,
+)
+
 logger = logging.getLogger(__name__)
 
 SIGHTENGINE_API_URL = "https://api.sightengine.com/1.0/check.json"
+# One request: nudity, gore and AI-generated detection.
+SIGHTENGINE_UPLOAD_MODELS = "nudity-2.0,gore,genai"
+# Second call, only when nudity signals are present: per-face minor probability.
+SIGHTENGINE_FACE_MODELS = "face-attributes"
 
 
 def create_http_client(_category: str, **httpx_kwargs) -> httpx.AsyncClient:
@@ -66,10 +78,13 @@ class ContentSafetyResult:
         is_safe: bool,
         reason: Optional[str] = None,
         error: Optional[str] = None,
+        counts_as_strike: bool = False,
     ) -> None:
         self.is_safe = is_safe
         self.reason = reason
         self.error = error
+        # True only for a refusal the policy marks as a strike (minors + sexual).
+        self.counts_as_strike = counts_as_strike
 
     def __repr__(self) -> str:
         return (
@@ -214,298 +229,139 @@ class SightEngineService:
     def is_enabled(self) -> bool:
         return self._enabled
 
-    async def check_all(
+    async def _fetch_scores(
         self,
         image_bytes: bytes,
-        filename: str = "upload.jpg",
-        content_type: str = "application/octet-stream",
-    ) -> tuple["ContentSafetyResult", "Optional[AIDetectionResult]"]:
+        filename: str,
+        content_type: str,
+    ) -> tuple[Optional[UploadSafetyScores], Optional[AIDetectionResult]]:
         """
-        Run content safety + AI detection in a SINGLE SightEngine API call.
+        One Sightengine call (nudity-2.0, face-attributes, gore, genai).
 
-        Uses models=nudity-2.0,offensive,gore,genai — the response contains all
-        scores for both checks. This replaces the previous two-call approach and
-        saves one full HTTP round-trip to the SightEngine API per upload.
-
-        Returns a tuple of (ContentSafetyResult, Optional[AIDetectionResult]).
-
-        Safety check is BLOCKING: caller must reject the upload if is_safe=False.
-        AI detection is NON-BLOCKING: result is metadata only, never rejects.
-
-        If the service is disabled, returns (safe=True, None).
-        If the API call fails, fails-open on safety (upload allowed) and returns
-        None for AI detection — both failures are logged as warnings.
+        Returns (None, None) when the service is not configured or the call
+        fails; the caller then falls back to the strict second opinion.
         """
         if not self._enabled:
-            logger.debug("[SightEngine] Skipping all checks (service not configured)")
-            return ContentSafetyResult(is_safe=True), None
+            logger.info("[SightEngine] Not configured; safety falls back to the second opinion")
+            return None, None
 
         log_prefix = f"[SightEngine] [{filename[:30]}]"
-        logger.info(
-            f"{log_prefix} Running combined check "
-            f"(models: nudity-2.0,offensive,gore,genai, {len(image_bytes)} bytes)"
-        )
-
         try:
             async with create_http_client("sightengine", timeout=20) as client:
                 resp = await client.post(
                     SIGHTENGINE_API_URL,
                     data={
-                        "models": "nudity-2.0,offensive,gore,genai",
+                        "models": SIGHTENGINE_UPLOAD_MODELS,
                         "api_user": self.api_user,
                         "api_secret": self.api_secret,
                     },
-                    files={
-                        "media": (filename, image_bytes, content_type),
+                    files={"media": (filename, image_bytes, content_type)},
+                )
+            data = resp.json() if resp.status_code == 200 else {}
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning(f"{log_prefix} Sightengine call failed ({type(exc).__name__}); using fallback")
+            return None, None
+
+        if resp.status_code != 200 or data.get("status") != "success":
+            logger.warning(
+                f"{log_prefix} Sightengine returned HTTP {resp.status_code} "
+                f"status={data.get('status')!r}; using fallback"
+            )
+            return None, None
+
+        nudity = data.get("nudity", {}) or {}
+        gore = data.get("gore", {}) or {}
+        weapon = data.get("weapon", {}) or {}
+        weapon_classes = weapon.get("classes", {}) or {}
+        scores = UploadSafetyScores(
+            sexual_activity=float(nudity.get("sexual_activity", 0.0)),
+            sexual_display=float(nudity.get("sexual_display", 0.0)),
+            erotica=float(nudity.get("erotica", 0.0)),
+            sextoy=float(nudity.get("sextoy", 0.0)),
+            suggestive=float(nudity.get("suggestive", 0.0)),
+            gore=float(gore.get("prob", gore.get("gore", 0.0))),
+            weapon=max([0.0, *(float(v) for v in weapon_classes.values())]),
+        )
+        if scores.sexual_max >= NUDITY_SIGNAL_AT:
+            minor = await self._fetch_minor_score(image_bytes, filename, content_type)
+            if minor is None:
+                return None, None
+            scores = replace(scores, minor=minor)
+        logger.info(f"{log_prefix} Safety scores: {scores}")
+        ai_generated = float((data.get("type", {}) or {}).get("ai_generated", 0.0))
+        return scores, AIDetectionResult(ai_generated=ai_generated)
+
+    async def _fetch_minor_score(
+        self, image_bytes: bytes, filename: str, content_type: str
+    ) -> Optional[float]:
+        """Highest per-face minor probability (face-attributes), None when the call fails."""
+        try:
+            async with create_http_client("sightengine", timeout=20) as client:
+                resp = await client.post(
+                    SIGHTENGINE_API_URL,
+                    data={
+                        "models": SIGHTENGINE_FACE_MODELS,
+                        "api_user": self.api_user,
+                        "api_secret": self.api_secret,
                     },
+                    files={"media": (filename, image_bytes, content_type)},
                 )
+            data = resp.json() if resp.status_code == 200 else {}
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning(f"[SightEngine] Face attributes failed ({type(exc).__name__}); using fallback")
+            return None
+        if data.get("status") != "success":
+            logger.warning(f"[SightEngine] Face attributes HTTP {resp.status_code}; using fallback")
+            return None
+        minor = 0.0
+        for face in data.get("faces", []) or []:
+            if isinstance(face, dict):
+                attrs = face.get("attributes", {}) or {}
+                minor = max(minor, float(attrs.get("minor", 0.0) or face.get("minor", 0.0) or 0.0))
+        return minor
 
-            if resp.status_code != 200:
-                # External provider/media errors should not block legitimate
-                # uploads. Keep policy violations blocking only when SightEngine
-                # returns usable scores.
-                resp_text = resp.text[:300]
-                logger.warning(
-                    f"{log_prefix} Combined check API returned HTTP {resp.status_code}: "
-                    f"{resp_text[:200]} — failing open (upload allowed, scan skipped)"
-                )
-                return ContentSafetyResult(
-                    is_safe=True,
-                    error=f"API error {resp.status_code}",
-                ), None
+    async def check_all(
+        self,
+        image_bytes: bytes,
+        filename: str = "upload.jpg",
+        content_type: str = "application/octet-stream",
+        second_opinion: Optional[SecondOpinion] = None,
+    ) -> tuple["ContentSafetyResult", "Optional[AIDetectionResult]"]:
+        """
+        Content safety (BLOCKING) + AI detection (non-blocking) from ONE call.
 
-            data = resp.json()
-
-            if data.get("status") != "success":
-                error_msg = data.get("error", {}).get("message", "Unknown error")
-                logger.warning(
-                    f"{log_prefix} Combined check API returned non-success: "
-                    f"{error_msg} — failing open (upload allowed, scan skipped)"
-                )
-                return ContentSafetyResult(
-                    is_safe=True,
-                    error=error_msg,
-                ), None
-
-            # --- Extract content safety scores ---
-            nudity = data.get("nudity", {})
-            offensive = data.get("offensive", {})
-            gore = data.get("gore", {})
-
-            sexual_activity = float(nudity.get("sexual_activity", 0.0))
-            sexual_display = float(nudity.get("sexual_display", 0.0))
-            erotica = float(nudity.get("erotica", 0.0))
-            sextoy = float(nudity.get("sextoy", 0.0))
-            suggestive = float(nudity.get("suggestive", 0.0))
-            weapon = float(offensive.get("weapon", 0.0))
-            gore_score = float(gore.get("gore", 0.0))
-            blood = float(gore.get("blood", 0.0))
-
-            logger.info(
-                f"{log_prefix} Content safety scores — "
-                f"sexual_activity={sexual_activity:.3f} sexual_display={sexual_display:.3f} "
-                f"erotica={erotica:.3f} sextoy={sextoy:.3f} suggestive={suggestive:.3f} "
-                f"weapon={weapon:.3f} gore={gore_score:.3f} blood={blood:.3f}"
-            )
-
-            # --- Apply safety thresholds ---
-            safety_reason: Optional[str] = None
-            if sexual_activity > 0.3:
-                safety_reason = f"sexual_activity={sexual_activity:.2f}"
-            elif sexual_display > 0.3:
-                safety_reason = f"sexual_display={sexual_display:.2f}"
-            elif erotica > 0.4:
-                safety_reason = f"erotica={erotica:.2f}"
-            elif sextoy > 0.3:
-                safety_reason = f"sextoy={sextoy:.2f}"
-            elif suggestive > 0.6:
-                safety_reason = f"suggestive={suggestive:.2f}"
-            elif weapon > 0.5:
-                safety_reason = f"weapon={weapon:.2f}"
-            elif gore_score > 0.3:
-                safety_reason = f"gore={gore_score:.2f}"
-            elif blood > 0.4:
-                safety_reason = f"blood={blood:.2f}"
-
-            if safety_reason:
-                logger.warning(f"{log_prefix} Content safety REJECTED — {safety_reason}")
-                safety_result = ContentSafetyResult(is_safe=False, reason=safety_reason)
-                # Still parse AI detection even on rejection (caller may log it)
-            else:
-                logger.info(f"{log_prefix} Content safety: PASSED ✓")
-                safety_result = ContentSafetyResult(is_safe=True)
-
-            # --- Extract AI detection score ---
-            ai_generated = float(data.get("type", {}).get("ai_generated", 0.0))
-            label = (
-                "LIKELY AI-GENERATED" if ai_generated > 0.7
-                else ("possibly AI" if ai_generated > 0.4 else "likely real/photo")
-            )
-            logger.info(
-                f"{log_prefix} AI detection: score={ai_generated:.3f} → {label}"
-            )
-            ai_result = AIDetectionResult(ai_generated=ai_generated)
-
-            return safety_result, ai_result
-
-        except httpx.TimeoutException as e:
-            logger.warning(
-                f"{log_prefix} Combined check request timed out: {e} — "
-                f"failing open (upload allowed, scan skipped)"
-            )
-            return ContentSafetyResult(
-                is_safe=True,
-                error="timeout",
-            ), None
-        except Exception as e:
-            logger.warning(
-                f"{log_prefix} Combined check failed: {e} — "
-                f"failing open (upload allowed, scan skipped)",
-                exc_info=True,
-            )
-            return ContentSafetyResult(
-                is_safe=True,
-                error=str(e),
-            ), None
+        The decision comes from upload_safety_policy: Sightengine scores first,
+        the Jev second opinion for borderline scores or when Sightengine is
+        unavailable (strict). When neither can judge, the result is a refusal
+        with reason "safety_service_unavailable" (never a strike).
+        """
+        scores, ai_result = await self._fetch_scores(image_bytes, filename, content_type)
+        decision = await resolve_upload_safety(scores, second_opinion)
+        logger.info(
+            f"[SightEngine] Upload safety decision={decision.kind} category={decision.category} "
+            f"borderline={decision.borderline} reason={decision.reason}"
+        )
+        if decision.kind == "allow":
+            return ContentSafetyResult(is_safe=True), ai_result
+        return (
+            ContentSafetyResult(
+                is_safe=False,
+                reason=decision.reason,
+                counts_as_strike=decision.kind == "refuse_strike",
+            ),
+            ai_result,
+        )
 
     async def check_content_safety(
         self,
         image_bytes: bytes,
         filename: str = "upload.jpg",
         content_type: str = "application/octet-stream",
+        second_opinion: Optional[SecondOpinion] = None,
     ) -> ContentSafetyResult:
-        """
-        Check an image for nudity, sexual content, violence, and gore.
-
-        Uses SightEngine models: nudity-2.0, offensive, gore.
-        This is the canonical content safety threshold implementation.
-
-        BLOCKING: if is_safe=False on the result, the upload MUST be rejected.
-
-        If the service is disabled (no credentials) the check is SKIPPED and
-        is_safe=True is returned so uploads continue — do not block uploads
-        just because SightEngine credentials are missing.
-
-        If the API call itself fails, we err on the side of ALLOWING the upload
-        (fail-open) to avoid blocking legitimate uploads when the external API
-        has an outage. This is logged as a warning.
-
-        Args:
-            image_bytes: Raw image file bytes (plaintext, before encryption).
-            filename: Original filename (used for multipart form Content-Disposition).
-
-        Returns:
-            ContentSafetyResult with is_safe flag and optional rejection reason.
-        """
-        if not self._enabled:
-            logger.debug("[SightEngine] Skipping content safety check (service not configured)")
-            return ContentSafetyResult(is_safe=True)
-
-        log_prefix = f"[SightEngine] [{filename[:30]}]"
-        logger.info(
-            f"{log_prefix} Running content safety check "
-            f"(models: nudity-2.0,offensive,gore, {len(image_bytes)} bytes)"
-        )
-
-        try:
-            async with create_http_client("sightengine", timeout=20) as client:
-                resp = await client.post(
-                    SIGHTENGINE_API_URL,
-                    data={
-                        "models": "nudity-2.0,offensive,gore",
-                        "api_user": self.api_user,
-                        "api_secret": self.api_secret,
-                    },
-                    files={
-                        "media": (filename, image_bytes, content_type),
-                    },
-                )
-
-            if resp.status_code != 200:
-                logger.warning(
-                    f"{log_prefix} Content safety API returned HTTP {resp.status_code}: "
-                    f"{resp.text[:200]} — failing open (upload allowed)"
-                )
-                return ContentSafetyResult(
-                    is_safe=True,
-                    error=f"API error {resp.status_code}",
-                )
-
-            data = resp.json()
-
-            if data.get("status") != "success":
-                error_msg = data.get("error", {}).get("message", "Unknown error")
-                logger.warning(
-                    f"{log_prefix} Content safety API returned non-success: "
-                    f"{error_msg} — failing open (upload allowed)"
-                )
-                return ContentSafetyResult(is_safe=True, error=error_msg)
-
-            # --- Extract scores ---
-            nudity = data.get("nudity", {})
-            offensive = data.get("offensive", {})
-            gore = data.get("gore", {})
-
-            # Content safety thresholds (canonical — previously also defined in the now-removed ImageSafetyService):
-            sexual_activity = float(nudity.get("sexual_activity", 0.0))
-            sexual_display = float(nudity.get("sexual_display", 0.0))
-            erotica = float(nudity.get("erotica", 0.0))
-            sextoy = float(nudity.get("sextoy", 0.0))
-            suggestive = float(nudity.get("suggestive", 0.0))
-            weapon = float(offensive.get("weapon", 0.0))
-            gore_score = float(gore.get("gore", 0.0))
-            blood = float(gore.get("blood", 0.0))
-
-            logger.info(
-                f"{log_prefix} Content safety scores — "
-                f"sexual_activity={sexual_activity:.3f} sexual_display={sexual_display:.3f} "
-                f"erotica={erotica:.3f} sextoy={sextoy:.3f} suggestive={suggestive:.3f} "
-                f"weapon={weapon:.3f} gore={gore_score:.3f} blood={blood:.3f}"
-            )
-
-            # --- Apply thresholds ---
-            reason: Optional[str] = None
-
-            if sexual_activity > 0.3:
-                reason = f"sexual_activity={sexual_activity:.2f}"
-            elif sexual_display > 0.3:
-                reason = f"sexual_display={sexual_display:.2f}"
-            elif erotica > 0.4:
-                reason = f"erotica={erotica:.2f}"
-            elif sextoy > 0.3:
-                reason = f"sextoy={sextoy:.2f}"
-            elif suggestive > 0.6:
-                reason = f"suggestive={suggestive:.2f}"
-            elif weapon > 0.5:
-                reason = f"weapon={weapon:.2f}"
-            elif gore_score > 0.3:
-                reason = f"gore={gore_score:.2f}"
-            elif blood > 0.4:
-                reason = f"blood={blood:.2f}"
-
-            if reason:
-                logger.warning(
-                    f"{log_prefix} Content safety REJECTED — {reason}"
-                )
-                return ContentSafetyResult(is_safe=False, reason=reason)
-
-            logger.info(f"{log_prefix} Content safety: PASSED ✓")
-            return ContentSafetyResult(is_safe=True)
-
-        except httpx.TimeoutException as e:
-            logger.warning(
-                f"{log_prefix} Content safety request timed out: {e} — "
-                f"failing open (upload allowed)"
-            )
-            return ContentSafetyResult(is_safe=True, error="timeout")
-        except Exception as e:
-            # Fail-open: do not block legitimate uploads because of an API outage
-            logger.error(
-                f"{log_prefix} Content safety check failed: {e} — "
-                f"failing open (upload allowed)",
-                exc_info=True,
-            )
-            return ContentSafetyResult(is_safe=True, error=str(e))
+        """Content safety verdict only (same policy and single call as check_all)."""
+        result, _ = await self.check_all(image_bytes, filename, content_type, second_opinion)
+        return result
 
     async def check_image(
         self, image_bytes: bytes, filename: str = "upload.jpg"

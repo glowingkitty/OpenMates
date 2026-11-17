@@ -8383,7 +8383,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 15
+  assertions: 20
   surfaces:
     web:
       status: partial
@@ -8393,8 +8393,8 @@ features:
         passing: 1
         failing: 0
         not_run: 1
-        missing: 13
-        counted: 15
+        missing: 18
+        counted: 20
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts
@@ -8409,8 +8409,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 15
-        counted: 15
+        missing: 20
+        counted: 20
       key_tests: []
       e2e_tests: []
       key_unit_tests: []
@@ -8427,9 +8427,9 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 15
-        counted: 15
-      conflict: marked not_planned, but 15 required assertion(s) apply to cli
+        missing: 20
+        counted: 20
+      conflict: marked not_planned, but 20 required assertion(s) apply to cli
       key_tests: []
       e2e_tests: []
       key_unit_tests: []
@@ -8453,20 +8453,20 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 9
+        passing: 14
         failing: 0
-        not_run: 0
-        missing: 6
-        counted: 15
+        not_run: 2
+        missing: 4
+        counted: 20
       key_tests: []
       e2e_tests: []
       key_unit_tests:
-      - backend/tests/test_image_safety_pipeline.py
       - backend/tests/test_safety_strikes.py
+      - backend/tests/test_image_safety_pipeline.py
       - backend/tests/test_image_safety_explanations.py
       - backend/tests/test_image_safety_jev_signals.py
-      - backend/tests/test_safeguard_tool_call_recovery.py
-      unit_test_files: 6
+      - backend/tests/test_safety_appeals.py
+      unit_test_files: 9
     sdk_npm:
       status: not_planned
       source: intent

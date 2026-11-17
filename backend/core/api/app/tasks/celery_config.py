@@ -196,6 +196,7 @@ TASK_CONFIG = [
     {'name': 'user_init',   'module': 'backend.core.api.app.tasks.user_cache_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.persistence_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.team_auto_topup_task'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.safety_review_tasks'},
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
     {'name': 'app_ai_routing', 'module': 'backend.apps.ai.tasks.stage_one_task'},
     {'name': 'app_code',    'module': 'backend.apps.web.tasks'},  # Browse shares the existing E2B execution worker
@@ -1483,6 +1484,21 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'safety-review-reminder-hourly': {
+        'task': 'safety.remind_stale_reviews',
+        'schedule': crontab(minute=20),
+        'options': {'queue': 'persistence'},
+    },
+    'safety-auto-restore-unappealed-daily': {
+        'task': 'safety.auto_restore_unappealed',
+        'schedule': crontab(hour=5, minute=10),
+        'options': {'queue': 'persistence'},
+    },
+    'safety-purge-closed-cases-daily': {
+        'task': 'safety.purge_closed_cases',
+        'schedule': crontab(hour=5, minute=40),
+        'options': {'queue': 'persistence'},
+    },
     'refill-blank-browser-pool': {
         'task': 'web.browse.refill',
         'schedule': timedelta(seconds=15),

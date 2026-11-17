@@ -971,7 +971,7 @@ specifications:
     version: 1
     status: draft
     path: features/safety-strikes
-    fingerprint: 0b15e78b38e1ab72456a216ad9d0395bfb44e54412de37b484c45684ba9650e4
+    fingerprint: 44d4b6383030f827e9a2db4f43931bb6ac8a59bb0d020d0c96ea8f8278f29d6c
     required_applies_to:
     - rest_api
     - cli
@@ -13254,7 +13254,7 @@ assertions:
     specification: feature.safety-strikes@1
     specification_id: feature.safety-strikes
     type: invariant
-    fingerprint: 7619f27be3259fe1a1f3f5bf3f76c40b2fff4a756d0755a63ff8d8456a8d9b15
+    fingerprint: d9b90a51a9dc9b6aebb2fc6c66c2a83ab75e63a746c5f40f8e969c1466a76bce
     required_applies_to:
     - rest_api
     - cli
@@ -13274,7 +13274,7 @@ assertions:
     specification: feature.safety-strikes@1
     specification_id: feature.safety-strikes
     type: invariant
-    fingerprint: 3596d0bb1fe90bf634d254ce9de91dd59f8e65398c49c39a7e741e92b629fa54
+    fingerprint: 68953fb7aff882e85a6185133f40e73f050d7c671c1787fd86eed898f0dbf8c5
     required_applies_to:
     - rest_api
     - cli
@@ -13290,11 +13290,41 @@ assertions:
     - cli
     - gui.web
     - gui.apple
-  safety-strikes.third-strike-suspends:
+  safety-strikes.second-strike-suspends-7-days:
     specification: feature.safety-strikes@1
     specification_id: feature.safety-strikes
     type: behavior
-    fingerprint: d08783afbe47904cbc4be2228c0f3ba37237d06862ebb692105344c1cf17a24d
+    fingerprint: 8d2164e0b5c36f78440600b62d318145edefd414f72fab7a7e03f8093512ec4b
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.third-strike-pending-review:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 90ed20a8b0b3c5b9e6377d931712f6986ec1eb645749d338163ee0cc76d2d8f9
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.never-auto-delete:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: dc82781b0f30eaa37aca6b4308c502dab77c4e16141197b93d3ae85c0fd81c2d
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.strikes-expire-90-days:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: 9c4070b347af9eeb516b89689c7ce50d70e0d056b75a1726e6a421eba724e4a5
     required_applies_to:
     - rest_api
     - cli
@@ -13304,17 +13334,27 @@ assertions:
     specification: feature.safety-strikes@1
     specification_id: feature.safety-strikes
     type: invariant
-    fingerprint: c9e3e6bacb83560b9fb4bf80eb014c389882d6cdfe09752ecb957c2b9a586b74
+    fingerprint: 6af51ce83d1c7c3a7fb5ebc02aece0bd662c4b12fa7eb66611c778711b23c1ff
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
-  safety-strikes.deletion-after-suspension-refunds:
+  safety-strikes.review-deadlines-retention:
     specification: feature.safety-strikes@1
     specification_id: feature.safety-strikes
     type: behavior
-    fingerprint: ec05fb9b2be2218763af579028bbaacf99b4f3df9c47f2d71d027dba7aa09f21
+    fingerprint: abf96e8f6fb0baa3a6f3a52417dcc60db96e3584f0c0de913d910be9bc081843
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.admin-deletion-refunds:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 3dd31c5930dae58eb42a09289605681faf7746ba036d4096552340c890a5782c
     required_applies_to:
     - rest_api
     - cli
@@ -13324,7 +13364,7 @@ assertions:
     specification: feature.safety-strikes@1
     specification_id: feature.safety-strikes
     type: invariant
-    fingerprint: 0a6c24719345bd87b62a531b7fb38bcdc95613531af06a8a9ac601a20c135c3c
+    fingerprint: 192b9ce810f394db6477778882023e2a521acdbf4be60aaefcc761fb0cd73805
     required_applies_to:
     - rest_api
     - cli
@@ -13334,7 +13374,7 @@ assertions:
     specification: feature.safety-strikes@1
     specification_id: feature.safety-strikes
     type: behavior
-    fingerprint: f41026e22f61a339b4ef1b30f9dde1560d121f4968b7770fbf6def2ea230029d
+    fingerprint: 422169cf8df58e110b5fd6c85deab18628b49bfbac15ddf60f699c87a1a2301b
     required_applies_to:
     - rest_api
     - cli
@@ -13385,6 +13425,16 @@ assertions:
     specification_id: feature.safety-strikes
     type: behavior
     fingerprint: 698b7ca2741be710c796bc3c50b45606e727c1e3d280fa2bedf44291b6d449ca
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.upload-agreed-lines:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 220297fbf4209065a296dc88fcd3d317eb8bf0d47c8415ce1140930fd351c26d
     required_applies_to:
     - rest_api
     - cli

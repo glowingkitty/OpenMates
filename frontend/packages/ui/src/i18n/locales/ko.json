@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "이 답변은 안전 규칙에 맞지 않아 삭제되었습니다."
+    },
+    "wellbeing": {
+      "text": "이전 답변이 당신에게 해로울 수 있어 삭제했습니다. 당신은 혼자가 아닙니다. 스스로를 해치는 생각이 든다면 믿을 수 있는 사람이나 지역의 위기 상담 전화, 응급 서비스에 연락해 주세요. 저는 여기서 계속 이야기할 수 있어요."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -5990,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "OpenMates 계정이 정지되었습니다"
+      },
+      "headline": {
+        "text": "계정이 정지되었습니다"
+      },
+      "body": {
+        "text": "안전 점검에서 회원님 계정의 요청이 거부되었습니다."
+      },
+      "appeal": {
+        "text": "이의 제기 기간은 14일입니다. 데이터를 다운로드할 수도 있습니다."
+      },
+      "button": {
+        "text": "이의 제기 또는 데이터 다운로드"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "계정에 대한 추가 정보가 필요합니다"
+      },
+      "headline": {
+        "text": "조금 더 정보가 필요합니다"
+      },
+      "body": {
+        "text": "계정 정지를 검토 중이며 질문이 있습니다:"
+      },
+      "button": {
+        "text": "앱에서 답변하기"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "OpenMates 계정이 다시 활성화되었습니다"
+      },
+      "headline": {
+        "text": "계정이 다시 활성화되었습니다"
+      },
+      "body": {
+        "text": "계정 정지를 검토한 후 해제했습니다. 위반 기록이 삭제되었으며 이전처럼 OpenMates를 사용할 수 있습니다."
+      },
+      "apology": {
+        "text": "불편을 드려 죄송합니다."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11536,6 +11589,26 @@
       "text": "문제 신고"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "혼자서 견뎌내지 않아도 괜찮아요"
+    },
+    "call": {
+      "text": "전화하기"
+    },
+    "send_text": {
+      "text": "문자 보내기"
+    },
+    "chat": {
+      "text": "온라인 채팅"
+    },
+    "emergency": {
+      "text": "긴급 상황에는 {emergency_number}로 전화하세요"
+    },
+    "find_more": {
+      "text": "더 많은 상담 전화 찾기"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14581,6 +14654,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "선전, 혐오 콘텐츠, 허위 정보, 조작적인 타블로이드 콘텐츠는 만들 수 없습니다. 작동 방식 설명, 사례 분석, 사실 확인, 명확히 표시된 풍자는 도와드릴 수 있습니다."
+    },
+    "illegal_category": {
+      "text": "미성년자가 관련된 성적 콘텐츠, 동의 없는 사적인 이미지, 실존 인물의 성적 딥페이크, 대량 살상 무기는 도와드릴 수 없습니다."
+    },
+    "live_site_abuse": {
+      "text": "그 사이트는 아마 본인 소유일 것이지만, 실제 운영 중인 사이트에서는 사람 속도의 일반적인 단일 사용자 동작만 수행하므로 대량 댓글, 대량 가입, 비밀번호 추측, 플러딩 같은 대규모·남용 동작은 할 수 없습니다. 이러한 테스트는 현재 localhost, 로컬 개발 환경 또는 로컬에서 실행하는 스테이징 사본에서만 실행됩니다. 설정을 도와드릴게요."
+    },
+    "strike_notice": {
+      "text": "이것은 {max}회 중 {strike}번째 경고입니다."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "보험"
@@ -14683,9 +14770,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "계정이 정지되었습니다"
+    },
+    "appeal_button": {
+      "text": "이의 제기"
+    },
+    "download_button": {
+      "text": "내 데이터 다운로드"
+    },
+    "explanation_label": {
+      "text": "무슨 일이 있었는지 알려 주세요 (최대 1,000자)"
+    },
+    "consent_label": {
+      "text": "표시된 요청만 안전 검토 담당자와 공유하는 데 동의합니다"
+    },
+    "submit": {
+      "text": "이의 제기 보내기"
+    },
+    "sent": {
+      "text": "이의 제기가 전송되었습니다. 7일 이내에 결정을 알려 드립니다."
+    },
+    "admin_title": {
+      "text": "안전 검토"
+    },
+    "admin_restore": {
+      "text": "복원"
+    },
+    "admin_delete": {
+      "text": "삭제"
+    },
+    "admin_ask": {
+      "text": "사용자에게 질문"
+    },
+    "admin_delete_confirm": {
+      "text": "이 계정을 삭제할까요? 전액 환불, 삭제 이메일, 규정 준수 기록이 포함된 표준 삭제입니다."
+    },
+    "admin_empty": {
+      "text": "검토를 기다리는 계정이 없습니다."
+    },
+    "until": {
+      "text": "계정이 {date}까지 정지되었습니다"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what}이(가) 거부되었습니다. {reason} 이것은 {max}회 중 {strike}번째 경고입니다. 세 번째 경고 시 계정이 삭제됩니다."
+      "text": "{what}이(가) 거부되었습니다. {reason} 이것은 {max}회 중 {strike}번째 경고입니다."
     },
     "what_image_generate": {
       "text": "이미지 요청"
@@ -14699,8 +14830,11 @@
     "what_upload": {
       "text": "업로드한 이미지"
     },
-    "deleted": {
-      "text": "콘텐츠 규칙을 세 번째로 위반하여 계정이 삭제되었습니다. 해당되는 구매는 자동으로 환불됩니다."
+    "suspended_until": {
+      "text": "3회 중 2번째 위반입니다. 계정이 {date}까지 정지되며 그 이후 다시 활성화됩니다. 세 번째 위반 시 관리자가 검토할 때까지 계정이 정지됩니다."
+    },
+    "suspended_pending_review": {
+      "text": "3회 중 3번째 위반입니다. 관리자가 검토할 때까지 계정이 정지됩니다. 이 결정에 이의를 제기할 수 있습니다."
     },
     "unavailable": {
       "text": "안전 검사를 일시적으로 사용할 수 없어 이 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."

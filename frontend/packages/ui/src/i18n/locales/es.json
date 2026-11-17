@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Esta respuesta se eliminó porque no cumplía nuestras normas de seguridad."
+    },
+    "wellbeing": {
+      "text": "He eliminado mi última respuesta porque podría hacerte daño. No estás solo. Si piensas en hacerte daño, habla con alguien de confianza o con una línea de crisis o los servicios de emergencia de tu zona. Sigo aquí para hablar."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -6017,6 +6025,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Tu cuenta de OpenMates está suspendida"
+      },
+      "headline": {
+        "text": "Tu cuenta está suspendida"
+      },
+      "body": {
+        "text": "Nuestras comprobaciones de seguridad rechazaron solicitudes de tu cuenta."
+      },
+      "appeal": {
+        "text": "Tienes 14 días para apelar. También puedes descargar tus datos."
+      },
+      "button": {
+        "text": "Apelar o descargar mis datos"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Necesitamos más información sobre tu cuenta"
+      },
+      "headline": {
+        "text": "Necesitamos un poco más de información"
+      },
+      "body": {
+        "text": "Estamos revisando la suspensión de tu cuenta y tenemos una pregunta:"
+      },
+      "button": {
+        "text": "Responder en la app"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Tu cuenta de OpenMates vuelve a estar activa"
+      },
+      "headline": {
+        "text": "Tu cuenta vuelve a estar activa"
+      },
+      "body": {
+        "text": "Hemos revisado la suspensión de tu cuenta y la hemos levantado. Tus infracciones se han borrado y puedes usar OpenMates como antes."
+      },
+      "apology": {
+        "text": "Lamentamos las molestias."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11563,6 +11616,26 @@
       "text": "Reportar problema"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "No tienes que pasar por esto solo"
+    },
+    "call": {
+      "text": "Llamar"
+    },
+    "send_text": {
+      "text": "Enviar SMS"
+    },
+    "chat": {
+      "text": "Chatear en línea"
+    },
+    "emergency": {
+      "text": "En una emergencia, llama al {emergency_number}"
+    },
+    "find_more": {
+      "text": "Encontrar más líneas de ayuda"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14608,6 +14681,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "No puedo crear propaganda, contenido de odio, desinformación ni contenido sensacionalista manipulador. Puedo explicar cómo funcionan, analizar ejemplos, verificar afirmaciones o ayudar con sátira claramente señalada."
+    },
+    "illegal_category": {
+      "text": "No puedo ayudar con contenido sexual con menores, imágenes íntimas sin consentimiento, deepfakes sexuales de personas reales ni armas de daño masivo."
+    },
+    "live_site_abuse": {
+      "text": "Probablemente seas el dueño de ese sitio, pero en sitios en vivo solo hago acciones normales de un solo usuario a velocidad humana, así que no puedo ejecutar acciones masivas o abusivas como comentarios o registros en masa, adivinar contraseñas o saturar el sitio. Esas pruebas hoy solo se ejecutan contra localhost, un entorno de desarrollo local o una copia de staging local. Te ayudo a configurarlo."
+    },
+    "strike_notice": {
+      "text": "Esta es la falta {strike} de {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Seguro"
@@ -14710,9 +14797,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Tu cuenta está suspendida"
+    },
+    "appeal_button": {
+      "text": "Presentar una apelación"
+    },
+    "download_button": {
+      "text": "Descargar mis datos"
+    },
+    "explanation_label": {
+      "text": "Cuéntanos qué ocurrió (hasta 1.000 caracteres)"
+    },
+    "consent_label": {
+      "text": "Acepto compartir solo las solicitudes marcadas con el revisor de seguridad"
+    },
+    "submit": {
+      "text": "Enviar apelación"
+    },
+    "sent": {
+      "text": "Tu apelación se ha enviado. Recibirás una decisión en un plazo de 7 días."
+    },
+    "admin_title": {
+      "text": "Revisiones de seguridad"
+    },
+    "admin_restore": {
+      "text": "Restaurar"
+    },
+    "admin_delete": {
+      "text": "Eliminar"
+    },
+    "admin_ask": {
+      "text": "Preguntar al usuario"
+    },
+    "admin_delete_confirm": {
+      "text": "¿Eliminar esta cuenta? Eliminación estándar con reembolso completo, correo de eliminación y registro de cumplimiento."
+    },
+    "admin_empty": {
+      "text": "Ninguna cuenta está esperando una revisión."
+    },
+    "until": {
+      "text": "Cuenta suspendida hasta el {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} fue rechazada. {reason} Esta es la falta {strike} de {max}. A la tercera falta se elimina tu cuenta."
+      "text": "{what} fue rechazada. {reason} Esta es la falta {strike} de {max}."
     },
     "what_image_generate": {
       "text": "Tu solicitud de imagen"
@@ -14726,8 +14857,11 @@
     "what_upload": {
       "text": "Tu imagen subida"
     },
-    "deleted": {
-      "text": "Tu cuenta se eliminó tras la tercera infracción de las reglas de contenido. Las compras elegibles se reembolsan automáticamente."
+    "suspended_until": {
+      "text": "Esta es la infracción 2 de 3. Tu cuenta está suspendida hasta el {date} y volverá a estar activa después. Una tercera infracción la suspende hasta que un administrador la haya revisado."
+    },
+    "suspended_pending_review": {
+      "text": "Esta es la infracción 3 de 3. Tu cuenta está suspendida hasta que un administrador la haya revisado. Puedes apelar esta decisión."
     },
     "unavailable": {
       "text": "La comprobación de seguridad no está disponible temporalmente, así que no se pudo procesar la solicitud. Inténtalo de nuevo en un momento."

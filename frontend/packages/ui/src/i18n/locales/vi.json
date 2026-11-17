@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Câu trả lời này đã bị gỡ vì không đáp ứng quy tắc an toàn của chúng tôi."
+    },
+    "wellbeing": {
+      "text": "Mình đã gỡ câu trả lời trước vì nó có thể gây hại cho bạn. Bạn không đơn độc. Nếu bạn đang nghĩ đến việc làm hại bản thân, hãy liên hệ người bạn tin tưởng, đường dây hỗ trợ khủng hoảng hoặc dịch vụ khẩn cấp tại địa phương. Mình vẫn ở đây để trò chuyện."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -5990,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Tài khoản OpenMates của bạn đã bị tạm khóa"
+      },
+      "headline": {
+        "text": "Tài khoản của bạn đã bị tạm khóa"
+      },
+      "body": {
+        "text": "Hệ thống kiểm tra an toàn của chúng tôi đã từ chối các yêu cầu từ tài khoản của bạn."
+      },
+      "appeal": {
+        "text": "Bạn có 14 ngày để khiếu nại. Bạn cũng có thể tải dữ liệu của mình."
+      },
+      "button": {
+        "text": "Khiếu nại hoặc tải dữ liệu của tôi"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Chúng tôi cần thêm thông tin về tài khoản của bạn"
+      },
+      "headline": {
+        "text": "Chúng tôi cần thêm một chút thông tin"
+      },
+      "body": {
+        "text": "Chúng tôi đang xem xét việc tạm khóa tài khoản của bạn và có một câu hỏi:"
+      },
+      "button": {
+        "text": "Trả lời trong ứng dụng"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Tài khoản OpenMates của bạn đã hoạt động trở lại"
+      },
+      "headline": {
+        "text": "Tài khoản của bạn đã hoạt động trở lại"
+      },
+      "body": {
+        "text": "Chúng tôi đã xem xét việc tạm khóa tài khoản của bạn và đã gỡ bỏ. Các vi phạm đã được xóa và bạn có thể dùng OpenMates như trước."
+      },
+      "apology": {
+        "text": "Chúng tôi xin lỗi vì sự gián đoạn."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11536,6 +11589,26 @@
       "text": "Báo cáo sự cố"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "Bạn không phải một mình vượt qua chuyện này"
+    },
+    "call": {
+      "text": "Gọi"
+    },
+    "send_text": {
+      "text": "Nhắn tin"
+    },
+    "chat": {
+      "text": "Trò chuyện trực tuyến"
+    },
+    "emergency": {
+      "text": "Trong trường hợp khẩn cấp, hãy gọi {emergency_number}"
+    },
+    "find_more": {
+      "text": "Tìm thêm đường dây hỗ trợ"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14581,6 +14654,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Mình không thể tạo nội dung tuyên truyền, thù hận, thông tin sai lệch hay tin lá cải thao túng. Mình có thể giải thích cách chúng hoạt động, phân tích ví dụ, kiểm chứng thông tin hoặc giúp viết châm biếm được ghi rõ."
+    },
+    "illegal_category": {
+      "text": "Mình không thể giúp với nội dung tình dục liên quan đến trẻ vị thành niên, ảnh riêng tư không có sự đồng ý, deepfake tình dục về người thật hoặc vũ khí gây hại hàng loạt."
+    },
+    "live_site_abuse": {
+      "text": "Có thể bạn đúng là chủ trang đó, nhưng trên các trang đang hoạt động mình chỉ thực hiện thao tác bình thường của một người dùng với tốc độ con người, nên không thể chạy hành động hàng loạt hoặc lạm dụng như bình luận, đăng ký hàng loạt, đoán mật khẩu hay làm quá tải. Các bài kiểm tra này hiện chỉ chạy trên localhost, môi trường dev cục bộ hoặc bản staging chạy cục bộ. Mình sẵn lòng giúp bạn thiết lập."
+    },
+    "strike_notice": {
+      "text": "Đây là lần vi phạm thứ {strike} trên {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Bảo hiểm"
@@ -14683,9 +14770,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Tài khoản của bạn đã bị tạm khóa"
+    },
+    "appeal_button": {
+      "text": "Khiếu nại"
+    },
+    "download_button": {
+      "text": "Tải dữ liệu của tôi"
+    },
+    "explanation_label": {
+      "text": "Hãy cho chúng tôi biết đã xảy ra chuyện gì (tối đa 1.000 ký tự)"
+    },
+    "consent_label": {
+      "text": "Tôi đồng ý chỉ chia sẻ các yêu cầu bị gắn cờ với người kiểm duyệt an toàn"
+    },
+    "submit": {
+      "text": "Gửi khiếu nại"
+    },
+    "sent": {
+      "text": "Khiếu nại của bạn đã được gửi. Bạn sẽ nhận được quyết định trong vòng 7 ngày."
+    },
+    "admin_title": {
+      "text": "Xem xét an toàn"
+    },
+    "admin_restore": {
+      "text": "Khôi phục"
+    },
+    "admin_delete": {
+      "text": "Xóa"
+    },
+    "admin_ask": {
+      "text": "Hỏi người dùng"
+    },
+    "admin_delete_confirm": {
+      "text": "Xóa tài khoản này? Xóa theo quy trình chuẩn, hoàn tiền đầy đủ, gửi email xóa và lưu hồ sơ tuân thủ."
+    },
+    "admin_empty": {
+      "text": "Không có tài khoản nào đang chờ xem xét."
+    },
+    "until": {
+      "text": "Tài khoản bị tạm khóa đến {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} đã bị từ chối. {reason} Đây là lần vi phạm thứ {strike} trên {max}. Vi phạm lần thứ ba sẽ xóa tài khoản của bạn."
+      "text": "{what} đã bị từ chối. {reason} Đây là lần vi phạm thứ {strike} trên {max}."
     },
     "what_image_generate": {
       "text": "Yêu cầu tạo hình ảnh của bạn"
@@ -14699,8 +14830,11 @@
     "what_upload": {
       "text": "Hình ảnh bạn đã tải lên"
     },
-    "deleted": {
-      "text": "Tài khoản của bạn đã bị xóa sau lần vi phạm quy tắc nội dung thứ ba. Các giao dịch mua đủ điều kiện sẽ được hoàn tiền tự động."
+    "suspended_until": {
+      "text": "Đây là vi phạm thứ 2 trên 3. Tài khoản của bạn bị tạm ngưng đến {date} và sẽ hoạt động lại sau đó. Vi phạm thứ ba sẽ tạm ngưng tài khoản cho đến khi quản trị viên xem xét."
+    },
+    "suspended_pending_review": {
+      "text": "Đây là vi phạm thứ 3 trên 3. Tài khoản của bạn bị tạm ngưng cho đến khi quản trị viên xem xét. Bạn có thể khiếu nại quyết định này."
     },
     "unavailable": {
       "text": "Kiểm tra an toàn tạm thời không khả dụng nên yêu cầu này chưa thể được xử lý. Vui lòng thử lại sau một lát."

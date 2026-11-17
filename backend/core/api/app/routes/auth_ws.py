@@ -10,6 +10,10 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.utils.ws_token import verify_ws_token
+from backend.shared.python_utils.image_safety.account_suspension import (
+    AccountSuspendedError,
+    raise_if_suspended,
+)
 from backend.core.api.app.services.pair_session_deadline import get_pair_deadline_hash
 from backend.core.api.app.services.session_security_state import (
     ensure_legacy_session_hash_state, get_session_state_cached,
@@ -172,6 +176,12 @@ async def get_current_user_ws(
             logger.error("WebSocket connection denied: User data in cache is invalid (missing user_id).")
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Server error")
             # Return None to signal authentication failure - connection already closed, no need to raise
+            return None
+
+        try:
+            raise_if_suspended(await cache_service.get_user_by_id(user_id))
+        except AccountSuspendedError:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Account suspended")
             return None
 
         # A valid HMAC assertion selecting this exact already-validated hash

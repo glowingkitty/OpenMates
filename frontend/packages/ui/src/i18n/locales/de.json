@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Diese Antwort wurde entfernt, weil sie unsere Sicherheitsregeln nicht erfüllt."
+    },
+    "wellbeing": {
+      "text": "Ich habe meine letzte Antwort entfernt, weil sie dir schaden könnte. Du bist nicht allein. Wenn du daran denkst, dir etwas anzutun, wende dich bitte an eine Person, der du vertraust, an eine Krisenhotline oder den Notruf. Ich bin weiterhin für dich da."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -7615,6 +7623,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Dein OpenMates-Konto ist gesperrt"
+      },
+      "headline": {
+        "text": "Dein Konto ist gesperrt"
+      },
+      "body": {
+        "text": "Unsere Sicherheitsprüfungen haben Anfragen deines Kontos abgelehnt."
+      },
+      "appeal": {
+        "text": "Du hast 14 Tage Zeit für einen Einspruch. Du kannst auch deine Daten herunterladen."
+      },
+      "button": {
+        "text": "Einspruch einlegen oder Daten herunterladen"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Wir brauchen mehr Informationen zu deinem Konto"
+      },
+      "headline": {
+        "text": "Wir brauchen noch etwas Information"
+      },
+      "body": {
+        "text": "Wir prüfen die Sperrung deines Kontos und haben eine Frage:"
+      },
+      "button": {
+        "text": "In der App antworten"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Dein OpenMates-Konto ist wieder aktiv"
+      },
+      "headline": {
+        "text": "Dein Konto ist wieder aktiv"
+      },
+      "body": {
+        "text": "Wir haben die Sperrung deines Kontos geprüft und aufgehoben. Deine Verstöße wurden gelöscht und du kannst OpenMates wieder wie gewohnt nutzen."
+      },
+      "apology": {
+        "text": "Wir entschuldigen uns für die Unterbrechung."
+      }
     }
   },
   "embed_user_edits": {
@@ -13793,6 +13846,26 @@
       "text": "Problem melden"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "Du musst da nicht allein durch"
+    },
+    "call": {
+      "text": "Anrufen"
+    },
+    "send_text": {
+      "text": "SMS senden"
+    },
+    "chat": {
+      "text": "Online chatten"
+    },
+    "emergency": {
+      "text": "Im Notfall ruf {emergency_number} an"
+    },
+    "find_more": {
+      "text": "Weitere Hilfetelefone finden"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -18024,6 +18097,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Ich kann keine Propaganda, Hassinhalte, Desinformation oder manipulative Boulevardinhalte erstellen. Gern erkläre ich, wie sie funktionieren, analysiere Beispiele, prüfe Behauptungen oder helfe bei klar gekennzeichneter Satire."
+    },
+    "illegal_category": {
+      "text": "Dabei kann ich nicht helfen: sexuelle Inhalte mit Minderjährigen, intime Bilder ohne Einwilligung, sexuelle Deepfakes echter Personen oder Waffen für Massenschäden."
+    },
+    "live_site_abuse": {
+      "text": "Du besitzt diese Seite vermutlich wirklich, aber auf Live-Websites führe ich nur normale Einzelnutzer-Aktionen in menschlichem Tempo aus und kann daher keine Massen- oder Missbrauchsaktionen wie Massenkommentare, Anmeldungen, Passwort-Raten oder Flooding ausführen. Solche Tests laufen derzeit nur gegen localhost, eine lokale Entwicklungsumgebung oder eine lokal betriebene Staging-Kopie. Ich helfe dir gern beim Einrichten."
+    },
+    "strike_notice": {
+      "text": "Das ist Verstoß {strike} von {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Versicherung"
@@ -18271,9 +18358,53 @@
       "text": "Wartet auf eine Aktualisierung."
     }
   },
+  "safety_appeal": {
+    "title": {
+      "text": "Dein Konto ist gesperrt"
+    },
+    "appeal_button": {
+      "text": "Einspruch einlegen"
+    },
+    "download_button": {
+      "text": "Meine Daten herunterladen"
+    },
+    "explanation_label": {
+      "text": "Erzähl uns, was passiert ist (bis zu 1.000 Zeichen)"
+    },
+    "consent_label": {
+      "text": "Ich stimme zu, nur die markierten Anfragen mit der Sicherheitsprüfung zu teilen"
+    },
+    "submit": {
+      "text": "Einspruch senden"
+    },
+    "sent": {
+      "text": "Dein Einspruch wurde gesendet. Du erhältst innerhalb von 7 Tagen eine Entscheidung."
+    },
+    "admin_title": {
+      "text": "Sicherheitsprüfungen"
+    },
+    "admin_restore": {
+      "text": "Wiederherstellen"
+    },
+    "admin_delete": {
+      "text": "Löschen"
+    },
+    "admin_ask": {
+      "text": "Nutzer fragen"
+    },
+    "admin_delete_confirm": {
+      "text": "Dieses Konto löschen? Reguläre Löschung mit voller Erstattung, Lösch-E-Mail und Compliance-Eintrag."
+    },
+    "admin_empty": {
+      "text": "Kein Konto wartet auf eine Prüfung."
+    },
+    "until": {
+      "text": "Konto gesperrt bis {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} wurde abgelehnt. {reason} Das ist Verstoß {strike} von {max}. Beim dritten Verstoß wird dein Konto gelöscht."
+      "text": "{what} wurde abgelehnt. {reason} Das ist Verstoß {strike} von {max}."
     },
     "what_image_generate": {
       "text": "Deine Bildanfrage"
@@ -18287,8 +18418,11 @@
     "what_upload": {
       "text": "Dein hochgeladenes Bild"
     },
-    "deleted": {
-      "text": "Dein Konto wurde nach dem dritten Verstoß gegen die Inhaltsregeln gelöscht. Berechtigte Käufe werden automatisch erstattet."
+    "suspended_until": {
+      "text": "Das ist Verstoß 2 von 3. Dein Konto ist bis {date} gesperrt und danach wieder aktiv. Ein dritter Verstoß sperrt es, bis ein Admin es geprüft hat."
+    },
+    "suspended_pending_review": {
+      "text": "Das ist Verstoß 3 von 3. Dein Konto ist gesperrt, bis ein Admin es geprüft hat. Du kannst gegen diese Entscheidung Einspruch einlegen."
     },
     "unavailable": {
       "text": "Die Sicherheitsprüfung ist vorübergehend nicht verfügbar, deshalb konnte die Anfrage nicht verarbeitet werden. Bitte versuche es gleich noch einmal."

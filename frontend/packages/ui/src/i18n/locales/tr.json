@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Bu yanıt güvenlik kurallarımıza uymadığı için kaldırıldı."
+    },
+    "wellbeing": {
+      "text": "Son yanıtımı sana zarar verebileceği için kaldırdım. Yalnız değilsin. Kendine zarar vermeyi düşünüyorsan lütfen güvendiğin biriyle, yerel bir kriz hattıyla veya acil servislerle iletişime geç. Hâlâ burada seninle konuşabilirim."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -5990,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "OpenMates hesabın askıya alındı"
+      },
+      "headline": {
+        "text": "Hesabın askıya alındı"
+      },
+      "body": {
+        "text": "Güvenlik kontrollerimiz hesabından gelen istekleri reddetti."
+      },
+      "appeal": {
+        "text": "İtiraz etmek için 14 günün var. Verilerini de indirebilirsin."
+      },
+      "button": {
+        "text": "İtiraz et veya verilerimi indir"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Hesabın hakkında daha fazla bilgiye ihtiyacımız var"
+      },
+      "headline": {
+        "text": "Biraz daha bilgiye ihtiyacımız var"
+      },
+      "body": {
+        "text": "Hesabının askıya alınmasını inceliyoruz ve bir sorumuz var:"
+      },
+      "button": {
+        "text": "Uygulamada yanıtla"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "OpenMates hesabın yeniden aktif"
+      },
+      "headline": {
+        "text": "Hesabın yeniden aktif"
+      },
+      "body": {
+        "text": "Hesabının askıya alınmasını inceledik ve kaldırdık. İhlallerin silindi ve OpenMates'i eskisi gibi kullanabilirsin."
+      },
+      "apology": {
+        "text": "Yaşattığımız kesinti için üzgünüz."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11536,6 +11589,26 @@
       "text": "Sorun bildir"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "Bununla tek başına uğraşmak zorunda değilsin"
+    },
+    "call": {
+      "text": "Ara"
+    },
+    "send_text": {
+      "text": "SMS gönder"
+    },
+    "chat": {
+      "text": "Çevrimiçi sohbet"
+    },
+    "emergency": {
+      "text": "Acil durumda {emergency_number} numarasını ara"
+    },
+    "find_more": {
+      "text": "Daha fazla yardım hattı bul"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14581,6 +14654,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Propaganda, nefret içeriği, dezenformasyon veya manipülatif magazin içeriği oluşturamam. Nasıl çalıştıklarını açıklayabilir, örnekleri analiz edebilir, iddiaları doğrulayabilir veya açıkça belirtilmiş hiciv için yardımcı olabilirim."
+    },
+    "illegal_category": {
+      "text": "Reşit olmayanları içeren cinsel içerik, rızasız mahrem görüntüler, gerçek kişilerin cinsel deepfake'leri veya kitlesel zarar silahları konusunda yardımcı olamam."
+    },
+    "live_site_abuse": {
+      "text": "Muhtemelen siteye gerçekten sahipsin, ancak canlı sitelerde yalnızca insan hızında normal tek kullanıcı eylemleri yapıyorum; bu yüzden toplu yorum, toplu kayıt, parola tahmini veya sel gibi toplu ya da kötüye kullanım eylemleri yapamam. Bu tür testler şu an yalnızca localhost, yerel geliştirme ortamı veya yerelde çalışan bir staging kopyasında yapılıyor. Kurmana yardımcı olurum."
+    },
+    "strike_notice": {
+      "text": "Bu, {max} ihlalin {strike}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Sigorta"
@@ -14683,9 +14770,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Hesabın askıya alındı"
+    },
+    "appeal_button": {
+      "text": "İtiraz et"
+    },
+    "download_button": {
+      "text": "Verilerimi indir"
+    },
+    "explanation_label": {
+      "text": "Ne olduğunu anlat (en fazla 1.000 karakter)"
+    },
+    "consent_label": {
+      "text": "Yalnızca işaretlenen isteklerin güvenlik incelemecisiyle paylaşılmasını kabul ediyorum"
+    },
+    "submit": {
+      "text": "İtirazı gönder"
+    },
+    "sent": {
+      "text": "İtirazın gönderildi. 7 gün içinde bir karar alacaksın."
+    },
+    "admin_title": {
+      "text": "Güvenlik incelemeleri"
+    },
+    "admin_restore": {
+      "text": "Geri yükle"
+    },
+    "admin_delete": {
+      "text": "Sil"
+    },
+    "admin_ask": {
+      "text": "Kullanıcıya sor"
+    },
+    "admin_delete_confirm": {
+      "text": "Bu hesap silinsin mi? Tam iade, silme e-postası ve uyumluluk kaydı ile standart silme."
+    },
+    "admin_empty": {
+      "text": "İnceleme bekleyen hesap yok."
+    },
+    "until": {
+      "text": "Hesap {date} tarihine kadar askıda"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} reddedildi. {reason} Bu, {max} ihlalin {strike}. ihlali. Üçüncü ihlalde hesabınız silinir."
+      "text": "{what} reddedildi. {reason} Bu, {max} ihlalin {strike}."
     },
     "what_image_generate": {
       "text": "Görsel isteğiniz"
@@ -14699,8 +14830,11 @@
     "what_upload": {
       "text": "Yüklediğiniz görsel"
     },
-    "deleted": {
-      "text": "Hesabınız, içerik kurallarının üçüncü ihlali nedeniyle silindi. Uygun satın alımlar otomatik olarak iade edilir."
+    "suspended_until": {
+      "text": "Bu, 3 ihlalden 2.'sidir. Hesabın {date} tarihine kadar askıya alındı ve sonrasında yeniden etkin olacak. Üçüncü bir ihlal, hesabı bir yönetici inceleyene kadar askıya alır."
+    },
+    "suspended_pending_review": {
+      "text": "Bu, 3 ihlalden 3.'südür. Hesabın bir yönetici inceleyene kadar askıya alındı. Bu karara itiraz edebilirsin."
     },
     "unavailable": {
       "text": "Güvenlik kontrolü geçici olarak kullanılamıyor, bu yüzden istek işlenemedi. Lütfen birazdan tekrar deneyin."

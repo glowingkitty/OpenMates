@@ -1,0 +1,53 @@
+# frontend/packages/ui/src/i18n/sources/answer_safety.yml
+# Notice that replaces an assistant answer withdrawn after the answer-safety check.
+# Used by backend/apps/ai/processing/answer_safety.py. A withdrawn answer never costs the user a strike.
+
+illegal:
+  context: "Short, neutral notice shown in place of an assistant answer that was withdrawn because it gave real help toward illegal content"
+  en: "This answer was removed because it did not meet our safety rules."
+  de: "Diese Antwort wurde entfernt, weil sie unsere Sicherheitsregeln nicht erfüllt."
+  zh: "此回答已被删除，因为它不符合我们的安全规则。"
+  es: "Esta respuesta se eliminó porque no cumplía nuestras normas de seguridad."
+  fr: "Cette réponse a été supprimée car elle ne respectait pas nos règles de sécurité."
+  pt: "Esta resposta foi removida porque não cumpria as nossas regras de segurança."
+  ru: "Этот ответ удалён, так как он не соответствует нашим правилам безопасности."
+  ja: "この回答は安全ルールを満たしていないため削除されました。"
+  ko: "이 답변은 안전 규칙에 맞지 않아 삭제되었습니다."
+  it: "Questa risposta è stata rimossa perché non rispettava le nostre regole di sicurezza."
+  tr: "Bu yanıt güvenlik kurallarımıza uymadığı için kaldırıldı."
+  vi: "Câu trả lời này đã bị gỡ vì không đáp ứng quy tắc an toàn của chúng tôi."
+  id: "Jawaban ini dihapus karena tidak memenuhi aturan keamanan kami."
+  pl: "Ta odpowiedź została usunięta, ponieważ nie spełniała naszych zasad bezpieczeństwa."
+  nl: "Dit antwoord is verwijderd omdat het niet voldeed aan onze veiligheidsregels."
+  ar: "تمت إزالة هذه الإجابة لأنها لا تلتزم بقواعد السلامة لدينا."
+  hi: "यह उत्तर हटा दिया गया क्योंकि यह हमारे सुरक्षा नियमों के अनुरूप नहीं था।"
+  th: "คำตอบนี้ถูกลบเพราะไม่เป็นไปตามกฎความปลอดภัยของเรา"
+  cs: "Tato odpověď byla odstraněna, protože nesplňovala naše bezpečnostní pravidla."
+  sv: "Det här svaret togs bort eftersom det inte uppfyllde våra säkerhetsregler."
+  he: "התשובה הזו הוסרה כי היא לא עמדה בכללי הבטיחות שלנו."
+  verified_by_human: []
+
+wellbeing:
+  context: "Kind notice shown in place of an assistant answer that was withdrawn because it could harm the user's wellbeing; points to support"
+  en: "I removed my last answer because it could be harmful for you. You are not alone. If you are thinking about hurting yourself, please reach out to someone you trust or to a local crisis line or emergency service. I am still here to talk."
+  de: "Ich habe meine letzte Antwort entfernt, weil sie dir schaden könnte. Du bist nicht allein. Wenn du daran denkst, dir etwas anzutun, wende dich bitte an eine Person, der du vertraust, an eine Krisenhotline oder den Notruf. Ich bin weiterhin für dich da."
+  zh: "我删除了上一条回答，因为它可能对你有害。你并不孤单。如果你有伤害自己的念头，请联系你信任的人，或当地的危机热线或紧急服务。我仍然在这里陪你聊聊。"
+  es: "He eliminado mi última respuesta porque podría hacerte daño. No estás solo. Si piensas en hacerte daño, habla con alguien de confianza o con una línea de crisis o los servicios de emergencia de tu zona. Sigo aquí para hablar."
+  fr: "J'ai supprimé ma dernière réponse car elle pouvait te nuire. Tu n'es pas seul. Si tu penses à te faire du mal, parle à une personne de confiance, à une ligne d'écoute de crise ou aux services d'urgence. Je suis toujours là pour discuter."
+  pt: "Removi a minha última resposta porque podia ser prejudicial para ti. Não estás sozinho. Se pensas em magoar-te, fala com alguém de confiança ou com uma linha de crise ou os serviços de emergência locais. Continuo aqui para conversar."
+  ru: "Я удалил свой последний ответ, потому что он мог навредить тебе. Ты не один. Если ты думаешь о том, чтобы причинить себе вред, обратись к близкому человеку, на местную линию помощи или в экстренные службы. Я по-прежнему здесь, чтобы поговорить."
+  ja: "前の回答は、あなたを傷つける可能性があるため削除しました。あなたは一人ではありません。自分を傷つけることを考えているなら、信頼できる人や、お住まいの地域の相談窓口、緊急サービスに連絡してください。私はここで話を聞きます。"
+  ko: "이전 답변이 당신에게 해로울 수 있어 삭제했습니다. 당신은 혼자가 아닙니다. 스스로를 해치는 생각이 든다면 믿을 수 있는 사람이나 지역의 위기 상담 전화, 응급 서비스에 연락해 주세요. 저는 여기서 계속 이야기할 수 있어요."
+  it: "Ho rimosso la mia ultima risposta perché poteva farti del male. Non sei solo. Se stai pensando di farti del male, rivolgiti a una persona di fiducia, a una linea di aiuto in caso di crisi o ai servizi di emergenza. Io sono ancora qui per parlare."
+  tr: "Son yanıtımı sana zarar verebileceği için kaldırdım. Yalnız değilsin. Kendine zarar vermeyi düşünüyorsan lütfen güvendiğin biriyle, yerel bir kriz hattıyla veya acil servislerle iletişime geç. Hâlâ burada seninle konuşabilirim."
+  vi: "Mình đã gỡ câu trả lời trước vì nó có thể gây hại cho bạn. Bạn không đơn độc. Nếu bạn đang nghĩ đến việc làm hại bản thân, hãy liên hệ người bạn tin tưởng, đường dây hỗ trợ khủng hoảng hoặc dịch vụ khẩn cấp tại địa phương. Mình vẫn ở đây để trò chuyện."
+  id: "Aku menghapus jawaban terakhirku karena bisa berbahaya bagimu. Kamu tidak sendirian. Jika kamu berpikir untuk menyakiti diri sendiri, hubungi orang yang kamu percaya, layanan krisis atau layanan darurat setempat. Aku masih di sini untuk berbincang."
+  pl: "Usunąłem swoją ostatnią odpowiedź, ponieważ mogła ci zaszkodzić. Nie jesteś sam. Jeśli myślisz o skrzywdzeniu siebie, skontaktuj się z zaufaną osobą, lokalną linią kryzysową lub służbami ratunkowymi. Nadal tu jestem, żeby porozmawiać."
+  nl: "Ik heb mijn laatste antwoord verwijderd omdat het schadelijk voor je kon zijn. Je staat er niet alleen voor. Als je eraan denkt jezelf iets aan te doen, neem dan contact op met iemand die je vertrouwt, een crisislijn of de hulpdiensten. Ik ben er nog steeds om te praten."
+  ar: "حذفت إجابتي الأخيرة لأنها قد تضرّك. لست وحدك. إذا كنت تفكر في إيذاء نفسك، فتواصل مع شخص تثق به أو مع خط مساعدة للأزمات أو خدمات الطوارئ في منطقتك. ما زلت هنا للتحدث معك."
+  hi: "मैंने अपना पिछला उत्तर हटा दिया क्योंकि वह आपके लिए हानिकारक हो सकता था। आप अकेले नहीं हैं। अगर आप खुद को नुकसान पहुँचाने के बारे में सोच रहे हैं, तो किसी भरोसेमंद व्यक्ति, स्थानीय संकट हेल्पलाइन या आपातकालीन सेवा से संपर्क करें। मैं अब भी बात करने के लिए यहाँ हूँ।"
+  th: "ฉันลบคำตอบล่าสุดออกเพราะอาจเป็นอันตรายต่อคุณ คุณไม่ได้อยู่คนเดียว ถ้าคุณกำลังคิดจะทำร้ายตัวเอง โปรดติดต่อคนที่คุณไว้ใจ สายด่วนช่วยเหลือผู้ที่อยู่ในภาวะวิกฤต หรือบริการฉุกเฉินในพื้นที่ ฉันยังอยู่ตรงนี้เพื่อคุยกับคุณ"
+  cs: "Svou poslední odpověď jsem odstranil, protože by ti mohla ublížit. Nejsi sám. Pokud přemýšlíš o tom, že si ublížíš, obrať se na někoho, komu věříš, na krizovou linku nebo na záchranné služby. Pořád jsem tu, abychom si mohli promluvit."
+  sv: "Jag tog bort mitt senaste svar eftersom det kunde skada dig. Du är inte ensam. Om du tänker på att skada dig själv, kontakta någon du litar på, en lokal krislinje eller räddningstjänsten. Jag finns kvar om du vill prata."
+  he: "הסרתי את התשובה האחרונה שלי כי היא עלולה להזיק לך. אתה לא לבד. אם אתה חושב לפגוע בעצמך, פנה למישהו שאתה סומך עליו, לקו סיוע למשבר או לשירותי החירום. אני עדיין כאן כדי לדבר."
+  verified_by_human: []

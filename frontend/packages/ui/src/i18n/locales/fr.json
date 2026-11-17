@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Cette réponse a été supprimée car elle ne respectait pas nos règles de sécurité."
+    },
+    "wellbeing": {
+      "text": "J'ai supprimé ma dernière réponse car elle pouvait te nuire. Tu n'es pas seul. Si tu penses à te faire du mal, parle à une personne de confiance, à une ligne d'écoute de crise ou aux services d'urgence. Je suis toujours là pour discuter."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -6017,6 +6025,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Ton compte OpenMates est suspendu"
+      },
+      "headline": {
+        "text": "Ton compte est suspendu"
+      },
+      "body": {
+        "text": "Nos contrôles de sécurité ont rejeté des demandes de ton compte."
+      },
+      "appeal": {
+        "text": "Tu as 14 jours pour faire appel. Tu peux aussi télécharger tes données."
+      },
+      "button": {
+        "text": "Faire appel ou télécharger mes données"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Nous avons besoin de plus d'informations sur ton compte"
+      },
+      "headline": {
+        "text": "Nous avons besoin d'un peu plus d'informations"
+      },
+      "body": {
+        "text": "Nous examinons la suspension de ton compte et avons une question :"
+      },
+      "button": {
+        "text": "Répondre dans l'app"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Ton compte OpenMates est de nouveau actif"
+      },
+      "headline": {
+        "text": "Ton compte est de nouveau actif"
+      },
+      "body": {
+        "text": "Nous avons examiné la suspension de ton compte et l'avons levée. Tes avertissements ont été effacés et tu peux utiliser OpenMates comme avant."
+      },
+      "apology": {
+        "text": "Nous sommes désolés pour la gêne occasionnée."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11563,6 +11616,26 @@
       "text": "Signaler un problème"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "Tu n'as pas à traverser cela seul"
+    },
+    "call": {
+      "text": "Appeler"
+    },
+    "send_text": {
+      "text": "Envoyer un SMS"
+    },
+    "chat": {
+      "text": "Chatter en ligne"
+    },
+    "emergency": {
+      "text": "En cas d'urgence, appelle le {emergency_number}"
+    },
+    "find_more": {
+      "text": "Trouver d'autres lignes d'écoute"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14608,6 +14681,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Je ne peux pas créer de propagande, de contenu haineux, de désinformation ou de contenu de presse à sensation manipulateur. Je peux expliquer leur fonctionnement, analyser des exemples, vérifier des affirmations ou aider pour une satire clairement signalée."
+    },
+    "illegal_category": {
+      "text": "Je ne peux pas aider pour du contenu sexuel impliquant des mineurs, des images intimes sans consentement, des deepfakes sexuels de personnes réelles ou des armes de destruction massive."
+    },
+    "live_site_abuse": {
+      "text": "Vous êtes sans doute bien propriétaire de ce site, mais sur les sites en ligne je n'effectue que des actions normales d'un seul utilisateur à vitesse humaine ; je ne peux donc pas lancer d'actions massives ou abusives (commentaires ou inscriptions en masse, devinette de mots de passe, saturation). Ces tests ne tournent actuellement que sur localhost, un environnement de dev local ou une copie de staging locale. Je vous aide volontiers à le mettre en place."
+    },
+    "strike_notice": {
+      "text": "C'est l'avertissement {strike} sur {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Assurance"
@@ -14710,9 +14797,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Ton compte est suspendu"
+    },
+    "appeal_button": {
+      "text": "Faire appel"
+    },
+    "download_button": {
+      "text": "Télécharger mes données"
+    },
+    "explanation_label": {
+      "text": "Raconte-nous ce qui s'est passé (jusqu'à 1 000 caractères)"
+    },
+    "consent_label": {
+      "text": "J'accepte de ne partager que les demandes signalées avec le réviseur de sécurité"
+    },
+    "submit": {
+      "text": "Envoyer l'appel"
+    },
+    "sent": {
+      "text": "Ton appel a été envoyé. Tu recevras une décision sous 7 jours."
+    },
+    "admin_title": {
+      "text": "Contrôles de sécurité"
+    },
+    "admin_restore": {
+      "text": "Rétablir"
+    },
+    "admin_delete": {
+      "text": "Supprimer"
+    },
+    "admin_ask": {
+      "text": "Interroger l'utilisateur"
+    },
+    "admin_delete_confirm": {
+      "text": "Supprimer ce compte ? Suppression standard avec remboursement intégral, e-mail de suppression et enregistrement de conformité."
+    },
+    "admin_empty": {
+      "text": "Aucun compte n'attend de contrôle."
+    },
+    "until": {
+      "text": "Compte suspendu jusqu'au {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} a été refusée. {reason} C'est l'avertissement {strike} sur {max}. Au troisième, ton compte est supprimé."
+      "text": "{what} a été refusée. {reason} C'est l'avertissement {strike} sur {max}."
     },
     "what_image_generate": {
       "text": "Ta demande d'image"
@@ -14726,8 +14857,11 @@
     "what_upload": {
       "text": "Ton image importée"
     },
-    "deleted": {
-      "text": "Ton compte a été supprimé après la troisième violation des règles de contenu. Les achats éligibles sont remboursés automatiquement."
+    "suspended_until": {
+      "text": "Ceci est l'infraction 2 sur 3. Ton compte est suspendu jusqu'au {date} et sera de nouveau actif ensuite. Une troisième infraction le suspend jusqu'à ce qu'un administrateur l'ait examiné."
+    },
+    "suspended_pending_review": {
+      "text": "Ceci est l'infraction 3 sur 3. Ton compte est suspendu jusqu'à ce qu'un administrateur l'ait examiné. Tu peux faire appel de cette décision."
     },
     "unavailable": {
       "text": "La vérification de sécurité est temporairement indisponible, la demande n'a donc pas pu être traitée. Réessaie dans un instant."

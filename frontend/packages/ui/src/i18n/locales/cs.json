@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Tato odpověď byla odstraněna, protože nesplňovala naše bezpečnostní pravidla."
+    },
+    "wellbeing": {
+      "text": "Svou poslední odpověď jsem odstranil, protože by ti mohla ublížit. Nejsi sám. Pokud přemýšlíš o tom, že si ublížíš, obrať se na někoho, komu věříš, na krizovou linku nebo na záchranné služby. Pořád jsem tu, abychom si mohli promluvit."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -5990,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Tvůj účet OpenMates je pozastaven"
+      },
+      "headline": {
+        "text": "Tvůj účet je pozastaven"
+      },
+      "body": {
+        "text": "Naše bezpečnostní kontroly zamítly požadavky z tvého účtu."
+      },
+      "appeal": {
+        "text": "Na odvolání máš 14 dní. Můžeš si také stáhnout svá data."
+      },
+      "button": {
+        "text": "Odvolat se nebo stáhnout moje data"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Potřebujeme o tvém účtu více informací"
+      },
+      "headline": {
+        "text": "Potřebujeme ještě trochu informací"
+      },
+      "body": {
+        "text": "Posuzujeme pozastavení tvého účtu a máme otázku:"
+      },
+      "button": {
+        "text": "Odpovědět v aplikaci"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Tvůj účet OpenMates je opět aktivní"
+      },
+      "headline": {
+        "text": "Tvůj účet je opět aktivní"
+      },
+      "body": {
+        "text": "Pozastavení tvého účtu jsme přezkoumali a zrušili. Tvá porušení byla vymazána a OpenMates můžeš používat jako dřív."
+      },
+      "apology": {
+        "text": "Omlouváme se za přerušení."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11536,6 +11589,26 @@
       "text": "Nahlásit problém"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "Nemusíš tím procházet sám"
+    },
+    "call": {
+      "text": "Zavolat"
+    },
+    "send_text": {
+      "text": "Poslat SMS"
+    },
+    "chat": {
+      "text": "Chat online"
+    },
+    "emergency": {
+      "text": "V naléhavé situaci volej {emergency_number}"
+    },
+    "find_more": {
+      "text": "Najít další linky pomoci"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14581,6 +14654,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Nemohu vytvářet propagandu, nenávistný obsah, dezinformace ani manipulativní bulvární obsah. Rád vysvětlím, jak fungují, rozeberu příklady, ověřím tvrzení nebo pomohu s jasně označenou satirou."
+    },
+    "illegal_category": {
+      "text": "S obsahem sexuálního charakteru s nezletilými, intimními snímky bez souhlasu, sexuálními deepfaky skutečných osob ani zbraněmi hromadného ničení pomoci nemohu."
+    },
+    "live_site_abuse": {
+      "text": "Ten web pravděpodobně opravdu vlastníte, ale na živých webech provádím jen běžné akce jednoho uživatele lidským tempem, takže nemohu spouštět hromadné ani zneužívající akce jako hromadné komentáře, registrace, hádání hesel nebo zahlcení. Takové testy zatím běží jen proti localhostu, lokálnímu vývojovému prostředí nebo lokálně spuštěné staging kopii. Rád vám to pomohu nastavit."
+    },
+    "strike_notice": {
+      "text": "Toto je porušení {strike} z {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Pojištění"
@@ -14683,9 +14770,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Tvůj účet je pozastaven"
+    },
+    "appeal_button": {
+      "text": "Podat odvolání"
+    },
+    "download_button": {
+      "text": "Stáhnout moje data"
+    },
+    "explanation_label": {
+      "text": "Řekni nám, co se stalo (až 1 000 znaků)"
+    },
+    "consent_label": {
+      "text": "Souhlasím, že s bezpečnostním posuzovatelem budou sdíleny jen označené požadavky"
+    },
+    "submit": {
+      "text": "Odeslat odvolání"
+    },
+    "sent": {
+      "text": "Tvé odvolání bylo odesláno. Rozhodnutí dostaneš do 7 dnů."
+    },
+    "admin_title": {
+      "text": "Bezpečnostní kontroly"
+    },
+    "admin_restore": {
+      "text": "Obnovit"
+    },
+    "admin_delete": {
+      "text": "Smazat"
+    },
+    "admin_ask": {
+      "text": "Zeptat se uživatele"
+    },
+    "admin_delete_confirm": {
+      "text": "Smazat tento účet? Standardní smazání s plným vrácením peněz, e-mailem o smazání a záznamem o shodě."
+    },
+    "admin_empty": {
+      "text": "Žádný účet nečeká na kontrolu."
+    },
+    "until": {
+      "text": "Účet pozastaven do {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} bylo zamítnuto. {reason} Toto je porušení {strike} z {max}. Při třetím porušení bude tvůj účet smazán."
+      "text": "{what} bylo zamítnuto. {reason} Toto je porušení {strike} z {max}."
     },
     "what_image_generate": {
       "text": "Tvůj požadavek na obrázek"
@@ -14699,8 +14830,11 @@
     "what_upload": {
       "text": "Tvůj nahraný obrázek"
     },
-    "deleted": {
-      "text": "Tvůj účet byl smazán po třetím porušení pravidel pro obsah. Způsobilé nákupy se vracejí automaticky."
+    "suspended_until": {
+      "text": "Toto je porušení 2 ze 3. Tvůj účet je pozastaven do {date} a poté bude znovu aktivní. Třetí porušení ho pozastaví, dokud ho nezkontroluje administrátor."
+    },
+    "suspended_pending_review": {
+      "text": "Toto je porušení 3 ze 3. Tvůj účet je pozastaven, dokud ho nezkontroluje administrátor. Proti tomuto rozhodnutí se můžeš odvolat."
     },
     "unavailable": {
       "text": "Bezpečnostní kontrola je dočasně nedostupná, proto nešlo požadavek zpracovat. Zkus to prosím za chvíli znovu."

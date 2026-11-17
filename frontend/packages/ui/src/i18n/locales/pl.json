@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Ta odpowiedź została usunięta, ponieważ nie spełniała naszych zasad bezpieczeństwa."
+    },
+    "wellbeing": {
+      "text": "Usunąłem swoją ostatnią odpowiedź, ponieważ mogła ci zaszkodzić. Nie jesteś sam. Jeśli myślisz o skrzywdzeniu siebie, skontaktuj się z zaufaną osobą, lokalną linią kryzysową lub służbami ratunkowymi. Nadal tu jestem, żeby porozmawiać."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -5990,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Twoje konto OpenMates jest zawieszone"
+      },
+      "headline": {
+        "text": "Twoje konto jest zawieszone"
+      },
+      "body": {
+        "text": "Nasze kontrole bezpieczeństwa odrzuciły prośby z Twojego konta."
+      },
+      "appeal": {
+        "text": "Masz 14 dni na odwołanie. Możesz też pobrać swoje dane."
+      },
+      "button": {
+        "text": "Odwołaj się lub pobierz moje dane"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Potrzebujemy więcej informacji o Twoim koncie"
+      },
+      "headline": {
+        "text": "Potrzebujemy jeszcze trochę informacji"
+      },
+      "body": {
+        "text": "Sprawdzamy zawieszenie Twojego konta i mamy pytanie:"
+      },
+      "button": {
+        "text": "Odpowiedz w aplikacji"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Twoje konto OpenMates jest znowu aktywne"
+      },
+      "headline": {
+        "text": "Twoje konto jest znowu aktywne"
+      },
+      "body": {
+        "text": "Sprawdziliśmy zawieszenie Twojego konta i je zniosliśmy. Twoje naruszenia zostały wyczyszczone i możesz korzystać z OpenMates jak dawniej."
+      },
+      "apology": {
+        "text": "Przepraszamy za utrudnienia."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11536,6 +11589,26 @@
       "text": "Zgłoś problem"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "Nie musisz przechodzić przez to sam"
+    },
+    "call": {
+      "text": "Zadzwoń"
+    },
+    "send_text": {
+      "text": "Wyślij SMS"
+    },
+    "chat": {
+      "text": "Czat online"
+    },
+    "emergency": {
+      "text": "W nagłej sytuacji zadzwoń pod {emergency_number}"
+    },
+    "find_more": {
+      "text": "Znajdź więcej telefonów pomocy"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14581,6 +14654,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Nie mogę tworzyć propagandy, treści nienawistnych, dezinformacji ani manipulacyjnych treści tabloidowych. Mogę wyjaśnić, jak działają, przeanalizować przykłady, sprawdzić twierdzenia lub pomóc w wyraźnie oznaczonej satyrze."
+    },
+    "illegal_category": {
+      "text": "Nie mogę pomóc w sprawie treści seksualnych z udziałem nieletnich, intymnych obrazów bez zgody, seksualnych deepfake'ów prawdziwych osób ani broni masowego rażenia."
+    },
+    "live_site_abuse": {
+      "text": "Prawdopodobnie ta strona naprawdę jest Twoja, ale na działających stronach wykonuję tylko zwykłe działania jednego użytkownika w ludzkim tempie, więc nie mogę wykonywać działań masowych ani nadużyć, jak masowe komentarze, rejestracje, zgadywanie haseł czy zalewanie. Takie testy działają obecnie tylko na localhost, w lokalnym środowisku dev lub lokalnie uruchomionej kopii stagingowej. Chętnie pomogę to skonfigurować."
+    },
+    "strike_notice": {
+      "text": "To naruszenie {strike} z {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Ubezpieczenie"
@@ -14683,9 +14770,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Twoje konto jest zawieszone"
+    },
+    "appeal_button": {
+      "text": "Odwołaj się"
+    },
+    "download_button": {
+      "text": "Pobierz moje dane"
+    },
+    "explanation_label": {
+      "text": "Opowiedz, co się stało (do 1000 znaków)"
+    },
+    "consent_label": {
+      "text": "Zgadzam się udostępnić recenzentowi bezpieczeństwa tylko oznaczone prośby"
+    },
+    "submit": {
+      "text": "Wyślij odwołanie"
+    },
+    "sent": {
+      "text": "Twoje odwołanie zostało wysłane. Decyzję otrzymasz w ciągu 7 dni."
+    },
+    "admin_title": {
+      "text": "Przeglądy bezpieczeństwa"
+    },
+    "admin_restore": {
+      "text": "Przywróć"
+    },
+    "admin_delete": {
+      "text": "Usuń"
+    },
+    "admin_ask": {
+      "text": "Zapytaj użytkownika"
+    },
+    "admin_delete_confirm": {
+      "text": "Usunąć to konto? Standardowe usunięcie z pełnym zwrotem, e-mailem o usunięciu i zapisem zgodności."
+    },
+    "admin_empty": {
+      "text": "Żadne konto nie czeka na przegląd."
+    },
+    "until": {
+      "text": "Konto zawieszone do {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} została odrzucona. {reason} To naruszenie {strike} z {max}. Trzecie naruszenie usuwa Twoje konto."
+      "text": "{what} została odrzucona. {reason} To naruszenie {strike} z {max}."
     },
     "what_image_generate": {
       "text": "Twoja prośba o obraz"
@@ -14699,8 +14830,11 @@
     "what_upload": {
       "text": "Przesłany przez Ciebie obraz"
     },
-    "deleted": {
-      "text": "Twoje konto zostało usunięte po trzecim naruszeniu zasad dotyczących treści. Kwalifikujące się zakupy są zwracane automatycznie."
+    "suspended_until": {
+      "text": "To naruszenie 2 z 3. Twoje konto jest zawieszone do {date}, a potem znów będzie aktywne. Trzecie naruszenie zawiesi je do czasu sprawdzenia przez administratora."
+    },
+    "suspended_pending_review": {
+      "text": "To naruszenie 3 z 3. Twoje konto jest zawieszone do czasu sprawdzenia przez administratora. Możesz odwołać się od tej decyzji."
     },
     "unavailable": {
       "text": "Kontrola bezpieczeństwa jest chwilowo niedostępna, więc nie udało się przetworzyć tej prośby. Spróbuj ponownie za chwilę."

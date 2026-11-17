@@ -13,7 +13,7 @@ import hashlib
 import logging
 import time
 from fastapi import Request, Response, HTTPException, Depends, Cookie
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from backend.core.api.app.middleware.session_cookie_publication import (
     queue_rotated_session_cookie, set_refresh_cookie as _set_refresh_cookie,
@@ -27,6 +27,10 @@ from backend.core.api.app.routes.auth_routes.auth_common import preserve_rotated
 from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
 
 from backend.core.api.app.models.user import User
+from backend.shared.python_utils.image_safety.account_suspension import (
+    AccountSuspendedError,
+    raise_if_suspended,
+)
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.cache import CacheService
@@ -236,6 +240,18 @@ def get_secrets_manager(request: Request):
 
 
 # --- Moved from settings.py ---
+def refuse_suspended_account(user: Optional[Dict[str, Any]]) -> None:
+    """Refuse API use of a safety-suspended account with its own localized 403.
+
+    Reads the user record the caller already holds (the cached user, or the
+    profile just loaded from Directus on a cache miss), so a cache miss can
+    never let a suspended account through.
+    """
+    try:
+        raise_if_suspended(user)
+    except AccountSuspendedError as exc:
+        raise HTTPException(status_code=403, detail=exc.detail()) from exc
+
 async def get_current_user(
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
@@ -280,6 +296,7 @@ async def get_current_user(
         else:
             # Owner assertion precedes every cache, ledger and cookie effect.
             require_expected_principal(request, cached_user_id)
+            refuse_suspended_account(cached_data)
             await directus_service.admin.repair_cached_admin_status(cached_user_id, cached_data)
             await ensure_legacy_session_state(
                 directus_service, cache_service, refresh_token, cached_user_id,
@@ -374,6 +391,7 @@ async def get_current_user(
         logger.error(f"Failed to fetch user profile for user {user_id}: {profile_message}")
         raise HTTPException(status_code=500, detail=f"Could not fetch user data: {profile_message}")
 
+    refuse_suspended_account(user_data)
     await directus_service.admin.repair_cached_admin_status(user_id, user_data)
 
     # Rebuild the cache so subsequent requests don't need another refresh

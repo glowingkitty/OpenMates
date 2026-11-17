@@ -11,8 +11,17 @@
 # Wording lives in frontend/packages/ui/src/i18n/sources/safety_strikes.yml; the
 # reasons and alternatives in image_safety.yml.
 
+"""
+Strike wording and the strike ladder shared by every source of safety strikes.
+
+Ladder (accounts are never deleted automatically): strike 1 is a warning,
+strike 2 suspends the account for 7 days, strike 3 suspends it until an admin
+review that ends in restore or deletion. Strikes expire after 90 days. The
+suspension itself lives in `account_suspension.py`; this module only builds the
+localized warning or suspension notice shown with the rejected request.
+"""
+
 import logging
-import time
 from typing import Any, Optional
 
 from .explanations import explain
@@ -54,10 +63,15 @@ def _translate(key: str, language: str) -> str:
 
 
 def strike_warning(category: str, subject: str, strike_number: int, language: Optional[str]) -> str:
-    """Warning shown on strike 1 and 2 (or the deletion notice from the limit on)."""
+    """Warning on strike 1; the suspension notice from strike 2 on."""
     lang = language or "en"
     if strike_number >= BAN_THRESHOLD:
-        return _translate("deleted", lang)
+        return _translate("suspended_pending_review", lang)
+    if strike_number == 2:
+        from datetime import datetime, timedelta, timezone
+
+        until = datetime.now(timezone.utc) + timedelta(days=7)
+        return _translate("suspended_until", lang).replace("{date}", until.strftime("%Y-%m-%d"))
     what = _translate(f"what_{subject if subject in SUBJECTS else 'image_generate'}", lang)
     # Category-level reason plus the allowed alternative (none for hard limits).
     reason, alternative = explain(category, lang)
@@ -76,28 +90,3 @@ async def user_language(cache_service: Any, user_id: str) -> str:
     """The user's interface language from the cached user record, English when unknown."""
     user = await cache_service.get_user_by_id(user_id)
     return (user or {}).get("language") or "en"
-
-
-async def delete_account_for_strikes(
-    *, user_id: str, strike_count: int, reason: str, directus_service: Any = None
-) -> None:
-    """Delete the account via the regular deletion task, with refunds of eligible purchases."""
-    from backend.core.api.app.tasks.celery_config import app
-
-    logger.warning(f"[SafetyStrikes] user={user_id[:8]} reached strike {strike_count}; deleting account")
-    if directus_service is not None:
-        await directus_service.logout_all_sessions(user_id)
-    app.send_task(
-        name="delete_user_account",
-        kwargs={
-            "user_id": user_id,
-            "deletion_type": "policy_violation",
-            "reason": reason,
-            "ip_address": None,
-            "device_fingerprint": None,
-            "refund_invoices": True,
-            "email_encryption_key": None,
-        },
-        queue="user_init",
-    )
-    logger.warning(f"[SafetyStrikes] deletion task queued at {int(time.time())}")

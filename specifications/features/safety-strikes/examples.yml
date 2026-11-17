@@ -53,32 +53,42 @@ explanations:
     then: The image card and the assistant's reply say only that sexual or intimate images of real people are never created; no alternative or rephrasing hint is given and nothing says which check fired.
 
 suspension:
-  - id: third-strike-suspends-and-alerts
-    assertion_ids: [safety-strikes.third-strike-suspends]
-    given: Carol has two strikes.
+  - id: second-strike-suspends-seven-days
+    assertion_ids: [safety-strikes.second-strike-suspends-7-days, safety-strikes.never-auto-delete]
+    given: Carol has one strike.
+    when: A second image request is rejected.
+    then: Her account is suspended for 7 days, her sessions end, the admin is alerted with the category, the deciding check and its scores, her account age, plan and earlier strikes (never the image or her request), and she is told in her language until which date; after that date her account is active again.
+  - id: third-strike-pending-review-and-alert
+    assertion_ids: [safety-strikes.third-strike-pending-review, safety-strikes.never-auto-delete]
+    given: Carol has two strikes and her 7-day suspension has ended.
     when: A third image request is rejected.
-    then: Her account is suspended for 7 days, her sessions end, the admin is alerted and she gets an email in her language with the category-level reason, the deletion date and an appeal option.
+    then: Her account is suspended pending an admin review, her sessions end, the admin is alerted and she is told in her language that she can appeal; nothing is deleted.
   - id: suspended-login-offers-appeal
-    assertion_ids: [safety-strikes.third-strike-suspends, safety-strikes.never-wrong-login-data]
-    given: Carol's account was suspended yesterday.
+    assertion_ids: [safety-strikes.third-strike-pending-review, safety-strikes.second-strike-suspends-7-days, safety-strikes.never-wrong-login-data]
+    given: Carol's account is suspended pending a review.
     when: She tries to log in.
-    then: She sees in her language that the account is suspended, when it will be deleted and an appeal option, not "wrong login data".
+    then: She sees in her language that the account is suspended pending a review and that she can appeal, not "wrong login data".
+  - id: strikes-expire-after-ninety-days
+    assertion_ids: [safety-strikes.strikes-expire-90-days]
+    given: Frank got one strike 91 days ago and none since.
+    when: A new image request is rejected.
+    then: It is Frank's first strike and he only gets a warning.
   - id: appeal-shares-only-flagged-requests
     assertion_ids: [safety-strikes.appeal-consented-review]
     given: Carol is suspended and appeals.
     when: She confirms that her three flagged requests may be shown to the admin.
     then: The admin sees those three requests decrypted and nothing else from her chats; the deletion is paused until the admin decides.
   - id: admin-lifts-suspension
-    assertion_ids: [safety-strikes.appeal-consented-review]
+    assertion_ids: [safety-strikes.appeal-consented-review, safety-strikes.third-strike-pending-review]
     given: The admin reviews Carol's appeal and finds the rejections were false positives.
-    when: The admin lifts the suspension.
-    then: Carol's account is active again with no strikes.
+    when: The admin restores the account.
+    then: Carol's account is active again with no strikes and she receives an apology email in her language.
 
 deletion:
-  - id: unappealed-suspension-deletes-and-refunds
-    assertion_ids: [safety-strikes.deletion-after-suspension-refunds, safety-strikes.deletion-email, safety-strikes.legal-retention]
-    given: Carol was suspended 7 days ago, did not appeal and has 4,000 credits left from purchases made months ago.
-    when: The suspension period ends.
+  - id: admin-deletion-refunds
+    assertion_ids: [safety-strikes.admin-deletion-refunds, safety-strikes.deletion-email, safety-strikes.legal-retention]
+    given: Carol is suspended pending a review and has 4,000 credits left from purchases made months ago.
+    when: The admin reviews the case and decides to delete the account.
     then: Her account is deleted, all 4,000 remaining credits are refunded, she receives an email in her language with the category-level reason and the refund, and her invoices and the compliance deletion record are kept for their legal retention periods.
 
 login:
@@ -92,3 +102,15 @@ login:
     given: Carol's deletion marker is 14 days old.
     when: The daily clean-up runs.
     then: The marker is gone and nothing else about Carol remains.
+
+uploads:
+  - id: tank-in-destroyed-city-allowed
+    assertion_ids: [safety-strikes.upload-agreed-lines]
+    given: "Jonas uploads a news photo of a tank in a destroyed city and a photo of a hunting rifle."
+    when: "The upload safety check runs."
+    then: "Both images are accepted; weapons and war images are not refused."
+  - id: explicit-photo-refused-without-strike
+    assertion_ids: [safety-strikes.upload-agreed-lines]
+    given: "A user uploads an explicit sexual photo of adults while the image classifier is unavailable and the decision model is not clearly sure the image is harmless."
+    when: "The upload safety check runs."
+    then: "The upload is refused with a localized message and no strike is recorded."

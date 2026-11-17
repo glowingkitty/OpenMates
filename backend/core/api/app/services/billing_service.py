@@ -1236,6 +1236,12 @@ class BillingService:
             if not user.get('auto_topup_low_balance_enabled', False):
                 return
 
+            # No charges while the account is safety-suspended
+            from backend.shared.python_utils.image_safety.account_suspension import active_suspension
+            if active_suspension(user) is not None:
+                logger.info(f"Skipping low-balance auto top-up for suspended user {user_id[:8]}")
+                return
+
             # Fixed threshold: always 100 credits (cannot be changed to simplify setup)
             # Enforce this even if database has a different value
             FIXED_THRESHOLD = 100

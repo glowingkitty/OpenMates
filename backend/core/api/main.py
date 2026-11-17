@@ -37,6 +37,7 @@ from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free
 from backend.core.api.app.routes import reminder_email_preview  # noqa: E402
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import recent_work_internal  # noqa: E402
+from backend.core.api.app.routes import internal_upload_safety  # noqa: E402
 from backend.core.api.app.routes import chat_sync_feed  # noqa: E402 # Chat sync feed (architecture.sync@2)
 from backend.core.api.app.routes import internal_health  # noqa: E402
 from backend.core.api.app.routes import apps_workspace_requests, apps_workspace_recommendations, apps_workspace_public  # noqa: E402
@@ -48,6 +49,9 @@ from backend.core.api.app.routes.push import router as push_router, notification
 from backend.core.api.app.services.push_notification_service import push_notification_service  # noqa: E402
 from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
 from backend.core.api.app.routes import admin_growth_metrics  # noqa: E402 # Aggregate growth counts for the daily meeting (admin API key)
+from backend.shared.python_utils.image_safety.account_suspension import AccountSuspendedError  # noqa: E402
+from backend.core.api.app.routes import safety_appeals  # noqa: E402 # User appeal of a safety suspension
+from backend.core.api.app.routes import admin_safety_reviews  # noqa: E402 # Admin review of safety-suspended accounts
 from backend.core.api.app.routes import admin_newsletter_campaigns  # noqa: E402 # Hidden admin newsletter campaign scheduler
 from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import admin client log forwarding router
 from backend.core.api.app.routes import client_logs_ephemeral  # noqa: E402 # Import ephemeral client log forwarding (all users, anonymized)
@@ -1418,6 +1422,7 @@ def create_app() -> FastAPI:
     app.include_router(storage_routes.router, include_in_schema=False)  # Encrypted cold archive reads - first-party clients only
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(recent_work_internal.router, include_in_schema=False)
+    app.include_router(internal_upload_safety.router, include_in_schema=False)  # Internal upload image second opinion
     app.include_router(chat_sync_feed.internal_router, include_in_schema=False)  # Internal chat-sync commit hints
     app.include_router(internal_health.router, include_in_schema=False)
     app.include_router(apps_workspace_requests.router, include_in_schema=False)
@@ -1436,6 +1441,14 @@ def create_app() -> FastAPI:
     app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
     app.include_router(admin_debug.router, include_in_schema=False)  # Admin debug router - requires admin API key, not in public docs
     app.include_router(admin_growth_metrics.router, include_in_schema=False)  # Aggregate growth counts - admin API key, read-only
+    @app.exception_handler(AccountSuspendedError)
+    async def _account_suspended_handler(_request, exc: AccountSuspendedError):
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(status_code=403, content={"detail": exc.detail()})
+
+    app.include_router(safety_appeals.router, include_in_schema=False)  # Suspended-user appeal (appeal token)
+    app.include_router(admin_safety_reviews.router, include_in_schema=False)  # Admin safety review: restore or delete
     app.include_router(admin_newsletter_campaigns.router, include_in_schema=False)  # Admin newsletter campaign scheduler - API key admin only
     app.include_router(admin_client_logs.router, include_in_schema=False)  # Admin client log forwarding - pushes browser console logs to Loki for admin users
     app.include_router(client_logs_ephemeral.router, include_in_schema=False)  # Ephemeral client log forwarding - anonymized console logs from all users (48h retention)

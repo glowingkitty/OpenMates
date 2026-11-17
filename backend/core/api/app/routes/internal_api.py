@@ -2849,12 +2849,12 @@ async def content_safety_reject(
     cache_service: CacheService = Depends(get_cache_service),
 ) -> Dict[str, Any]:
     """
-    Count a rejected upload as exactly one safety strike; the third strike deletes the account.
+    Count a rejected upload as exactly one safety strike; strike 2 suspends the account for 7 days, strike 3 until an admin review.
 
     Called by the app-uploads microservice when SightEngine rejects a user-uploaded image.
     StrikeCounter is the only owner of the strike counter (shared with image/video
-    generation and editing), so an upload is never counted twice. The third strike queues the regular account-deletion
-    task, which refunds eligible purchases like a user-requested deletion.
+    generation and editing), so an upload is never counted twice. An account is never
+    deleted automatically; only an admin decision deletes it.
 
     A suggestive-only score (swimwear, underwear, fitness photos) is not a policy
     violation: it returns "not_counted", records no strike and never deletes an
@@ -2862,7 +2862,7 @@ async def content_safety_reject(
     A safety check that could not decide ("safety_service_unavailable") is never
     counted either.
 
-    Returns "tracked" (with ``reject_count``), "not_counted" or "account_deleted".
+    Returns "tracked" (with ``reject_count``), "not_counted" or "account_suspended".
     Protected by INTERNAL_API_SHARED_TOKEN (same as all /internal/* routes).
     """
     log_prefix = f"[ContentSafetyReject] [user:{payload.user_id[:8]}...] [{payload.upload_type}]"
@@ -2881,7 +2881,6 @@ async def content_safety_reject(
     try:
         from backend.shared.python_utils.image_safety.strike_counter import get_strike_counter
         from backend.shared.python_utils.image_safety.strike_policy import (
-            delete_account_for_strikes,
             strike_warning,
             user_language,
         )
@@ -2893,21 +2892,30 @@ async def content_safety_reject(
             raise HTTPException(status_code=500, detail="Content safety strike could not be recorded")
         logger.info(f"{log_prefix} Strike count updated → {strike.new_count}")
 
-        if strike.ban_triggered:
-            await delete_account_for_strikes(
-                user_id=payload.user_id,
-                strike_count=strike.new_count,
-                reason=f"repeated_safety_violations:{payload.upload_type}",
-                directus_service=directus_service,
-            )
-            return {"result": "account_deleted", "reject_count": strike.new_count}
-
         reason = payload.rejection_reason.lower()
         category = (
             "S3_sexual_other" if any(w in reason for w in ("sexual", "nudity", "porn", "erotic"))
             else "S4_violent_recontextualization" if any(w in reason for w in ("gore", "violence", "weapon"))
             else "unknown"
         )
+        if strike.new_count >= 2 and strike.recorded:
+            from backend.shared.python_utils.image_safety.account_suspension import suspend_account_for_strikes
+
+            suspension = await suspend_account_for_strikes(
+                user_id=payload.user_id,
+                strike_count=strike.new_count,
+                category=category,
+                directus_service=directus_service,
+                cache_service=cache_service,
+                decision={"stage": "upload", "check": payload.upload_type, "reason": payload.rejection_reason[:200]},
+            )
+            language = await user_language(cache_service, payload.user_id)
+            return {
+                "result": "account_suspended",
+                "reject_count": strike.new_count,
+                "suspension_state": suspension["state"],
+                "warning": strike_warning(category, "upload", strike.new_count, language),
+            }
         language = await user_language(cache_service, payload.user_id)
         return {
             "result": "tracked",

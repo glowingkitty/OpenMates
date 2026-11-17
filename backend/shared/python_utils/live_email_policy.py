@@ -16,6 +16,9 @@ _EMAIL_TYPES = frozenset(
     {
         "account-created",
         "account-deletion-warning-correction",
+        "safety-account-restored",
+        "safety-account-suspended",
+        "safety-more-information",
         "account-recovery",
         "account-recovery-pending",
         "action-verification",

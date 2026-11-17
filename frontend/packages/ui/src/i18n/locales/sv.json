@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Det här svaret togs bort eftersom det inte uppfyllde våra säkerhetsregler."
+    },
+    "wellbeing": {
+      "text": "Jag tog bort mitt senaste svar eftersom det kunde skada dig. Du är inte ensam. Om du tänker på att skada dig själv, kontakta någon du litar på, en lokal krislinje eller räddningstjänsten. Jag finns kvar om du vill prata."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -5990,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Ditt OpenMates-konto är avstängt"
+      },
+      "headline": {
+        "text": "Ditt konto är avstängt"
+      },
+      "body": {
+        "text": "Våra säkerhetskontroller avvisade förfrågningar från ditt konto."
+      },
+      "appeal": {
+        "text": "Du har 14 dagar på dig att överklaga. Du kan också ladda ner dina data."
+      },
+      "button": {
+        "text": "Överklaga eller ladda ner mina data"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Vi behöver mer information om ditt konto"
+      },
+      "headline": {
+        "text": "Vi behöver lite mer information"
+      },
+      "body": {
+        "text": "Vi granskar avstängningen av ditt konto och har en fråga:"
+      },
+      "button": {
+        "text": "Svara i appen"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Ditt OpenMates-konto är aktivt igen"
+      },
+      "headline": {
+        "text": "Ditt konto är aktivt igen"
+      },
+      "body": {
+        "text": "Vi har granskat avstängningen av ditt konto och hävt den. Dina överträdelser har rensats och du kan använda OpenMates som förut."
+      },
+      "apology": {
+        "text": "Vi ber om ursäkt för avbrottet."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11536,6 +11589,26 @@
       "text": "Rapportera problem"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "Du behöver inte gå igenom det här ensam"
+    },
+    "call": {
+      "text": "Ring"
+    },
+    "send_text": {
+      "text": "Skicka SMS"
+    },
+    "chat": {
+      "text": "Chatta online"
+    },
+    "emergency": {
+      "text": "Vid nödsituation, ring {emergency_number}"
+    },
+    "find_more": {
+      "text": "Hitta fler hjälplinjer"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14581,6 +14654,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Jag kan inte skapa propaganda, hatinnehåll, desinformation eller manipulativt skvallerpressinnehåll. Jag förklarar gärna hur det fungerar, analyserar exempel, faktagranskar eller hjälper till med tydligt märkt satir."
+    },
+    "illegal_category": {
+      "text": "Jag kan inte hjälpa till med sexuellt innehåll med minderåriga, intima bilder utan samtycke, sexuella deepfakes av verkliga personer eller massförstörelsevapen."
+    },
+    "live_site_abuse": {
+      "text": "Du äger säkert den sajten, men på live-sajter gör jag bara normala handlingar för en enskild användare i mänskligt tempo, så jag kan inte köra massiva eller missbrukande handlingar som massor av kommentarer, registreringar, lösenordsgissning eller översvämning. Sådana tester körs för närvarande bara mot localhost, en lokal utvecklingsmiljö eller en lokalt körd staging-kopia. Jag hjälper dig gärna att sätta upp det."
+    },
+    "strike_notice": {
+      "text": "Det här är överträdelse {strike} av {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Försäkring"
@@ -14683,9 +14770,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Ditt konto är avstängt"
+    },
+    "appeal_button": {
+      "text": "Överklaga"
+    },
+    "download_button": {
+      "text": "Ladda ner mina data"
+    },
+    "explanation_label": {
+      "text": "Berätta vad som hände (upp till 1 000 tecken)"
+    },
+    "consent_label": {
+      "text": "Jag samtycker till att endast de flaggade förfrågningarna delas med säkerhetsgranskaren"
+    },
+    "submit": {
+      "text": "Skicka överklagan"
+    },
+    "sent": {
+      "text": "Din överklagan har skickats. Du får ett beslut inom 7 dagar."
+    },
+    "admin_title": {
+      "text": "Säkerhetsgranskningar"
+    },
+    "admin_restore": {
+      "text": "Återställ"
+    },
+    "admin_delete": {
+      "text": "Ta bort"
+    },
+    "admin_ask": {
+      "text": "Fråga användaren"
+    },
+    "admin_delete_confirm": {
+      "text": "Ta bort det här kontot? Standardborttagning med full återbetalning, borttagningsmejl och efterlevnadspost."
+    },
+    "admin_empty": {
+      "text": "Inga konton väntar på granskning."
+    },
+    "until": {
+      "text": "Kontot är avstängt till {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} avvisades. {reason} Det här är överträdelse {strike} av {max}. Vid den tredje överträdelsen raderas ditt konto."
+      "text": "{what} avvisades. {reason} Det här är överträdelse {strike} av {max}."
     },
     "what_image_generate": {
       "text": "Din bildbegäran"
@@ -14699,8 +14830,11 @@
     "what_upload": {
       "text": "Din uppladdade bild"
     },
-    "deleted": {
-      "text": "Ditt konto raderades efter den tredje överträdelsen av innehållsreglerna. Berättigade köp återbetalas automatiskt."
+    "suspended_until": {
+      "text": "Det här är överträdelse 2 av 3. Ditt konto är avstängt till {date} och aktivt igen efter det. En tredje överträdelse stänger av det tills en administratör har granskat det."
+    },
+    "suspended_pending_review": {
+      "text": "Det här är överträdelse 3 av 3. Ditt konto är avstängt tills en administratör har granskat det. Du kan överklaga beslutet."
     },
     "unavailable": {
       "text": "Säkerhetskontrollen är tillfälligt otillgänglig, så begäran kunde inte behandlas. Försök igen om en stund."

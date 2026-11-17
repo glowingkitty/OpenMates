@@ -31,7 +31,8 @@ logger = logging.getLogger(__name__)
 # Only the third strike deletes the account; a single request never can.
 BAN_THRESHOLD = 3
 # 24h TTL in seconds, matching the existing upload counter
-COUNTER_TTL_SECONDS = 86400
+# Strikes expire 90 days after the first strike of a window.
+COUNTER_TTL_SECONDS = 90 * 86400
 
 
 class StrikeCounter:
@@ -122,12 +123,13 @@ class StrikeCounter:
                     ban_triggered=False,
                 )
 
-        # 2) Increment the shared 24h counter.
+        # 2) Increment the shared 90-day counter.
         key = self._counter_key(user_id)
         try:
             new_count_raw = await client.incrby(key, 1)
-            await client.expire(key, COUNTER_TTL_SECONDS)
             new_count = int(new_count_raw or 0)
+            if new_count == 1:
+                await client.expire(key, COUNTER_TTL_SECONDS)
         except Exception as e:
             logger.error(
                 f"[StrikeCounter] incrby failed: {e}", exc_info=True
@@ -161,12 +163,9 @@ class StrikeCounter:
             return 0
 
     async def reset(self, user_id: str) -> None:
-        """Test/admin helper — clears the counter for a user."""
-        try:
-            client = await self._raw()
-            await client.delete(self._counter_key(user_id))
-        except Exception as e:
-            logger.error(f"[StrikeCounter] reset failed: {e}")
+        """Clear a user's strikes (admin restore). Raises when Redis fails, so a restore never silently keeps strikes."""
+        client = await self._raw()
+        await client.delete(self._counter_key(user_id))
 
 
 class StrikeResult:

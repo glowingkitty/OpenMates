@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Esta resposta foi removida porque não cumpria as nossas regras de segurança."
+    },
+    "wellbeing": {
+      "text": "Removi a minha última resposta porque podia ser prejudicial para ti. Não estás sozinho. Se pensas em magoar-te, fala com alguém de confiança ou com uma linha de crise ou os serviços de emergência locais. Continuo aqui para conversar."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -6017,6 +6025,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "A tua conta OpenMates está suspensa"
+      },
+      "headline": {
+        "text": "A tua conta está suspensa"
+      },
+      "body": {
+        "text": "As nossas verificações de segurança rejeitaram pedidos da tua conta."
+      },
+      "appeal": {
+        "text": "Tens 14 dias para recorrer. Também podes transferir os teus dados."
+      },
+      "button": {
+        "text": "Recorrer ou transferir os meus dados"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Precisamos de mais informações sobre a tua conta"
+      },
+      "headline": {
+        "text": "Precisamos de um pouco mais de informação"
+      },
+      "body": {
+        "text": "Estamos a rever a suspensão da tua conta e temos uma pergunta:"
+      },
+      "button": {
+        "text": "Responder na app"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "A tua conta OpenMates está novamente ativa"
+      },
+      "headline": {
+        "text": "A tua conta está novamente ativa"
+      },
+      "body": {
+        "text": "Revimos a suspensão da tua conta e levantámo-la. As tuas infrações foram apagadas e podes usar o OpenMates como antes."
+      },
+      "apology": {
+        "text": "Pedimos desculpa pela interrupção."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11563,6 +11616,26 @@
       "text": "Reportar problema"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "Você não precisa passar por isso sozinho"
+    },
+    "call": {
+      "text": "Ligar"
+    },
+    "send_text": {
+      "text": "Enviar SMS"
+    },
+    "chat": {
+      "text": "Conversar online"
+    },
+    "emergency": {
+      "text": "Em uma emergência, ligue para {emergency_number}"
+    },
+    "find_more": {
+      "text": "Encontrar mais linhas de apoio"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14608,6 +14681,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Não posso criar propaganda, conteúdo de ódio, desinformação ou conteúdo sensacionalista manipulador. Posso explicar como funcionam, analisar exemplos, verificar afirmações ou ajudar com sátira claramente identificada."
+    },
+    "illegal_category": {
+      "text": "Não posso ajudar com conteúdo sexual envolvendo menores, imagens íntimas sem consentimento, deepfakes sexuais de pessoas reais ou armas de dano em massa."
+    },
+    "live_site_abuse": {
+      "text": "Provavelmente o site é mesmo seu, mas em sites ao vivo só faço ações normais de um único usuário em velocidade humana, então não posso executar ações em massa ou abusivas como comentários ou cadastros em massa, adivinhar senhas ou sobrecarregar. Esses testes hoje rodam apenas em localhost, num ambiente de desenvolvimento local ou numa cópia de staging local. Posso ajudar a configurar isso."
+    },
+    "strike_notice": {
+      "text": "Esta é a infração {strike} de {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Seguro"
@@ -14710,9 +14797,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "A tua conta está suspensa"
+    },
+    "appeal_button": {
+      "text": "Recorrer"
+    },
+    "download_button": {
+      "text": "Transferir os meus dados"
+    },
+    "explanation_label": {
+      "text": "Conta-nos o que aconteceu (até 1.000 caracteres)"
+    },
+    "consent_label": {
+      "text": "Concordo em partilhar apenas os pedidos assinalados com o revisor de segurança"
+    },
+    "submit": {
+      "text": "Enviar recurso"
+    },
+    "sent": {
+      "text": "O teu recurso foi enviado. Receberás uma decisão em 7 dias."
+    },
+    "admin_title": {
+      "text": "Revisões de segurança"
+    },
+    "admin_restore": {
+      "text": "Restaurar"
+    },
+    "admin_delete": {
+      "text": "Eliminar"
+    },
+    "admin_ask": {
+      "text": "Perguntar ao utilizador"
+    },
+    "admin_delete_confirm": {
+      "text": "Eliminar esta conta? Eliminação padrão com reembolso total, e-mail de eliminação e registo de conformidade."
+    },
+    "admin_empty": {
+      "text": "Nenhuma conta aguarda revisão."
+    },
+    "until": {
+      "text": "Conta suspensa até {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} foi recusada. {reason} Esta é a infração {strike} de {max}. Na terceira infração, a tua conta é eliminada."
+      "text": "{what} foi recusada. {reason} Esta é a infração {strike} de {max}."
     },
     "what_image_generate": {
       "text": "O teu pedido de imagem"
@@ -14726,8 +14857,11 @@
     "what_upload": {
       "text": "A tua imagem carregada"
     },
-    "deleted": {
-      "text": "A tua conta foi eliminada após a terceira violação das regras de conteúdo. As compras elegíveis são reembolsadas automaticamente."
+    "suspended_until": {
+      "text": "Esta é a infração 2 de 3. A sua conta está suspensa até {date} e volta a estar ativa depois disso. Uma terceira infração suspende-a até que um administrador a tenha analisado."
+    },
+    "suspended_pending_review": {
+      "text": "Esta é a infração 3 de 3. A sua conta está suspensa até que um administrador a tenha analisado. Pode recorrer desta decisão."
     },
     "unavailable": {
       "text": "A verificação de segurança está temporariamente indisponível, por isso o pedido não pôde ser processado. Tenta novamente daqui a pouco."

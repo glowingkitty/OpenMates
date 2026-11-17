@@ -6,21 +6,23 @@ title: Safety Strikes, Suspension, Appeal and Policy Account Deletion
 summary: >
   When OpenMates' own safety checks reject a user's image or video request or
   an uploaded image, the user gets one strike and a clear warning in their
-  language. A single request never deletes an account. The third strike
-  suspends the account for 7 days and alerts the admin; the user can appeal by
-  consenting to share only the flagged requests with the admin. Without an
-  appeal the account is deleted after 7 days, all remaining credits are
-  refunded and the user is told why by email and on their next login attempt.
-  A safety check that fails for technical reasons never counts as a strike.
-  Deletion never removes records the law requires us to keep.
+  language. An account is never deleted automatically for safety strikes. The
+  first strike is a warning, the second suspends the account for 7 days (it is
+  active again afterwards), the third suspends it until an admin has reviewed
+  it; the review ends in a restore or, only by the admin's decision, a deletion
+  with refunds. Every suspension alerts the admin with the category, the
+  deciding check, its scores, account age, plan and earlier strikes, never the
+  image or the request text. Strikes expire after 90 days. A safety check that
+  fails for technical reasons never counts as a strike. Deletion never removes
+  records the law requires us to keep.
 
 scope:
   includes:
     - Strikes from image generation, image editing, video generation and uploaded-image safety rejections.
-    - The warning shown with a rejected request (strike 1 and 2) and the suspension notice at strike 3.
+    - The warning shown with a rejected request (strike 1) and the suspension notices at strike 2 and 3.
     - Refused requests when a safety check is technically unavailable.
-    - Suspension, appeal with consent to share the flagged requests, the admin decision and the admin alert.
-    - Automatic deletion after an unappealed suspension, the full credit refund, the deletion email and the login message that follows.
+    - Suspension (7 days, then pending admin review), appeal with consent to share the flagged requests, the admin decision (restore or delete) and the admin alert.
+    - Admin-decided deletion, the full credit refund, the deletion email and the login message that follows.
     - Records kept after deletion because the law requires them.
     - The localized reason and allowed alternative shown with every refused image or video request, firm hard limits, and the minors rule (photorealistic refused, clearly stylized non-sexual allowed).
   excludes:
@@ -35,7 +37,7 @@ models:
       type: integer
       required: true
       constraints: {minimum: 0, maximum: 3}
-      description: Strikes in the current counting window, shared by generation, editing, video and upload rejections.
+      description: Strikes in the current 90-day counting window, shared by generation, editing, video and upload rejections.
     counted_response_ids:
       type: list
       required: true
@@ -44,15 +46,20 @@ models:
     started_at:
       type: datetime
       required: true
-    delete_after_days:
-      type: integer
+    state:
+      type: enum
       required: true
-      constraints: {minimum: 7, maximum: 7}
+      values: [temporary, pending_review]
+      description: temporary lasts 7 days and ends by itself; pending_review lasts until an admin restores or deletes the account.
+    until:
+      type: datetime
+      required: false
+      description: End of a temporary suspension; absent for pending_review.
     appeal_state:
       type: enum
       required: true
       values: [none, appealed, lifted, confirmed]
-      description: An appeal pauses the deletion until the admin lifts the suspension or confirms the deletion.
+      description: An appeal asks the admin to lift the suspension; the admin decides between restore and deletion.
     flagged_request_ids:
       type: list
       required: true
@@ -91,17 +98,33 @@ assertions:
     type: behavior
     must: A rejection that records strike 1 or 2 tells the user, in their language, what was rejected, the reason at category level (never the exact trigger, classifier or threshold) and "this is strike N of 3".
     depends_on: [examples.strikes]
-  - id: safety-strikes.third-strike-suspends
+  - id: safety-strikes.second-strike-suspends-7-days
     type: behavior
-    must: The third strike suspends the account for 7 days, ends all of its sessions, alerts the admin and tells the user in their language, by email and at login, why the account is suspended, when it will be deleted and how to appeal.
+    must: The second strike suspends the account for 7 days, ends all of its sessions, alerts the admin and tells the user in their language why and until when; login and every authenticated API or WebSocket use is refused with that message, never "wrong login data"; after the 7 days the account is active again without any action.
     depends_on: [models.Suspension, examples.suspension]
+  - id: safety-strikes.third-strike-pending-review
+    type: behavior
+    must: The third strike suspends the account until an admin review, ends all of its sessions, alerts the admin and tells the user in their language that the account is suspended pending a review and that they can appeal; the review ends in a restore (suspension lifted, strikes cleared, apology email) or an admin deletion.
+    depends_on: [models.Suspension, examples.suspension]
+  - id: safety-strikes.never-auto-delete
+    type: invariant
+    must: No safety strike, whatever its source or number, deletes or queues the deletion of an account automatically; only an admin decision does.
+    depends_on: [examples.suspension]
+  - id: safety-strikes.strikes-expire-90-days
+    type: invariant
+    must: A strike stops counting 90 days after the first strike of its window.
+    depends_on: [models.StrikeState, examples.strikes]
   - id: safety-strikes.appeal-consented-review
     type: invariant
-    must: An appeal requires the user's explicit consent to share only the flagged requests, decrypted, with the admin; the full chat history is never shared; an appeal pauses the deletion until the admin lifts the suspension (strikes reset, account active) or confirms the deletion.
+    must: An appeal requires the user's explicit consent to share only the flagged requests, decrypted, with the admin; the full chat history is never shared; the admin lifts the suspension (strikes reset, account active) or decides on the deletion.
     depends_on: [models.Suspension, examples.suspension]
-  - id: safety-strikes.deletion-after-suspension-refunds
+  - id: safety-strikes.review-deadlines-retention
     type: behavior
-    must: A suspension without an appeal within 7 days, or a confirmed deletion, deletes the account through the standard account deletion and automatically refunds all remaining credits.
+    must: A suspended user has 14 days to appeal (explanation up to 1,000 characters), the admin decides within 7 days of an appeal and is reminded after 48 hours of an undecided review; an unclear case (pending review) with no appeal after 14 days is restored automatically. The admin can restore, delete with confirmation, or ask the user for more information by email. The strike and suspension record is purged 90 days after the case closes and an appeal 6 months after its decision; an attached photo is deleted at the decision. No charges happen while an account is suspended, and the user is emailed (in their language) with the reason and the appeal link when suspended.
+    depends_on: [models.Suspension, examples.suspension]
+  - id: safety-strikes.admin-deletion-refunds
+    type: behavior
+    must: Only when an admin decides to delete a suspended account is it deleted, through the standard account deletion, and all remaining credits are refunded automatically.
     depends_on: [examples.deletion]
   - id: safety-strikes.legal-retention
     type: invariant
@@ -132,6 +155,10 @@ assertions:
     must: A photorealistic or photo-like picture of a minor is refused with the reason that realistic images of minors could be misused, for example for fake profiles pretending to be a minor, and the alternative of a clearly stylized version. A clearly stylized, non-photorealistic picture of a minor in a non-sexual scene, such as a 3D render, an illustration or a cartoon, is generated. Any sexual or suggestive depiction of a minor stays refused in every style.
     depends_on: [examples.explanations]
 
+  - id: safety-strikes.upload-agreed-lines
+    type: behavior
+    must: An uploaded image is refused with a strike only for a high-confidence sexual depiction of a minor; explicit sexual content and extreme gore without context are refused without a strike; news and war images, weapons, medical images, ordinary nudity in art or medicine and suggestive images are allowed. Scores near a threshold get a second opinion from the decision model; when the image classifier is unavailable the decision model allows only images it is clearly sure are harmless; when both are unavailable the upload is refused without a strike. No purpose is judged at upload.
+    depends_on: [examples.uploads]
 applies_to:
   rest_api:
     required: true
@@ -154,4 +181,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [strikes, technical, explanations, suspension, deletion, login]
+  required_groups: [strikes, technical, explanations, suspension, deletion, login, uploads]

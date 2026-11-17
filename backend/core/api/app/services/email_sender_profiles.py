@@ -16,6 +16,9 @@ SENDER_PROFILES = {
 ACCOUNT_EMAIL_TEMPLATES = {
     "account-created",
     "account-deletion-warning-correction",
+    "safety-account-restored",
+    "safety-account-suspended",
+    "safety-more-information",
     "account-recovery",
     "action-verification",
     "backup-code-was-used",

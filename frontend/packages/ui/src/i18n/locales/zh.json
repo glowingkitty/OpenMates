@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "此回答已被删除，因为它不符合我们的安全规则。"
+    },
+    "wellbeing": {
+      "text": "我删除了上一条回答，因为它可能对你有害。你并不孤单。如果你有伤害自己的念头，请联系你信任的人，或当地的危机热线或紧急服务。我仍然在这里陪你聊聊。"
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -5990,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "你的 OpenMates 账户已被暂停"
+      },
+      "headline": {
+        "text": "你的账户已被暂停"
+      },
+      "body": {
+        "text": "我们的安全检查拒绝了来自你账户的请求。"
+      },
+      "appeal": {
+        "text": "你有 14 天时间提出申诉。你也可以下载自己的数据。"
+      },
+      "button": {
+        "text": "申诉或下载我的数据"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "关于你的账户,我们需要更多信息"
+      },
+      "headline": {
+        "text": "我们还需要一些信息"
+      },
+      "body": {
+        "text": "我们正在审核你的账户暂停情况,并有一个问题:"
+      },
+      "button": {
+        "text": "在应用中回复"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "你的 OpenMates 账户已恢复使用"
+      },
+      "headline": {
+        "text": "你的账户已恢复使用"
+      },
+      "body": {
+        "text": "我们审核了对你账户的暂停并已解除。你的违规记录已清除,你可以像以前一样使用 OpenMates。"
+      },
+      "apology": {
+        "text": "对于给你带来的中断,我们深表歉意。"
+      }
     }
   },
   "embed_user_edits": {},
@@ -11536,6 +11589,26 @@
       "text": "报告问题"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "你不必独自面对这一切"
+    },
+    "call": {
+      "text": "拨打电话"
+    },
+    "send_text": {
+      "text": "发短信"
+    },
+    "chat": {
+      "text": "在线聊天"
+    },
+    "emergency": {
+      "text": "紧急情况请拨打 {emergency_number}"
+    },
+    "find_more": {
+      "text": "查找更多求助热线"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14581,6 +14654,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "我不能创作宣传、仇恨内容、虚假信息或操纵性的小报内容。但我可以解释其运作方式、分析案例、核查说法，或协助创作明确标注的讽刺作品。"
+    },
+    "illegal_category": {
+      "text": "我无法协助涉及未成年人的性内容、未经同意的私密图像、真人的性深度伪造，或旨在造成大规模伤害的武器。"
+    },
+    "live_site_abuse": {
+      "text": "你很可能确实拥有该网站，但我在线上网站只执行普通的单用户、人类速度的操作，因此无法执行批量评论、批量注册、猜密码或洪泛等大规模或滥用性操作。这类测试目前只在 localhost、本地开发环境或本地运行的预发布副本上进行。我很乐意帮你搭建。"
+    },
+    "strike_notice": {
+      "text": "这是第 {strike} 次警告（共 {max} 次）。"
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "保险"
@@ -14683,9 +14770,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "你的账户已被暂停"
+    },
+    "appeal_button": {
+      "text": "提出申诉"
+    },
+    "download_button": {
+      "text": "下载我的数据"
+    },
+    "explanation_label": {
+      "text": "请告诉我们发生了什么(最多 1,000 个字符)"
+    },
+    "consent_label": {
+      "text": "我同意仅向安全审核员分享被标记的请求"
+    },
+    "submit": {
+      "text": "发送申诉"
+    },
+    "sent": {
+      "text": "你的申诉已发送。我们将在 7 天内给出决定。"
+    },
+    "admin_title": {
+      "text": "安全审核"
+    },
+    "admin_restore": {
+      "text": "恢复"
+    },
+    "admin_delete": {
+      "text": "删除"
+    },
+    "admin_ask": {
+      "text": "询问用户"
+    },
+    "admin_delete_confirm": {
+      "text": "删除此账户?标准删除流程,全额退款,发送删除邮件并留存合规记录。"
+    },
+    "admin_empty": {
+      "text": "暂无账户等待审核。"
+    },
+    "until": {
+      "text": "账户暂停至 {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what}被拒绝。{reason}这是第 {strike} 次警告（共 {max} 次）。第三次警告将删除你的账户。"
+      "text": "{what}被拒绝。{reason}这是第 {strike} 次警告（共 {max} 次）。"
     },
     "what_image_generate": {
       "text": "你的图片生成请求"
@@ -14699,8 +14830,11 @@
     "what_upload": {
       "text": "你上传的图片"
     },
-    "deleted": {
-      "text": "你的账户因第三次违反内容规则而被删除。符合条件的购买将自动退款。"
+    "suspended_until": {
+      "text": "这是第 2 次违规（共 3 次）。你的账户已被暂停至 {date}，之后将恢复正常。第三次违规会使账户被暂停，直到管理员审核完毕。"
+    },
+    "suspended_pending_review": {
+      "text": "这是第 3 次违规（共 3 次）。你的账户已被暂停，直到管理员审核完毕。你可以对此决定提出申诉。"
     },
     "unavailable": {
       "text": "安全检查暂时不可用，因此无法处理此请求。请稍后再试。"

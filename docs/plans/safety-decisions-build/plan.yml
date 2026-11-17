@@ -1,0 +1,27 @@
+schema_version: 2
+profile: concise
+title: Build The Approved Safety Decisions
+status: implementing
+id: safety-decisions-build
+goal: >
+  The owner's approved safety decisions (report docs/plans/safety-architecture-proposal/report.md,
+  section 11: decisions 1, 2, 3, 5, 6, 7, 8 and 10) run on dev with tests. No account is
+  deleted automatically; strikes follow the approved ladder; uploads are checked with the agreed
+  thresholds and fallbacks; harmful-purpose requests are declined with a strike; OpenMates' own
+  actions on live sites stay single-user; every answer is checked in postprocessing; and a
+  wellbeing layer gives gentle support and local helplines without extra model calls.
+decisions:
+  - Order (decision 12) - first the deletion-to-suspension change (decision 1) with the strike ladder (decision 6), then uploads (decision 8), request categories and the cyber line (decisions 2 and 7), the answer check (decision 5) and the wellbeing layer (decision 10). Decision 3 means no blur feature; only the graphic-but-legitimate rule is checked.
+  - Strike ladder - strike 1 warns, strike 2 suspends for 7 days, strike 3 suspends until an admin review that ends in restore or deletion; strikes expire after 90 days; nothing is ever deleted automatically.
+  - Strikes count only for the four illegal categories and the harmful-purpose categories; technical failures, suggestive-only uploads, explicit adult content, extreme gore and withdrawn answers never count.
+  - Uploads - the existing image classifier stays primary with the agreed thresholds; the existing decision model gives a second opinion on borderline scores and is the strict fallback when the classifier is down; both failing refuses without a strike; no purpose judgement at upload.
+  - Wellbeing - risk questions are scored inside the existing preprocessing call; the scores live in the client-encrypted chat metadata and the client sends recent scores back, so the server keeps no per-user state, only an anonymous daily count; the helpline card uses the official helpline-directory API once its key exists and otherwise shows the local emergency number with a link to the public helpline directory, stated in the specification.
+  - Videos (decision 9) are built by the video upload work; legal duties (decision 11) and the single safety model (decision 4) wait for their own research and benchmark.
+checks:
+  required:
+    - Backend unit and contract tests for the ladder, suspension, admin review, upload decision paths, harmful-purpose strikes, answer withdrawal and the wellbeing level computation.
+    - Wellbeing benchmark on a private synthetic multi-turn set, thresholds tuned on the dev split and reported on the held-out split (miss rate, acute miss rate, false-positive rate) plus the added cost per 1,000 messages.
+    - Isolated CI for the changed backend suites and the affected web and CLI flows, and a scoped dev deployment.
+approval_provenance:
+  source: Owner decisions recorded in the safety report section 11 (verified dev-connector messages on 2026-11-17), including the instruction to build decisions 1, 2, 3, 5, 6, 7, 8 and 10 in parallel lanes.
+  note: The owning Specifications are feature.safety-strikes (draft), feature.chat-request-safety (approved; its changes are presented for approval after deployment) and a new wellbeing Specification.

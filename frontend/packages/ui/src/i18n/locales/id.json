@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Jawaban ini dihapus karena tidak memenuhi aturan keamanan kami."
+    },
+    "wellbeing": {
+      "text": "Aku menghapus jawaban terakhirku karena bisa berbahaya bagimu. Kamu tidak sendirian. Jika kamu berpikir untuk menyakiti diri sendiri, hubungi orang yang kamu percaya, layanan krisis atau layanan darurat setempat. Aku masih di sini untuk berbincang."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -5990,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Akun OpenMates-mu ditangguhkan"
+      },
+      "headline": {
+        "text": "Akunmu ditangguhkan"
+      },
+      "body": {
+        "text": "Pemeriksaan keamanan kami menolak permintaan dari akunmu."
+      },
+      "appeal": {
+        "text": "Kamu punya 14 hari untuk mengajukan banding. Kamu juga bisa mengunduh datamu."
+      },
+      "button": {
+        "text": "Ajukan banding atau unduh data saya"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Kami butuh informasi lebih lanjut tentang akunmu"
+      },
+      "headline": {
+        "text": "Kami butuh sedikit informasi lagi"
+      },
+      "body": {
+        "text": "Kami sedang meninjau penangguhan akunmu dan punya satu pertanyaan:"
+      },
+      "button": {
+        "text": "Jawab di aplikasi"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Akun OpenMates-mu aktif kembali"
+      },
+      "headline": {
+        "text": "Akunmu aktif kembali"
+      },
+      "body": {
+        "text": "Kami telah meninjau penangguhan akunmu dan mencabutnya. Pelanggaranmu telah dihapus dan kamu bisa memakai OpenMates seperti biasa."
+      },
+      "apology": {
+        "text": "Kami minta maaf atas gangguannya."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11536,6 +11589,26 @@
       "text": "Laporkan masalah"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "Kamu tidak harus melewati ini sendirian"
+    },
+    "call": {
+      "text": "Telepon"
+    },
+    "send_text": {
+      "text": "Kirim SMS"
+    },
+    "chat": {
+      "text": "Obrolan daring"
+    },
+    "emergency": {
+      "text": "Dalam keadaan darurat, hubungi {emergency_number}"
+    },
+    "find_more": {
+      "text": "Temukan layanan bantuan lainnya"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14581,6 +14654,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Saya tidak dapat membuat propaganda, konten kebencian, disinformasi, atau konten tabloid yang manipulatif. Saya bisa menjelaskan cara kerjanya, menganalisis contoh, memeriksa fakta, atau membantu satire yang diberi label jelas."
+    },
+    "illegal_category": {
+      "text": "Saya tidak dapat membantu dengan konten seksual yang melibatkan anak di bawah umur, gambar intim tanpa persetujuan, deepfake seksual orang nyata, atau senjata pemusnah massal."
+    },
+    "live_site_abuse": {
+      "text": "Anda mungkin memang pemilik situs itu, tetapi di situs live saya hanya melakukan tindakan normal satu pengguna dengan kecepatan manusia, jadi saya tidak dapat menjalankan tindakan massal atau abusif seperti komentar atau pendaftaran massal, menebak kata sandi, atau membanjiri. Pengujian semacam itu saat ini hanya berjalan di localhost, lingkungan dev lokal, atau salinan staging yang dijalankan secara lokal. Saya senang membantu menyiapkannya."
+    },
+    "strike_notice": {
+      "text": "Ini pelanggaran ke-{strike} dari {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Asuransi"
@@ -14683,9 +14770,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Akunmu ditangguhkan"
+    },
+    "appeal_button": {
+      "text": "Ajukan banding"
+    },
+    "download_button": {
+      "text": "Unduh data saya"
+    },
+    "explanation_label": {
+      "text": "Ceritakan apa yang terjadi (hingga 1.000 karakter)"
+    },
+    "consent_label": {
+      "text": "Saya setuju hanya membagikan permintaan yang ditandai kepada peninjau keamanan"
+    },
+    "submit": {
+      "text": "Kirim banding"
+    },
+    "sent": {
+      "text": "Bandingmu sudah dikirim. Kamu akan mendapat keputusan dalam 7 hari."
+    },
+    "admin_title": {
+      "text": "Peninjauan keamanan"
+    },
+    "admin_restore": {
+      "text": "Pulihkan"
+    },
+    "admin_delete": {
+      "text": "Hapus"
+    },
+    "admin_ask": {
+      "text": "Tanya pengguna"
+    },
+    "admin_delete_confirm": {
+      "text": "Hapus akun ini? Penghapusan standar dengan pengembalian dana penuh, email penghapusan, dan catatan kepatuhan."
+    },
+    "admin_empty": {
+      "text": "Tidak ada akun yang menunggu peninjauan."
+    },
+    "until": {
+      "text": "Akun ditangguhkan hingga {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} ditolak. {reason} Ini pelanggaran ke-{strike} dari {max}. Pelanggaran ketiga akan menghapus akun Anda."
+      "text": "{what} ditolak. {reason} Ini pelanggaran ke-{strike} dari {max}."
     },
     "what_image_generate": {
       "text": "Permintaan gambar Anda"
@@ -14699,8 +14830,11 @@
     "what_upload": {
       "text": "Gambar yang Anda unggah"
     },
-    "deleted": {
-      "text": "Akun Anda dihapus setelah pelanggaran aturan konten yang ketiga. Pembelian yang memenuhi syarat dikembalikan otomatis."
+    "suspended_until": {
+      "text": "Ini pelanggaran ke-2 dari 3. Akunmu ditangguhkan hingga {date} dan akan aktif kembali setelahnya. Pelanggaran ketiga akan menangguhkannya hingga admin meninjaunya."
+    },
+    "suspended_pending_review": {
+      "text": "Ini pelanggaran ke-3 dari 3. Akunmu ditangguhkan hingga admin meninjaunya. Kamu dapat mengajukan banding atas keputusan ini."
     },
     "unavailable": {
       "text": "Pemeriksaan keamanan sedang tidak tersedia sementara, sehingga permintaan ini tidak dapat diproses. Silakan coba lagi sebentar lagi."

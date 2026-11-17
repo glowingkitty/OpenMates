@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Dit antwoord is verwijderd omdat het niet voldeed aan onze veiligheidsregels."
+    },
+    "wellbeing": {
+      "text": "Ik heb mijn laatste antwoord verwijderd omdat het schadelijk voor je kon zijn. Je staat er niet alleen voor. Als je eraan denkt jezelf iets aan te doen, neem dan contact op met iemand die je vertrouwt, een crisislijn of de hulpdiensten. Ik ben er nog steeds om te praten."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -5990,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Je OpenMates-account is geblokkeerd"
+      },
+      "headline": {
+        "text": "Je account is geblokkeerd"
+      },
+      "body": {
+        "text": "Onze veiligheidscontroles hebben verzoeken van je account afgewezen."
+      },
+      "appeal": {
+        "text": "Je hebt 14 dagen om bezwaar te maken. Je kunt ook je gegevens downloaden."
+      },
+      "button": {
+        "text": "Bezwaar maken of mijn gegevens downloaden"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "We hebben meer informatie over je account nodig"
+      },
+      "headline": {
+        "text": "We hebben nog wat informatie nodig"
+      },
+      "body": {
+        "text": "We beoordelen de blokkade van je account en hebben een vraag:"
+      },
+      "button": {
+        "text": "Antwoord in de app"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Je OpenMates-account is weer actief"
+      },
+      "headline": {
+        "text": "Je account is weer actief"
+      },
+      "body": {
+        "text": "We hebben de blokkade van je account beoordeeld en opgeheven. Je overtredingen zijn gewist en je kunt OpenMates weer gebruiken zoals voorheen."
+      },
+      "apology": {
+        "text": "Onze excuses voor het ongemak."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11536,6 +11589,26 @@
       "text": "Probleem melden"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "Je hoeft dit niet alleen te doorstaan"
+    },
+    "call": {
+      "text": "Bellen"
+    },
+    "send_text": {
+      "text": "Sms'en"
+    },
+    "chat": {
+      "text": "Online chatten"
+    },
+    "emergency": {
+      "text": "Bel bij nood {emergency_number}"
+    },
+    "find_more": {
+      "text": "Meer hulplijnen vinden"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14581,6 +14654,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Ik kan geen propaganda, haatzaaiende inhoud, desinformatie of manipulatieve roddelbladinhoud maken. Ik leg graag uit hoe het werkt, analyseer voorbeelden, controleer beweringen of help met duidelijk gelabelde satire."
+    },
+    "illegal_category": {
+      "text": "Hierbij kan ik niet helpen: seksuele inhoud met minderjarigen, intieme beelden zonder toestemming, seksuele deepfakes van echte mensen of wapens voor massale schade."
+    },
+    "live_site_abuse": {
+      "text": "Je bent waarschijnlijk echt de eigenaar van die site, maar op live websites doe ik alleen normale acties van één gebruiker op menselijk tempo, dus ik kan geen massale of misbruikende acties uitvoeren zoals massaal reageren, aanmelden, wachtwoorden raden of overspoelen. Zulke tests draaien nu alleen op localhost, een lokale ontwikkelomgeving of een lokaal draaiende staging-kopie. Ik help je graag met het opzetten."
+    },
+    "strike_notice": {
+      "text": "Dit is waarschuwing {strike} van {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Verzekering"
@@ -14683,9 +14770,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Je account is geblokkeerd"
+    },
+    "appeal_button": {
+      "text": "Bezwaar maken"
+    },
+    "download_button": {
+      "text": "Mijn gegevens downloaden"
+    },
+    "explanation_label": {
+      "text": "Vertel ons wat er gebeurd is (maximaal 1.000 tekens)"
+    },
+    "consent_label": {
+      "text": "Ik ga ermee akkoord dat alleen de gemarkeerde verzoeken met de veiligheidsbeoordelaar worden gedeeld"
+    },
+    "submit": {
+      "text": "Bezwaar versturen"
+    },
+    "sent": {
+      "text": "Je bezwaar is verzonden. Je krijgt binnen 7 dagen een beslissing."
+    },
+    "admin_title": {
+      "text": "Veiligheidsbeoordelingen"
+    },
+    "admin_restore": {
+      "text": "Herstellen"
+    },
+    "admin_delete": {
+      "text": "Verwijderen"
+    },
+    "admin_ask": {
+      "text": "Gebruiker vragen"
+    },
+    "admin_delete_confirm": {
+      "text": "Dit account verwijderen? Standaard verwijdering met volledige terugbetaling, verwijderingsmail en nalevingsregistratie."
+    },
+    "admin_empty": {
+      "text": "Geen account wacht op beoordeling."
+    },
+    "until": {
+      "text": "Account geblokkeerd tot {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} is geweigerd. {reason} Dit is waarschuwing {strike} van {max}. Bij de derde waarschuwing wordt je account verwijderd."
+      "text": "{what} is geweigerd. {reason} Dit is waarschuwing {strike} van {max}."
     },
     "what_image_generate": {
       "text": "Je afbeeldingsverzoek"
@@ -14699,8 +14830,11 @@
     "what_upload": {
       "text": "Je geüploade afbeelding"
     },
-    "deleted": {
-      "text": "Je account is verwijderd na de derde overtreding van de inhoudsregels. In aanmerking komende aankopen worden automatisch terugbetaald."
+    "suspended_until": {
+      "text": "Dit is overtreding 2 van 3. Je account is geschorst tot {date} en daarna weer actief. Een derde overtreding schorst het totdat een beheerder het heeft beoordeeld."
+    },
+    "suspended_pending_review": {
+      "text": "Dit is overtreding 3 van 3. Je account is geschorst totdat een beheerder het heeft beoordeeld. Je kunt tegen dit besluit in beroep gaan."
     },
     "unavailable": {
       "text": "De veiligheidscontrole is tijdelijk niet beschikbaar, dus het verzoek kon niet worden verwerkt. Probeer het zo meteen opnieuw."

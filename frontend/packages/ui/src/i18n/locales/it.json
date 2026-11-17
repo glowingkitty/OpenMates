@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Questa risposta è stata rimossa perché non rispettava le nostre regole di sicurezza."
+    },
+    "wellbeing": {
+      "text": "Ho rimosso la mia ultima risposta perché poteva farti del male. Non sei solo. Se stai pensando di farti del male, rivolgiti a una persona di fiducia, a una linea di aiuto in caso di crisi o ai servizi di emergenza. Io sono ancora qui per parlare."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -6017,6 +6025,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Il tuo account OpenMates è sospeso"
+      },
+      "headline": {
+        "text": "Il tuo account è sospeso"
+      },
+      "body": {
+        "text": "I nostri controlli di sicurezza hanno rifiutato richieste dal tuo account."
+      },
+      "appeal": {
+        "text": "Hai 14 giorni per presentare ricorso. Puoi anche scaricare i tuoi dati."
+      },
+      "button": {
+        "text": "Presenta ricorso o scarica i miei dati"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Ci servono maggiori informazioni sul tuo account"
+      },
+      "headline": {
+        "text": "Ci serve qualche informazione in più"
+      },
+      "body": {
+        "text": "Stiamo esaminando la sospensione del tuo account e abbiamo una domanda:"
+      },
+      "button": {
+        "text": "Rispondi nell'app"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Il tuo account OpenMates è di nuovo attivo"
+      },
+      "headline": {
+        "text": "Il tuo account è di nuovo attivo"
+      },
+      "body": {
+        "text": "Abbiamo esaminato la sospensione del tuo account e l'abbiamo revocata. Le tue violazioni sono state cancellate e puoi usare OpenMates come prima."
+      },
+      "apology": {
+        "text": "Ci scusiamo per l'interruzione."
+      }
     }
   },
   "embed_user_edits": {},
@@ -11563,6 +11616,26 @@
       "text": "Segnala problema"
     }
   },
+  "helplines": {
+    "title": {
+      "text": "Non devi affrontare tutto questo da solo"
+    },
+    "call": {
+      "text": "Chiama"
+    },
+    "send_text": {
+      "text": "Invia SMS"
+    },
+    "chat": {
+      "text": "Chatta online"
+    },
+    "emergency": {
+      "text": "In caso di emergenza chiama il {emergency_number}"
+    },
+    "find_more": {
+      "text": "Trova altre linee di aiuto"
+    }
+  },
   "highlight": {
     "api": {
       "example_input": {
@@ -14608,6 +14681,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Non posso creare propaganda, contenuti d'odio, disinformazione o contenuti scandalistici manipolatori. Posso spiegare come funzionano, analizzare esempi, verificare affermazioni o aiutare con satira chiaramente dichiarata."
+    },
+    "illegal_category": {
+      "text": "Non posso aiutare con contenuti sessuali che coinvolgono minori, immagini intime senza consenso, deepfake sessuali di persone reali o armi di distruzione di massa."
+    },
+    "live_site_abuse": {
+      "text": "Probabilmente il sito è davvero tuo, ma sui siti live eseguo solo azioni normali di un singolo utente a velocità umana, quindi non posso eseguire azioni di massa o abusive come commenti o iscrizioni in massa, tentativi di password o flooding. Questi test oggi girano solo su localhost, un ambiente di sviluppo locale o una copia di staging locale. Ti aiuto volentieri a configurarlo."
+    },
+    "strike_notice": {
+      "text": "Questa è la violazione {strike} di {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Assicurazione"
@@ -14710,9 +14797,53 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Il tuo account è sospeso"
+    },
+    "appeal_button": {
+      "text": "Presenta ricorso"
+    },
+    "download_button": {
+      "text": "Scarica i miei dati"
+    },
+    "explanation_label": {
+      "text": "Raccontaci cosa è successo (fino a 1.000 caratteri)"
+    },
+    "consent_label": {
+      "text": "Accetto di condividere con il revisore solo le richieste segnalate"
+    },
+    "submit": {
+      "text": "Invia ricorso"
+    },
+    "sent": {
+      "text": "Il tuo ricorso è stato inviato. Riceverai una decisione entro 7 giorni."
+    },
+    "admin_title": {
+      "text": "Revisioni di sicurezza"
+    },
+    "admin_restore": {
+      "text": "Ripristina"
+    },
+    "admin_delete": {
+      "text": "Elimina"
+    },
+    "admin_ask": {
+      "text": "Chiedi all'utente"
+    },
+    "admin_delete_confirm": {
+      "text": "Eliminare questo account? Eliminazione standard con rimborso completo, e-mail di eliminazione e registro di conformità."
+    },
+    "admin_empty": {
+      "text": "Nessun account è in attesa di revisione."
+    },
+    "until": {
+      "text": "Account sospeso fino al {date}"
+    }
+  },
   "safety_strikes": {
     "warning": {
-      "text": "{what} è stata rifiutata. {reason} Questa è la violazione {strike} di {max}. Alla terza violazione il tuo account viene eliminato."
+      "text": "{what} è stata rifiutata. {reason} Questa è la violazione {strike} di {max}."
     },
     "what_image_generate": {
       "text": "La tua richiesta di immagine"
@@ -14726,8 +14857,11 @@
     "what_upload": {
       "text": "L'immagine che hai caricato"
     },
-    "deleted": {
-      "text": "Il tuo account è stato eliminato dopo la terza violazione delle regole sui contenuti. Gli acquisti idonei vengono rimborsati automaticamente."
+    "suspended_until": {
+      "text": "Questa è la violazione 2 di 3. Il tuo account è sospeso fino al {date} e tornerà attivo dopo quella data. Una terza violazione lo sospende finché un amministratore non lo avrà esaminato."
+    },
+    "suspended_pending_review": {
+      "text": "Questa è la violazione 3 di 3. Il tuo account è sospeso finché un amministratore non lo avrà esaminato. Puoi fare ricorso contro questa decisione."
     },
     "unavailable": {
       "text": "Il controllo di sicurezza è temporaneamente non disponibile, quindi la richiesta non ha potuto essere elaborata. Riprova tra un momento."
