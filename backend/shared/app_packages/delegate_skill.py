@@ -48,7 +48,9 @@ from backend.shared.app_packages.generic_contract import (
     filter_providers_by_region,
 )
 from backend.shared.app_packages.loader import InstalledProvider, get_installed_providers
-from backend.shared.app_packages.price_comparison import compare_offers, compares_prices, wants_price_order
+from backend.shared.app_packages.price_comparison import (
+    PROVIDER_SECONDS, compare_offers, compares_prices, wants_price_order,
+)
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
 from backend.shared.app_packages.web_source import delegate_web_kind, run_web_source
 from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
@@ -412,6 +414,7 @@ class InstalledProviderSkill(BaseSkill):
             self.app_id, self.skill_id, provider_ids,
             widen_candidate_pool(provider_input) if widened else provider_input, secrets_manager,
             on_provider_done=report_provider(progress),
+            timeout_seconds=PROVIDER_SECONDS if compared else None,
         )]
         if web_kind is not None:
             searches.append(self._search_web(web_kind, contract_input, secrets_manager, progress))

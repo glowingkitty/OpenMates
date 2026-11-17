@@ -17,6 +17,8 @@ item into a comparison:
    (``shipping_known: false``); offers without a price, or in another currency than
    most offers, follow in their previous order.
 
+Each installed provider of a compared search runs for at most ``PROVIDER_SECONDS``.
+
 Providers stay responsible for their own fields; nothing here invents a price,
 shipping cost or condition. Architecture: docs/architecture/apps/instance-app-packages.md
 ("Price comparison").
@@ -31,6 +33,11 @@ PRICE_COMPARED_SKILLS: FrozenSet[Tuple[str, str]] = frozenset({("shopping", "sea
 PRICE_ORDER = "price_asc"
 CONDITIONS = frozenset({"new", "used", "refurbished"})
 TOTAL_FIELD = "total_amount"
+# Each installed provider of a compared search gets at most this long. The skill's
+# whole envelope is 20 s (30 s with photo ranking); a provider still running at the
+# runner default (30 s) would cancel the comparison and lose every other shop's
+# offers, while over this limit it fails alone as "did not respond in time".
+PROVIDER_SECONDS = 14
 _CURRENCY_SYMBOLS = {"€": "EUR", "$": "USD", "£": "GBP", "chf": "CHF"}
 _TOKEN = re.compile(r"[a-z0-9]+")
 

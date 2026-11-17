@@ -20,7 +20,9 @@ import yaml
 from backend.shared.app_packages import delegate_skill, loader, provider_dispatch, result_cache
 from backend.shared.app_packages.delegate_skill import InstalledProviderSkill
 from backend.shared.app_packages.generic_contract import SKILL_REQUESTS_V1
-from backend.shared.app_packages.price_comparison import compare_offers, matches_product, order_by_total_price
+from backend.shared.app_packages.price_comparison import (
+    PROVIDER_SECONDS, compare_offers, matches_product, order_by_total_price,
+)
 from backend.shared.app_packages.runner_client import RunnerResult
 from backend.tests.app_packages_test_support import enable, manifest, write_package, write_registry
 
@@ -163,6 +165,40 @@ def test_used_nearby_request_reaches_providers_with_location(shops, monkeypatch)
     }]))
     assert {(call["input"]["location"], call["input"]["radius_km"]) for call in calls} == {("10115", 20)}
     assert response["results"][0]["results"][0]["condition"] == "used"
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.providers.slow-provider-alone
+def test_slow_provider_fails_alone_and_the_other_offers_stay(shops, monkeypatch):
+    timeouts: Dict[str, Any] = {}
+
+    async def fake_run_provider(provider, input_item, secrets, **kwargs):
+        timeouts[provider.provider_id] = kwargs.get("timeout_seconds")
+        if provider.provider_id == SHOP_B:
+            return RunnerResult(ok=False, error_code="TIMEOUT")
+        return RunnerResult(ok=True, results=[_offer("Example Audio X100", 40.0, shipping=0.0)])
+
+    monkeypatch.setattr(provider_dispatch, "run_provider", fake_run_provider)
+    response = asyncio.run(_delegate().execute(requests=[{
+        "query": "Example Audio X100", "brand": "Example Audio", "model": "X100", "sort": "price_asc",
+    }]))
+    group = response["results"][0]
+    # Every provider of a compared search runs within the skill envelope.
+    assert timeouts == {SHOP_A: PROVIDER_SECONDS, SHOP_B: PROVIDER_SECONDS} and PROVIDER_SECONDS < 20
+    assert [offer["total_amount"] for offer in group["results"]] == [40.0]
+    assert not group.get("error")
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.providers.slow-provider-alone
+def test_dispatch_without_a_limit_keeps_the_runner_default(shops, monkeypatch):
+    seen: List[Dict[str, Any]] = []
+
+    async def fake_run_provider(provider, input_item, secrets, **kwargs):
+        seen.append(kwargs)
+        return RunnerResult(ok=True, results=[])
+
+    monkeypatch.setattr(provider_dispatch, "run_provider", fake_run_provider)
+    asyncio.run(provider_dispatch.run_installed_providers(APP, SKILL, [SHOP_A], {"query": "x"}, None))
+    assert seen == [{}]
 
 
 # --------------------------------------------------------------------------- result cache

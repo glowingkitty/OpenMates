@@ -16896,7 +16896,7 @@ features:
     - app:shopping
     dev: enabled
     prod: enabled
-  assertions: 8
+  assertions: 9
   surfaces:
     web:
       status: partial
@@ -16906,8 +16906,8 @@ features:
         passing: 1
         failing: 0
         not_run: 4
-        missing: 4
-        counted: 9
+        missing: 5
+        counted: 10
       key_tests:
       - frontend/apps/web_app/tests/skill-shopping-search.spec.ts
       e2e_tests:
@@ -16925,8 +16925,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 8
-        counted: 8
+        missing: 9
+        counted: 9
       key_tests: []
       evidence: apple/OpenMates/Sources/EmbedType shopping-product, ShoppingSearchIntent
       e2e_tests: []
@@ -16944,8 +16944,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 8
-        counted: 8
+        missing: 9
+        counted: 9
       key_tests: []
       evidence: openmates apps shopping search_products
       e2e_tests: []
@@ -16973,9 +16973,9 @@ features:
       assertions:
         passing: 4
         failing: 0
-        not_run: 4
+        not_run: 5
         missing: 0
-        counted: 8
+        counted: 9
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -16993,8 +16993,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 8
-        counted: 8
+        missing: 9
+        counted: 9
       key_tests: []
       evidence: src/generated/appSkills.ts apps.shopping (generic skill call)
       e2e_tests: []
@@ -17008,8 +17008,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 8
-        counted: 8
+        missing: 9
+        counted: 9
       key_tests: []
       evidence: generated/app_skills.py apps.shopping (generic skill call)
       e2e_tests: []

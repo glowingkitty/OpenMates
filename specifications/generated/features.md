@@ -163,7 +163,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Project Timeline tab | partial 1/2 | ? |  | tested 2/2 | ? | tested 2/2 | ? | ? | | | |
 | &nbsp;&nbsp;↳ Access, memories and parity | **FAIL** 1/4 | **FAIL** 1/4 |  | partial 1/4 | **FAIL** 0/1 | partial 2/4 | not run 0/4 | not run 0/4 | | | |
 | [Reminder](#reminder) | **FAIL** 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
-| [Shopping](#shopping) | partial 1/9 | impl |  | impl | impl | partial 4/8 | impl | impl | on | on | v0.5.0-alpha |
+| [Shopping](#shopping) | partial 1/10 | impl |  | impl | impl | partial 4/9 | impl | impl | on | on | v0.5.0-alpha |
 | [Slides](#slides) | partial 15/24 | tested 3/3 |  | — | wip | partial 11/24 | impl | — | on | on | untagged-main |
 | &nbsp;&nbsp;↳ Presentation remote | **live** 3/3 | tested 2/2 |  | — | ? | partial 1/3 | ? | — | | | |
 | &nbsp;&nbsp;↳ Animated SVG images | **live** 1/1 | ? |  | — | ? | **live** 1/1 | ? | — | | | |
@@ -2645,7 +2645,7 @@ The settings shell on web and Apple: navigation, sections and footer.
 
 Product search through operator-installed providers: identify a product from a photo or text, compare the exact product across providers by total price incl. shipping, new and used, with links; unavailable without an installed provider.
 
-- Specifications: [feature.app-skill.shopping-search](../../specifications/features/app-skills/shopping-search/specification.yml) (draft) · 8 assertion(s)
+- Specifications: [feature.app-skill.shopping-search](../../specifications/features/app-skills/shopping-search/specification.yml) (draft) · 9 assertion(s)
 - Apps: `shopping`
 - Flags: `app:shopping` · dev on · prod on · release v0.5.0-alpha
 
@@ -2653,13 +2653,13 @@ Product search through operator-installed providers: identify a product from a p
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 1/9 | 1 pass · 0 fail · 4 not run · 4 no test | [skill-shopping-search.spec.ts](../../frontend/apps/web_app/tests/skill-shopping-search.spec.ts)<br>[shopping-product-gallery.spec.ts](../../frontend/apps/web_app/tests/components/shopping-product-gallery.spec.ts)<br>[shopping-price-compare-real.spec.ts](../../frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts)<br>[skill-shopping-images.spec.ts](../../frontend/apps/web_app/tests/skill-shopping-images.spec.ts)<br>1 unit test file(s), e.g. [shoppingProductImages.test.ts](../../frontend/packages/ui/src/components/embeds/shopping/shoppingProductImages.test.ts) |
-| Apple | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
-| CLI | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
+| Web | partial 1/10 | 1 pass · 0 fail · 4 not run · 5 no test | [skill-shopping-search.spec.ts](../../frontend/apps/web_app/tests/skill-shopping-search.spec.ts)<br>[shopping-product-gallery.spec.ts](../../frontend/apps/web_app/tests/components/shopping-product-gallery.spec.ts)<br>[shopping-price-compare-real.spec.ts](../../frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts)<br>[skill-shopping-images.spec.ts](../../frontend/apps/web_app/tests/skill-shopping-images.spec.ts)<br>1 unit test file(s), e.g. [shoppingProductImages.test.ts](../../frontend/packages/ui/src/components/embeds/shopping/shoppingProductImages.test.ts) |
+| Apple | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
+| CLI | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
 | TUI | impl | — | — |
-| REST API | partial 4/8 | 4 pass · 0 fail · 4 not run · 0 no test | 5 unit test file(s), e.g. [test_app_packages_price_comparison.py](../../backend/tests/test_app_packages_price_comparison.py), [test_shopping_visual_ranking.py](../../backend/tests/test_shopping_visual_ranking.py) |
-| npm SDK | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
-| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
+| REST API | partial 4/9 | 4 pass · 0 fail · 5 not run · 0 no test | 5 unit test file(s), e.g. [test_app_packages_price_comparison.py](../../backend/tests/test_app_packages_price_comparison.py), [test_shopping_visual_ranking.py](../../backend/tests/test_shopping_visual_ranking.py) |
+| npm SDK | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
+| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
 
 </details>
 

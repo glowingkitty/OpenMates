@@ -70,6 +70,12 @@ assertions:
     key.
   depends_on:
   - examples.price_comparison
+- id: shopping-search.providers.slow-provider-alone
+  type: behavior
+  must: In a price comparison each installed provider gets a bounded time inside the skill's time limit; a provider
+    over it fails alone as not responding in time, and the offers of the other providers are still compared and shown.
+  depends_on:
+  - examples.price_comparison
 - id: shopping-search.privacy.minimized
   type: privacy
   must: New unavailable product searches fail before private image resolution, provider disclosure or visual inference.

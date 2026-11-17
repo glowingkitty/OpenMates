@@ -379,6 +379,11 @@ request item are compared across all its providers:
    offers and offers in a minority currency after them in their previous order,
    and only then applies the requested limit. Photo ranking does not reorder a
    price-ordered group.
+5. Each installed provider of a compared search runs for at most
+   `PROVIDER_SECONDS` (14 s), inside the skill's 20 s envelope. A slower provider
+   fails alone as "did not respond in time"; the other providers' offers are
+   still compared. Without this, one slow upstream would cancel the whole skill
+   and lose every shop's offers.
 
 The group carries `price_comparison` (`offers_considered`, `offers_kept`,
 `exact_product`, `exact_product_found`, `order`). Providers stay responsible for

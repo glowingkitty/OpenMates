@@ -389,7 +389,7 @@ specifications:
     version: 3
     status: draft
     path: features/app-skills/shopping-search
-    fingerprint: 3c5fc8cd602fc887db5039d76336da7f235fbbbe45388a0c2f647160ed183c4c
+    fingerprint: 7d1d977195040eb98c00b25e99a5d199d18d5a1e3cc439e1ce80afd8eb6b43c2
     required_applies_to:
     - rest_api
     - cli
@@ -5898,6 +5898,18 @@ assertions:
     specification_id: feature.app-skill.shopping-search
     type: behavior
     fingerprint: a47c444efdf2a0b8d2ff38c9c92038c19f447f15a12608531033c16c369a0c79
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.providers.slow-provider-alone:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: 3dde1bc5cb0c16433b3db9a7afb8c64cf115bfddf98fe75c28c5c83b1943fd48
     required_applies_to:
     - rest_api
     - cli

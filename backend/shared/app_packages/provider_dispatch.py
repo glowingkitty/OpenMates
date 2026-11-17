@@ -55,7 +55,7 @@ class InstalledProviderOutcome:
 
 
 async def _run_one(app_id: str, skill_id: str, provider_id: str, input_item: Dict[str, Any],
-                   secrets_manager: Any) -> InstalledProviderOutcome:
+                   secrets_manager: Any, timeout_seconds: Optional[int] = None) -> InstalledProviderOutcome:
     provider = get_installed_provider(app_id, skill_id, provider_id)
     if provider is None:
         return InstalledProviderOutcome(provider_id, error="Selected provider is unavailable.")
@@ -67,7 +67,8 @@ async def _run_one(app_id: str, skill_id: str, provider_id: str, input_item: Dic
     if cached is not None:
         logger.info("[AppPackages] Provider '%s' answered from the result cache", provider_id)
         return InstalledProviderOutcome(provider_id, results=cached)
-    outcome = await run_provider(provider, input_item, secrets)
+    outcome = (await run_provider(provider, input_item, secrets, timeout_seconds=timeout_seconds)
+               if timeout_seconds is not None else await run_provider(provider, input_item, secrets))
     if not outcome.ok:
         logger.warning("[AppPackages] Provider '%s' (%s@%s) failed with %s", provider_id, provider.package_id,
                        provider.package_version, outcome.error_code)
@@ -128,8 +129,9 @@ def drop_duplicate_results(outcomes: Sequence[InstalledProviderOutcome]) -> int:
 async def _run_one_reporting(app_id: str, skill_id: str, provider_id: str, input_item: Dict[str, Any],
                              secrets_manager: Any,
                              on_provider_done: Optional[Callable[[InstalledProviderOutcome], Awaitable[None]]],
+                             timeout_seconds: Optional[int] = None,
                              ) -> InstalledProviderOutcome:
-    outcome = await _run_one(app_id, skill_id, provider_id, input_item, secrets_manager)
+    outcome = await _run_one(app_id, skill_id, provider_id, input_item, secrets_manager, timeout_seconds)
     if on_provider_done is not None:
         try:
             await on_provider_done(outcome)
@@ -144,15 +146,18 @@ async def run_installed_providers(
     input_item: Dict[str, Any],
     secrets_manager: Any,
     on_provider_done: Optional[Callable[[InstalledProviderOutcome], Awaitable[None]]] = None,
+    timeout_seconds: Optional[int] = None,
 ) -> List[InstalledProviderOutcome]:
     """Run the given installed providers concurrently; order follows ``provider_ids``.
 
     ``on_provider_done`` is awaited as each provider finishes (before de-duplication);
-    a failing callback never fails the provider.
+    a failing callback never fails the provider. ``timeout_seconds`` caps each provider
+    (the runner default otherwise); a provider over it fails alone as not responding in time.
     """
     unique = list(dict.fromkeys(provider_ids))
     outcomes = list(await asyncio.gather(*(
-        _run_one_reporting(app_id, skill_id, provider_id, input_item, secrets_manager, on_provider_done)
+        _run_one_reporting(app_id, skill_id, provider_id, input_item, secrets_manager, on_provider_done,
+                           timeout_seconds)
         for provider_id in unique
     )))
     dropped = drop_duplicate_results(outcomes)
