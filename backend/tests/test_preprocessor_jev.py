@@ -138,6 +138,49 @@ async def test_upload_turn_keeps_near_threshold_app_the_text_only_router_cannot_
         current_user_content="Where is this cheapest?", message_history=[], has_image_upload_embed=False))
 
 
+# contract-test: supporting surface=rest_api assertions=shopping-search.answer.identify-then-compare
+@pytest.mark.asyncio
+async def test_upload_turn_keeps_near_threshold_skill_and_logs_only_the_request_shape(monkeypatch, caplog):
+    skill_scores = {"shopping-search_products": .6, "web-search": .8}
+
+    async def evaluate(**kwargs):
+        response = _routing_answer(kwargs["questions"])
+        for key, question in kwargs["questions"].items():
+            if key.startswith("app_"):
+                response.answers[key].noul = .95
+            elif key.startswith("skill_"):
+                response.answers[key].noul = skill_scores[question["instructions"]["candidate_id"]]
+        return response
+
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    reference = '```json\n{"type": "image", "embed_id": "e1"}\n```\n'
+
+    async def skills(content, **flag):
+        return (await jev_preprocessing.decide_preprocessing_with_jev(
+            model_id="jev", secrets_manager=None, message_history=[{"role": "user", "content": content}],
+            topic_areas=["general_misc: General"], available_apps=["shopping", "web"],
+            available_skills=["shopping-search_products: Find offers", "web-search: Search"],
+            available_focus_modes=[], available_settings_and_memories={}, recent_skill_activity=[],
+            conversation_summary=None, previous_category=None, is_first_message=True,
+            candidate_discovery_complete=True, telemetry_task_id="shape-task", **flag,
+        ))["relevant_app_skills"]
+
+    caplog.set_level("INFO", logger=jev_preprocessing.logger.name)
+    assert await skills(reference + "Wo bekomme ich das am günstigsten?") == ["shopping-search_products", "web-search"]
+    assert await skills("Wo bekomme ich das am günstigsten?", latest_request_has_upload=True) == [
+        "shopping-search_products", "web-search"]
+    assert await skills("Wo bekomme ich das am günstigsten?") == ["web-search"]
+    logged = "\n".join(record.getMessage() for record in caplog.records if "Stage-two skill scores" in record.getMessage())
+    assert "upload=True threshold=0.50" in logged and "upload=False threshold=0.70" in logged
+    assert "günstigsten" not in logged and "markers=1" in logged
+
+    shape = jev_preprocessing._routing_view_shape([{"role": "user", "content": (
+        '[Attached image: a.jpg]\n```json\n{"embed_id": "secret-value", "type": "website"}\n```\n'
+        "```toon\nurl: https://example.org/private\ntitle: Private\n```\nPrivate question")}])
+    assert shape == "markers=1 blocks=[\"json['embed_id', 'type']\", \"toon['url', 'title']\"] text_chars=42"
+    assert "secret-value" not in shape and "example.org" not in shape and "Private" not in shape
+
+
 # contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way,ai-model-routing.defaults.google-tier-profiles
 @pytest.mark.asyncio
 @pytest.mark.parametrize("explicit_model", [False, True])

@@ -232,6 +232,8 @@ APP_SELECTION_THRESHOLD = 0.65
 # lands just under the usual threshold, so a lower one keeps it available; the main
 # model, which sees the file, still decides whether to call it.
 APP_SELECTION_THRESHOLD_WITH_UPLOAD = 0.5
+SKILL_SELECTION_THRESHOLD = 0.70
+SKILL_SELECTION_THRESHOLD_WITH_UPLOAD = 0.5
 
 
 def _latest_request_has_upload(message_history: list[Any]) -> bool:
@@ -243,6 +245,31 @@ def _latest_request_has_upload(message_history: list[Any]) -> bool:
         content = message.get("content") if isinstance(message, dict) else getattr(message, "content", None)
         return isinstance(content, str) and _compact_uploads(content) != content
     return False
+
+
+_FENCE = re.compile(r"```(?P<lang>[\w-]*)\n(?P<body>(?:(?!```)[\s\S])*?)\n```")
+
+
+def _routing_view_shape(messages: list[dict[str, str]]) -> str:
+    """Content-free shape of the latest user message the decision model reads.
+
+    Lists attachment markers and, for every other fenced block, its language and
+    field names (never values), so routing logs show what a request looked like
+    without logging what the user wrote.
+    """
+    latest = next((row["content"] for row in reversed(messages) if row["role"] == "user"), "")
+    blocks = []
+    for match in _FENCE.finditer(latest):
+        body = match.group("body")
+        try:
+            parsed = json.loads(body)
+            keys = sorted(parsed) if isinstance(parsed, dict) else [type(parsed).__name__]
+        except json.JSONDecodeError:
+            keys = re.findall(r"^([A-Za-z_][\w-]*):", body, re.MULTILINE)
+        blocks.append(f"{match.group('lang') or 'plain'}{keys[:8]}")
+    outside = _FENCE.sub("", latest)
+    return (f"markers={latest.count('[Attached ')} blocks={blocks} "
+            f"text_chars={len(outside.strip())}")
 
 
 def _messages(message_history: list[Any]) -> list[dict[str, str]]:
@@ -603,9 +630,10 @@ async def decide_app_and_project_routing_with_jev(
         # Content-free: app ids and scores only, to explain a missed or extra app.
         scored = sorted(((noul_value(response, question), app_id) for question, app_id in app_map.items()),
                         reverse=True)
-        logger.info("Stage-one app scores task=%s upload=%s threshold=%.2f top=%s", telemetry_task_id,
+        logger.info("Stage-one app scores task=%s upload=%s threshold=%.2f top=%s view=%s", telemetry_task_id,
                     threshold == APP_SELECTION_THRESHOLD_WITH_UPLOAD, threshold,
-                    ", ".join(f"{app_id}={score:.2f}" for score, app_id in scored[:6]))
+                    ", ".join(f"{app_id}={score:.2f}" for score, app_id in scored[:6]),
+                    _routing_view_shape(_messages(message_history)))
     selected.extend(app for app in (forced_app_ids or []) if app in valid_apps)
     result: dict[str, Any] = {"selected_app_ids": list(dict.fromkeys(selected)),
                               "project_target_outcome": "no_eligible_candidate"}
@@ -942,6 +970,17 @@ async def decide_preprocessing_with_jev(
         state=state, questions=questions, secrets_manager=secrets_manager,
         model_id=model_id, telemetry_task_id=telemetry_task_id,
     ) if questions else None
+    if latest_request_has_upload is None:
+        latest_request_has_upload = _latest_request_has_upload(message_history)
+    # Same reason as stage one: the decision model cannot see the attached file.
+    skill_threshold = SKILL_SELECTION_THRESHOLD_WITH_UPLOAD if latest_request_has_upload else SKILL_SELECTION_THRESHOLD
+    skill_scores = {key: noul_value(response, question) for question, key in skill_map.items()} if response else {}
+    if skill_scores:
+        logger.info("Stage-two skill scores task=%s upload=%s threshold=%.2f top=%s view=%s", telemetry_task_id,
+                    latest_request_has_upload, skill_threshold,
+                    ", ".join(f"{key}={score:.2f}" for key, score in
+                              sorted(skill_scores.items(), key=lambda item: -item[1])[:6]),
+                    _routing_view_shape(state["messages"]))
 
     temperature = {"precise": 0.2, "balanced": 0.4, "creative": 0.8}[
         public_decisions["temperature"] if public_decisions else choice_value(response, "temperature")
@@ -973,7 +1012,7 @@ async def decide_preprocessing_with_jev(
             if noul_value(response, f"model_{family}") >= 0.65
         ],
         "load_app_settings_and_memories": [key for question, key in memory_map.items() if noul_value(response, question) >= 0.75],
-        "relevant_app_skills": [key for question, key in skill_map.items() if noul_value(response, question) >= 0.70],
+        "relevant_app_skills": [key for key, score in skill_scores.items() if score >= skill_threshold],
         "relevant_focus_modes": [key for question, key in focus_map.items() if noul_value(response, question) >= 0.75],
         # `source` must survive: the preprocessor turns selected personal rows into
         # `memory:<id>` load requests and drops every non-auto_include row without it.
