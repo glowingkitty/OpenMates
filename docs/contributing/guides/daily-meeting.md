@@ -154,6 +154,20 @@ the primary factor: when one comes up it is ranked by how likely it is to gain u
 that beats a marketing action is NOW, the rest go to the idea inbox or the side notes (triage marks
 feature-like Tasks LATER with that reason).
 
+## Marketing time, the build gate and the meta-work limit
+- **Marketing time** is 11:00-17:00 Berlin on workdays. During it no build work starts unless it has an obvious,
+  concrete link to marketing, business development or a real end-user flow problem; after 17:00 building is free.
+- **The gate** lives in the private dev connector (`broker/build_gate.py`, not in this repository): a neutral decision
+  model (Jev) judges every `start_chat` and `send_message` with a sceptical rubric (the requester may overstate
+  marketing relevance). Outcomes: pass, queue until 17:00 (sent automatically with a note) or idea inbox (an `idea`
+  Task). Ops and safety fixes for live users, outages, answers to a chat's question and pause/stop messages always
+  pass; the founder overrides with `[override build gate: <reason>]`, logged. At most 3 non-marketing build chats run
+  at once. Every decision is logged with its reason (`run/build-gate-decisions.jsonl` of the connector).
+- **Voice and meeting assistants** ask once before sending build work in marketing time: "That's build work - inbox,
+  queue for 17:00, or does it really help marketing?" (rule in the meeting script).
+- **Meta-work limit:** at most 10-15 minutes on workflow or meeting optimisation per meeting; the briefing shows a timer
+  note, more goes to the weekly goals block.
+
 ## Daily limits, LATER, DROP and the decision log
 - **Limits:** at most **3 waiting chats and 3 reminders** are NOW per meeting (importance order; the briefing
   enforces it in `Triage.cap_now`). The rest become LATER (tomorrow) in the side notes.

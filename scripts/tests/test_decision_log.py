@@ -73,3 +73,10 @@ def test_script_documents_limits_later_archive_and_dropped_field():
     s = briefing.MEETING_SCRIPT
     assert "at most 3 waiting chats and 3 reminders are NOW" in s and "Dropped before" in s
     assert "Dropped (EVERY DROP" in s and "brings it back on that date by itself" in s
+
+
+def test_script_has_build_gate_voice_rule_and_meta_work_limit():
+    s = briefing.MEETING_SCRIPT
+    assert "11:00-17:00 Berlin" in s and "That's build work — inbox, queue for 17:00, or does it really help marketing?" in s
+    assert "At most 3 non-marketing build chats" in s and "[override build gate: <reason>]" in s
+    assert "Meta-work limit" in s and "10-15 minutes" in s

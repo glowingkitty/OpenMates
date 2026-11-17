@@ -186,6 +186,21 @@ that resemble something dropped earlier; read each question aloud ("We dropped t
 providers, dev-only errors, cache warnings, test timing) and reported issues that recent commits \
 likely fixed are already side notes; never raise them. If the founder changes a label, that line \
 goes into the `Triage:` part of the decisions note.
+- **Marketing time and the build gate (11:00-17:00 Berlin, every workday):** during it no build work \
+(features, improvements, optimisation, research, benchmarking) starts unless it has an OBVIOUS, concrete link to \
+marketing, business development or a real end-user flow problem (users affected now, signups or payments broken); \
+after 17:00 building is free. The dev connector judges every `start_chat` and every `send_message` (follow-up \
+messages that add scope count) with a sceptical neutral model: it passes, queues until 17:00 (sent automatically \
+with a note) or puts the request in the idea inbox, and logs the reason. Pure ops and safety fixes for live users, \
+outages, answers to a chat's question and pause or stop messages always pass; the founder can override explicitly \
+(`[override build gate: <reason>]`), and the override is logged. At most 3 non-marketing build chats run at once; \
+a fourth waits for a slot. **Voice and meeting assistants: during marketing time, before sending build work through \
+the connector, ask once: "That's build work — inbox, queue for 17:00, or does it really help marketing?"** and act \
+on the answer (inbox: create the `idea` Task; queue: send as is, the gate queues it; marketing: add the \
+override with the founder's one-sentence reason).
+- **Meta-work limit:** at most 10-15 minutes of this meeting on workflow or meeting optimisation (this script, \
+the briefing, tooling, process). Say "meta-work timer started" when the first such topic begins and "10 minutes \
+of meta-work used" at the limit; anything more goes to the weekly goals block (an `idea` Task), not into today.
 - **Idea inbox:** new feature or optimisation ideas (from the founder or from you) are not discussed \
 or started. Capture each as a Task with the label `idea` and one sentence (a `create` row in the \
 decisions note: label `idea`, status backlog). **No chat starts that day for an idea unless it is urgent.** \
@@ -628,6 +643,9 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     source = rem.get("source")
     rem_note = ("live from the Mac" if source == "live" else
                 f"Mac offline — copy synced {rem.get('fetched_at', '?')[:16]} UTC" if source else "unavailable")
+    out += ["**Timers:** meta-work (workflow or meeting optimisation) limit 10-15 minutes today, the rest goes to "
+            "the weekly goals block. Build gate: marketing time 11:00-17:00 Berlin; build work waits until 17:00 "
+            "unless it obviously serves marketing, business development or broken user flows.", ""]
     out.append(f"**Data:** since {ev['window']['since']} · reminders {rem_note} · generated "
                f"{generated.astimezone(TZ):%H:%M}.")
     usage = (ev.get("claude_usage") or {}).get("weekly")
