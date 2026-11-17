@@ -350,15 +350,22 @@ send_message `held=auto` replaces typed text older than 30 min (age from
 choose `replace` or `send_first`. host_status lists the typed entries as the queue
 of unsent messages.
 
-Unconfirmed deliveries (2026-11-15, 76c8264a: a send to a busy chat sat in its box for
-2 h): a busy chat either takes a typed message into its queue, which Claude Code writes
-to the transcript only when the current step ends, or leaves it in the box (Enter not
-taken; long text shows as `[Pasted text #N]`). The connector presses Enter again at
-once while its text is still in the box, and lists every delivery it could not confirm
-in `logs/claude-chat-lifecycle/connector-deliveries.json`. Its broker re-checks them
-every 30 s: delivered once the transcript shows them, Enter again while they sit in
-the box, otherwise `undelivered` (shown in host_status and chat_changes, never
-dropped). `watch` reads that file and records a chat whose box shows such a delivery
-as `typed` (source `connector`, age from when it was typed) even while the chat is
-busy, without probing it.
+Deliveries to busy chats (2026-11-15, 76c8264a: a send sat in the box for 2 h;
+2026-11-17, f1250b91: "NOT confirmed" although the chat had queued it). Claude Code
+records a message taken into a busy chat's queue at once as a `queue-operation`
+`enqueue` record, and the `queued_command` attachment only when the current step ends;
+the connector reads both, and the "⎿  Queued" mark on screen. Escalation: (1) the
+message is typed and queued (Enter is pressed again while the text still sits in the
+box); (2) not queued or received within 60 s, the connector presses Esc and sends it as
+the chat's next prompt; (3) never while a risky step runs (the last tool call without a
+result, also inside a running sub-agent: deploy, git write, production SSH, migration,
+Vault write, file write). It waits until that step ended. A message that meets an open
+question dialog is held and typed when the dialog is answered. Replies start with
+Delivered, Queued, Delivered after interrupt, Waiting for a risky step, Held, NOT sent
+or Failed. Open and confirmed deliveries are kept in
+`logs/claude-chat-lifecycle/connector-deliveries.json` and re-checked by the broker
+every 10 s; host_status and chat_changes list them (undelivered with the text to
+resend, open, delivered with how). `watch` reads that file and records a chat whose
+box shows such a delivery as `typed` (source `connector`, age from when it was typed)
+even while the chat is busy, without probing it.
 
