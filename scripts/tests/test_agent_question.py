@@ -93,6 +93,19 @@ def test_real_secrets_are_still_removed(secret, leaked):
     assert leaked not in out and "[removed]" in out
 
 
+def test_setup_steps_keep_placeholders_public_keys_and_image_tags():
+    pub = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPcrLk/uTTvE04WCQ23H2TNr1GLu9qyoxctJR9VtESh/ openmates-status-deploy"
+    text = (f"Add SECRET__FIGMA__OAUTH_CLIENT_ID=... and SECRET__FIGMA__OAUTH_CLIENT_SECRET=<value> to .env. "
+            f"SSH key, paste exactly: {pub} then run setup --image ghcr.io/example/openmates-status:sha-{COMMIT}")
+    assert aq.scrub(text) == text
+
+
+def test_private_key_next_to_a_public_key_is_still_removed():
+    out = aq.scrub("pub ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPcrLk/uTTvE04WCQ23 and "
+                   "-----BEGIN OPENSSH PRIVATE KEY-----b3BlbnNzaC1rZXktdjEAAAAA-----END OPENSSH PRIVATE KEY-----")
+    assert "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPcrLk/uTTvE04WCQ23" in out and "b3BlbnNz" not in out
+
+
 def test_assignment_keeps_the_name_and_drops_the_value():
     assert aq.scrub("set SERVER_OWNER_TOKEN=abc123def and VIDEO_URL=" + PRESIGNED) == (
         "set SERVER_OWNER_TOKEN=[removed] and VIDEO_URL=" + PRESIGNED)

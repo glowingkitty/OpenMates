@@ -54,10 +54,13 @@ SECRET_PATTERNS = (
     re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b|\bAIza[0-9A-Za-z_-]{30,}"),
 )
 # NAME=value: the name stays readable, the value is removed.
-_ASSIGNMENT = re.compile(r"\b([A-Z][A-Z0-9_]{3,})=(?!\[removed\])[^\s\x00]+")
+# Placeholders such as NAME=... or NAME=<value> are instructions, not values, and stay.
+_ASSIGNMENT = re.compile(r"\b([A-Z][A-Z0-9_]{3,})=(?!\[removed\]|\.{3}(?![^\s\x00])|<[^>\s]*>(?![^\s\x00]))[^\s\x00]+")
+# OpenSSH public keys are public by design (people are asked to paste them) and stay whole.
+_SSH_PUBLIC_KEY = re.compile(r"\b(?:ssh-(?:ed25519|rsa)|ecdsa-sha2-nistp(?:256|384|521)|sk-ssh-ed25519@openssh\.com) AAAA[A-Za-z0-9+/]{16,}={0,3}")
 _LONG_TOKEN = re.compile(r"(?<![\w-])[A-Za-z0-9_-]{32,}(?![\w-])")
 _UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
-_GIT_OR_SHA256 = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+_GIT_OR_SHA256 = re.compile(r"(?:sha-)?(?:[0-9a-f]{40}|[0-9a-f]{64})")  # sha-<commit> image tags too
 _WORDS = re.compile(r"(?:[a-z0-9]{1,20}(?:[_-]+[a-z0-9]{1,20})+|[A-Z0-9]{1,20}(?:[_-]+[A-Z0-9]{1,20})+)")
 
 
@@ -110,8 +113,9 @@ def scrub(text: str) -> str:
 
     Removed: Discord webhook URLs, private keys, emails, JWTs, bearer tokens, prefixed API keys, the
     values of NAME=value assignments and other long random tokens. Kept: Task/chat UUIDs, 40/64-char
-    hex commit hashes and digests, ENV_VAR / snake_case / kebab-case names, and presigned links to
-    our own storage buckets (see own_storage_link)."""
+    hex commit hashes and digests (also sha-<commit> image tags), ENV_VAR / snake_case / kebab-case
+    names, NAME=... placeholders, OpenSSH public keys and presigned links to our own storage
+    buckets (see own_storage_link)."""
     kept: list[str] = []
 
     def protect(match: re.Match[str]) -> str:
@@ -122,6 +126,7 @@ def scrub(text: str) -> str:
         return f"\x00{len(kept) - 1}\x00"
 
     text = _URL.sub(protect, text.replace("\x00", ""))
+    text = _SSH_PUBLIC_KEY.sub(lambda m: (kept.append(m.group(0)), f"\x00{len(kept) - 1}\x00")[1], text)
     for pattern in SECRET_PATTERNS:
         text = pattern.sub("[removed]", text)
     text = _ASSIGNMENT.sub(lambda m: f"{m.group(1)}=[removed]", text)
