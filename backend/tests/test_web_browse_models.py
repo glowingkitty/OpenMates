@@ -899,6 +899,32 @@ async def test_nonfinite_generated_numbers_fail_after_accounting_without_retry(
     assert models.attempts[0]["complete"] is True and models.cost > 0
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.cost-accounting,web-browse.text-helper
+@pytest.mark.asyncio
+@pytest.mark.parametrize("replies,calls", [(["{\"data\": {\"q\": 1} trailing", '{"data":{"q":1}}'], 2),
+                                           (["{\"data\": oops", "{\"data\": oops"], 2)])
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.cost-accounting,web-browse.text-helper
+async def test_one_unparsable_extraction_gets_a_single_metered_repair_attempt(
+    models, monkeypatch, replies, calls
+):
+    monkeypatch.delenv("WEB_BROWSE_TOGETHER_ZDR_VERIFIED", raising=False)
+    fallback = google_fallback(monkeypatch)
+    fallback.side_effect = [
+        SimpleNamespace(**{**vars(fallback.return_value), "direct_message_content": reply})
+        for reply in replies
+    ]
+    context = {"purpose": "extract", "goal": "Read the first form question"}
+    if replies[-1].endswith("}"):
+        assert await models.generate(context) == {"data": {"q": 1}}
+    else:
+        with pytest.raises(BrowserModelError, match="invalid JSON"):
+            await models.generate(context)
+    assert fallback.await_count == calls and len(models.attempts) == calls
+    assert all(attempt["complete"] for attempt in models.attempts)
+    repaired = fallback.await_args.kwargs["messages"][1]["content"]
+    assert "previous_reply_rejected" in repaired and "trailing" not in repaired
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting

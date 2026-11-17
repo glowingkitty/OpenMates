@@ -82,6 +82,8 @@ class BrowserModelError(RuntimeError):
         plan_error_code: str | None = None,
     ):
         super().__init__(message)
+        # Set by parse_browser_json for a reply that is not a JSON document.
+        self.unparsable = False
         # Diagnostics are an allowlist, never provider text, page data or input.
         codes = {
             "The browser model tariff is unavailable.": "tariff_unavailable",
@@ -130,17 +132,24 @@ def parse_browser_json(content: Any, *, purpose: str | None = None) -> Any:
     )
     if fenced:
         text = fenced.group(1)
+    unparsable = True
     try:
         parsed = json.loads(text)
+        unparsable = False
         json.dumps(parsed, allow_nan=False)
         return parsed
     except (ValueError, TypeError):
-        raise BrowserModelError(
+        error = BrowserModelError(
             "The browser text helper returned invalid JSON.",
             response_kind=kind,
             response_chars=len(content) if isinstance(content, str) else 0,
             purpose=purpose,
-        ) from None
+        )
+        # Internal only (never in safe_details): a reply that is not a JSON
+        # document at all may be repaired once; a parsed but nonfinite value
+        # (NaN, Infinity) is a wrong answer and is never retried.
+        error.unparsable = unparsable
+        raise error from None
 
 
 def _normalized(text: str) -> str:
@@ -709,13 +718,26 @@ class BrowserModels:
                 "Do not omit material context merely to shorten a field. "
                 "Never invent records, citations or values and never provide passwords, MFA codes or payment credentials."
             )
-        return await self.text_call(
-            context,
-            instructions=instructions,
-            output_tokens=256 if review else 2048,
-            max_input_chars=REVIEW_INPUT_CHARS if review else 50000,
-            purpose=context.get("purpose"),
-        )
+        # Extraction gets one metered repair attempt, as the planner does: a
+        # single unparsable reply must not end the user's run (seen on dev as a
+        # json_like reply on the first form turn). The review stays one call.
+        for attempt in range(1 if review else 2):
+            try:
+                return await self.text_call(
+                    context,
+                    instructions=instructions,
+                    output_tokens=256 if review else 2048,
+                    max_input_chars=REVIEW_INPUT_CHARS if review else 50000,
+                    purpose=context.get("purpose"),
+                )
+            except BrowserModelError as exc:
+                if attempt or not exc.unparsable:
+                    raise
+                context = {
+                    **context,
+                    "previous_reply_rejected": "not one complete JSON document",
+                }
+        raise BrowserModelError("The browser text helper is unavailable.")
 
     async def text_call(
         self,
