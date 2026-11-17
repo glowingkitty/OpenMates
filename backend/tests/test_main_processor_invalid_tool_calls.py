@@ -1057,6 +1057,7 @@ async def test_browse_form_guidance_loads_only_when_browse_is_selected(monkeypat
     # The session cap covers the whole form and cannot be raised later; a reached
     # cap is reported, never hidden behind claimed fills.
     assert ("`max_credits: 1000`" in prompt and "`budget_exceeded`" in prompt) is (selected == ["web-browse"])
+    assert ("no `start_url` or `max_credits`" in prompt) is (selected == ["web-browse"])
 
 def _baseline_search_test_catalog():
     def metadata(app_id, skill_ids):

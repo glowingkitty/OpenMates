@@ -448,7 +448,7 @@ specifications:
     version: 2
     status: draft
     path: features/app-skills/web-browse
-    fingerprint: a3af53a364f5e3159b8bf36405471707119a5c58f87aff605eaa43a8ab91103c
+    fingerprint: b5e8a433de70e1c70efc0302e2ffbb3b63a6f9a78c2d5317afae00243e145b39
     required_applies_to:
     - rest_api
     - cli
@@ -6611,7 +6611,7 @@ assertions:
     specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: behavior
-    fingerprint: 03db1dc24e6344330d4ff10b163f00188135d23c875e1e7858d17e59119e0824
+    fingerprint: 64d4e50c2c7a9e994d26764baa154673cad6cd3a20b4dca9bb25c51396dc2bb3
     required_applies_to:
     - rest_api
     - cli

@@ -578,12 +578,12 @@ assertions:
       surface: rest_api
     - &id068
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2711
+      line: 2712
       name: test_image_reference_handoff_reaches_first_dispatch_without_viewer
       surface: rest_api
     - &id069
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2780
+      line: 2781
       name: test_unrelated_historical_image_does_not_readd_viewer_or_image_safety
       surface: rest_api
     supporting_tests:
@@ -594,12 +594,12 @@ assertions:
       surface: rest_api
     - &id066
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1086
+      line: 1087
       name: test_baseline_searches_reach_provider_without_preprocessing_selection
       surface: gui.web
     - &id067
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2661
+      line: 2662
       name: test_real_shopping_answer_policy_survives_every_model_dispatch
       surface: rest_api
     - &id070
@@ -870,17 +870,17 @@ assertions:
       surface: rest_api
     - &id098
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2442
+      line: 2443
       name: test_async_task_id_collection_collapses_audio_batch_alias
       surface: rest_api
     - &id099
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2449
+      line: 2450
       name: test_async_task_id_collection_keeps_distinct_jobs_in_order
       surface: rest_api
     - &id100
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2455
+      line: 2456
       name: test_only_processing_counts_as_async_dispatch
       surface: rest_api
     - &id102
@@ -1026,12 +1026,12 @@ assertions:
       surface: rest_api
     - &id120
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2442
+      line: 2443
       name: test_async_task_id_collection_collapses_audio_batch_alias
       surface: rest_api
     - &id121
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2449
+      line: 2450
       name: test_async_task_id_collection_keeps_distinct_jobs_in_order
       surface: rest_api
     - &id123
@@ -3008,72 +3008,72 @@ assertions:
       surface: gui.web
     - &id389
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1086
+      line: 1087
       name: test_baseline_searches_reach_provider_without_preprocessing_selection
       surface: gui.web
     - &id390
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1109
+      line: 1110
       name: test_baseline_searches_preserve_tool_permissions
       surface: gui.web
     - &id391
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1238
+      line: 1239
       name: test_tool_guidance_matches_final_forwarded_capability
       surface: rest_api
     - &id392
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1412
+      line: 1413
       name: test_main_processor_continues_safe_text_after_fabricated_protocol
       surface: gui.web
     - &id393
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1446
+      line: 1447
       name: test_native_preparation_uses_normal_first_turn_and_skips_protocol_recovery
       surface: gui.web
     - &id394
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1670
+      line: 1671
       name: test_main_processor_recovers_when_protocol_was_the_first_output
       surface: gui.web
     - &id395
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1694
+      line: 1695
       name: test_main_processor_bounds_repeated_protocol_and_marks_failure
       surface: gui.web
     - &id396
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1712
+      line: 1713
       name: test_main_processor_uses_configured_alternate_after_repeated_protocol
       surface: gui.web
     - &id397
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1738
+      line: 1739
       name: test_main_processor_rejects_orphaned_protocol_recovery_context
       surface: gui.web
     - &id398
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2455
+      line: 2456
       name: test_only_processing_counts_as_async_dispatch
       surface: rest_api
     - &id399
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2572
+      line: 2573
       name: test_answer_recovery_excludes_dispatch_guidance_but_keeps_result_and_safety_rules
       surface: rest_api
     - &id400
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3129
+      line: 3130
       name: test_completed_search_member_is_reused_across_batches
       surface: gui.web
     - &id401
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3190
+      line: 3191
       name: test_event_search_reuse_does_not_cross_explicit_user_turns
       surface: gui.web
     - &id402
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3218
+      line: 3219
       name: test_guard_log_diagnostics_do_not_include_suppressed_content
       surface: gui.web
     - &id403
@@ -29105,12 +29105,12 @@ assertions:
       surface: rest_api
     - &id3729
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2503
+      line: 2504
       name: test_missing_required_fixture_section_stops_before_provider
       surface: rest_api
     - &id3730
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2517
+      line: 2518
       name: test_actual_safety_fixture_survives_every_answer_recovery_provider_request
       surface: rest_api
     - &id3731
@@ -29814,7 +29814,7 @@ assertions:
       surface: rest_api
     - &id3824
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1181
+      line: 1182
       name: test_proven_first_turn_fact_omits_interactive_protocol_in_provider_prompt
       surface: rest_api
     tests:
@@ -30404,7 +30404,7 @@ assertions:
       surface: rest_api
     - &id3890
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1491
+      line: 1492
       name: test_native_preparation_keeps_ordinary_forced_answer_turn_tool_free
       surface: cli
     - &id3893
@@ -30786,27 +30786,27 @@ assertions:
       surface: rest_api
     - &id3948
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1129
+      line: 1130
       name: test_no_tool_dispatch_prunes_only_unavailable_tool_guidance
       surface: rest_api
     - &id3949
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1315
+      line: 1316
       name: test_simple_personal_turn_forwards_task_tool_only_for_task_intent
       surface: rest_api
     - &id3950
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2236
+      line: 2237
       name: test_main_model_call_forwards_only_saved_profile_choice
       surface: rest_api
     - &id3951
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2254
+      line: 2255
       name: test_uploaded_image_auto_profile_reaches_main_dispatch
       surface: rest_api
     - &id3952
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2293
+      line: 2294
       name: test_explicit_gemini_image_selection_preserves_model_and_thinking
       surface: rest_api
     - &id3953
@@ -30964,7 +30964,7 @@ assertions:
       surface: rest_api
     - &id3967
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2973
+      line: 2974
       name: test_mercury_rechecks_media_restored_in_answer_recovery
       surface: rest_api
     - &id3968
@@ -31276,22 +31276,22 @@ assertions:
       surface: rest_api
     - &id4006
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3019
+      line: 3020
       name: test_jev_mercury_effort_caps_real_loop_before_reservation
       surface: rest_api
     - &id4007
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3050
+      line: 3051
       name: test_jev_mercury_high_effort_preserves_smaller_scope_limits
       surface: rest_api
     - &id4008
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3080
+      line: 3081
       name: test_jev_gemini_effort_stays_independent_of_profile_provenance
       surface: rest_api
     - &id4009
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3099
+      line: 3100
       name: test_jev_mercury_effort_survives_protocol_answer_recovery
       surface: rest_api
     - &id4010
@@ -31904,12 +31904,12 @@ assertions:
       surface: rest_api
     - &id4090
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2293
+      line: 2294
       name: test_explicit_gemini_image_selection_preserves_model_and_thinking
       surface: rest_api
     - &id4091
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2317
+      line: 2318
       name: test_saved_image_model_selection_reaches_main_unchanged
       surface: rest_api
     - &id4092
@@ -32937,17 +32937,17 @@ assertions:
     supporting_tests:
     - &id4207
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1355
+      line: 1356
       name: test_no_tool_diagram_guidance_survives_primary_and_recovery_prompts
       surface: rest_api
     - &id4208
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2372
+      line: 2373
       name: test_memory_receipt_describes_only_guides_in_actual_dispatched_prompt
       surface: rest_api
     - &id4209
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2619
+      line: 2620
       name: test_revoked_on_demand_memory_is_removed_from_actual_native_provider_payload
       surface: rest_api
     - &id4210
@@ -33828,12 +33828,12 @@ assertions:
       surface: rest_api
     - &id4320
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2619
+      line: 2620
       name: test_revoked_on_demand_memory_is_removed_from_actual_native_provider_payload
       surface: rest_api
     - &id4321
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3342
+      line: 3343
       name: test_on_demand_memory_reaches_next_provider_call_and_answer_recovery
       surface: rest_api
     - &id4322
@@ -34362,17 +34362,17 @@ assertions:
       surface: rest_api
     - &id4382
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1355
+      line: 1356
       name: test_no_tool_diagram_guidance_survives_primary_and_recovery_prompts
       surface: rest_api
     - &id4383
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2372
+      line: 2373
       name: test_memory_receipt_describes_only_guides_in_actual_dispatched_prompt
       surface: rest_api
     - &id4384
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3342
+      line: 3343
       name: test_on_demand_memory_reaches_next_provider_call_and_answer_recovery
       surface: rest_api
     - &id4385
@@ -37477,7 +37477,7 @@ assertions:
       surface: rest_api
     - &id4768
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1955
+      line: 1956
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id4770
@@ -37978,7 +37978,7 @@ assertions:
       surface: rest_api
     - &id4815
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1955
+      line: 1956
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id4816
@@ -49071,12 +49071,12 @@ assertions:
     supporting_tests:
     - &id6120
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2804
+      line: 2805
       name: test_inspection_safety_follows_selected_viewer_or_actual_pixels
       surface: rest_api
     - &id6121
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2816
+      line: 2817
       name: test_multimodal_tool_result_adds_image_safety_before_next_dispatch
       surface: rest_api
     - &id6124
@@ -50202,7 +50202,7 @@ assertions:
     supporting_tests:
     - &id6242
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2661
+      line: 2662
       name: test_real_shopping_answer_policy_survives_every_model_dispatch
       surface: rest_api
     - &id6243
@@ -55344,7 +55344,7 @@ assertions:
     current_direct_proof: false
   web-browse.form-with-user:
     specification: feature.app-skill.web-browse@2
-    fingerprint: 03db1dc24e6344330d4ff10b163f00188135d23c875e1e7858d17e59119e0824
+    fingerprint: 64d4e50c2c7a9e994d26764baa154673cad6cd3a20b4dca9bb25c51396dc2bb3
     direct_tests:
     - &id6885
       path: frontend/apps/web_app/tests/web-browse-form-real.spec.ts
@@ -58244,7 +58244,7 @@ assertions:
       surface: gui.web
     - &id7218
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1086
+      line: 1087
       name: test_baseline_searches_reach_provider_without_preprocessing_selection
       surface: gui.web
     - &id7219
@@ -70897,17 +70897,17 @@ assertions:
     supporting_tests:
     - &id8851
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3254
+      line: 3255
       name: test_search_budget_counts_primary_calls_and_both_media_share_one_query
       surface: rest_api
     - &id8852
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3282
+      line: 3283
       name: test_search_budget_expanded_and_essential_fact_exceptions_stay_bounded
       surface: rest_api
     - &id8853
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3315
+      line: 3316
       name: test_actual_image_batch_is_clamped_and_video_retry_is_reported_without_dispatch
       surface: rest_api
     tests:
@@ -70929,7 +70929,7 @@ assertions:
     supporting_tests:
     - &id8854
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3236
+      line: 3237
       name: test_composition_and_image_only_guidance_reaches_real_dispatch
       surface: rest_api
     tests:
@@ -86148,7 +86148,7 @@ assertions:
       surface: rest_api
     - &id10836
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1955
+      line: 1956
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id10856
@@ -89540,22 +89540,22 @@ assertions:
       surface: rest_api
     - &id11258
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1515
+      line: 1516
       name: test_personal_main_usage_has_no_hold_and_other_scopes_keep_reservation
       surface: gui.web
     - &id11259
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1568
+      line: 1569
       name: test_personal_main_dispatch_applies_read_only_wallet_fit_before_provider
       surface: gui.web
     - &id11260
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1616
+      line: 1617
       name: test_failed_personal_provider_reports_supplier_usage_without_hold
       surface: gui.web
     - &id11261
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1640
+      line: 1641
       name: test_personal_fallback_aggregates_both_provider_attempts_without_hold
       surface: gui.web
     - &id11262
@@ -100676,12 +100676,12 @@ assertions:
     supporting_tests:
     - &id12605
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2839
+      line: 2840
       name: test_composer_output_contract_ends_actual_provider_prompt
       surface: rest_api
     - &id12606
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2884
+      line: 2885
       name: test_ineligible_provider_prompt_omits_composer_output_reminder
       surface: rest_api
     - &id12607
@@ -110349,7 +110349,7 @@ assertions:
       surface: rest_api
     - &id13915
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1886
+      line: 1887
       name: test_pending_app_settings_memories_context_preserves_model_preferences
       surface: rest_api
     - &id13918
@@ -116000,7 +116000,7 @@ assertions:
       surface: gui.web
     - &id14714
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 3129
+      line: 3130
       name: test_completed_search_member_is_reused_across_batches
       surface: gui.web
     - &id14715
@@ -130144,7 +130144,7 @@ assertions:
       surface: rest_api
     - &id16550
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2399
+      line: 2400
       name: test_natural_public_focus_reuses_countdown_without_extra_answer_inference
       surface: cli
     - &id16551
@@ -133825,7 +133825,7 @@ assertions:
       surface: cli
     - &id17007
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 2399
+      line: 2400
       name: test_natural_public_focus_reuses_countdown_without_extra_answer_inference
       surface: cli
     - &id17008
@@ -174674,7 +174674,7 @@ assertions:
       surface: rest_api
     - &id22074
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 1315
+      line: 1316
       name: test_simple_personal_turn_forwards_task_tool_only_for_task_intent
       surface: rest_api
     - &id22075
