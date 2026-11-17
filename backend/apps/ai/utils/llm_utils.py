@@ -3005,12 +3005,20 @@ async def call_main_llm_stream(
         raise AllServersFailedError(original_model_id, attempted_servers, last_error)
 
 
-def log_main_llm_stream_aggregated_output(task_id: str, aggregated_response: str, error_message: Optional[str] = None):
+def log_main_llm_stream_aggregated_output(
+    task_id: str,
+    aggregated_response: str,
+    error_message: Optional[str] = None,
+    expected_failure: bool = False,
+):
     """
     Log aggregated LLM stream output with sanitization.
     Even in development mode, we don't log actual response content, only metadata.
+    ``expected_failure`` marks an expected rejection (e.g. an anonymous user's
+    sign-up limit): it is logged at WARNING so error monitoring ignores it.
     """
     log_prefix = f"[{task_id}] LLM Utils (Main Stream Aggregated Output):"
+    error_level = logging.WARNING if expected_failure else logging.ERROR
     
     if os.getenv("SERVER_ENVIRONMENT") == "development":
         if error_message:
@@ -3022,7 +3030,7 @@ def log_main_llm_stream_aggregated_output(task_id: str, aggregated_response: str
                 "partial_response_content": "[REDACTED_CONTENT]",
                 "event_type": "llm_main_stream_aggregated_output_error"
             }
-            logger.error(f"{log_prefix} Error during stream processing: {error_message}", extra=log_details)
+            logger.log(error_level, f"{log_prefix} Error during stream processing: {error_message}", extra=log_details)
         else:
             # Sanitize: show only length, not actual content
             log_details = {
@@ -3034,6 +3042,6 @@ def log_main_llm_stream_aggregated_output(task_id: str, aggregated_response: str
             logger.info(f"{log_prefix} Successfully aggregated stream. Length: {len(aggregated_response)}", extra=log_details)
     else:
         if error_message:
-            logger.error(f"{log_prefix} Error during stream processing: {error_message}. Detailed logging skipped.")
+            logger.log(error_level, f"{log_prefix} Error during stream processing: {error_message}. Detailed logging skipped.")
         else:
             logger.info(f"{log_prefix} Successfully aggregated stream. Length: {len(aggregated_response)}. Detailed logging skipped.")

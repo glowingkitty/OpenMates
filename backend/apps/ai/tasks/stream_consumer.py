@@ -79,6 +79,7 @@ from backend.apps.ai.sub_chat_orchestration import (
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output, STANDARDIZED_USER_ERROR_MESSAGE
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure_reason
+from backend.shared.python_utils.chat_failure_notifications import EXPECTED_REJECTIONS
 from backend.apps.ai.utils.embed_display_text import (
     EMBED_REF_SUFFIX_PATTERN as _EMBED_REF_SUFFIX_PATTERN,
     derive_display_text_from_embed_ref as _derive_display_text_from_embed_ref,
@@ -7145,7 +7146,10 @@ async def _consume_main_processing_stream(
             if failure_reason is not None:
                 terminal_failure_reason = failure_reason
                 debug_metadata["main_processing_failure_reason"] = failure_reason
-                logger.error(
+                # An expected rejection (e.g. an anonymous user's sign-up limit) is a
+                # product outcome, not a chat failure: keep it out of ERROR monitoring.
+                logger.log(
+                    logging.WARNING if failure_reason in EXPECTED_REJECTIONS else logging.ERROR,
                     "%s Main processing ended with a classified terminal failure: reason=%s",
                     log_prefix,
                     failure_reason,
@@ -11818,7 +11822,8 @@ async def _consume_main_processing_stream(
         logger.info(f"{log_prefix} Finished consuming stream (INTERRUPTED BY SOFT LIMIT). {log_msg_suffix}")
         stream_error_message_for_log = "Stream consumption interrupted by soft time limit."
     elif terminal_failure_reason is not None:
-        logger.error(
+        logger.log(
+            logging.WARNING if terminal_failure_reason in EXPECTED_REJECTIONS else logging.ERROR,
             "%s Finished consuming stream (FAILED: %s). %s",
             log_prefix,
             terminal_failure_reason,
@@ -11830,7 +11835,10 @@ async def _consume_main_processing_stream(
 
     # Log the aggregated output (or error) using the utility from llm_utils
     try:
-        log_main_llm_stream_aggregated_output(task_id, aggregated_response, error_message=stream_error_message_for_log)
+        log_main_llm_stream_aggregated_output(
+            task_id, aggregated_response, error_message=stream_error_message_for_log,
+            expected_failure=terminal_failure_reason in EXPECTED_REJECTIONS,
+        )
     except Exception as e_log_output:
         logger.error(f"{log_prefix} Failed to log main LLM stream aggregated output: {e_log_output}", exc_info=True)
 

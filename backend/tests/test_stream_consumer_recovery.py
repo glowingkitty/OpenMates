@@ -12,6 +12,7 @@ aggregation.
 from __future__ import annotations
 
 import asyncio
+import logging
 import inspect
 import importlib
 import json
@@ -1221,7 +1222,7 @@ def test_initial_child_resolves_dispatched_inference_identity_for_assistant_and_
 
 # contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger
 @pytest.mark.parametrize("failure_reason", ["provider_exhausted", "anonymous_usage_limit"])
-def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monkeypatch, failure_reason):
+def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monkeypatch, caplog, failure_reason):
     from backend.shared.python_utils.chat_failure_notifications import terminal_class
 
     async def failed_stream(**kwargs):
@@ -1251,12 +1252,24 @@ def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monk
         is_anonymous=failure_reason == "anonymous_usage_limit",
     )
 
-    result = asyncio.run(stream_consumer._consume_main_processing_stream(
-        task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
-        base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
-        all_mates_configs=[], discovered_apps_metadata={}, cache_service=SimpleNamespace(),
-    ))
+    with caplog.at_level(logging.WARNING, logger=stream_consumer.logger.name):
+        result = asyncio.run(stream_consumer._consume_main_processing_stream(
+            task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
+            base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
+            all_mates_configs=[], discovered_apps_metadata={}, cache_service=SimpleNamespace(),
+        ))
 
+    # An anonymous user's sign-up limit is an expected rejection: the hourly
+    # production chat-failure check reads ERROR logs, so it must stay WARNING.
+    expected = failure_reason == "anonymous_usage_limit"
+    failure_levels = {
+        record.levelno
+        for record in caplog.records
+        if "classified terminal failure" in record.getMessage()
+        or "Finished consuming stream (FAILED" in record.getMessage()
+    }
+    assert failure_levels == {logging.WARNING if expected else logging.ERROR}
+    assert aggregate_log.call_args.kwargs["expected_failure"] is expected
     assert result[0].startswith("A partial answer that must not make the turn look successful.")
     assert result[0].endswith(stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE)
     assert result[4]["main_processing_failure_reason"] == failure_reason
@@ -1279,6 +1292,20 @@ def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monk
         {"main_processing_output": result[0]},
         stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE,
     ) == "failed_during_main"
+
+
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger
+@pytest.mark.parametrize("expected_failure,level", [(True, logging.WARNING), (False, logging.ERROR)])
+def test_aggregated_output_log_level_follows_expected_failure(monkeypatch, caplog, expected_failure, level):
+    from backend.apps.ai.utils import llm_utils
+
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+    with caplog.at_level(logging.WARNING, logger=llm_utils.logger.name):
+        llm_utils.log_main_llm_stream_aggregated_output(
+            "task-1", "partial", error_message="Main processing failed: x.", expected_failure=expected_failure,
+        )
+
+    assert [record.levelno for record in caplog.records] == [level]
 
 
 # contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger
