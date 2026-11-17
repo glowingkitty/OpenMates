@@ -2054,3 +2054,20 @@ async def test_finished_run_lets_pending_page_requests_finish_before_pausing(
     assert calls[-1] == "pause" and max(waits) < calls.index("pause")
     assert len(waits) == 1 if quiesce != "still_loading" else len(waits) >= 2
     assert record["status"] == "paused" and record["provider"]["running_since"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user,web-browse.cost-accounting
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user,web-browse.cost-accounting
+async def test_followup_without_a_cap_keeps_the_sessions_larger_cap(service):
+    # A form session starts with a larger cap; later turns pass only the session
+    # id and must continue against that cap, not be refused for the default.
+    result = await run(service, arguments(max_credits=1000))
+    followup = BrowseRequest(task="Fill the next field", session_id=result.session_id)
+    assert "max_credits" not in followup.model_fields_set
+    again = await run(service, followup, message_id="next-field")
+    assert again.status == "completed" and again.session_id == result.session_id
+    record = service.store.records[result.session_id]
+    assert record["max_credits"] == 1000
+    # The queued worker rebuilds the request from the record; the cap stays unset.
+    assert "max_credits" not in BrowseRequest.model_validate(record["request"]).model_fields_set

@@ -22,7 +22,7 @@ class BrowseSkill(BaseSkill):
         session_id: str | None = None,
         max_steps: int = 40,
         timeout_seconds: int = 180,
-        max_credits: int = 250,
+        max_credits: int | None = None,
         output_schema: dict[str, Any] | None = None,
         *,
         secrets_manager: Any = None,
@@ -70,14 +70,16 @@ class BrowseSkill(BaseSkill):
         from backend.core.api.app.services.directus import DirectusService
         from backend.core.api.app.services.web_browse_service import BrowseService
 
+        # An omitted cap keeps a continued session's established cap (a new
+        # session gets the schema default); only an explicit cap is compared.
         request = BrowseRequest(
             task=task,
             start_url=start_url,
             session_id=session_id,
             max_steps=max_steps,
             timeout_seconds=timeout_seconds,
-            max_credits=max_credits,
             output_schema=output_schema,
+            **({} if max_credits is None else {"max_credits": max_credits}),
         )
         service = BrowseService(
             app=self.app,

@@ -620,7 +620,11 @@ class BrowseService:
                     else saved
                 )
             await self.ensure_live(record)
-            if request.session_id and request.max_credits < record["max_credits"]:
+            if (
+                request.session_id
+                and "max_credits" in request.model_fields_set
+                and request.max_credits < record["max_credits"]
+            ):
                 # Never accept a tighter requested cap while spending against a
                 # previously authorized, larger window. Changing a session cap
                 # requires closing it and explicitly starting another session.
@@ -696,7 +700,9 @@ class BrowseService:
                 active_deadline=time.time() + request.timeout_seconds + 100,
                 last_activity=time.time(),
                 task=request.task,
-                request=request.model_dump(),
+                # Only set fields: the worker rebuilds the request from this, and
+                # an unset cap must stay unset there (the session keeps its cap).
+                request=request.model_dump(exclude_unset=True),
                 status="ai",
                 phase="starting",
             )
