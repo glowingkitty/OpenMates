@@ -381,3 +381,29 @@ def test_snapshot_describes_form_state_for_custom_radios_and_wrapped_checkboxes(
     assert "aria-required" in rt.SNAPSHOT and "slice(0,120)" in rt.SNAPSHOT
     # A toggled control must not match the signature of its earlier state.
     assert "e.checked,e.getAttribute('aria-checked')" in rt.SNAPSHOT
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.form-with-user
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.form-with-user
+async def test_quiesce_waits_for_pending_requests_and_stays_bounded(monkeypatch):
+    import asyncio
+
+    runtime = make_runtime("https://example.com/form")
+    runtime.in_flight = 1
+    request = SimpleNamespace(is_navigation_request=lambda: False, frame=None)
+
+    async def finish():
+        await asyncio.sleep(0.2)
+        runtime.on_request_done(request)
+
+    done = asyncio.create_task(finish())
+    reply = await runtime.command({"operation": "quiesce", "seconds": 5})
+    await done
+    assert reply["in_flight"] == 0 and 0.2 <= reply["waited"] < 5
+    runtime.in_flight = 1
+    stuck = await runtime.command({"operation": "quiesce", "seconds": 0.2})
+    assert stuck["in_flight"] == 1 and stuck["waited"] < 1
+    monkeypatch.setattr(rt, "QUIESCE_MAX_SECONDS", 0.1)
+    capped = await runtime.command({"operation": "quiesce", "seconds": 999})
+    assert capped["waited"] < 0.5

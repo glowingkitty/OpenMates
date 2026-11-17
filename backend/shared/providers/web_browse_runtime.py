@@ -95,7 +95,7 @@ async def connect_public_https(reader, writer):
     pumps = []
     established = False
     try:
-        async with asyncio.timeout(45):
+        async with asyncio.timeout(TUNNEL_SETUP_SECONDS):
             header = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5)
             if len(header) > 8192:
                 raise ValueError("Oversized proxy request")
@@ -123,15 +123,16 @@ async def connect_public_https(reader, writer):
             await writer.drain()
             established = True
 
-            async def pump(source, destination):
-                while block := await source.read(65536):
-                    destination.write(block)
-                    await destination.drain()
+        async def pump(source, destination):
+            while block := await source.read(65536):
+                destination.write(block)
+                await destination.drain()
 
-            pumps = [
-                asyncio.create_task(pump(reader, upstream_writer)),
-                asyncio.create_task(pump(upstream_reader, writer)),
-            ]
+        pumps = [
+            asyncio.create_task(pump(reader, upstream_writer)),
+            asyncio.create_task(pump(upstream_reader, writer)),
+        ]
+        async with asyncio.timeout(TUNNEL_MAX_SECONDS):
             await asyncio.wait(pumps, return_when=asyncio.FIRST_COMPLETED)
     except Exception:
         if not established:
@@ -188,6 +189,16 @@ DOCUMENT_TEXT_LIMIT = 120000
 MAX_BATCH = 6
 SETTLE_CAP_SECONDS = 2.5
 SETTLE_QUIET_SECONDS = 0.3
+# The CONNECT header and the upstream dial must finish quickly. The tunnel
+# itself may carry a slow but live response: a sleeping site backend can take
+# close to a minute to wake, and a 45 s cap on the whole tunnel cut such a
+# request, which a form then showed as its own error page. The long cap only
+# bounds a stuck tunnel.
+TUNNEL_SETUP_SECONDS = 15
+TUNNEL_MAX_SECONDS = 600
+# Longest wait for the page's pending requests before compute pauses: a
+# request still open when the VM pauses cannot finish after the resume.
+QUIESCE_MAX_SECONDS = 60
 BLOCK_TEXT_LIMIT = 1500
 BLOCK_PATTERN = re.compile(
     r"\b(captcha|verify you are human|access denied|subscribe to (continue|read)|paywall)\b",
@@ -676,6 +687,25 @@ class BrowseRuntime:
             },
         }
 
+    async def quiesce(self, seconds):
+        """Wait, bounded, until the page has no pending request; reads nothing from the page.
+
+        Called before compute pauses after a run. A request still open at the
+        pause (a form loading its settings from a waking backend) cannot finish
+        after the resume, and the page then shows its own failure.
+        """
+        limit = min(max(float(seconds), 0.0), QUIESCE_MAX_SECONDS)
+        started = time.monotonic()
+        while (
+            self.in_flight > 0
+            or time.monotonic() - self.last_network < SETTLE_QUIET_SECONDS
+        ) and time.monotonic() - started < limit:
+            await asyncio.sleep(0.1)
+        return {
+            "in_flight": self.in_flight,
+            "waited": round(time.monotonic() - started, 3),
+        }
+
     async def manual(self, body):
         if self.control != "user":
             raise ValueError("Manual control is not active")
@@ -802,6 +832,8 @@ class BrowseRuntime:
             return await self.observe_page(body.get("screenshot", True) is not False)
         if op == "manual":
             return await self.manual(body)
+        if op == "quiesce":
+            return await self.quiesce(body.get("seconds", 0))
         if op == "act":
             return await self.act(body)
         raise ValueError("Unsupported operation")

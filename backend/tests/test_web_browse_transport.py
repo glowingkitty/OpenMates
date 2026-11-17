@@ -435,3 +435,51 @@ async def test_proxy_rejects_non_https_and_credentialed_requests_before_dns(
     assert (
         writer.written.startswith(b"HTTP/1.1 502") and b"secret" not in writer.written
     )
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.network-and-content,web-browse.form-with-user
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.network-and-content,web-browse.form-with-user
+async def test_established_tunnel_relays_a_response_slower_than_the_setup_limit(
+    monkeypatch,
+):
+    # A sleeping site backend can answer long after the CONNECT was set up; only
+    # the header read and the dial are bound by the short setup limit.
+    monkeypatch.setattr(runtime, "TUNNEL_SETUP_SECONDS", 0.05)
+    resolver = AsyncMock(return_value=[(2, 1, 6, "", ("93.184.216.34", 443))])
+    monkeypatch.setattr(asyncio.get_running_loop(), "getaddrinfo", resolver)
+    upstream_reader = asyncio.StreamReader()
+    upstream_writer = Writer()
+    monkeypatch.setattr(
+        asyncio, "open_connection", AsyncMock(return_value=(upstream_reader, upstream_writer))
+    )
+    reader = asyncio.StreamReader()
+    reader.feed_data(b"CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n")
+    writer = Writer()
+
+    async def answer_late():
+        await asyncio.sleep(0.2)
+        upstream_reader.feed_data(b"late form settings")
+        upstream_reader.feed_eof()
+
+    late = asyncio.create_task(answer_late())
+    await runtime.connect_public_https(reader, writer)
+    await late
+    assert bytes(writer.written).endswith(b"late form settings")
+    assert writer.closed and upstream_writer.closed
+    assert runtime.TUNNEL_MAX_SECONDS >= 300
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.network-and-content
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.network-and-content
+async def test_tunnel_setup_stays_bounded_when_the_header_never_arrives(monkeypatch):
+    monkeypatch.setattr(runtime, "TUNNEL_SETUP_SECONDS", 0.05)
+    dial = AsyncMock()
+    monkeypatch.setattr(asyncio, "open_connection", dial)
+    writer = Writer()
+    await asyncio.wait_for(
+        runtime.connect_public_https(asyncio.StreamReader(), writer), 2
+    )
+    dial.assert_not_awaited()
+    assert writer.closed

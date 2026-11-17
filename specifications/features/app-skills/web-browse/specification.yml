@@ -117,7 +117,7 @@ assertions:
   - id: web-browse.lifecycle
     type: behavior
     must: >
-      When a run ends without needing the user, browser compute is paused and confirmed at once. Otherwise, after 120 seconds without meaningful authorized progress or user interaction, idle browser compute is paused and confirmed. After 86400 seconds of inactivity the remote sandbox and browser state are deleted, even if already paused; Close deletes immediately. Independent cleanup reconciles failures and process restarts. Viewer polling, heartbeats and page churn never extend retention or wake paused compute. Only an authorized unexpired resume does so. Browser state retention does not guarantee that external website sessions remain valid, and saved encrypted results have independent retention.
+      When a run ends without needing the user, browser compute is paused and confirmed at once; the page's pending requests may first finish for at most 60 seconds, because a request still open at the pause cannot complete after the resume. Otherwise, after 120 seconds without meaningful authorized progress or user interaction, idle browser compute is paused and confirmed. After 86400 seconds of inactivity the remote sandbox and browser state are deleted, even if already paused; Close deletes immediately. Independent cleanup reconciles failures and process restarts. Viewer polling, heartbeats and page churn never extend retention or wake paused compute. Only an authorized unexpired resume does so. Browser state retention does not guarantee that external website sessions remain valid, and saved encrypted results have independent retention.
     depends_on: [models.BrowseSession, examples.lifecycle]
   - id: web-browse.budgets-and-stop
     type: security

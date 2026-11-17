@@ -2016,3 +2016,41 @@ async def test_prices_copied_as_shown_still_complete_a_number_schema(service):
     result = await run(service, arguments(output_schema=SHOP_SCHEMA))
     assert result.status == "completed"
     assert result.data == {"products": [{"name": "Kit A", "price": 20}]}
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.form-with-user,web-browse.cost-accounting
+@pytest.mark.asyncio
+@pytest.mark.parametrize("quiesce", ["settled", "still_loading", "unavailable"])
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.form-with-user,web-browse.cost-accounting
+async def test_finished_run_lets_pending_page_requests_finish_before_pausing(
+    service, monkeypatch, quiesce
+):
+    # A request still open at the pause (a form loading its settings from a
+    # waking backend) cannot finish after the resume; the wait is bounded and a
+    # failed wait never keeps paid compute running.
+    import backend.core.api.app.services.web_browse_service as module
+
+    monkeypatch.setattr(module, "QUIESCE_SECONDS", 0.2)
+    original_rpc = service.driver.rpc
+
+    async def rpc(provider, body):
+        if body.get("operation") == "quiesce":
+            service.driver.calls.append(deepcopy(body))
+            assert body["seconds"] <= module.QUIESCE_ROUND_SECONDS
+            if quiesce == "unavailable":
+                raise BrowserUnavailable("The browser connection is unavailable.")
+            if quiesce == "still_loading":
+                await asyncio.sleep(0.05)
+                return {"in_flight": 1, "waited": 0.05}
+            return {"in_flight": 0, "waited": 0.4}
+        return await original_rpc(provider, body)
+
+    service.driver.rpc = rpc
+    result = await run(service)
+    record = service.store.records[result.session_id]
+    calls = service.driver.calls
+    waits = [i for i, c in enumerate(calls) if isinstance(c, dict) and c["operation"] == "quiesce"]
+    assert result.status == "completed" and waits
+    assert calls[-1] == "pause" and max(waits) < calls.index("pause")
+    assert len(waits) == 1 if quiesce != "still_loading" else len(waits) >= 2
+    assert record["status"] == "paused" and record["provider"]["running_since"] is None

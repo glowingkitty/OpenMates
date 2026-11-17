@@ -223,6 +223,12 @@ class BrowseStore:
         record["_version"] = version + 1
 
 
+# Longest wait after a run for the page's pending requests before compute pauses.
+QUIESCE_SECONDS = 60
+# One quiesce RPC stays well inside the 25 s default RPC timeout.
+QUIESCE_ROUND_SECONDS = 15
+
+
 def user_given_url(observed: str, start_url: str | None) -> str:
     """The user's own start address when the observation is its redacted form.
 
@@ -882,7 +888,9 @@ class BrowseService:
                     for k, v in loop.metrics().items()
                 },
             }
-            shown_url = user_given_url(observation.get("url", ""), record.get("start_url"))
+            shown_url = user_given_url(
+                observation.get("url", ""), record.get("start_url")
+            )
             current = (
                 {"url": shown_url, "title": checked.get("title", "")}
                 if shown_url
@@ -917,8 +925,35 @@ class BrowseService:
             await self.store.save(record)
         return result
 
+    async def quiesce(self, provider: dict[str, Any]) -> None:
+        """Wait in short RPC rounds (each within the default RPC timeout) until no request is pending."""
+        driver = await self.browser()
+        deadline = time.monotonic() + QUIESCE_SECONDS
+        while (left := deadline - time.monotonic()) > 0:
+            reply = await driver.rpc(
+                provider,
+                {"operation": "quiesce", "seconds": min(QUIESCE_ROUND_SECONDS, left)},
+            )
+            if not reply.get("in_flight"):
+                return
+        logger.warning("Browser page still had pending requests at pause.")
+
     async def pause_after_run(self, record: dict[str, Any]) -> None:
-        """Pause a finished run; a pending charge receipt is retried by the sweeper."""
+        """Pause a finished run; a pending charge receipt is retried by the sweeper.
+
+        The page's pending requests may finish first (bounded by
+        QUIESCE_SECONDS, billed as ordinary runtime): a request still open at
+        the pause cannot complete after the resume, and a form loading its
+        settings from a waking backend then shows its own error page in a
+        later turn (feature.app-skill.web-browse lifecycle, form-with-user).
+        """
+        provider = record.get("provider")
+        if provider and not provider.get("deleted"):
+            try:
+                await self.quiesce(provider)
+            except BrowserUnavailable:
+                # Paid compute must still pause; the page may just lose a pending request.
+                logger.warning("Browser pending-request wait failed; pausing now.")
         try:
             await self.pause(record)
         except HTTPException as exc:
