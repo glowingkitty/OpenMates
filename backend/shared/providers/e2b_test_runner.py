@@ -79,6 +79,11 @@ def server_start_shell(command_line: str) -> str:
     return f"nohup setsid bash -lc {shlex.quote(command_line)} > {SERVER_LOG} 2>&1 & echo $! > {SERVER_PID}"
 
 
+# End of the run's output always shown after a cut: test runners print the
+# failing assertion and summary last.
+OUTPUT_TAIL_CHARS = 8_000
+
+
 def server_origin(ready_url: str) -> str:
     """Origin (scheme://host:port) of the server readiness URL, used as the tests' baseURL."""
     parts = urlsplit(ready_url)
@@ -197,10 +202,14 @@ def run_tests_in_e2b(
 
     output_chars = 0
     truncated = False
+    recent = ""
     sandbox = None
 
     def stream(kind: OutputKind, text: str) -> None:
-        nonlocal output_chars, truncated
+        nonlocal output_chars, truncated, recent
+        # The streamed output keeps its head; installs alone can fill it, so the
+        # end (where a test runner prints why it failed) is kept separately.
+        recent = (recent + text)[-OUTPUT_TAIL_CHARS:]
         if output_chars >= MAX_OUTPUT_CHARS:
             truncated = True
             return
@@ -254,6 +263,11 @@ def run_tests_in_e2b(
             env["OPENMATES_TEST_BASE_URL"] = server_origin(spec.server.ready_url)
 
         def finish(exit_code: int | None, error: str | None, timed_out: bool = False) -> TestRunOutcome:
+            if truncated and recent:
+                # Same output channel (redacted, and safety-scanned before the
+                # model reads it), so the failure reason is never cut off.
+                _emit(on_output, "stderr", f"\n[Output exceeded {MAX_OUTPUT_CHARS} characters; "
+                      f"the middle was left out. Last {len(recent)} characters:]\n{recent}")
             artifacts, skipped = _discover_output_artifacts(sandbox, test_run=True)
             report_text = _read_report(sandbox)
             result = build_result_from_run(

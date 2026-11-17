@@ -181,12 +181,13 @@ def test_test_run_discovery_allows_video_and_cast_with_caps_only_for_test_runs()
 
 
 class _Handle:
-    def __init__(self, exit_code: int) -> None:
+    def __init__(self, exit_code: int, output: str = "ran\n") -> None:
         self.exit_code = exit_code
+        self.output = output
 
     def wait(self, on_stdout=None, on_stderr=None):
         if on_stdout:
-            on_stdout("ran\n")
+            on_stdout(self.output)
         return SimpleNamespace(exit_code=self.exit_code)
 
     def kill(self) -> bool:
@@ -198,6 +199,7 @@ class _Sandbox:
     instances: list["_Sandbox"] = []
     fail_substring: str | None = None
     report: str = ""
+    outputs: dict[str, str] = {}
 
     @classmethod
     def create(cls, **kwargs):
@@ -214,7 +216,8 @@ class _Sandbox:
         if background:
             self.background_commands.append(command)
             failing = self.fail_substring and self.fail_substring in command
-            return _Handle(1 if failing else 0)
+            output = next((text for key, text in type(self).outputs.items() if key in command), "ran\n")
+            return _Handle(1 if failing else 0, output)
         if "test -f" in command:
             return SimpleNamespace(stdout=type(self).report)
         if "OPENMATES_CODE_RUN_DISCOVER_OUTPUTS" in command:
@@ -230,6 +233,7 @@ def _fake_e2b(monkeypatch: pytest.MonkeyPatch):
     _Sandbox.instances = []
     _Sandbox.fail_substring = None
     _Sandbox.report = ""
+    _Sandbox.outputs = {}
     monkeypatch.setitem(sys.modules, "e2b", SimpleNamespace(Sandbox=_Sandbox))
     monkeypatch.delenv("E2B_CODE_RUN_TEMPLATE", raising=False)
     monkeypatch.delenv("E2B_APPLICATION_PREVIEW_TEMPLATE", raising=False)
@@ -277,6 +281,20 @@ def test_unit_run_failing_tests_is_failed_and_mismatched_revisions_rejected() ->
     wrong = TestRunSpec.model_validate(_spec(revisions=[{"path": "other.py", "revision": "r1"}]))
     with pytest.raises(ValueError):
         run_tests_in_e2b(_files(), wrong, lambda _k, _t: None, "key")
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.tests.project-snapshot
+def test_failure_reason_after_long_install_output_still_reaches_the_output() -> None:
+    _Sandbox.fail_substring = "pytest"
+    _Sandbox.outputs = {"pip install": "x" * 120_000, "pytest": "AssertionError: recipe list is empty\n1 failed\n"}
+    spec = TestRunSpec.model_validate(_spec(setup_commands=[{"argv": ["pip", "install", "-r", "requirements.txt"]}]))
+    seen: list[tuple[str, str]] = []
+    outcome = run_tests_in_e2b(_files(), spec, lambda kind, text: seen.append((kind, text)), "key")
+    assert outcome.result.status == "failed" and outcome.output_truncated
+    streamed = "".join(text for kind, text in seen if kind != "status")
+    assert "Output exceeded" in streamed
+    assert streamed.rstrip().endswith("AssertionError: recipe list is empty\n1 failed")
+    assert len(streamed) < 100_000 + 9_000
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.tests.project-snapshot

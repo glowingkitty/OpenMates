@@ -138,7 +138,7 @@ async function cachedMessageShape(page: Page, chatId: string) {
   for (const row of shape.rows ?? []) {
     row.cipher = typeof row.cipher === 'string' ? createHash('sha256').update(row.cipher).digest('hex').slice(0, 12) : null;
   }
-  const articles = page.locator('article');
+  const articles = page.locator('[role="article"]');
   const rendered: number[] = [];
   for (let i = 0; i < await articles.count(); i++) rendered.push((await articles.nth(i).innerText().catch(() => '')).length);
   return { ...shape, rendered };
@@ -169,9 +169,18 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
   // Web-side sync decisions for the CLI-driven turns (finals, stale/ignored
   // chunks, message persistence). Kept in a private file, never printed.
   const webSyncLog: string[] = [];
+  // Every page error and console error too: a reply that stays empty without
+  // a sync line otherwise leaves no trace. Private file, never printed.
+  page.on('pageerror', (error) => {
+    if (webSyncLog.length < 1800) webSyncLog.push(`${new Date().toISOString()} pageerror ${String(error).slice(0, 400)}`);
+  });
   page.on('console', (message) => {
     const text = message.text();
-    if (webSyncLog.length < 1500 && /ChatSyncService|FINAL CHUNK|stale|awaiting|continuation|persist|messages_v|rustCore/i.test(text)) {
+    if (message.type() === 'error' && webSyncLog.length < 1800) {
+      webSyncLog.push(`${new Date().toISOString()} error ${text.slice(0, 400)}`);
+      return;
+    }
+    if (webSyncLog.length < 1500 && /ChatSyncService|FINAL CHUNK|stale|awaiting|continuation|persist|messages_v|rustCore|rust-parse|render plan/i.test(text)) {
       webSyncLog.push(`${new Date().toISOString()} ${message.type()} ${text.slice(0, 400)}`);
     }
   });
@@ -476,6 +485,23 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
         // Name which cached row the web kept: status and lengths only, never
         // content or ciphertext (compared afterwards with the server rows).
         Object.assign(evidence, { webCachedRows: await cachedMessageShape(page, chatId) });
+        // Same browser profile, second tab: it shares the shared Rust worker and
+        // IndexedDB but not the first page's memory. Lengths and booleans only.
+        const second = await context.newPage();
+        second.on('pageerror', (error) => webSyncLog.push(`${new Date().toISOString()} second-tab pageerror ${String(error).slice(0, 400)}`));
+        second.on('console', (message) => {
+          if (message.type() === 'error' || /rust-parse|render plan/i.test(message.text())) {
+            webSyncLog.push(`${new Date().toISOString()} second-tab ${message.type()} ${message.text().slice(0, 400)}`);
+          }
+        });
+        await second.goto(`${APP}/#chat-id=${chatId}`);
+        const secondCard = second.locator('[data-testid="embed-preview"][data-skill-id="test_result"]').last();
+        const secondShows = await secondCard.waitFor({ state: 'visible', timeout: 60_000 }).then(() => true, () => false);
+        const secondArticles: number[] = [];
+        const list = second.locator('[role="article"]');
+        for (let i = 0; i < await list.count(); i++) secondArticles.push((await list.nth(i).innerText().catch(() => '')).length);
+        Object.assign(evidence, { webSecondTab: { cardVisible: secondShows, articles: secondArticles } });
+        await second.close();
       }
       if (await card.isVisible()) {
         // Right after navigation the chat re-renders its messages while it
