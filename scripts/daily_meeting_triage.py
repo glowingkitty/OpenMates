@@ -24,6 +24,7 @@ import re
 from daily_meeting_paused import PRIORITY_TOPICS, TASK_PRIORITY
 
 LATER_DAYS = 7
+DAILY_NOW_LIMIT = 3  # at most 3 waiting chats and 3 reminders are discussed as NOW per meeting
 STALE_DAYS = 60
 SIDE_CAP = {"Task": 15, "Reminder": 15, "Issue": 15, "Dev error": 10, "Dev report": 10}  # chats and prod items never capped
 DEFAULT_NOISE = ("baseten", "cache warning", "cache miss", "test timing", "flaky", "slow test", "deprecat")
@@ -105,6 +106,17 @@ class Triage:
         words = {w for w in re.findall(r"[a-z]{4,}", (title or "").lower())} - STOP
         return next((s for s in self.fixes if len(words & set(re.findall(r"[a-z]{4,}", s.lower()))) >= 2), "")
 
+    def cap_now(self, entries: list[tuple[str, dict]], noun: str, limit: int = DAILY_NOW_LIMIT) -> None:
+        """Daily limit: of `entries` (key, verdict) in importance order only `limit` stay NOW; the rest become LATER."""
+        seen = 0
+        for _, verdict in entries:
+            if verdict["label"] != "NOW":
+                continue
+            seen += 1
+            if seen > limit:
+                verdict.update(label="LATER", date=str(later_date(self.today, 1)),
+                               reason=f"daily limit of {limit} {noun} as NOW (otherwise NOW: {verdict['reason']})")
+
     def keep(self, kind: str, title: str, verdict: dict) -> bool:
         """True for NOW (stays in its section); anything else is collected once for the Side notes."""
         if verdict["label"] == "NOW":
@@ -181,8 +193,9 @@ def side_note_lines(notes: list[tuple[str, str, dict]], gap: str = "") -> list[s
     """The one short "Side notes" section at the very end: every non-NOW item with its proposal."""
     out = ["", f"## Side notes ({len(notes)}) — not discussed unless the founder asks", "",
            "_LATER and DROP items, each with the proposed label and reason. Confirming this section "
-           "executes the proposals: LATER chats are parked until the date, DROP chats archived, DROP "
-           "Tasks/issues closed. Say \"change <item> to NOW\" for any you disagree with._", ""]
+           "executes the proposals: a LATER chat writes its state into its Task with the resume date and is "
+           "archived (the briefing brings it back on that date); a DROP is archived or closed, never deleted, "
+           "and logged with its reason in the decision log. Say \"change <item> to NOW\" for any you disagree with._", ""]
     if gap:
         out += [f"_Triage gap: {gap}._", ""]
     for kind in ("Chat", "Paused chat", "Production report", "Dev report", "Production error", "Dev error",

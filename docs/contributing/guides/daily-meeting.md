@@ -154,6 +154,22 @@ the primary factor: when one comes up it is ranked by how likely it is to gain u
 that beats a marketing action is NOW, the rest go to the idea inbox or the side notes (triage marks
 feature-like Tasks LATER with that reason).
 
+## Daily limits, LATER, DROP and the decision log
+- **Limits:** at most **3 waiting chats and 3 reminders** are NOW per meeting (importance order; the briefing
+  enforces it in `Triage.cap_now`). The rest become LATER (tomorrow) in the side notes.
+- **LATER (chat):** the chat writes done / not done / next step / open decisions into its Task with the
+  `paused` label and `PAUSED <today> until <date>` (the pause convention above) and is archived (searchable,
+  reopenable). On the resume date the "Paused chats" section lists it as NOW by itself.
+- **DROP:** archive the chat or close the Task, issue or reminder; nothing is deleted. One `Dropped:` line per
+  drop in the decisions note (`- <chat|task|idea|reminder|issue> | <what> | <why> | <Task id>`); the reason is
+  required. `scripts/daily_meeting_apply.py apply` appends it to the **decision log**
+  (`logs/decision-log/dropped.jsonl` of the canonical checkout, private; `scripts/decision_log.py add|check|list`):
+  what, date, why, by whom.
+- **Re-check:** the section "Dropped before — still want it?" lists new ideas, new Tasks and waiting chats whose
+  words match a logged drop ("We dropped this on <date> because <reason>. Still want it?"). The answer goes into
+  the note (`revive: <what> | <why>`). The same `decision_log.py check "<text>"` is meant for the dev connector's
+  `start_chat` path (separate Task).
+
 ## Triage: NOW, LATER, DROP
 The founder is easily pulled away by small issues, so the briefing pre-sorts **every** item (production
 and dev errors, reported issues, waiting and paused chats, Tasks, reminders, GitHub/Linear cleanup

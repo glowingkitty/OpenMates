@@ -18,7 +18,7 @@ Docs: docs/contributing/guides/daily-meeting.md
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import difflib
 import json
 from pathlib import Path
@@ -29,12 +29,14 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import daily_meeting_tasks_cache as tasks_cache  # noqa: E402 - sibling script, path set above
+import decision_log  # noqa: E402 - sibling script, path set above
 import mac_reminders  # noqa: E402 - sibling script, path set above
 
 PRIORITIES = ("none", "low", "medium", "high", "urgent")
 HEADING = re.compile(r"^(Check-in|Focus tasks|Focus|Tasks|Task changes|Reminder changes|Reminders|"
-                     r"New reminders|Goals|Meeting|Chats|Cleanup|Parking lot|Week goals|Notes):\s*(.*)$", re.I)
+                     r"New reminders|Goals|Meeting|Chats|Dropped|Cleanup|Parking lot|Week goals|Notes):\s*(.*)$", re.I)
 MANUAL = ("goals", "meeting", "chats", "cleanup", "parking lot", "week goals")
+DROP_KINDS = ("chat", "task", "idea", "reminder", "issue")
 
 
 def norm(text: str) -> str:
@@ -368,6 +370,36 @@ def report(plan: list[dict], verdicts: dict[tuple, str], manual: dict[str, int])
     return "\n".join(lines), bad
 
 
+def drop_rows(sections: dict[str, list[str]]) -> list[dict]:
+    """`Dropped:` lines `- <kind> | <what> | <why> | <ref>` -> decision-log entries; `revive:` lines are skipped."""
+    rows = []
+    for line in sections.get("dropped", []):
+        parts = [p.strip() for p in line.lstrip("- ").split("|")]
+        if parts[0].lower().startswith("revive") or parts[0].lower() not in DROP_KINDS:
+            continue
+        rows.append({"kind": parts[0].lower(), "what": parts[1] if len(parts) > 1 else "",
+                     "why": parts[2] if len(parts) > 2 else "", "ref": parts[3] if len(parts) > 3 else ""})
+    return rows
+
+
+def log_drops(rows: list[dict], note_day: str, apply: bool) -> list[str]:
+    """Append each drop to the persistent decision log (once per what+date); one result line per row."""
+    logged = decision_log.entries()
+    results = []
+    for row in rows:
+        label = f"dropped {row['kind']}: {row['what'][:60]}"
+        if not row["what"] or not row["why"]:
+            results.append(f"NEEDS ATTENTION: {label} has no reason; not logged (a drop needs what and why)")
+        elif any(e["what"] == row["what"] and e["date"] == note_day for e in logged):
+            results.append(f"OK: {label} (already in the decision log)")
+        elif apply:
+            decision_log.add(row["kind"], row["what"], row["why"], "Marco (daily meeting)", row["ref"], note_day)
+            results.append(f"OK: {label} (written to the decision log)")
+        else:
+            results.append(f"planned: {label}")
+    return results
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("command", choices=("plan", "apply"))
@@ -420,8 +452,12 @@ def main(argv: list[str] | None = None) -> int:
                 key = (entry["section"], entry["n"])
                 if entry["status"] == "ready" and not verdicts.get(key) and data:
                     verdicts[key] = verify_task(entry, data["tasks"])
-    text, bad = report(plan, verdicts, {name: len(sections.get(name, [])) for name in MANUAL})
+    text, bad = report(plan, verdicts, {name: len(sections.get(name, [])) for name in MANUAL if name != "dropped"})
     print(text)
+    drops = log_drops(drop_rows(sections), date_match.group(1) if date_match else date.today().isoformat(), args.command == "apply")
+    if drops:
+        print("\nDecision log (dropped items):\n" + "\n".join(f"- {d}" for d in drops))
+        bad += sum(d.startswith("NEEDS ATTENTION") for d in drops)
     for problem in (mac_error, tasks_error):
         if problem:
             print(f"\nBLOCKED: {problem}")

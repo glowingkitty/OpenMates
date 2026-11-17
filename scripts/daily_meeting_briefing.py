@@ -32,6 +32,7 @@ import daily_meeting_context as context  # noqa: E402 - sibling scripts, path se
 import mac_reminders  # noqa: E402
 import daily_meeting_growth  # noqa: E402
 import daily_meeting_marketing  # noqa: E402
+import decision_log  # noqa: E402
 import daily_meeting_opportunities  # noqa: E402
 import daily_meeting_triage as triage  # noqa: E402
 import claude_idle_chats  # noqa: E402
@@ -174,7 +175,14 @@ reason to keep: close or archive. **Talk through NOW items only**, in the order 
 the founder just confirms or changes each proposed label. LATER and DROP items sit in the single \
 "Side notes" section at the very end: do not discuss them unless the founder asks; at the end of the \
 meeting say only "N side notes, proposals unchanged, confirm?". Confirming executes the proposals \
-(LATER chat: park until the date; DROP chat: archive; DROP Task or issue: close). Noise (unused \
+(LATER chat: it writes done / not done / next step / open decisions into its Task with label `paused` and \
+the `PAUSED <today> until <date>` line, then is archived, searchable and reopenable, and the briefing brings \
+it back on that date by itself; DROP: archive the chat or close the Task, issue or reminder, never delete, \
+and add one `Dropped:` line with the reason). **Daily limits: at most 3 waiting chats and 3 reminders are \
+NOW per meeting** (the briefing already enforces it; the rest are LATER with tomorrow as date in the side \
+notes). **Decision log:** the section "Dropped before — still want it?" lists new ideas, Tasks and chats \
+that resemble something dropped earlier; read each question aloud ("We dropped this on <date> because \
+<reason>. Still want it?") and record the answer in the `Dropped:` part (`revive`). Noise (unused \
 providers, dev-only errors, cache warnings, test timing) and reported issues that recent commits \
 likely fixed are already side notes; never raise them. If the founder changes a label, that line \
 goes into the `Triage:` part of the decisions note.
@@ -269,7 +277,7 @@ on you" and in "Paused chats" ends the meeting in exactly one outcome (a LATER o
 its outcome from its confirmed side-note proposal: park until the date, or archive)**: *answer now* (the reply), \
 *park* (with a resume date; the chat saves done / not done / next step / open decisions in its Task, \
 label `paused`, `PAUSED <today> until <date>` line), *reschedule* (a new date to discuss it again, same \
-pause note) or *archive*. "Keep" is not an outcome. Chats beyond the top 3 are not read aloud: after the \
+pause note) or *archive*. "Keep" is not an outcome. When a topic may have other chats, look them up with the dev connector's `search_chats` and say \"there is also chat X about this\" (a semantic related-chats tool is planned). Chats beyond the top 3 are not read aloud: after the \
 top 3, give the count of the rest and offer a **default for all of them** ("park all until <date>" or \
 "answer in the work block") and say which would be archived. Read the paused chats as one sentence each: \
 what is saved, the next step and the resume date; resume those whose date has come. A chat only \
@@ -367,6 +375,9 @@ Triage (labels the founder CHANGED, one line each; "Side notes: proposals confir
 Side notes: proposals confirmed | changed as listed above
 Chats (EVERY NOW chat of "Chats waiting on you" and "Paused chats", one line each, exactly one outcome, the label first; side-note chats get theirs from the confirmed proposal):
 - <NOW|LATER YYYY-MM-DD|DROP> <chat title> [<Task id>] -> answer now: <reply text> | park until YYYY-MM-DD HH:MM: <done / not done / next step / open decisions> | reschedule to YYYY-MM-DD: <reason> | archive | resume now: <first step>
+Dropped (EVERY DROP, one line each; nothing is deleted, only archived or closed; the reason is mandatory):
+- <chat | task | idea | reminder | issue> | <what, plain title> | <why> | <Task id or empty>
+- revive: <what, plain title> | <why it matters again>
 Cleanup:
 - <plain title> (<GitHub #123 | Linear ABC-1 | TASK-123>) -> close | delete | merge <other id> | delay | keep
 Parking lot:
@@ -480,6 +491,8 @@ def _waiting_section(waiting: dict, tri: "triage.Triage | None" = None) -> list[
     """NOW chats waiting on the founder, most important first (never capped); the rest go to the Side notes."""
     all_chats = waiting.get("chats") or []
     verdicts = {c["session"]: tri.chat(c, None) for c in all_chats} if tri else {}
+    if tri:
+        tri.cap_now([(c["session"], verdicts[c["session"]]) for c in all_chats], "waiting chats")
     chats = [c for c in all_chats if not tri or tri.keep("Chat", f"{c['title']} (waited {_waited(c['idle_hours'])})",
                                                           verdicts[c["session"]])]
     out = ["", f"## Chats waiting on you ({len(chats)}{f' NOW of {len(all_chats)}' if tri else ''}; the assistant spoke last)", "",
@@ -498,6 +511,21 @@ def _waiting_section(waiting: dict, tri: "triage.Triage | None" = None) -> list[
         elif chat.get("last_reply"):
             out.append(f"   - {chat['signal']}: {chat['last_reply'][:300]}")
     return out + _paused_section(waiting.get("paused") or [], tri) + _no_decision_section(waiting.get("flags") or [])
+
+
+def _dropped_recheck(ev: dict) -> list[str]:
+    """New ideas, Tasks and waiting chats that resemble something dropped earlier (decision log)."""
+    logged = ev.get("drop_log") or []
+    tasks = ev.get("tasks") or {}
+    candidates = [("idea", t.get("title", "")) for t in tasks.get("idea_inbox") or []]
+    candidates += [("new Task", t.get("title", "")) for t in tasks.get("changed_since_last_meeting") or [] if t.get("from") == "new"]
+    candidates += [("chat", f"{c.get('title', '')} {c.get('needs', '')}") for c in (ev.get("waiting_chats") or {}).get("chats") or []]
+    hits = [(kind, text, entry) for kind, text in candidates for entry in decision_log.match(text, logged)]
+    if not hits:
+        return []
+    return ["", f"## Dropped before — still want it? ({len(hits)})", "",
+            "_These resemble something dropped earlier (decision log). Ask the founder; \"yes\" revives it, \"no\" keeps it dropped._", "",
+            *[f"- {kind} \"{text.strip()[:90]}\": {decision_log.question(entry)}" for kind, text, entry in hits[:10]], ""]
 
 
 def _paused_section(paused: list[dict], tri: "triage.Triage | None" = None) -> list[str]:
@@ -620,6 +648,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     out += daily_meeting_growth.render(ev.get("growth"))
     out += daily_meeting_marketing.render(ev.get("marketing_block"))
     out += _waiting_section(ev.get("waiting_chats") or {}, tri)
+    out += _dropped_recheck(ev)
     out += ["", "## Unfinished work in worktrees (dev→main readiness)", "", *worktree_wip.briefing_lines()]
     product = ev.get("product") or {}
     if product:
@@ -674,10 +703,14 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
         today_items = [i for i in rem.get("due_next_days", []) if mac_reminders.due_date(i) == today]
         tomorrow = [i for i in rem.get("due_next_days", [])
                     if mac_reminders.due_date(i) == today + timedelta(days=1)]
+        overdue = rem.get("overdue_recent", [])
+        verdicts = {id(i): tri.reminder(i, mac_reminders.due_date(i)) for i in overdue + today_items + tomorrow}
+        tri.cap_now([(id(i), verdicts[id(i)]) for i in today_items + overdue + tomorrow], "reminders")
+
         def now(items):
-            return [_reminder_line(i) + tri.tag(v) for i in items if tri.keep(
-                "Reminder", f"{i['title']} ({_due_label(i)})", v := tri.reminder(i, mac_reminders.due_date(i)))] or ["- none to discuss"]
-        out += ["**Still open from the past 7 days (NOW only):**"] + now(rem.get("overdue_recent", []))
+            return [_reminder_line(i) + tri.tag(verdicts[id(i)]) for i in items if tri.keep(
+                "Reminder", f"{i['title']} ({_due_label(i)})", verdicts[id(i)])] or ["- none to discuss"]
+        out += ["**Still open from the past 7 days (NOW only):**"] + now(overdue)
         out += ["", "**Due today (NOW only):**"] + now(today_items)
         out += ["", "**Due tomorrow (NOW only):**"] + now(tomorrow)
         counts = rem.get("counts", {})

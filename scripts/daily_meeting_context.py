@@ -402,6 +402,18 @@ def growth(root: Path, out: Path, since: datetime, day: str, gaps: list[str]) ->
     return daily_meeting_growth.collect(root, out, since, day, gaps)
 
 
+def drop_log(gaps: list[str]) -> list[dict]:
+    """The persistent decision log of dropped things (scripts/decision_log.py), for the re-check."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import decision_log  # noqa: E402 - sibling script, path set just above
+
+    try:
+        return decision_log.entries()
+    except (OSError, ValueError) as error:
+        gaps.append(f"decision log unreadable ({clean(str(error), 120)}); dropped items are not re-checked today")
+        return []
+
+
 def marketing_block(out: Path, growth_data: dict | None, day: date) -> dict:
     """Menu proposals, ideas, win counter and style rules (scripts/daily_meeting_marketing.py).
 
@@ -587,6 +599,7 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "waiting_chats": waiting(tasks, out, now, focus(root)),
         "alerts": alerts(gaps),
         "growth": (growth_data := growth(root, out, since, today, gaps)),
+        "drop_log": drop_log(gaps),
         "marketing_block": marketing_block(out, growth_data, now.astimezone(TZ).date()),
         "goals": goals(root, out, tasks, now.astimezone(TZ).date()),
         "issues": issues,

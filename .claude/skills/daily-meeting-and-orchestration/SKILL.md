@@ -119,6 +119,11 @@ briefing line shows a bare ID, say what it is before using it.
    `press/press-style.md` "Words and tone"; otherwise `marketing-style.md` "Feedback rules from the daily
    meeting"; format `- YYYY-MM-DD: <rule> (was: "..."; instead: "...")`), merge with an existing rule instead of
    duplicating, and report the file and rule. Menu edits go to `daily-meeting/marketing-menu.md` there.
+4e. **Dropped** (`Dropped:` lines): `python3 scripts/daily_meeting_apply.py apply` writes them to the decision log
+   (`scripts/decision_log.py`; reason required, nothing deleted). Execute the drop itself (archive the chat,
+   close the Task/issue/reminder) and for every `revive:` line create the Task or restore the chat. LATER chats:
+   write the PAUSED block into the Task (label `paused`, resume date) and archive the chat; the briefing brings
+   it back on the date. Never delete.
 4a. **Triage** (the `Triage:` lines and `Side notes:`): the briefing's last section "Side notes" holds every
    LATER and DROP proposal. `Side notes: proposals confirmed` executes them: LATER chat → park until the
    date (pause convention below), DROP chat → archive, DROP Task/issue → close (`openmates tasks done` /
