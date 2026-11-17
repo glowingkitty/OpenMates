@@ -75,9 +75,32 @@ def route_machine_test_run(arguments: Any, sources: list[dict[str, Any]]) -> Any
     return {**arguments, "test_run": {**test_run, "target": "remote_source", "source_id": source_id}}
 
 
+def is_cloud_command(arguments: Any) -> bool:
+    """A code-run argv command for the E2B workspace (code-run.cloud.commands)."""
+    return (
+        isinstance(arguments, dict)
+        and not isinstance(arguments.get("test_run"), dict)
+        and isinstance(arguments.get("argv"), list) and bool(arguments.get("argv"))
+        and arguments.get("target", "e2b") == "e2b"
+    )
+
+
+def without_forged_snapshot(arguments: Any) -> Any:
+    """Drop model-supplied files and snapshot markers from a cloud command.
+
+    Only the pipeline injects the client's snapshot; a model cannot substitute
+    invented files for the Project the command runs against.
+    """
+    if not is_cloud_command(arguments):
+        return arguments
+    return {key: value for key, value in arguments.items() if key not in {"files", "project_snapshot"}}
+
+
 def needs_snapshot(arguments: Any) -> bool:
     if not isinstance(arguments, dict):
         return False
+    if is_cloud_command(arguments):
+        return not arguments.get("project_snapshot")
     test_run = arguments.get("test_run")
     if not isinstance(test_run, dict) or test_run.get("target") == "remote_source":
         return False
@@ -85,7 +108,13 @@ def needs_snapshot(arguments: Any) -> bool:
 
 
 def snapshot_prefix(arguments: dict[str, Any]) -> str | None:
-    """Relative cwd folder of the test command, or None for the whole Project."""
+    """Relative cwd folder of the test command, or None for the whole Project.
+
+    A cloud command always takes the whole Project: the workspace mirrors every
+    Project file so files changed outside cwd are detected against their base.
+    """
+    if is_cloud_command(arguments):
+        return None
     command = (arguments.get("test_run") or {}).get("test_command")
     cwd = command.get("cwd") if isinstance(command, dict) else None
     if not isinstance(cwd, str):
@@ -111,6 +140,9 @@ def inject_snapshot(arguments: dict[str, Any], snapshot: dict[str, Any]) -> dict
     ]
     result = dict(arguments)
     result["files"] = files
+    if is_cloud_command(arguments):
+        result["project_snapshot"] = True
+        return result
     result["test_run"] = {**arguments["test_run"], "revisions": revisions}
     return result
 
@@ -123,8 +155,8 @@ def compact_snapshot_result(operation_id: str, files: list[Any], truncated: bool
         "file_count": len(files),
         "truncated": bool(truncated),
         "message": (
-            "Project snapshot ready. Call code-run again with the same test_run "
-            "arguments and no files; the snapshot is attached automatically."
+            "Project snapshot ready. Call code-run again with the same test_run or "
+            "command arguments and no files; the snapshot is attached automatically."
         ),
     }
 

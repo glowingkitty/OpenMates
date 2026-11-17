@@ -5400,6 +5400,7 @@
             "work.projects.hosted.job.HostedFileJob.operation",
             "work.projects.hosted.job.HostedFileJob.operation_id",
             "work.projects.hosted.job.HostedFileOperation",
+            "work.projects.hosted.job.HostedFileOperation.ApplyChanges",
             "work.projects.hosted.job.HostedFileOperation.CreateFile",
             "work.projects.hosted.job.HostedFileOperation.DeleteFile",
             "work.projects.hosted.job.HostedFileOperation.List",

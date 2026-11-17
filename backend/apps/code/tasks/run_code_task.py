@@ -26,6 +26,7 @@ from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_c
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
 from backend.apps.code.tasks.test_result_embed import persist_test_result_embed, run_result_embed_id
+from backend.apps.code.tasks import cloud_command_execution as cloud_cmd
 from backend.apps.code.tasks.test_run_execution import execute_test_run, final_test_result
 from backend.shared.providers.e2b_code_runner import (
     CodeRunCancelled,
@@ -579,6 +580,7 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
     billable_started_at = 0.0
     billing_state = {"charged_credits": 0, "charged_minutes": 0}
     completion_output_parts: list[str] = []
+    command_outcome: dict[str, Any] = {"value": None}
     run_async(_store_execution(execution_id, {"status": "preparing_sandbox", "started_at": started_at}))
 
     def charge_run(duration: float, billing_phase: str) -> None:
@@ -640,27 +642,45 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             secrets_manager=secrets_manager,
             cache_service=cache_service,
         ))
+        completion = _build_code_run_completion_result(
+            execution_id=execution_id,
+            payload=payload,
+            final_status=final_status,
+            output_safety=output_safety,
+        )
+        result_status = str(final_status.get("status") or "finished")
+        # A fast producer can finish before the assistant registers its
+        # callback. Trusted worker identity lets the generic continuation
+        # seal that result and join it to this exact batch when registered.
+        request_metadata = {
+            "target_filename": payload.get("target_path"),
+            "user_id": payload.get("user_id"),
+            "chat_id": payload.get("chat_id"),
+            "message_id": payload.get("message_id"),
+            **({"same_turn_batch_id": payload["same_turn_batch_id"]}
+               if payload.get("same_turn_batch_id") else {}),
+        }
+        if payload.get("command_run"):
+            completion = cloud_cmd.command_completion(completion, final_status)
+            if command_outcome["value"] is not None:
+                try:
+                    parked_operation = run_async(cloud_cmd.dispatch_sync_back(
+                        payload=payload, execution_id=execution_id, outcome=command_outcome["value"],
+                        cache_service=cache_service, completion=completion,
+                        result_status=result_status, request_metadata=request_metadata,
+                    ))
+                except PermissionError as focus_exc:
+                    completion["sync_back"] = {"status": "not_synced", "reason": str(focus_exc)}
+                else:
+                    if parked_operation:
+                        # The continuation follows once the client applied the changes.
+                        return
         run_async(_dispatch_code_run_async_continuation(
             cache_service=cache_service,
             async_task_id=execution_id,
-            completed_results=[_build_code_run_completion_result(
-                execution_id=execution_id,
-                payload=payload,
-                final_status=final_status,
-                output_safety=output_safety,
-            )],
-            result_status=str(final_status.get("status") or "finished"),
-            # A fast producer can finish before the assistant registers its
-            # callback. Trusted worker identity lets the generic continuation
-            # seal that result and join it to this exact batch when registered.
-            request_metadata={
-                "target_filename": payload.get("target_path"),
-                "user_id": payload.get("user_id"),
-                "chat_id": payload.get("chat_id"),
-                "message_id": payload.get("message_id"),
-                **({"same_turn_batch_id": payload["same_turn_batch_id"]}
-                   if payload.get("same_turn_batch_id") else {}),
-            },
+            completed_results=[completion],
+            result_status=result_status,
+            request_metadata=request_metadata,
         ))
 
     def finalize_cancelled() -> None:
@@ -698,7 +718,12 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             if isinstance(item, dict) and isinstance(item.get("packages"), list)
         ]
         test_outcome = None
-        if payload.get("test_run"):
+        if payload.get("command_run"):
+            cache_service = run_async(get_worker_cache_service())
+            result, command_outcome["value"] = cloud_cmd.execute_cloud_command(
+                payload, on_output, api_key, should_cancel, cache_service, run_async,
+            )
+        elif payload.get("test_run"):
             result, test_outcome = execute_test_run(payload, on_output, api_key, should_cancel)
         else:
             result = run_code_in_e2b(
@@ -744,6 +769,10 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             "skipped_artifacts": _safe_skipped_artifacts(result.skipped_artifacts),
             "finished_at": time.time(),
         }
+        if command_outcome["value"] is not None:
+            final_status.update(cloud_cmd.command_status_fields(command_outcome["value"]))
+            if command_outcome["value"].ready is False:
+                final_status["status"] = "failed"
         if test_outcome is not None:
             final_status["test_result"] = final_test_result(test_outcome, stored_artifacts)
             final_status["status"] = "finished" if test_outcome.result.status == "passed" else "failed"

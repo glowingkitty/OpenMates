@@ -29,9 +29,13 @@ PROJECT_FILE_OPERATION_ARGUMENT_MAX_BYTES = 512 * 1024
 PROJECT_FILE_CONFLICT_RECOVERY_LIMIT = 3
 PROJECT_FILE_OPERATIONS = {
     "list", "search", "read_text", "create_file", "update_file", "rename_file", "delete_file",
-    "commit", "snapshot",
+    "commit", "snapshot", "apply_changes",
 }
-PROJECT_FILE_MUTATIONS = {"create_file", "update_file", "rename_file", "delete_file"}
+# apply_changes: the files one cloud command changed, applied by the client in
+# order through the ordinary encrypted writes (code-run.cloud.command-changes-sync-back).
+PROJECT_FILE_MUTATIONS = {"create_file", "update_file", "rename_file", "delete_file", "apply_changes"}
+APPLY_CHANGES_MAX_ENTRIES = 20
+APPLY_CHANGES_KINDS = {"create", "update", "delete"}
 _RELEASE_LOCK_SCRIPT = """
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
@@ -85,7 +89,7 @@ class ProjectFileOperationService:
         created_at = int(time.time()) if now is None else int(now)
         operation_id = operation_id or str(uuid.uuid4())
         owner_hash = _hash(user_id)
-        if operation in PROJECT_FILE_MUTATIONS and message_id:
+        if operation in PROJECT_FILE_MUTATIONS and message_id and isinstance(arguments.get("path"), str):
             conflict_count = await self._get_conflict_count(
                 owner_hash=owner_hash,
                 chat_id=chat_id,
@@ -639,6 +643,44 @@ class ProjectFileOperationService:
                 raise ProjectFileOperationError("invalid_commit_arguments")
         if operation == "delete_file" and (set(arguments) != {"path"} or not isinstance(path, str)):
             raise ProjectFileOperationError("invalid_delete_file_arguments")
+        if operation == "apply_changes":
+            ProjectFileOperationService._validate_apply_changes(arguments)
+
+    @staticmethod
+    def _validate_apply_changes(arguments: dict[str, Any]) -> None:
+        changes = arguments.get("changes")
+        if (
+            set(arguments) != {"origin", "execution_id", "changes"}
+            or arguments.get("origin") != "command"
+            or not isinstance(arguments.get("execution_id"), str)
+            or not arguments["execution_id"]
+            or len(arguments["execution_id"]) > 128
+            or not isinstance(changes, list)
+            or not 1 <= len(changes) <= APPLY_CHANGES_MAX_ENTRIES
+        ):
+            raise ProjectFileOperationError("invalid_apply_changes_arguments")
+        seen: set[str] = set()
+        for change in changes:
+            if not isinstance(change, dict) or change.get("kind") not in APPLY_CHANGES_KINDS:
+                raise ProjectFileOperationError("invalid_apply_changes_arguments")
+            path = change.get("path")
+            normalized = path.replace("\\", "/") if isinstance(path, str) else ""
+            if (not normalized or len(normalized) > 2048 or normalized.startswith("/") or "\x00" in normalized
+                    or ".." in normalized.split("/") or normalized in seen):
+                raise ProjectFileOperationError("invalid_apply_changes_arguments")
+            seen.add(normalized)
+            expected = change.get("expected_base")
+            kind = change["kind"]
+            if kind == "create":
+                valid = expected is None and isinstance(change.get("content"), str) and set(change) == {"path", "kind", "expected_base", "content"}
+            elif kind == "update":
+                valid = isinstance(change.get("content"), str) and set(change) == {"path", "kind", "expected_base", "content"}
+            else:
+                valid = set(change) == {"path", "kind", "expected_base"}
+            if kind != "create":
+                valid = valid and isinstance(expected, str) and len(expected) == 64 and all(ch in "0123456789abcdef" for ch in expected)
+            if not valid:
+                raise ProjectFileOperationError("invalid_apply_changes_arguments")
 
     def public_summary(self, job: dict[str, Any]) -> dict[str, Any]:
         summary = {

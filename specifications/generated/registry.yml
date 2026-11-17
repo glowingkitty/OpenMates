@@ -228,7 +228,7 @@ specifications:
     version: 2
     status: draft
     path: features/app-skills/code-run
-    fingerprint: 6dbf5d340be11b389e7ab699aeb64f547f8ba768016b6cb38967964c8d9b594a
+    fingerprint: d5d964f1432075d7153cf2e3bc3c63e83e418206163abecf3407e9d229a402e2
     required_applies_to:
     - rest_api
     - cli
@@ -4159,6 +4159,54 @@ assertions:
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: 0826bc6bf35424c44c715ad3724e2477cf806d19b86ecdbce5d19d475656b145
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.commands.files-through-file-tools:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 3764486ef96c6a109dc74dec19e6ba7b0c840510b673809cb005ac0c6604b6bb
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.cloud.commands:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: ce6ae60ef673bf7c210895383d3d8186b66907ea74956dc4f72fee3e62fd0566
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.cloud.workspace:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 2770e74a51638a8f9738b4418117bd2445ac5e68572dd32f5e31f2c5160c18c2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.cloud.command-changes-sync-back:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 40c0f1542b3ff0bb66fc44d05db26ca21fecf4de27a79202d45f39fca621ad67
     required_applies_to:
     - rest_api
     - cli

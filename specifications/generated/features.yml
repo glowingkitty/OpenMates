@@ -11519,7 +11519,7 @@ features:
     - app:code
     dev: enabled
     prod: enabled
-  assertions: 33
+  assertions: 37
   surfaces:
     web:
       status: failing
@@ -11529,8 +11529,8 @@ features:
         passing: 7
         failing: 1
         not_run: 11
-        missing: 16
-        counted: 35
+        missing: 20
+        counted: 39
       failing_tests:
       - frontend/apps/web_app/tests/skill-code-docs.spec.ts
       key_tests:
@@ -11562,8 +11562,8 @@ features:
         passing: 9
         failing: 0
         not_run: 0
-        missing: 24
-        counted: 33
+        missing: 28
+        counted: 37
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/AgenticCodingPreviewUITests.swift
@@ -11586,11 +11586,12 @@ features:
       assertions:
         passing: 9
         failing: 0
-        not_run: 6
-        missing: 18
-        counted: 33
+        not_run: 8
+        missing: 20
+        counted: 37
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
       - frontend/apps/web_app/tests/cli-project-file-chat.spec.ts
       key_unit_tests:
       - backend/tests/test_remote_command_service.py
@@ -11621,9 +11622,9 @@ features:
       assertions:
         passing: 16
         failing: 0
-        not_run: 2
+        not_run: 6
         missing: 15
-        counted: 33
+        counted: 37
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -11632,7 +11633,7 @@ features:
       - backend/tests/test_code_run_billing_attribution.py
       - backend/tests/test_e2b_code_runner.py
       - backend/tests/test_application_preview_config.py
-      unit_test_files: 23
+      unit_test_files: 25
     sdk_npm:
       status: not_run
       source: tests
@@ -11641,8 +11642,8 @@ features:
         passing: 0
         failing: 0
         not_run: 2
-        missing: 31
-        counted: 33
+        missing: 35
+        counted: 37
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -11656,8 +11657,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 33
-        counted: 33
+        missing: 37
+        counted: 37
       key_tests: []
       evidence: generated/app_skills.py apps.code (generic skill call)
       e2e_tests: []

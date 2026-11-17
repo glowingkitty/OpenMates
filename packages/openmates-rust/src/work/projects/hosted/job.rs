@@ -34,6 +34,9 @@ pub enum HostedFileOperation {
     RenameFile,
     /// `project_delete_file`: the link leaves the folder, the embed stays.
     DeleteFile,
+    /// `apply_changes`: the files a cloud terminal command changed, applied
+    /// through the create/update/delete write path (see `apply_changes`).
+    ApplyChanges,
 }
 
 impl HostedFileOperation {
@@ -47,6 +50,7 @@ impl HostedFileOperation {
             Self::UpdateFile => "update_file",
             Self::RenameFile => "rename_file",
             Self::DeleteFile => "delete_file",
+            Self::ApplyChanges => "apply_changes",
         }
     }
     /// Whether the operation changes the Project (and so needs the chat focus,
@@ -54,7 +58,11 @@ impl HostedFileOperation {
     pub fn is_mutation(self) -> bool {
         matches!(
             self,
-            Self::CreateFile | Self::UpdateFile | Self::RenameFile | Self::DeleteFile
+            Self::CreateFile
+                | Self::UpdateFile
+                | Self::RenameFile
+                | Self::DeleteFile
+                | Self::ApplyChanges
         )
     }
 }
@@ -158,6 +166,7 @@ pub(super) async fn execute<I: HostedIo>(
             decide("projectHostedList", &input)
         }
         HostedFileOperation::Search => search(io, job, files, policy, loaded.excluded).await,
+        HostedFileOperation::ApplyChanges => super::apply_changes::execute(io, ctx, job).await,
         _ => direct(io, ctx, job, mutation, files, policy).await,
     }
 }
@@ -298,7 +307,7 @@ async fn search<I: HostedIo>(
     Ok(result)
 }
 
-async fn direct<I: HostedIo>(
+pub(super) async fn direct<I: HostedIo>(
     io: &mut I,
     ctx: &HostedContext<'_>,
     job: &HostedFileJob,

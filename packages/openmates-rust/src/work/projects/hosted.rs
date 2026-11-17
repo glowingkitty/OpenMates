@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
 mod api;
+mod apply_changes;
 mod io;
 mod job;
 mod moves;
@@ -288,6 +289,8 @@ pub fn replacement_patch(path: &str, old: &str, next: &str) -> String {
 
 #[cfg(test)]
 mod adopt_tests;
+#[cfg(test)]
+mod apply_changes_tests;
 #[cfg(test)]
 mod moves_tests;
 #[cfg(test)]

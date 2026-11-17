@@ -237,6 +237,11 @@ from backend.apps.workflows.skills.chat_authoring_context import (
     is_natural_language_authoring_call,
     with_trusted_timezone,
 )
+from backend.apps.ai.processing.orchestration_skill_gate import (
+    BLOCKED_IN_ORCHESTRATION_MESSAGE,
+    is_root_turn_code_run,
+    settle_blocked_placeholders,
+)
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
     MAX_AUTO_SUB_CHAT_CREDITS,
@@ -9534,6 +9539,7 @@ async def handle_main_processing(
                     from backend.apps.ai.processing import project_test_snapshot as _pts
                     if active_project_focus:
                         parsed_args = _pts.route_machine_test_run(parsed_args, active_project_sources)
+                    parsed_args = _pts.without_forged_snapshot(parsed_args)
                     if _pts.needs_snapshot(parsed_args) and active_project_focus and cache_service:
                         _snapshot = await _pts.take_snapshot(
                             cache_service,
@@ -9560,7 +9566,7 @@ async def handle_main_processing(
                                     "status": "processing",
                                     "message": (
                                         "Collecting the Project snapshot from the authorized client; "
-                                        "the test run continues when it is ready."
+                                        "the code run continues when it is ready."
                                     ),
                                 }
                             except (PermissionError, RuntimeError, KeyError, ValueError) as snapshot_error:
@@ -10620,18 +10626,32 @@ async def handle_main_processing(
                             })
                             continue
 
-                    if _is_async_skill_blocked_in_orchestration(request_data, app_id, skill_id):
+                    if _is_async_skill_blocked_in_orchestration(
+                        request_data, app_id, skill_id,
+                    ) and not is_root_turn_code_run(request_data, app_id, skill_id):
                         current_message_history.append({
                             "tool_call_id": tool_call_id,
                             "role": "tool",
                             "name": tool_name,
                             "content": json.dumps({
                                 "status": "blocked_in_orchestration",
-                                "reason": "Long-running background skills are unavailable inside bounded sub-chat trees.",
+                                "reason": BLOCKED_IN_ORCHESTRATION_MESSAGE,
                                 "app_id": app_id,
                                 "skill_id": skill_id,
                             }),
                         })
+                        if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
+                            from backend.core.api.app.services.embed_service import EmbedService
+                            failed_embed_ids.update(await settle_blocked_placeholders(
+                                placeholder_embed_data,
+                                embed_service=EmbedService(
+                                    cache_service=cache_service,
+                                    directus_service=directus_service,
+                                    encryption_service=encryption_service,
+                                ),
+                                app_id=app_id, skill_id=skill_id, request_data=request_data,
+                                user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                            ))
                         logger.warning(
                             "%s Rejected async skill %s.%s inside orchestration %s before dispatch",
                             log_prefix,

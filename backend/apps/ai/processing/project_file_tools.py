@@ -387,12 +387,16 @@ def build_project_focus_prompt(
             "block: its files are stored as Project files in the application's folder (web-app/ unless Project "
             "creation named another subfolder) and the chat shows the runnable preview. Do not create those same "
             "files with the Project file tools; use the tools for every later change to them. "
+            "Run installs, builds, tests, linters and dev servers as code-run commands (target e2b with argv) in "
+            "this Project's cloud workspace; files a command changes are synced back as normal file changes. "
         )
     prompt = (
         "An authorized Project focus is active for this chat. Use the Project file tools when the "
         "request requires inspecting or changing Project files. Read a file before updating it and "
         "use the exact expected_base returned by the read. Change, rename or delete Project files only with "
         "the Project file tools; a raw diff block in the reply that targets a Project file is not applied. "
+        "Terminal commands are only for work that needs execution; never use them to read or edit files "
+        "(no cat, head, sed, tee or echo > file). "
         f"{new_application}"
         "Never invent, weaken, or change Project "
         "authority, write policy, approval, or source readiness. A pending client operation means "

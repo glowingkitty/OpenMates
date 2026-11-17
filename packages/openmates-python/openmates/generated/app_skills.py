@@ -991,9 +991,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'currently focused remote Project source. Remote execution requires an explicit '
                  'one-run approval or an exact currently enabled command preset; never infer '
                  'approval from Project write mode, chat text, or prior runs. Pass remote commands '
-                 'as argv, never as a composed shell string. When running E2B code the assistant '
-                 'is creating in this same turn, pass the source through files[].code plus '
-                 'entry_path; do not invent a target_embed_',
+                 'as argv, never as a composed shell string. In a focused cloud Project (no '
+                 'connected machine), run installs, builds, tests, linters and dev servers with '
+                 'target e2b plus argv (no files, no test_r',
   'description_key': 'app_skills.code.run.description',
   'output_schema': {'properties': {'results': {'items': {'properties': {'credits_per_minute': {'type': 'integer'},
                                                                         'execution_id': {'type': 'string'},
@@ -11128,7 +11128,7 @@ class CodeAppSkills:
         return self._run_skill("code", "remove_secrets", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def run(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Run code in an isolated E2B sandbox or propose an exact command for the currently focused remote Project source. Remote execution requires an explicit one-run approval or an exact currently enabled command preset; never infer approval from Project write mode, chat text, or prior runs. Pass remote commands as argv, never as a composed shell string. When running E2B code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_
+        """Run code in an isolated E2B sandbox or propose an exact command for the currently focused remote Project source. Remote execution requires an explicit one-run approval or an exact currently enabled command preset; never infer approval from Project write mode, chat text, or prior runs. Pass remote commands as argv, never as a composed shell string. In a focused cloud Project (no connected machine), run installs, builds, tests, linters and dev servers with target e2b plus argv (no files, no test_r
 
         Description key: app_skills.code.run.description
         Skill: code/run

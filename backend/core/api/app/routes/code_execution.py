@@ -1251,15 +1251,19 @@ async def start_code_run_execution(
     assistant_async_task: bool = False,
     same_turn_batch_id: str | None = None,
     test_run: dict[str, Any] | None = None,
+    command_run: dict[str, Any] | None = None,
 ) -> CodeRunStartResponse:
     if current_user.credits < RUN_CREDITS_PER_MINUTE:
         raise HTTPException(status_code=402, detail="Not enough credits to run code")
 
-    dependency_installs = _merge_dependency_installs(
-        dependency_installs,
-        _dependency_installs_from_install_snippets(files),
-        _dependency_installs_from_imports(files),
-    )
+    # A cloud command runs exactly its argv; the Project snapshot is not a script
+    # whose imports should trigger extra installs.
+    if command_run is None:
+        dependency_installs = _merge_dependency_installs(
+            dependency_installs,
+            _dependency_installs_from_install_snippets(files),
+            _dependency_installs_from_imports(files),
+        )
     if dependency_installs:
         logger.info(
             "Code Run dependency installs requested: %s",
@@ -1313,6 +1317,7 @@ async def start_code_run_execution(
         "assistant_async_task": assistant_async_task,
         "same_turn_batch_id": same_turn_batch_id,
         "test_run": test_run,
+        "command_run": command_run,
         "active_run_key": active_key,
         "active_run_owner": execution_id,
         "provider_active_run_key": _provider_active_run_key(),

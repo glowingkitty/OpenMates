@@ -40,6 +40,9 @@ const APP = 'https://app.dev.openmates.org';
 const API = 'https://api.dev.openmates.org';
 const PROMPT =
   '@Gemini-3.8-Flash Build me a simple recipe web app where I can add recipes with ingredients and steps and see them in a list. Keep it small.';
+// code-run.cloud.commands: installs and builds run as commands in the Project's E2B workspace.
+const COMMAND_PROMPT =
+  'Install the app dependencies and run its production build in web-app, then tell me whether the build passed and which files the commands changed.';
 const TEST_PROMPT =
   'Add a browser test that adds one recipe and checks it appears in the list, run it, and commit when it passes.';
 test.describe.configure({ mode: 'serial', retries: 0, timeout: 1_200_000 });
@@ -76,7 +79,7 @@ function embedIdsOfType(value: unknown, type: string, out: string[] = []): strin
   return out;
 }
 
-// contract-test: direct surface=cli assertions=projects.files.application-single-source,projects.files.adopt-embed
+// contract-test: direct surface=cli assertions=projects.files.application-single-source,projects.files.adopt-embed,code-run.cloud.commands,code-run.cloud.command-changes-sync-back
 // eslint-disable-next-line no-empty-pattern -- Playwright requires an object pattern; this test launches its own browser
 test('real Gemini turn builds a hosted recipe app into a new Project via the native CLI', async ({}, info: TestInfo) => {
   // The dev host's installed Chromium may differ from the repo's Playwright build (PW_CHROMIUM).
@@ -227,7 +230,24 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
         JSON.stringify(await run(['chats', 'show', chatId, '--json'])), { mode: 0o600 });
     }
 
-    // Second turn: the assistant writes a browser test, runs it in E2B with a
+    // Command turn (code-run.cloud.commands, code-run.cloud.command-changes-sync-back):
+    // npm install and the build run in the Project workspace; a lockfile the
+    // install writes comes back as a Project file.
+    if (created.length) {
+      const sentCommands = await runRust(binary, env, ['chats', 'send', '--chat', chatId, COMMAND_PROMPT, '--response-timeout-seconds', '840', '--json'], 900_000);
+      expect.soft(sentCommands.code, `command turn exit ${sentCommands.code}\nstderr: ${String(sentCommands.stderr).slice(-600)}`).toBe(0);
+      const commandTurn = sentCommands.code === 0 ? parseJson(sentCommands) : { status: `exit ${sentCommands.code}` };
+      const shownCommands = await run(['chats', 'show', chatId, '--json']);
+      const terminalCards = collect(shownCommands, ['path', 'file_path', 'filename']).filter((path) => path === 'terminal.sh');
+      const listedAfterCommands = collect(await run(['projects', 'hosted', 'list', created[0], '--json']), ['path']);
+      const lockfile = listedAfterCommands.some((path) => /^web-app\/(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(path));
+      Object.assign(evidence, { commandTurn: { status: commandTurn.status, terminalCards: terminalCards.length, lockfile } });
+      expect.soft(commandTurn.status).toBe('completed');
+      expect.soft(terminalCards.length, 'command cards for the install and the build').toBeGreaterThanOrEqual(2);
+      expect.soft(lockfile, 'the install lockfile synced back as a Project file').toBe(true);
+    }
+
+    // Test turn: the assistant writes a browser test, runs it in E2B with a
     // recording, and commits the Project once it is green.
     let testResultId = '';
     if (created.length) {

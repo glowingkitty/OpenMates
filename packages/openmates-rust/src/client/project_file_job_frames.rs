@@ -20,7 +20,7 @@ const COMMIT_MESSAGE_MAX_CHARS: usize = 200;
 /// Wire name of the read-only `snapshot` job: all text files of the Project,
 /// see [`super::snapshot`].
 const SNAPSHOT_OPERATION: &str = "snapshot";
-const OPERATIONS: [&str; 9] = [
+const OPERATIONS: [&str; 10] = [
     "list",
     "search",
     "read_text",
@@ -28,6 +28,7 @@ const OPERATIONS: [&str; 9] = [
     "update_file",
     "rename_file",
     "delete_file",
+    "apply_changes",
     COMMIT_OPERATION,
     SNAPSHOT_OPERATION,
 ];
