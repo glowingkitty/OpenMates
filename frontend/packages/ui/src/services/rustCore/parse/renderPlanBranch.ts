@@ -73,12 +73,14 @@ function schedule(
 ): void {
 	const startedIn = generation;
 	state.chain = state.chain.then(async () => {
-		// A newer request (or a reset) superseded this one; only the newest needs a plan.
-		if (startedIn !== generation || state.requested !== key) return;
+		// A reset dropped this request: the page asks again in the current generation.
+		if (startedIn !== generation) return askToRemap(messageId);
+		// A newer request superseded this one; only the newest needs a plan.
+		if (state.requested !== key) return;
 		try {
 			const { createAssistantRenderPlanRust } = await import('./rustAssistantRenderPlan');
 			const plan = await createAssistantRenderPlanRust(markdown, { ...options, previous: plans.get(messageId) });
-			if (startedIn !== generation) return;
+			if (startedIn !== generation) return askToRemap(messageId);
 			plans.set(messageId, plan);
 			state.resolved = key;
 			state.failures = 0;
@@ -88,6 +90,17 @@ function schedule(
 			retryAfterFailure(messageId, state, key, startedIn);
 		}
 	});
+}
+
+/**
+ * A reset (another chat view torn down, a chat reloaded) dropped this request
+ * while it was in flight. The page that still shows the message must request
+ * it again: only a ready notification remaps a message, so without this it
+ * keeps its empty placeholder. The remap starts a fresh request in the current
+ * generation (the reset cleared this message's state).
+ */
+function askToRemap(messageId: string): void {
+	for (const listener of readyListeners) listener(messageId);
 }
 
 /**

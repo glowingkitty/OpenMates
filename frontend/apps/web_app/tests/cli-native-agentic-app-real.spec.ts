@@ -1,6 +1,7 @@
 /** Real inference acceptance: hosted recipe app through the native Rust CLI. Held out of isolated CI. */
 import { test, expect, chromium, type Page, type TestInfo } from '@playwright/test';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- shared CommonJS helpers
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -96,6 +97,51 @@ function referencedEmbedIds(value: unknown, out: Set<string> = new Set()): Set<s
     }
   }
   return out;
+}
+
+/** Shape of the web's cached rows of one chat: ids, status and field lengths only. */
+async function cachedMessageShape(page: Page, chatId: string) {
+  const shape = await page.evaluate((chat) => new Promise<unknown>((resolve) => {
+    const opened = indexedDB.open('chats_db');
+    opened.onerror = () => resolve({ error: 'open' });
+    opened.onsuccess = () => {
+      const db = opened.result;
+      const stores = ['messages', 'chats'].filter((name) => db.objectStoreNames.contains(name));
+      const tx = db.transaction(stores, 'readonly');
+      const rows: unknown[] = [];
+      let chatRow: unknown = null;
+      const len = (value: unknown) => (typeof value === 'string' ? value.length : value == null ? null : -1);
+      const messages = tx.objectStore('messages').openCursor();
+      messages.onsuccess = () => {
+        const cursor = messages.result;
+        if (!cursor) return;
+        const row = cursor.value as Record<string, unknown>;
+        if (row.chat_id === chat) {
+          rows.push({ id: String(row.message_id ?? '').slice(0, 8), role: row.role, status: row.status,
+            created: row.created_at, content: len(row.content), encrypted: len(row.encrypted_content),
+            keys: Object.keys(row).sort(), cipher: row.encrypted_content });
+        }
+        cursor.continue();
+      };
+      if (stores.includes('chats')) {
+        const read = tx.objectStore('chats').get(chat);
+        read.onsuccess = () => {
+          const row = read.result as Record<string, unknown> | undefined;
+          chatRow = row ? { messages_v: row.messages_v, last_edited: row.last_edited_overall_timestamp } : null;
+        };
+      }
+      tx.oncomplete = () => { db.close(); resolve({ chat: chatRow, rows }); };
+      tx.onerror = () => { db.close(); resolve({ error: 'read', rows }); };
+    };
+  }), chatId) as { rows?: Array<Record<string, unknown>> };
+  // Ciphertext never leaves the test: only a short digest to compare with the server row.
+  for (const row of shape.rows ?? []) {
+    row.cipher = typeof row.cipher === 'string' ? createHash('sha256').update(row.cipher).digest('hex').slice(0, 12) : null;
+  }
+  const articles = page.locator('article');
+  const rendered: number[] = [];
+  for (let i = 0; i < await articles.count(); i++) rendered.push((await articles.nth(i).innerText().catch(() => '')).length);
+  return { ...shape, rendered };
 }
 
 // contract-test: direct surface=cli assertions=projects.files.application-single-source,projects.files.adopt-embed,code-run.cloud.commands,code-run.cloud.command-changes-sync-back
@@ -426,6 +472,11 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       await page.goto(`${APP}/#chat-id=${chatId}`);
       const card = page.locator('[data-testid="embed-preview"][data-skill-id="test_result"]').last();
       await expect.soft(card, 'test result card in chat').toBeVisible({ timeout: 90_000 });
+      if (!(await card.isVisible())) {
+        // Name which cached row the web kept: status and lengths only, never
+        // content or ciphertext (compared afterwards with the server rows).
+        Object.assign(evidence, { webCachedRows: await cachedMessageShape(page, chatId) });
+      }
       if (await card.isVisible()) {
         // Right after navigation the chat re-renders its messages while it
         // syncs, replacing the card node; retry until it stays attached.
