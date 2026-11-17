@@ -15,9 +15,11 @@ import re
 from typing import Any, Iterable
 
 BROWSE_SKILL_ID = "web-browse"
-# Assistant turns searched for an earlier Browse use. A form flow can have a
-# turn that only explains a question, so the last answer alone is too narrow.
-RECENT_ASSISTANT_TURNS = 3
+# Assistant turns searched for an earlier Browse use. A form flow has turns
+# without a Browse call (explaining a question, a value the user types through
+# take control, a field left empty), several in a row on a long form, so a short
+# window drops Browse mid-form and the model is left without the tool.
+RECENT_ASSISTANT_TURNS = 12
 
 _URL = re.compile(r"https?://[^\s<>\"')\]]+", re.IGNORECASE)
 _PAGE_WORK = re.compile(

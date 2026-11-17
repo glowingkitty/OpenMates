@@ -64,9 +64,21 @@ def test_an_answer_inside_a_running_browse_session_keeps_browse():
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.form-with-user
-def test_browse_use_older_than_three_assistant_turns_no_longer_forces_browse():
+def test_several_form_turns_without_a_browse_call_keep_browse():
+    # Real form run: first name and last name were typed by the user through take
+    # control and the profile links were left empty, three replies in a row with
+    # no Browse call; the next answer must still reach the browser.
+    history = [{"role": "assistant", "content": f"Filled.\n\n{BROWSE_REF}\n\nFirst name?"}]
+    for answer in ("Alex", "Rivera", "Leave the links empty."):
+        history += [{"role": "user", "content": answer}, {"role": "assistant", "content": "Please type it yourself. Next field?"}]
+    history.append({"role": "user", "content": "Go with your suggestion."})
+    assert resolve_browse_intent(history, SKILLS) == ["web-browse"]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user
+def test_browse_use_older_than_twelve_assistant_turns_no_longer_forces_browse():
     history = [{"role": "assistant", "content": BROWSE_REF}]
-    for n in range(3):
+    for n in range(12):
         history += [{"role": "user", "content": f"q{n}"}, {"role": "assistant", "content": "plain"}]
     history.append({"role": "user", "content": "thanks"})
     assert resolve_browse_intent(history, SKILLS) == []

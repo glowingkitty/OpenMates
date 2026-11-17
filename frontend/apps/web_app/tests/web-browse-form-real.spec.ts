@@ -22,7 +22,8 @@
  * persona: when a reply asks for take control, the test opens the live browser,
  * takes control, clicks the `manual.field` (measured on the same public page at
  * the runtime's 1280x800 viewport), types `manual.value` and lets AI continue,
- * once. Every turn mentions
+ * once. Further answers marked `hidden` are left to the user (the reply must say
+ * so via take control); answers marked `fills: false` need no Browse call. Every turn mentions
  * @Gemini-3.8-Flash. With BROWSE_FORM_STRICT=1 the run asserts that Browse
  * started on its own, every reply asks at most one form question, every turn
  * after the first continues Browse, the form never shows a not-found page, a
@@ -45,7 +46,10 @@ const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAcco
 
 type FormCase = {
 	prompt: string;
-	answers: Array<{ match: string; answer: string }>;
+	// `hidden`: the chat hides this answer from the model (a privacy placeholder), so the
+	// assistant leaves that field to the user. `fills: false`: the answer fills nothing
+	// (e.g. leave optional links empty), so that turn needs no Browse call.
+	answers: Array<{ match: string; answer: string; hidden?: boolean; fills?: boolean }>;
 	fallback: string;
 	manual?: { field: string; value: string };
 	maxTurns?: number;
@@ -223,7 +227,8 @@ test.describe('web browse form with the user (real dev inference)', () => {
 				turn,
 				user: message,
 				// The model sees a placeholder for this answer; the persona types it itself.
-				hidden: Boolean(item!.manual && message === item!.manual.value),
+				hidden: Boolean((item!.manual && message === item!.manual.value) || item!.answers.some((entry) => entry.hidden && entry.answer === message)),
+				fills: !item!.answers.some((entry) => entry.fills === false && entry.answer === message),
 				assistant: text,
 				browseEmbeds: await browseEmbeds(answer),
 				questions: askedQuestions(text),
@@ -270,7 +275,7 @@ test.describe('web browse form with the user (real dev inference)', () => {
 					expect.soft(record.assistant, `turn ${record.turn}: a hidden value is left to the user`).toMatch(TAKE_CONTROL);
 					continue;
 				}
-				expect.soft(record.browseEmbeds, `turn ${record.turn}: the answer is filled through Browse`).toBeGreaterThan(0);
+				if (record.fills) expect.soft(record.browseEmbeds, `turn ${record.turn}: the answer is filled through Browse`).toBeGreaterThan(0);
 			}
 			if (item!.manual) expect.soft(manualDone, 'the hidden value was typed through Take control').toBe(true);
 			for (const record of turns.slice(0, -1)) {
