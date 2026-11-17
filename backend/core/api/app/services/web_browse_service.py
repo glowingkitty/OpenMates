@@ -240,6 +240,29 @@ class BrowseStore:
         record["_version"] = version + 1
 
 
+# Smallest partial hold worth starting a browser window for (about $0.01 of
+# supplier cost); below it the wallet refusal stands.
+MIN_RESERVED_CREDITS = 20
+
+
+def quotable_credits(exc: HTTPException) -> int | None:
+    """The wallet's largest admissible hold from a reservation refusal, if stated.
+
+    The internal client wraps the billing body as "Internal API error: <json>".
+    """
+    if exc.status_code != 402 or not isinstance(exc.detail, str):
+        return None
+    _, _, body = exc.detail.partition("Internal API error: ")
+    try:
+        detail = json.loads(body).get("detail")
+    except (ValueError, AttributeError):
+        return None
+    if not isinstance(detail, dict) or detail.get("code") != "reservation_budget_exceeded":
+        return None
+    value = detail.get("max_quotable_credits")
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
 # Live sessions checked when a call names neither a session nor a start address;
 # an owner has at most a few, and only the same chat's session is continued.
 OPEN_SESSION_LOOKUP_LIMIT = 10
@@ -357,28 +380,48 @@ class BrowseService:
         # A crash after wallet admission must still leave a recoverable operation identity.
         record["reservation"] = operation
         await self.store.save(record)
+        quote = remaining
         try:
-            await self.app._make_internal_api_request(
-                "POST",
-                "/internal/billing/reserve",
-                payload={
-                    "user_id": record["user_id"],
-                    "user_id_hash": owner_hash(record["user_id"]),
-                    "idempotency_key": operation,
-                    "quoted_credits": remaining,
-                    "app_id": "web",
-                    "skill_id": "browse",
-                },
-            )
+            try:
+                await self._reserve_credits(record, operation, quote)
+            except HTTPException as exc:
+                # The wallet cannot hold the whole cap: hold what it can and let
+                # this window stop at that amount instead of failing the call.
+                affordable = quotable_credits(exc)
+                if affordable is None or affordable < MIN_RESERVED_CREDITS:
+                    raise
+                quote = min(remaining, affordable)
+                await self._reserve_credits(record, operation, quote)
         except HTTPException as exc:
             if exc.status_code < 500:
                 record["reservation"] = None
                 record["reservation_admitted"] = False
+                record["reserved_ceiling"] = None
                 record["status"] = "paused"
                 await self.store.save(record)
             raise
         record["reservation_admitted"] = True
+        # Credits this window may reach: what was charged plus what is held.
+        record["reserved_ceiling"] = (
+            None if quote == remaining else record.get("charged_credits", 0) + quote
+        )
         await self.store.save(record)
+
+    async def _reserve_credits(
+        self, record: dict[str, Any], operation: str, quote: int
+    ) -> None:
+        await self.app._make_internal_api_request(
+            "POST",
+            "/internal/billing/reserve",
+            payload={
+                "user_id": record["user_id"],
+                "user_id_hash": owner_hash(record["user_id"]),
+                "idempotency_key": operation,
+                "quoted_credits": quote,
+                "app_id": "web",
+                "skill_id": "browse",
+            },
+        )
 
     def runtime_cost(
         self, record: dict[str, Any], *, stop_at: float | None = None
@@ -407,7 +450,10 @@ class BrowseService:
         )
 
     def remaining_usd(self, record: dict[str, Any]) -> Decimal:
-        return Decimal(record["max_credits"]) / 2000 - self.total_cost(record)
+        ceiling = record["max_credits"]
+        if record.get("reserved_ceiling") is not None:
+            ceiling = min(ceiling, record["reserved_ceiling"])
+        return Decimal(ceiling) / 2000 - self.total_cost(record)
 
     async def keep_running(
         self, record: dict[str, Any], reserved_usd: Decimal = Decimal(0)
@@ -511,6 +557,7 @@ class BrowseService:
         record.pop("settlement", None)
         record["reservation"] = None
         record["reservation_admitted"] = False
+        record["reserved_ceiling"] = None
         await self.store.save(record)
 
     async def pause(self, record: dict[str, Any]) -> None:

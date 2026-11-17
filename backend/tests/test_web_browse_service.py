@@ -7,6 +7,7 @@ import base64
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from decimal import Decimal
+import json
 import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -2099,3 +2100,60 @@ async def test_followup_without_session_or_address_in_a_chat_without_a_browser_s
     with pytest.raises(HTTPException) as exc:
         await run(service, BrowseRequest(task="Continue"), message_id="no-browser")
     assert exc.value.status_code == 422
+
+
+def wallet_refusal(max_quotable):
+    body = json.dumps(
+        {"detail": {"code": "reservation_budget_exceeded", "max_quotable_credits": max_quotable}}
+    )
+    return HTTPException(402, f"Internal API error: {body}")
+
+
+def reserve_calls(service):
+    return [
+        call.kwargs["payload"]["quoted_credits"]
+        for call in service.app._make_internal_api_request.await_args_list
+        if call.args[1] == "/internal/billing/reserve"
+    ]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.form-with-user
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.form-with-user
+async def test_a_wallet_below_the_cap_holds_what_it_can_and_the_window_stops_there(service):
+    # Real form run: a 1000-credit session cap with 875 quotable credits refused
+    # every later Browse call; the window now holds 875 and is bounded by it.
+    first = True
+
+    async def internal(method, path, payload=None, **kwargs):
+        nonlocal first
+        if path == "/internal/billing/reserve" and first:
+            first = False
+            raise wallet_refusal(875)
+        return {}
+
+    service.app._make_internal_api_request.side_effect = internal
+    result = await run(service, arguments(max_credits=1000))
+    assert result.status == "completed"
+    assert reserve_calls(service) == [1000, 875]
+    record = service.store.records[result.session_id]
+    assert record["reservation"] is None and record["reserved_ceiling"] is None
+    assert record["max_credits"] == 1000
+    held = {**record, "reserved_ceiling": 875, "charged_credits": 0}
+    assert service.remaining_usd(held) <= Decimal(875) / 2000
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting
+async def test_a_wallet_that_cannot_hold_a_useful_window_still_refuses(service):
+    async def internal(method, path, payload=None, **kwargs):
+        if path == "/internal/billing/reserve":
+            raise wallet_refusal(5)
+        return {}
+
+    service.app._make_internal_api_request.side_effect = internal
+    with pytest.raises(HTTPException) as exc:
+        await run(service)
+    assert exc.value.status_code == 402
+    assert reserve_calls(service) == [250]
