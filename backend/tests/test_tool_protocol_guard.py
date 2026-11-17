@@ -350,3 +350,33 @@ def test_guard_diagnostics_contain_only_allowlisted_structure(fence, reason, clo
     assert set(guard.diagnostics) == {'reason', 'language', 'closed', 'body_chars'}
     assert guard.diagnostics['body_chars'] > 0
     assert 'private' not in str(guard.diagnostics)
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize(
+    "block,offered,expected",
+    [
+        ("```toon\napp_id: web\nskill_id: browse\nstatus: finished\n```\n", ["web-browse"], True),
+        ("```toon\napp_id: web\nskill_id: browse\nstatus: finished\n```\n", ["web-search"], False),
+        ("```toon\napp_id: web\nskill_id: browse\nstatus: finished\n```\n", [], False),
+        ("```toon\ntool: web-browse\n```\n", ["web-browse"], False),
+    ],
+)
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+def test_only_an_imitated_result_of_an_offered_skill_allows_a_tools_on_retry(block, offered, expected):
+    from backend.apps.ai.utils.tool_protocol_guard import toon_result_retry_applies
+
+    guard = ToolProtocolGuard()
+
+    async def consume():
+        async def source():
+            yield UnifiedStreamChunk(type=StreamChunkType.TEXT, content=block)
+
+        return [chunk async for chunk in guard.filter(source())]
+
+    assert asyncio.run(consume()) == []
+    assert guard.detected
+    tools = [{"type": "function", "function": {"name": name}} for name in offered]
+    assert toon_result_retry_applies(guard, tools) is expected
+    # Content-free diagnostics: the imitated skill never enters the logged fields.
+    assert "browse" not in str(guard.diagnostics)

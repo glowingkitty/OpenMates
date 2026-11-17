@@ -28,7 +28,7 @@ from backend.apps.ai.utils.authored_result_fences import (
     get_authoring_definitions,
     normalize_authored_results_source,
 )
-from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
+from backend.apps.ai.utils.tool_protocol_guard import TOON_RESULT_RETRY_PROMPT, ToolProtocolGuard
 from backend.apps.ai.utils.instruction_loader import load_base_instructions
 
 
@@ -320,11 +320,12 @@ def answer_recovery_runner(monkeypatch):
         authoring_apps: dict | None = None,
         selected_previews: tuple[str, ...] = (),
         history_override: list[dict] | None = None,
+        tool_iterations: int = 2,
     ) -> tuple[list[object], list[dict], list[dict]]:
         calls_before = len(provider_calls)
         skill_dispatch.reset_mock()
         if live_tool_call:
-            monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 2)
+            monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", tool_iterations)
             monkeypatch.setattr(
                 main_processor,
                 "generate_tools_from_apps",
@@ -851,6 +852,42 @@ async def test_partial_503_clean_recovery_exhausts_compatible_models_once(
         {"__main_processing_failure__": True, "reason": "provider_exhausted"}
     ]
     assert "".join(chunk for chunk in output if isinstance(chunk, str)) == prefix
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("imitated_app", ["web", "events"])
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_imitated_result_of_an_offered_skill_retries_once_with_tools(
+    answer_recovery_runner, imitated_app: str,
+) -> None:
+    """An app result written as text for an offered skill gets one tools-on retry.
+
+    A multi-turn Browse form chat on dev failed when the user's answer needed a
+    real skill call but the tools-off answer-only recovery ran instead. An
+    imitated result of a skill that is not offered keeps the clean recovery.
+    """
+    protocol = f"```toon\napp_id: {imitated_app}\nskill_id: search\nstatus: finished\n```"
+    offered = imitated_app == "web"
+    # The runner offers web-search and expects exactly one real search. Offered:
+    # the imitated result comes first and the retry makes the real call. Not
+    # offered: the real call comes first, then the imitated events result.
+    replies = ([[protocol], [_completed_tool_call()], [ANSWER]] if offered
+               else [[_completed_tool_call()], [protocol], [ANSWER]])
+    output, calls, _ = await answer_recovery_runner(
+        replies, alternate_model=CROSS_PROVIDER_MODEL, live_tool_call=True, tool_iterations=3,
+        primary_model="google_ai_studio/answer-primary", signature_provider="google_ai_studio",
+    )
+    assert len(calls) == 3
+    after_guard = json.dumps(calls[1 if offered else 2]["messages"])
+    assert "status: finished" not in after_guard
+    if offered:
+        assert calls[1]["tools"] and TOON_RESULT_RETRY_PROMPT in after_guard
+        assert CURRENT_TOOL_EVIDENCE in json.dumps(calls[2]["messages"])
+    else:
+        assert calls[2]["tools"] is None and TOON_RESULT_RETRY_PROMPT not in after_guard
+        _assert_clean_recovery_payload(calls[2])
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == ANSWER
+    assert not any(isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output)
 
 
 @pytest.mark.parametrize("guarded", [False, True])

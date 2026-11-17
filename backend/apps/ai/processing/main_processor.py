@@ -125,7 +125,11 @@ from backend.apps.ai.utils.embeds_map_view import (
     should_include_embeds_results_view_instruction,
     should_include_embeds_map_view_hint,
 )
-from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
+from backend.apps.ai.utils.tool_protocol_guard import (
+    TOON_RESULT_RETRY_PROMPT,
+    ToolProtocolGuard,
+    toon_result_retry_applies,
+)
 from backend.apps.ai.utils.pseudo_tool_call import (
     PSEUDO_TOOL_CALL_RETRY_PROMPT,
     PseudoToolCallRecovery,
@@ -6554,6 +6558,7 @@ async def handle_main_processing(
     answer_recovery = AnswerRecoveryState()
     protocol_guard_recovery_started = False
     pseudo_tool_call_recovery = PseudoToolCallRecovery()
+    toon_result_retry_used = False
     continue_published_answer = False
     published_answer_text: List[str] = []
     omitted_budget_requests = 0
@@ -8424,6 +8429,23 @@ async def handle_main_processing(
                 answer_recovery.attempts,
                 protocol_guard.diagnostics,
             )
+            if (
+                not tool_calls_for_this_turn
+                and not toon_result_retry_used
+                and not force_no_tools
+                and toon_result_retry_applies(protocol_guard, iteration_tools)
+                # The retry turn itself must still offer tools.
+                and iteration + 1 < MAX_TOOL_CALL_ITERATIONS - 1
+            ):
+                # An imitated app result may stand for a real skill call the step
+                # still needs (e.g. Browse filling the user's answer): one retry
+                # with tools on. The suppressed block never enters history.
+                toon_result_retry_used = True
+                if final_buffered_text_for_turn.strip():
+                    current_message_history.append({"role": "assistant", "content": final_buffered_text_for_turn})
+                current_message_history.append({"role": "user", "content": TOON_RESULT_RETRY_PROMPT})
+                logger.warning("%s [TOOL_PROTOCOL_GUARD] retrying once with tools after an imitated app result", log_prefix)
+                continue
             if not tool_calls_for_this_turn:
                 # Disabling tools alone retains the prompt that elicited the
                 # fabricated protocol. Rebuild clean answer-only context instead.
