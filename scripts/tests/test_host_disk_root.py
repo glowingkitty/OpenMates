@@ -129,7 +129,16 @@ def test_oversized_logs_are_listed(tmp_path):
     large.parent.mkdir()
     small.write_bytes(b"x" * 10)
     large.write_bytes(b"x" * 2048)
-    assert [item["path"] for item in tool.oversized_logs(root, cap=1024)] == [str(large)]
+    assert [item["path"] for item in tool.oversized_logs(root, cap=1024, total_cap=10**9)] == [str(large)]
+
+
+def test_largest_logs_go_until_all_fit_in_the_total_budget(tmp_path):
+    root = _docker_root(tmp_path)
+    for name, size in (("a", 600), ("b", 500), ("c", 300), ("d", 100)):
+        (root / "containers" / name).mkdir()
+        (root / "containers" / name / f"{name}-json.log").write_bytes(b"x" * size)
+    chosen = tool.oversized_logs(root, cap=10**6, total_cap=500)  # 1500 -> 900 -> 400
+    assert [Path(item["path"]).name for item in chosen] == ["a-json.log", "b-json.log"]
 
 
 def test_buildkit_references_keep_named_layers(tmp_path):

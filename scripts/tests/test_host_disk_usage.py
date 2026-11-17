@@ -74,3 +74,27 @@ def test_approved_caps_are_the_owner_decision():
     caps = usage.caps(Path("/nonexistent/projects"))
     assert caps == {"rust": 25 * GB, "ci_artifacts": 10 * GB, "scratchpads": 6 * GB, "worktrees": 15 * GB,
                     "docker_images": 20 * GB, "docker_logs": 1 * GB, "journal": 1 * GB}
+
+
+def test_cargo_targets_are_found_by_their_cache_tag_at_any_depth(tmp_path):
+    for target in ("wt/target", "wt/scripts/tool/target", "wt/node_modules/pkg/target"):
+        (tmp_path / target / "debug").mkdir(parents=True)
+        (tmp_path / target / "CACHEDIR.TAG").write_text("Signature: 8a477f\n# This file is a cache directory tag created by cargo.")
+    (tmp_path / "wt/target/debug/nested/target").mkdir(parents=True)
+    (tmp_path / "wt/target/debug/nested/target/.rustc_info.json").write_text("{}")
+    (tmp_path / "wt/plain/target").mkdir(parents=True)  # no marker: not a cargo target
+    (tmp_path / "wt/.ruff_cache").mkdir()
+    (tmp_path / "wt/.ruff_cache/CACHEDIR.TAG").write_text("Signature: x\n# created by ruff")
+    (tmp_path / "wt/old/target").mkdir(parents=True)   # older cargo: no tag, only rustc info
+    (tmp_path / "wt/old/target/.rustc_info.json").write_text("{}")
+    assert usage.cargo_targets([str(tmp_path / "wt")]) == [str(tmp_path / "wt/old/target"),
+                                                           str(tmp_path / "wt/scripts/tool/target"),
+                                                           str(tmp_path / "wt/target")]
+
+
+def test_finder_paths_are_measured_like_patterns(tmp_path):
+    root, sizes = _tree(tmp_path)
+    cats = (usage.Category("rust", "", (), 25 * GB, finder=lambda: [f"{root}/wt/agent-a/target"]),
+            usage.Category("worktrees", "", (f"{root}/wt/*",), 15 * GB))
+    measured = usage.measure_paths(cats, du=lambda path: sizes[path])
+    assert measured["rust"]["bytes"] == 7 * GB and measured["worktrees"]["bytes"] == 6 * GB

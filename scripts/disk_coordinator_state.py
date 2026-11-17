@@ -37,9 +37,10 @@ KINDS = ("managed", "worktrees", "docker", "proof", "host")
 # Proactive maintenance by the elected service: every enabled kind runs at least
 # every PROACTIVE_INTERVAL, and every PROACTIVE_PRESSURE_INTERVAL once usage
 # reaches PROACTIVE_PERCENT, so capacity recovers before work has to wait.
-PROACTIVE_INTERVAL = 6 * 3600
+# Hourly, so the category budgets (host_disk_budgets.py) hold; from 75% every 30 min (TASK-7646).
+PROACTIVE_INTERVAL = 3600
 PROACTIVE_PRESSURE_INTERVAL = 1800
-PROACTIVE_PERCENT = 80
+PROACTIVE_PERCENT = 75
 # A threaded wait whose owner process exited (the chat checkpointed and yielded) is
 # "parked": the service never grants it, because nobody would claim the grant. Each
 # tick checks whether capacity would admit it and then sets PARKED_READY_REASON, so

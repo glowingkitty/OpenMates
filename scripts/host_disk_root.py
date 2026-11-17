@@ -8,8 +8,10 @@ Installed by ``scripts/host-disk-root-setup.sh`` as a root-owned copy in
   mount, container init layer, ``docker inspect`` record or BuildKit database
   names, untouched for ORPHAN_MIN_AGE_DAYS. ``docker system prune`` cannot see
   them (dev host, 2026-11-16: 38 GB of 49 GB in overlay2);
-* container json logs above LOG_CAP_BYTES are truncated in place (Docker keeps
-  appending to the same file);
+* container json logs above LOG_CAP_BYTES, and then the largest ones until all
+  fit in LOGS_TOTAL_CAP_BYTES, are truncated in place (Docker keeps appending to
+  the same file). New containers rotate their own logs once the Docker default
+  log options from the setup script are active;
 * the systemd journal is vacuumed to JOURNAL_CAP.
 
 ``report`` (the default) only lists; ``apply`` deletes. Each run writes a JSON
@@ -35,6 +37,9 @@ DOCKER_ROOT = Path("/var/lib/docker")
 REPORT_PATH = Path("/var/lib/openmates-host-disk/report.json")
 ORPHAN_MIN_AGE_DAYS = 7
 LOG_CAP_BYTES = 100 * 1024**2
+# All container json logs together (owner budget, TASK-7646): the largest are
+# truncated first until the rest fits.
+LOGS_TOTAL_CAP_BYTES = 1000**3
 JOURNAL_CAP = "1G"
 # Docker names layer folders with 64 hex characters (older engines) or 25
 # lowercase base-36 characters (current engines), plus "-init" for init layers.
@@ -176,14 +181,20 @@ def remove_layer(docker_root: Path, name: str) -> None:
             link.unlink()
 
 
-def oversized_logs(docker_root: Path, cap: int | None = None) -> list[dict]:
+def oversized_logs(docker_root: Path, cap: int | None = None, total_cap: int | None = None) -> list[dict]:
+    """Logs to truncate: every one above cap, then the largest until the rest fits in total_cap."""
     cap = LOG_CAP_BYTES if cap is None else cap
-    found = []
-    for path in sorted((docker_root / "containers").glob("*/*-json.log")):
-        size = path.stat().st_size
-        if size > cap:
-            found.append({"path": str(path), "bytes": size})
-    return found
+    total_cap = LOGS_TOTAL_CAP_BYTES if total_cap is None else total_cap
+    logs = sorted(({"path": str(path), "bytes": path.stat().st_size}
+                   for path in (docker_root / "containers").glob("*/*-json.log")),
+                  key=lambda item: (-item["bytes"], item["path"]))
+    total = sum(item["bytes"] for item in logs)
+    chosen = []
+    for item in logs:
+        if item["bytes"] > cap or total > total_cap:
+            chosen.append(item)
+            total -= item["bytes"]
+    return chosen
 
 
 def run(apply: bool, docker_root: Path = DOCKER_ROOT, now: float | None = None,

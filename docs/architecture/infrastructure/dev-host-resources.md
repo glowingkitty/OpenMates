@@ -9,6 +9,7 @@ key_files:
 - scripts/disk_coordinator.py
 - scripts/host_disk_root.py
 - scripts/host_disk_usage.py
+- scripts/host_disk_budgets.py
 - scripts/claude_dispatch.py
 - scripts/zellij/chat-session.kdl
 - scripts/heavy_slot.py
@@ -280,21 +281,43 @@ prints sizes, budgets and 24 h growth. Categories and budgets (GB):
 
 | Category | Holds | Budget |
 |---|---|---|
-| rust | `~/.cache/openmates-rust-*`, `target/` of the checkout and every worktree, `/tmp/*/target` | 25 |
-| ci_artifacts | `logs/ci-runs`, `logs/ci-candidates`, `test-results/`, product-stack test results | 10 |
+| rust | `~/.cache/openmates-rust-*` and `~/.cache/*-target`, and every cargo target folder (it holds `.rustc_info.json` or a cargo `CACHEDIR.TAG`) at any depth in the checkout, the worktrees and `/tmp` | 25 |
+| ci_artifacts | `logs/ci-runs`, `logs/ci-candidates`, `test-results/` (mostly `test-results/ci-runs`) | 10 |
 | scratchpads | `/tmp/claude-<uid>` (2 per chat) | 6 |
 | worktrees | agent and sub-agent worktrees, without their `target/` | 15 |
 | docker_images (+ build cache) | `docker system df` | 20 |
-| docker_logs | container json logs (root report) | 1 |
+| docker_logs | container json logs (root report; Docker default rotation 3 x 10 MB once active) | 1 |
 | journal | `journalctl --disk-usage` | 1 |
 
-Unbudgeted categories are measured too (runtime, toolchains, checkout,
+Unbudgeted categories are measured too (proof_recordings, runtime, toolchains, checkout,
 other_projects, home_other, system_logs, Docker volumes and containers, Docker
 layer data that only the root report sees); `other` is the remainder of the
 filesystem's used space. A path inside a path of an earlier category counts only
 once, in the earlier one.
 
-The setup script also runs the cleanup once. The ext4 root reserve is lowered
+Enforcement (`scripts/host_disk_budgets.py`, inside the coordinator's `host`
+cleanup kind, which the coordinator now runs every hour and every 30 min from
+75% used): each budgeted category over its target loses whole units, least
+recently used first, until it fits. The target is the budget, or 80% of it from
+75% used on, so cleanup works long before the 10 GiB floor.
+
+| Category | Unit | Kept |
+|---|---|---|
+| rust | one cargo target folder, or one subfolder of `~/.cache/openmates-rust-target` | a cargo/rustc process names it or works in its worktree; used in the last hour |
+| ci_artifacts | one run in `test-results/ci-runs`, `logs/ci-runs`, `logs/ci-candidates` | a non-terminal CI job references it; changed in the last hour |
+| scratchpads | one entry of a chat's scratch folder; every chat first down to 2 GB | open or in use; changed in the last 6 h |
+| worktrees | `node_modules` or `.svelte-kit` of an agent or sub-agent worktree | a process works in it; any file in it changed in the last 12 h |
+
+Only rebuildable data is a unit; worktrees themselves, WIP refs, recovery
+archives and source are never removed (worktrees still leave only through the
+24 h expiry). Docker images and BuildKit cache share one 20 GB budget in
+`scripts/docker-cleanup.sh`: the build cache keeps what the budget leaves after
+the images (80% of it from 75% on), never a full prune. The 2026-11-17 dry run
+at 79% used would have freed 26.8 GB (rust 38 to 17 GB, 852 old CI runs 4 GB).
+
+The setup script also runs the cleanup once and sets Docker's default log
+rotation in `/etc/docker/daemon.json` (validated with `dockerd --validate`;
+active after the next Docker restart, which the script does not do). The ext4 root reserve is lowered
 once by hand to 3 GiB (`sudo tune2fs -r 786432 <root device>`).
 
 ## Setup

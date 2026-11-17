@@ -21,6 +21,7 @@ docs/architecture/infrastructure/dev-host-resources.md (section "Disk budgets").
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from dataclasses import dataclass
 import glob
 import json
@@ -49,6 +50,62 @@ class Category:
     patterns: tuple[str, ...]
     cap: int | None
     exclude: tuple[str, ...] = ()
+    finder: Callable[[], list[str]] | None = None
+
+
+# Folders never searched for nested cargo targets (large, and never hold one).
+PRUNE_NAMES = frozenset({"node_modules", ".git", ".svelte-kit", ".venv", "venv", "__pycache__", ".pnpm-store"})
+CARGO_MARKERS = ("CACHEDIR.TAG", ".rustc_info.json")
+
+
+def is_cargo_target(path: str, files: list[str] | None = None) -> bool:
+    """Cargo writes .rustc_info.json and (newer versions) a CACHEDIR.TAG naming cargo into a target dir.
+
+    ruff and pytest write CACHEDIR.TAG too, so the tag only counts when it names cargo.
+    """
+    files = os.listdir(path) if files is None else files
+    if ".rustc_info.json" in files:
+        return True
+    if "CACHEDIR.TAG" not in files:
+        return False
+    try:
+        with open(os.path.join(path, "CACHEDIR.TAG"), "rb") as tag:
+            return b"created by cargo" in tag.read(512)
+    except OSError:
+        return False
+
+
+def cargo_targets(roots: list[str], max_depth: int = 5) -> list[str]:
+    """Cargo target folders under roots, at any depth up to max_depth."""
+    found: list[str] = []
+    for root in roots:
+        base = root.rstrip("/").count("/")
+        for current, dirs, files in os.walk(root):
+            if current != root.rstrip("/") and any(marker in files for marker in CARGO_MARKERS) \
+                    and is_cargo_target(current, files):
+                found.append(current)
+                dirs[:] = []
+                continue
+            if current.count("/") - base >= max_depth:
+                dirs[:] = []
+                continue
+            dirs[:] = [name for name in dirs if name not in PRUNE_NAMES and not os.path.islink(os.path.join(current, name))]
+    return sorted(found)
+
+
+def worktree_roots(projects: Path) -> list[str]:
+    repo = projects / "OpenMates"
+    return sorted(glob.glob(f"{repo}/.openmates-agent-worktrees/*") + glob.glob(f"{repo}/.claude/worktrees/*"))
+
+
+def rust_paths(projects: Path) -> list[str]:
+    """Every Rust build output folder: shared caches, and cargo targets in checkouts and /tmp."""
+    repo = projects / "OpenMates"
+    caches = glob.glob(f"{HOME}/.cache/openmates-rust-*") + glob.glob(f"{HOME}/.cache/*-target")
+    tmp = [path for path in glob.glob("/tmp/*") if os.path.isdir(path) and not os.path.islink(path)
+           and os.stat(path).st_uid == os.getuid()]
+    return sorted(set(caches) | set(cargo_targets([str(repo), *worktree_roots(projects)], 6))
+                  | set(cargo_targets(tmp, 4)))
 
 
 def projects_root() -> Path:
@@ -61,15 +118,14 @@ def projects_root() -> Path:
 def categories(projects: Path) -> tuple[Category, ...]:
     repo = projects / "OpenMates"
     worktrees = (f"{repo}/.openmates-agent-worktrees/*", f"{repo}/.claude/worktrees/*")
-    targets = [f"{root}/target" for root in (str(repo), *worktrees)]
-    targets += [f"{root}/packages/*/target" for root in (str(repo), *worktrees)]
     # Caps approved by the owner on 2026-11-17 (TASK-7646); steady state about 57% of 300 GB.
     return (
-        Category("rust", "Rust build output", (f"{HOME}/.cache/openmates-rust-*", *targets, "/tmp/*/target"), 25 * GB),
+        Category("rust", "Rust build output", (), 25 * GB, finder=lambda: rust_paths(projects)),
         Category("ci_artifacts", "CI artifacts and test results",
                  (f"{repo}/logs/ci-runs", f"{repo}/logs/ci-candidates", f"{repo}/test-results",
-                  f"{repo}/frontend/apps/web_app/test-results", f"{projects}/.openmates-runtime/product-stack/test-results"),
-                 10 * GB),
+                  f"{repo}/frontend/apps/web_app/test-results"), 10 * GB),
+        Category("proof_recordings", "Dev-stack proof recordings and screenshots (proof cleanup)",
+                 (f"{projects}/.openmates-runtime/product-stack/test-results",), None),
         Category("scratchpads", "Chat scratchpads", (f"/tmp/claude-{os.getuid()}",), 6 * GB),
         Category("worktrees", "Agent worktrees", worktrees, 15 * GB),
         Category("runtime", "Shared runtime folders", (f"{projects}/.openmates-runtime",), None),
@@ -107,7 +163,8 @@ def measure_paths(cats: tuple[Category, ...], du=du_bytes) -> dict[str, dict]:
     seen: dict[str, int] = {}
     result: dict[str, dict] = {}
     for cat in cats:
-        paths = sorted({path for pattern in cat.patterns for path in glob.glob(pattern)
+        listed = [path for pattern in cat.patterns for path in glob.glob(pattern)] + (cat.finder() if cat.finder else [])
+        paths = sorted({path for path in listed
                         if os.path.isdir(path) and not os.path.islink(path) and path not in cat.exclude})
         paths = [path for path in paths if not _inside(path, [p for p in paths if p != path])]
         sizes = {}
