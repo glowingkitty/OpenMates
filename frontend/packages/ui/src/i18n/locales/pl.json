@@ -14786,6 +14786,12 @@
     "consent_label": {
       "text": "Zgadzam się udostępnić recenzentowi bezpieczeństwa tylko oznaczone prośby"
     },
+    "add_photo": {
+      "text": "Dodaj zdjęcie"
+    },
+    "photo_added": {
+      "text": "Zdjęcie dołączone. Wybierz inne"
+    },
     "submit": {
       "text": "Wyślij odwołanie"
     },
@@ -19572,7 +19578,7 @@
       "text": "Brak nagości, przemocy lub makabrycznych treści\nw zdjęciach profilowych."
     },
     "last_warning_image_not_allowed": {
-      "text": "Ostatnie ostrzeżenie:\nBrak nagości, przemocy lub makabrycznych treści w zdjęciach profilowych.\nJeszcze jedno naruszenie i Twoje konto zostanie usunięte."
+      "text": "Ostatnie ostrzeżenie:\nŻadnych treści o charakterze jednoznacznie seksualnym ani skrajnie drastycznych w zdjęciach profilowych.\nJeszcze jedno naruszenie i Twoje konto zostanie zawieszone."
     },
     "your_account_got_deleted": {
       "text": "Twoje konto zostało usunięte."

@@ -3,6 +3,7 @@
  * @fileoverview Actions related to user login and logout processes.
  */
 
+import { captureAccountSuspension } from "./accountSuspension";
 import { get } from "svelte/store";
 import { recoverAuthBootstrapAfterConfirmedSession } from "./authBootstrapReadiness";
 import { getApiEndpoint, getApiUrl, apiEndpoints, isDevEnvironment } from "../config/api";
@@ -295,6 +296,11 @@ export async function login(
 
     // Rust classifies the reply (429, malformed, 2FA, failure); the clone leaves
     // the body readable for the success path below.
+    // A safety-suspended account gets its own screen instead of "wrong login data".
+    const rawBody = await response.clone().text();
+    if (rawBody.includes('"account_suspension"') && captureAccountSuspension(JSON.parse(rawBody))) {
+      return { success: false, tfa_required: false, message: (JSON.parse(rawBody) as { message?: string }).message };
+    }
     const verdict = await rustLoginVerdict(response.status, await response.clone().text(), !!tfaCode);
     if (verdict.kind !== "success") return loginResultForVerdict(verdict);
 

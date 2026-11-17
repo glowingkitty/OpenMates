@@ -20,6 +20,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.processing.jev_decisions import evaluate_jev_decisions, noul_value, score_value
+from backend.apps.ai.processing.answer_safety import ANSWER_SAFETY_QUESTIONS, extract_answer_safety_scores
 from backend.apps.ai.processing.metadata_language import conversation_language_instruction, language_name
 from backend.apps.ai.processing.task_proposals import (
     TaskProposal,
@@ -145,7 +146,9 @@ async def _postprocessing_decisions_with_jev(
             "type": "score",
             "instructions": "Rate whether the assistant response itself contains unsafe or materially harmful assistance.",
             "criteria": POSTPROCESSING_SAFETY_LEVELS,
-        }
+        },
+        # Answer-safety questions ride on this same call: no extra decision call here.
+        **ANSWER_SAFETY_QUESTIONS,
     }
     app_questions: Dict[str, str] = {}
     for index, app_id in enumerate(available_app_ids):
@@ -175,6 +178,7 @@ async def _postprocessing_decisions_with_jev(
     )
     return {
         "harmful_response": round(score_value(response, "harmful_response") * (10.0 / 9.0), 2),
+        "answer_safety_scores": extract_answer_safety_scores(response),
         "top_recommended_apps_for_user": [app_id for probability, app_id in ranked_apps if probability >= 0.70][:5],
     }
 
@@ -334,6 +338,10 @@ class PostProcessingResult(BaseModel):
     daily_inspiration_topic_suggestions: List[str] = Field(
         default_factory=list,
         description="3 concise topic/interest phrases (in English) capturing what the user discussed or showed curiosity about"
+    )
+    answer_safety_scores: Optional[Dict[str, float]] = Field(
+        default=None, exclude=True, repr=False,
+        description="Raw 0-9 answer-safety scores from the postprocessing decision call; None when it was unavailable",
     )
     task_proposals: List[TaskProposal] = Field(
         default_factory=list,
@@ -862,6 +870,7 @@ async def handle_postprocessing(
         top_recommended_apps_for_user=validated_app_ids[:5],  # Limit to 5 and use validated IDs
         chat_summary=postproc_chat_summary,  # Updated summary including latest exchange (may be None)
         usage_telemetry=llm_result.usage_telemetry,
+        answer_safety_scores=jev_decisions.get("answer_safety_scores") if jev_decisions is not None else None,
         chat_tags=postproc_chat_tags,
         share_cta_text=share_cta_text,
         updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)

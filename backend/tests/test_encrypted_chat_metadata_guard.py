@@ -188,6 +188,51 @@ def test_key_only_new_chat_shell_stays_empty_for_deferred_audio_send(monkeypatch
     asyncio.run(_run_key_only_new_chat_shell_stays_empty_for_deferred_audio_send(monkeypatch))
 
 
+async def _run_null_wellbeing_scores_clear_field_and_still_ack(monkeypatch):
+    persisted_payloads: list[dict] = []
+
+    async def fake_persist(
+        _chat_id: str,
+        encrypted_metadata: dict,
+        _task_id: str,
+        _hashed_user_id: str,
+        _user_id: str,
+        _hashed_team_id: str | None = None,
+    ) -> bool:
+        persisted_payloads.append(dict(encrypted_metadata))
+        return True
+
+    async def fake_allocate(*_args, **_kwargs) -> dict:
+        return {"messages_v": 5, "title_v": 1, "metadata_v": 2}
+
+    monkeypatch.setattr(_handler_module(), "_async_persist_encrypted_chat_metadata", fake_persist)
+    monkeypatch.setattr(_handler_module(), "allocate_chat_metadata_versions", fake_allocate)
+
+    manager = FakeManager()
+    await _handle_encrypted_chat_metadata(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeRotationCacheService(),
+        directus_service=FakeDirectusService(),
+        encryption_service=None,
+        user_id="user-123",
+        user_id_hash="user-hash-123",
+        device_fingerprint_hash="device-123",
+        payload={"chat_id": "chat-wellbeing", "encrypted_wellbeing_scores": None, "versions": {}},
+    )
+
+    assert len(persisted_payloads) == 1
+    assert "encrypted_wellbeing_scores" in persisted_payloads[0]
+    assert persisted_payloads[0]["encrypted_wellbeing_scores"] is None
+    assert [m["type"] for m, _, _ in manager.personal_messages] == ["encrypted_metadata_stored"]
+    assert manager.personal_messages[0][0]["payload"]["chat_id"] == "chat-wellbeing"
+
+
+# contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
+def test_null_wellbeing_scores_clear_field_and_still_ack(monkeypatch):
+    asyncio.run(_run_null_wellbeing_scores_clear_field_and_still_ack(monkeypatch))
+
+
 # contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
 def test_message_less_titled_chat_keeps_allocated_metadata_versions(monkeypatch):
     asyncio.run(_run_message_less_titled_chat_keeps_allocated_metadata_versions(monkeypatch))

@@ -345,6 +345,10 @@ impl Client {
         let (active_focus, focus_state) = self.current_focus_state(id, key)?;
         inference["active_focus_id"] = json!(active_focus);
         inference["focus_phase_state"] = focus_state.clone();
+        let wellbeing = self.current_wellbeing_scores(id, key)?;
+        if let Some(scores) = &wellbeing {
+            inference["wellbeing_scores"] = scores.clone();
+        }
         if let Some(context) = project_context.as_object() {
             for (k, v) in context {
                 inference[k] = v.clone();

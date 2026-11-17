@@ -14786,6 +14786,12 @@
     "consent_label": {
       "text": "Souhlasím, že s bezpečnostním posuzovatelem budou sdíleny jen označené požadavky"
     },
+    "add_photo": {
+      "text": "Přidat fotku"
+    },
+    "photo_added": {
+      "text": "Fotka připojena. Vybrat jinou"
+    },
     "submit": {
       "text": "Odeslat odvolání"
     },
@@ -19572,7 +19578,7 @@
       "text": "Žádná nahota, násilí ani krvavé scény\nna profilových obrázcích."
     },
     "last_warning_image_not_allowed": {
-      "text": "Poslední varování:\nŽádná nahota, násilí ani krvavé scény na profilových obrázcích.\nJeště jedno porušení a váš účet bude smazán."
+      "text": "Poslední varování:\nŽádný explicitní sexuální obsah ani extrémně krvavé scény na profilových obrázcích.\nJeště jedno porušení a váš účet bude pozastaven."
     },
     "your_account_got_deleted": {
       "text": "Váš účet byl smazán."

@@ -364,6 +364,12 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'social-media-post': renderSocialMediaPost,
 	'tasks-task': renderTask,
 	'workflows-workflow': renderWorkflow,
+	'helplines': (c) => {
+		const lines = Array.isArray(c.lines) ? (c.lines as Record<string, unknown>[]) : [];
+		const rows = lines.map((l) => `- ${str(l.name) ?? ''}${str(l.phone) ? ` ${str(l.phone)}` : ''}`);
+		const emergency = str(c.emergency_number);
+		return ['**Helplines**', ...rows, ...(emergency ? [`Emergency: ${emergency}`] : [])].join('\n');
+	},
 	'focus-mode-activation': (c) => {
 		const name = str(c.focus_mode_name) ?? '';
 		return `**Focus Mode**${name ? ` — ${name}` : ''}`;

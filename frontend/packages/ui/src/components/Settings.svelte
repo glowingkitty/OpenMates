@@ -1741,6 +1741,8 @@ changes to the documentation (to keep the documentation up to date).
             } else if (settingsPath === 'server/software-update') {
                 // Software update page — use the existing root-level key (not settings.server.software_update)
                 activeSubMenuTitleKey = 'settings.software_updates';
+            } else if (settingsPath === 'server/safety-reviews') {
+                activeSubMenuTitleKey = 'safety_appeal.admin_title';
             } else if (settingsPath === 'server/anonymous-free-usage') {
                 activeSubMenuTitleKey = 'settings.server.anonymous_free_usage_budget.title';
             } else if (settingsPath === 'privacy/connected-accounts') {

@@ -1068,6 +1068,9 @@ function promoteEmbedAttrsToLargeNodes(attrs: any): any[] | null {
   // (FocusModeActivationRenderer) — never promote them to large preview cards.
   if (embedType === "focus-mode-activation") return null;
 
+  // The helpline card is a compact inline card with its own renderer.
+  if (embedType === "helplines") return null;
+
   // Keep static/legal image embeds inline.
   if (baseType === "image") return null;
 

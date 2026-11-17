@@ -58,7 +58,7 @@ export const METADATA_CHAT_KEYS = [
 	'encrypted_category', 'encrypted_icon', 'encrypted_chat_key', 'chat_visibility', 'participant_user_hashes',
 	'anonymous_encrypted_chat_key', 'encrypted_chat_summary', 'encrypted_share_cta_text', 'encrypted_chat_tags',
 	'encrypted_follow_up_request_suggestions', 'encrypted_suggested_followup_message', 'encrypted_active_focus_id',
-	'encrypted_focus_phase_state', 'encrypted_auto_speak_response', 'pinned', 'is_shared', 'is_private', 'is_anonymous',
+	'encrypted_focus_phase_state', 'encrypted_wellbeing_scores', 'encrypted_auto_speak_response', 'pinned', 'is_shared', 'is_private', 'is_anonymous',
 	'share_pii', 'share_highlights', 'is_metadata_only',
 ] as const;
 

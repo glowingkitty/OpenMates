@@ -309,6 +309,8 @@ function buildRendererMap(allEmbedTypes) {
       rendererMap["app-skill-use"] = "AppSkillUseRenderer";
     } else if (frontendType === "focus-mode-activation") {
       rendererMap["focus-mode-activation"] = "FocusModeActivationRenderer";
+    } else if (frontendType === "helplines") {
+      rendererMap["helplines"] = "HelplinesRenderer";
     } else if (frontendType === "image") {
       rendererMap["image"] = "ImageRenderer";
     } else if (frontendType === "pdf") {

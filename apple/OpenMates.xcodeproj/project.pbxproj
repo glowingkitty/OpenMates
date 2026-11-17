@@ -524,6 +524,7 @@
 		377BC0619E267E4610B9F671 /* NativeVoiceCallContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3E62EAD31E59D224EEBA72 /* NativeVoiceCallContext.swift */; };
 		3799CA81C40779C746D6B4D3 /* FollowUpSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E76E863A52EBF1C2CEE7D70A /* FollowUpSuggestions.swift */; };
 		BC7F462C2C7B3D9FF5355A18 /* RecommendationsCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A41A537F49B44DA3B87F9F3 /* RecommendationsCardView.swift */; };
+		EF006E94732A5D51FBFA3B6A /* HelplineCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F921FA7E61BF23CE459E070E /* HelplineCardView.swift */; };
 		37A5A845B51714484AFE6410 /* VoiceRecorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D485E7C95A3430548279F370 /* VoiceRecorderTests.swift */; };
 		37C253211FF4177C3A2F5F03 /* StreamingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229E73CA38CF97C82078BF88 /* StreamingClient.swift */; };
 		37C478B6F6D96EAE2B50F114 /* DevFocusPhaseFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = F84FCBCF3C895A71D128172C /* DevFocusPhaseFixture.swift */; };
@@ -1296,6 +1297,7 @@
 		A1116AABE53DD79876AC99A8 /* SearchChatsIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADF544C0D4DC1941DE7C57DF /* SearchChatsIntent.swift */; };
 		A127CA2EA72A4841BCB5DB5C /* FollowUpSuggestions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E76E863A52EBF1C2CEE7D70A /* FollowUpSuggestions.swift */; };
 		850175EE3493F292F37D2289 /* RecommendationsCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A41A537F49B44DA3B87F9F3 /* RecommendationsCardView.swift */; };
+		D9D6B9D10F59EF822AD422B3 /* HelplineCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F921FA7E61BF23CE459E070E /* HelplineCardView.swift */; };
 		A18065CF5C647A58C63BB5A7 /* WatchWorkflowDetailService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1F33D12B9ABEA1C1AAB54F9 /* WatchWorkflowDetailService.swift */; };
 		A18E10DE3678BA36432CA595 /* WikiArticleModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD8F747D646ADC4258BC5537 /* WikiArticleModelTests.swift */; };
 		A1E658D38269EA5E1E692A44 /* SettingsIPadLayoutParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26BD1EBC3067D147569546FB /* SettingsIPadLayoutParityUITests.swift */; };
@@ -3035,6 +3037,7 @@
 		E752658456FF3E53823A466A /* WatchTaskEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchTaskEditingTests.swift; sourceTree = "<group>"; };
 		E76E863A52EBF1C2CEE7D70A /* FollowUpSuggestions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowUpSuggestions.swift; sourceTree = "<group>"; };
 		1A41A537F49B44DA3B87F9F3 /* RecommendationsCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationsCardView.swift; sourceTree = "<group>"; };
+		F921FA7E61BF23CE459E070E /* HelplineCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelplineCardView.swift; sourceTree = "<group>"; };
 		E84F5C70E726F117A4704E19 /* WorkflowAIAuthoringController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowAIAuthoringController.swift; sourceTree = "<group>"; };
 		E869A93B5FF32FA684AFCC1D /* OpenMatesShareExtensionMacOSPersonalTeam.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenMatesShareExtensionMacOSPersonalTeam.entitlements; sourceTree = "<group>"; };
 		E8771E3E7099F949CDB1D383 /* DailyInspirationLayoutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyInspirationLayoutUITests.swift; sourceTree = "<group>"; };
@@ -4700,6 +4703,7 @@
 				0C0EC0DE1A2B3C4D5E6F7C01 /* CoreConsentRequestOverlay.swift */,
 				E76E863A52EBF1C2CEE7D70A /* FollowUpSuggestions.swift */,
 				1A41A537F49B44DA3B87F9F3 /* RecommendationsCardView.swift */,
+				F921FA7E61BF23CE459E070E /* HelplineCardView.swift */,
 				A25713DDF92D2E7ACF6D4E4B /* ForkProgressBannerView.swift */,
 				B5117D449244BC59D5C79B93 /* HiddenChatsListView.swift */,
 				CA3EB5B3C6FD7C4F7CD1D234 /* HiddenChatsView.swift */,
@@ -6134,6 +6138,7 @@
 				0C0EC0DE1A2B3C4D5E6F7C02 /* CoreConsentRequestOverlay.swift in Sources */,
 				3799CA81C40779C746D6B4D3 /* FollowUpSuggestions.swift in Sources */,
 				BC7F462C2C7B3D9FF5355A18 /* RecommendationsCardView.swift in Sources */,
+				EF006E94732A5D51FBFA3B6A /* HelplineCardView.swift in Sources */,
 				E1621B4A303B18E0430F1E55 /* FontRegistration.swift in Sources */,
 				90CCE42F38631051AB9940DD /* ForkProgressBannerView.swift in Sources */,
 				1793F7F35E1453CC0398DB08 /* GradientTokens.generated.swift in Sources */,
@@ -7010,6 +7015,7 @@
 				0C0EC0DE1A2B3C4D5E6F7C03 /* CoreConsentRequestOverlay.swift in Sources */,
 				A127CA2EA72A4841BCB5DB5C /* FollowUpSuggestions.swift in Sources */,
 				850175EE3493F292F37D2289 /* RecommendationsCardView.swift in Sources */,
+				D9D6B9D10F59EF822AD422B3 /* HelplineCardView.swift in Sources */,
 				3E1C783F2F3EF8EDE3378D64 /* FontRegistration.swift in Sources */,
 				F3DFFE681A29A34B353336F9 /* ForkProgressBannerView.swift in Sources */,
 				09A33EE1C187B438CE7144E9 /* GradientTokens.generated.swift in Sources */,

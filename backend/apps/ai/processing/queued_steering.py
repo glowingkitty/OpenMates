@@ -236,7 +236,7 @@ def _compatible(preflight: Any, current: Any, queued: AskSkillRequest,
         "active_project_focus", "custom_rule_documents", "memory_catalog", "project_focus_documents",
         "project_context_documents", "related_task_candidates", "accepted_plan_context",
         "connected_account_directory", "connected_account_token_refs",
-        "focus_phase_state",
+        "focus_phase_state", "wellbeing_scores",
     )
     if any(getattr(queued, field, None) != getattr(request, field, None)
            for field in private_context_fields):

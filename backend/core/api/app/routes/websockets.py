@@ -55,6 +55,7 @@ from .handlers.websocket_handlers.active_chat_handler import (
 )
 from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat, handle_delete_empty_call_chat
 from .handlers.websocket_handlers.delete_message_handler import handle_delete_message
+from .handlers.websocket_handlers.replace_withdrawn_message_handler import handle_replace_withdrawn_message
 from .handlers.websocket_handlers.message_highlight_handlers import (
     handle_add_message_highlight,
     handle_update_message_highlight,
@@ -1191,6 +1192,12 @@ async def listen_for_cache_events(app: FastAPI):
                             await manager.broadcast_to_user(
                                 message={"type": event_type, "payload": payload}, user_id=user_id,
                             )
+                    elif event_type == "wellbeing_scores_updated":
+                        # Owner-scoped and transient: the client encrypts the history before storing it.
+                        if payload.get("chat_id"):
+                            await manager.broadcast_to_user(
+                                message={"type": event_type, "payload": payload}, user_id=user_id,
+                            )
                     elif event_type == "focus_phases_updated":
                         if payload.get("chat_id") and isinstance(payload.get("states"), dict):
                             await manager.broadcast_to_user(
@@ -2159,6 +2166,28 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     await _deliver_metadata_event(manager, user_id_uuid, client_event_name,
                                                   client_payload, redis_payload.get("metadata_recovery_job"))
                     logger.info(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with {len(client_payload.get('follow_up_request_suggestions', []))} follow-up suggestions")
+
+                # Handle assistant_answer_withdrawn: the client replaces the answer with the notice
+                elif internal_event_type == "assistant_answer_withdrawn":
+                    user_id_uuid = redis_payload.get("user_id_uuid")
+                    chat_id = redis_payload.get("chat_id")
+                    message_id = redis_payload.get("message_id")
+                    if not all([user_id_uuid, chat_id, message_id, redis_payload.get("reason"), redis_payload.get("notice_text")]):
+                        logger.warning(
+                            "AI Typing Listener: Malformed assistant_answer_withdrawn payload on channel "
+                            f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                        )
+                        continue
+                    client_payload = {
+                        "chat_id": chat_id,
+                        "task_id": redis_payload.get("task_id"),
+                        "message_id": message_id,
+                        "reason": redis_payload["reason"],
+                        "notice_text": redis_payload["notice_text"],
+                    }
+                    await _deliver_metadata_event(manager, user_id_uuid, "assistant_answer_withdrawn",
+                                                  client_payload, None)
+                    logger.info(f"AI Typing Listener: Broadcasted 'assistant_answer_withdrawn' to user {user_id_uuid}")
 
                 # Handle skill_execution_status event
                 elif internal_event_type == "skill_execution_status":
@@ -4272,6 +4301,17 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "replace_withdrawn_assistant_message":
+                await handle_replace_withdrawn_message(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
                 )
 
             elif message_type == "add_message_highlight":

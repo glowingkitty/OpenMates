@@ -137,6 +137,7 @@ BEGIN
         OR NEW.encrypted_recommendations IS DISTINCT FROM OLD.encrypted_recommendations
         OR NEW.encrypted_active_focus_id IS DISTINCT FROM OLD.encrypted_active_focus_id
         OR NEW.encrypted_focus_phase_state IS DISTINCT FROM OLD.encrypted_focus_phase_state
+        OR NEW.encrypted_wellbeing_scores IS DISTINCT FROM OLD.encrypted_wellbeing_scores
         OR NEW.encrypted_auto_speak_response IS DISTINCT FROM OLD.encrypted_auto_speak_response THEN
         change_kinds := change_kinds | 1;
     END IF;
@@ -158,7 +159,7 @@ CREATE TRIGGER chat_sync_chat_update_trigger AFTER UPDATE OF
     encrypted_chat_summary, encrypted_chat_tags, encrypted_share_cta_text, encrypted_shared_short_url,
     encrypted_follow_up_request_suggestions, encrypted_suggested_followup_message,
     encrypted_top_recommended_apps_for_chat, encrypted_recommendations, encrypted_active_focus_id,
-    encrypted_focus_phase_state, encrypted_auto_speak_response
+    encrypted_focus_phase_state, encrypted_auto_speak_response, encrypted_wellbeing_scores
 ON chats FOR EACH ROW EXECUTE FUNCTION chat_sync_chat_changed();
 
 CREATE OR REPLACE FUNCTION chat_sync_message_changed()

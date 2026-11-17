@@ -11,7 +11,7 @@ pub(super) fn build(details:&Value,existing:Option<&Value>,now:u64)->Result<Plai
  if !details.is_object()||now>MAX_SAFE {return Err(Error::Protocol)}
  let id=required(details,"id")?;uuid::Uuid::parse_str(id).map_err(|_|Error::Protocol)?;
  let mut out=Plain::new(json!({"chat_id":id,"title":null,"draft_v":0,"encrypted_draft_md":null,"encrypted_draft_preview":null,"processing_metadata":false,"waiting_for_metadata":false,"is_metadata_only":true}));
- for field in ["encrypted_title","encrypted_category","encrypted_icon","encrypted_chat_summary","encrypted_share_cta_text","encrypted_chat_tags","encrypted_follow_up_request_suggestions","encrypted_suggested_followup_message","encrypted_active_focus_id","encrypted_focus_phase_state","encrypted_auto_speak_response"] {out[field]=or([details.get(field)],Value::Null);}
+ for field in ["encrypted_title","encrypted_category","encrypted_icon","encrypted_chat_summary","encrypted_share_cta_text","encrypted_chat_tags","encrypted_follow_up_request_suggestions","encrypted_suggested_followup_message","encrypted_active_focus_id","encrypted_focus_phase_state","encrypted_wellbeing_scores","encrypted_auto_speak_response"] {out[field]=or([details.get(field)],Value::Null);}
  for field in ["messages_v","title_v","unread_count"] {out[field]=or([details.get(field)],json!(0));}
  // JavaScript undefined properties disappear on the existing JSON/IDB boundary;
  // explicit null values remain distinct.

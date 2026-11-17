@@ -17,6 +17,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsStats from './server/SettingsStats.svelte';
     import SettingsGiftCardGenerator from './server/SettingsGiftCardGenerator.svelte';
     import SettingsFreeTestingCreditsBudget from './server/SettingsFreeTestingCreditsBudget.svelte';
+    import SettingsSafetyReviews from './server/SettingsSafetyReviews.svelte';
     import SettingsAnonymousFreeUsageBudget from './server/SettingsAnonymousFreeUsageBudget.svelte';
     import SettingsTests from './server/SettingsTests.svelte';
 
@@ -116,6 +117,23 @@ changes to the documentation (to keep the documentation up to date).
     }
 
 
+    function showSafetyReviews(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'safetyReviews';
+        childComponent = SettingsSafetyReviews;
+
+        dispatch('openSettings', {
+            settingsPath: 'server/safety-reviews',
+            direction: 'forward',
+            icon: 'check',
+            title: $text('safety_appeal.admin_title'),
+            translationKey: 'safety_appeal.admin_title'
+        });
+
+        scrollToTop();
+    }
+
     function showTestsSettings(event = null) {
         if (event) event.stopPropagation();
 
@@ -191,6 +209,12 @@ changes to the documentation (to keep the documentation up to date).
             data-testid="anonymous-free-usage-settings-item"
         />
     {/if}
+    <SettingsItem
+        icon="check"
+        title={$text('safety_appeal.admin_title')}
+        onClick={() => showSafetyReviews()}
+        data-testid="safety-reviews-settings-item"
+    />
     <SettingsItem
         icon="check"
         title={$text('settings.server.tests')}

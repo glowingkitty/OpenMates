@@ -190,6 +190,9 @@ async def handle_encrypted_chat_metadata(
             encrypted_chat_category = payload.get("encrypted_chat_category")  # Chat metadata category
             encrypted_chat_tags = payload.get("encrypted_chat_tags")
             encrypted_focus_phase_state = payload.get("encrypted_focus_phase_state")
+            encrypted_wellbeing_scores = payload.get("encrypted_wellbeing_scores")
+            # An explicit null clears the stored score history; an absent key leaves it.
+            wellbeing_scores_sent = "encrypted_wellbeing_scores" in payload
             encrypted_auto_speak_response = payload.get("encrypted_auto_speak_response")
             encrypted_chat_key = payload.get("encrypted_chat_key")
             # Explicit opt-in for key rotation (e.g., hidden chat hide/unhide flows).
@@ -508,7 +511,7 @@ async def handle_encrypted_chat_metadata(
             # Store encrypted chat metadata from preprocessing
             chat_update_fields = {}
             accepted_versions = None
-            if encrypted_title or encrypted_chat_summary or encrypted_auto_speak_response or encrypted_focus_phase_state:
+            if encrypted_title or encrypted_chat_summary or encrypted_auto_speak_response or encrypted_focus_phase_state or wellbeing_scores_sent:
                 accepted_versions = await allocate_chat_metadata_versions(
                     cache_service,
                     directus_service,
@@ -531,6 +534,8 @@ async def handle_encrypted_chat_metadata(
                 chat_update_fields["encrypted_chat_tags"] = encrypted_chat_tags
             if encrypted_focus_phase_state:
                 chat_update_fields["encrypted_focus_phase_state"] = encrypted_focus_phase_state
+            if wellbeing_scores_sent:
+                chat_update_fields["encrypted_wellbeing_scores"] = encrypted_wellbeing_scores
             if encrypted_auto_speak_response:
                 chat_update_fields["encrypted_auto_speak_response"] = encrypted_auto_speak_response
             if encrypted_chat_key:
@@ -609,6 +614,7 @@ async def handle_encrypted_chat_metadata(
                         encrypted_chat_tags,
                         encrypted_auto_speak_response,
                         encrypted_focus_phase_state,
+                        encrypted_wellbeing_scores,
                         payload.get("parent_id"),
                         payload.get("is_sub_chat"),
                         verified_creator_chat_id,
@@ -707,6 +713,8 @@ async def handle_encrypted_chat_metadata(
                     broadcast_payload["payload"]["encrypted_chat_summary"] = encrypted_chat_summary
                 if encrypted_focus_phase_state:
                     broadcast_payload["payload"]["encrypted_focus_phase_state"] = encrypted_focus_phase_state
+                if wellbeing_scores_sent:
+                    broadcast_payload["payload"]["encrypted_wellbeing_scores"] = encrypted_wellbeing_scores
                 if encrypted_auto_speak_response:
                     broadcast_payload["payload"]["encrypted_auto_speak_response"] = encrypted_auto_speak_response
                 if encrypted_icon:

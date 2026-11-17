@@ -156,6 +156,7 @@ export function buildMetadataOnlyChatFromDetails(
       details.encrypted_suggested_followup_message || null,
     encrypted_active_focus_id: details.encrypted_active_focus_id || null,
     encrypted_focus_phase_state: details.encrypted_focus_phase_state || null,
+    encrypted_wellbeing_scores: details.encrypted_wellbeing_scores || null,
     encrypted_auto_speak_response: details.encrypted_auto_speak_response || null,
     pinned: details.pinned || false,
     is_shared: details.is_shared ?? false,

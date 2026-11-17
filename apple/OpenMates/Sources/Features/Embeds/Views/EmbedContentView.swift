@@ -388,6 +388,10 @@ struct EmbedContentView: View {
             // Misc
             case .focusModeActivation:
                 FocusModeRenderer(data: rawData, mode: mode, embedID: embed.id, chatID: chatId)
+            case .helplines:
+                if let helplines = HelplineCardContent(data: rawData) {
+                    HelplineCardView(content: helplines)
+                }
             case .reminderSet:
                 ReminderRenderer(data: rawData, mode: mode)
             case .reminderList, .reminderCancel:

@@ -14786,6 +14786,12 @@
     "consent_label": {
       "text": "Yalnızca işaretlenen isteklerin güvenlik incelemecisiyle paylaşılmasını kabul ediyorum"
     },
+    "add_photo": {
+      "text": "Fotoğraf ekle"
+    },
+    "photo_added": {
+      "text": "Fotoğraf eklendi. Başka birini seç"
+    },
     "submit": {
       "text": "İtirazı gönder"
     },
@@ -19572,7 +19578,7 @@
       "text": "Profil resimlerinde çıplaklık, şiddet\nveya kan içeriklerine izin verilmez."
     },
     "last_warning_image_not_allowed": {
-      "text": "Son uyarı:\nProfil resimlerinde çıplaklık, şiddet veya kan içeriklerine izin verilmez.\nBir ihlal daha ve hesabınız silinecek."
+      "text": "Son uyarı:\nProfil resimlerinde açık cinsel içeriğe veya aşırı kanlı şiddete izin verilmez.\nBir ihlal daha ve hesabınız askıya alınacak."
     },
     "your_account_got_deleted": {
       "text": "Hesabınız silindi."

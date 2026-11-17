@@ -14813,6 +14813,12 @@
     "consent_label": {
       "text": "Acepto compartir solo las solicitudes marcadas con el revisor de seguridad"
     },
+    "add_photo": {
+      "text": "Añadir una foto"
+    },
+    "photo_added": {
+      "text": "Foto adjunta. Elegir otra"
+    },
     "submit": {
       "text": "Enviar apelación"
     },
@@ -19599,7 +19605,7 @@
       "text": "No se permiten desnudos, violencia o sangre\nen las imágenes de perfil."
     },
     "last_warning_image_not_allowed": {
-      "text": "Última advertencia:\nNo se permiten desnudos, violencia o sangre en las imágenes"
+      "text": "Última advertencia:\nNo se permite contenido sexual explícito ni violencia extrema en las imágenes de perfil.\nUna infracción más y tu cuenta será suspendida."
     },
     "your_account_got_deleted": {
       "text": "Tu cuenta fue eliminada."

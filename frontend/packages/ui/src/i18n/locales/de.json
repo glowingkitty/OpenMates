@@ -18374,6 +18374,12 @@
     "consent_label": {
       "text": "Ich stimme zu, nur die markierten Anfragen mit der Sicherheitsprüfung zu teilen"
     },
+    "add_photo": {
+      "text": "Foto hinzufügen"
+    },
+    "photo_added": {
+      "text": "Foto angehängt. Anderes wählen"
+    },
     "submit": {
       "text": "Einspruch senden"
     },
@@ -23672,7 +23678,7 @@
       "text": "Keine Nacktheit, Gewalt oder Blut\nin Profilbildern."
     },
     "last_warning_image_not_allowed": {
-      "text": "Letzte Warnung:\nKeine Nacktheit, Gewalt oder Blut in Profilbildern.\nNoch eine Verletzung und dein Konto wird gelöscht."
+      "text": "Letzte Warnung:\nKeine expliziten sexuellen Inhalte und keine extreme Gewaltdarstellung in Profilbildern.\nNoch ein Verstoß und dein Konto wird gesperrt."
     },
     "your_account_got_deleted": {
       "text": "Dein Konto wurde gelöscht."

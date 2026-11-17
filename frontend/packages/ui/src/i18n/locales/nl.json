@@ -14786,6 +14786,12 @@
     "consent_label": {
       "text": "Ik ga ermee akkoord dat alleen de gemarkeerde verzoeken met de veiligheidsbeoordelaar worden gedeeld"
     },
+    "add_photo": {
+      "text": "Foto toevoegen"
+    },
+    "photo_added": {
+      "text": "Foto bijgevoegd. Kies een andere"
+    },
     "submit": {
       "text": "Bezwaar versturen"
     },
@@ -19572,7 +19578,7 @@
       "text": "Geen naaktheid, geweld of gore\nin profielfoto's."
     },
     "last_warning_image_not_allowed": {
-      "text": "Laatste waarschuwing:\nGeen naaktheid, geweld of gore in profielfoto's.\nNog één overtreding en uw account wordt verwijderd."
+      "text": "Laatste waarschuwing:\nGeen expliciete seksuele inhoud of extreem geweld in profielfoto's.\nNog één overtreding en je account wordt opgeschort."
     },
     "your_account_got_deleted": {
       "text": "Uw account is verwijderd."

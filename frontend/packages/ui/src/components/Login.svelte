@@ -1,6 +1,9 @@
 <script lang="ts">
     import { fade, scale } from 'svelte/transition';
     import { text } from '@repo/ui';
+    import AccountSuspended from './safety/AccountSuspended.svelte';
+    import { accountSuspension, captureAccountSuspension } from '../stores/accountSuspension';
+    import { submitAppeal } from '../services/safetyAppealApi';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, devicePasswordFallbackAvailable, devicePasswordCredentialVersion, deviceVerificationReason, checkAuth, logout, bumpLoginSessionGeneration } from '../stores/authStore';
@@ -166,10 +169,24 @@
     let rateLimitTimer: ReturnType<typeof setTimeout>;
 
     let isPolicyViolationLockout = $state(false);
+    let suspensionAppealSent = $state(false);
+    let suspensionAppealSubmitting = $state(false);
+    let suspensionAppealError = $state<string | null>(null);
+
+    /** Send the appeal with the short-lived token the suspension response carried. */
+    async function handleSuspensionAppeal(payload: { explanation: string; consent_share_requests: boolean; flagged_requests: string[]; attachment_data_url: string | null }) {
+        const token = $accountSuspension?.appeal_token;
+        if (!token) return;
+        suspensionAppealSubmitting = true;
+        suspensionAppealError = null;
+        const result = await submitAppeal(token, payload);
+        suspensionAppealSubmitting = false;
+        if (result.ok) suspensionAppealSent = true;
+        else suspensionAppealError = result.message ?? null;
+    }
     let isAccountDeleted = $state(false);
 
     // Add state for tracking account deletion during the current session using $state (Svelte 5 runes mode)
-    let accountJustDeleted = $state(false);
     
     // Add state for tracking account recovery mode (from PasswordAndTfaOtp component)
     // When true, the inactivity timer should NOT reset the login interface
@@ -396,7 +413,6 @@
         // Note: isRateLimited is preserved to respect actual rate limits
         isPolicyViolationLockout = false;
         isAccountDeleted = false;
-        accountJustDeleted = false;
         
         // Clear account recovery mode
         isInAccountRecoveryMode = false;
@@ -830,6 +846,12 @@
             
             if (!verifyResponse.ok) {
                 const errorData = await verifyResponse.json();
+                if (captureAccountSuspension(errorData)) {
+                    loginErrorMessage = null;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
                 console.error('Passkey assertion verification failed:', errorData);
                 loginErrorMessage = errorData.message || null;
                 loginFailedWarning = true;
@@ -839,6 +861,12 @@
             }
             
             const verifyData = await verifyResponse.json();
+            
+            if (captureAccountSuspension(verifyData)) {
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
             
             if (!verifyData.success) {
                 console.error('Passkey verification failed:', verifyData.message);
@@ -1467,6 +1495,12 @@
             
             if (!verifyResponse.ok) {
                 const errorData = await verifyResponse.json();
+                if (captureAccountSuspension(errorData)) {
+                    loginErrorMessage = null;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
                 console.error('[Login] Passkey assertion verification failed:', errorData);
                 loginErrorMessage = errorData.message || null;
                 loginFailedWarning = true;
@@ -1476,6 +1510,12 @@
             }
             
             const verifyData = await verifyResponse.json();
+            
+            if (captureAccountSuspension(verifyData)) {
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
             
             if (!verifyData.success) {
                 console.error('[Login] Passkey verification failed:', verifyData.message);
@@ -1897,19 +1937,11 @@
                     localStorage.removeItem('policy_violation_lockout');
                 }
             }
-
-            // Check if account was deleted
-            isAccountDeleted = sessionStorage.getItem('account_deleted') === 'true';
-            if (isAccountDeleted) {
-                // Clear after reading once
-                sessionStorage.removeItem('account_deleted');
-            }
         })();
         
         // Add event listener for account deletion
         const handleAccountDeleted = () => {
             console.debug("Account deletion event received");
-            accountJustDeleted = true;
             isAccountDeleted = true;
         };
         
@@ -2256,17 +2288,6 @@
             stopInactivityTimer();
         }
 
-        if (!$authStore.isAuthenticated) {
-            if (sessionStorage.getItem('account_deleted') === 'true' || accountJustDeleted) {
-                console.debug("Account deleted, showing deletion message");
-                isAccountDeleted = true;
-                isPolicyViolationLockout = true;
-                
-                if (accountJustDeleted) {
-                    accountJustDeleted = false;
-                }
-            }
-        }
     });
 </script>
 
@@ -2326,7 +2347,21 @@
                         showAdminButton={signupIsAdmin && $currentSignupStep === STEP_BASICS && signupIsInviteCodeValidated}
                     />
                 {/if}
-                {#if isPolicyViolationLockout || isAccountDeleted}
+                {#if $accountSuspension}
+                    <div class="content-area" in:fade={{ duration: 400 }}>
+                        <div class="form-container">
+                            <AccountSuspended
+                                message={$accountSuspension.message}
+                                state={$accountSuspension.state}
+                                until={$accountSuspension.until}
+                                sent={suspensionAppealSent}
+                                submitting={suspensionAppealSubmitting}
+                                errorMessage={suspensionAppealError}
+                                onappeal={handleSuspensionAppeal}
+                            />
+                        </div>
+                    </div>
+                {:else if isPolicyViolationLockout || isAccountDeleted}
                     <div class="content-area" in:fade={{ duration: 400 }}>
                         <h1><mark>{$text('login.login')}</mark></h1>
                         <h2>{$text('login.to_chat_to_your')}<br><mark>{$text('login.digital_team_mates')}</mark></h2>

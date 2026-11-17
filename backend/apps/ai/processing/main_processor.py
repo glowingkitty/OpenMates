@@ -33,6 +33,9 @@ from backend.apps.ai.processing.preprocessor import (
     PreprocessingResult, _history_has_loaded_image_blocks,
     _image_reference_consumer_skills, _request_has_image_upload_embed,
 )
+from backend.apps.ai.processing.wellbeing_support import (
+    assess as wellbeing_assess, instruction_for as wellbeing_instruction_for,
+)
 from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, has_active_app_focus
 from backend.apps.ai.processing.focus_layering import (
     build_layer_precedence_section, deactivate_focus_tool, deactivation_result, resolve_focus_layers,
@@ -464,7 +467,7 @@ def _omit_fact_question_format_guidance(
         "historical_artifact_context", "embed_file_path_index", "has_image_upload_embed",
         "custom_rule_documents", "memory_catalog", "project_focus_documents", "project_context_documents",
         "project_routing_focus_id",
-        "mentioned_settings_memories_cleartext", "focus_phase_state",
+        "mentioned_settings_memories_cleartext", "focus_phase_state", "wellbeing_scores",
         "connected_account_directory", "connected_account_token_refs",
         "connected_account_permission_state",
     )):
@@ -5415,6 +5418,12 @@ async def handle_main_processing(
             f"Do not switch to any other language under any circumstances."
         )
         logger.debug(f"{log_prefix} Added language enforcement instruction for '{output_language_code}' ({language_name}).")
+
+    wellbeing_instruction = wellbeing_instruction_for(
+        wellbeing_assess(request_data, preprocessing_results))
+    if wellbeing_instruction:
+        prompt_parts.append(wellbeing_instruction)
+        logger.info(f"{log_prefix} Added wellbeing instruction")
 
     prompt_parts.append(INTERACTIVE_QUESTIONS_INSTRUCTION)
 

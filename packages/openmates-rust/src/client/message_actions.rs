@@ -165,7 +165,7 @@ impl Client {
     }
 
     /// Refusals shared by the message actions, before any network.
-    fn check_message_action(&self, chat_id: &str) -> Result<()> {
+    pub(super) fn check_message_action(&self, chat_id: &str) -> Result<()> {
         self.require_session()?;
         uuid::Uuid::parse_str(chat_id).map_err(|_| Error::Invalid("Invalid chat ID."))?;
         if self.is_ephemeral_chat(chat_id) {

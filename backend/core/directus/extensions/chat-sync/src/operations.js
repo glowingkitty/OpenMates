@@ -35,7 +35,7 @@ export const CHAT_FIELDS = Object.freeze([
   'encrypted_share_cta_text', 'encrypted_chat_tags', 'encrypted_follow_up_request_suggestions',
   'encrypted_suggested_followup_message', 'encrypted_top_recommended_apps_for_chat',
   'encrypted_recommendations', 'encrypted_shared_short_url', 'encrypted_active_focus_id',
-  'encrypted_focus_phase_state', 'encrypted_auto_speak_response', 'last_edited_overall_timestamp',
+  'encrypted_focus_phase_state', 'encrypted_wellbeing_scores', 'encrypted_auto_speak_response', 'last_edited_overall_timestamp',
   'messages_v', 'title_v', 'metadata_v', 'pinned', 'is_shared', 'is_private', 'parent_id',
   'is_sub_chat', 'budget_limit', 'budget_spent',
 ]);

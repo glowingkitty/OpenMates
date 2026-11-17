@@ -3,7 +3,7 @@
 Owner decision 10. Specification: `specifications/features/wellbeing-support/`.
 
 ## Signals (scored 0..1 inside the existing preprocessing decision call)
-`suicidal`, `method_or_means`, `plan_or_timeline`, `self_harm`, `hopelessness_isolation`,
+`suicidal`, `method_or_means`, `plan_or_timeline`, `self_harm`, `self_injury_now`, `hopelessness_isolation`,
 `eating_disorder`, `reality_loss`, `mania`, `danger_from_others`.
 The score is about the USER's own current state, judged from the conversation so far; fiction,
 roleplay, lyrics, research, gaming, idioms, dark humour and worry about someone else score 0.

@@ -6,7 +6,6 @@
     import { updateProfileImage } from '../../../../stores/userProfile';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { fade } from 'svelte/transition';
-    import { authStore } from '../../../../stores/authStore';
 
     let errorMessage = $state('');
     let showWarning = $state(false);
@@ -37,7 +36,7 @@
                 errorMessage = $text('settings.profile_image_not_allowed');
                 showWarning = true;
 
-                if (data.reject_count === 3) {  // Show last warning on 3rd attempt
+                if (data.reject_count === 1) {  // First strike: the next violation suspends the account
                     // Hide upload button
                     showUploadButton = false;
                     
@@ -56,24 +55,6 @@
                 }
                 throw new Error(data.detail);
             }
-        }
-
-        if (data.status === 'account_deleted') {
-            // Set local storage flag for 10 minute lockout
-            localStorage.setItem('policy_violation_lockout', (Date.now() + 600000).toString());
-            
-            // Set flag in sessionStorage to show deletion message on login page
-            sessionStorage.setItem('account_deleted', 'true');
-            
-            // Create and dispatch a custom event before logout
-            window.dispatchEvent(new CustomEvent('account-deleted'));
-            
-            // Trigger logout with special flag for policy violation
-            authStore.logout({ 
-                skipServerLogout: true,
-                isPolicyViolation: true 
-            });
-            throw new Error('account_deleted');
         }
 
         if (!response.ok) {
@@ -182,6 +163,7 @@
             />
             <span class="file-upload-button" class:error={showWarning}>
                 <div class="file-icon"></div>
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized copy with an inline line break, no user input -->
                 <span class="upload-text">{@html $text('signup.upload_profile_image')}</span>
             </span>
         </label>
@@ -192,6 +174,7 @@
         {/if}
     {:else if showLastWarning}
         <div class="warning-message" transition:fade={{ duration: 300 }}>
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -- trusted localized warning copy with inline emphasis, no user input -->
             {@html $text('settings.last_warning_image_not_allowed')}
         </div>
     {/if}

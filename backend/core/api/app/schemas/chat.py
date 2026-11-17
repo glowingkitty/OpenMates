@@ -117,6 +117,7 @@ class CachedChatListItemData(BaseModel):
     encrypted_recommendations: Optional[str] = None  # Encrypted ChatRecommendationsState (chat-key ciphertext)
     encrypted_shared_short_url: Optional[str] = None  # Encrypted owner share URL for reopening copy/QR UI
     encrypted_focus_phase_state: Optional[str] = None  # Client-encrypted progress and transition receipts
+    encrypted_wellbeing_scores: Optional[str] = None  # Client-encrypted wellbeing score history (opaque to the server)
     encrypted_active_focus_id: Optional[str] = None  # Encrypted ID of active focus (encrypted with chat-specific key)
     encrypted_auto_speak_response: Optional[str] = None  # Encrypted chat-scoped assistant-response speech preference
     last_message_timestamp: Optional[int] = None  # Unix timestamp of most recent completed message

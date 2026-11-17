@@ -104,6 +104,11 @@ chats:
       nullable: true
       note: "[Client-encrypted permanent storage] Phase run state and bounded transition receipts; no plaintext phase progress."
 
+    encrypted_wellbeing_scores:
+      type: text
+      nullable: true
+      note: "[Client-encrypted permanent storage] Bounded per-chat wellbeing score history (max 8 entries), encrypted with the chat key; the server never decrypts it."
+
     encrypted_active_focus_id:
       type: string
       note: "[Client-encrypted permanent storage] ID of the currently active focus for this chat (e.g., 'travel/plan_trip'), encrypted with the chat-specific key before storage in Directus."

@@ -14786,6 +14786,12 @@
     "consent_label": {
       "text": "Tôi đồng ý chỉ chia sẻ các yêu cầu bị gắn cờ với người kiểm duyệt an toàn"
     },
+    "add_photo": {
+      "text": "Thêm ảnh"
+    },
+    "photo_added": {
+      "text": "Đã đính kèm ảnh. Chọn ảnh khác"
+    },
     "submit": {
       "text": "Gửi khiếu nại"
     },
@@ -19572,7 +19578,7 @@
       "text": "Không có khỏa thân, bạo lực hoặc nội dung rùng rợn\ntrong ảnh hồ sơ."
     },
     "last_warning_image_not_allowed": {
-      "text": "Cảnh báo cuối cùng:\nKhông có khỏa thân, bạo lực hoặc nội dung rùng rợn trong ảnh hồ sơ.\nThêm một vi phạm nữa và tài khoản của bạn sẽ bị xóa."
+      "text": "Cảnh báo cuối cùng:\nKhông dùng nội dung tình dục lộ liễu hoặc cực kỳ máu me trong ảnh hồ sơ.\nThêm một vi phạm nữa và tài khoản của bạn sẽ bị tạm ngưng."
     },
     "your_account_got_deleted": {
       "text": "Tài khoản của bạn đã bị xóa."

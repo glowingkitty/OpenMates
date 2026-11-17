@@ -4347,7 +4347,7 @@ async def _async_process_ai_skill_ask_task(
                         rejection = preprocessing_result.rejection_reason
                         bounded_reason = rejection if rejection in {
                             "insufficient_credits", "harmful_or_illegal_detected", "misuse_detected",
-                            "internal_error_llm_preprocessing_failed",
+                            "request_purpose_declined", "internal_error_llm_preprocessing_failed",
                         } else "preprocessing_rejected"
                         await _cleanup_on_task_failure(
                             task_id=task_id, chat_id=request_data.chat_id, message_id=request_data.message_id,
@@ -5357,6 +5357,44 @@ async def _async_process_ai_skill_ask_task(
     else:
         reason = "request is external" if request_data.is_external else "no response content or soft-limited"
         logger.info(f"[Task ID: {task_id}] Skipping post-processing (reason: {reason}, task_was_soft_limited={task_was_soft_limited}, has_response={bool(aggregated_final_response)})")
+
+    # --- Answer safety: every finished answer is checked together with its request ---
+    # Runs for incognito and external requests too. Scores from the postprocessing
+    # decision call are reused; otherwise one minimal call is made. A withdrawn
+    # answer never gives the user a strike.
+    if (aggregated_final_response and not task_was_soft_limited
+            and not (main_processor_debug_metadata or {}).get("answer_withdrawn")):
+        from backend.apps.ai.processing import answer_safety
+        from backend.apps.ai.tasks.stream_consumer import _assistant_message_id as _answer_message_id
+
+        safety_user_message = next((
+            msg.content for msg in reversed(request_data.message_history or [])
+            if msg.role == "user" and msg.sender_name != "async_tool_result"
+        ), "")
+        safety_withdrawal, safety_extra_calls = await answer_safety.decide_finished_answer(
+            postprocessing_scores=postprocessing_result.answer_safety_scores if postprocessing_result else None,
+            decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
+            user_message=safety_user_message,
+            assistant_response=aggregated_final_response,
+            secrets_manager=secrets_manager,
+            task_id=task_id,
+        )
+        if safety_withdrawal and cache_service_instance:
+            aggregated_final_response = await answer_safety.withdraw_answer(
+                withdrawal=safety_withdrawal,
+                cache_service=cache_service_instance,
+                encryption_service=encryption_service_instance,
+                user_vault_key_id=user_vault_key_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                chat_id=request_data.chat_id,
+                task_id=task_id,
+                message_id=_answer_message_id(task_id, request_data),
+                language=(request_data.user_preferences or {}).get("language", "en"),
+                extra_decision_calls=safety_extra_calls,
+            )
+        else:
+            answer_safety.log_extra_decision_calls(task_id, safety_extra_calls, withdrawn=False)
 
     # Determine final status based on local flags
     final_status_message = "completed"

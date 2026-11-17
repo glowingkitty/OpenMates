@@ -132,6 +132,7 @@ class AskSkillRequest(BaseModel):
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
     focus_phase_state: Optional[Dict[str, Any]] = Field(default=None, description="Client-decrypted phase state; transient inference context only.")
+    wellbeing_scores: Optional[Any] = Field(default=None, exclude=True, repr=False, description="Client-decrypted wellbeing history; transient, validated by processing/wellbeing_support.py, never stored or logged.")
     current_project: Optional[Dict[str, Any]] = Field(default=None, description="Server-derived current Project routing metadata for this chat.")
     project_focus_candidates: List[Dict[str, Any]] = Field(default_factory=list, max_length=40, description="Client-decrypted Project names for routing only; server ownership checks precede selection. No file contents or instructions.")
     project_routing_focus_id: Optional[str] = Field(default=None, description="Server-only Project identity retained across the selected catalog handoff; not an access grant.")

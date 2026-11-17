@@ -6435,6 +6435,7 @@
             "client.Client.reconcile_embed_update_notices",
             "client.Client.reconcile_embed_update_notices_on_open",
             "client.Client.refresh_browser_chat_monitor_metadata",
+            "client.Client.replace_withdrawn_message",
             "client.Client.request_backup_codes",
             "client.Client.request_signup_email_code",
             "client.Client.reset",

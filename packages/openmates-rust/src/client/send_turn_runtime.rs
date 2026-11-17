@@ -190,6 +190,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
         let mut content = Plain::new(String::new());
         let mut thinking = Plain::new(String::new());
         let mut final_frame=Plain::new(None::<Value>);
+        let mut withdrawal = super::answer_withdrawal::Withdrawal::default();
         // Idle limit: each received frame restarts it (long coding turns keep streaming).
         let mut turn_deadline = super::turn_deadline::TurnDeadline::start(crate::platform::time::Instant::now(),
             Duration::from_millis(options.response_timeout_ms.unwrap_or(600_000)));
@@ -306,7 +307,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             if kind == "ai_typing_started" && same {
                 generated_header.wipe();*generated_header=p.clone();
             }
-            if ["focus_mode_activated", "focus_phases_updated"].contains(&kind.as_str())
+            if ["focus_mode_activated", "focus_phases_updated", super::wellbeing::EVENT_KIND].contains(&kind.as_str())
                 && text(&p, "chat_id") == id
                 && (text(&p, "task_id").is_empty() || text(&p, "task_id") == task_id.as_str())
             {
@@ -448,11 +449,24 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                         mate: String::new(),
                     }).await?;
             }
+            if kind == super::answer_withdrawal::EVENT_KIND
+                && withdrawal.observe(&p, id, &task_id)?
+                && let Some(notice) = withdrawal.current_notice()
+            {
+                // The notice replaces the answer shown so far; later chunks are dropped.
+                replace_text(&mut content, notice.into());
+                phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Content {
+                        content: content.clone(),
+                        thinking: thinking.clone(),
+                        mate: String::new(),
+                    }).await?;
+            }
             if same && (kind == "ai_message_update" || kind == "ai_background_response_completed") {
                 if let Some(full) = p
                     .get("full_content_so_far")
                     .or_else(|| p.get("full_content"))
                     .and_then(Value::as_str)
+                    .filter(|_| !withdrawal.suppresses(text(&p, "message_id")))
                 {
                     replace_text(&mut content,full.into())
                 }
@@ -539,6 +553,11 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                         && owns_metadata(&p, id, message, turn, &task_id)
                     {
                         observed.capture_jobs(&p, id)?;
+                    }
+                    // The check runs after the final chunk; the notice still lands
+                    // before the assistant message is persisted below.
+                    if kind == super::answer_withdrawal::EVENT_KIND {
+                        withdrawal.observe(&p, id, &task_id)?;
                     }
                     trace.observe_discovery(&kind, &p);
                     crate::client::recovery::capture(&kind, &p, &mut recovery_outputs)?;
@@ -630,6 +649,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 return Err(super::send::refusal_trace::protocol_at!());
             }
             let content=Plain::new(chat.messages.iter().find(|m|m.id==assistant_id).ok_or_else(|| super::send::refusal_trace::protocol_at!())?.content.clone());
+            let content=Plain::new(withdrawal.notice_for(assistant_id).map_or_else(||content.into_inner(),str::to_owned));
             trace.phase = SendPhase::TaskFinalize;
             phases.finish_task_jobs(ws, &mut observed, id, message, key, cancel, options)
                 .await?;
@@ -657,7 +677,10 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             assistant_message_id: assistant_id.into(),
             key_version: 1,
         };
-        let recovered=Plain::new(crate::client::completion_recovery::decode_main_completion(&envelope,key,&identity)?);
+        let mut recovered=Plain::new(crate::client::completion_recovery::decode_main_completion(&envelope,key,&identity)?);
+        if let Some(notice) = withdrawal.notice_for(assistant_id) {
+            recovered["content"] = json!(notice);
+        }
         observed.capture_owned("recovered_completion", &recovered)?;
         replace_text(&mut content,required(&recovered,"content")?.into());
         let created = final_frame["created_at"].as_u64().ok_or_else(|| super::send::refusal_trace::protocol_at!())?;

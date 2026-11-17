@@ -73,7 +73,7 @@ const MESSAGE_FIELDS = new Set([
   'user_message_id',
 ]);
 const CHAT_METADATA_FIELDS = new Set([
-  'encrypted_title', 'encrypted_chat_key', 'encrypted_active_focus_id',
+  'encrypted_title', 'encrypted_chat_key', 'encrypted_active_focus_id', 'encrypted_wellbeing_scores',
   'encrypted_chat_summary', 'encrypted_share_cta_text', 'encrypted_chat_tags',
   'encrypted_follow_up_request_suggestions', 'encrypted_top_recommended_apps_for_chat',
   'encrypted_recommendations', 'encrypted_icon', 'encrypted_category',

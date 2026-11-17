@@ -243,6 +243,20 @@ preprocess_request_tool:
         misuse_risk:
           type: "integer"
           description: "Malicious scam/hacking facilitation risk from 0 to 10."
+        wellbeing_scores:
+          type: "object"
+          description: "Likelihood 0.0-1.0 of each signal about the USER's own current state: suicidal, method_or_means, plan_or_timeline, self_harm, self_injury_now, hopelessness_isolation, eating_disorder, reality_loss, mania, danger_from_others. Fiction, roleplay, lyrics, research, gaming, idioms, dark humour and worry about someone else score 0."
+          properties:
+            suicidal: {type: "number"}
+            method_or_means: {type: "number"}
+            plan_or_timeline: {type: "number"}
+            self_harm: {type: "number"}
+            self_injury_now: {type: "number"}
+            hopelessness_isolation: {type: "number"}
+            eating_disorder: {type: "number"}
+            reality_loss: {type: "number"}
+            mania: {type: "number"}
+            danger_from_others: {type: "number"}
         output_language:
           type: "string"
           description: "ISO 639-1 language of the latest user's instruction; earlier user messages, then the UI language, when unclear."
@@ -591,3 +605,23 @@ url_correction_tool:
           description: "The corrected assistant response with broken URLs removed. Optionally includes natural language questions asking if the user wants the chatbot to search for that topic, but only when contextually appropriate. Must maintain the same structure, tone, and content as the original."
       required:
         - "assistant_response_corrected"
+
+# Wellbeing layer: appended to the main system prompt when the per-request level
+# (see processing/wellbeing_level.py) is above 0. Never mention scores or levels.
+wellbeing_instructions:
+  level_1: |
+    Wellbeing note: the user may be having a hard time. Keep helping with their task. Add one short,
+    warm check-in question about how they are doing, without a lecture, a diagnosis or any method details.
+  level_2: |
+    Wellbeing note: the user seems to be in real distress. Support comes first: acknowledge what they
+    said, ask how they are doing right now, and encourage reaching a trusted person or the support lines
+    shown in the card above this answer. Never refuse, never lecture, never give method details. Afterwards
+    help with the task if it is still appropriate.
+  level_3: |
+    Wellbeing note: the user may be in acute danger. Open with warm, direct care, encourage them to contact
+    someone now (a trusted person, the emergency number or the support lines shown in the card above this
+    answer), and stay with them. Never refuse, never lecture, never give method details. Afterwards help
+    with the task only if it is still appropriate.
+  grounding: |
+    If the user describes beliefs or experiences that seem cut off from reality, or a manic state, gently
+    ground the conversation: stay calm and kind, do not affirm the delusion and do not argue with it.

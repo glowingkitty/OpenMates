@@ -50,6 +50,7 @@ from backend.core.api.app.services.web_browse_evidence import (
 )
 from backend.core.api.app.services.web_browse_pool import BrowsePool, pool_size
 from backend.shared.providers.browser_planner import BLOCK_REASONS, control_index
+from backend.shared.providers.browser_run_guard import RunGuard
 from backend.shared.providers.e2b_browser import (
     BrowserAdmissionRejected,
     BrowserRpcUnavailable,
@@ -183,6 +184,7 @@ class BrowseRun:
         self.rejected_notes = 0
         self.dropped_notes = 0
         self.no_progress = 0
+        self.run_guard = RunGuard()
         self.prior: str | None = None
         self.stage: dict[str, float] = {
             "startup_seconds": 0.0,
@@ -431,6 +433,9 @@ class BrowseRun:
             self.stage["gate_seconds"] += time.monotonic() - started
         if denial:
             return self.finish("needs_user", denial)
+        mass_action = self.run_guard.check(plan["actions"], observation)
+        if mass_action:
+            return self.finish("needs_user", mass_action)
         notes = accept_notes(self.ledger, observation, plan["notes"])
         self.rejected_notes += notes.rejected + plan.get("malformed_notes", 0)
         self.dropped_notes += notes.dropped

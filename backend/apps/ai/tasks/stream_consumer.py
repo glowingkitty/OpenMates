@@ -62,6 +62,10 @@ from backend.apps.ai.assistant_speech.projection import (
 )
 from backend.apps.ai.assistant_speech.streaming import ImmutableSpeechBoundaryTracker
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
+from backend.apps.ai.processing.wellbeing_support import (
+    card_due as wellbeing_card_due, create_card_embed as create_wellbeing_card_embed,
+    publish as publish_wellbeing,
+)
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
@@ -5983,6 +5987,14 @@ def _parse_application_preview_json_bundle_files(
     return files if has_manifest and has_source else []
 
 
+async def _with_leading_text(text: str, stream: AsyncIterator[Any]) -> AsyncIterator[Any]:
+    """Yield ``text`` (when set) before the stream; the helpline card reference opens the answer."""
+    if text:
+        yield text
+    async for item in stream:
+        yield item
+
+
 async def _with_chunks_after_closing_fence(
     stream: AsyncIterator[Any],
     chunks_after_closing_fence: Deque[str],
@@ -6540,6 +6552,29 @@ def _should_prepare_assistant_speech(request_data, preprocessing_result, user_ov
     return not explicit_focus_activation
 
 
+def _build_live_answer_gate(request_data, preprocessing_result, skill_config_dict, secrets_manager, task_id, log_prefix):
+    """Live answer-safety gate: enabled only when the chat is risky (see answer_safety.is_risky_chat)."""
+    from backend.apps.ai.processing import answer_safety
+
+    thresholds = (skill_config_dict or {}).get("preprocessing_thresholds")
+    risky = False
+    if thresholds:
+        risky = answer_safety.is_risky_chat(
+            preprocessing_result,
+            float(thresholds["harmful_content_score"]), float(thresholds["misuse_risk_score"]),
+        )
+    else:
+        logger.warning(f"{log_prefix} No preprocessing thresholds in the skill config; live answer checks stay off.")
+    user_message = next((
+        msg.content for msg in reversed(request_data.message_history or [])
+        if msg.role == "user" and msg.sender_name != "async_tool_result"
+    ), "")
+    return answer_safety.LiveCheckGate(
+        risky=risky, model_id=answer_safety.load_decision_model_id() if risky else None,
+        user_message=user_message, secrets_manager=secrets_manager, task_id=task_id,
+    )
+
+
 async def _consume_main_processing_stream(
     task_id: str,
     request_data: AskSkillRequest,
@@ -6612,14 +6647,17 @@ async def _consume_main_processing_stream(
         return "", was_revoked_during_stream, was_soft_limited_during_stream, [], None
 
     # Check if this is a harmful content case that should be handled with a predefined response
-    if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason in ["harmful_or_illegal_detected", "misuse_detected"]:
+    if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason in ["harmful_or_illegal_detected", "misuse_detected", "request_purpose_declined"]:
         logger.info(f"{log_prefix} Detected harmful content case. Generating fake stream with predefined response.")
         
         # Get predefined response from translations in the user's detected language
         translation_service = TranslationService()
         language = preprocessing_result.output_language or "en"
         
-        if preprocessing_result.rejection_reason == "harmful_or_illegal_detected":
+        if preprocessing_result.rejection_reason == "request_purpose_declined":
+            # The preprocessor already localized the reason (and strike notice).
+            predefined_response = preprocessing_result.error_message
+        elif preprocessing_result.rejection_reason == "harmful_or_illegal_detected":
             predefined_response = translation_service.get_nested_translation("predefined_responses.harmful_or_illegal_detected", language, {})
         else:  # misuse_detected
             predefined_response = translation_service.get_nested_translation("predefined_responses.misuse_detected", language, {})
@@ -7084,13 +7122,25 @@ async def _consume_main_processing_stream(
     suggested_followup_message: Optional[str] = None
     
     chunks_after_closing_fence: Deque[str] = deque()
+    live_answer_gate = _build_live_answer_gate(
+        request_data, preprocessing_result, skill_config_dict, secrets_manager, task_id, log_prefix,
+    )
+    live_answer_withdrawal = None
+    wellbeing_assessment = await publish_wellbeing(cache_service, request_data, preprocessing_result)
+    wellbeing_card_ref = ""
+    if wellbeing_card_due(wellbeing_assessment) and directus_service and encryption_service and user_vault_key_id:
+        from backend.core.api.app.services.embed_service import EmbedService
+        wellbeing_card_ref = await create_wellbeing_card_embed(
+            EmbedService(cache_service, directus_service, encryption_service), secrets_manager,
+            request_data, preprocessing_result, assistant_message_id, user_vault_key_id,
+        )
     pre_main_scope = ai_phase_span("pre_main")
     pre_main_scope.__enter__()
     pre_main_open = True
     try:
-        async for chunk in _with_chunks_after_closing_fence(
+        async for chunk in _with_leading_text(wellbeing_card_ref, _with_chunks_after_closing_fence(
             main_processing_stream, chunks_after_closing_fence
-        ):
+        )):
             # Internal setup frames do not publish answer content. Let the
             # provider run while sealed metadata persists, then join before
             # any visible content or recovery terminal can be published.
@@ -10390,6 +10440,11 @@ async def _consume_main_processing_stream(
                 if chunk:
                     final_response_chunks.append(chunk)
                     stream_chunk_count += 1
+                    # Live answer-safety check: risky chats only, capped per answer.
+                    live_answer_withdrawal = await live_answer_gate.maybe_check("".join(final_response_chunks))
+                    if live_answer_withdrawal:
+                        logger.warning(f"{log_prefix} Live answer-safety check withdrew the answer; stopping the stream.")
+                        break
 
                 # CRITICAL: Publish chunk IMMEDIATELY without buffering
                 # This ensures paragraph-by-paragraph streaming and embed placeholders show up right away
@@ -10618,6 +10673,21 @@ async def _consume_main_processing_stream(
             )
         except Exception as e:
             logger.error(f"{log_prefix} Error finalizing table embed at end-of-stream: {e}", exc_info=True)
+
+    if live_answer_withdrawal:
+        from backend.apps.ai.processing import answer_safety
+        final_response_chunks = [await answer_safety.withdraw_answer(
+            withdrawal=live_answer_withdrawal, cache_service=cache_service,
+            encryption_service=encryption_service, user_vault_key_id=user_vault_key_id,
+            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+            chat_id=request_data.chat_id, task_id=task_id, message_id=assistant_message_id,
+            language=(request_data.user_preferences or {}).get("language", "en"),
+            extra_decision_calls=live_answer_gate.calls,
+        )]
+        debug_metadata["answer_withdrawn"] = live_answer_withdrawal.reason
+    elif live_answer_gate.calls:
+        from backend.apps.ai.processing import answer_safety
+        answer_safety.log_extra_decision_calls(task_id, live_answer_gate.calls, withdrawn=False)
 
     aggregated_response = "".join(final_response_chunks)
     if authored_inline_outputs and not was_revoked_during_stream and not was_soft_limited_during_stream:

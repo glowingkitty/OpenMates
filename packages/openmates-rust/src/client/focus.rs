@@ -55,6 +55,8 @@ pub(super) struct FocusPersistencePlan {
 }
 enum FocusPlanMode {
     Activation {encrypted:String,pending:bool},
+    /// Wellbeing score history: one metadata write, `None` ciphertext clears the field.
+    Wellbeing {encrypted:Option<String>,pending:bool},
     States {
         states:super::plaintext::Plain<Value>,encrypted:String,metadata_pending:bool,
         keys:super::plaintext::Plain<Vec<String>>,focus:usize,transition:usize,
@@ -72,14 +74,16 @@ impl FocusPersistenceAck {
 /// Exact local patch only, never durability/recovery/read authority. Its final
 /// caller must also check original scope and row stamp under the Client borrow.
 pub(super) struct FocusPersistenceUpdate {
-    chat:String,expected_previous:super::plaintext::Plain<Value>,encrypted:String,
+    chat:String,expected_previous:super::plaintext::Plain<Value>,field:&'static str,encrypted:Option<String>,
     states:Option<super::plaintext::Plain<Value>>,
 }
 impl FocusPersistencePlan {
     pub(super) fn prepare(kind:&str,event:&Value,chat:&str,key:&[u8;32],previous:&mut Value)->Result<Self>{
         use super::plaintext::Plain;
         if text(event,"chat_id")!=chat{return Err(Error::Forbidden)}
-        let mode=if kind=="focus_mode_activated" {
+        let mode=if kind==super::wellbeing::EVENT_KIND {
+            FocusPlanMode::Wellbeing{encrypted:super::wellbeing::encrypt_event(event,chat,key)?,pending:true}
+        } else if kind=="focus_mode_activated" {
             let focus=required(event,"focus_id")?;
             if focus.len()>255||focus.chars().any(char::is_control){return Err(Error::Protocol)}
             // SAME prior scratch mutation, before activation encryption. No Team
@@ -109,6 +113,14 @@ impl FocusPersistencePlan {
             FocusPlanMode::Activation{encrypted,pending}=>{
                 if *pending {*pending=false;return Ok(Some(FocusPersistenceEffect{kind:"update_encrypted_active_focus_id",payload:json!({"chat_id":self.chat,"encrypted_active_focus_id":encrypted}),ack:None}))}
             },
+            FocusPlanMode::Wellbeing{encrypted,pending}=>{
+                if *pending {
+                    *pending=false;
+                    let mut payload=super::wellbeing::metadata_payload(&self.chat,encrypted.as_deref());
+                    if let Some(team)=team()?{payload["team_id"]=json!(team);}
+                    return Ok(Some(FocusPersistenceEffect{kind:"encrypted_chat_metadata",payload,ack:Some(FocusPersistenceAck{kind:"encrypted_metadata_stored",field:"chat_id",value:self.chat.clone()})}));
+                }
+            },
             FocusPlanMode::States{states,encrypted,metadata_pending,keys,focus,transition,seen}=>{
                 if *metadata_pending {
                     let mut payload=json!({"chat_id":self.chat,"encrypted_focus_phase_state":encrypted});
@@ -136,11 +148,12 @@ impl FocusPersistencePlan {
     }
     pub(super) fn into_update(self)->Result<FocusPersistenceUpdate>{
         if !self.exhausted{return Err(Error::Protocol)}
-        let(encrypted,states)=match self.mode {
-            FocusPlanMode::Activation{encrypted,..}=>(encrypted,None),
-            FocusPlanMode::States{encrypted,states,..}=>(encrypted,Some(states)),
+        let(field,encrypted,states)=match self.mode {
+            FocusPlanMode::Activation{encrypted,..}=>("encrypted_active_focus_id",Some(encrypted),None),
+            FocusPlanMode::Wellbeing{encrypted,..}=>(super::wellbeing::FIELD,encrypted,None),
+            FocusPlanMode::States{encrypted,states,..}=>("encrypted_focus_phase_state",Some(encrypted),Some(states)),
         };
-        Ok(FocusPersistenceUpdate{chat:self.chat,expected_previous:self.expected_previous,encrypted,states})
+        Ok(FocusPersistenceUpdate{chat:self.chat,expected_previous:self.expected_previous,field,encrypted,states})
     }
 }
 impl FocusPersistenceUpdate {
@@ -148,8 +161,7 @@ impl FocusPersistenceUpdate {
         use super::plaintext::Wipe;
         if self.chat!=chat{return Err(Error::Cancelled)}
         if *previous!=*self.expected_previous{return Err(Error::Conflict)}
-        let field=if self.states.is_some(){"encrypted_focus_phase_state"}else{"encrypted_active_focus_id"};
-        if let Some(row)=chats.get_mut(chat){row[field]=json!(self.encrypted);}
+        if let Some(row)=chats.get_mut(chat){row[self.field]=json!(self.encrypted);}
         if let Some(states)=self.states{previous.wipe();*previous=states.into_inner();}
         Ok(())
     }

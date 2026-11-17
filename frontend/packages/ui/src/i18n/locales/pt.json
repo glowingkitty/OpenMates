@@ -14813,6 +14813,12 @@
     "consent_label": {
       "text": "Concordo em partilhar apenas os pedidos assinalados com o revisor de segurança"
     },
+    "add_photo": {
+      "text": "Adicionar uma foto"
+    },
+    "photo_added": {
+      "text": "Foto anexada. Escolher outra"
+    },
     "submit": {
       "text": "Enviar recurso"
     },
@@ -19599,7 +19605,7 @@
       "text": "Sem nudez, violência ou gore\nem fotos de perfil."
     },
     "last_warning_image_not_allowed": {
-      "text": "Último aviso:\nSem nudez, violência ou gore em fotos de perfil.\nMais uma violação e sua conta será excluída."
+      "text": "Último aviso:\nSem conteúdo sexual explícito nem violência extrema em fotos de perfil.\nMais uma violação e a sua conta será suspensa."
     },
     "your_account_got_deleted": {
       "text": "Sua conta foi excluída."

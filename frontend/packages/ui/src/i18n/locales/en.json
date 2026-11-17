@@ -19258,6 +19258,12 @@
     "consent_label": {
       "text": "I agree to share only the flagged requests with the safety reviewer"
     },
+    "add_photo": {
+      "text": "Add a photo"
+    },
+    "photo_added": {
+      "text": "Photo attached. Choose another"
+    },
     "submit": {
       "text": "Send appeal"
     },
@@ -24606,7 +24612,7 @@
       "text": "No nudity, violence or gore\nin profile images."
     },
     "last_warning_image_not_allowed": {
-      "text": "Last warning:\nNo nudity, violence or gore in profile images.\nOne more violation and your account will be deleted."
+      "text": "Last warning:\nNo explicit sexual content or extreme gore in profile images.\nOne more violation and your account will be suspended."
     },
     "your_account_got_deleted": {
       "text": "Your account got deleted."

@@ -75,3 +75,17 @@ extension AppStrings {
     static var projectWorkOnLabel: String { localized("projects.work_on_label") }
     static var projectFocusNotActive: String { localized("projects.focus_not_active") }
 }
+
+// MARK: - Helpline card
+
+extension AppStrings {
+    static var helplinesTitle: String { localized("helplines.title") }
+    static var helplinesCall: String { localized("helplines.call") }
+    static var helplinesText: String { localized("helplines.send_text") }
+    static var helplinesChat: String { localized("helplines.chat") }
+    static var helplinesFindMore: String { localized("helplines.find_more") }
+
+    static func helplinesEmergency(number: String) -> String {
+        LocalizationManager.shared.text("helplines.emergency", replacements: ["emergency_number": number])
+    }
+}

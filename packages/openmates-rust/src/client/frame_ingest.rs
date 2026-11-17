@@ -303,6 +303,18 @@ impl Client {
                 raise_version(row, "messages_v", versions["messages_v"].as_u64());
                 Ok(Some(chat))
             }
+            super::answer_withdrawal::EVENT_KIND => {
+                self.apply_withdrawal_event(&chat, payload).await
+            }
+            "assistant_message_replaced" => {
+                let message = payload["message_id"].as_str().ok_or(Error::Protocol)?;
+                let sealed = payload["encrypted_content"]
+                    .as_str()
+                    .ok_or(Error::Protocol)?;
+                Ok(self
+                    .replace_history_content(&chat, message, sealed)
+                    .then_some(chat))
+            }
             k if is_message_frame(k, payload) => self.apply_message(&chat, payload).await,
             _ => Ok(None),
         }

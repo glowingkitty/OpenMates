@@ -55,10 +55,12 @@ def test_native_chat_payload_preserves_saved_focus_ciphertext() -> None:
         "id": "saved-focus-chat",
         "encrypted_active_focus_id": "opaque-focus-id",
         "encrypted_focus_phase_state": "opaque-phase-state",
+        "encrypted_wellbeing_scores": "opaque-wellbeing",
     })
 
     assert payload["encrypted_active_focus_id"] == "opaque-focus-id"
     assert payload["encrypted_focus_phase_state"] == "opaque-phase-state"
+    assert payload["encrypted_wellbeing_scores"] == "opaque-wellbeing"
 
 
 # contract-test: direct surface=rest_api assertions=storage.cold.independent-message-pages,auth.surface.first-party-boundary

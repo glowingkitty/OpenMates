@@ -14,18 +14,18 @@ Flags: dev/prod enablement from committed config (`backend_config.dev.yml` / `ba
 Apple covers the shared iOS, iPadOS and macOS app (TestFlight); Watch is shown where relevant.
 Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface apple`.
 
-**125 features** · enabled on prod: 109 · enabled on dev: 114
+**127 features** · enabled on prod: 111 · enabled on dev: 116
 
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Web | 4 | 0 | 20 | 54 | 10 | 18 | 0 | 0 | 0 | 19 |
-| Apple | 0 | 15 | 34 | 5 | 0 | 40 | 6 | 5 | 0 | 20 |
+| Web | 4 | 0 | 20 | 54 | 11 | 19 | 0 | 0 | 0 | 19 |
+| Apple | 0 | 15 | 34 | 5 | 0 | 40 | 6 | 7 | 0 | 20 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
-| CLI | 0 | 0 | 17 | 8 | 27 | 41 | 2 | 0 | 0 | 30 |
-| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 42 |
-| REST API | 5 | 2 | 33 | 16 | 24 | 16 | 0 | 2 | 0 | 27 |
-| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 52 |
-| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 53 |
+| CLI | 0 | 0 | 17 | 8 | 27 | 41 | 2 | 2 | 0 | 30 |
+| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 44 |
+| REST API | 5 | 2 | 33 | 16 | 26 | 16 | 0 | 2 | 0 | 27 |
+| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 54 |
+| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 55 |
 
 ## Core product
 
@@ -34,6 +34,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Account Access](#auth) | partial 15/26 | partial 11/26 | partial 3/4 | **FAIL** 2/26 | **live** 2/2 | partial 4/26 | not run 0/2 | not run 0/1 | on (no flag) | on (no flag) | v0.5.0-alpha |
 | [Account Import](#account-import) | **FAIL** 1/3 | impl |  | impl | impl | not run 0/3 | impl | impl | on (no flag) | on (no flag) | v0.6.0-alpha |
 | [AI Model Settings And Chat Routing](#ai-model-routing) | **FAIL** 2/24 | partial 5/24 |  | partial 4/24 | not run 0/3 | **FAIL** 13/24 | impl | impl | on (no flag) | on (no flag) | v0.5.0-alpha |
+| [Answer Safety Check](#answer-safety-check) | impl | planned |  | planned | — | not run 0/5 | — | — | on (no flag) | on (no flag) | unverified |
 | [Apps Workspace](#apps-workspace) | **FAIL** 4/16 | partial 7/16 |  | not run 0/16 | **FAIL** 0/1 | **FAIL** 6/16 | — | — | on (no flag) | on (no flag) | v0.14.0-alpha |
 | [Assistant Response Speech](#assistant-response-speech) | **FAIL** 11/30 | partial 4/30 |  | not run 0/30 | — | **FAIL** 7/30 | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Assistant-Authored Rich Result Embeds](#assistant-authored-result-embeds) | partial 13/15 | impl |  | not run 0/15 | impl | partial 3/15 | impl | not run 0/15 | on (no flag) | on (no flag) | untagged-main |
@@ -89,7 +90,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Public Example Chats](#public-example-chats) | **FAIL** 4/9 | tested 1/1 |  | not run 0/1 | — | not run 0/2 | — | — | on (no flag) | on (no flag) | v0.8.0-alpha |
 | [Public News, Blog, Press, and Social Publications](#public-publications) | **FAIL** 1/9 | — |  | — | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Queued Chat Follow-ups and Steering](#chat-queued-followups) | partial 4/5 | **FAIL** 3/5 |  | partial 1/5 | wip | partial 4/5 | — | — | on (no flag) | on (no flag) | untagged-main |
-| [Safety Strikes, Suspension, Appeal and Policy Account Deletion](#safety-strikes) | partial 1/20 | planned |  | — | — | partial 14/20 | — | — | on (no flag) | on (no flag) | unverified |
+| [Safety Strikes, Suspension, Appeal and Policy Account Deletion](#safety-strikes) | partial 1/22 | planned |  | — | — | partial 14/22 | — | — | on (no flag) | on (no flag) | unverified |
 | [Settings UI](#settings-ui) | **FAIL** 1/9 | partial 6/9 | not run 0/2 | — | impl | not run 0/1 | — | — | on (no flag) | on (no flag) | v0.8.0-alpha |
 | &nbsp;&nbsp;↳ Settings shell and routing | **FAIL** 0/1 | tested 1/1 | ? | — | ? | ? | — | — | | | |
 | &nbsp;&nbsp;↳ Navigation | **FAIL** 0/2 | tested 2/2 | not run 0/1 | — | ? | ? | — | — | | | |
@@ -104,6 +105,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Teams](#teams) | **FAIL** 12/21 | tested 4/4 |  | **FAIL** 1/21 | **FAIL** 0/8 | partial 9/21 | not run 0/21 | not run 0/21 | on | off | unreleased |
 | [Webhooks](#webhooks) | impl | impl |  | impl | impl | impl | — | — | on (no flag) | on (no flag) | unverified |
 | [Website and Web App Language Preferences](#language-preferences) | **FAIL** 2/5 | impl |  | impl | impl | partial 1/5 | — | — | on (no flag) | on (no flag) | v0.5.0-alpha |
+| [Wellbeing Support In Chats](#wellbeing-support) | not run 0/9 | planned |  | planned | — | not run 0/9 | — | — | on (no flag) | on (no flag) | unverified |
 | [Wikipedia Mentions](#wikipedia-mentions) | **FAIL** 2/14 | wip |  | not run 0/14 | impl | not run 0/14 | not run 0/14 | not run 0/14 | on (no flag) | on (no flag) | v0.19.0 |
 | [Workspace Shell](#workspace-shell) | **FAIL** 1/7 | tested 2/2 |  | — | **FAIL** 0/1 | **live** 1/1 | — | — | on (no flag) | on (no flag) | v0.11.0-alpha |
 
@@ -384,6 +386,29 @@ Content-free metrics and traces for AI request latency, tokens, tools and cost.
 | REST API | partial 2/7 | 2 pass · 0 fail · 5 not run · 0 no test | [telemetry-proxy-api.spec.ts](../../frontend/apps/web_app/tests/telemetry-proxy-api.spec.ts)<br>5 unit test file(s), e.g. [test_ai_request_observability.py](../../backend/tests/test_ai_request_observability.py), [test_privacy_filter.py](../../backend/tests/test_tracing/test_privacy_filter.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
+
+</details>
+
+### Answer Safety Check
+<a id="answer-safety-check"></a>
+
+Every finished assistant answer is checked together with its request; a withdrawn answer is replaced by a sealed notice on the owner's devices.
+
+- Specifications: [feature.answer-safety-check](../../specifications/features/answer-safety-check/specification.yml) (draft) · 5 assertion(s)
+- Flags: none · dev on (no flag) · prod on (no flag) · release unverified
+- Check intent: npm SDK: marked not_planned, but 5 required assertion(s) apply to sdk_npm; PyPI SDK: marked not_planned, but 5 required assertion(s) apply to sdk_pypi
+
+<details><summary>Tests per surface</summary>
+
+| Surface | Status | Assertions | Proof |
+|---|---|---|---|
+| Web | impl | 0 pass · 0 fail · 0 not run · 5 no test | — |
+| Apple | planned | 0 pass · 0 fail · 0 not run · 5 no test | — |
+| CLI | planned | 0 pass · 0 fail · 0 not run · 5 no test | — |
+| TUI | — | — | — |
+| REST API | not run 0/5 | 0 pass · 0 fail · 5 not run · 0 no test | 1 unit test file(s), e.g. [test_answer_safety.py](../../backend/tests/test_answer_safety.py) |
+| npm SDK | — | 0 pass · 0 fail · 0 not run · 5 no test | — |
+| PyPI SDK | — | 0 pass · 0 fail · 0 not run · 5 no test | — |
 
 </details>
 
@@ -2553,21 +2578,21 @@ Set reminders for specific or random times.
 ### Safety Strikes, Suspension, Appeal and Policy Account Deletion
 <a id="safety-strikes"></a>
 
-Strikes, warnings, suspension and appeal when safety checks reject image or video requests.
+Strikes, warnings, suspension and appeal when safety checks reject image or video uploads, generation requests or requests with a harmful purpose.
 
-- Specifications: [feature.safety-strikes](../../specifications/features/safety-strikes/specification.yml) (draft) · 20 assertion(s)
+- Specifications: [feature.safety-strikes](../../specifications/features/safety-strikes/specification.yml) (draft) · 22 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release unverified
-- Check intent: CLI: marked not_planned, but 20 required assertion(s) apply to cli
+- Check intent: CLI: marked not_planned, but 22 required assertion(s) apply to cli
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 1/20 | 1 pass · 0 fail · 1 not run · 18 no test | [image-safety-explanations-real.spec.ts](../../frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts)<br>1 unit test file(s), e.g. [test_generated_media_graph.py](../../backend/tests/test_generated_media_graph.py) |
-| Apple | planned | 0 pass · 0 fail · 0 not run · 20 no test | — |
-| CLI | — | 0 pass · 0 fail · 0 not run · 20 no test | — |
+| Web | partial 1/22 | 1 pass · 0 fail · 3 not run · 18 no test | [safety-appeal.spec.ts](../../frontend/apps/web_app/tests/components/safety-appeal.spec.ts)<br>[image-safety-explanations-real.spec.ts](../../frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts)<br>[safety-suspension-real.spec.ts](../../frontend/apps/web_app/tests/safety-suspension-real.spec.ts)<br>1 unit test file(s), e.g. [test_generated_media_graph.py](../../backend/tests/test_generated_media_graph.py) |
+| Apple | planned | 0 pass · 0 fail · 0 not run · 22 no test | — |
+| CLI | — | 0 pass · 0 fail · 0 not run · 22 no test | — |
 | TUI | — | — | — |
-| REST API | partial 14/20 | 14 pass · 0 fail · 2 not run · 4 no test | 9 unit test file(s), e.g. [test_safety_strikes.py](../../backend/tests/test_safety_strikes.py), [test_image_safety_pipeline.py](../../backend/tests/test_image_safety_pipeline.py) |
+| REST API | partial 14/22 | 14 pass · 0 fail · 4 not run · 4 no test | 11 unit test file(s), e.g. [test_safety_strikes.py](../../backend/tests/test_safety_strikes.py), [test_image_safety_pipeline.py](../../backend/tests/test_image_safety_pipeline.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 
@@ -3004,6 +3029,29 @@ Website and web app open in the selected or best-supported browser language.
 | REST API | partial 1/5 | 1 pass · 0 fail · 1 not run · 3 no test | 8 unit test file(s), e.g. [test_daily_inspiration_decisions.py](../../backend/tests/test_daily_inspiration_decisions.py), [test_daily_inspiration_language.py](../../backend/tests/test_daily_inspiration_language.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
+
+</details>
+
+### Wellbeing Support In Chats
+<a id="wellbeing-support"></a>
+
+Risk signals scored in the existing preprocessing call, a rolling level kept client-encrypted, gentle check-ins and a helpline card instead of refusals.
+
+- Specifications: [feature.wellbeing-support](../../specifications/features/wellbeing-support/specification.yml) (draft) · 9 assertion(s)
+- Flags: none · dev on (no flag) · prod on (no flag) · release unverified
+- Check intent: npm SDK: marked not_planned, but 9 required assertion(s) apply to sdk_npm; PyPI SDK: marked not_planned, but 9 required assertion(s) apply to sdk_pypi
+
+<details><summary>Tests per surface</summary>
+
+| Surface | Status | Assertions | Proof |
+|---|---|---|---|
+| Web | not run 0/9 | 0 pass · 0 fail · 2 not run · 7 no test | [helpline-card.spec.ts](../../frontend/apps/web_app/tests/components/helpline-card.spec.ts)<br>[wellbeing-helpline-real.spec.ts](../../frontend/apps/web_app/tests/wellbeing-helpline-real.spec.ts) |
+| Apple | planned | 0 pass · 0 fail · 0 not run · 9 no test | — |
+| CLI | planned | 0 pass · 0 fail · 0 not run · 9 no test | — |
+| TUI | — | — | — |
+| REST API | not run 0/9 | 0 pass · 0 fail · 6 not run · 3 no test | 2 unit test file(s), e.g. [test_wellbeing_pipeline.py](../../backend/tests/test_wellbeing_pipeline.py), [test_wellbeing_level.py](../../backend/tests/test_wellbeing_level.py) |
+| npm SDK | — | 0 pass · 0 fail · 0 not run · 9 no test | — |
+| PyPI SDK | — | 0 pass · 0 fail · 0 not run · 9 no test | — |
 
 </details>
 

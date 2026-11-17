@@ -127,6 +127,8 @@ pub const CORE_AND_SHELL_EVENT_TYPES: &[&str] = &[
     "chat_deleted",
     "ai_typing_started",
     "post_processing_completed",
+    "assistant_answer_withdrawn",
+    "assistant_message_replaced",
 ];
 
 /// Classify `event_type` (the `type` field of a socket frame, or the `event`

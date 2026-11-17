@@ -38,6 +38,20 @@
         "components/embed-updated-event-notice.spec.ts"
       ]
     },
+    "helpline_card_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare preview of the wellbeing helpline card (two-line, three-line and emergency-only fixtures at phone and tablet widths). Pure presentation fixtures with synthetic example.org helplines; no backend, account credentials, provider or AI inference.",
+      "specs": [
+        "components/helpline-card.spec.ts"
+      ]
+    },
+    "safety_appeal_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare previews of the account-suspended screen and the safety appeal form (character limit, consent to share requests). Pure presentation fixtures; no backend, account credentials, provider or AI inference.",
+      "specs": [
+        "components/safety-appeal.spec.ts"
+      ]
+    },
     "ai_generated_badge_component": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare previews of the AI generated badge over a finished generated image in the preview card and the fullscreen view (collapsed, expanded, no overlap with the card buttons). Pure presentation fixtures; no backend, account credentials, provider or AI inference.",

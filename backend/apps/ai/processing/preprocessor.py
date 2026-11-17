@@ -54,6 +54,9 @@ from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
     focus_offered_skill_scope,
 )
+from backend.apps.ai.processing.request_purpose_policy import (
+    REQUEST_PURPOSE_REJECTION, decline_message, evaluate_request_purpose, record_request_strike,
+)
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev, _complete_public_decisions
 from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, has_active_app_focus, select_explicit_plan_focus
 from backend.apps.ai.utils.authored_result_instructions import admitted_authoring_definitions
@@ -1492,6 +1495,7 @@ class PreprocessingResult(BaseModel):
     pending_project_catalog_id: Optional[str] = Field(None, exclude=True, description="Selected Project needs minimal owner-client Focus metadata before consent.")
     pending_project_specialist: Optional[Dict[str, str]] = Field(None, exclude=True, repr=False, description="Validated specialist selection metadata; its body remains hidden until consent.")
     pending_project_create: Optional[Dict[str, Any]] = Field(None, exclude=True, repr=False, description="Routing-only create_project outcome (ProjectCreateProposal); a client must create the encrypted Project before main inference.")
+    wellbeing_scores: Optional[Dict[str, float]] = Field(None, exclude=True, repr=False, description="Transient current-turn wellbeing likelihoods; never stored, logged or persisted.")
     routing_only: bool = Field(False, exclude=True, description="Consent-only routing must run complete preprocessing before later inference, including after rejection.")
 
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
@@ -3698,6 +3702,8 @@ async def handle_preprocessing(
     # Live inference snapshots must not enter durable summaries, recorder dumps,
     # logs or raw preprocessing receipts.
     preselected_rule_snapshots = llm_analysis_args.pop("relevant_rules", None)
+    wellbeing_scores_val = llm_analysis_args.pop("wellbeing_scores", None)
+    request_purpose_val = llm_analysis_args.pop("request_purpose", None)
     # Selected personal Memories (Auto include and Ask first alike) carry no body:
     # they become requests for the existing conversation flow (key "memory:<id>"),
     # answered by the client per its LOCAL load mode. Ids must be in the catalog.
@@ -3776,6 +3782,30 @@ async def handle_preprocessing(
 
     # Preliminary scores are candidate signals only. A user-visible block requires
     # separate deterministic confirmation with a supported category and exact evidence.
+    purpose_outcome = evaluate_request_purpose(request_purpose_val)
+    if purpose_outcome.action != "allow":
+        purpose_language = llm_analysis_args.get("output_language", user_system_language)
+        if not isinstance(purpose_language, str):
+            purpose_language = user_system_language
+        if purpose_outcome.strike:
+            purpose_message = await record_request_strike(
+                purpose_outcome, user_id=request_data.user_id,
+                assistant_response_id=request_data.message_id, language=purpose_language,
+                cache_service=cache_service, directus_service=directus_service,
+            )
+        else:
+            purpose_message = decline_message(purpose_outcome, purpose_language)
+        logger.warning(
+            f"{log_prefix} Request purpose declined: category={purpose_outcome.category}, "
+            f"strike={purpose_outcome.strike}"
+        )
+        return PreprocessingResult(
+            can_proceed=False,
+            rejection_reason=REQUEST_PURPOSE_REJECTION,
+            error_message=purpose_message,
+            raw_llm_response=llm_analysis_args,
+            output_language=purpose_language,
+        )
     safety_candidate = needs_safety_confirmation(
         harmful_or_illegal_val,
         misuse_risk_val,
@@ -4750,6 +4780,7 @@ async def handle_preprocessing(
         category=validated_category or "general_knowledge",  # Use validated category, fallback to general_knowledge if None
         enable_subchats=enable_subchats_val,  # Set whether sub-chats are enabled for this request
         ai_model_topics=ai_model_topics,
+        wellbeing_scores=wellbeing_scores_val if isinstance(wellbeing_scores_val, dict) else None,
         selected_app_ids=final_selected_app_ids,
         context_fast_path=simple_context_fast_path,
         plain_prose_response=_plain_prose_routing_proof(

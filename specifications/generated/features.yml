@@ -4,16 +4,16 @@ schema_version: 2
 source: specifications/features.yml
 results_as_of: '2026-11-16'
 summary:
-  features: 125
-  enabled_on_prod: 109
-  enabled_on_dev: 114
+  features: 127
+  enabled_on_prod: 111
+  enabled_on_dev: 116
   status_by_surface:
     web:
       live: 4
       partial: 20
       failing: 54
-      not_run: 10
-      implemented: 18
+      not_run: 11
+      implemented: 19
       not_planned: 19
     apple:
       tested: 15
@@ -21,7 +21,7 @@ summary:
       failing: 5
       implemented: 40
       in_progress: 6
-      planned: 5
+      planned: 7
       not_planned: 20
     watchos:
       tested: 7
@@ -34,6 +34,7 @@ summary:
       not_run: 27
       implemented: 41
       in_progress: 2
+      planned: 2
       not_planned: 30
     tui:
       live: 2
@@ -41,13 +42,13 @@ summary:
       not_run: 1
       implemented: 57
       in_progress: 10
-      not_planned: 42
+      not_planned: 44
     rest_api:
       live: 5
       tested: 2
       partial: 33
       failing: 16
-      not_run: 24
+      not_run: 26
       implemented: 16
       planned: 2
       not_planned: 27
@@ -55,13 +56,13 @@ summary:
       partial: 3
       not_run: 20
       implemented: 50
-      not_planned: 52
+      not_planned: 54
     sdk_pypi:
       partial: 3
       not_run: 18
       implemented: 42
       in_progress: 9
-      not_planned: 53
+      not_planned: 55
 unmapped:
   specifications: []
   apps: []
@@ -384,6 +385,129 @@ features:
         counted: 24
       key_tests: []
       evidence: sdk.ts model option + default_ai_model_*; sdk.py ask(model=), AiModelDefaults
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+- id: answer-safety-check
+  name: Answer Safety Check
+  kind: core
+  description: Every finished assistant answer is checked together with its request; a withdrawn answer is replaced by a sealed
+    notice on the owner's devices.
+  specifications:
+  - id: feature.answer-safety-check
+    status: draft
+    path: specifications/features/answer-safety-check
+  apps: []
+  product_features: []
+  release: unverified
+  flags:
+    ids: []
+    dev: no_flag
+    prod: no_flag
+  assertions: 5
+  surfaces:
+    web:
+      status: implemented
+      source: intent
+      intent: implemented
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 5
+        counted: 5
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    apple:
+      status: planned
+      source: intent
+      intent: planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 5
+        counted: 5
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+      platforms:
+      - ios
+      - ipados
+      - macos
+    cli:
+      status: planned
+      source: intent
+      intent: planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 5
+        counted: 5
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    tui:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    rest_api:
+      status: not_run
+      source: tests
+      intent: implemented
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 5
+        missing: 0
+        counted: 5
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests:
+      - backend/tests/test_answer_safety.py
+      unit_test_files: 1
+    sdk_npm:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 5
+        counted: 5
+      conflict: marked not_planned, but 5 required assertion(s) apply to sdk_npm
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    sdk_pypi:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 5
+        counted: 5
+      conflict: marked not_planned, but 5 required assertion(s) apply to sdk_pypi
+      key_tests: []
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
@@ -8371,7 +8495,8 @@ features:
 - id: safety-strikes
   name: Safety Strikes, Suspension, Appeal and Policy Account Deletion
   kind: core
-  description: Strikes, warnings, suspension and appeal when safety checks reject image or video requests.
+  description: Strikes, warnings, suspension and appeal when safety checks reject image or video uploads, generation requests
+    or requests with a harmful purpose.
   specifications:
   - id: feature.safety-strikes
     status: draft
@@ -8383,7 +8508,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 20
+  assertions: 22
   surfaces:
     web:
       status: partial
@@ -8392,12 +8517,14 @@ features:
       assertions:
         passing: 1
         failing: 0
-        not_run: 1
+        not_run: 3
         missing: 18
-        counted: 20
+        counted: 22
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/components/safety-appeal.spec.ts
       - frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts
+      - frontend/apps/web_app/tests/safety-suspension-real.spec.ts
       key_unit_tests:
       - backend/tests/test_generated_media_graph.py
       unit_test_files: 1
@@ -8409,8 +8536,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 20
-        counted: 20
+        missing: 22
+        counted: 22
       key_tests: []
       e2e_tests: []
       key_unit_tests: []
@@ -8427,9 +8554,9 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 20
-        counted: 20
-      conflict: marked not_planned, but 20 required assertion(s) apply to cli
+        missing: 22
+        counted: 22
+      conflict: marked not_planned, but 22 required assertion(s) apply to cli
       key_tests: []
       e2e_tests: []
       key_unit_tests: []
@@ -8455,9 +8582,9 @@ features:
       assertions:
         passing: 14
         failing: 0
-        not_run: 2
+        not_run: 4
         missing: 4
-        counted: 20
+        counted: 22
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -8466,7 +8593,7 @@ features:
       - backend/tests/test_image_safety_explanations.py
       - backend/tests/test_image_safety_jev_signals.py
       - backend/tests/test_safety_appeals.py
-      unit_test_files: 9
+      unit_test_files: 11
     sdk_npm:
       status: not_planned
       source: intent
@@ -10178,6 +10305,132 @@ features:
       key_unit_tests: []
       unit_test_files: 0
   notes: Advertised in product_features.yml; no Specification or test found. All surfaces unverified.
+- id: wellbeing-support
+  name: Wellbeing Support In Chats
+  kind: core
+  description: Risk signals scored in the existing preprocessing call, a rolling level kept client-encrypted, gentle check-ins
+    and a helpline card instead of refusals.
+  specifications:
+  - id: feature.wellbeing-support
+    status: draft
+    path: specifications/features/wellbeing-support
+  apps: []
+  product_features: []
+  release: unverified
+  flags:
+    ids: []
+    dev: no_flag
+    prod: no_flag
+  assertions: 9
+  surfaces:
+    web:
+      status: not_run
+      source: tests
+      intent: implemented
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 2
+        missing: 7
+        counted: 9
+      key_tests: []
+      e2e_tests:
+      - frontend/apps/web_app/tests/components/helpline-card.spec.ts
+      - frontend/apps/web_app/tests/wellbeing-helpline-real.spec.ts
+      key_unit_tests: []
+      unit_test_files: 0
+    apple:
+      status: planned
+      source: intent
+      intent: planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 9
+        counted: 9
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+      platforms:
+      - ios
+      - ipados
+      - macos
+    cli:
+      status: planned
+      source: intent
+      intent: planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 9
+        counted: 9
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    tui:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    rest_api:
+      status: not_run
+      source: tests
+      intent: implemented
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 6
+        missing: 3
+        counted: 9
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests:
+      - backend/tests/test_wellbeing_pipeline.py
+      - backend/tests/test_wellbeing_level.py
+      unit_test_files: 2
+    sdk_npm:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 9
+        counted: 9
+      conflict: marked not_planned, but 9 required assertion(s) apply to sdk_npm
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    sdk_pypi:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 9
+        counted: 9
+      conflict: marked not_planned, but 9 required assertion(s) apply to sdk_pypi
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
 - id: wikipedia-mentions
   name: Wikipedia Mentions
   kind: core

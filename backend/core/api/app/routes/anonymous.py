@@ -935,6 +935,29 @@ async def anonymous_chat_stream(
                 yield _anonymous_sse_event(post_event)
             except Exception:
                 logger.exception("Anonymous metadata generation failed")
+            # Every finished answer is checked, anonymous ones included. The
+            # anonymous transcript lives only in the client, so the event is the withdrawal.
+            from backend.apps.ai.processing import answer_safety
+            from backend.core.api.app.utils.secrets_manager import SecretsManager
+            try:
+                safety_withdrawal, safety_extra_calls = await answer_safety.decide_finished_answer(
+                    postprocessing_scores=None,
+                    decision_model_id=answer_safety.load_decision_model_id(),
+                    user_message=payload.plaintext_message[:4000],
+                    assistant_response=answer_for_postprocessing[:8000],
+                    secrets_manager=SecretsManager(cache_service),
+                    task_id=task_id,
+                )
+            except (RuntimeError, ValueError) as exc:
+                logger.error("Anonymous answer-safety check unavailable (%s)", type(exc).__name__)
+                safety_withdrawal, safety_extra_calls = None, 1
+            answer_safety.log_extra_decision_calls(task_id, safety_extra_calls, withdrawn=bool(safety_withdrawal))
+            if safety_withdrawal:
+                yield _anonymous_sse_event(answer_safety.build_withdrawn_event(
+                    user_id=payload.anonymous_id, user_id_hash="", chat_id=payload.client_chat_id,
+                    task_id=task_id, message_id=assistant_message_id, reason=safety_withdrawal.reason,
+                    notice_text=answer_safety.withdrawal_notice(safety_withdrawal.reason, payload.system_language),
+                ))
         except Exception:
             if upstream_failure_reason == "anonymous_usage_limit":
                 logger.info("Anonymous streaming inference stopped at its usage limit")

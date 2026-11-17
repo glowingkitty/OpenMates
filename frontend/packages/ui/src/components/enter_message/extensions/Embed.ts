@@ -1144,6 +1144,7 @@ export const Embed = Node.create<EmbedOptions>({
       const skipClickHandler =
         currentAttrs.type === "image" ||
         currentAttrs.type === "focus-mode-activation" ||
+        currentAttrs.type === "helplines" ||
         svelteComponentEmbedTypes.includes(currentAttrs.type);
       if (!skipClickHandler) {
         container.addEventListener("click", () => {

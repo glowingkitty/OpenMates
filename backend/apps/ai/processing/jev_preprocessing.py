@@ -7,6 +7,12 @@ import logging
 import re
 from typing import Any, Awaitable, Callable, Iterable, Mapping, Optional
 
+from backend.apps.ai.processing.request_purpose_policy import (
+    extract_purpose_decisions, request_purpose_questions, valid_purpose_decisions,
+)
+from backend.apps.ai.processing.wellbeing_questions import (
+    WELLBEING_SIGNALS, wellbeing_question_ids, wellbeing_questions,
+)
 from backend.apps.ai.processing.jev_decisions import (
     choice_value,
     evaluate_jev_decisions,
@@ -497,6 +503,8 @@ def _public_decision_questions(
                     "criteria": {key: value for key, value in PREVIEW_TYPES.items()
                                  if authoring_definitions is None or "." not in key or key in authoring_definitions}},
     }
+    questions.update(wellbeing_questions())
+    questions.update(request_purpose_questions())
     if is_first_message:
         questions["icon"] = {"type": "choice", "instructions": "Choose one common Lucide icon representing the conversation topic.",
                              "criteria": ICONS}
@@ -516,9 +524,15 @@ def _validated_public_decisions(response: DecisionResponse, is_first_message: bo
             "enable_subchats", "model_llm", "model_image", "model_video", "model_audio", "harmful", "misuse")}
         if any(not 0 <= value <= 1 for value in nouls.values()):
             return None
+        wellbeing = {signal: noul_value(response, question) for signal, question in wellbeing_question_ids().items()}
+        if any(not 0 <= value <= 1 for value in wellbeing.values()):
+            return None
+        request_purpose = extract_purpose_decisions(response, choice_value, noul_value)
     except (ValueError, KeyError, TypeError):
         return None
     return {
+        "wellbeing_scores": {signal: round(value, 2) for signal, value in wellbeing.items()},
+        "request_purpose": request_purpose,
         "temperature": choices["temperature"],
         "enable_subchats": nouls["enable_subchats"] >= 0.65,
         "ai_model_topics": [family for family in ("llm", "image", "video", "audio")
@@ -548,6 +562,10 @@ def _complete_public_decisions(value: Any, is_first_message: bool) -> bool:
             and 0 <= value["misuse_risk"] <= 10
             and isinstance(value.get("output_language"), str) and value["output_language"] in LANGUAGES
             and isinstance(value.get("preview"), str) and value["preview"] in PREVIEW_TYPES
+            and valid_purpose_decisions(value.get("request_purpose"))
+            and isinstance(value.get("wellbeing_scores"), dict)
+            and set(value["wellbeing_scores"]) == set(WELLBEING_SIGNALS)
+            and all(type(score) in {int, float} and 0 <= score <= 1 for score in value["wellbeing_scores"].values())
             and isinstance(value.get("icon_names"), list)
             and (len(value["icon_names"]) == 1 and isinstance(value["icon_names"][0], str)
                  and value["icon_names"][0] in ICONS
@@ -1038,6 +1056,11 @@ async def decide_preprocessing_with_jev(
         "topic_shift": early_decisions.get("topic_shift") if early_decisions else (None if skip_mate_routing else (
             "noticeable_shift" if is_first_message else choice_value(response, "topic_shift")
         )),
+        "request_purpose": public_decisions["request_purpose"] if public_decisions else extract_purpose_decisions(
+            response, choice_value, noul_value),
+        "wellbeing_scores": public_decisions["wellbeing_scores"] if public_decisions else {
+            signal: round(noul_value(response, question), 2)
+            for signal, question in wellbeing_question_ids().items()},
         "harmful_or_illegal": public_decisions["harmful_or_illegal"] if public_decisions else round(noul_value(response, "harmful") * 10.0, 2),
         "misuse_risk": public_decisions["misuse_risk"] if public_decisions else round(noul_value(response, "misuse") * 10.0),
         "output_language": public_decisions["output_language"] if public_decisions else choice_value(response, "language"),

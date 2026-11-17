@@ -27,7 +27,7 @@ function optional(v:Row,keys:string[],check:(value:unknown)=>boolean):boolean{re
 function metadata(v:unknown,owner:string,chat:string):boolean {
   if(!row(v)||v.id!==chat||v.chat_id!==chat||!optional(v,['user_id'],x=>x===owner)
     ||!optional(v,['team_id','hashed_team_id'],x=>x==='')||!optional(v,['chat_visibility'],x=>x===''||x==='personal'))return false;
-  return optional(v,['encrypted_chat_key','encrypted_title','encrypted_chat_summary','encrypted_category','encrypted_icon','encrypted_follow_up_request_suggestions','encrypted_share_cta_text','encrypted_chat_tags','encrypted_suggested_followup_message','encrypted_active_focus_id','encrypted_focus_phase_state','encrypted_auto_speak_response'],x=>typeof x==='string')
+  return optional(v,['encrypted_chat_key','encrypted_title','encrypted_chat_summary','encrypted_category','encrypted_icon','encrypted_follow_up_request_suggestions','encrypted_share_cta_text','encrypted_chat_tags','encrypted_suggested_followup_message','encrypted_active_focus_id','encrypted_focus_phase_state','encrypted_wellbeing_scores','encrypted_auto_speak_response'],x=>typeof x==='string')
     &&optional(v,['title_v','metadata_v','messages_v','created_at','updated_at','last_edited_overall_timestamp','key_version'],integer);
 }
 function checkpoints(v:unknown,chat:string):boolean {

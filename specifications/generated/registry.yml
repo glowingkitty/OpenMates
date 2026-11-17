@@ -167,6 +167,18 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.answer-safety-check:
+    version: 1
+    status: draft
+    path: features/answer-safety-check
+    fingerprint: f4688750f56a90123cfa07cd53245d58df11d68395c2f459c42f5fe9230b9e3f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-memories:
     version: 6
     status: draft
@@ -971,7 +983,7 @@ specifications:
     version: 1
     status: draft
     path: features/safety-strikes
-    fingerprint: 44d4b6383030f827e9a2db4f43931bb6ac8a59bb0d020d0c96ea8f8278f29d6c
+    fingerprint: f7d19050c2312b31bc4bffa02ccde5b6ad8d556d0fa43cd5d7f1cc806a5ecf12
     required_applies_to:
     - rest_api
     - cli
@@ -1078,6 +1090,18 @@ specifications:
     fingerprint: b0265474eccc794e8733e648ced136263e3bdc79ae2d7191375e0b206810f0f7
     required_applies_to:
     - cli
+  feature.wellbeing-support:
+    version: 1
+    status: draft
+    path: features/wellbeing-support
+    fingerprint: 5775d4f23cc35952698f65b2bf73078f25e311e8c0abdc2bbe0525b69a138db4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.wikipedia-mentions:
     version: 1
     status: draft
@@ -3327,6 +3351,66 @@ assertions:
     specification_id: feature.ai-model-routing
     type: parity
     fingerprint: 39c32a1e1e31bce3633b72e954b44c34fa160d15cdb122d43742c3cf0bb1eb43
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-safety-check.every-answer-checked:
+    specification: feature.answer-safety-check@1
+    specification_id: feature.answer-safety-check
+    type: behavior
+    fingerprint: 0203ada666365634a7af34cf8fa16cc915624dfbb5499de13348a519f1ece7bf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-safety-check.withdraw-only-illegal-or-wellbeing:
+    specification: feature.answer-safety-check@1
+    specification_id: feature.answer-safety-check
+    type: behavior
+    fingerprint: 8a05ac264e6d6a423975e87741a44b2f05e75bdb12c64f8ce9399785b80e5e5d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-safety-check.no-strike:
+    specification: feature.answer-safety-check@1
+    specification_id: feature.answer-safety-check
+    type: invariant
+    fingerprint: b3f531a723082bfd8a41fc63f06f25b80c05e1ce2fb4a6d2477f4f98a5af0f35
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-safety-check.replace-only-withdrawn:
+    specification: feature.answer-safety-check@1
+    specification_id: feature.answer-safety-check
+    type: invariant
+    fingerprint: aab5d0e08fcbcf455386943d4c6708e432d59adb75b42f3d46e3e07ebd461943
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-safety-check.live-checks-risky-only:
+    specification: feature.answer-safety-check@1
+    specification_id: feature.answer-safety-check
+    type: behavior
+    fingerprint: 61afd29f7ab6b72e5b9f0c365f4c9aa6659da9f4a45eb8496dc8f689d619c8c9
     required_applies_to:
     - rest_api
     - cli
@@ -13440,6 +13524,26 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  safety-strikes.harmful-purpose-strikes:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 3a195f99f40fdad1e8aa1b07b345c02ccf4801942f391ecc0c181f427fd7368f
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.live-site-line:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 3c041a8d20a2f7c03d9543988f8ba1e28c1a02b67baf490916b61022e255afbc
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
   settings-ui.shell.lifecycle-and-routing:
     specification: feature.settings-ui@1
     specification_id: feature.settings-ui
@@ -15002,6 +15106,114 @@ assertions:
     fingerprint: 741804fbfc431ee95b8291125ba35e590f019e611d83b406471f92f65daa0aa6
     required_applies_to:
     - cli
+  wellbeing-support.no-extra-call:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: invariant
+    fingerprint: 6b98ae502eb72fc0cf7c2ecf6fd951480d12631e5518ffc0bc6c92921f5bb4fe
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.rolling-level:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: behavior
+    fingerprint: f00896ff608142cfe59972e1c4c465c7243947c213fb3c3c0f5aad1ca51cd71d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.gentle-check-in:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: behavior
+    fingerprint: 752cb6423f4d7566eb1b98f1dde4b56f6b4ca9a7d9b0c2ee463a0d2971818def
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.helpline-card:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: behavior
+    fingerprint: 558f56453bd8bad738be75f45dd8c0bd8f69971282df99a406f3d4d8a076cf79
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.reality-grounding:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: behavior
+    fingerprint: 03457a35772a0610d2d976811499db36f00c61fbd43ac59529bfc1665112627f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.hard-negatives:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: invariant
+    fingerprint: ad888e5b393d8b10fad0a90d9f22091eceb35d9ef88b4d3cba1fa145aa3c4ad7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.never-block-or-strike:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: invariant
+    fingerprint: 17a7668ff1f8f0b4973114699748661169edc5e90bd91b18210740271dce12ef
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.client-only-storage:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: invariant
+    fingerprint: 7d86d852ce092baf28512f6790d33396dda1b2f15b2cb446bba16d9676aad604
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.focus-modes-yield:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: invariant
+    fingerprint: acaf8882c547dd1ec9676e6df593e82872f6808d3e45ca825fda6158169a57a1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   wikipedia-mentions.syntax.explicit-trigger:
     specification: feature.wikipedia-mentions@1
     specification_id: feature.wikipedia-mentions

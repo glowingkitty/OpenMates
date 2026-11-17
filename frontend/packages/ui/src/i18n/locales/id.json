@@ -14786,6 +14786,12 @@
     "consent_label": {
       "text": "Saya setuju hanya membagikan permintaan yang ditandai kepada peninjau keamanan"
     },
+    "add_photo": {
+      "text": "Tambahkan foto"
+    },
+    "photo_added": {
+      "text": "Foto terlampir. Pilih yang lain"
+    },
     "submit": {
       "text": "Kirim banding"
     },
@@ -19572,7 +19578,7 @@
       "text": "Tidak ada ketelanjangan, kekerasan, atau konten mengerikan\ndi foto profil."
     },
     "last_warning_image_not_allowed": {
-      "text": "Peringatan terakhir:\nTidak ada ketelanjangan, kekerasan, atau konten mengerikan di foto profil.\nSatu pelanggaran lagi dan akun Anda akan dihapus."
+      "text": "Peringatan terakhir:\nTidak boleh ada konten seksual eksplisit atau kekerasan ekstrem di foto profil.\nSatu pelanggaran lagi dan akun Anda akan ditangguhkan."
     },
     "your_account_got_deleted": {
       "text": "Akun Anda telah dihapus."

@@ -110,6 +110,7 @@ PHASE1_VERSIONED_METADATA_FIELDS = (
     "encrypted_shared_short_url",
     "encrypted_active_focus_id",
     "encrypted_focus_phase_state",
+    "encrypted_wellbeing_scores",
     "encrypted_auto_speak_response",
 )
 
@@ -961,6 +962,7 @@ async def _build_chat_details_from_cache(
         "encrypted_shared_short_url": cached_list_item.encrypted_shared_short_url,
         "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
         "encrypted_focus_phase_state": cached_list_item.encrypted_focus_phase_state,
+        "encrypted_wellbeing_scores": cached_list_item.encrypted_wellbeing_scores,
         "encrypted_auto_speak_response": cached_list_item.encrypted_auto_speak_response,
         "last_message_timestamp": cached_list_item.last_message_timestamp,
         "last_edited_overall_timestamp": cached_list_item.last_message_timestamp,
@@ -1010,6 +1012,7 @@ def _build_chat_details_from_directus_metadata(
         "encrypted_shared_short_url": chat_metadata.get("encrypted_shared_short_url"),
         "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
         "encrypted_focus_phase_state": chat_metadata.get("encrypted_focus_phase_state"),
+        "encrypted_wellbeing_scores": chat_metadata.get("encrypted_wellbeing_scores"),
         "encrypted_auto_speak_response": chat_metadata.get("encrypted_auto_speak_response"),
         "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
         "last_edited_overall_timestamp": chat_metadata.get("last_edited_overall_timestamp"),

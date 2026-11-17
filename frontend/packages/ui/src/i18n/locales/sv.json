@@ -14786,6 +14786,12 @@
     "consent_label": {
       "text": "Jag samtycker till att endast de flaggade förfrågningarna delas med säkerhetsgranskaren"
     },
+    "add_photo": {
+      "text": "Lägg till ett foto"
+    },
+    "photo_added": {
+      "text": "Foto bifogat. Välj ett annat"
+    },
     "submit": {
       "text": "Skicka överklagan"
     },
@@ -19572,7 +19578,7 @@
       "text": "Ingen nakenhet, våld eller blodbad\ni profilbilder."
     },
     "last_warning_image_not_allowed": {
-      "text": "Sista varningen:\nIngen nakenhet, våld eller blodbad i profilbilder.\nYtterligare en överträdelse och ditt konto raderas."
+      "text": "Sista varningen:\nInget explicit sexuellt innehåll eller extremt våld i profilbilder.\nYtterligare en överträdelse och ditt konto stängs av tillfälligt."
     },
     "your_account_got_deleted": {
       "text": "Ditt konto har raderats."

@@ -95,6 +95,10 @@ pub mod saved_embed;
 pub mod shared_items;
 mod saved_embed_selector;
 mod focus;
+mod answer_withdrawal;
+mod wellbeing;
+#[cfg(test)]
+mod wellbeing_tests;
 mod incognito;
 // Private owned-driver foundation; entrypoints are wired by the distinct driver successor.
 #[allow(dead_code)]

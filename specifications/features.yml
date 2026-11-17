@@ -77,6 +77,13 @@ features:
     evidence:
       sdk_npm: "sdk.ts model option + default_ai_model_*; sdk.py ask(model=), AiModelDefaults"
       sdk_pypi: "sdk.ts model option + default_ai_model_*; sdk.py ask(model=), AiModelDefaults"
+  - id: answer-safety-check
+    name: "Answer Safety Check"
+    kind: core
+    description: "Every finished assistant answer is checked together with its request; a withdrawn answer is replaced by a sealed notice on the owner's devices."
+    specifications: [feature.answer-safety-check]
+    release: unverified
+    surfaces: {web: implemented, apple: planned, cli: planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: app-memories
     name: "Memories"
     kind: core
@@ -514,7 +521,7 @@ features:
   - id: safety-strikes
     name: "Safety Strikes, Suspension, Appeal and Policy Account Deletion"
     kind: core
-    description: "Strikes, warnings, suspension and appeal when safety checks reject image or video requests."
+    description: "Strikes, warnings, suspension and appeal when safety checks reject image or video uploads, generation requests or requests with a harmful purpose."
     specifications: [feature.safety-strikes]
     release: unverified
     surfaces: {web: implemented, apple: planned, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
@@ -604,6 +611,13 @@ features:
       tui: "frontend/packages/openmates-tui-native/src/ui.rs settings route developers/webhooks"
       rest_api: "backend/core/api/app/routers/webhooks.py /v1/webhooks (CRUD + incoming handler)"
     notes: "Advertised in product_features.yml; no Specification or test found. All surfaces unverified."
+  - id: wellbeing-support
+    name: "Wellbeing Support In Chats"
+    kind: core
+    description: "Risk signals scored in the existing preprocessing call, a rolling level kept client-encrypted, gentle check-ins and a helpline card instead of refusals."
+    specifications: [feature.wellbeing-support]
+    release: unverified
+    surfaces: {web: implemented, apple: planned, cli: planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: wikipedia-mentions
     name: "Wikipedia Mentions"
     kind: core

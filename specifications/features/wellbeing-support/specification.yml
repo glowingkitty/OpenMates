@@ -1,0 +1,125 @@
+schema_version: 1
+id: feature.wellbeing-support
+version: 1
+status: draft
+title: Wellbeing Support In Chats
+summary: >
+  When a conversation shows signs that the user may be at risk (thoughts of suicide,
+  self-harm, loss of touch with reality, mania, an eating disorder, a crisis after a loss or
+  danger from someone else), OpenMates responds with care instead of refusing. A rising level
+  adds a gentle check-in to the answer; a high or acute level shows local helplines as a card
+  and puts support before the task. The signals are scored inside the existing request
+  decision, kept only in the user's client-encrypted chat data and never stored by the server,
+  lectured about, blocked or counted as a strike.
+
+scope:
+  includes:
+    - Risk signals scored per user message as part of the existing request decision, with no additional model call.
+    - A rolling level per chat computed from the recent signals the client sends back with each message.
+    - The gentle check-in instruction, the support-first instruction and the helpline card.
+    - Hard negatives that must not trigger support (fiction, roleplay, lyrics, dark humour, venting, research, gaming, idioms, worry about someone else).
+    - Storage limits for the signals and the anonymous daily count.
+    - Focus modes yielding to this layer.
+  excludes:
+    - Reporting to authorities or emergency services (pending the legal research).
+    - Withdrawal of a finished answer (feature.safety-strikes answer check; owner decision 5).
+    - A crisis-support focus mode's own content.
+
+models:
+  WellbeingSignals:
+    signals:
+      type: map
+      required: true
+      description: >
+        suicidal, method_or_means, plan_or_timeline, self_harm, self_injury_now, hopelessness_isolation,
+        eating_disorder, reality_loss, mania, danger_from_others; each 0..1 and about the user's
+        own current state.
+  WellbeingHistory:
+    entries:
+      type: list
+      required: true
+      constraints: {max_items: 8}
+      description: Recent per-turn signals, newest last, stored only as client-encrypted chat data and sent back with the next message.
+  WellbeingLevel:
+    level:
+      type: enum
+      required: true
+      values: [0, 1, 2, 3]
+      description: 0 none, 1 elevated, 2 high, 3 acute. Computed per request and never stored by the server.
+  HelplineCard:
+    country:
+      type: string
+      required: true
+    lines:
+      type: list
+      required: true
+      description: Verified local helplines (name, phone, SMS, chat link, hours, topics) from the helpline-directory provider; empty when it is not configured or unavailable.
+    emergency_number:
+      type: string
+      required: true
+    directory_url:
+      type: string
+      required: true
+
+assertions:
+  - id: wellbeing-support.no-extra-call
+    type: invariant
+    must: The signals are scored inside the request decision that already runs for every user message; no additional model call is made for them on any message.
+    depends_on: [models.WellbeingSignals, examples.cost]
+  - id: wellbeing-support.rolling-level
+    type: behavior
+    must: The level follows the conversation, not a single message; one dark joke does not raise it, a gradual drift does, an acute statement (a plan or timeline with suicidal or self-harm intent, or danger from someone else right now) raises it to acute at once, and calm turns let it fall back to none.
+    depends_on: [models.WellbeingLevel, examples.levels]
+  - id: wellbeing-support.gentle-check-in
+    type: behavior
+    must: At the elevated level the answer still helps with the request and adds one short, warm check-in in the user's language; it never lectures, diagnoses, refuses or mentions scores.
+    depends_on: [examples.levels]
+  - id: wellbeing-support.helpline-card
+    type: behavior
+    must: At the high or acute level a calm card with local helplines for the user's country is shown with the answer, and the answer puts support before the task; at the acute level it encourages contacting someone now. Without a configured helpline-directory provider, the card shows the local emergency number and a link to a public helpline directory.
+    depends_on: [models.HelplineCard, examples.card]
+  - id: wellbeing-support.reality-grounding
+    type: behavior
+    must: When the signals point to loss of touch with reality or mania, the answer stays kind and grounding; it does not affirm the belief (for example that the assistant is conscious, in love or sending hidden messages) and does not argue with the user.
+    depends_on: [examples.levels]
+  - id: wellbeing-support.hard-negatives
+    type: invariant
+    must: Fiction, roleplay, lyrics and poetry, dark humour, idioms and sarcasm, venting about a bad day, medical or research questions, gaming talk and worry about another person do not raise the level unless the user also shows their own risk.
+    depends_on: [examples.negatives]
+  - id: wellbeing-support.never-block-or-strike
+    type: invariant
+    must: Wellbeing signals never block, refuse or delay an answer and never record a strike.
+    depends_on: [examples.levels]
+  - id: wellbeing-support.client-only-storage
+    type: invariant
+    must: The signals and their history are stored only in the user's client-encrypted chat data; the server uses them only while answering, never stores, logs or shows them to admins, and never writes them or the level into memories; the server keeps only an anonymous daily count of check-ins and cards shown.
+    depends_on: [models.WellbeingHistory, examples.storage]
+  - id: wellbeing-support.focus-modes-yield
+    type: invariant
+    must: Every focus mode follows this layer; a focus mode adds no competing crisis flow or helpline list of its own.
+    depends_on: [examples.levels]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Existing first-party chat processing; no new public endpoint. The signal history travels only as client-encrypted chat metadata and as a transient field of the message request.
+  cli:
+    required: true
+    parity: semantic
+    role: CLI chats get the same instructions and show the helpline card as text.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [levels, negatives, card, storage, cost]

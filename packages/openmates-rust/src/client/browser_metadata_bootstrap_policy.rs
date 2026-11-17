@@ -8,7 +8,7 @@ pub(super) fn configured_endpoint(api:&str,path:&str)->Result<url::Url> {
     if !matches!(path,"/v1/auth/session"|"/v1/chats/metadata/batch"){return Err(Error::Forbidden)}
     url::Url::parse(&format!("{api}{path}")).map_err(|_|Error::Protocol)
 }
-const CIPHERS:&[&str]=&["encrypted_title","encrypted_category","encrypted_icon","encrypted_chat_summary","encrypted_share_cta_text","encrypted_chat_tags","encrypted_follow_up_request_suggestions","encrypted_suggested_followup_message","encrypted_active_focus_id","encrypted_focus_phase_state","encrypted_auto_speak_response","encrypted_chat_key","anonymous_encrypted_chat_key"];
+const CIPHERS:&[&str]=&["encrypted_title","encrypted_category","encrypted_icon","encrypted_chat_summary","encrypted_share_cta_text","encrypted_chat_tags","encrypted_follow_up_request_suggestions","encrypted_suggested_followup_message","encrypted_active_focus_id","encrypted_focus_phase_state","encrypted_wellbeing_scores","encrypted_auto_speak_response","encrypted_chat_key","anonymous_encrypted_chat_key"];
 const CLOCKS:&[&str]=&["messages_v","title_v","metadata_v","created_at","updated_at","last_edited_overall_timestamp","unread_count","ideabucket_triggered_at"];
 fn validate_source(source:&Value)->Result<()> {
     if !source.is_object(){return Err(Error::Protocol)}

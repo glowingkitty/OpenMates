@@ -86,6 +86,7 @@ def _chat_list_cache_data_from_metadata(
         encrypted_shared_short_url=chat_metadata.get("encrypted_shared_short_url"),
         encrypted_active_focus_id=chat_metadata.get("encrypted_active_focus_id"),
         encrypted_focus_phase_state=chat_metadata.get("encrypted_focus_phase_state"),
+        encrypted_wellbeing_scores=chat_metadata.get("encrypted_wellbeing_scores"),
         encrypted_auto_speak_response=chat_metadata.get("encrypted_auto_speak_response"),
         last_message_timestamp=chat_metadata.get("last_message_timestamp"),
         parent_id=chat_metadata.get("parent_id"),
@@ -2400,6 +2401,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_follow_up_request_suggestions", "encrypted_suggested_followup_message", "encrypted_chat_key",
                 "encrypted_top_recommended_apps_for_chat",
                 "encrypted_recommendations", "encrypted_shared_short_url", "encrypted_auto_speak_response", "encrypted_focus_phase_state",
+                "encrypted_wellbeing_scores",
                 "updated_at"
             }
             
@@ -2557,6 +2559,7 @@ async def _async_persist_encrypted_chat_metadata(
                         encrypted_shared_short_url=encrypted_metadata.get("encrypted_shared_short_url"),
                         encrypted_active_focus_id=encrypted_metadata.get("encrypted_active_focus_id"),
                         encrypted_focus_phase_state=encrypted_metadata.get("encrypted_focus_phase_state"),
+                        encrypted_wellbeing_scores=encrypted_metadata.get("encrypted_wellbeing_scores"),
                         encrypted_auto_speak_response=encrypted_metadata.get("encrypted_auto_speak_response"),
                         last_message_timestamp=last_message,
                         parent_id=encrypted_metadata.get("parent_id"),

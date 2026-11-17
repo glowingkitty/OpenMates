@@ -14813,6 +14813,12 @@
     "consent_label": {
       "text": "Accetto di condividere con il revisore solo le richieste segnalate"
     },
+    "add_photo": {
+      "text": "Aggiungi una foto"
+    },
+    "photo_added": {
+      "text": "Foto allegata. Scegline un'altra"
+    },
     "submit": {
       "text": "Invia ricorso"
     },
@@ -19599,7 +19605,7 @@
       "text": "Vietate nudità, violenza o contenuti\ncruenti nelle immagini del profilo."
     },
     "last_warning_image_not_allowed": {
-      "text": "Ultimo avviso:\nVietate nudità, violenza o contenuti cruenti nelle immagini del profilo.\nUn'altra violazione e il tuo account verrà eliminato."
+      "text": "Ultimo avviso:\nVietati contenuti sessuali espliciti o estremamente cruenti nelle immagini del profilo.\nUn'altra violazione e il tuo account verrà sospeso."
     },
     "your_account_got_deleted": {
       "text": "Il tuo account è stato eliminato."

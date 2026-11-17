@@ -180,7 +180,7 @@ const NEW_CHAT_PASSTHROUGH: &[&str] = &[
     "encrypted_top_recommended_apps_for_chat",
     "encrypted_recommendations",
     "encrypted_active_focus_id",
-    "encrypted_focus_phase_state",
+    "encrypted_focus_phase_state","encrypted_wellbeing_scores",
     "encrypted_auto_speak_response",
     "is_shared",
     "is_private",
@@ -223,7 +223,7 @@ const KEY_BOUND: &[&str] = &[
     "encrypted_chat_tags",
     "encrypted_top_recommended_apps_for_chat",
     "encrypted_recommendations",
-    "encrypted_focus_phase_state",
+    "encrypted_focus_phase_state","encrypted_wellbeing_scores",
     "encrypted_active_focus_id",
     "encrypted_auto_speak_response",
 ];
