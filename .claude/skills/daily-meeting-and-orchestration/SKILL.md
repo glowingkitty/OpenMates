@@ -110,6 +110,15 @@ briefing line shows a bare ID, say what it is before using it.
    `logs/daily-meetings/meeting-changelog.md` (`- <date> <plain change> (trial until <date>)`). `revert`
    removes the change from the settings file and logs it; `none` does nothing. Every change is a
    one-week trial; never two at once.
+4d. **Marketing** (`Marketing pick:`, `Wins:`, `Marketing finished:`, `Marketing ideas:`, `Style feedback:`): the lines
+   are read back by the next briefing from the saved decisions note, nothing to apply except: `park` ideas →
+   Task labelled `idea` (create row, one sentence, status backlog); `Marketing finished:` items are what
+   unlocks business angels. **Style feedback** is applied at once, in the private marketing repository
+   (`/home/superdev/projects/openmates-marketing`, never this repo, never staged through `sessions.py`):
+   read `marketing-style.md` and `press/press-style.md` first, add ONE rule per feedback line (press text →
+   `press/press-style.md` "Words and tone"; otherwise `marketing-style.md` "Feedback rules from the daily
+   meeting"; format `- YYYY-MM-DD: <rule> (was: "..."; instead: "...")`), merge with an existing rule instead of
+   duplicating, and report the file and rule. Menu edits go to `daily-meeting/marketing-menu.md` there.
 4a. **Triage** (the `Triage:` lines and `Side notes:`): the briefing's last section "Side notes" holds every
    LATER and DROP proposal. `Side notes: proposals confirmed` executes them: LATER chat → park until the
    date (pause convention below), DROP chat → archive, DROP Task/issue → close (`openmates tasks done` /

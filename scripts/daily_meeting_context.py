@@ -269,6 +269,7 @@ def task_summary(tasks: list[dict] | None, previous: list[dict] | None,
             "backlog_top": [_compact(t) for t in _by_priority(by_status.get("backlog", []))[:15]],
             "more": "full lists: openmates tasks list --status <status> --json",
         },
+        "idea_inbox": [_compact(t) for t in tasks if "idea" in (t.get("labels") or []) and t["status"] != "done"],
         "changed_since_last_meeting": [c for c in changes if c["to"] != "done"],
         "baseline": "previous snapshot" if previous else "none (first run; no change diff)",
     }
@@ -399,6 +400,22 @@ def growth(root: Path, out: Path, since: datetime, day: str, gaps: list[str]) ->
     import daily_meeting_growth  # noqa: E402 - sibling script, path set just above
 
     return daily_meeting_growth.collect(root, out, since, day, gaps)
+
+
+def marketing_block(out: Path, growth_data: dict | None, day: date) -> dict:
+    """Menu proposals, ideas, win counter and style rules (scripts/daily_meeting_marketing.py).
+
+    The menu and the style guides live in the private marketing repository, never in this repo."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_marketing  # noqa: E402 - sibling script, path set just above
+
+    def read(relative: str) -> str:
+        path = MARKETING_REPO / relative
+        return path.read_text(errors="replace") if path.is_file() else ""
+
+    sources = {"menu": read("daily-meeting/marketing-menu.md"), "ideas": read("ideas.md"),
+               "style": read("marketing-style.md"), "press": read("press/press-style.md")}
+    return daily_meeting_marketing.collect(out, sources, growth_data, day)
 
 
 def waiting(tasks: list[dict] | None, out: Path, now: datetime, focus_text: str = "") -> dict:
@@ -569,7 +586,8 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "tasks_status": tasks_status,
         "waiting_chats": waiting(tasks, out, now, focus(root)),
         "alerts": alerts(gaps),
-        "growth": growth(root, out, since, today, gaps),
+        "growth": (growth_data := growth(root, out, since, today, gaps)),
+        "marketing_block": marketing_block(out, growth_data, now.astimezone(TZ).date()),
         "goals": goals(root, out, tasks, now.astimezone(TZ).date()),
         "issues": issues,
         "cleanup": cleanup,

@@ -31,6 +31,7 @@ sys.path.insert(0, str(SCRIPTS))
 import daily_meeting_context as context  # noqa: E402 - sibling scripts, path set above
 import mac_reminders  # noqa: E402
 import daily_meeting_growth  # noqa: E402
+import daily_meeting_marketing  # noqa: E402
 import daily_meeting_opportunities  # noqa: E402
 import daily_meeting_triage as triage  # noqa: E402
 import claude_idle_chats  # noqa: E402
@@ -177,6 +178,15 @@ meeting say only "N side notes, proposals unchanged, confirm?". Confirming execu
 providers, dev-only errors, cache warnings, test timing) and reported issues that recent commits \
 likely fixed are already side notes; never raise them. If the founder changes a label, that line \
 goes into the `Triage:` part of the decisions note.
+- **Idea inbox:** new feature or optimisation ideas (from the founder or from you) are not discussed \
+or started. Capture each as a Task with the label `idea` and one sentence (a `create` row in the \
+decisions note: label `idea`, status backlog). **No chat starts that day for an idea unless it is urgent.** \
+The weekly goals block (Block 7 on Mondays) reviews the "Idea inbox" section: promote, park or drop each.
+- **Feature priority rule:** features are no longer the primary factor. When a feature comes up, rank \
+it by **how likely it is to gain users** (one honest sentence: who would come, and why) against the \
+marketing and business-development work. Only the feature with the best case, if it beats a marketing \
+action, is NOW; every other feature goes to the idea inbox (an `idea` Task) or the side notes, never \
+into a work chat that day. In the weekly goals block rank the features of the idea inbox by that case.
 - **Plain-language rule:** never mention an ID (TASK-…, issue numbers, session or commit \
 ids), an agent name (e.g. "agent-33bc") or a task bare. Always say what it is in a few plain \
 words ("the Projects editing task", "the chat about PDF uploads"). In the decisions note, write \
@@ -190,7 +200,7 @@ meeting returns to the agenda — never debate it now; (d) when the founder ramb
 back in one sentence and ask the next question; (e) if energy is low (1–2), plan one small \
 win first and drop the backlog cleanup; (f) add a stop rule to each task ("if X is not \
 working after 45 minutes, park it and tell me"); (g) end with a three-line read-back.
-- **Flow (6 blocks):**
+- **Flow (7 blocks):**
   - **Block 1 — Check-in (the founder talks, you listen).** Four questions, one at a time. \
 (1) **What you can see, then what else.** Do not open with an open "what have you been up to?". \
 First review the commits since the last meeting (Appendix E) and the chats that were started or \
@@ -217,17 +227,37 @@ rough share that served the milestone ("about a third of the work served the pre
 rest went into …"), name the drift plainly and say where the time went instead. Work the founder \
 has approved to run on its own in the background (the Rust rewrite and any migration named in the \
 agreed adjustments) is named separately and does not count as drift. If the \
-previous decisions note has a `Drift:` line, say whether it got better or worse. Then the \
-**growth numbers** (about one minute, plain language, rounded, never a list read aloud), from \
-"Marketing and growth numbers (production)": total users, new signups since the last meeting and \
-in the last 7 days, daily and weekly active users, new paying users and credit purchases, each with \
-its trend against the previous period ("signups went from 4 to 9", "paying users flat"). Relate them \
-to the current milestone ("the press wave goes out Wednesday; this week's signups are the baseline \
-it has to beat"). Small numbers are noise: say so instead of reading a trend into one or two signups. \
-If the section says the numbers are unavailable, say that in one sentence and never guess. Then ask \
-**exactly one** open question that lets the founder draw the conclusion ("what does that tell you \
-about today?"); do not answer it for them and do not bring the point up again later in the meeting.
-  - **Block 2 — Safety net.** If the briefing opens with a ⚠ warning that the OpenMates \
+previous decisions note has a `Drift:` line, say whether it got better or worse.
+  - **Block 2 — Marketing and business development (every meeting, fixed, about 3-4 minutes; both are a \
+continuous part of the day, not a "marketing week"; business development means business angels, \
+partnerships, press contacts and similar; never skip it, shorten it when energy is low).** \
+(a) **Growth numbers** from "Marketing and growth numbers (production)", plain language, rounded, \
+never a list read aloud: total users, new signups since the last meeting and in the last 7 days, \
+active users, new paying users and credit purchases, each against the previous period. Small numbers \
+are noise: say so. If unavailable, say that in one sentence and never guess. Then **exactly ONE honest \
+interpretation sentence** (start from the draft in the "Marketing and business development block" section): realistic and \
+critical, but helpful and on the founder's side; never naive or hype, never discouraging. Example: \
+"0 signups this week: people aren't finding us yet, so outreach beats features right now." No open \
+question about the numbers. \
+(b) **Win counter** (messages sent, replies, posts, applications): read the one line, ask for the new \
+counts since the last meeting and record them in the `Wins:` line. Progress is visible before signups move. \
+(c) **Exactly 3 concrete marketing proposals**, about 20 minutes each with a clear done line, from the \
+block's menu proposals (the menu is maintained in the private marketing repository, so the list is never \
+empty). Ask whether the founder is at home with the camera or on the go and offer the 3 that fit; \
+business angels only appear once the videos and the landing page are finished. The founder picks one: \
+**it gets the first work slot of the day** in Block 4 and goes into the decisions note as \
+`Marketing pick:`. Mention outreach to lapsed paying users whenever it is on the list: asking them why \
+they stopped is high-value. \
+(d) **1-2 fresh ideas** (marketing or business development) next to the 3 proposals, every day, \
+concrete and never one from "already offered"; the founder says take, park or drop; record them in the \
+`Marketing ideas:` line. A taken idea becomes one of tomorrow's menu actions or a Task; a parked one an \
+`idea` Task. This replaces the old weekly marketing ideas email. \
+(e) **Style feedback loop.** Every idea and text you propose follows the "Style rules" in the block. \
+When the founder says an idea or text **"doesn't sound like me"** or **"doesn't make sense"**, do not \
+defend it: record it at once in the `Style feedback:` part of the decisions note (the text or idea, the \
+complaint, and the founder's own words for what is right, asked in one short question), offer a corrected \
+version, and move on. A chat then updates the style guide in the marketing repository right away.
+  - **Block 3 — Safety net.** If the briefing opens with a ⚠ warning that the OpenMates \
 Tasks or the reminders are not up to date, say so first. Then **production first**: \
 summarize the NOW items of the "Alerts" section in a few sentences — reported production issues (new or not \
 processed yet), then the production errors that repeat most; dev items are side notes unless labelled NOW — and ask whether anything \
@@ -245,33 +275,35 @@ top 3, give the count of the rest and offer a **default for all of them** ("park
 what is saved, the next step and the resume date; resume those whose date has come. A chat only \
 leaves the lists when answered, resumed or archived. If the section "No decision for more than 7 \
 days" is shown, take those chats first, before the top 3.
-  - **Block 3 — Focus.** Agree **today's single focus** — propose one from the week's goals \
+  - **Block 4 — Focus.** Agree **today's single focus** — propose one from the week's goals \
 and the founder's stated priorities — then up to **3 tasks**, each with done-criterion, \
-first 5-minute step, time slot and stop rule. **The task that serves the current milestone \
-always gets the first work slot of the day**; everything else is planned after it. Then one short \
+first 5-minute step, time slot and stop rule. **The marketing pick from Block 2 always gets the first work slot of the day**, then the task \
+that serves the current milestone (the same task if the pick serves it); everything else is planned after \
+them. Late afternoon and evening are the founder's time for ideas and experiments: schedule those there. Then one short \
 question, every day: **which milestone does today's top task serve?** (see "Goals and milestones" \
 in the briefing); if it serves none, say so plainly and ask whether to do it anyway, park it or \
 swap it.
-  - **Block 4 — Reminders.** Go through overdue and today/tomorrow reminders **in groups** \
+  - **Block 5 — Reminders.** Go through overdue and today/tomorrow reminders **in groups** \
 (done / move to a date and time you suggest / keep), not one by one. Every moved or new \
 reminder needs a **time of day**, never just a date — suggest one. Offer one optional \
 midday reminder "Still on <focus>?" as a gentle anchor. Spread moved reminders over several \
 days so no day is overloaded.
-    **Opportunities (one sentence, at the end of Block 4):** read the two lines of the \
+    **Opportunities (one sentence, at the end of Block 5):** read the two lines of the \
 "Opportunities" section (new events and jobs waiting) and any deadline in the next 3 days, then say \
 "continue in the Events chat / the Jobs chat". Never go through events or jobs one by one here and \
 never run the jobs-profile setup in this meeting: both happen in their own chats.
-  - **Block 5 — Parking lot and week goals.** Additions/removals and week-goal changes. \
+  - **Block 6 — Parking lot and week goals.** Additions/removals and week-goal changes. \
 Read back anything parked during the meeting.
-  - **Block 6 on Mondays — Goals and milestones (about 10 minutes; this replaces the backlog \
+  - **Block 7 on Mondays — Goals and milestones (about 10 minutes; this replaces the backlog \
 cleanup).** It also runs on the first later meeting of the week when Monday's was missed: the \
 "Goals and milestones" section then says "Weekly goals block is due today". Follow that section: (1) is the current milestone on track — \
 use the progress evidence and the drift warnings; (2) is it still the right milestone, and once \
-a quarter or when asked, are the mission and the (at most 3) goals still right; (3) split the \
+a quarter or when asked, are the mission and the (at most 3) goals still right; (2b) review the "Idea inbox" \
+(promote, park or drop each idea; rank features by how likely they are to gain users); (3) split the \
 next milestone into 3-7 concrete Tasks (plain title, priority, done-criterion) and agree the \
 priority order for the week. One question at a time, with your recommendation. If energy is \
 1-2, shrink it to three questions: on track? blocked? is the top priority still right?
-  - **Block 6 on days without a due goals block — Backlog cleanup (optional, max 5 minutes, skip if energy is low or the \
+  - **Block 7 on days without a due goals block — Backlog cleanup (optional, max 5 minutes, skip if energy is low or the \
 meeting already ran 20 minutes).** The meeting also keeps the to-do lists healthy. Take \
 **one** batch in groups of 3-5 related items (one question per group, with your \
 recommendation): which can be **closed or deleted** (obsolete, done, no longer wanted), \
@@ -303,6 +335,12 @@ DECISIONS {date}
 Check-in: progress <1-5>, energy <1-5>; did: <one line>; priorities: <up to 3, one line>
 Drift: ~<n>% of the work since the last meeting served <milestone>; the rest: <where it went>; founder's conclusion: <one line>
 Focus: <single most important task today>
+Marketing pick: <menu item> (done when: …; at HH:MM)
+Wins: messages <n>, replies <n>, posts <n>, applications <n>
+Marketing finished: <menu items finished since the last meeting, or empty>
+Marketing ideas: <1-2 fresh ideas offered today> -> take | park | drop (per idea)
+Style feedback:
+- <text or idea> -> doesn't sound like me | doesn't make sense: <what is wrong; what the founder would say instead>
 Focus tasks:
 1. <task> (done when: …; first step: …; at HH:MM; stop rule: …; milestone: <name or none>)
 Reminder changes:
@@ -495,7 +533,7 @@ def _no_decision_section(flags: list[str]) -> list[str]:
 def _goals_section(goals: dict, today: date) -> list[str]:
     """Mission, goals and milestones (GOALS.md) with progress evidence; the Monday block runs on this."""
     due = goals.get("block_due", today.weekday() == 0) if goals else False
-    out = ["", "## Goals and milestones" + (" — **run the weekly goals block (Block 6) today**" if due else ""), ""]
+    out = ["", "## Goals and milestones" + (" — **run the weekly goals block (Block 7) today**" if due else ""), ""]
     if not goals:
         return out + ["_Goals data unavailable._", ""]
     if due:
@@ -580,6 +618,7 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     tri = triage.Triage(ev.get("focus_file", ""), ev.get("git", {}).get("commits_on_dev", []), today)
     out += _alerts_section(ev.get("alerts") or {}, tri)
     out += daily_meeting_growth.render(ev.get("growth"))
+    out += daily_meeting_marketing.render(ev.get("marketing_block"))
     out += _waiting_section(ev.get("waiting_chats") or {}, tri)
     out += ["", "## Unfinished work in worktrees (dev→main readiness)", "", *worktree_wip.briefing_lines()]
     product = ev.get("product") or {}
@@ -596,6 +635,10 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     focus_text = re.sub(r"^(#{1,2}) ", "### ", ev.get("focus_file", "").strip(), flags=re.M)
     out += ["## 1. Focus file (FOCUS.md)", "", focus_text or "_FOCUS.md missing._", ""]
     out += _goals_section(ev.get("goals") or {}, today)
+    ideas = tasks.get("idea_inbox") or []
+    out += ["## Idea inbox (Tasks labelled `idea`; reviewed in the weekly goals block, no chat starts for them)", ""]
+    out += [f"- {t.get('title')} ({t.get('id')})" for t in ideas] or ["- empty"]
+    out.append("")
     previous = ev.get("previous_meeting") or {}
     if previous.get("decisions"):
         out += [f"### Decisions from the last meeting ({previous['date']})",

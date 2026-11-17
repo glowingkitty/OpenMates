@@ -32,7 +32,7 @@ chats may take on.
 3. **Meeting:** download the PDF from the Discord link, attach it in the
    daily-meeting chat in the Claude app and start a voice call. Claude asks
    exactly one question at a time, with a recommendation, then waits. The meeting
-   has 6 blocks and is built for ADHD: Block 1 is a check-in. Claude first sums up
+   has 7 blocks and is built for ADHD: Block 1 is a check-in. Claude first sums up
    in plain words what the commits and chats since the last meeting show
    (Appendix E and B), then asks what else the founder did that is not shown
    there, with the open reminders and Tasks (overdue and recent) as grouped
@@ -102,7 +102,7 @@ accounts (server side), plus every email found in the dev server's `.env` and in
 `logs/daily-meetings/growth-excluded-emails.txt` (one email per line; add the founder's other accounts
 there). Only SHA-256 hashes of those emails are sent. Active users come from the last session check,
 so each run stores an aggregate snapshot in `logs/daily-meetings/growth-history.json` and compares with
-the previous one. Claude reports the numbers in about one minute in Block 1's drift check and relates
+the previous one. Claude reports the numbers in about one minute in Block 2 (marketing), right after the check-in and its drift check and relates
 them to the current milestone.
 
 ## Privacy of meeting data
@@ -117,6 +117,42 @@ top ("OpenMates Tasks are NOT up to date" / "UNAVAILABLE") that the meeting must
 plus a data-gap line. Cron has a minimal PATH, so the Tasks script finds the `openmates` CLI in
 `~/.npm-global/bin` itself and the crontab lines set that PATH. `mac_reminders.py` sets a task
 identity for the Apple no-delete guard, which otherwise refused every cron run.
+
+## Marketing and business development (Block 2, every meeting)
+Marketing is a fixed, continuous part of every meeting, not a "marketing week". Block 2 follows the
+check-in and precedes the safety net (`scripts/daily_meeting_marketing.py`; the growth numbers moved
+here from Block 1). It has five parts:
+1. **Growth numbers from production plus ONE honest sentence** (realistic and critical, on the founder's
+   side, never hype or discouraging). The briefing prints a deterministic draft, for example
+   "0 signups in 7 days: people aren't finding us yet, so outreach beats features right now."
+2. **Win counter** (messages sent, replies, posts, applications): the founder reports the new counts, the
+   decisions note records them in the `Wins:` line, the briefing sums last meeting, this week and the
+   last 14 days, so progress is visible before signups move.
+3. **Exactly 3 proposals of about 20 minutes** with a done line, for the founder's situation (at home with
+   the camera, or on the go): the least recently picked items of the menu whose prerequisites are
+   finished. The pick gets the first work slot (`Marketing pick:`). Business development (business
+   angels, partnerships, press contacts, job search) is part of the menu; business angels appear only
+   after the videos and the landing page are finished (`Marketing finished:`).
+4. **1-2 fresh ideas** per day (marketing or business development), taken, parked or dropped
+   (`Marketing ideas:`); the briefing lists the ideas of the last 14 days so none repeats. This replaces
+   the weekly marketing ideas email (the Mon/Thu `recommendations` job of the marketing automation is
+   disabled).
+5. **Style feedback loop:** every idea and text follows the style rules printed in the block. When the
+   founder says something "doesn't sound like me" or "doesn't make sense", the meeting records it in the
+   `Style feedback:` part of the decisions note and a chat adds the rule to the style guide right away.
+
+The menu and the style guides live in the **private marketing repository**, not in this repo:
+`daily-meeting/marketing-menu.md` (menu), `marketing-style.md` section "Feedback rules from the daily
+meeting" (voice rules; the entry point to the communication strategy) and `press/press-style.md` (press
+text, "Words and tone"). The briefing reads them at generation time; without the menu file it falls back to a
+neutral built-in menu and says so (a gap, never an empty list).
+
+**Idea inbox and feature priority.** New feature or optimisation ideas are captured as a Task labelled `idea`
+with one sentence; no chat starts for them that day unless urgent. Late afternoon and evening are the
+founder's time for ideas and experiments. The weekly goals block reviews the inbox. Features are no longer
+the primary factor: when one comes up it is ranked by how likely it is to gain users; only the best case
+that beats a marketing action is NOW, the rest go to the idea inbox or the side notes (triage marks
+feature-like Tasks LATER with that reason).
 
 ## Triage: NOW, LATER, DROP
 The founder is easily pulled away by small issues, so the briefing pre-sorts **every** item (production
@@ -226,7 +262,7 @@ a done-when and a date) and a `Last weekly review:` line. Tasks that serve a mil
 `milestone:<name>`. The briefing shows GOALS.md, per-milestone Task progress (against a snapshot about a week
 old) and drift warnings (review overdue, high-priority Tasks without a milestone, a milestone with open
 high-priority Tasks and no movement). Every day the meeting asks which milestone today's top task serves; on
-Mondays Block 6 is the goals block (about 10 minutes, replacing the backlog cleanup; if Monday's was missed or no
+Mondays Block 7 is the goals block (about 10 minutes, replacing the backlog cleanup; if Monday's was missed or no
 review exists yet, it is due on the next meeting until a `Last weekly review:` date in the current week is recorded): on track? still the right
 milestone (the mission and goals once a quarter or when asked)? the next milestone split into 3-7 Tasks and the
 week's priority order. Data: `scripts/daily_meeting_goals.py`.

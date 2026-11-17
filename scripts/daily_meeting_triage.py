@@ -31,6 +31,7 @@ USER_IMPACT = re.compile(r"\b(outage|is down|failed request|request failed|payme
                          r"sign-?up|signup|login|log in|cannot (log|sign|pay)|user report)\b", re.I)
 STOP = {"with", "from", "that", "this", "when", "after", "before", "into", "does", "doesn", "should", "would",
         "error", "issue", "failed", "chat", "task", "page", "user", "fix", "bug"}
+FEATURE = re.compile(r"\s*(add|implement|build|support|create)\b", re.I)
 SECTION = re.compile(r"^## Current priorities\s*$(.*?)(?=^## |\Z)", re.M | re.S)
 
 
@@ -151,9 +152,15 @@ class Triage:
         return self._v("NOW", "production error: real users may be affected")
 
     def task(self, task: dict) -> dict:
+        if "idea" in (task.get("labels") or []) and task.get("priority") != "urgent":
+            monday = self.today + timedelta(days=7 - self.today.weekday())
+            return self._v("LATER", "idea inbox: reviewed in the weekly goals block", monday)
         text = f"{task.get('title', '')} {' '.join(task.get('labels') or [])}"
         stale = task.get("status") == "backlog" and TASK_PRIORITY.get(task.get("priority"), 4) == 4
-        return self.now_or_later(text, urgent=task.get("priority") in ("urgent", "high"), stale=stale)
+        verdict = self.now_or_later(text, urgent=task.get("priority") in ("urgent", "high"), stale=stale)
+        if verdict["label"] == "LATER" and ("feature" in (task.get("labels") or []) or FEATURE.match(task.get("title", ""))):
+            verdict["reason"] = "feature without a user-gain case: idea inbox, ranked by likelihood to gain users"
+        return verdict
 
     def reminder(self, item: dict, due: date | None) -> dict:
         verdict = self.now_or_later(f"{item.get('title', '')} {item.get('list', '')}", due_today=bool(due and due <= self.today))

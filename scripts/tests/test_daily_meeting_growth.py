@@ -65,10 +65,11 @@ def test_collect_records_gap_when_production_is_unreachable(tmp_path, monkeypatc
     assert gaps == ["production growth numbers unavailable (growth-metrics HTTP 404: Not Found)"]
 
 
-def test_meeting_script_reports_growth_in_the_drift_check():
+def test_meeting_script_reports_growth_in_the_marketing_block_after_the_drift_check():
     script = briefing.MEETING_SCRIPT
     drift = script.index("daily drift check")
-    numbers = script.index("**growth numbers**")
-    question = script.index("**exactly one** open question", drift)
-    assert drift < numbers < question
-    assert "current milestone" in script[numbers:question] and "never guess" in script[numbers:question]
+    block2 = script.index("Block 2 — Marketing and business development")
+    numbers = script.index("**Growth numbers**", block2)
+    reading = script.index("**exactly ONE honest interpretation sentence**", numbers)
+    assert drift < block2 < numbers < reading < script.index("Block 3 — Safety net")
+    assert "never guess" in script[numbers:reading] and "never naive or hype, never discouraging" in script[reading:]

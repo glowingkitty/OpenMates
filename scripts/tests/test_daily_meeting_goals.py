@@ -54,7 +54,7 @@ def test_goals_section_marks_monday_and_adjustments_are_injected():
             "progress": {"milestones": {}, "baseline": "none"}, "meeting_settings": "Be brief.",
             "meeting_changelog": ["- 2026-11-09 shorter"]}
     monday = "\n".join(briefing._goals_section(data, MONDAY))
-    assert "run the weekly goals block (Block 6) today" in monday and "Weekly goals block is due today" in monday
+    assert "run the weekly goals block (Block 7) today" in monday and "Weekly goals block is due today" in monday
     assert "review overdue" in monday and "no Task carries a milestone label" in monday
     assert "Weekly goals block not due today" in "\n".join(briefing._goals_section(data, TUESDAY))
     carried = "\n".join(briefing._goals_section({**data, "block_due": True, "block_reason": "Monday's goals block was missed"}, TUESDAY))
@@ -65,7 +65,7 @@ def test_goals_section_marks_monday_and_adjustments_are_injected():
 
 def test_meeting_script_has_goals_block_retro_and_structured_tables():
     script = briefing.MEETING_SCRIPT
-    assert "Block 6 on Mondays — Goals and milestones" in script and "Improve the meeting" in script
+    assert "Block 7 on Mondays — Goals and milestones" in script and "Improve the meeting" in script
     assert "| Action | Reminder (exact title) | List | New due | New title | Notes |" in script
     assert "| Action | Task (exact title) | New title | Priority | Status | Label | Due | Description |" in script
     assert "Goals:" in script and "Meeting: <" in script and "milestone does today's top task serve" in script
@@ -73,14 +73,14 @@ def test_meeting_script_has_goals_block_retro_and_structured_tables():
 
 def test_meeting_script_has_the_mentor_stance_and_the_daily_drift_check():
     script = briefing.MEETING_SCRIPT
-    check_in, focus = script.index("Block 1 — Check-in"), script.index("Block 3 — Focus")
+    check_in, focus = script.index("Block 1 — Check-in"), script.index("Block 4 — Focus")
     assert "**Mentor stance:**" in script and "critical mentor" in script and "praise only what the evidence supports" in script
     drift = script.index("daily drift check")
-    assert check_in < drift < script.index("Block 2 — Safety net")  # the drift check is part of Block 1
-    block_1 = script[check_in:script.index("Block 2 — Safety net")]
+    assert check_in < drift < script.index("Block 2 — Marketing and business development")  # the drift check is part of Block 1
+    block_1 = script[check_in:script.index("Block 2 — Marketing and business development")]
     assert "share that served the milestone" in block_1 and "name the drift plainly" in block_1
-    assert "does not count as drift" in block_1 and "**exactly one** open question" in block_1
-    assert "always gets the first work slot of the day" in script[focus:script.index("Block 4 — Reminders")]
+    assert "does not count as drift" in block_1 and "**exactly one** open question" not in block_1  # growth numbers moved to Block 2
+    assert "always gets the first work slot of the day" in script[focus:script.index("Block 5 — Reminders")]
     assert "\nDrift: ~<n>% of the work since the last meeting served <milestone>" in script
     assert "| edit | <title> | <new title> | <priority> | <status> | <label to add> | YYYY-MM-DD | <description> |" in script
 
