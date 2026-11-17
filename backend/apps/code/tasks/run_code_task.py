@@ -661,7 +661,7 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
                if payload.get("same_turn_batch_id") else {}),
         }
         if payload.get("command_run"):
-            completion = cloud_cmd.command_completion(completion, final_status)
+            completion = cloud_cmd.command_completion(completion, final_status, payload["command_run"])
             if command_outcome["value"] is not None:
                 try:
                     parked_operation = run_async(cloud_cmd.dispatch_sync_back(

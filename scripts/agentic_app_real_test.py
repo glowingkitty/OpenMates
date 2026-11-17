@@ -53,6 +53,8 @@ if __name__ == "__main__":
         raise SystemExit(f"native CLI missing: build it first ({CLI_BINARY})")
     require_fresh_cli()
     # The account environment copies os.environ, so the spec's own switches go here.
+    # The spec drives this host's native CLI binary and its local state, which
+    # the E2B sandbox does not have, so heavy_slot runs it here (logged fallback).
     os.environ.update(AGENTIC_APP_REAL_AI_DEV="1", PW_CHROMIUM=str(installed_chromium()),
-                      OPENMATES_NATIVE_CLI=str(CLI_BINARY))
+                      OPENMATES_NATIVE_CLI=str(CLI_BINARY), OPENMATES_HEAVY_REMOTE="0")
     raise SystemExit(main(spec=SPEC, title="Agentic app", doc=__doc__))

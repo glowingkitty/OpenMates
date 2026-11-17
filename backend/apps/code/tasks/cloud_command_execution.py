@@ -15,7 +15,7 @@ import logging
 import uuid
 from typing import Any, Callable
 
-from backend.apps.code.cloud_command import WORKSPACE_STATE_TTL_SECONDS, workspace_cache_key
+from backend.apps.code.cloud_command import WORKSPACE_STATE_TTL_SECONDS, command_display, workspace_cache_key
 from backend.shared.providers.e2b_code_runner import CancelCallback, CodeRunResult, OutputCallback
 from backend.shared.providers.e2b_project_workspace import (
     WorkspaceCommand,
@@ -88,9 +88,16 @@ def command_status_fields(outcome: WorkspaceOutcome) -> dict[str, Any]:
     return fields
 
 
-def command_completion(completion: dict[str, Any], final_status: dict[str, Any]) -> dict[str, Any]:
-    """Bound the model's view of a command: 64 KiB output plus the command fields."""
+def command_completion(
+    completion: dict[str, Any], final_status: dict[str, Any], command_run: dict[str, Any],
+) -> dict[str, Any]:
+    """Bound the model's view of a command: 64 KiB output plus the command fields.
+
+    The result names the command that ran, so the assistant can tell which of
+    its commands this output belongs to and does not run it again.
+    """
     result = dict(completion)
+    result["command"] = command_display(list(command_run.get("argv") or []), str(command_run.get("cwd") or ".")).strip()
     # The Project snapshot paths are not part of what the command did.
     result["files"] = []
     if isinstance(result.get("output"), str):

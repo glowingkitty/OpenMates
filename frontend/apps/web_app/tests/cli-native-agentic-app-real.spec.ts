@@ -41,10 +41,11 @@ const API = 'https://api.dev.openmates.org';
 const PROMPT =
   '@Gemini-3.8-Flash Build me a simple recipe web app where I can add recipes with ingredients and steps and see them in a list. Keep it small.';
 // code-run.cloud.commands: installs and builds run as commands in the Project's E2B workspace.
+// Every turn names the model: an unmentioned follow-up is routed to another model.
 const COMMAND_PROMPT =
-  'Install the app dependencies and run its production build in web-app, then tell me whether the build passed and which files the commands changed.';
+  '@Gemini-3.8-Flash Install the app dependencies and run its production build in web-app, then tell me whether the build passed and which files the commands changed.';
 const TEST_PROMPT =
-  'Add a browser test that adds one recipe and checks it appears in the list, run it, and commit when it passes.';
+  '@Gemini-3.8-Flash Add a browser test that adds one recipe and checks it appears in the list, run it, and commit when it passes.';
 test.describe.configure({ mode: 'serial', retries: 0, timeout: 1_200_000 });
 test.skip(!enabled, 'Requires explicit dev-only real-inference execution and the personal account lease.');
 
@@ -234,16 +235,23 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
     // npm install and the build run in the Project workspace; a lockfile the
     // install writes comes back as a Project file.
     if (created.length) {
+      // Each command gets its own bash code card (terminal.sh); count the code
+      // embeds this turn added to the chat's embed list.
+      const codeCardsBefore = new Set(embedIdsOfType(await run(['chats', 'show', chatId, '--json']), 'code'));
       const sentCommands = await runRust(binary, env, ['chats', 'send', '--chat', chatId, COMMAND_PROMPT, '--response-timeout-seconds', '840', '--json'], 900_000);
       expect.soft(sentCommands.code, `command turn exit ${sentCommands.code}\nstderr: ${String(sentCommands.stderr).slice(-600)}`).toBe(0);
       const commandTurn = sentCommands.code === 0 ? parseJson(sentCommands) : { status: `exit ${sentCommands.code}` };
       const shownCommands = await run(['chats', 'show', chatId, '--json']);
-      const terminalCards = collect(shownCommands, ['path', 'file_path', 'filename']).filter((path) => path === 'terminal.sh');
+      const terminalCards = embedIdsOfType(shownCommands, 'code').filter((id) => !codeCardsBefore.has(id));
+      const commandModels = collect(shownCommands, ['modelName', 'model_name']);
       const listedAfterCommands = collect(await run(['projects', 'hosted', 'list', created[0], '--json']), ['path']);
       const lockfile = listedAfterCommands.some((path) => /^web-app\/(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(path));
-      Object.assign(evidence, { commandTurn: { status: commandTurn.status, terminalCards: terminalCards.length, lockfile } });
+      Object.assign(evidence, { commandTurn: { status: commandTurn.status, terminalCards: terminalCards.length, lockfile, models: commandModels } });
+      for (const model of commandModels) expect.soft(model, 'command turn model').toMatch(/gemini.*3\.?8.*flash/i);
       expect.soft(commandTurn.status).toBe('completed');
       expect.soft(terminalCards.length, 'command cards for the install and the build').toBeGreaterThanOrEqual(2);
+      // A successful install and build need no reruns; a loop of repeated commands is a defect.
+      expect.soft(terminalCards.length, 'no repeated install/build commands').toBeLessThanOrEqual(6);
       expect.soft(lockfile, 'the install lockfile synced back as a Project file').toBe(true);
     }
 

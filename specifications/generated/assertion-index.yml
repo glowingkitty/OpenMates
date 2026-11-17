@@ -39654,7 +39654,7 @@ assertions:
     direct_tests:
     - &id5030
       path: frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
-      line: 84
+      line: 85
       name: real Gemini turn builds a hosted recipe app into a new Project via the
         native CLI
       surface: cli
@@ -39771,7 +39771,7 @@ assertions:
     direct_tests:
     - &id5036
       path: frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
-      line: 84
+      line: 85
       name: real Gemini turn builds a hosted recipe app into a new Project via the
         native CLI
       surface: cli
@@ -39788,7 +39788,7 @@ assertions:
       surface: rest_api
     - &id5035
       path: backend/tests/test_cloud_project_commands.py
-      line: 174
+      line: 175
       name: test_parked_completion_is_taken_once_with_sync_back_outcome
       surface: rest_api
     tests:
@@ -165009,7 +165009,7 @@ assertions:
     direct_tests:
     - &id20920
       path: frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
-      line: 84
+      line: 85
       name: real Gemini turn builds a hosted recipe app into a new Project via the
         native CLI
       surface: cli
@@ -165199,7 +165199,7 @@ assertions:
       surface: rest_api
     - &id20940
       path: frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
-      line: 84
+      line: 85
       name: real Gemini turn builds a hosted recipe app into a new Project via the
         native CLI
       surface: cli

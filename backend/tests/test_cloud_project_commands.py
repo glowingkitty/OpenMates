@@ -163,7 +163,8 @@ def test_apply_changes_arguments_are_validated():
 def test_command_completion_bounds_output_and_hides_snapshot_paths():
     completion = {"output": "x" * 70_000, "files": ["a.js", "b.js"], "status": "finished"}
     final_status = {"changed_files": [{"path": "package-lock.json", "kind": "create"}], "workspace": {"reused": True}}
-    result = cce.command_completion(completion, final_status)
+    result = cce.command_completion(completion, final_status, {"argv": ["npm", "run", "build"], "cwd": "web-app"})
+    assert result["command"] == "$ cd web-app && npm run build"
     assert result["files"] == []
     assert result["output_truncated"] is True and len(result["output"]) < 70_000
     assert result["changed_files"] == final_status["changed_files"]
