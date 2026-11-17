@@ -250,6 +250,20 @@ def memory_entries(cli: str) -> list[dict]:
     return listed if isinstance(listed, list) else []
 
 
+def top_up_personal_account(email: str) -> None:
+    """Owner standing rule: the personal dev test account is topped up whenever its credits run low.
+
+    Uses the operator top-up script in the dev API container; it only adds credits below the minimum.
+    """
+    import dev_test_account
+
+    dev_test_account._docker(
+        "exec", "-i", "api", "python", "/app/backend/scripts/top_up_test_account_credits.py",
+        "--accounts-json", "-", "--minimum", "20000", "--target", "50000",
+        stdin=json.dumps([{"email": email}]), timeout=120,
+    )
+
+
 def delete_memory(cli: str, entry_id: str) -> None:
     """The native CLI lists account Memory documents read-only; the npm CLI deletes them."""
     if entry_id.startswith("account-memory-"):
@@ -436,6 +450,10 @@ def main() -> int:
                 receipt["stale_memories_deleted"] += 1
         selected = [p for p in PERSONAS if not args.persona or p["key"] in args.persona]
         for persona in selected:
+            if account.kind == "personal":
+                top_up_personal_account(account.environment["OPENMATES_TEST_ACCOUNT_EMAIL"])
+                receipt.setdefault("credit_top_up_checks", 0)
+                receipt["credit_top_up_checks"] += 1
             receipt["personas"][persona["key"]] = run_persona(cli, persona, out / persona["key"], args.timeout_seconds)
             if receipt["personas"][persona["key"]]["cleanup"].get("memories_left"):
                 raise ProofError(f"memory_cleanup_failed_after_{persona['key']}")
