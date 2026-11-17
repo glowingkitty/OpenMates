@@ -198,3 +198,32 @@ def test_snapshot_result_quotes_the_paused_call_once():
     cache.values[pts.repeat_call_key("op-1")] = call
     assert asyncio.run(pts.take_repeat_call(cache, "op-1")) == call
     assert asyncio.run(pts.take_repeat_call(cache, "op-1")) is None
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.commands
+def test_identical_successful_command_is_not_run_again_in_the_turn():
+    from backend.apps.code import cloud_command_repeat as repeat
+
+    files = [("web-app/package.json", "{}"), ("web-app/src/App.jsx", "x")]
+    fp = repeat.command_fingerprint(["npm", "run", "build"], "web-app", files)
+    assert fp == repeat.command_fingerprint(["npm", "run", "build"], "web-app/", list(reversed(files)))
+    assert fp != repeat.command_fingerprint(["npm", "run", "build"], None, files)
+    assert fp != repeat.command_fingerprint(["npm", "run", "build"], "web-app", [*files, ("web-app/package-lock.json", "{}")])
+    assert fp != repeat.command_fingerprint(["npm", "run", "build"], "web-app", [(files[0][0], '{"a":1}'), files[1]])
+    cache = FakeCache()
+    payload = {"chat_id": "c", "message_id": "m", "command_run": {"repeat_fingerprint": fp, "background": False}}
+    completion = {"command": "$ cd web-app && npm run build", "output": "x" * 5000 + "built", "changed_files": []}
+    asyncio.run(cce.remember_if_succeeded(cache, payload=payload, final_status={"status": "failed", "exit_code": 1},
+                                          completion=completion))
+    assert asyncio.run(repeat.previous_success(cache, chat_id="c", message_id="m", fingerprint=fp)) is None
+    asyncio.run(cce.remember_if_succeeded(cache, payload=payload, final_status={"status": "finished", "exit_code": 0},
+                                          completion=completion))
+    previous = asyncio.run(repeat.previous_success(cache, chat_id="c", message_id="m", fingerprint=fp))
+    assert previous["exit_code"] == 0 and previous["output_tail"].endswith("built")
+    assert len(previous["output_tail"]) == repeat.REPEAT_OUTPUT_TAIL_CHARS
+    assert "npm run build" in repeat.repeat_note(previous) and "answer the user" in repeat.repeat_note(previous)
+    assert asyncio.run(repeat.previous_success(cache, chat_id="c", message_id="other", fingerprint=fp)) is None
+    background = {**payload, "command_run": {"repeat_fingerprint": "bg", "background": True}}
+    asyncio.run(cce.remember_if_succeeded(cache, payload=background, final_status={"status": "finished", "exit_code": 0},
+                                          completion=completion))
+    assert asyncio.run(repeat.previous_success(cache, chat_id="c", message_id="m", fingerprint="bg")) is None

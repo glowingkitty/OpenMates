@@ -228,7 +228,7 @@ specifications:
     version: 2
     status: draft
     path: features/app-skills/code-run
-    fingerprint: d5d964f1432075d7153cf2e3bc3c63e83e418206163abecf3407e9d229a402e2
+    fingerprint: 7ac3a6d1fea5ebf03c2f9312b6cceba6202975069f30cf95d98e1ec3165979ea
     required_applies_to:
     - rest_api
     - cli
@@ -4182,7 +4182,7 @@ assertions:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: ce6ae60ef673bf7c210895383d3d8186b66907ea74956dc4f72fee3e62fd0566
+    fingerprint: 87ff876e3e3debd37a6f99b77ae94f223836098bc4bc00e7c0aac906682d0caf
     required_applies_to:
     - rest_api
     - cli

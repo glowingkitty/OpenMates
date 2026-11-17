@@ -110,6 +110,23 @@ def command_completion(
     return result
 
 
+async def remember_if_succeeded(
+    cache_service: Any, *, payload: dict[str, Any], final_status: dict[str, Any], completion: dict[str, Any],
+) -> None:
+    """Record a foreground command that exited 0 so an identical repeat in this turn is not run again."""
+    command_run = payload.get("command_run") or {}
+    fingerprint = command_run.get("repeat_fingerprint")
+    if (not fingerprint or command_run.get("background") or final_status.get("status") != "finished"
+            or final_status.get("exit_code") != 0 or not payload.get("chat_id") or not payload.get("message_id")):
+        return
+    from backend.apps.code.cloud_command_repeat import remember_success
+
+    await remember_success(
+        cache_service, chat_id=str(payload["chat_id"]), message_id=str(payload["message_id"]),
+        fingerprint=str(fingerprint), completion=completion,
+    )
+
+
 async def dispatch_sync_back(
     *, payload: dict[str, Any], execution_id: str, outcome: WorkspaceOutcome,
     cache_service: Any, completion: dict[str, Any], result_status: str,

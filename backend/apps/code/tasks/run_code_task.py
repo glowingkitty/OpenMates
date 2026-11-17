@@ -662,6 +662,9 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
         }
         if payload.get("command_run"):
             completion = cloud_cmd.command_completion(completion, final_status, payload["command_run"])
+            run_async(cloud_cmd.remember_if_succeeded(
+                cache_service, payload=payload, final_status=final_status, completion=completion,
+            ))
             if command_outcome["value"] is not None:
                 try:
                     parked_operation = run_async(cloud_cmd.dispatch_sync_back(

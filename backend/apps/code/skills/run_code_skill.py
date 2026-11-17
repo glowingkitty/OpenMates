@@ -116,6 +116,9 @@ class RunCodeResponse(BaseModel):
     stream_path: str | None = None
     status_path: str | None = None
     error: str | None = None
+    # A same-turn repeat of a command that already succeeded (cloud_command_repeat).
+    note: str | None = None
+    previous_result: dict[str, Any] | None = None
 
 
 def assistant_code_run_authorization_key(chat_id: str, message_id: str, target_embed_id: str) -> str:
@@ -730,6 +733,19 @@ class RunCodeSkill(BaseSkill):
         project_id = str((focus or {}).get("project_id") or "")
         if not project_id:
             return RunCodeResponse(status="error", error="Cloud commands need an active cloud Project focus.")
+        from backend.apps.code import cloud_command_repeat
+
+        fingerprint = cloud_command_repeat.command_fingerprint(
+            list(request.argv), request.cwd, [(file.path, file.code) for file in request.files],
+        )
+        previous = await cloud_command_repeat.previous_success(
+            cache_service, chat_id=chat_id, message_id=message_id, fingerprint=fingerprint,
+        )
+        if previous is not None:
+            return RunCodeResponse(
+                status="already_succeeded", note=cloud_command_repeat.repeat_note(previous),
+                previous_result=previous,
+            )
         count = await _increment_cache_counter(
             cache_service, command_budget_key(chat_id, message_id), CODE_RUN_ASSISTANT_AUTH_TTL_SECONDS,
         )
@@ -772,6 +788,7 @@ class RunCodeSkill(BaseSkill):
             command_run={
                 "argv": list(request.argv), "cwd": request.cwd, "timeout_seconds": timeout_seconds,
                 "background": request.background, "ready_url": request.ready_url, "project_id": project_id,
+                "repeat_fingerprint": fingerprint,
                 "focus_id_hash": (focus or {}).get("focus_id_hash"),
             },
         )
