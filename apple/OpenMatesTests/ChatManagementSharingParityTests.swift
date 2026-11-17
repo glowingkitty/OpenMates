@@ -136,7 +136,7 @@ final class ChatManagementSharingParityTests: XCTestCase {
 
         XCTAssertEqual(
             bundle.object(forInfoDictionaryKey: "NSCameraUsageDescription") as? String,
-            "OpenMates uses the camera when you choose to attach a photo to a chat."
+            "OpenMates uses the camera when you choose to take a photo to attach to a chat and to show the assistant what you point it at while a video call you start is running."
         )
         XCTAssertEqual(
             bundle.object(forInfoDictionaryKey: "NSPhotoLibraryUsageDescription") as? String,
