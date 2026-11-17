@@ -773,10 +773,10 @@ specifications:
     - cli
     - gui.web
   feature.focus-modes:
-    version: 2
-    status: approved
+    version: 3
+    status: draft
     path: features/focus-modes
-    fingerprint: c761f01e93bf4bb04c8cb686b728a11a16b0ce35045a77cb966736c23a03a2c1
+    fingerprint: ee5ecebc410797b0d6f6f9cd805979f8efb7e37733607f3f02c333ddb6782a81
     required_applies_to:
     - rest_api
     - cli
@@ -10243,7 +10243,7 @@ assertions:
     - cli
     - gui.web
   focus-modes.project-write-gate:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: security
     fingerprint: 3a66ad4a904d5b973936da85e3611ca415111903ecd34cfc91d941ee7f178bbf
@@ -10255,7 +10255,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-off-read-preserved:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 0871c8b12e76cb530b9fc70cb058a319aaff6911d95151dc1ff4271880c33f05
@@ -10267,7 +10267,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.activation:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 672448b3048de53c7b6874f0e68914e92f63129bae2d18f4aedb2adf6644b0a0
@@ -10279,7 +10279,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.activation-authority:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 4222a82e0901a80118e5bf1ae4678f4d5af2e4f6b75d73a8d2efd6faef919170
@@ -10291,7 +10291,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.explicit-activation:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: ee1387884a9247f427bea613f9ee10253ab2b671f2132906d0d1b20d3cc87875
@@ -10303,7 +10303,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.full-instruction:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 298f00bca04aad56830197bfeb8a8e12b58a1e84a5a3f17cf25cbd2006d9db7a
@@ -10315,7 +10315,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.off-instruction:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 35f5d7f15f010554c79aaa2accda28a84f7355b8134157ea4415396ec5ee36ca
@@ -10327,7 +10327,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.history-events:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 083edbb182e4d37747aa1aecfe15efa3e4fa215afd177bb030de189975f84a71
@@ -10339,7 +10339,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.countdown:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: d1a0bd5e54f8917e8819520c7ae45d76ca6835bf99dbe66affd0a2e34a47620e
@@ -10351,7 +10351,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.history-side-effects:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 202b979f050194447028cf0442893f1c739559628aeebc1ddcc30a8a51dd92e2
@@ -10363,7 +10363,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.controls:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: f7e7cf9b7674082515e255c986b2b7cb5500da3be086e575dbfdef65c76a45ee
@@ -10375,7 +10375,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.restoration:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: privacy
     fingerprint: f90d6ba1e65c5beb9bf73b245b086df57910a0104831801c812a0c604c163891
@@ -10387,7 +10387,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.banner-placement:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 8fa1155c9c1c96f260bb90b5604960c8aa28185cd0d079da934c51ed64a95196
@@ -10399,7 +10399,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.specializations:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 9e020f8fd50696ad94d5a341b38d87b7249f29c7cf2e49b8a19b02eaaf9698b1
@@ -10411,7 +10411,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.retired-welcome-and-suki:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: feda32f769a80f027243bb14f1f08baf296dbe949dcbf78a9fcbcb97e11911cf
@@ -10423,7 +10423,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.phases:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 6c1c62e1bea646e3fa019909809120551973da2b4574b037f8986059c41276d3
@@ -10435,7 +10435,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.guided-spec-authoring:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: a955baa33f63be466e8923776966160e6331d71b166823f635e7e92c6ac2b1b2
@@ -10447,7 +10447,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.learning.progress-and-suggestions:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 8c37e8b54271a8175a7c457a149ec7763a4ffa76fcde401e28b8dc1b01e8a5dc
@@ -10459,7 +10459,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-specialist-composition:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: d9c2eeca5392dcc027433ed817e733ee6f5530c34336454cb8b8d02d498959a8
@@ -10470,8 +10470,68 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  focus-modes.project-layering:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: 2cc25c274ba689a35fa3668005cf569ead4d267513489796bae72b47720184a7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.layer-end:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: 15208049551aa2dd45b846f8aeab9edc5feb70c0e13de623ad315981e71a14ae
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.layer-precedence:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: invariant
+    fingerprint: 0e267d483d54cf293e04d180c3c91a95d53d8034f35dbe521de57c275f1efa34
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.conflict-detection:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: f439888d85b90fa1e7e63f1e3c80120560fa5e1e8e6e028491ce46f260b556bf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.override-note:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: 07746091cc9ea2ab4c0b1ab95fd4704d818a93a66113078eb00df6ce2d7f4976
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   focus-modes.context-reselection:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: e7fae5940a3803626e90b530760e833eaa441fe68abbc951d6bef6ee96b2347c
@@ -10483,7 +10543,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-recommendation-catalog:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 54381da13804a17a72dbc01dcc50608299372cb68f9aef622b64f39bd3f725f8
@@ -10495,7 +10555,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-recommendation-full-assessment:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 3c1dbcde314a60ccb15a4983857d3b84d2858be334a3eaf06ed130dff1164ee4
@@ -10507,7 +10567,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-authoring-click:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 0d9930932b6be079207957fe1e14bd58cc347d06b2ef60f857edd60c0cd4931b
@@ -10519,7 +10579,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-authoring-persistence:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: privacy
     fingerprint: 09e7725c13ceb3139c9c5a6958139a37914d644322516340d134a9e99f010749
@@ -10531,7 +10591,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.updated-followup-revision:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 70c70754d56e7195cfd608e3132cf112167e3fd7de86ab5f2b1bc451dd0c8815
@@ -10543,10 +10603,10 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.natural-request:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: 044425fa0c5e07841d10f7eb3d614ac2b3f99d1f231aae508e0116cc0909132b
+    fingerprint: 98db6fdf67ca1bec20a959f19b7e2649e77c5abc9e1e84dda956386908884d2b
     required_applies_to:
     - rest_api
     - cli

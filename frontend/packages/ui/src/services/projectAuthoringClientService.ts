@@ -32,7 +32,9 @@ export interface ProjectAuthoringJob {
   result_id?: string; result_revision?: string; workflow_version_id?: string;
   project_item_id?: string; expected_item_revision?: string; error_code?: string;
   draft?: { document?: ProjectFocusDocument; markdown?: string; path?: string; question?: string;
-    save_operation_id?: string; expected_embed_revision?: number; remote_binding?: Record<string, unknown> };
+    save_operation_id?: string; expected_embed_revision?: number; remote_binding?: Record<string, unknown>;
+    collisions?: { topic: string; winner: 'focus' | 'project'; touches_project_constraint: boolean }[];
+    collision_check?: 'checked' | 'not_checked' };
 }
 const state = writable<Record<string, ProjectAuthoringJob>>({});
 export const projectAuthoringJobs = { subscribe: state.subscribe };

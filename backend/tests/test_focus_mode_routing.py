@@ -184,7 +184,8 @@ def _focus_prompt_scope(active_focus_id="jobs-career_insights", *, language="en"
     end = next(i for i, n in enumerate(function.body) if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "follow_up_suggestions_enabled" for t in n.targets))
     instruction = "Full focus instruction: ask about constraints.\nPreserve all configured details."
     translator = SimpleNamespace(get_nested_translation=lambda key, lang="en": instruction if lang == "en" and translation_available else None)
-    scope = dict(vars(focus_mode_routing))
+    from backend.apps.ai.processing import focus_layering
+    scope = {**vars(focus_mode_routing), **vars(focus_layering)}
     # The production slice records setup timing; its enclosing helper is outside
     # this prompt-only test. Preserve all prompt assertions while supplying it.
     scope["mark_project_reference_setup"] = lambda stage: None
@@ -227,16 +228,18 @@ def test_ai_deactivation_removes_instruction_before_next_inference():
     body = [n for n in branch.body if not isinstance(n, ast.Continue)]
     function = ast.AsyncFunctionDef(name="run_branch", args=ast.arguments(posonlyargs=[], args=[
         ast.arg(arg="active_focus_prompt_section"), ast.arg(arg="answer_recovery_system_prompt"),
-        ast.arg(arg="agentic_section")], kwonlyargs=[], kw_defaults=[], defaults=[]), body=body + [ast.Return(value=ast.Call(func=ast.Name(id="locals", ctx=ast.Load()), args=[], keywords=[]))], decorator_list=[])
+        ast.arg(arg="agentic_section"), ast.arg(arg="active_project_focus")], kwonlyargs=[], kw_defaults=[], defaults=[]), body=body + [ast.Return(value=ast.Call(func=ast.Name(id="locals", ctx=ast.Load()), args=[], keywords=[]))], decorator_list=[])
     module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
     instruction = "Full focus instruction"
     focus_part = f"--- Active Focus: jobs-career_insights ---\n{instruction}\n--- End Active Focus ---"
-    scope = dict(vars(focus_mode_routing))
+    from backend.apps.ai.processing import focus_layering
+    scope = {**vars(focus_mode_routing), **vars(focus_layering)}
+    scope.update(layer_precedence_section=None, project_phase_prompt_section=None)
     scope.update(json=json, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id="jobs-career_insights", user_id="owner", chat_id="chat"), cache_service=None, phase_redis=None, focus_phase_runtimes=[], current_message_history=[], tool_call_id="deactivate-1", tool_name="system-deactivate_focus_mode", prompt_parts=[focus_part, "Base instructions"], active_focus_prompt_text=instruction, active_focus_prompt_section=focus_part, full_system_prompt=focus_part + "\n\nBase instructions")
     from backend.apps.ai.processing.focus_phases import invalidate_phase_runtime
     scope["invalidate_phase_runtime"] = invalidate_phase_runtime
     exec(compile(module, "production-focus-deactivate", "exec"), scope)
-    result = asyncio.run(scope["run_branch"](focus_part, scope["full_system_prompt"], ""))
+    result = asyncio.run(scope["run_branch"](focus_part, scope["full_system_prompt"], "", None))
     assert scope["request_data"].active_focus_id is None
     assert instruction not in result.get("full_system_prompt", scope["full_system_prompt"])
     assert instruction not in result["answer_recovery_system_prompt"]
@@ -433,3 +436,14 @@ def test_model_marks_directly_named_focus_and_suggestions_keep_the_countdown() -
     assert 'named_by_user=parsed_args.get("named_by_user") is True' in source
     cache_source = Path("backend/core/api/app/services/cache_chat_mixin.py").read_text()
     assert '"activate_at": time.time() + (0 if context.get("user_override") is True else 4)' in cache_source
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.layer-precedence
+def test_layered_focus_states_precedence_over_the_project_base() -> None:
+    """A focus on top of the Project base gets the precedence section; the base alone does not."""
+    scope, _instruction = _focus_prompt_scope(active_project_focus={"focus_id": "project-base", "project_id": "p1"})
+    joined = "\n".join(scope["prompt_parts"])
+    assert "--- Focus layering ---" in joined
+    assert "never overridden by the layered focus" in joined
+    plain, _ = _focus_prompt_scope()
+    assert "--- Focus layering ---" not in "\n".join(plain["prompt_parts"])

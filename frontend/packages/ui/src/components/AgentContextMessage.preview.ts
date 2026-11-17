@@ -35,6 +35,13 @@ export const variants = {
     onAuthoring, onSaveJob, focusInRecommendationsCard: true, jobs: [{ job_id: 'preview-started-job', recommendation_id: 'preview-started', chat_id: 'preview-chat', kind: 'focus', status: 'running' }] },
   draft: { event: { type: 'project_authoring_recommendation', recommendation_id: 'preview-draft', chat_id: 'preview-chat', project_id: 'preview-project', kind: 'focus', action: 'update', title: 'Debugging', target_id: 'preview-focus', expected_revision: 'v1' },
     onAuthoring, onSaveJob, focusInRecommendationsCard: false, jobs: [{ job_id: 'preview-job', recommendation_id: 'preview-draft', chat_id: 'preview-chat', kind: 'focus', status: 'needs_save', draft: { markdown: '---\nname: Debugging\ndescription: Investigate failures.\npreprocessor_hint: Debugging services.\n---\nKeep the approved goal and investigate its failing dependency first.' } }] },
+  collisions: { event: { type: 'project_authoring_recommendation', recommendation_id: 'preview-collisions', chat_id: 'preview-chat', project_id: 'preview-project', kind: 'focus', action: 'update', title: 'Add a new provider', target_id: 'preview-focus', expected_revision: 'v1' },
+    onAuthoring, onSaveJob, focusInRecommendationsCard: false, jobs: [{ job_id: 'preview-collisions-job', recommendation_id: 'preview-collisions', chat_id: 'preview-chat', kind: 'focus', status: 'needs_save', draft: { markdown: '---\nname: Add a new provider\n---\nInstall the provider SDK right away.', collision_check: 'checked', collisions: [
+      { topic: 'Adding dependencies without asking', winner: 'project', touches_project_constraint: true },
+      { topic: 'Answer format', winner: 'focus', touches_project_constraint: false },
+    ] } }] },
+  collisions_not_checked: { event: { type: 'project_authoring_recommendation', recommendation_id: 'preview-unchecked', chat_id: 'preview-chat', project_id: 'preview-project', kind: 'focus', action: 'create' },
+    onAuthoring, onSaveJob, focusInRecommendationsCard: false, jobs: [{ job_id: 'preview-unchecked-job', recommendation_id: 'preview-unchecked', chat_id: 'preview-chat', kind: 'focus', status: 'needs_save', draft: { markdown: '---\nname: Add a new provider\n---\nDescribe the provider process.', collision_check: 'not_checked', collisions: [] } }] },
   clarification: { event: { type: 'project_authoring_recommendation', recommendation_id: 'preview-question', chat_id: 'preview-chat', project_id: 'preview-project', kind: 'focus', action: 'create' },
     onAuthoring, onSaveJob, focusInRecommendationsCard: false, jobs: [{ job_id: 'preview-question-job', recommendation_id: 'preview-question', chat_id: 'preview-chat', kind: 'focus', status: 'needs_input', draft: { question: 'Which repository should this Focus cover?' } }] },
 };

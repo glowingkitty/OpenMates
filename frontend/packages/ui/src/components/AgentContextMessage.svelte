@@ -104,6 +104,21 @@
               <pre>{job.draft.markdown}</pre>
             </details>
           {/if}
+          {#if job.kind === 'focus' && job.draft?.markdown}
+            {#if job.draft.collision_check === 'checked' && job.draft.collisions?.length}
+              <p class="collisions-heading" data-testid="project-authoring-collisions-heading">{$text('rules.collisions_heading')}</p>
+              <ul class="collisions" data-testid="project-authoring-collisions">
+                {#each job.draft.collisions as collision}
+                  <li class:constraint={collision.touches_project_constraint} data-testid="project-authoring-collision"
+                    data-touches-constraint={collision.touches_project_constraint}>
+                    {collision.touches_project_constraint ? '⚠ ' : ''}{collision.topic}: {$text(collision.winner === 'project' ? 'rules.collision_winner_project' : 'rules.collision_winner_focus')}
+                  </li>
+                {/each}
+              </ul>
+            {:else if job.draft.collision_check !== 'checked'}
+              <p class="collision-unchecked" data-testid="project-authoring-collisions-unchecked">{$text('rules.collisions_not_checked')}</p>
+            {/if}
+          {/if}
           <button type="button" onclick={() => saveJob(job.job_id)} disabled={savingJob !== null || savedJobs.includes(job.job_id)} data-testid="project-authoring-save">
             {savingJob === job.job_id ? $text('common.loading') : savedJobs.includes(job.job_id) ? $text('rules.job_saved') : $text('rules.save_draft')}
           </button>
@@ -124,6 +139,10 @@
   .provenance, .revision { overflow-wrap: anywhere; }
   .revision { font-family: var(--font-family-mono); }
   pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; color: var(--color-font-primary); max-height: 32rem; overflow-y: auto; padding: var(--spacing-4); background: var(--color-grey-0); border-radius: var(--radius-4); }
+  .collisions-heading { margin: var(--spacing-3) 0 0; font-weight: 600; }
+  .collisions { margin: var(--spacing-2) 0 var(--spacing-3); padding-left: var(--spacing-8); }
+  .collisions li.constraint { color: var(--color-warning, var(--color-font-primary)); font-weight: 600; }
+  .collision-unchecked { margin: var(--spacing-3) 0; }
   .actions { display: flex; flex-wrap: wrap; gap: var(--spacing-3); }
   button { min-height: 2.75rem; padding: var(--spacing-3) var(--spacing-5); border: 1px solid var(--color-grey-30); border-radius: var(--radius-4); color: var(--color-font-primary); background: var(--color-grey-0); cursor: pointer; }
   button:disabled { cursor: default; opacity: .65; }

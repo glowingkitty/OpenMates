@@ -153,6 +153,26 @@ save_draft:
   en: Save draft
   de: Entwurf speichern
   verified_by_human: []
+collisions_heading:
+  context: Heading above the list of collisions between a drafted Project Focus and the Project's base focus, shown before saving
+  en: Conflicts with the Project focus
+  de: Konflikte mit dem Projekt-Fokus
+  verified_by_human: []
+collision_winner_project:
+  context: Collision list of a drafted Project Focus; the Project focus rule wins over the drafted Focus
+  en: the Project focus applies
+  de: Der Projekt-Fokus gilt
+  verified_by_human: []
+collision_winner_focus:
+  context: Collision list of a drafted Project Focus; the drafted Focus wins within its own task
+  en: this Focus applies
+  de: Dieser Fokus gilt
+  verified_by_human: []
+collisions_not_checked:
+  context: Shown before saving a drafted Project Focus when the comparison with the Project focus could not run
+  en: Collisions with the Project focus were not checked
+  de: Kollisionen mit dem Projekt-Fokus wurden nicht geprüft
+  verified_by_human: []
 job_running:
   context: Project authoring status or accessible Rule disclosure text
   en: Working on this improvement…

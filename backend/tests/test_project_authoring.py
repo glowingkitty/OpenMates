@@ -159,7 +159,7 @@ def _focus_author_fake_provider(monkeypatch, result=None, *, raw=None):
             schema = json["generationConfig"]["responseJsonSchema"]
             check_schema(schema)
             assert "$defs" not in schema and "$ref" not in schema
-            assert set(schema["properties"]) == {"status", "document_json", "question"}
+            assert set(schema["properties"]) == {"status", "document_json", "question", "collisions"}
             assert schema["properties"]["document_json"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
             prompt = json["systemInstruction"]["parts"][0]["text"]
             local_schema = module.json.loads(prompt.split("The decoded document must satisfy this schema: ")[1])
@@ -292,6 +292,7 @@ class Access:
             get_embed_by_id=AsyncMock(return_value={"encrypted_content": "ciphertext", "version_number": 1}),
             get_embeds_by_hashed_embed_ids=AsyncMock(return_value=[{"version_number": 1}])), get_items=AsyncMock())
         self.item = {"target_id_hash": hashlib.sha256(b"embed-1").hexdigest()}
+        self.authorization = SimpleNamespace(get_active_focus=AsyncMock(return_value=None))
         self.detail = SimpleNamespace(id="workflow-1", version=2, current_version_id="wf-version-2",
             model_dump=lambda **_: {"id": "workflow-1", "graph": {"nodes": [{"type": "ai_check"}]}, "version": 2})
 

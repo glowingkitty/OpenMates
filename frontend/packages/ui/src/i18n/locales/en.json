@@ -19103,6 +19103,18 @@
     "save_draft": {
       "text": "Save draft"
     },
+    "collisions_heading": {
+      "text": "Conflicts with the Project focus"
+    },
+    "collision_winner_project": {
+      "text": "the Project focus applies"
+    },
+    "collision_winner_focus": {
+      "text": "this Focus applies"
+    },
+    "collisions_not_checked": {
+      "text": "Collisions with the Project focus were not checked"
+    },
     "job_running": {
       "text": "Working on this improvement…"
     },

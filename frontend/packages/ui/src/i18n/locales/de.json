@@ -18219,6 +18219,18 @@
     "save_draft": {
       "text": "Entwurf speichern"
     },
+    "collisions_heading": {
+      "text": "Konflikte mit dem Projekt-Fokus"
+    },
+    "collision_winner_project": {
+      "text": "Der Projekt-Fokus gilt"
+    },
+    "collision_winner_focus": {
+      "text": "Dieser Fokus gilt"
+    },
+    "collisions_not_checked": {
+      "text": "Kollisionen mit dem Projekt-Fokus wurden nicht geprüft"
+    },
     "job_running": {
       "text": "Diese Verbesserung wird erstellt…"
     },

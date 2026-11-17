@@ -34,6 +34,9 @@ from backend.apps.ai.processing.preprocessor import (
     _image_reference_consumer_skills, _request_has_image_upload_embed,
 )
 from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, has_active_app_focus
+from backend.apps.ai.processing.focus_layering import (
+    build_layer_precedence_section, deactivate_focus_tool, deactivation_result, resolve_focus_layers,
+)
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
@@ -5293,6 +5296,7 @@ async def handle_main_processing(
     active_focus_definition = None
     active_focus_prompt_text: Optional[str] = None
     active_focus_prompt_section: Optional[str] = None
+    layer_precedence_section: Optional[str] = None
     translation_service = TranslationService()
     # The chat's active focus can be the bound Project's own focus (a bare id,
     # e.g. the default focus of an assistant-created Project). Its instruction
@@ -5361,6 +5365,19 @@ async def handle_main_processing(
             active_focus_prompt_text += DELEGATED_DEEP_RESEARCH_INSTRUCTION
         active_focus_prompt_section = f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---"
         prompt_parts.insert(0, active_focus_prompt_section)
+        # feature.focus-modes@3 layer-precedence / override-note: a focus layered
+        # over the Project base states who wins a collision on every request.
+        layer_precedence_section = build_layer_precedence_section(
+            resolve_focus_layers(request_data.active_focus_id, active_project_focus),
+            first_answer_after_layering=bool(getattr(request_data, "is_focus_mode_continuation", False)),
+            layered_name=_resolve_focus_mode_display_name(
+                translation_service, active_focus_definition.name_translation_key,
+                fallback=None, user_language=getattr(preprocessing_results, "output_language", None) or "en",
+            ) if getattr(active_focus_definition, "name_translation_key", None) else None,
+        )
+        if layer_precedence_section:
+            # A separate part, so a phase change that rebuilds the focus section keeps it.
+            prompt_parts.insert(1, layer_precedence_section)
     mark_project_reference_setup("catalog_focus")
 
     follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
@@ -5580,7 +5597,11 @@ async def handle_main_processing(
     # deactivate_focus_mode: only when a focus mode is currently active
     
     relevant_focus_modes = preprocessing_results.relevant_focus_modes if hasattr(preprocessing_results, 'relevant_focus_modes') else []
-    has_active_focus_mode = bool(request_data.active_focus_id or active_project_focus)
+    # feature.focus-modes@3 project-layering: the Project base alone does not
+    # block proposing a more specific focus; it is layered over the base.
+    focus_layers = resolve_focus_layers(request_data.active_focus_id, active_project_focus)
+    has_active_focus_mode = bool(focus_layers.layered_focus_id) or (
+        bool(request_data.active_focus_id) and not active_project_focus)
     project_candidates = {
         f"project-{candidate['project_id']}": candidate
         for candidate in (getattr(request_data, "project_focus_candidates", None) or [])
@@ -5692,23 +5713,14 @@ async def handle_main_processing(
         available_tools_for_llm.append(activate_tool)
         logger.info(f"{log_prefix} Added activate_focus_mode tool with {len(relevant_focus_modes)} available focus mode(s): {relevant_focus_modes}")
     
-    if request_data.active_focus_id and not user_requested_skills_only:
-        # Add deactivate tool when a focus mode is active
-        deactivate_tool = {
-            "type": "function",
-            "function": {
-                # Snake_case for Gemini compatibility — see activate_focus_mode comment above.
-                "name": "deactivate_focus_mode",
-                "description": f"Deactivate the current focus mode ({request_data.active_focus_id}) and return to normal assistant behavior. Use this when the user no longer needs the specialized focus mode or asks to exit it.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            }
-        }
+    # feature.focus-modes@3 layer-end: a layered focus ends on its own and the
+    # Project base stays; the base goes off only when the user leaves the Project.
+    deactivate_tool = None if user_requested_skills_only else deactivate_focus_tool(
+        focus_layers, request_data.active_focus_id)
+    if deactivate_tool:
         available_tools_for_llm.append(deactivate_tool)
-        logger.info(f"{log_prefix} Added deactivate_focus_mode tool (current focus: {request_data.active_focus_id})")
+        logger.info(f"{log_prefix} Added deactivate_focus_mode tool (current focus: {request_data.active_focus_id}, "
+                    f"layered={focus_layers.layered}, project_base_only={focus_layers.base_only})")
 
     # --- Add sub-chat orchestration tools ---
     start_sub_chats_tool = {
@@ -5880,7 +5892,11 @@ async def handle_main_processing(
             for app_id, metadata in discovered_apps_metadata.items()
             for focus in (getattr(metadata, "focuses", None) or [])
             if getattr(focus, "auto_activate_when_relevant", False)
-        },
+        } | (
+            # project-layering: a Focus stored in the bound Project that uniquely
+            # matches is proposed over the Project base with the normal countdown.
+            set(private_candidates) if focus_layers.base_only else set()
+        ),
         has_active_focus=has_active_focus_mode,
         chat_depth=chat_depth,
         is_continuation=any(getattr(request_data, name, False) for name in (
@@ -9801,7 +9817,30 @@ async def handle_main_processing(
                         
                     elif skill_id == "deactivate_focus_mode":
                         previous_focus_id = request_data.active_focus_id
-                        logger.info(f"{log_prefix} [FOCUS_MODE] Deactivating focus mode: {previous_focus_id}")
+                        deactivated_layers = resolve_focus_layers(previous_focus_id, active_project_focus)
+                        logger.info(f"{log_prefix} [FOCUS_MODE] Deactivating focus mode: {previous_focus_id} "
+                                    f"(layered={deactivated_layers.layered}, project_base_only={deactivated_layers.base_only})")
+                        if deactivated_layers.base_only:
+                            # layer-end: the user explicitly left the Project; the shared
+                            # off path removes its binding, so later writes are denied.
+                            from backend.core.api.app.services.project_write_authorization_service import (
+                                ProjectWriteAuthorizationService,
+                            )
+                            await ProjectWriteAuthorizationService(directus_service, cache_service).deactivate_focus(
+                                user_id=request_data.user_id, chat_id=request_data.chat_id)
+                            if project_phase_prompt_section in prompt_parts:
+                                prompt_parts.remove(project_phase_prompt_section)
+                            active_project_focus = None
+                            request_data.active_project_focus = None
+                            request_data.current_project = None
+                        elif deactivated_layers.layered and cache_service:
+                            # layer-end: only the layered focus ends; the Project base and
+                            # its write authority stay as they are.
+                            from backend.core.api.app.services.project_write_authorization_service import (
+                                ProjectWriteAuthorizationService,
+                            )
+                            await cache_service.delete(ProjectWriteAuthorizationService._specialist_key(
+                                request_data.user_id, request_data.chat_id))
                         
                         # Clear active_focus_id
                         await invalidate_phase_runtime(phase_redis, owner_id=request_data.user_id,
@@ -9833,7 +9872,7 @@ async def handle_main_processing(
                             except Exception as cache_error:
                                 logger.error(f"{log_prefix} [FOCUS_MODE] Error clearing cache: {cache_error}", exc_info=True)
                         
-                        tool_result_content_str = json.dumps({
+                        tool_result_content_str = json.dumps(deactivation_result(deactivated_layers) or {
                             "status": "deactivated",
                             "previous_focus_id": previous_focus_id,
                             "message": f"Focus mode '{previous_focus_id}' has been deactivated. Returning to normal assistant behavior."
@@ -9860,6 +9899,8 @@ async def handle_main_processing(
                         # iteration, while retaining the transition in message history.
                         if active_focus_prompt_section in prompt_parts:
                             prompt_parts.remove(active_focus_prompt_section)
+                        if layer_precedence_section and layer_precedence_section in prompt_parts:
+                            prompt_parts.remove(layer_precedence_section)
                         full_system_prompt = "\n\n".join(filter(None, prompt_parts))
                         if agentic_section:
                             full_system_prompt += "\n\n" + agentic_section

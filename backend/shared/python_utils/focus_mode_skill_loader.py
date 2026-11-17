@@ -179,6 +179,7 @@ def load_focus_mode_from_skill_md(file_path: str, app_id: str) -> Dict[str, Any]
     _copy_if_present(raw, result, "phases")
     _copy_if_present(raw, result, "icon", dest_key="icon_image")
     _copy_if_present(raw, result, "preprocessor-hint", dest_key="preprocessor_hint")
+    _copy_if_present(raw, result, "auto-activate-when-relevant", dest_key="auto_activate_when_relevant")
     _copy_if_present(raw, result, "allowed-models", dest_key="allowed_models")
     _copy_if_present(raw, result, "recommended-model", dest_key="recommended_model")
     _copy_if_present(raw, result, "allowed-apps", dest_key="allowed_apps")

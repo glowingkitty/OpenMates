@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.focus-modes@2
+specification: feature.focus-modes@3
 project_write_gate:
 - id: model-cannot-mint-write-access
   given: The preprocessor recommends Work on OpenMates but its activation has not been accepted in this chat.
@@ -215,6 +215,64 @@ project_specialist:
   when: The user sends "@focus:code:write_specification Write the spec for bed management".
   then: The Write specification focus activates at once with its activation embed, its instructions apply together with
     the Project base, and Project file writes stay authorized; the mention is never ignored.
+project_layering:
+- id: automatic-spec-over-project
+  assertion_ids:
+  - focus-modes.project-layering
+  given: Garden Planner's Project focus is active in a chat and no other focus is active.
+  when: The user writes "I want a new feature that reminds me when to water each bed", naming no focus mode.
+  then: Write specification is proposed with the normal countdown and, once active, runs over the Project base; Project
+    instructions and file-write authority stay in force.
+- id: project-focus-over-project
+  assertion_ids:
+  - focus-modes.project-layering
+  given: The OpenMates Project has a stored Focus Add a new provider describing that process, and only the Project base
+    is active.
+  when: The user asks to add a weather data provider.
+  then: Add a new provider is proposed and, once active, its process applies together with the Project base.
+layer_end:
+- id: layered-focus-done
+  assertion_ids:
+  - focus-modes.layer-end
+  given: Write specification runs over Garden Planner's Project focus and the user approved the Specification and its Plan.
+  when: The assistant ends the layered focus, and later the user asks about another Garden Planner file.
+  then: Only the Project base remains active, its write authority is unchanged and the assistant does not switch it off.
+- id: user-leaves-project
+  assertion_ids:
+  - focus-modes.layer-end
+  given: Only Garden Planner's Project focus is active.
+  when: The user writes "Forget the garden project, let's talk about holiday plans".
+  then: The Project focus is switched off with the shared off rules; an unrelated question that merely mentions holidays
+    without leaving the Project keeps it on.
+layer_precedence:
+- id: format-wins-constraint-holds
+  assertion_ids:
+  - focus-modes.layer-precedence
+  given: The Project base says "answer in short bullet lists" and "never push to main"; the layered Write specification
+    focus asks for full requirement prose.
+  when: The user drafts requirements and then asks the assistant to push the result to main.
+  then: The requirements use the focus's prose format, while pushing to main is refused under the Project constraint.
+conflict_detection:
+- id: authoring-shows-collisions
+  assertion_ids:
+  - focus-modes.conflict-detection
+  given: The Project base says "always ask before adding dependencies".
+  when: The Update authoring job drafts a provider Focus that says "install the provider SDK right away".
+  then: The authoring result lists that collision as touching a Project constraint before Save, and Save stays possible.
+- id: detection-unavailable
+  assertion_ids:
+  - focus-modes.conflict-detection
+  given: The Project base instruction is unavailable to the authoring job.
+  when: The Create authoring job drafts a new Project Focus.
+  then: The result says collisions with the Project focus were not checked, never that there are none.
+override_note:
+- id: note-on-first-answer
+  assertion_ids:
+  - focus-modes.override-note
+  given: Write specification is layered over a Project base whose format rule it overrides.
+  when: The first answer after activation and the next answer are shown.
+  then: The first answer begins with one short note naming Write specification and the overridden format rule; the next
+    answer has no note.
 context_reselection:
 - id: focus-and-phase-refresh
   assertion_ids:

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.focus-modes
-version: 2
-status: approved
+version: 3
+status: draft
 title: Focus Modes — Shared Operation and Display
 summary: Shared lifecycle, full system instruction application, system history, controls, restoration and historical display
   for all focus modes.
@@ -13,6 +13,8 @@ scope:
   - Retirement of the Welcome focus mode and its dedicated Suki mate from new selection and routing.
   - Composition with individual focus-mode specifications.
   - Project base/specialist display, Focus/phase context refresh and Project-only recommendation/background authoring lifecycle.
+  - Layering of a more specific focus over an always-active Project base, its end, and precedence, detection and display of
+    colliding instructions between the layers.
   - Project-owned focus activation as a necessary deterministic condition for chat file writes, and preservation of read access
     to files already shown in the chat after deactivation.
   - Learning follow-ups and phased Learn topic and Test knowledge tutoring that use learner attempts as evidence.
@@ -177,6 +179,51 @@ assertions:
     guards still apply.
   depends_on:
   - examples.project_specialist
+- id: focus-modes.project-layering
+  type: behavior
+  must: In a Project chat the Project base focus stays active for the whole chat. A more specific focus, either a built-in
+    focus such as Write specification or the planner, or a Focus stored in that Project, is layered on top of the base
+    when the user names it or when the request uniquely matches it, for example a request for a new feature matching Write
+    specification or a request matching a Project Focus such as Add a new provider. Explicit naming activates at once;
+    a match uses the normal countdown proposal. Both instruction layers apply together. At most one focus is layered at
+    a time; activating another replaces the layered focus, never the base.
+  depends_on:
+  - examples.project_layering
+- id: focus-modes.layer-end
+  type: behavior
+  must: When the layered focus ends, because the user switches it off or the assistant ends it once its task is done, the
+    chat continues with only the Project base, with its instructions and write authority unchanged. The assistant never
+    switches the Project base off on its own initiative; the base goes off only through the user's off control or when
+    the user explicitly moves the conversation away from the Project, after which the shared off rules apply. Both ways
+    stay available.
+  depends_on:
+  - examples.layer_end
+- id: focus-modes.layer-precedence
+  type: invariant
+  must: When the instructions of a layered focus and the Project base collide, the layered focus wins within its own task
+    scope (its process, phases, questions and output format). The Project base's safety rules, constraints, permissions,
+    data boundaries and write gates are never overridden by a layered focus, and platform safety policy overrides both.
+    Every request with two active layers states this precedence in its system prompt.
+  depends_on:
+  - examples.layer_precedence
+- id: focus-modes.conflict-detection
+  type: behavior
+  must: When a Project Focus is created or updated through the Create or Update authoring job, the authoring model compares
+    it with the Project base focus and lists concrete collisions, each with its topic, the winning layer under the precedence
+    rule and whether it touches a Project constraint; the result shows them before Save without blocking it. When a focus
+    is layered over a Project base, the first request after layering asks the answering model to check both layers for
+    collisions. A missing base instruction or an unusable list reports that the check did not run; it never reports no
+    collisions. Collision text stays transient or inside existing protected content.
+  depends_on:
+  - examples.conflict_detection
+- id: focus-modes.override-note
+  type: behavior
+  must: When a layered focus overrides a Project base instruction, or a Project constraint keeps a layered instruction from
+    applying, the first answer after layering shows one short visible note in the user's language naming the layered
+    focus and each overridden or refused instruction. No note appears when there is no collision, and later answers do
+    not repeat it unless the layering changes.
+  depends_on:
+  - examples.override_note
 - id: focus-modes.context-reselection
   type: behavior
   must: After any authoritative Focus activation or active-phase change, reselect relevant permitted app skills, saved Workflows,
@@ -232,8 +279,9 @@ assertions:
 - id: focus-modes.natural-request
   type: behavior
   must: When a natural request that does not name a focus mode uniquely matches an opted-in public focus mode, propose its
-    normal countdown activation before beginning the substantive answer. Simple lookups, ambiguous matches, an existing focus, exact user skill selections and
-    continuation or rejection turns retain their normal path. The proposal alone never applies focus instructions, grants
+    normal countdown activation before beginning the substantive answer. Simple lookups, ambiguous matches, an existing layered
+    or non-Project focus, exact user skill selections and continuation or rejection turns retain their normal path; an active
+    Project base alone never blocks the proposal. The proposal alone never applies focus instructions, grants
     private access or starts research child chats; those require completed activation.
   depends_on:
   - examples.natural_request
@@ -285,6 +333,11 @@ examples:
   - learning_progress
   - guided_spec_authoring
   - project_specialist
+  - project_layering
+  - layer_end
+  - layer_precedence
+  - conflict_detection
+  - override_note
   - context_reselection
   - recommendation_catalog
   - recommendation_full

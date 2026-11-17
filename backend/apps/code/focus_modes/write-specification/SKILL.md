@@ -14,12 +14,18 @@ preprocessor-hint: >
   spec, PRD or requirements for an idea, product, feature or app together
   with the assistant, for example Help me write a spec for my bakery's
   online ordering, Let's spec out this feature, or I have an app idea and
-  want a proper specification before we build it. Prefer this over the
-  project planner when the user asks for a specification or requirements
-  rather than a task list. Do not select when the user already gives the
-  complete content and only wants a quick one-shot draft, when they want to
-  update one field of an existing Specification, or for a plan, roadmap or
-  task breakdown alone.
+  want a proper specification before we build it. Also select when the user
+  asks for a new feature or new capability to be built (for example I want a
+  new feature that reminds me when to water each bed, or Add a way for
+  customers to book a table), because a new feature starts with its
+  Specification. Prefer this over the project planner when the user asks for
+  a specification, requirements or a new feature rather than a task list.
+  Do not select for a bug fix, a small change to existing behaviour, a
+  question about existing code, when the user already gives the complete
+  content and only wants a quick one-shot draft, when they want to update one
+  field of an existing Specification, or for a plan, roadmap or task
+  breakdown alone.
+auto-activate-when-relevant: true
 
 # ── Capability gating (parsed, not yet enforced — see architecture doc) ──
 allowed-models: []

@@ -4844,7 +4844,7 @@ features:
     display for all focus modes.
   specifications:
   - id: feature.focus-modes
-    status: approved
+    status: draft
     path: specifications/features/focus-modes
   apps: []
   product_features: []
@@ -4853,18 +4853,18 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 26
+  assertions: 31
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 11
+        passing: 12
         failing: 1
-        not_run: 5
-        missing: 9
-        counted: 26
+        not_run: 8
+        missing: 10
+        counted: 31
       failing_tests:
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts › OpenMates app does not offer the retired Welcome focus mode
       key_tests: []
@@ -4881,6 +4881,7 @@ features:
       - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
       - frontend/apps/web_app/tests/focus-mode-mention.spec.ts
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
+      - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
       - frontend/apps/web_app/tests/spec-authoring-focus-web-real.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
@@ -4897,8 +4898,8 @@ features:
         passing: 8
         failing: 0
         not_run: 1
-        missing: 17
-        counted: 26
+        missing: 22
+        counted: 31
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/FocusPhaseNativeUITests.swift
@@ -4922,8 +4923,8 @@ features:
         passing: 4
         failing: 0
         not_run: 8
-        missing: 14
-        counted: 26
+        missing: 19
+        counted: 31
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -4953,23 +4954,23 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 15
+        passing: 16
         failing: 1
-        not_run: 2
+        not_run: 6
         missing: 8
-        counted: 26
+        counted: 31
       failing_tests:
       - backend/tests/test_delegated_primary_read.py › test_observed_search_only_catalog_adds_real_read_only_for_authorized_synthesis
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/jev-project-context-api.spec.ts
       key_unit_tests:
+      - backend/tests/test_focus_layering.py
       - backend/tests/test_focus_mode_routing.py
       - backend/tests/test_project_authoring.py
       - backend/tests/test_project_write_authorization.py
       - backend/tests/test_focus_phases.py
-      - backend/tests/test_focus_continuation_history.py
-      unit_test_files: 31
+      unit_test_files: 33
     sdk_npm:
       status: implemented
       source: intent
@@ -4978,8 +4979,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 26
-        counted: 26
+        missing: 31
+        counted: 31
       key_tests: []
       evidence: focusMode option sdk.ts; focus_mode param sdk.py ask
       e2e_tests: []
@@ -4993,8 +4994,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 26
-        counted: 26
+        missing: 31
+        counted: 31
       key_tests: []
       evidence: focusMode option sdk.ts; focus_mode param sdk.py ask
       e2e_tests: []
