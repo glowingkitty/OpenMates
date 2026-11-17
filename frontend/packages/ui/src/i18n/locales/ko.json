@@ -7686,7 +7686,7 @@
         "text": "{used} / {limit} 크레딧"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "클라우드 브라우저에 로그인합니다. AI가 계속하도록 허용하면 이 계정의 정보에 접근할 수 있습니다. 관련 페이지 내용이 AI 제공업체에 전송될 수 있습니다. AI에 접근을 허용할 수 있는 계정으로만 로그인하세요."

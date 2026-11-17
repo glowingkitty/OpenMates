@@ -7686,7 +7686,7 @@
         "text": "{used} / {limit} 积分"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "你正在登录云端浏览器。允许 AI 继续后，它可以访问此账户中的信息。相关页面内容可能会发送给我们的 AI 服务商。请仅登录你愿意允许 AI 访问的账户。"

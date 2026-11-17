@@ -7686,7 +7686,7 @@
         "text": "{used} / {limit} kreditů"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "Přihlašujete se v cloudovém prohlížeči. Když necháte AI pokračovat, může přistupovat k údajům tohoto účtu. Relevantní obsah stránek může být odeslán našim poskytovatelům AI. Přihlašujte se jen k účtům, ke kterým chcete dát AI přístup."

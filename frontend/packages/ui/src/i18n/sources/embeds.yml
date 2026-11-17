@@ -13642,48 +13642,48 @@ browse.credits:
   he: '{used} / {limit} קרדיטים'
 browse.continue_message:
   context: Browse privacy or lifecycle help; English fallback pending locale review
-  en: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  en: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
   verified_by_human: []
-  de: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  de: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  zh: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  zh: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  es: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  es: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  fr: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  fr: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  pt: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  pt: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  ru: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  ru: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  ja: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  ja: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  ko: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  ko: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  it: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  it: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  tr: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  tr: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  vi: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  vi: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  id: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  id: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  pl: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  pl: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  nl: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  nl: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  ar: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  ar: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  hi: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  hi: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  th: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  th: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  cs: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  cs: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  sv: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  sv: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
-  he: Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not
+  he: Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not
     create a new browser session.
 browse.sign_in_notice:
   context: Browse privacy, lifecycle or usage help

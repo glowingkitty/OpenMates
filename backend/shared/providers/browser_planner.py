@@ -425,7 +425,11 @@ def plain_action(action: dict[str, Any], observation: dict[str, Any]) -> bool:
     """Actions that need no model safety question (the DANGEROUS check still applies).
 
     Scroll, wait, back, plain HTTPS link navigation and field preparation:
-    choosing a dropdown option or typing without pressing Enter.
+    choosing a dropdown option, typing without pressing Enter, or ticking a
+    radio button or checkbox. A tick only changes the form on the page; the
+    button that sends the form still gets the safety question. Asked anyway,
+    the question rated a form's role choice and its consent box below the bar
+    and stopped every form-with-user step (feature.app-skill.web-browse).
     """
     kind = action["kind"]
     if kind in ("scroll", "wait", "back", "select"):
@@ -435,6 +439,19 @@ def plain_action(action: dict[str, Any], observation: dict[str, Any]) -> bool:
     if kind != "click":
         return False
     control = control_index(observation).get(str(action.get("target")), {})
+    if _form_choice(control):
+        return True
     return control.get("role") == "link" and str(control.get("href") or "").startswith(
         "https://"
     )
+
+
+_CHOICE_ROLES = frozenset({"radio", "checkbox", "switch", "menuitemradio", "menuitemcheckbox"})
+
+
+def _form_choice(control: dict[str, Any]) -> bool:
+    """A radio button or checkbox: an ARIA choice role, or a native input that reports `checked`."""
+    role = str(control.get("role") or "")
+    if role in _CHOICE_ROLES:
+        return True
+    return role == "input" and isinstance(control.get("checked"), bool)

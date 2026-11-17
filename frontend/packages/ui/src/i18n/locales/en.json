@@ -9971,7 +9971,7 @@
         "text": "{used} / {limit} credits"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "You’re signing in to a cloud browser. When you let AI continue, it can access information in this account. Relevant page content may be sent to our AI providers. Only sign in to accounts you’re comfortable giving AI access to."

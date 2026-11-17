@@ -453,6 +453,36 @@ async def test_choosing_values_then_clicking_search_asks_only_about_the_button(m
     assert models.decision.await_count == 2
 
 
+FORM_PAGE = {
+    "url": "https://example.org/form",
+    "title": "Matching form",
+    "text": "Your goal. I agree to my data being processed.",
+    "controls": [
+        {"id": "0", "kind": "click", "role": "input", "label": "Join an idea", "checked": False},
+        {"id": "1", "kind": "click", "role": "checkbox", "label": "I agree to my data being processed", "checked": False},
+        {"id": "2", "kind": "click", "role": "button", "label": "Start"},
+        {"id": "3", "kind": "click", "role": "input", "label": "Start"},
+    ],
+}
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.form-with-user
+@pytest.mark.asyncio
+@pytest.mark.parametrize("button", ["2", "3"])
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.form-with-user
+async def test_ticking_form_choices_is_field_preparation_but_the_form_button_is_reviewed(models, button):
+    # Low scores like the real run: a tick would stop if it were asked about.
+    models.decision = gate_decisions(Start=0.13)
+    ticks = [{"kind": "click", "target": "0"}, {"kind": "click", "target": "1"}]
+    assert await models.gate("Fill the form", FORM_PAGE, ticks) is None
+    assert [set(c.args[1]) for c in models.decision.await_args_list] == [{"injection"}]
+    models.decision.reset_mock()
+    reason = await models.gate("Fill the form", FORM_PAGE, [*ticks, {"kind": "click", "target": button}])
+    assert reason == "The next action needs your review."
+    safe = [c.args[0]["target"]["label"] for c in models.decision.await_args_list if "safe" in c.args[1]]
+    assert safe == ["Start"]
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.cost-accounting
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.cost-accounting
