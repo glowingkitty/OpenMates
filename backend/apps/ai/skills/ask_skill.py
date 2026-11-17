@@ -56,6 +56,8 @@ class AskSkillDefaultConfig(BaseModel):
     enable_auto_model_selection: bool = False
     default_llms: Optional[SkillDefaultLLMsConfig] = None
     preprocessing_thresholds: Optional[SkillPreprocessingThresholdsConfig] = None
+    # Per-purpose decision model order; parsed and validated by backend/shared/providers/typesafe/routing.py.
+    decision_routing: Optional[Dict[str, Any]] = None
     # Always-include skills configuration - these skills are ALWAYS available to the main LLM
     # regardless of preprocessing preselection. This ensures critical skills like web-search
     # are available even if the preprocessing LLM fails to preselect them for follow-up queries.

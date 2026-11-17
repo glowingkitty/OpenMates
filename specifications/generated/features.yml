@@ -211,7 +211,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 23
+  assertions: 24
   surfaces:
     web:
       status: failing
@@ -221,8 +221,8 @@ features:
         passing: 2
         failing: 8
         not_run: 4
-        missing: 9
-        counted: 23
+        missing: 10
+        counted: 24
       failing_tests:
       - frontend/apps/web_app/tests/ai-model-settings.spec.ts › AI settings overview, tier, provider, and model detail match
         the approved hierarchy
@@ -279,8 +279,8 @@ features:
         passing: 5
         failing: 0
         not_run: 2
-        missing: 16
-        counted: 23
+        missing: 17
+        counted: 24
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/ModelFixtureUITests.swift
@@ -304,8 +304,8 @@ features:
         passing: 4
         failing: 0
         not_run: 7
-        missing: 12
-        counted: 23
+        missing: 13
+        counted: 24
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-privacy.spec.ts
@@ -340,9 +340,9 @@ features:
       assertions:
         passing: 13
         failing: 4
-        not_run: 2
+        not_run: 3
         missing: 4
-        counted: 23
+        counted: 24
       failing_tests:
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_proven_first_turn_fact_omits_interactive_protocol_in_provider_prompt
       - backend/tests/test_openai_compatible_api_contract.py › test_public_current_promotions_use_real_provider_yaml_and_live_config_resolver
@@ -356,7 +356,7 @@ features:
       - backend/tests/test_preprocessor.py
       - backend/tests/test_preprocessor_jev.py
       - backend/tests/test_main_factual_prompt.py
-      unit_test_files: 29
+      unit_test_files: 30
     sdk_npm:
       status: implemented
       source: intent
@@ -365,8 +365,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 23
-        counted: 23
+        missing: 24
+        counted: 24
       key_tests: []
       evidence: sdk.ts model option + default_ai_model_*; sdk.py ask(model=), AiModelDefaults
       e2e_tests: []
@@ -380,8 +380,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 23
-        counted: 23
+        missing: 24
+        counted: 24
       key_tests: []
       evidence: sdk.ts model option + default_ai_model_*; sdk.py ask(model=), AiModelDefaults
       e2e_tests: []

@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 12
+version: 13
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -299,6 +299,11 @@ assertions:
     type: privacy
     must: LLM steps that run inside an app skill during a chat turn (authoring a drawing, a picture edit or a composed video, choosing a video route, reviewing a result against stated requirements, and ranking or relevance decisions) follow the user's AI settings. When the user saved a model for complex tasks and it accepts the step's inputs, that model alone answers the step, including typed decisions otherwise answered by Jev; a saved model that cannot take the step's inputs leaves the skill's default models, minus every model the user turned off. A turned-off model or hosting server is never called and the server region preference is passed on; when every permitted model is turned off the step is skipped through its unavailable path or the skill fails with a message that names the AI settings and charges nothing. Steps are billed at the price of the model that answered. Without saved choices or restrictions the skills' current default models answer unchanged. Safety and prompt-injection safeguards and PDF upload processing keep their fixed models.
     depends_on: [examples.skill_internal_models]
+  - id: ai-model-routing.decisions.per-purpose-model-with-jev-fallback
+    type: behavior
+    surfaces: [rest_api]
+    must: Typed internal decisions (noul, choice and score questions, with or without images) are answered by the model the decision routing config names first for the decision's purpose; Jev answers every purpose that is not listed. A purpose routed to Gemini Decision 1 falls back to Jev automatically, within the same call, when Gemini errors, times out after at most 2.5 seconds, is rate limited, refuses the input, returns no valid answer for every question, or the request exceeds a documented Gemini limit; such a fallback is logged with its reason and never fails the decision by itself. Every route ends with Jev. Gemini is never asked when the user's AI settings turn off Gemini Decision 1 or its server, or when the caller pins a Jev provider, endpoint or version. Each decision logs the purpose and the model and provider that decided. At present only the search, shopping-photo and result-photo relevance judges are routed to Gemini; safety, prompt-injection, preprocessing, postprocessing, voice-turn and browse decisions stay on Jev.
+    depends_on: [examples.decision_routing]
   - id: ai-model-routing.reasoning.preprocessor-recommendation
     type: behavior
     must: Jev may recommend LOW, MEDIUM, HIGH or EXTRA_HIGH reasoning independently of request complexity in its existing preprocessing pass. LOW is reserved for trivial work, MEDIUM is the normal recommendation, and HIGH or EXTRA_HIGH is selective. A missing or malformed recommendation does not invalidate otherwise valid routing or trigger a separate generative pass. The recommendation survives continuation and answer recovery, is resolved separately for each actual model and hosting server using verified supported controls, and unsupported levels clamp to the declared maximum. Undeclared controls and fixed-effort model variants preserve native defaults. Assigning effort never changes model selection precedence, automatic-route eligibility or provider restrictions.
@@ -364,4 +369,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [skill_internal_models, use_case_routing, required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout, answer_recovery]
+  required_groups: [skill_internal_models, decision_routing, use_case_routing, required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout, answer_recovery]

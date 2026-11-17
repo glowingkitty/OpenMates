@@ -392,6 +392,18 @@ skills:
         # Chat import uses the same model via Groq (primary), with OpenRouter as automatic fallback
         # when Groq hits its daily cap or returns the "json" tool-name quirk error (see llm_utils.py).
         chat_import_sanitization_model: openai/gpt-oss-safeguard-20b
+      # Typed decisions per purpose (backend/shared/providers/typesafe/routing.py). The first model is the
+      # default; Jev after it is the automatic fallback on errors, timeouts and provider blocks. Unlisted
+      # purposes use `default`. Chosen from the Gemini-vs-Jev benchmark (TASK-1809): Gemini only where it is
+      # at least as accurate, adds no safety false negatives and is off the per-message path (its p95 is
+      # 2-9 s against Jev's ~0.25 s). Routed purposes must reach Jev through decision_client_for_policy so the
+      # user's AI settings can turn Google off. Safety, preprocessing, voice, browse and PDF stay on Jev.
+      decision_routing:
+        default: [typesafe/jev-1.14]
+        purposes:
+          search_relevance: [google/gemini-decision-1, typesafe/jev-1.14]
+          shopping_visual_relevance: [google/gemini-decision-1, typesafe/jev-1.14]
+          result_photo_relevance: [google/gemini-decision-1, typesafe/jev-1.14]
       preprocessing_thresholds:
         harmful_content_score: 7
         misuse_risk_score: 8

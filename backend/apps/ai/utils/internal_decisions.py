@@ -38,6 +38,7 @@ from backend.shared.python_utils.llm_stream_usage import stream_usage_tokens
 logger = logging.getLogger(__name__)
 
 JEV_SERVERS = frozenset({"typesafe", "openrouter"})
+GEMINI_SERVER = "google_ai_studio"
 DECISION_MAX_OUTPUT_TOKENS = 4_000
 DECISION_TEMPERATURE = 0.0
 _JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
@@ -223,5 +224,9 @@ def decision_client_for_policy(
         return DisabledDecisionClient(f"{model} is turned off in the user's AI settings")
     if allowed != JEV_SERVERS:
         jev_kwargs["provider"] = next(iter(allowed))
+    # A purpose routed to Gemini asks Google only when these settings permit its server.
+    from backend.shared.providers.typesafe.routing import GEMINI_DECISION_MODEL
+    if GEMINI_SERVER not in policy.allowed_servers(GEMINI_DECISION_MODEL):
+        jev_kwargs["allow_gemini"] = False
     return JevDecisionClient(**jev_kwargs)
 

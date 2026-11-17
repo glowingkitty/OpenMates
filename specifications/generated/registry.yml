@@ -156,10 +156,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.ai-model-routing:
-    version: 12
+    version: 13
     status: draft
     path: features/ai-model-routing
-    fingerprint: 83f48205ee987025f8539dd239458ed32948de604fcf5c5635561116ff6fe7c6
+    fingerprint: 1e653622c188ea20b5f04953add3ae5f20238d4b9f1d8fadc65949f5f10faa5e
     required_applies_to:
     - rest_api
     - cli
@@ -3047,7 +3047,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.instructions.required-safety:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: invariant
     fingerprint: b9f6163cb727928e259e68b61424395b95f599717ea69c7c3e7bbf856a236215
@@ -3059,7 +3059,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.prepared-privacy:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: privacy
     fingerprint: df68d6f13323f4b9bdab6101698e48727d365485d9cd3e13772a8a0eab1773a9
@@ -3071,7 +3071,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.contextual-compact-assembly:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 396276dc02450a44fab6b5bc613d5f05daf74a01883a3f8139c7ef3ad04a4075
@@ -3083,7 +3083,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.conditional-context:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: aebbfd1af1c881cfc5d6304f0b8e600fbe210bc79761d93c52d3145145219896
@@ -3095,7 +3095,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.warm-catalogues:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: privacy
     fingerprint: dd83186962106d9e4f1924732d510e15dfa5b3a5c3fcb8def5f7ef387a101f5c
@@ -3107,7 +3107,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.early-resolution:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: a3d01d93e5f8c804ee7eca2a0bbd4a529d2819a0c78da0c0a2ffc5d2c5193eeb
@@ -3119,7 +3119,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.tiers.conservative-three-way:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 1aa2c3fd0a8177b5215f96d1c8d14bd3ed8ef1b6d0e4c951774f9fda2388ad3b
@@ -3131,7 +3131,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preferences.exclusive-tier-defaults:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: invariant
     fingerprint: e07eeb26ac71b52221645812c2a05ff710d7ecc204638263f8b171fdf65bef84
@@ -3143,7 +3143,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.catalog.capability-recommendation-variants:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 0bfe00d161d7e136da0c1879d4ecd463aab85455c4f9b7d3f803526ce56ae14e
@@ -3155,7 +3155,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.catalog.public-read-only:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: security
     fingerprint: e24760c42b3a337bd66156e59ac6b93d298d5aa243fb4c25117f98b4398d7499
@@ -3167,7 +3167,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.defaults.google-tier-profiles:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 52ed250160ad748254a86745f85844c4178d36b0da8e2b653bec13b4c9888a9f
@@ -3179,7 +3179,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.recovery.affordable-current-models:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: failure
     fingerprint: b4b8664853a7f9e87b5277a889e861246a1dcf92ff582a9c87166c2c0355770d
@@ -3191,7 +3191,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.use-case.specialised-automatic-models:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: d870a1c1572978ad3ddff86eb79796d31bff3e31f97cc1b1c5dac7c695459501
@@ -3203,7 +3203,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.skills.internal-llm-follows-settings:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: privacy
     fingerprint: 098f40ff52e275473f1bc56fc5f460bbbf284628abd40867f11c57b53b7b0f89
@@ -3214,8 +3214,20 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  ai-model-routing.decisions.per-purpose-model-with-jev-fallback:
+    specification: feature.ai-model-routing@13
+    specification_id: feature.ai-model-routing
+    type: behavior
+    fingerprint: 129a565c28f71b4944236b47bf658dcbd069ca9254d4c19176654b0fe721ad75
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   ai-model-routing.reasoning.preprocessor-recommendation:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 41193c742edfb33ef7aab93ae98deeaed6adb8a11e1620d16f332a2b650f2308
@@ -3227,7 +3239,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.chat-selection.encrypted-user-chat-scope:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: privacy
     fingerprint: 3b1fe8326b1e4fe38b2dd71db60adeb9cbbaadadaaedd92b1522fc1bc961098a
@@ -3239,7 +3251,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.precedence.chat-over-tier-over-auto:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: invariant
     fingerprint: 7c9e430c1a07e63420d3bec1e6c18d5f64ad73faa68654895d9a82325eb83144
@@ -3251,7 +3263,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.missing-output-recovery:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: failure
     fingerprint: b56a22db2a9119afdebc4dee7cf040fb1e722482c13df6e6a0dc518bc7a316c2
@@ -3263,7 +3275,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.composer.mention-to-exact-selection:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 1588ae8feecbfe893795d7b358c3a58f30c824fde2baa790a137f770891ad24c
@@ -3275,7 +3287,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.unavailable.notify-reset-auto:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: failure
     fingerprint: e5884209155afd87aa5d33e3d413d6164018ecce677676b5d9effbbcab90647f
@@ -3287,7 +3299,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.settings.hierarchy-canonical:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 9eef3e7b733a196ce48bcb005bdf34a5d41ffba3daf26e01e3c9a6921ab32c5a
@@ -3299,7 +3311,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.composer.responsive-actions:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: parity
     fingerprint: cde79da48264deaf3f06d90a3d15e897b3f0aac4a69b42a91fe93b4cf23a84a6
@@ -3311,10 +3323,10 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.surface.semantic-parity:
-    specification: feature.ai-model-routing@12
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: parity
-    fingerprint: 9e949c40622f277b6f2bc240d41092ce9f34d6047c3c7e96c3791cae2e009b2c
+    fingerprint: 39c32a1e1e31bce3633b72e954b44c34fa160d15cdb122d43742c3cf0bb1eb43
     required_applies_to:
     - rest_api
     - cli

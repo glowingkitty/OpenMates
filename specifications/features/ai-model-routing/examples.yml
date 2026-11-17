@@ -1,6 +1,22 @@
 schema_version: 1
-specification: feature.ai-model-routing@12
+specification: feature.ai-model-routing@13
 
+decision_routing:
+  - id: routed-relevance-judge-uses-gemini
+    assertion_ids: [ai-model-routing.decisions.per-purpose-model-with-jev-fallback]
+    given: search_relevance is routed to Gemini Decision 1 then Jev, and the user's AI settings allow Google AI Studio.
+    when: A search skill ranks its candidates.
+    then: Gemini Decision 1 answers, Jev is not called, and the log names purpose search_relevance, model google/gemini-decision-1 and provider google_ai_studio.
+  - id: gemini-failure-falls-back-to-jev
+    assertion_ids: [ai-model-routing.decisions.per-purpose-model-with-jev-fallback]
+    given: A routed relevance decision.
+    when: Gemini refuses the input, is rate limited, returns a server error or does not answer within 2.5 seconds.
+    then: Jev answers the same decision, the fallback reason is logged and the skill sees an ordinary result.
+  - id: unrouted-or-restricted-decisions-stay-on-jev
+    assertion_ids: [ai-model-routing.decisions.per-purpose-model-with-jev-fallback]
+    given: An image-safety check, a pinned Jev provider, or a user who turned off Gemini Decision 1 in AI settings.
+    when: The decision is evaluated.
+    then: Only Jev is called; Google receives nothing.
 skill_internal_models:
   - id: saved-complex-model-authors-and-judges
     assertion_ids: [ai-model-routing.skills.internal-llm-follows-settings]
