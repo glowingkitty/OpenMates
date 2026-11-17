@@ -165,7 +165,11 @@ test.describe('shopping price comparison (real dev inference)', () => {
 
 			if (STRICT) {
 				const expected = item.expect || {};
-				if (expected.identifies) expect.soft(text, `${item.name}: names the product`).toContain(expected.identifies);
+				// Brands are written in varying case ("ELZO", "Elzo"); the name itself must appear.
+				if (expected.identifies)
+					expect
+						.soft(text.toLowerCase(), `${item.name}: names the product`)
+						.toContain(String(expected.identifies).toLowerCase());
 				expect.soft(usedApps, `${item.name}: a shopping search ran`).toMatch(/Shopping/);
 				expect.soft(cards.length + inlineOffers, `${item.name}: offers are shown as results`).toBeGreaterThan(0);
 				expect.soft(text, `${item.name}: shows a euro price`).toMatch(/\d[\d.,]*\s?€|€\s?\d/);

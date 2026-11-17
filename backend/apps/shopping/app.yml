@@ -3,7 +3,7 @@ description_translation_key: shopping.description
 icon_image: |
   shopping.svg
 category: lifestyle
-last_updated: "2026-11-16"
+last_updated: "2026-11-17"
 instructions:
   - tool_phase_only: false
     instruction: |
@@ -32,7 +32,10 @@ instructions:
          shipping.
       4. "Used", "second-hand", "nearby": `condition: used`, `location` = the postal code or city the
          user named, `radius_km` (25 when not given). Without a location, search used offers in the
-         country and ask for a postal code or city at the end.
+         country and ask for a postal code or city at the end. When no returned offer is within the
+         radius, say so in one sentence, then still list the closest returned offers (price, shipping,
+         total, condition and location) as in step 5. Web results never replace returned offers, and
+         an answer about offers always shows their prices.
       5. Answer with the identified product first, then the cheapest offers as a compact bulleted list,
          not a table (links inside tables are not clickable): one bullet per offer that starts with the
          offer as an inline embed reference, `[shop: short title](embed:<embed_ref>)`, which opens the
