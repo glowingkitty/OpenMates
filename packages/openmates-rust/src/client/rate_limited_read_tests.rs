@@ -1,4 +1,4 @@
-//! Rate-limited read policy: which responses are resent and how long to wait.
+//! Rate-limited / unavailable read policy: which responses are resent and how long to wait.
 
 use std::time::Duration;
 
@@ -8,7 +8,7 @@ use reqwest::header::{HeaderMap, HeaderValue, RETRY_AFTER};
 use super::{MAX_RATE_LIMIT_RESENDS, rate_limit_wait, resend_after_rate_limit};
 
 #[test]
-fn resends_only_body_less_get_on_429_within_budget() {
+fn resends_only_body_less_get_on_429_or_503_within_budget() {
     assert!(resend_after_rate_limit(&Method::GET, false, 429, 0));
     assert!(resend_after_rate_limit(
         &Method::GET,
@@ -25,7 +25,11 @@ fn resends_only_body_less_get_on_429_within_budget() {
     assert!(!resend_after_rate_limit(&Method::GET, true, 429, 0));
     assert!(!resend_after_rate_limit(&Method::POST, false, 429, 0));
     assert!(!resend_after_rate_limit(&Method::DELETE, false, 429, 0));
-    assert!(!resend_after_rate_limit(&Method::GET, false, 503, 0));
+    assert!(resend_after_rate_limit(&Method::GET, false, 503, 0));
+    assert!(!resend_after_rate_limit(&Method::GET, true, 503, 0));
+    assert!(!resend_after_rate_limit(&Method::POST, false, 503, 0));
+    assert!(!resend_after_rate_limit(&Method::GET, false, 500, 0));
+    assert!(!resend_after_rate_limit(&Method::GET, false, 502, 0));
     assert!(!resend_after_rate_limit(&Method::GET, false, 200, 0));
 }
 

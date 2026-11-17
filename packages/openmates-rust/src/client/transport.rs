@@ -639,11 +639,11 @@ impl Client {
             || metadata_not_found || http_failure_status.is_some() || auth_response_status.is_some() || history_version.is_some()) {
             return Err(crate::client::send::refusal_trace::protocol_at!());
         }
-        // A rate-limited body-less GET waits out Retry-After and is prepared
+        // A rate-limited (429) or briefly unavailable (503) body-less GET waits out Retry-After and is prepared
         // and sent again (every pre-send fence, including cancellation, runs
         // again); see `rate_limited_read`. Callers that observe the HTTP status
         // themselves (status slots, settings reminders with their own retry
-        // wait, session admission budget) keep seeing the first 429.
+        // wait, session admission budget) keep seeing the first 429 or 503.
         let caller_reads_status = http_failure_status.is_some() || auth_response_status.is_some()
             || settings_reminders || session_budget.is_some();
         let keep_first_response = body.is_some() || caller_reads_status;

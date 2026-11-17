@@ -39669,7 +39669,7 @@ assertions:
     direct_tests:
     - &id5034
       path: frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
-      line: 149
+      line: 179
       name: real Gemini turn builds a hosted recipe app into a new Project via the
         native CLI
       surface: cli
@@ -39807,7 +39807,7 @@ assertions:
     direct_tests:
     - &id5041
       path: frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
-      line: 149
+      line: 179
       name: real Gemini turn builds a hosted recipe app into a new Project via the
         native CLI
       surface: cli
@@ -165123,7 +165123,7 @@ assertions:
     direct_tests:
     - &id20936
       path: frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
-      line: 149
+      line: 179
       name: real Gemini turn builds a hosted recipe app into a new Project via the
         native CLI
       surface: cli
@@ -165313,7 +165313,7 @@ assertions:
       surface: rest_api
     - &id20956
       path: frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
-      line: 149
+      line: 179
       name: real Gemini turn builds a hosted recipe app into a new Project via the
         native CLI
       surface: cli

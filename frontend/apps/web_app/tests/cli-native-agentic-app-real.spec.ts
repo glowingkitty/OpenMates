@@ -106,9 +106,22 @@ async function cachedMessageShape(page: Page, chatId: string) {
     opened.onerror = () => resolve({ error: 'open' });
     opened.onsuccess = () => {
       const db = opened.result;
-      const stores = ['messages', 'chats'].filter((name) => db.objectStoreNames.contains(name));
+      const stores = ['messages', 'chats', 'embeds'].filter((name) => db.objectStoreNames.contains(name));
       const tx = db.transaction(stores, 'readonly');
       const rows: unknown[] = [];
+      const embeds: unknown[] = [];
+      if (stores.includes('embeds')) {
+        // Throwaway account: every cached embed belongs to this run. Shape only.
+        const all = tx.objectStore('embeds').openCursor();
+        all.onsuccess = () => {
+          const cursor = all.result;
+          if (!cursor) return;
+          const row = cursor.value as Record<string, unknown>;
+          embeds.push({ ref: String(row.contentRef ?? '').slice(0, 14), type: row.type, status: row.status,
+            app: row.app_id, skill: row.skill_id, keys: Object.keys(row).sort() });
+          cursor.continue();
+        };
+      }
       let chatRow: unknown = null;
       const len = (value: unknown) => (typeof value === 'string' ? value.length : value == null ? null : -1);
       const messages = tx.objectStore('messages').openCursor();
@@ -130,7 +143,7 @@ async function cachedMessageShape(page: Page, chatId: string) {
           chatRow = row ? { messages_v: row.messages_v, last_edited: row.last_edited_overall_timestamp } : null;
         };
       }
-      tx.oncomplete = () => { db.close(); resolve({ chat: chatRow, rows }); };
+      tx.oncomplete = () => { db.close(); resolve({ chat: chatRow, rows, embeds }); };
       tx.onerror = () => { db.close(); resolve({ error: 'read', rows }); };
     };
   }), chatId) as { rows?: Array<Record<string, unknown>> };
@@ -141,7 +154,24 @@ async function cachedMessageShape(page: Page, chatId: string) {
   const articles = page.locator('[role="article"]');
   const rendered: number[] = [];
   for (let i = 0; i < await articles.count(); i++) rendered.push((await articles.nth(i).innerText().catch(() => '')).length);
-  return { ...shape, rendered };
+  // The last reply's visible text when it is short (UI labels of an empty bubble).
+  const lastText = await articles.last().innerText().catch(() => '');
+  // Element skeleton of the last reply (tags, classes, test ids, text lengths;
+  // no text): shows whether a document, an activity group or nothing rendered.
+  const skeleton = await articles.last().evaluate((root) => {
+    const lines: string[] = [];
+    const walk = (node: Element, depth: number) => {
+      if (lines.length > 120 || depth > 14) return;
+      const own = [...node.childNodes].filter((c) => c.nodeType === 3).map((c) => c.textContent ?? '').join('').trim().length;
+      const cls = typeof node.className === 'string' ? node.className.split(/\s+/).filter((c) => c && !c.startsWith('svelte-')).slice(0, 3).join('.') : '';
+      const id = node.getAttribute('data-testid');
+      lines.push(`${'  '.repeat(depth)}${node.tagName.toLowerCase()}${cls ? '.' + cls : ''}${id ? `[${id}]` : ''}${own ? ` #${own}` : ''}`);
+      for (const child of node.children) walk(child, depth + 1);
+    };
+    walk(root, 0);
+    return lines.join('\n');
+  }).catch(() => null);
+  return { ...shape, rendered, lastShortText: lastText.length < 160 ? lastText : null, lastSkeleton: skeleton };
 }
 
 // contract-test: direct surface=cli assertions=projects.files.application-single-source,projects.files.adopt-embed,code-run.cloud.commands,code-run.cloud.command-changes-sync-back
@@ -312,8 +342,10 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       // references only the "Used the Code app" group embed, so walk the embeds
       // the turn's replies reference (with `embeds show`) and count terminal cards.
       const refsBefore = referencedEmbedIds(await run(['chats', 'show', chatId, '--json']));
+      const commandTexts: string[] = [];
       const terminalCardIds = async (roots: Set<string>): Promise<string[]> => {
         const seen = new Set<string>(); const queue = [...roots]; const cards: string[] = [];
+        commandTexts.length = 0;
         while (queue.length && seen.size < 60) {
           const id = queue.shift() as string;
           if (seen.has(id)) continue;
@@ -321,7 +353,10 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
           const shownEmbed = await runRust(binary, env, ['embeds', 'show', id, '--json']);
           if (shownEmbed.code !== 0) continue;
           const item = parseJson(shownEmbed);
-          if (collect(item, ['filename', 'file_path', 'path']).includes('terminal.sh')) cards.push(id);
+          if (collect(item, ['filename', 'file_path', 'path']).includes('terminal.sh')) {
+            cards.push(id);
+            commandTexts.push(collect(item, ['code', 'command']).join('\n').slice(0, 400));
+          }
           for (const child of referencedEmbedIds(item)) if (!seen.has(child)) queue.push(child);
         }
         return cards;
@@ -335,10 +370,17 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       const commandModels = collect(shownCommands, ['modelName', 'model_name']);
       const listedAfterCommands = collect(await run(['projects', 'hosted', 'list', created[0], '--json']), ['path']);
       const lockfile = listedAfterCommands.some((path) => /^web-app\/(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/.test(path));
-      Object.assign(evidence, { commandTurn: { status: commandTurn.status, terminalCards: terminalCards.length, lockfile, models: commandModels } });
+      const ranCommands = commandTexts.join('\n');
+      const ranInstall = /\b(npm|pnpm|yarn)\s+(i|install|ci)\b/.test(ranCommands);
+      const ranBuild = /\b(npm|pnpm|yarn)\s+(run\s+)?build\b|\bvite\s+build\b/.test(ranCommands);
+      Object.assign(evidence, { commandTurn: { status: commandTurn.status, terminalCards: terminalCards.length, ranInstall, ranBuild, lockfile, models: commandModels } });
       for (const model of commandModels) expect.soft(model, 'command turn model').toMatch(/gemini.*3\.?8.*flash/i);
       expect.soft(commandTurn.status).toBe('completed');
-      expect.soft(terminalCards.length, 'command cards for the install and the build').toBeGreaterThanOrEqual(2);
+      // One card per command; the model may run both steps as one command
+      // (install && build), so require both steps, not two cards.
+      expect.soft(terminalCards.length, 'command cards for the turn').toBeGreaterThanOrEqual(1);
+      expect.soft(ranInstall, 'the dependency install ran as a command').toBe(true);
+      expect.soft(ranBuild, 'the production build ran as a command').toBe(true);
       // A successful install and build need no reruns; a loop of repeated commands is a defect.
       expect.soft(terminalCards.length, 'no repeated install/build commands').toBeLessThanOrEqual(6);
       expect.soft(lockfile, 'the install lockfile synced back as a Project file').toBe(true);
@@ -479,6 +521,13 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       });
       Object.assign(evidence, { webEvidenceRequests: evidenceRequests });
       await page.goto(`${APP}/#chat-id=${chatId}`);
+      // The chat keeps the scroll position of the preview opened from the first
+      // reply, and a reply body renders only near the viewport; scroll to the
+      // newest reply as a user would before looking for its card.
+      await expect(async () => {
+        await page.locator('[role="article"]').last().scrollIntoViewIfNeeded({ timeout: 5_000 });
+        await expect(page.locator('[role="article"]').last()).toBeInViewport({ timeout: 2_000 });
+      }, 'newest reply scrolled into view').toPass({ timeout: 60_000 });
       const card = page.locator('[data-testid="embed-preview"][data-skill-id="test_result"]').last();
       await expect.soft(card, 'test result card in chat').toBeVisible({ timeout: 90_000 });
       if (!(await card.isVisible())) {
