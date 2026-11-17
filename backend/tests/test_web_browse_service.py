@@ -437,6 +437,65 @@ async def test_empty_pool_does_not_cold_start_or_hold_customer_funds(
     assert result.metrics["charged_credits"] == 0
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.lifecycle
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failures, completes", [(1, True), (99, False)])
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.lifecycle
+async def test_pooled_start_waits_out_a_brief_ingress_502_after_resume(
+    service, monkeypatch, failures, completes
+):
+    """On dev a resumed pool VM answered the first start with 502 and the
+    user's browser closed before the form loaded; a brief 502 is retried."""
+    import backend.core.api.app.services.web_browse_run as module
+    from backend.shared.providers.e2b_browser import BrowserRpcUnavailable
+
+    monkeypatch.setattr(module, "pool_size", lambda: 3)
+    monkeypatch.setattr(module, "START_RETRY_SECONDS", 8 if completes else 0.2)
+
+    class Pool:
+        def __init__(self, *args):
+            pass
+
+        async def claim(self, sid, callback):
+            provider = {
+                "sandbox_id": "prepared-vm",
+                "token": "private-token",
+                "traffic_access_token": "private-ingress",
+                "cpu_count": 2,
+                "memory_mb": 4096,
+                "created_at": time.time() - 3600,
+                "running_since": None,
+                "provider_deadline": time.time() - 10,
+                "pool_assigned": True,
+                "pool_verified": False,
+            }
+            await callback(provider)
+            return provider
+
+    monkeypatch.setattr(module, "BrowsePool", Pool)
+    original_rpc = service.driver.rpc
+    left = {"starts": failures}
+
+    async def rpc(provider, body):
+        if body.get("operation") == "start" and left["starts"] > 0:
+            left["starts"] -= 1
+            raise BrowserRpcUnavailable(retryable=True, status_code=502)
+        reply = await original_rpc(provider, body)
+        return {**reply, "pristine": True} if body.get("require_pristine") else reply
+
+    service.driver.rpc = rpc
+    result = await run(service)
+    record = service.store.records[result.session_id]
+    if completes:
+        assert result.status == "completed" and record["provider"]["pool_verified"]
+        assert result.metrics["start_retries"] == 1
+        assert "kill" not in service.driver.calls
+    else:
+        # A lasting ingress failure still destroys the unverified VM.
+        assert result.status == "cancelled" and record["provider"] is None
+        assert "kill" in service.driver.calls
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.exclusive-takeover
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.exclusive-takeover

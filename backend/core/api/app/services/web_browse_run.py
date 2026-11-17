@@ -52,12 +52,16 @@ from backend.core.api.app.services.web_browse_pool import BrowsePool, pool_size
 from backend.shared.providers.browser_planner import BLOCK_REASONS, control_index
 from backend.shared.providers.e2b_browser import (
     BrowserAdmissionRejected,
+    BrowserRpcUnavailable,
     BrowserUnavailable,
 )
 from backend.shared.python_schemas.web_browse import owner_hash
 from backend.shared.python_utils.private_inference_logging import (
     private_inference_logging,
 )
+
+# Bounded wait for resumed-VM ingress before the first start (see start_rpc).
+START_RETRY_SECONDS = 8
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.web_browse_service import BrowseService
@@ -319,15 +323,27 @@ class BrowseRun:
         self, driver: Any, record: dict[str, Any], *, require_pristine: bool
     ) -> dict[str, Any]:
         started = time.monotonic()
-        with private_inference_logging():
-            reply = await driver.rpc(
-                record["provider"],
-                {
-                    "operation": "start",
-                    "url": self.request.start_url,
-                    "require_pristine": require_pristine,
-                },
-            )
+        body = {
+            "operation": "start",
+            "url": self.request.start_url,
+            "require_pristine": require_pristine,
+        }
+        # A resumed VM's ingress can still answer 502/503/504 for a moment
+        # after the metadata probe succeeded; on dev this closed the user's
+        # browser before the first page. A retry is safe: a start that did
+        # reach the runtime fails the pristine check (pooled VM, destroyed) or
+        # repeats the same navigation (fresh VM).
+        deadline = started + START_RETRY_SECONDS
+        while True:
+            try:
+                with private_inference_logging():
+                    reply = await driver.rpc(record["provider"], body)
+                break
+            except BrowserRpcUnavailable as exc:
+                if not exc.retryable or time.monotonic() >= deadline:
+                    raise
+                self.stage["start_retries"] = self.stage.get("start_retries", 0) + 1
+                await asyncio.sleep(0.5)
         self.stage["start_rpc_seconds"] = time.monotonic() - started
         require_protocol(reply)
         timings = reply.get("timings") or {}
