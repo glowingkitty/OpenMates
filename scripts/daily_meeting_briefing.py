@@ -69,9 +69,10 @@ prompts, the agent's final reply, timestamps). Return JSON only:
 
 
 WAITING_PROMPT = """Each item is an AI coding-agent chat that waits for its solo founder. For \
-each one write ONE plain sentence (<= 25 words; no IDs, code, file names or jargon): what the \
-chat is about and what it needs from the founder now. Return JSON only:
-{"chats": [{"session": str, "summary": str}]}
+each one write (no IDs, code, file names or jargon): "title" = a short plain title (<= 6 words), \
+"summary" = ONE plain sentence (<= 25 words) on what the chat is about, and "needs" = the one \
+question or decision it needs from the founder now, in plain words (<= 20 words). Return JSON only:
+{"chats": [{"session": str, "title": str, "summary": str, "needs": str}]}
 One entry per input chat. No secrets, emails or tokens. English. Chats:
 """
 
@@ -114,11 +115,16 @@ def summarize_waiting(waiting: dict, gaps: list[str]) -> None:
         gaps.append(f"One-line summaries of the waiting chats failed ({context.clean(str(error), 200)}); "
                     "they show their last reply only")
         return
-    lines = {row.get("session"): row.get("summary") for row in reply.get("chats") or [] if isinstance(row, dict)}
+    rows = {row.get("session"): row for row in reply.get("chats") or [] if isinstance(row, dict)}
     for chat in chats:
-        text = re.sub(r"\s+", " ", str(lines.get(chat["session"]) or "")).strip()
-        if text:
-            chat["summary"] = text[:240]
+        row = rows.get(chat["session"]) or {}
+        for key, limit in (("summary", 240), ("needs", 200)):
+            text = re.sub(r"\s+", " ", str(row.get(key) or "")).strip()
+            if text:
+                chat[key] = text[:limit]
+        short = re.sub(r"\s+", " ", str(row.get("title") or "")).strip()
+        if short:
+            chat["title"] = short[:80]
     missing = sum(1 for chat in chats if not chat.get("summary"))
     if missing:
         gaps.append(f"{missing} waiting chat(s) got no one-line summary; they show their last reply only")
@@ -211,9 +217,18 @@ Tasks or the reminders are not up to date, say so first. Then **production first
 summarize the "Alerts" section in a few sentences — reported production issues (new or not \
 processed yet), then dev reports, then the errors that repeat most — and ask whether anything \
 needs attention before planning; production reports outrank everything else. Then the \
-**chats waiting on the founder**: one chat at a time (questions and blockers first), say in \
-one sentence what it is waiting for (use the chat's one-line summary in italics) and ask what to do — continue (and with what reply), \
-park, archive or done — with your recommendation. Stop after the top 3 chats if energy is low.
+**chats waiting on the founder** and the **paused chats**: discuss the top 3 waiting chats \
+aloud, one at a time (the list is sorted by importance, then wait): say in one sentence what the chat \
+needs (the "Needs" line) and ask what to do, with your recommendation. **Every chat in "Chats waiting \
+on you" and in "Paused chats" ends the meeting in exactly one outcome**: *answer now* (the reply), \
+*park* (with a resume date; the chat saves done / not done / next step / open decisions in its Task, \
+label `paused`, `PAUSED <today> until <date>` line), *reschedule* (a new date to discuss it again, same \
+pause note) or *archive*. "Keep" is not an outcome. Chats beyond the top 3 are not read aloud: after the \
+top 3, give the count of the rest and offer a **default for all of them** ("park all until <date>" or \
+"answer in the work block") and say which would be archived. Read the paused chats as one sentence each: \
+what is saved, the next step and the resume date; resume those whose date has come. A chat only \
+leaves the lists when answered, resumed or archived. If the section "No decision for more than 7 \
+days" is shown, take those chats first, before the top 3.
   - **Block 3 — Focus.** Agree **today's single focus** — propose one from the week's goals \
 and the founder's stated priorities — then up to **3 tasks**, each with done-criterion, \
 first 5-minute step, time slot and stop rule. **The task that serves the current milestone \
@@ -293,8 +308,8 @@ Goals:
 | Level | Item | Action | Done when | By |
 |---|---|---|---|---|
 | mission / goal / milestone | <plain wording> | add / edit / done / drop / keep | <measurable result> | YYYY-MM-DD |
-Chats:
-- <chat title> -> reply: <text> | park | archive | done | keep
+Chats (EVERY chat of "Chats waiting on you" and "Paused chats", one line each, exactly one outcome):
+- <chat title> [<Task id>] -> answer now: <reply text> | park until YYYY-MM-DD HH:MM: <done / not done / next step / open decisions> | reschedule to YYYY-MM-DD: <reason> | archive | resume now: <first step>
 Cleanup:
 - <plain title> (<GitHub #123 | Linear ABC-1 | TASK-123>) -> close | delete | merge <other id> | delay | keep
 Parking lot:
@@ -387,20 +402,62 @@ def _chat_lifecycle_line(path: Path | None = None) -> list[str]:
     return [f"_{claude_idle_chats.status_line(summary)} As of {summary['at'][11:16]} UTC._", ""]
 
 
+def _waited(hours: float) -> str:
+    return f"{int(hours // 24)} d {int(hours % 24)} h" if hours >= 24 else f"{hours:g} h"
+
+
+def _task_text(chat: dict) -> str:
+    if chat.get("task_title"):
+        return f"Task \"{chat['task_title']}\" ({chat['task']})"
+    return f"Task {chat['task']}" if chat.get("task") else "no linked Task"
+
+
 def _waiting_section(waiting: dict) -> list[str]:
+    """EVERY chat waiting on the founder, most important first (never capped), then the paused chats."""
     chats = waiting.get("chats") or []
-    out = ["", "## Chats waiting on you (the assistant spoke last)", "", *_chat_lifecycle_line()]
+    out = ["", f"## Chats waiting on you ({len(chats)}; the assistant spoke last)", "",
+           "_Complete list, sorted by importance (marketing, agentic coding, Projects, safety), then by wait. "
+           "The meeting discusses the top 3 aloud; each chat here still needs one outcome: "
+           "answer now, park, reschedule or archive._", "", *_chat_lifecycle_line()]
     if not chats:
-        return out + ["_None: every recent dev-server chat has your last word or is finished._"]
-    for chat in chats:
-        task = (f", Task \"{chat['task_title']}\" ({chat['task']})" if chat.get("task_title")
-                else f", Task {chat['task']}" if chat.get("task") else "")
-        summary = f" — _{chat['summary']}_" if chat.get("summary") else ""
-        out.append(f"- **{chat['title']}**{summary} (idle {chat['idle_hours']} h{task}; "
-                   f"id `{chat['session'][:8]}`) — {chat['signal']}: {chat['last_reply'][:300]}")
-    if waiting.get("omitted"):
-        out.append(f"- plus {waiting['omitted']} more waiting chats (older or finished work), not listed")
+        out.append("_None: every recent dev-server chat has your last word or is finished._")
+    for number, chat in enumerate(chats, 1):
+        topic = f" · {chat['priority_topic']}" if chat.get("priority_topic") else ""
+        out.append(f"{number}. **{chat['title']}** — waited {_waited(chat['idle_hours'])} · {_task_text(chat)}"
+                   f"{topic} · id `{chat['session'][:8]}`")
+        out.append(f"   - Needs: {chat.get('needs') or chat['signal']}")
+        if chat.get("summary"):
+            out.append(f"   - _{chat['summary']}_")
+        elif chat.get("last_reply"):
+            out.append(f"   - {chat['signal']}: {chat['last_reply'][:300]}")
+    return out + _paused_section(waiting.get("paused") or []) + _no_decision_section(waiting.get("flags") or [])
+
+
+def _paused_section(paused: list[dict]) -> list[str]:
+    """Fixed section: every chat or Task paused with the pause convention (docs/contributing/guides/daily-meeting.md)."""
+    out = ["", f"## Paused chats ({len(paused)})", "",
+           "_Every chat or Task labelled `paused`, soonest resume date first. Each needs one outcome too: "
+           "resume now, keep parked (new resume date), reschedule or archive._", ""]
+    if not paused:
+        return out + ["_None: no chat or Task is paused._", ""]
+    for number, row in enumerate(paused, 1):
+        resume = f"{row['resume']} {row['resume_at']}".strip() if row["resume"] else "NO RESUME DATE"
+        reason = f" ({row['reason']})" if row["reason"] else ""
+        since = f", paused since {row['since']}" if row["since"] else ""
+        out.append(f"{number}. **{row['title']}** ({row['task']}){reason} — resume after **{resume}**{since}")
+        for name in ("Done", "Not done", "Next step", "Open decisions"):
+            out.append(f"   - {name}: {row.get(name) or '**missing**: the chat must save it in its Task'}")
+        if row.get("flag"):
+            out.append(f"   - ⚠ {row['flag']}")
     return out + [""]
+
+
+def _no_decision_section(flags: list[str]) -> list[str]:
+    if not flags:
+        return ["", "_No-decision check: no waiting or paused chat is older than 7 days without a decision._", ""]
+    return ["", f"## ⚠ No decision for more than 7 days ({len(flags)})", "",
+            "_Nothing leaves these lists silently: decide each one today (answer, park, reschedule or archive)._", "",
+            *[f"- {flag}" for flag in flags], ""]
 
 
 def _goals_section(goals: dict, today: date) -> list[str]:

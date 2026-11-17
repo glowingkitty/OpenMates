@@ -194,6 +194,7 @@ def task_snapshot(gaps: list[str], status: dict | None = None) -> list[dict] | N
     `status` (source, fetched_at, age_hours, fresh) says how old it is."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import daily_meeting_tasks_cache  # noqa: E402 - sibling script, path set just above
+    import daily_meeting_paused as paused_mod  # noqa: E402
 
     data, info = daily_meeting_tasks_cache.load()
     if status is not None:
@@ -213,6 +214,7 @@ def task_snapshot(gaps: list[str], status: dict | None = None) -> list[dict] | N
         "assignee": t.get("assignee_type") or "",
         "chat": _chat_ref(t.get("external_chat")),
         "labels": [str(label) for label in t.get("labels") or []],
+        **({"pause": paused_mod.parse_pause(t.get("description"))} if "paused" in (t.get("labels") or []) else {}),
     } for t in data.get("tasks", [])]
 
 
@@ -408,7 +410,7 @@ def waiting(tasks: list[dict] | None, out: Path, now: datetime) -> dict:
     reviewed = daily_meeting_issues.load_reviewed(out / "waiting-reviewed.json")
     chats = daily_meeting_waiting.waiting_chats(TRANSCRIPTS, now, tasks, reviewed,
                                                 os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
-    return daily_meeting_waiting.waiting_summary(chats)
+    return daily_meeting_waiting.waiting_summary(chats, tasks, now)
 
 
 def reminders(gaps: list[str]) -> dict | None:

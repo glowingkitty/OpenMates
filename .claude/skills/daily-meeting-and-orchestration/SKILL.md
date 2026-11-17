@@ -20,7 +20,7 @@ Reminder changes:      (table: Action | Reminder (exact title) | List | New due 
 Task changes:          (table: Action | Task (exact title) | New title | Priority | Status | Label | Due | Description)
 Goals:                 (table: Level | Item | Action | Done when | By)
 Chats:
-- <chat title> -> reply: <text> | park | archive | done | keep
+- <chat title> [<Task id>] -> answer now: <text> | park until YYYY-MM-DD HH:MM: <state> | reschedule to YYYY-MM-DD | archive | resume now: <step>   (one line per chat, exactly one outcome)
 Cleanup:
 - <plain title> (<GitHub #123 | Linear ABC-1 | TASK-123>) -> close | delete | merge <other id> | delay | keep
 Parking lot:
@@ -110,12 +110,14 @@ briefing line shows a bare ID, say what it is before using it.
    `logs/daily-meetings/meeting-changelog.md` (`- <date> <plain change> (trial until <date>)`). `revert`
    removes the change from the settings file and logs it; `none` does nothing. Every change is a
    one-week trial; never two at once.
-4b. **Chats** (the `Chats:` lines, from the briefing's "Chats waiting on you"): `reply: <text>`
-   → send the reply yourself to that chat (`send_message` to its Remote session, matched by title/last prompt; the user never pastes into chats you can answer), then report each result; if a chat cannot be reached, say so and print the reply; a reply that would need a production or other user-only action (e.g. 3FA SSH) is not carried out: report it to the user instead; `park` →
-   parking-lot line; `archive`/`done` → archive the chat via `archive_session` when it has a
-   session id, otherwise just record it; `keep` → nothing. Record every non-reply decision in
-   `logs/daily-meetings/waiting-reviewed.json` (`{"<full session id>": "YYYY-MM-DD"}`, private)
-   so the chat is not offered again for 14 days. Never message or stop the Rust chat.
+4b. **Chats** (the `Chats:` lines, one per chat of the briefing's "Chats waiting on you" and "Paused chats"; each has exactly one outcome, `keep` is not valid, ask for the missing outcome in your report):
+   `answer now: <text>` → send the reply yourself to that chat (`send_message` to its Remote session, matched by title/last prompt; the user never pastes into chats you can answer), then report each result; if a chat cannot be reached, say so and print the reply; a reply that would need a production or other user-only action (e.g. 3FA SSH) is not carried out: report it to the user instead;
+   `park until <date>` / `reschedule to <date>` → write the pause convention into the chat's Task
+   (`openmates tasks edit <task> --add-label paused --description "PAUSED <today> until <date> — <reason>\nDone: …\nNot done: …\nNext step: …\nOpen decisions: …"`; create the Task first when the chat has none)
+   and add a parking-lot line; `resume now: <step>` → `--remove-label paused`, then `send_message` with the step;
+   `archive` → archive the chat via `archive_session` when it has a session id and record it in
+   `logs/daily-meetings/waiting-reviewed.json` (`{"<full session id>": "YYYY-MM-DD"}`, private; the chat returns
+   only if it speaks again). Never message or stop the Rust chat. Convention: `docs/contributing/guides/daily-meeting.md`.
 5. **Work chats** (optional, ask once with a recommendation): one Claude chat per
    agent task — `create_session` with the `dev-server:OpenMates…` bridge
    environment and a handoff naming the Task ID, goal, done-criterion and "read

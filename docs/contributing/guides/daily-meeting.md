@@ -119,14 +119,53 @@ plus a data-gap line. Cron has a minimal PATH, so the Tasks script finds the `op
 identity for the Apple no-delete guard, which otherwise refused every cron run.
 
 ## Chats waiting on you
-After the alerts the briefing lists dev-server Claude Code chats whose last real message came
-from the assistant (idle at least 2 h, last 5 days; finished-work replies only within 36 h; chats
-whose Task is Done or that were dismissed in the last 14 days are skipped). Each shows what it is
-waiting for (question, blocker, done), its Task if linked, and the last reply, and opens with a one-line
-plain summary in italics (Gemini Flash: what the chat is about and what it needs from the founder; if that
-call fails the line is left out and a data gap says so). The meeting goes
-through them one at a time; answers go into the `Chats:` lines of the decisions note. Replies are
-sent by the dev-server Claude to the chat itself (`send_message`); only chats that cannot be reached get a printed reply. Data: `scripts/daily_meeting_waiting.py`.
+After the alerts the briefing lists **every** dev-server Claude Code chat whose last real message
+came from the assistant (idle at least 2 h, last 30 days; no cap and no age cut-off, also for
+finished-work replies). A chat leaves the list only when it is answered, archived, its Task is Done,
+or its Task is paused (it then shows under "Paused chats"). Each entry has a short title, how long it
+has waited, its linked Task, the one question or decision it needs in plain words ("Needs", Gemini
+Flash; if that call fails the last question of the reply is used and a data gap says so) and an
+italic one-line summary. The list is sorted by importance against the current priorities (marketing,
+agentic coding, Projects, safety; `PRIORITY_TOPICS` in `scripts/daily_meeting_paused.py`, kept in
+sync with FOCUS.md), then by Task priority, then oldest wait first. The meeting discusses the top 3
+aloud; the full list is always in the briefing. Data: `scripts/daily_meeting_waiting.py`.
+
+## Paused chats
+A fixed briefing section lists every not-done Task labelled `paused`, soonest resume date first,
+with its saved state: done, not done, next step, open decisions, resume date and reason.
+
+**Pause convention.** A chat that stops before its work is finished (usage limit, waiting for a
+date, parked in the meeting) runs, before it stops, one `openmates tasks edit <task> --add-label paused
+--description "<block>"` call with this block (the Task is created first if the chat has none):
+
+```
+PAUSED 2026-11-14 until 2026-11-20 11:00 — weekly usage used up
+Done: <what is finished and deployed>
+Not done: <what remains>
+Next step: <the exact first action when resuming>
+Open decisions: <questions for the founder, or "none">
+```
+`PAUSED <since> until <resume date> [HH:MM] — <reason>` is the first line; the four fields follow.
+The block is the saved state: the resuming chat needs nothing else. To resume, the chat (or the
+meeting) removes the label (`--remove-label paused`) and sets the Task status. Parser and checks:
+`scripts/daily_meeting_paused.py`.
+
+## One outcome per chat, nothing drops out silently
+Every chat in "Chats waiting on you" and in "Paused chats" ends the meeting in exactly one outcome,
+recorded one line per chat in the `Chats:` section of the decisions note:
+
+| Outcome | Note line | What the dev server does |
+|---|---|---|
+| answer now | `<chat> [Task] -> answer now: <reply>` | sends the reply to the chat (`send_message`) |
+| park | `-> park until YYYY-MM-DD HH:MM: <done / not done / next step / open decisions>` | writes the pause block and `paused` label into the Task |
+| reschedule | `-> reschedule to YYYY-MM-DD: <reason>` | same pause block, resume date = the new date |
+| archive | `-> archive` | archives the chat (`archive_session`) and records it in `waiting-reviewed.json` |
+| resume now | `-> resume now: <first step>` | removes the `paused` label, wakes the chat with the next step |
+
+"Keep" is not an outcome. **No-decision check:** the briefing flags (section "No decision for more
+than 7 days", and the first thing the meeting handles) every waiting chat that has waited more than
+7 days, and every paused chat whose resume date has passed, has no resume date, or has incomplete
+saved state after 7 days of pause.
 
 ## Plain-language rule
 IDs, agent names and tasks are never mentioned bare in the briefing, the meeting or the decisions
