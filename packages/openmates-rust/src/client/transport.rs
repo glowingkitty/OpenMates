@@ -639,10 +639,35 @@ impl Client {
             || metadata_not_found || http_failure_status.is_some() || auth_response_status.is_some() || history_version.is_some()) {
             return Err(crate::client::send::refusal_trace::protocol_at!());
         }
-        let (req, generation, monitor_origin) = self.prepare_http_request(
-            method, path, body, pair_secret, idempotency, task, committed_task,
-        )?;
-        let response = session_request_budget_at(req,session_budget,crate::platform::time::Instant::now())?.send().await.map_err(|_| crate::client::send::refusal_trace::offline_at!());
+        // A rate-limited body-less GET waits out Retry-After and is prepared
+        // and sent again (every pre-send fence, including cancellation, runs
+        // again); see `rate_limited_read`. Callers that observe the HTTP status
+        // themselves (status slots, settings reminders with their own retry
+        // wait, session admission budget) keep seeing the first 429.
+        let caller_reads_status = http_failure_status.is_some() || auth_response_status.is_some()
+            || settings_reminders || session_budget.is_some();
+        let keep_first_response = body.is_some() || caller_reads_status;
+        let mut body = body;
+        let mut resends = 0u32;
+        let (response, generation, monitor_origin) = loop {
+            let (req, generation, monitor_origin) = self.prepare_http_request(
+                method.clone(), path, body.take(), pair_secret, idempotency, task, committed_task,
+            )?;
+            let response = session_request_budget_at(req,session_budget,crate::platform::time::Instant::now())?.send().await.map_err(|_| crate::client::send::refusal_trace::offline_at!());
+            if let Ok(sent) = &response
+                && super::rate_limited_read::resend_after_rate_limit(&method, keep_first_response, sent.status().as_u16(), resends)
+            {
+                let wait = super::rate_limited_read::rate_limit_wait(sent.headers(), resends);
+                drop(response);
+                resends += 1;
+                crate::platform::time::sleep(wait).await;
+                if self.generation != generation {
+                    return Err(Error::Cancelled);
+                }
+                continue;
+            }
+            break (response, generation, monitor_origin);
+        };
         self.finish_http_response(path, response, generation, monitor_origin, metadata_not_found,
             http_failure_status, auth_response_status, settings_http_error, settings_root_keys,
             history_version, project_result_pending).await
@@ -895,7 +920,12 @@ impl Client {
                 409 => Error::Conflict,
                 400 | 422 => Error::Invalid("The server rejected the requested operation."),
                 404 | 410 => Error::Invalid("The requested item is unavailable."),
-                429 | 500..=599 => crate::client::send::refusal_trace::offline_at!(),
+                // Name the refused route (ids masked), not this line, so a turn
+                // ending `turn_recovery_required` shows which read was limited.
+                429 | 500..=599 => {
+                    super::send::refusal_trace::note_http(status.as_u16(), path);
+                    Error::Offline
+                }
                 _ => crate::client::send::refusal_trace::protocol_at!(),
             });
         }

@@ -138,6 +138,7 @@ pub(crate) use completion_recovery::{OriginalRecoveryCheckpointIoTicket,BrowserR
 pub use crate::platform::browser_recovery_port::{CapturedBrowserRecoveryPort,OriginalBrowserRecoveryPort,NativeRecoveryPortPending,NativeRecoveryPortDelivery};
 
 mod recovery;
+mod rate_limited_read;
 pub use completion_recovery::{
     CompletionRecoveryAdmission, CompletionRecoveryCheckpoint, CompletionRecoveryDurableReceipt,
     CompletionRecoveryJob, CompletionRecoveryKind, CompletionRecoveryReceipt,
