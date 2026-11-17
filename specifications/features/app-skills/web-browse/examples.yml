@@ -86,6 +86,18 @@ form_with_user:
     given: The user answers the email question and the client hides the address as [EMAIL_1_org] before sending.
     when: The assistant continues the form.
     then: Browse never types the placeholder; the reply tells the user to type the email through take control, asks the next question, and the summary marks email as typed by the user.
+  - id: continue-after-take-control
+    given: The user typed the hidden email through take control and pressed "Let AI continue".
+    when: The assistant continues.
+    then: Browse first observes the same session again without a new start address, the reply says the email is now filled and asks the next question.
+  - id: cap-for-the-whole-form
+    given: The form session started with a 1000-credit cap and the user answers the ninth question.
+    when: The assistant fills that answer.
+    then: It continues the same session without naming a cap, so the run is neither refused nor limited to a smaller default; if the cap is ever reached, it says so, lists what is filled and offers take control.
+  - id: browse-stays-available
+    given: The last three replies needed no Browse call (first and last name left to the user through take control, optional links left empty).
+    when: The user answers the next question.
+    then: The assistant still has Browse and enters that answer in the same session instead of describing or imitating a browser action.
   - id: voice-one-question
     given: The same form is filled during a voice call.
     when: The assistant speaks.

@@ -173,6 +173,23 @@ class BrowseStore:
         record["_version"] = row.get("version", 1)
         return record
 
+    async def open_session_ids(self, user_id: str) -> list[str]:
+        """The owner's sessions that are not closed or expired, newest first."""
+        rows = await self.db.get_items(
+            COLLECTION,
+            params={
+                "filter[owner_hash][_eq]": owner_hash(user_id),
+                "filter[status][_nin]": "closed,expired",
+                "fields": "id",
+                "sort": "-last_activity",
+                "limit": OPEN_SESSION_LOOKUP_LIMIT,
+            },
+            no_cache=True,
+            admin_required=True,
+            raise_on_error=True,
+        )
+        return [row["id"] for row in rows]
+
     async def save(self, record: dict[str, Any], *, create: bool = False) -> None:
         started = time.monotonic()
         try:
@@ -222,6 +239,10 @@ class BrowseStore:
                 )
         record["_version"] = version + 1
 
+
+# Live sessions checked when a call names neither a session nor a start address;
+# an owner has at most a few, and only the same chat's session is continued.
+OPEN_SESSION_LOOKUP_LIMIT = 10
 
 # Longest wait after a run for the page's pending requests before compute pauses.
 QUIESCE_SECONDS = 60
@@ -547,6 +568,20 @@ class BrowseService:
         record.pop("steps", None)
         await self.store.save(record)
 
+    async def chat_session(self, user_id: str, chat_id: str) -> str | None:
+        """The newest session of this chat that is still live, if any."""
+        for session_id in await self.store.open_session_ids(user_id):
+            try:
+                record = await self.store.load(session_id, user_id, chat_id)
+            except HTTPException as exc:
+                # Another chat's session (404) or unreadable state (409) is skipped.
+                if exc.status_code in (404, 409):
+                    continue
+                raise
+            if session_lifecycle(record, time.time()) not in ("closed", "expired"):
+                return session_id
+        return None
+
     async def ensure_live(self, record: dict[str, Any]) -> None:
         if session_lifecycle(record, time.time()) in ("closed", "expired"):
             if record["status"] not in ("closed", "expired"):
@@ -568,6 +603,12 @@ class BrowseService:
     ) -> BrowseResult | BrowseJob:
         if not user_id or not chat_id or not message_id or not vault_key_id:
             raise HTTPException(401, "An authenticated chat is required for Browse.")
+        if not request.session_id and not request.start_url:
+            # A follow-up that names neither continues this chat's live browser
+            # (the model can drop the session id on a later form turn).
+            session_id = await self.chat_session(user_id, chat_id)
+            if session_id:
+                request = request.model_copy(update={"session_id": session_id})
         job = browse_identity(request, user_id, chat_id, message_id)
         run_id, session_id = job.run_id, job.session_id
         prepared = False

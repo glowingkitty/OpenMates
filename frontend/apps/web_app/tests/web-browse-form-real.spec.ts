@@ -193,6 +193,16 @@ test.describe('web browse form with the user (real dev inference)', () => {
 		test.setTimeout((maxTurns + 2) * TURN_TIMEOUT_MS);
 		await page.setViewportSize({ width: 1400, height: 1000 });
 		const log = createSignupLogger('BROWSE_FORM');
+		// Client-side send stages and errors, bounded, so a stalled send names its step.
+		let consoleLines = 0;
+		page.on('console', (entry: any) => {
+			const text: string = entry.text();
+			if (consoleLines >= 300) return;
+			if (['error', 'warning'].includes(entry.type()) || /send|turn|admission|privacy|predecessor|journal|draft/i.test(text)) {
+				consoleLines += 1;
+				log('Console.', { type: entry.type(), text: text.slice(0, 300) });
+			}
+		});
 		const screenshot = createStepScreenshotter(log);
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -235,6 +245,8 @@ test.describe('web browse form with the user (real dev inference)', () => {
 				generatedBy: ((await answer.getByTestId('generated-by').first().textContent({ timeout: 10_000 }).catch(() => '')) || '').trim()
 			};
 			turns.push(record);
+			// Written every turn so a run that later times out still keeps the transcript.
+			fs.writeFileSync(testInfo.outputPath('form-turns.json'), JSON.stringify(turns, null, 2));
 			await testInfo.attach(`turn-${String(turn).padStart(2, '0')}.png`, { body: await page.screenshot({ fullPage: false }), contentType: 'image/png' });
 			log('Turn recorded.', { turn, browseEmbeds: record.browseEmbeds, questions: record.questions });
 			if (message === STOP_MESSAGE) break;

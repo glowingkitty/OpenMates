@@ -57,6 +57,10 @@ class MemoryStore:
     async def save(self, record, **kwargs):
         self.records[record["session_id"]] = deepcopy(record)
 
+    async def open_session_ids(self, user_id):
+        live = [r for r in self.records.values() if r["user_id"] == user_id and r["status"] not in ("closed", "expired")]
+        return [r["session_id"] for r in sorted(live, key=lambda r: -r["last_activity"])]
+
     async def load_result(self, run_id, user_id):
         value = self.results.get((run_id, user_id))
         if not value:
@@ -2071,3 +2075,27 @@ async def test_followup_without_a_cap_keeps_the_sessions_larger_cap(service):
     assert record["max_credits"] == 1000
     # The queued worker rebuilds the request from the record; the cap stays unset.
     assert "max_credits" not in BrowseRequest.model_validate(record["request"]).model_fields_set
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user,web-browse.session-and-run
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user,web-browse.session-and-run
+async def test_followup_without_session_or_address_continues_this_chats_browser(service):
+    # Real form run: on a later turn the model dropped session_id and gave no
+    # start_url; the call must continue the chat's live browser, not fail 422.
+    other = await run(service, chat_id="other-chat", message_id="other")
+    mine = await run(service, arguments(max_credits=1000))
+    followup = BrowseRequest(task="Select 10-30 h per week")
+    again = await run(service, followup, message_id="later-turn")
+    assert again.session_id == mine.session_id != other.session_id
+    assert service.store.records[mine.session_id]["max_credits"] == 1000
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run
+async def test_followup_without_session_or_address_in_a_chat_without_a_browser_still_needs_an_address(service):
+    await run(service, chat_id="other-chat", message_id="other")
+    with pytest.raises(HTTPException) as exc:
+        await run(service, BrowseRequest(task="Continue"), message_id="no-browser")
+    assert exc.value.status_code == 422
