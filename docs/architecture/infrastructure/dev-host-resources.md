@@ -8,6 +8,7 @@ key_files:
 - scripts/claude_chat_waiters.py
 - scripts/disk_coordinator.py
 - scripts/host_disk_root.py
+- scripts/host_disk_usage.py
 - scripts/claude_dispatch.py
 - scripts/zellij/chat-session.kdl
 - scripts/heavy_slot.py
@@ -155,9 +156,12 @@ split between words so links are never cut.
    counts as lost, never as released).
 2b. Every tick: `claude_chat_inputs.py watch` refreshes
    `logs/claude-chat-lifecycle/inputs.json` (see "Input boxes" below).
-3. Disk: more than 92% used or less than 20 GiB free on the repository
-   filesystem. Cleanup belongs to the disk coordinator; the tick checks that
-   `openmates-disk-coordinator.service` runs.
+3. Disk: two alert levels on the repository filesystem, 75% and 85% used (or
+   less than 10 GiB available, the coordinator's hard floor), each its own
+   incident that re-arms 2 points below its level. The alert names the largest
+   growers of the last 24 h and every category over its budget, from the hourly
+   size log (section 5). Cleanup belongs to the disk coordinator; the tick
+   checks that `openmates-disk-coordinator.service` runs.
 4. A memory or disk problem that lasts 20 min despite self-healing sends one
    "feedback needed" Discord push per incident (`agent_question.py`).
    `resources_recovered` is logged when it ends.
@@ -267,6 +271,28 @@ timer `openmates-host-disk-root.timer`, Sundays 03:30 UTC):
   `/etc/systemd/journald.conf.d/openmates-size.conf`.
 - `openmates-host-disk-root report` lists without deleting; every run writes
   `/var/lib/openmates-host-disk/report.json` (world-readable).
+
+Hourly size log (`scripts/host_disk_usage.py`, user timer
+`openmates-host-disk-usage.timer` from `scripts/host-disk-usage-setup.sh`):
+`record` measures each category with `du` at idle IO priority (about 15 s) and
+appends one line to `logs/host-disk/usage.jsonl` (60 days kept); `status`
+prints sizes, budgets and 24 h growth. Categories and budgets (GB):
+
+| Category | Holds | Budget |
+|---|---|---|
+| rust | `~/.cache/openmates-rust-*`, `target/` of the checkout and every worktree, `/tmp/*/target` | 25 |
+| ci_artifacts | `logs/ci-runs`, `logs/ci-candidates`, `test-results/`, product-stack test results | 10 |
+| scratchpads | `/tmp/claude-<uid>` (2 per chat) | 6 |
+| worktrees | agent and sub-agent worktrees, without their `target/` | 15 |
+| docker_images (+ build cache) | `docker system df` | 20 |
+| docker_logs | container json logs (root report) | 1 |
+| journal | `journalctl --disk-usage` | 1 |
+
+Unbudgeted categories are measured too (runtime, toolchains, checkout,
+other_projects, home_other, system_logs, Docker volumes and containers, Docker
+layer data that only the root report sees); `other` is the remainder of the
+filesystem's used space. A path inside a path of an earlier category counts only
+once, in the earlier one.
 
 The setup script also runs the cleanup once. The ext4 root reserve is lowered
 once by hand to 3 GiB (`sudo tune2fs -r 786432 <root device>`).

@@ -220,6 +220,9 @@ def run(apply: bool, docker_root: Path = DOCKER_ROOT, now: float | None = None,
         journal = subprocess.run(["journalctl", f"--vacuum-size={JOURNAL_CAP}"],
                                  capture_output=True, text=True, timeout=300)
         report["journal"] = {"returncode": journal.returncode, "output": (journal.stderr or journal.stdout)[-300:]}
+    report["docker_dirs"] = {name: _tree_bytes(docker_root / name)
+                             for name in ("overlay2", "volumes", "containers", "buildkit", "image")
+                             if (docker_root / name).is_dir()}
     report["largest_orphans"] = orphans[:10]
     return report
 

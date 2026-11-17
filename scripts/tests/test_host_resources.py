@@ -60,7 +60,7 @@ def calls(monkeypatch) -> Calls:
 
     monkeypatch.setattr(res, "_script", fake_script)
     monkeypatch.setattr(res, "alert", fake_alert)
-    monkeypatch.setattr(res, "disk_problem", lambda path: None)
+    monkeypatch.setattr(res, "disk_problem", lambda path, *args: None)
     monkeypatch.setattr(res, "_service_active", lambda unit: True)
     def fake_zellij(session, *args):
         record.zellij.append((session, *args))
@@ -118,14 +118,61 @@ def test_short_overload_that_heals_never_alerts(tmp_path, calls):
 
 
 def test_sustained_disk_problem_alerts_and_names_a_stopped_disk_coordinator(tmp_path, calls, monkeypatch):
-    monkeypatch.setattr(res, "disk_problem", lambda path: "disk 95% used, 12 GiB free")
+    monkeypatch.setattr(res, "disk_problem", lambda path, *args: "disk 95% used, 12 GiB free")
     monkeypatch.setattr(res, "_service_active", lambda unit: False)
     for minute in range(0, 25, 5):
         res.tick(sample(8), HEALTHY, tmp_path, tmp_path, now=NOW + minute * 60)
-    assert len(calls.alerts) == 1
+    assert len(calls.alerts) == 2  # the 75% and the 85% level
     assert "openmates-disk-coordinator.service is not running" in calls.alerts[0]
     state = json.loads((tmp_path / "resources.json").read_text())
-    assert state["disk"]["alerted"] is True
+    assert state["disk"]["alerted"] is True and state["disk_high"]["alerted"] is True
+
+
+REAL_DISK_PROBLEM = res.disk_problem
+
+
+class _Disk:
+    """statvfs stand-in: 100 blocks of 1 GiB, `available` of them free."""
+
+    def __init__(self, available):
+        self.f_frsize, self.f_blocks, self.f_bavail, self.f_bfree = res.guard.GIB, 100, available, available
+
+
+def test_disk_levels_warn_at_75_and_85_and_rearm_two_points_below(tmp_path, monkeypatch):
+    def levels(available, state):
+        monkeypatch.setattr(res.os, "statvfs", lambda path: _Disk(available))
+        return {key: bool(problem) for key, problem in res.disk_levels(tmp_path, state).items()}
+
+    assert levels(30, {}) == {"disk": False, "disk_high": False}   # 70% used
+    assert levels(24, {}) == {"disk": True, "disk_high": False}    # 76%
+    assert levels(14, {}) == {"disk": True, "disk_high": True}     # 86%
+    assert levels(16, {"disk_high": {}}) == {"disk": True, "disk_high": True}   # 84%: still open
+    assert levels(18, {"disk_high": {}}) == {"disk": True, "disk_high": False}  # 82%: re-armed
+    assert levels(26, {"disk": {}}) == {"disk": True, "disk_high": False}       # 74%: still open
+    assert levels(28, {"disk": {}}) == {"disk": False, "disk_high": False}      # 72%: re-armed
+
+
+def test_disk_floor_of_10_gib_counts_as_the_high_level(tmp_path, monkeypatch):
+    monkeypatch.setattr(res.os, "statvfs", lambda path: _Disk(9))
+    assert "GiB free" in res.disk_levels(tmp_path, {})["disk_high"]
+
+
+def test_disk_alert_names_the_largest_growers(tmp_path, calls, monkeypatch):
+    monkeypatch.setattr(res, "disk_problem", REAL_DISK_PROBLEM)
+    monkeypatch.setattr(res.os, "statvfs", lambda path: _Disk(24))
+    monkeypatch.setattr(res, "_service_active", lambda unit: True)
+    log = tmp_path / "logs" / "host-disk"
+    log.mkdir(parents=True)
+    rows = [{"ts": NOW - 86400, "categories": {"rust": 20 * 10**9, "worktrees": 10 * 10**9}},
+            {"ts": NOW, "categories": {"rust": 31 * 10**9, "worktrees": 11 * 10**9}}]
+    (log / "usage.jsonl").write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+    monkeypatch.setattr(res.host_disk_usage, "caps", lambda projects: {"rust": 25 * 10**9})
+    for minute in range(0, 25, 5):
+        res.tick(sample(8), HEALTHY, tmp_path, tmp_path, now=NOW + minute * 60)
+    assert len(calls.alerts) == 1
+    assert "76% used" in calls.alerts[0]
+    assert "rust +11.0 GB (31.0 GB, cap 25 GB)" in calls.alerts[0]
+    assert "over budget: rust 31.0/25 GB" in calls.alerts[0]
 
 
 def test_disk_problem_uses_free_space_and_percent_limits(tmp_path):

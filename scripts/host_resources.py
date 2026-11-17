@@ -9,9 +9,13 @@ calls `tick()`. Each tick:
 2. Host healthy with memory headroom: release up to RELEASE_PER_TICK prompts that
    an older hook version refused (`claude_idle_chats.py release`), a few at a time
    so the released work does not overload the host again.
-3. Disk: free space and use of the repository filesystem. Cleanup belongs to the
-   disk coordinator (scripts/disk_coordinator.py); this guard checks that its
-   service runs and watches whether the space comes back.
+3. Disk: use of the repository filesystem against two alert levels, DISK_WARN_PERCENT
+   (75%) and DISK_HIGH_PERCENT (85%) or less than DISK_FLOOR_BYTES (10 GiB, the
+   coordinator's hard floor) available. Each level is its own incident and re-arms
+   only DISK_REARM_POINTS below it. Alerts name the largest growers of the last
+   24 h from the hourly size log (scripts/host_disk_usage.py). Cleanup belongs to
+   the disk coordinator (scripts/disk_coordinator.py); this guard checks that its
+   service runs and watches whether the space comes back (TASK-7646).
 4. A problem that persists for ALERT_AFTER_SECONDS although self-healing ran sends
    one "feedback needed" Discord push per incident (scripts/agent_question.py);
    recovery is logged as `resources_recovered`. Nothing else alerts.
@@ -37,14 +41,17 @@ import sys
 import time
 from pathlib import Path
 
+import host_disk_usage
 import host_load_guard as guard
 
 REAP_INTERVAL = 300.0
 RELEASE_PER_TICK = 2
 RELEASE_HEADROOM_BYTES = 4 * guard.GIB  # free memory needed before held prompts are released
 ALERT_AFTER_SECONDS = 20 * 60
-DISK_MIN_FREE_BYTES = 20 * guard.GIB
-DISK_MAX_PERCENT = 92.0
+DISK_FLOOR_BYTES = 10 * guard.GIB
+DISK_WARN_PERCENT = 75.0
+DISK_HIGH_PERCENT = 85.0
+DISK_REARM_POINTS = 2.0
 DISK_SERVICE = "openmates-disk-coordinator.service"
 ALERT_CHAT_ID = "host-resources-guard"
 SUBPROCESS_TIMEOUT = 240
@@ -62,12 +69,16 @@ ZELLIJ_RECOMMENDATION = (
     "per-thread CPU in /proc/<pid>/task/*/stat), archive finished chats so their tabs close "
     "(claude_idle_chats.py list), and restart the session only after every chat in it can be resumed "
     "(claude --resume) and the remote-control bridge is restarted.")
+DISK_RECOMMENDATION = (
+    "Cleanup runs automatically from 75% (disk coordinator, oldest first within each "
+    "category's budget). See python3 scripts/host_disk_usage.py status for the category "
+    "over budget, then free it or raise its budget.")
 DEFAULT_RECOMMENDATION = (
     "Look at the idle-but-kept chats (claude_idle_chats.py list) and archive the "
     "finished ones, or stop the biggest process listed in logs/host-load-guard/events.jsonl.")
 
 
-def disk_problem(path: Path, min_free: int = DISK_MIN_FREE_BYTES, max_percent: float = DISK_MAX_PERCENT) -> str | None:
+def disk_problem(path: Path, min_free: int = DISK_FLOOR_BYTES, max_percent: float = DISK_WARN_PERCENT) -> str | None:
     stat = os.statvfs(path)
     free = stat.f_bavail * stat.f_frsize
     total = stat.f_blocks * stat.f_frsize
@@ -76,6 +87,13 @@ def disk_problem(path: Path, min_free: int = DISK_MIN_FREE_BYTES, max_percent: f
         return (f"disk {used_percent:.0f}% used, {free / guard.GIB:.0f} GiB free "
                 f"(limits {max_percent:g}% / {min_free / guard.GIB:.0f} GiB)")
     return None
+
+
+def disk_levels(path: Path, state: dict) -> dict[str, str | None]:
+    """Problem text per disk alert level; an open incident stays open until DISK_REARM_POINTS below its level."""
+    levels = {"disk": DISK_WARN_PERCENT, "disk_high": DISK_HIGH_PERCENT}
+    return {key: disk_problem(path, DISK_FLOOR_BYTES, level - DISK_REARM_POINTS if key in state else level)
+            for key, level in levels.items()}
 
 
 def load(directory: Path) -> dict:
@@ -257,10 +275,14 @@ def tick(sample: guard.Sample, decision: guard.Decision, directory: Path | None 
         guard.append_event(directory, "inputs_watch_failed", {"code": result.returncode,
                                                                "error": result.stderr.strip()[-300:]})
 
-    disk = disk_problem(repo)
-    if disk and not _service_active(DISK_SERVICE):
-        disk += f"; {DISK_SERVICE} is not running"
-    if disk:
+    disk = disk_levels(repo, state)
+    if any(disk.values()):
+        extra = ""
+        if not _service_active(DISK_SERVICE):
+            extra += f"; {DISK_SERVICE} is not running"
+        growers = host_disk_usage.growth_summary(repo / "logs" / "host-disk", repo.parent)
+        extra += f"; {growers}" if growers else ""
+        disk = {key: problem + extra if problem else None for key, problem in disk.items()}
         healed.append("disk cleanup is left to the disk coordinator")
 
     zellij_over = zellij_over_limit(state, now, zellij_servers())
@@ -272,7 +294,8 @@ def tick(sample: guard.Sample, decision: guard.Decision, directory: Path | None 
     if healed:
         state["healed"] = healed
     checks = (("memory", memory, ALERT_AFTER_SECONDS, DEFAULT_RECOMMENDATION),
-              ("disk", disk, ALERT_AFTER_SECONDS, DEFAULT_RECOMMENDATION),
+              ("disk", disk["disk"], ALERT_AFTER_SECONDS, DISK_RECOMMENDATION),
+              ("disk_high", disk["disk_high"], ALERT_AFTER_SECONDS, DISK_RECOMMENDATION),
               ("zellij", zellij, ZELLIJ_ALERT_AFTER_SECONDS, ZELLIJ_RECOMMENDATION))
     for key, problem, after, recommendation in checks:
         was = state.get(key)
