@@ -33,6 +33,7 @@ import { installDeckDocumentUnit } from '@openmates/ui/src/services/rustCore/dec
 import { installProjectTimelineUnit } from '@openmates/ui/src/services/rustCore/projects/projectTimelineUnit';
 import { installPresentRemoteUnit } from '@openmates/ui/src/services/rustCore/presentRemote/presentRemoteUnit';
 import { installEmbedEditUnit } from '@openmates/ui/src/services/rustCore/embeds/embedEditUnit';
+import { installVoiceTurnUnit } from '@openmates/ui/src/services/rustCore/voice/voiceTurnUnit';
 
 export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	core: installCoreUnit,
@@ -57,4 +58,5 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	embedEdit: (context) => installEmbedEditUnit(context),
 	projectTimeline: (context) => installProjectTimelineUnit(context),
 	presentRemote: (context) => installPresentRemoteUnit(context),
+	voiceTurn: (context) => installVoiceTurnUnit(context),
 });

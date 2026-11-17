@@ -173,6 +173,8 @@ pub(crate) use send::refusal_trace::note_caller as note_protocol_caller;
 mod send_attachments;
 mod send_observations;
 mod send_options;
+mod voice_turn_public;
+pub use voice_turn_public::{VoiceTurnCommit, VoiceTurnFrame, VoiceTurnPrepared};
 // Caller-reserved chat and message ids of a turn (Apple and web shells).
 mod send_reserved_ids;
 mod sync;

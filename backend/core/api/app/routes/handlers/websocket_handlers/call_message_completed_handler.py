@@ -366,10 +366,20 @@ async def handle_call_message_completed(*, manager: Any, cache_service: Any,
             user_id=user_id, user_id_hash=user_id_hash,
             session_hash=session_hash, message=message,
         )
+        # A newly settled row also goes back to the sender: its client core
+        # keeps its own chat history (the AI history of the next voice turn)
+        # and never sees the page's outbox. Ciphertext only, like the
+        # other-device `call_message_changed` below.
+        settled = {
+            "role": changed["role"], "created_at": changed["created_at"],
+            "encrypted_content": changed["encrypted_content"],
+            **{field: changed.get(field) for field in _ATTRIBUTION_FIELDS},
+            "user_message_id": changed.get("user_message_id"),
+        } if changed is not None else {}
         await manager.send_personal_message({"type": "call_message_confirmed", "payload": {
             "request_id": message["request_id"], "chat_id": message["chat_id"],
             "message_id": message["message_id"], "revision": revision, "outcome": outcome,
-            "messages_v": messages_v,
+            "messages_v": messages_v, **settled,
         }}, user_id, device_fingerprint_hash)
         if changed is not None:
             # A repaired replay publishes the stored winning ciphertext, even if

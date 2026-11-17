@@ -8,6 +8,10 @@ use super::plaintext::{Plain,Wipe,replace_text};
 use crate::crypto::master::MasterCapability;
 #[path="send_prepared_turn.rs"]
 pub(in crate::client) mod prepared_turn;
+#[path="send_turn_stages.rs"]
+pub(in crate::client) mod turn_stages;
+#[path="voice_turn.rs"]
+pub(in crate::client) mod voice_turn;
 #[path="send_prepared_transport.rs"]
 pub(in crate::client) mod prepared_transport;
 #[path="refusal_trace.rs"]

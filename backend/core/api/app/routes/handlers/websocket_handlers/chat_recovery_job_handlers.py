@@ -1049,6 +1049,35 @@ async def handle_recovery_job_renew(
         _end_ws_span(_otel_span, _otel_token)
 
 
+# Ciphertext fields of a terminal assistant row the persisting device already
+# sent; echoed back so that device's client core can keep its own history.
+_TERMINAL_RECEIPT_ROW_FIELDS = (
+    "chat_id", "message_id", "role", "encrypted_content", "created_at",
+    "encrypted_sender_name", "encrypted_category", "encrypted_model_name", "user_message_id",
+)
+
+
+def _terminal_receipt_row(result: dict, encrypted_message: dict) -> dict:
+    """The stored assistant row for the sender (beside `committed_messages_v`).
+
+    The web client core builds the next turn's AI history and its
+    `expected_messages_v` itself; a reply persisted by the browser recovery
+    path reaches it only through this receipt. Only the device that sent the
+    row gets it back, so nothing new leaves the account. Empty unless the
+    persist reached TERMINAL with a committed version.
+    """
+    committed = result.get("committed_messages_v")
+    if result.get("state") != "TERMINAL" or not isinstance(committed, int):
+        return {}
+    row = {field: encrypted_message[field] for field in _TERMINAL_RECEIPT_ROW_FIELDS
+           if encrypted_message.get(field) is not None}
+    # The web recovery path names the assistant id `client_message_id`.
+    row.setdefault("message_id", encrypted_message.get("client_message_id"))
+    if not all(isinstance(row.get(field), str) for field in ("chat_id", "message_id", "encrypted_content")):
+        return {}
+    return row
+
+
 async def handle_recovery_job_persist(
     *,
     manager: Any,
@@ -1126,7 +1155,11 @@ async def handle_recovery_job_persist(
         await manager.send_personal_message(
             {
                 "type": "recovery_job_persisted",
-                "payload": {**result, "request_id": request_id},
+                "payload": {
+                    **_terminal_receipt_row(result, encrypted_message),
+                    **result,
+                    "request_id": request_id,
+                },
             },
             user_id,
             device_fingerprint_hash,

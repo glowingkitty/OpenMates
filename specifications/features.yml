@@ -588,7 +588,7 @@ features:
     surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
     key_tests:
       web: [frontend/apps/web_app/tests/voice-call.spec.ts]
-    notes: "Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server; no client opts in yet. The voice-call web spec is the key end-to-end test."
+    notes: "Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server; the web app with the Rust core opts in and lets the core prepare the turn early, dropping that preparation on turn.resumed. Apple does not opt in yet. The voice-call web spec is the key end-to-end test."
   - id: webhooks
     name: "Webhooks"
     kind: core

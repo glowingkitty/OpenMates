@@ -194,7 +194,16 @@ async def test_terminal_persistence_overrides_encrypted_message_owner(monkeypatc
     ]
     assert cache.closed is True
     assert manager.messages[0]["type"] == "recovery_job_persisted"
-    assert manager.messages[0]["payload"]["request_id"] == "persist-request-1"
+    receipt = manager.messages[0]["payload"]
+    assert receipt["request_id"] == "persist-request-1"
+    # The persisting device gets its own stored row back for its client core
+    # history, beside the committed version; never the owner hash.
+    assert receipt["committed_messages_v"] == 5
+    assert {key: receipt[key] for key in ("chat_id", "message_id", "role", "encrypted_content", "created_at")} == {
+        "chat_id": "22222222-2222-4222-8222-222222222222", "message_id": "assistant-1",
+        "role": "assistant", "encrypted_content": "ciphertext", "created_at": 100,
+    }
+    assert "hashed_user_id" not in receipt
 
 
 class TerminalRelayDirectus:

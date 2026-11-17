@@ -164,7 +164,7 @@ capabilities:
     status: rust-default
     old: []
     unit: sendPrep
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists; sendPrep unit; the send-prep E2E counts each Rust preparation op (round 2); the flag-off TypeScript path is deleted at the flip
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists; sendPrep unit; the send-prep E2E counts each Rust preparation op (round 2); the flag-off TypeScript path is deleted at the flip; voice-call turns are built by the core (voiceTurn unit; early-end prepare on turn.likely_end, commit on the final transcript, on the chat state admit_chat loaded) and the page only carries their frames; text-chat send is still TypeScript
     last_commit: 06da1b2448
   apple:
     status: rust-default

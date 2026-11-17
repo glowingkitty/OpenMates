@@ -3150,7 +3150,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      unit_test_files: 151
+      unit_test_files: 152
     apple:
       status: failing
       source: tests
@@ -9929,7 +9929,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
       - frontend/packages/ui/src/components/videocall/callAudio.test.ts
       - backend/tests/test_voice_call_admission.py
-      unit_test_files: 59
+      unit_test_files: 61
     apple:
       status: partial
       source: tests
@@ -10053,7 +10053,8 @@ features:
       key_unit_tests: []
       unit_test_files: 0
   notes: Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server;
-    no client opts in yet. The voice-call web spec is the key end-to-end test.
+    the web app with the Rust core opts in and lets the core prepare the turn early, dropping that preparation on turn.resumed.
+    Apple does not opt in yet. The voice-call web spec is the key end-to-end test.
 - id: webhooks
   name: Webhooks
   kind: core

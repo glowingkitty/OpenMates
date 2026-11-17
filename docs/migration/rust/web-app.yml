@@ -16,7 +16,7 @@ summary:
   percent: 47.6
 worker_namespaces_installed_not_progress:
   installed: 17
-  total: 22
+  total: 23
   note: 'Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs.'
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
   web-rust-core-chat.spec.ts, web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts,
@@ -397,4 +397,20 @@ units:
   open_gaps: [No flag-on web-rust-core spec yet; slides-present-remote.spec.ts covers the remote flow once the web
       UI lane lands.]
   spec_assertions: [slides.present.remote-relay-private, slides.present.remote-one-core]
+  spec_gaps: []
+- namespace: voiceTurn
+  status: planned
+  pre_bind: false
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
+  e2e_specs: []
+  vectors: []
+  open_gaps: ['No web-rust-core spec; voice-call.spec.ts (e2e jobs build with the core on) covers call turns, the
+      likely-end hint, its withdrawal and the early-prep reuse.', 'Only voice-call turns use the unit; text-chat
+      send still runs through the TypeScript sender (sendersChatMessages.ts), whose voice branch stays until text
+      send moves to the core.', The flag-off TypeScript voice path (chatSyncService.sendNewMessage) remains until
+      the web flip.]
+  spec_assertions: [video-call.audio.complete-turn-admission, chats.send.immediate-admission]
   spec_gaps: []

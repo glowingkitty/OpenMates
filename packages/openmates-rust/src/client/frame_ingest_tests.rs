@@ -47,10 +47,23 @@ fn added(id: &str, v: u64) -> Value {
 #[tokio::test]
 async fn message_added_stores_row_and_bumps_messages_v() {
     let mut c = known();
-    let summary = c.ingest_socket_frames(&[added("m1", 3), added("m1", 3)]).await.unwrap();
+    let summary = c
+        .ingest_socket_frames(&[added("m1", 3), added("m1", 3)])
+        .await
+        .unwrap();
     assert_eq!(summary.applied_seq, 2);
-    assert_eq!(summary.changed_chats, vec![ChangedChat { chat_id: CHAT.into(), messages_v: Some(3) }]);
-    assert_eq!(c.history[CHAT].len(), 1, "the same message id is stored once");
+    assert_eq!(
+        summary.changed_chats,
+        vec![ChangedChat {
+            chat_id: CHAT.into(),
+            messages_v: Some(3)
+        }]
+    );
+    assert_eq!(
+        c.history[CHAT].len(),
+        1,
+        "the same message id is stored once"
+    );
     assert_eq!(c.chats[CHAT]["messages_v"], 3);
 }
 
@@ -69,7 +82,10 @@ async fn plaintext_content_is_sealed_with_the_chat_key() {
 async fn applied_seq_increments_in_frame_order() {
     let mut c = known();
     assert_eq!(c.frame_applied_seq(), 0);
-    let first = c.ingest_socket_frames(&[added("m1", 3), added("m2", 4)]).await.unwrap();
+    let first = c
+        .ingest_socket_frames(&[added("m1", 3), added("m2", 4)])
+        .await
+        .unwrap();
     assert_eq!(first.applied_seq, 2);
     assert_eq!(c.history[CHAT][0]["message_id"], "m1");
     assert_eq!(c.history[CHAT][1]["message_id"], "m2");
@@ -87,7 +103,10 @@ async fn ack_and_confirmation_raise_messages_v_forward_only() {
     ];
     let summary = c.ingest_socket_frames(&frames).await.unwrap();
     assert_eq!(summary.applied_seq, 2);
-    assert_eq!(c.chats[CHAT]["messages_v"], 5, "a lower version never lowers the row");
+    assert_eq!(
+        c.chats[CHAT]["messages_v"], 5,
+        "a lower version never lowers the row"
+    );
 }
 
 #[tokio::test]
@@ -101,10 +120,16 @@ async fn call_and_queue_receipts_raise_messages_v_only_from_their_version_field(
         json!({"type":"call_message_changed","payload":{"chat_id":CHAT,"messages_v":3}}),
     ];
     let summary = c.ingest_socket_frames(&frames).await.unwrap();
-    assert_eq!(summary.ignored, 1, "a call receipt without messages_v is not applied; revision is no substitute");
+    assert_eq!(
+        summary.ignored, 1,
+        "a call receipt without messages_v is not applied; revision is no substitute"
+    );
     assert_eq!(summary.applied_seq, 4);
     assert_eq!(c.chats[CHAT]["messages_v"], 6, "versions only move forward");
-    assert!(c.history.get(CHAT).is_none_or(Vec::is_empty), "receipts never add history rows");
+    assert!(
+        c.history.get(CHAT).is_none_or(Vec::is_empty),
+        "receipts never add history rows"
+    );
 }
 
 #[tokio::test]
@@ -144,7 +169,10 @@ async fn other_principal_and_other_team_frames_are_refused() {
 async fn chat_deleted_removes_row_and_history() {
     let mut c = known();
     c.ingest_socket_frames(&[added("m1", 3)]).await.unwrap();
-    let summary = c.ingest_socket_frames(&[json!({"type":"chat_deleted","payload":{"chat_id":CHAT}})]).await.unwrap();
+    let summary = c
+        .ingest_socket_frames(&[json!({"type":"chat_deleted","payload":{"chat_id":CHAT}})])
+        .await
+        .unwrap();
     assert_eq!(summary.changed_chats[0].chat_id, CHAT);
     assert!(!c.chats.contains_key(CHAT) && !c.history.contains_key(CHAT));
 }
@@ -161,7 +189,10 @@ async fn serve(replies: Vec<(u16, Value)>) -> (String, tokio::task::JoinHandle<(
                 seen += socket.read(&mut buffer[seen..]).await.unwrap();
             }
             let body = body.to_string();
-            let head = format!("HTTP/1.1 {status} Fixture\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+            let head = format!(
+                "HTTP/1.1 {status} Fixture\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
             socket.write_all(head.as_bytes()).await.unwrap();
             socket.write_all(body.as_bytes()).await.unwrap();
         }
@@ -178,7 +209,14 @@ async fn admit_chat_makes_a_new_chat_known() {
     let mut c = client(&api, None);
     assert!(!c.chats.contains_key(CHAT));
     let admission = c.admit_chat(CHAT, None).await.unwrap();
-    assert_eq!(admission, ChatAdmission { chat_id: CHAT.into(), messages_v: 0, history_rows: 0 });
+    assert_eq!(
+        admission,
+        ChatAdmission {
+            chat_id: CHAT.into(),
+            messages_v: 0,
+            history_rows: 0
+        }
+    );
     assert!(c.chats.contains_key(CHAT));
     server.await.unwrap();
 }
@@ -186,17 +224,127 @@ async fn admit_chat_makes_a_new_chat_known() {
 #[tokio::test]
 async fn admit_chat_fails_with_typed_codes() {
     let mut c = known();
-    assert_eq!(c.admit_chat("not-a-uuid", None).await.unwrap_err().code(), "invalid_chat_id");
-    assert_eq!(c.admit_chat(CHAT, Some(OTHER)).await.unwrap_err().code(), "forbidden");
+    assert_eq!(
+        c.admit_chat("not-a-uuid", None).await.unwrap_err().code(),
+        "invalid_chat_id"
+    );
+    assert_eq!(
+        c.admit_chat(CHAT, Some(OTHER)).await.unwrap_err().code(),
+        "forbidden"
+    );
     // The metadata batch names no row for the chat: never an empty success.
     let (api, server) = serve(vec![(200, json!({"chats":[]}))]).await;
     let mut c = client(&api, None);
-    assert_eq!(c.admit_chat(CHAT, None).await.unwrap_err().code(), "forbidden");
+    assert_eq!(
+        c.admit_chat(CHAT, None).await.unwrap_err().code(),
+        "forbidden"
+    );
     server.await.unwrap();
-    let (api, server) = serve(vec![(404, json!({"detail":"x"})), (404, json!({"detail":"x"}))]).await;
+    let (api, server) = serve(vec![
+        (404, json!({"detail":"x"})),
+        (404, json!({"detail":"x"})),
+    ])
+    .await;
     let mut c = client(&api, None);
-    assert!(matches!(c.admit_chat(CHAT, None).await.unwrap_err().code(), "chat_unknown" | "unavailable"));
+    assert!(matches!(
+        c.admit_chat(CHAT, None).await.unwrap_err().code(),
+        "chat_unknown" | "unavailable"
+    ));
     drop(server);
     let mut c = client("http://127.0.0.1:1", None);
-    assert_eq!(c.admit_chat(CHAT, None).await.unwrap_err().code(), "unavailable");
+    assert_eq!(
+        c.admit_chat(CHAT, None).await.unwrap_err().code(),
+        "unavailable"
+    );
+}
+
+#[tokio::test]
+async fn call_and_system_receipts_with_a_stored_row_upsert_it_into_history() {
+    let mut c = known();
+    let frames = [
+        json!({"type":"system_message_confirmed","payload":{"chat_id":CHAT,"message_id":"started",
+            "messages_v":3,"role":"system","encrypted_content":"sealed-start","created_at":1}}),
+        json!({"type":"call_message_confirmed","payload":{"chat_id":CHAT,"request_id":"r1","message_id":"reply",
+            "revision":1,"messages_v":4,"role":"assistant","encrypted_content":"sealed-v1","created_at":2,
+            "encrypted_category":"sealed-mate","user_message_id":"turn"}}),
+        // Another device's later revision replaces the ciphertext of the known row.
+        json!({"type":"call_message_changed","payload":{"chat_id":CHAT,"message_id":"reply","revision":2,
+            "messages_v":5,"role":"assistant","encrypted_content":"sealed-v2","created_at":2}}),
+    ];
+    let summary = c.ingest_socket_frames(&frames).await.unwrap();
+    assert_eq!(summary.applied_seq, 3);
+    assert_eq!(c.chats[CHAT]["messages_v"], 5);
+    let rows = &c.history[CHAT];
+    assert_eq!(rows.len(), 2, "one row per message id");
+    assert_eq!(
+        (
+            rows[0]["role"].as_str(),
+            rows[0]["encrypted_content"].as_str()
+        ),
+        (Some("system"), Some("sealed-start"))
+    );
+    assert_eq!(rows[1]["encrypted_content"], "sealed-v2");
+    assert_eq!(
+        rows[1]["encrypted_category"], "sealed-mate",
+        "a revision without attribution keeps the stored one"
+    );
+    assert_eq!(rows[1]["user_message_id"], "turn");
+}
+
+#[tokio::test]
+async fn persisted_reply_broadcast_stores_its_nested_row_and_version() {
+    let mut c = known();
+    // `chat_message_added` from the AI persistence listener: row under
+    // `message`, version under `versions` (backend websockets.py).
+    let frame = json!({"type":"chat_message_added","payload":{"chat_id":CHAT,
+        "message":{"message_id":"reply","chat_id":CHAT,"role":"assistant",
+            "content":"Berlin.","created_at":7},
+        "versions":{"messages_v":4},"last_edited_overall_timestamp":7}});
+    let summary = c
+        .ingest_socket_frames(&[frame.clone(), frame])
+        .await
+        .unwrap();
+    assert_eq!(summary.applied_seq, 2);
+    assert_eq!(c.chats[CHAT]["messages_v"], 4);
+    let rows = &c.history[CHAT];
+    assert_eq!(rows.len(), 1, "the same reply is stored once");
+    assert_eq!(rows[0]["message_id"], "reply");
+    assert_eq!(rows[0]["role"], "assistant");
+    assert_ne!(
+        rows[0]["encrypted_content"], "Berlin.",
+        "plaintext is sealed"
+    );
+}
+
+#[tokio::test]
+async fn title_update_raises_title_v_for_the_next_turn() {
+    let mut c = known();
+    c.chats.get_mut(CHAT).unwrap()["title_v"] = json!(0);
+    let frame = json!({"event":"chat_title_updated","chat_id":CHAT,
+        "data":{"encrypted_title":"sealed-title"},
+        "versions":{"messages_v":2,"title_v":1,"metadata_v":1}});
+    c.ingest_socket_frames(&[frame]).await.unwrap();
+    assert_eq!(c.chats[CHAT]["title_v"], 1);
+    assert_eq!(c.chats[CHAT]["encrypted_title"], "sealed-title");
+}
+
+#[tokio::test]
+async fn recovery_persist_receipt_stores_the_reply_and_its_committed_version() {
+    let mut c = known();
+    // `recovery_job_persisted` to the page that persisted the reply: the
+    // committed version plus the row it sent (chat_recovery_job_handlers.py).
+    let frame = json!({"type":"recovery_job_persisted","payload":{"state":"TERMINAL",
+        "job_id":"job","committed_messages_v":3,"request_id":"r","chat_id":CHAT,
+        "message_id":"reply","role":"assistant","encrypted_content":"sealed-reply",
+        "created_at":9,"encrypted_model_name":"sealed-model"}});
+    c.ingest_socket_frames(&[frame]).await.unwrap();
+    assert_eq!(c.chats[CHAT]["messages_v"], 3);
+    let rows = &c.history[CHAT];
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["encrypted_content"], "sealed-reply");
+    assert_eq!(rows[0]["encrypted_model_name"], "sealed-model");
+    // A receipt without a chat row (not terminal) changes nothing.
+    let bare = json!({"type":"recovery_job_persisted","payload":{"state":"LEASED","job_id":"job"}});
+    let summary = c.ingest_socket_frames(&[bare]).await.unwrap();
+    assert_eq!(summary.ignored, 1);
 }

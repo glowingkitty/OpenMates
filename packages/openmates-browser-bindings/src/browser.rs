@@ -714,3 +714,6 @@ mod present_remote;
 #[path="browser_project_timeline.rs"]
 mod project_timeline;
 pub use embed_user_edit::BrowserImageEnhanceWaker;
+// Submodule so the voice-turn exports reach the private core client.
+#[path="browser_voice_turn.rs"]
+mod voice_turn;

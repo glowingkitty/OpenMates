@@ -12,7 +12,8 @@ import { websocketTokenNeedsRefresh } from './audioRealtimeTranscription';
 import { assistantSpeechController } from './assistantSpeechController';
 import { supportsAssistantSpeechStream } from './assistantSpeechStream';
 import { prepareVoiceCallChat, VoiceCallContextError } from './voiceCallMessages';
-import { reportVoiceCallTurnDelivery, sendVoiceCallTurn } from './voiceCallTurns';
+import { admitVoiceCallChat, reportVoiceCallTurnDelivery, sendVoiceCallTurn } from './voiceCallTurns';
+import { VoiceCallEarlyTurns } from './voiceCallEarlyTurns';
 import { VoiceCallBackground } from './voiceCallBackground';
 import { setActiveVoiceCallId } from './voiceCallOwnership';
 import { callArtifactReferencesInText, type VoiceArtifactReference } from './voiceCallArtifactReferences';
@@ -234,6 +235,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private turnWrites = new Map<string, Promise<boolean>>();
   private callTurnIds = new Set<string>();
   private sourceReferences = new Map<string, VoiceArtifactReference[]>();
+  private earlyTurns = new VoiceCallEarlyTurns();
   private speechCleanup: (() => void) | null = null;
   private chatCleanup: (() => void) | null = null;
   private assistantMessageId: string | null = null;
@@ -241,6 +243,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private assistantTaskId: string | null = null;
   private pendingHeardBoundary: VoiceHeardBoundary | null = null;
   private turnAdmission: Promise<void> = Promise.resolve();
+  /** Core builds: the call's chat is loaded into the Worker core (turns are built there). */
+  private coreAdmitted = false;
   private assistantMessagesByTask = new Map<string, string>();
   private assistantTasksByMessage = new Map<string, string>();
   private speechActivity = { chatId: null as string | null, messageId: null as string | null,
@@ -408,8 +412,10 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.cues.prepare();
     this.turnWrites.clear();
     this.turnAdmission = Promise.resolve();
+    this.coreAdmitted = false;
     this.callTurnIds.clear();
     this.sourceReferences.clear();
+    this.earlyTurns.clear();
     const generation = ++this.generation;
     const attempt: NewCallCleanupAttempt | null = existingChatId ? null : {
       identity: getWorkspaceCacheIdentity(), epoch: getWorkspaceCacheEpoch(), chatId: null, callId: null,
@@ -500,6 +506,9 @@ export class VoiceCallController implements VoiceCallControllerLike {
       if (generation !== this.generation) return;
       this.update({ chatId: prepared.chatId, mateCategory: prepared.mateCategory });
       onBound?.(prepared.chatId);
+      // Turns are built from the core's own chat state. The admission runs
+      // while the call connects; only turns wait for it, not the call start.
+      const admitted = admitVoiceCallChat(prepared.chatId).catch(() => false);
       await assistantSpeechController.stop();
       assistantSpeechController.setCallOwner(prepared.chatId);
       let token = getWebSocketToken();
@@ -509,6 +518,12 @@ export class VoiceCallController implements VoiceCallControllerLike {
       }
       if (!token || websocketTokenNeedsRefresh(token)) throw new VoiceCallStartError('session_expired');
       if (generation !== this.generation) return;
+      this.turnAdmission = admitted.then((ok) => {
+        if (generation !== this.generation) return;
+        this.coreAdmitted = ok;
+        // Without the chat in the core no turn can be built: end the call.
+        if (!ok) this.fail('call_unavailable');
+      });
       this.openSocket(generation, token, prepared.chatId, prepared.cleanupAttemptId);
     } catch (error) {
       if (generation !== this.generation) return;
@@ -529,7 +544,10 @@ export class VoiceCallController implements VoiceCallControllerLike {
       // the chat as an empty shell it may retire.
       this.send({ type: 'start', chat_id: chatId, startup_audio_allowance_ms: 10_000,
         ...(cleanupAttemptId ? { cleanup_attempt_id: cleanupAttemptId } : {}),
-        speech_output_transport: SPEECH_OUTPUT_TRANSPORT });
+        speech_output_transport: SPEECH_OUTPUT_TRANSPORT,
+        // Core builds prepare a turn early on `turn.likely_end`; the server sends
+        // those hints only to clients that ask for them.
+        ...(import.meta.env.VITE_OPENMATES_RUST_CORE === '1' ? { likely_end_hints: true } : {}) });
     };
     socket.onmessage = (event: MessageEvent<string>) => {
       if (generation !== this.generation || this.socket !== socket) return;
@@ -788,6 +806,18 @@ export class VoiceCallController implements VoiceCallControllerLike {
         if (sameTask && taskId && chatId) void this.canonicalService?.sendCancelAiTask(taskId, chatId).catch(() => {});
         return;
       }
+      case 'turn.likely_end':
+      case 'turn.resumed': {
+        // Speech probably ended: the core may prepare the turn's
+        // text-independent half. A resume drops it; nothing is sent either way.
+        const { callId, chatId } = this.state;
+        const id = message.message_id;
+        if (this.state.status !== 'live' || !callId || !chatId || message.call_id !== callId ||
+            typeof id !== 'string' || id.length > 128 || this.turnWrites.has(id)) return;
+        if (message.type === 'turn.resumed') this.earlyTurns.withdraw(id);
+        else if (this.coreAdmitted) this.earlyTurns.hint(chatId, id);
+        return;
+      }
       case 'transcript': {
         const { callId, chatId } = this.state;
         if (this.state.status !== 'live' || !callId || !chatId || message.call_id !== callId ||
@@ -812,11 +842,13 @@ export class VoiceCallController implements VoiceCallControllerLike {
           if (generation !== this.generation || this.state.status !== 'live') return false;
           reportVoiceCallTurnDelivery({ callId, chatId, turnId: id }, 'started');
           const heardBoundary = this.pendingHeardBoundary;
+          // Only the first attempt may reuse an early preparation.
+          let early = this.earlyTurns.take(id);
           const writeTurn = () => sendVoiceCallTurn({ callId, chatId, turnId: id, text: message.text as string,
             createdAt: typeof message.created_at === 'number' ? message.created_at : undefined,
             embedReferences: this.sourceReferences.get(id),
             ...(heardBoundary ? { heardBoundary } : {}),
-            onVisible: clearLive,
+            onVisible: clearLive, early: (() => { const prepared = early; early = undefined; return prepared; })(),
             isCurrent: () => generation === this.generation && this.state.status === 'live' });
           let accepted = await writeTurn();
           // The chat sync socket needs a moment to reconnect after the page returns.

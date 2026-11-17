@@ -38,7 +38,9 @@ const APPLIED_TYPES: ReadonlySet<string> = new Set([
 	'encrypted_chat_metadata', 'chat_deleted',
 	// messages_v receipts of shell-owned features (calls, system messages, queued follow-ups, deletion)
 	'call_message_confirmed', 'call_message_changed', 'system_message_confirmed', 'message_deleted',
-	'message_queued', 'queued_message_status', 'queued_message_updated'
+	'message_queued', 'queued_message_status', 'queued_message_updated',
+	// an assistant reply this page persisted through browser recovery (version + its row)
+	'recovery_job_persisted'
 ]);
 
 /** Longest one forward-chain link (an ingest batch or an admission) may hold the chain. */

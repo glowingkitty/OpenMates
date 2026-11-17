@@ -11,17 +11,20 @@
 //! applied frame increments `Client::frame_applied_seq`, so a later Worker op
 //! can check the core has caught up with the page.
 use super::*;
-use crate::view_model::{classify_socket_event, SocketEventOwner};
+use crate::view_model::{SocketEventOwner, classify_socket_event};
 
-/// Server receipts that only advance a chat's `messages_v` (no content).
+/// Server receipts that advance a chat's `messages_v`; the call and system
+/// receipts may also carry their stored ciphertext row (`upsert_receipt_row`).
 ///
 /// Their features (calls, system messages, queued follow-ups, message deletion)
 /// are still shell-owned, so [`classify_socket_event`] names them `Shell` and the
 /// socket keeps forwarding them to the shell. The core still applies their
 /// version so a turn it commits next uses the current baseline. The first three
 /// carry the authoritative chat version in `messages_v` only (a call's
-/// per-message `revision` is no substitute); the rest use
-/// `versions.messages_v`, `new_messages_v` or `messages_v`.
+/// per-message `revision` is no substitute); `recovery_job_persisted` (the
+/// page persisted an assistant reply through browser recovery) carries
+/// `committed_messages_v` and, when terminal, the sender's stored row; the rest
+/// use `versions.messages_v`, `new_messages_v` or `messages_v`.
 pub(crate) const VERSION_RECEIPT_FRAMES: &[&str] = &[
     "call_message_confirmed",
     "call_message_changed",
@@ -30,6 +33,15 @@ pub(crate) const VERSION_RECEIPT_FRAMES: &[&str] = &[
     "message_queued",
     "queued_message_status",
     "queued_message_updated",
+    "recovery_job_persisted",
+];
+
+/// Optional ciphertext/link fields a call or system receipt row may carry.
+const RECEIPT_ROW_FIELDS: &[&str] = &[
+    "encrypted_category",
+    "encrypted_model_name",
+    "encrypted_sender_name",
+    "user_message_id",
 ];
 
 /// One chat whose row or history changed while ingesting frames.
@@ -105,7 +117,10 @@ impl AdmitChatError {
             Error::Invalid(_) => Self::ChatUnknown,
             Error::Crypto => Self::ChatKeyUnavailable,
             Error::Expired | Error::Authentication => Self::SessionExpired,
-            Error::Unavailable { code: "local_profile_read_only", .. } => Self::LocalProfileReadOnly,
+            Error::Unavailable {
+                code: "local_profile_read_only",
+                ..
+            } => Self::LocalProfileReadOnly,
             _ => Self::Unavailable,
         }
     }
@@ -167,23 +182,35 @@ impl Client {
                 continue;
             };
             let receipt = VERSION_RECEIPT_FRAMES.contains(&kind);
-            if (!receipt && classify_socket_event(kind) == SocketEventOwner::Shell) || !self.frame_in_scope(payload) {
+            if (!receipt && classify_socket_event(kind) == SocketEventOwner::Shell)
+                || !self.frame_in_scope(payload)
+            {
                 ignored += 1;
                 continue;
             }
             match self.apply_frame(kind, payload).await? {
                 Some(chat) => {
                     self.frame_applied_seq += 1;
-                    let version = self.chats.get(&chat).and_then(|row| row["messages_v"].as_u64());
+                    let version = self
+                        .chats
+                        .get(&chat)
+                        .and_then(|row| row["messages_v"].as_u64());
                     match changed.iter_mut().find(|entry| entry.chat_id == chat) {
                         Some(entry) => entry.messages_v = version,
-                        None => changed.push(ChangedChat { chat_id: chat, messages_v: version }),
+                        None => changed.push(ChangedChat {
+                            chat_id: chat,
+                            messages_v: version,
+                        }),
                     }
                 }
                 None => ignored += 1,
             }
         }
-        Ok(FrameIngestSummary { applied_seq: self.frame_applied_seq, changed_chats: changed, ignored })
+        Ok(FrameIngestSummary {
+            applied_seq: self.frame_applied_seq,
+            changed_chats: changed,
+            ignored,
+        })
     }
 
     /// A frame of another user or team than this Client's principal is refused.
@@ -205,7 +232,10 @@ impl Client {
     async fn apply_frame(&mut self, kind: &str, payload: &Value) -> Result<Option<String>> {
         let chat = match payload["chat_id"].as_str() {
             Some(id) => id.to_owned(),
-            None if kind == "team_chat_created" => payload["chat"]["id"].as_str().ok_or(Error::Protocol)?.to_owned(),
+            None if kind == "team_chat_created" => payload["chat"]["id"]
+                .as_str()
+                .ok_or(Error::Protocol)?
+                .to_owned(),
             None => return Ok(None),
         };
         uuid::Uuid::parse_str(&chat).map_err(|_| Error::Protocol)?;
@@ -221,7 +251,9 @@ impl Client {
                 let version = ["new_messages_v", "committed_messages_v", "messages_v"]
                     .iter()
                     .find_map(|field| payload[*field].as_u64());
-                let Some(row) = self.chats.get_mut(&chat) else { return Ok(None) };
+                let Some(row) = self.chats.get_mut(&chat) else {
+                    return Ok(None);
+                };
                 if version.is_none() {
                     return Ok(None);
                 }
@@ -229,20 +261,36 @@ impl Client {
                 Ok(Some(chat))
             }
             k if VERSION_RECEIPT_FRAMES.contains(&k) => {
-                let direct = matches!(k, "call_message_confirmed" | "call_message_changed" | "system_message_confirmed");
+                let direct = matches!(
+                    k,
+                    "call_message_confirmed" | "call_message_changed" | "system_message_confirmed"
+                );
+                // A reply the page persisted through browser recovery: the
+                // receipt carries the committed version and the sender's row.
+                let recovered = k == "recovery_job_persisted";
                 let version = if direct {
                     payload["messages_v"].as_u64()
+                } else if recovered {
+                    payload["committed_messages_v"].as_u64()
                 } else {
-                    versions["messages_v"].as_u64()
+                    versions["messages_v"]
+                        .as_u64()
                         .or_else(|| payload["new_messages_v"].as_u64())
                         .or_else(|| payload["messages_v"].as_u64())
                 };
-                let (Some(row), Some(_)) = (self.chats.get_mut(&chat), version) else { return Ok(None) };
+                let (Some(row), Some(_)) = (self.chats.get_mut(&chat), version) else {
+                    return Ok(None);
+                };
                 raise_version(row, "messages_v", version);
+                if direct || recovered {
+                    self.upsert_receipt_row(&chat, payload);
+                }
                 Ok(Some(chat))
             }
             "chat_title_updated" | "encrypted_chat_metadata" => {
-                let Some(row) = self.chats.get_mut(&chat) else { return Ok(None) };
+                let Some(row) = self.chats.get_mut(&chat) else {
+                    return Ok(None);
+                };
                 let data = payload.get("data").unwrap_or(payload);
                 for (field, value) in data.as_object().into_iter().flatten() {
                     if field.starts_with("encrypted_") && value.is_string() {
@@ -250,6 +298,8 @@ impl Client {
                     }
                 }
                 raise_version(row, "metadata_v", versions["metadata_v"].as_u64());
+                // `title_v` decides `chat_has_title` of the next turn the core builds.
+                raise_version(row, "title_v", versions["title_v"].as_u64());
                 raise_version(row, "messages_v", versions["messages_v"].as_u64());
                 Ok(Some(chat))
             }
@@ -258,17 +308,76 @@ impl Client {
         }
     }
 
+    /// A call or system receipt that carries the stored ciphertext row (the
+    /// server sends it for a newly settled row, also to the device that wrote
+    /// it through the page) puts that row into the history, so the AI history of
+    /// the next turn the core builds holds every message the server counts.
+    /// Upsert by message id: a later call revision replaces the ciphertext and
+    /// attribution of the known row. Version-only receipts add nothing.
+    fn upsert_receipt_row(&mut self, chat: &str, payload: &Value) {
+        let (Some(message), Some(role), Some(encrypted)) = (
+            payload["message_id"].as_str(),
+            payload["role"].as_str(),
+            payload["encrypted_content"].as_str(),
+        ) else {
+            return;
+        };
+        let mut stored = json!({"message_id": message, "chat_id": chat, "role": role,
+            "encrypted_content": encrypted, "created_at": payload["created_at"].clone()});
+        for field in RECEIPT_ROW_FIELDS {
+            if let Some(value) = payload[*field].as_str() {
+                stored[*field] = json!(value);
+            }
+        }
+        let rows = self.history.entry(chat.to_owned()).or_default();
+        match rows
+            .iter_mut()
+            .find(|row| row["message_id"] == message || row["client_message_id"] == message)
+        {
+            Some(row) => {
+                row["encrypted_content"] = stored["encrypted_content"].take();
+                for field in RECEIPT_ROW_FIELDS {
+                    if !stored[*field].is_null() {
+                        row[*field] = stored[*field].take();
+                    }
+                }
+            }
+            None => rows.push(stored),
+        }
+    }
+
     /// Store one final message as a sealed history row and bump `messages_v`.
+    ///
+    /// The persisted-reply broadcast (`chat_message_added` from the AI
+    /// persistence listener) nests the row under `message` and the version
+    /// under `versions`; other message frames carry both at the top level.
     async fn apply_message(&mut self, chat: &str, payload: &Value) -> Result<Option<String>> {
+        let version = payload["messages_v"]
+            .as_u64()
+            .or_else(|| payload["versions"]["messages_v"].as_u64());
+        let payload_row = payload;
+        let payload = payload
+            .get("message")
+            .filter(|row| row.is_object())
+            .unwrap_or(payload);
         let message = payload["message_id"].as_str().ok_or(Error::Protocol)?;
         let role = payload["role"].as_str().unwrap_or("assistant");
-        if let Some(key) = payload["encrypted_chat_key"].as_str().filter(|_| !self.chats.contains_key(chat)) {
-            self.insert_chat_row(chat.to_owned(), json!({"id": chat, "encrypted_chat_key": key, "messages_v": 0}));
+        if let Some(key) = payload_row["encrypted_chat_key"]
+            .as_str()
+            .filter(|_| !self.chats.contains_key(chat))
+        {
+            self.insert_chat_row(
+                chat.to_owned(),
+                json!({"id": chat, "encrypted_chat_key": key, "messages_v": 0}),
+            );
         }
         let encrypted = match payload["encrypted_content"].as_str() {
             Some(sealed) => sealed.to_owned(),
             None => {
-                let content = payload["content"].as_str().or_else(|| payload["full_content_so_far"].as_str()).ok_or(Error::Protocol)?;
+                let content = payload["content"]
+                    .as_str()
+                    .or_else(|| payload["full_content_so_far"].as_str())
+                    .ok_or(Error::Protocol)?;
                 let row = self.chats.get(chat).cloned().ok_or(Error::Offline)?;
                 let wrapping = self.wrapping_capability().await?;
                 let key = self.chat_key_with_capability(&row, &wrapping).await?;
@@ -276,7 +385,9 @@ impl Client {
             }
         };
         let rows = self.history.entry(chat.to_owned()).or_default();
-        let known = rows.iter().any(|row| row["message_id"] == message || row["client_message_id"] == message);
+        let known = rows
+            .iter()
+            .any(|row| row["message_id"] == message || row["client_message_id"] == message);
         if !known {
             rows.push(json!({
                 "message_id": message, "chat_id": chat, "role": role,
@@ -285,8 +396,12 @@ impl Client {
             }));
         }
         if let Some(row) = self.chats.get_mut(chat) {
-            raise_version(row, "messages_v", payload["messages_v"].as_u64());
-            raise_version(row, "last_edited_overall_timestamp", payload["last_edited_overall_timestamp"].as_u64());
+            raise_version(row, "messages_v", version);
+            raise_version(
+                row,
+                "last_edited_overall_timestamp",
+                payload_row["last_edited_overall_timestamp"].as_u64(),
+            );
         }
         Ok(Some(chat.to_owned()))
     }
@@ -302,14 +417,21 @@ impl Client {
     /// Typed [`AdmitChatError`]: `local_profile_read_only` for a local
     /// profile, `forbidden` for another principal or team, `chat_unknown`,
     /// `chat_key_unavailable`, `session_expired`, `unavailable` for network.
-    pub async fn admit_chat(&mut self, chat_id: &str, team_id: Option<&str>) -> std::result::Result<ChatAdmission, AdmitChatError> {
+    pub async fn admit_chat(
+        &mut self,
+        chat_id: &str,
+        team_id: Option<&str>,
+    ) -> std::result::Result<ChatAdmission, AdmitChatError> {
         uuid::Uuid::parse_str(chat_id).map_err(|_| AdmitChatError::InvalidChatId)?;
-        self.require_canonical_read_profile().map_err(AdmitChatError::from_error)?;
+        self.require_canonical_read_profile()
+            .map_err(AdmitChatError::from_error)?;
         let own = self.team().map_err(AdmitChatError::from_error)?;
         if own != team_id {
             return Err(AdmitChatError::Forbidden);
         }
-        self.open_chat(chat_id).await.map_err(AdmitChatError::from_error)?;
+        self.open_chat(chat_id)
+            .await
+            .map_err(AdmitChatError::from_error)?;
         let row = self.chats.get(chat_id).ok_or(AdmitChatError::ChatUnknown)?;
         Ok(ChatAdmission {
             chat_id: chat_id.to_owned(),

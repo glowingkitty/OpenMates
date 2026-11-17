@@ -139,6 +139,22 @@ units:
     rust_paths:
     - packages/openmates-browser-bindings/src/browser_present_remote.rs
     - packages/openmates-rust/src/client/shared_items/present_remote.rs
+  voiceTurn:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No web-rust-core spec; voice-call.spec.ts (e2e jobs build with the core on) covers call turns, the likely-end hint, its withdrawal and the early-prep reuse.
+    - Only voice-call turns use the unit; text-chat send still runs through the TypeScript sender (sendersChatMessages.ts), whose voice branch stays until text send moves to the core.
+    - The flag-off TypeScript voice path (chatSyncService.sendNewMessage) remains until the web flip.
+    spec_assertions:
+    - video-call.audio.complete-turn-admission
+    - chats.send.immediate-admission
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_voice_turn.rs
+    - packages/openmates-rust/src/client/voice_turn.rs
+    - packages/openmates-rust/src/client/voice_turn_public.rs
+    - packages/openmates-rust/src/client/send_turn_stages.rs
   projectTimeline:
     specs: []
     vectors: []
