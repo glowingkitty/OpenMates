@@ -5,6 +5,24 @@ import XCTest
 
 @MainActor
 final class NativeVoiceCallRootAdmissionTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.typed-input
+    func testCallReceiptsAdvanceMessagesVersionMonotonically() throws {
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let chat = try decoder.decode(Chat.self, from: Data(#"{"id":"chat","created_at":1,"messages_v":2}"#.utf8))
+        let store = ChatStore()
+        store.performWithoutPersistence {
+            store.upsertChat(chat)
+            NativeVoiceCallAppFactory.advanceMessagesVersion(store, chatID: "chat", receipt: "call_message_confirmed", fields: ["messages_v": 5])
+            XCTAssertEqual(store.chat(for: "chat")?.messagesV, 5)
+            NativeVoiceCallAppFactory.advanceMessagesVersion(store, chatID: "chat", receipt: "call_message_confirmed", fields: ["messages_v": 3])
+            XCTAssertEqual(store.chat(for: "chat")?.messagesV, 5)
+            NativeVoiceCallAppFactory.advanceMessagesVersion(store, chatID: "chat", receipt: "system_message_confirmed", fields: ["messages_v": 6])
+            XCTAssertEqual(store.chat(for: "chat")?.messagesV, 6)
+            NativeVoiceCallAppFactory.advanceMessagesVersion(store, chatID: "chat", receipt: "other", fields: ["messages_v": 9])
+            NativeVoiceCallAppFactory.advanceMessagesVersion(store, chatID: "chat", receipt: "call_message_confirmed", fields: [:])
+            XCTAssertEqual(store.chat(for: "chat")?.messagesV, 6)
+        }
+    }
     // contract-test: supporting surface=gui.apple assertions=video-call.chat.fixed-binding,video-call.chat.typed-input
     func testPreparationBlocksCallOnlyForItsExactOriginChat() {
         let gate = NativeVoiceCallSendAdmission()

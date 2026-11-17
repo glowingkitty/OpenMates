@@ -303,6 +303,29 @@ final class NativeVoiceCallTests: XCTestCase {
         XCTAssertEqual(refused.error, .invalidResponse)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.fixed-binding
+    func testUnknownWellFormedFrameTypeIsIgnoredButTypelessFrameFails() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let live = expectation(description: "Ready")
+        let controller = makeController(transport: transport, audio: audio, event: { event in
+            if case .state(let state) = event, state.status == .live { live.fulfill() }
+        })
+        live.assertForOverFulfill = false
+        try await controller.start(scope: scope)
+        try await transport.push(ready())
+        await fulfillment(of: [live], timeout: 2)
+        try await transport.push(["type": .string("turn.likely_end")])
+        try await Task.sleep(for: .milliseconds(200))
+        let afterUnknown = await controller.snapshot()
+        XCTAssertEqual(afterUnknown.status, .live)
+        XCTAssertNil(afterUnknown.error)
+        try await transport.push(["call_id": .string("x")])
+        try await Task.sleep(for: .milliseconds(200))
+        let afterMalformed = await controller.snapshot()
+        XCTAssertEqual(afterMalformed.status, .failed)
+        XCTAssertEqual(afterMalformed.error, .invalidResponse)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=video-call.chat.transcripts,video-call.audio.complete-turn-admission
     func testPartialTranscriptShowsLiveLineHeldByPendingAndClearedAfterAdmission() async throws {
         let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()

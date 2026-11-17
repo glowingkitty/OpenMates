@@ -704,7 +704,10 @@ final class DevComponentPreviewUITests: XCTestCase {
         attachScreenshot("Projects typed composer at phone width")
         landing.buttons["project-input-submit"].tap()
         XCTAssertTrue(element(landing, "project-write-policy-setup").waitForExistence(timeout: 3))
-        landing.buttons["Cancel"].tap()
+        // The focused composer keeps its own Cancel (outside the form, like web);
+        // dismiss the write-policy sheet with the sheet's Cancel.
+        landing.buttons.matching(NSPredicate(format: "label == %@ AND identifier != %@",
+            "Cancel", "project-input-composer-cancel")).firstMatch.tap()
         XCTAssertTrue(element(landing, "project-write-policy-setup").waitForNonExistence(timeout: 5))
         XCTAssertFalse(landing.keyboards.firstMatch.exists)
         XCTAssertTrue(card.isHittable)

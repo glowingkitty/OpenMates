@@ -307,6 +307,7 @@ struct ProjectsWorkspaceView: View {
 
                 }
                 .workspacePromptBackground(active: homePromptActive, identifier: "project-home-prompt-backdrop",
+                    activeOpacity: 1,
                     onDismiss: { homePromptDismissID = UUID() })
 
                 projectHomeComposer(availableHeight: max(118, geometry.size.height - keyboardOverlap))
@@ -438,7 +439,8 @@ struct ProjectsWorkspaceView: View {
             onSubmit: { _ in requestProjectCreation() },
             onMic: { showVoiceUnavailable = true },
             onActiveChanged: { homePromptActive = $0 }, dismissRequestID: homePromptDismissID,
-            availableHeight: availableHeight
+            availableHeight: availableHeight,
+            collapsible: false
         )
     }
 

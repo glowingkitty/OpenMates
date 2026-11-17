@@ -354,10 +354,19 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
             })
         try check(scope)
         guard socket.transportGeneration == generation else { throw NativeVoiceCallError.connectionLost }
+        Self.advanceMessagesVersion(store, chatID: scope.chatID, receipt: response, fields: answer.fields)
         let result = try JSONSerialization.data(withJSONObject: answer.fields)
         guard result.count <= 2 * 1_024 * 1_024 else { throw NativeVoiceCallError.invalidResponse }
         var decoded = try JSONDecoder().decode(NativeVoiceCallFrame.self, from: result)
         decoded["type"] = .string(response); return decoded
+    }
+    /// Call/system message receipts carry the chat's authoritative `messages_v`
+    /// (as in the core's VERSION_RECEIPT_FRAMES); apply it monotonically so the
+    /// next typed or voice send is not built on a stale version.
+    static func advanceMessagesVersion(_ store: ChatStore, chatID: String, receipt: String, fields: [String: Any]) {
+        guard ["call_message_confirmed", "call_message_changed", "system_message_confirmed"].contains(receipt),
+              let version = (fields["messages_v"] as? NSNumber)?.intValue else { return }
+        store.advanceMessagesVersion(chatId: chatID, to: version)
     }
     private func submitTurn(scope: NativeVoiceCallScope, transcript: NativeVoiceCallTranscript) async throws {
         try check(scope)

@@ -525,7 +525,11 @@ actor NativeVoiceCallController {
         case "error":
             let code = frame["code"]?.string
             await finish(error: code == "context_too_large" ? .contextTooLarge : .callUnavailable)
-        default: throw NativeVoiceCallError.invalidResponse
+        default:
+            // Well-formed frame of a type this client does not know (for example
+            // opt-in turn hints): ignore it; malformed frames fail earlier.
+            guard !kind.isEmpty, kind.utf8.count <= 64 else { throw NativeVoiceCallError.invalidResponse }
+            NativeDiagnostics.info("Voice call ignored unknown frame type \(kind)", category: "voice_call")
         }
     }
 

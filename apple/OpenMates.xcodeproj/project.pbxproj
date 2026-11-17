@@ -849,6 +849,7 @@
 		65A5B728C9C6F379D5A6A8BC /* WidgetActiveChatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B5EE21DC9F34AE9A467ACF3 /* WidgetActiveChatsView.swift */; };
 		65CE9B3D3A7F5EC1AC2902B1 /* S3MediaBoundsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6CDF95403E5A82C7C371EAB /* S3MediaBoundsTests.swift */; };
 		65FB164BCB25E26C98E99A56 /* modelsMetadata.json in Resources */ = {isa = PBXBuildFile; fileRef = C75C8ECE57894904D2596562 /* modelsMetadata.json */; };
+		5AC3E7D5973828A562E524EE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8001F5788393971984315927 /* PrivacyInfo.xcprivacy */; };
 		661443DA94B256D766B6CD3F /* WidgetWorkflowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4D8690511953CF42FAB3CD /* WidgetWorkflowsView.swift */; };
 		66248975C4C88B3868EDF310 /* DataExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A6630F3C041702710BABA2 /* DataExtensions.swift */; };
 		663EED5D202215CA97C42CAB /* WorkflowGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FB614DCCD65D430616D0B0D /* WorkflowGraphView.swift */; };
@@ -882,6 +883,7 @@
 		6B5C543C408D09573E8F3C14 /* CodeDocsIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89AEC9DEFFE83B76E4D9DF3B /* CodeDocsIntent.swift */; };
 		6B70F67D0D296932288BA70D /* OpenMatesShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C9FED92E60D8803628A78C4 /* OpenMatesShortcuts.swift */; };
 		6B9062CB6C8386B930F15C75 /* modelsMetadata.json in Resources */ = {isa = PBXBuildFile; fileRef = C75C8ECE57894904D2596562 /* modelsMetadata.json */; };
+		94BEB9C17BBE7173C2245C54 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8001F5788393971984315927 /* PrivacyInfo.xcprivacy */; };
 		6BAAE946CA9FAD4BFE0615DD /* EmbedProcessingMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E8A0A83A2B811C186E1F154 /* EmbedProcessingMotion.swift */; };
 		6BF16A3C60B0A3AAF4982200 /* NativeComposerTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E4ABE02BF1292910D3083FD /* NativeComposerTextView.swift */; };
 		6C41E5E2544CD84557269C2D /* NotificationReplyContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 730D09E5D618DB32C11CFA30 /* NotificationReplyContext.swift */; };
@@ -1891,6 +1893,7 @@
 		FDB04BD8EB6EBB5222BCA99D /* MapsSearchIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2EE6EB030C306E1057AD3F2 /* MapsSearchIntent.swift */; };
 		FDD7B3394CDEE2EC047A568D /* ProjectsWorkspaceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24F53BA7537801081FC58345 /* ProjectsWorkspaceModels.swift */; };
 		FDE0C00AA904B4F4250077DD /* modelsMetadata.json in Resources */ = {isa = PBXBuildFile; fileRef = C75C8ECE57894904D2596562 /* modelsMetadata.json */; };
+		E8C02020C85D6C668007447E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8001F5788393971984315927 /* PrivacyInfo.xcprivacy */; };
 		FDF2F216BD4BFA3837BD72C2 /* DraftService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD2F1CD833F2B5BFF432DF0E /* DraftService.swift */; };
 		FE3DC505E965EB8A4B3DE53C /* WatchVoiceCallToolCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD54552BC2AD0DAD7FAC29BA /* WatchVoiceCallToolCoordinator.swift */; };
 		FE5AFE2039BFA31573BEA26B /* DataExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A6630F3C041702710BABA2 /* DataExtensions.swift */; };
@@ -2877,6 +2880,7 @@
 		C708AC69D73BAEA90973809E /* CrossClientChatSyncUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossClientChatSyncUITests.swift; sourceTree = "<group>"; };
 		C72AFBA9A59E6F7E39BBE383 /* NewsSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsSearchEmbedRenderer.swift; sourceTree = "<group>"; };
 		C75B89003169ED9B9E984A42 /* OpenMatesWidget_macOS.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OpenMatesWidget_macOS.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		8001F5788393971984315927 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		C75C8ECE57894904D2596562 /* modelsMetadata.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = modelsMetadata.json; sourceTree = "<group>"; };
 		C79663BF1B847F616EB0A2CB /* catalog.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = catalog.json; sourceTree = "<group>"; };
 		C7B7D7AB4B9C9DC428F25EDC /* MapsEmbedModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapsEmbedModel.swift; sourceTree = "<group>"; };
@@ -4650,6 +4654,7 @@
 				82F8B920FCEFE49C520D05ED /* Fonts */,
 				F8F39BBBA6585586D430A4BC /* MermaidRuntime */,
 				C75C8ECE57894904D2596562 /* modelsMetadata.json */,
+				8001F5788393971984315927 /* PrivacyInfo.xcprivacy */,
 				2C669A530EB6253E4BC11A4E /* SpeechIcons.xcassets */,
 				A3D659F1B78E1144399039B3 /* Videos */,
 				F50D7A73B4D9D10EC901F7A4 /* LocalModels */,
@@ -5547,6 +5552,7 @@
 				D9FB7C2C7EE9768AE4180CC1 /* i18n in Resources */,
 				CDDB6BB7ECDCC12354C1E118 /* Mates in Resources */,
 				65FB164BCB25E26C98E99A56 /* modelsMetadata.json in Resources */,
+				5AC3E7D5973828A562E524EE /* PrivacyInfo.xcprivacy in Resources */,
 				1D3CB148F34D91BDDAA7A9AC /* watch-whisper-tiny.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -5572,6 +5578,7 @@
 				C009FE9D797740CDE63CD990 /* i18n in Resources */,
 				F5D99558429B180B1436D2D5 /* Mates in Resources */,
 				FDE0C00AA904B4F4250077DD /* modelsMetadata.json in Resources */,
+				E8C02020C85D6C668007447E /* PrivacyInfo.xcprivacy in Resources */,
 				41AD581FCCD9DF8CF6E6DA43 /* watch-whisper-tiny.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -5588,6 +5595,7 @@
 				2BE9F92CBEB29EC50F786D43 /* example_chats in Resources */,
 				96723D3853255CD2B6E3C52F /* i18n in Resources */,
 				6B9062CB6C8386B930F15C75 /* modelsMetadata.json in Resources */,
+				94BEB9C17BBE7173C2245C54 /* PrivacyInfo.xcprivacy in Resources */,
 				AB488E253F95FFBC63890B58 /* watch-whisper-tiny.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -8333,7 +8341,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = Z9B2YFKN2X;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -8536,7 +8544,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = Z9B2YFKN2X;
 				ENABLE_NS_ASSERTIONS = NO;
