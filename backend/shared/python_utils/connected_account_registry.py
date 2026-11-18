@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
+from backend.shared.providers.figma.oauth import exchange_figma_refresh_token
 from backend.shared.providers.google_calendar.oauth import exchange_google_refresh_token
 from backend.shared.providers.revolut_business.oauth import exchange_revolut_business_refresh_token
 
@@ -60,6 +61,10 @@ CONNECTED_ACCOUNT_SKILL_CONFIGS: dict[tuple[str, str], ConnectedAccountSkillConf
         provider_id="google",
         action="delete",
         scope_kind="calendar_events",
+    ),
+    ("design", "get_design"): ConnectedAccountSkillConfig(
+        app_id="design", skill_id="get_design", provider_id="figma",
+        action="read", scope_kind="provider_account",
     ),
     ("finance", "check_accounts"): ConnectedAccountSkillConfig(
         app_id="finance",
@@ -113,6 +118,8 @@ def exchange_refresh_token_for_provider(provider_id: str | None) -> ExchangeRefr
     provider = normalize_connected_account_provider_id(provider_id)
     if provider == "google":
         return exchange_google_refresh_token
+    if provider == "figma":
+        return exchange_figma_refresh_token
     if provider == "revolut_business":
         return exchange_revolut_business_refresh_token
     raise ValueError(f"Unsupported connected-account provider: {provider}")

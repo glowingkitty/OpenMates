@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import time
 
@@ -13,6 +15,8 @@ PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER = (
     "Private Project tool content is unavailable. Tell the user the file result could not be read; "
     "do not infer its contents."
 )
+
+logger = logging.getLogger(__name__)
 
 
 def override_safe_message_dicts(history: list) -> list[dict]:
@@ -47,7 +51,53 @@ def restore_async_tool_completion_message(request: object, transient: dict) -> N
             message.content = content
             restored.append({"index": index, "content": content,
                              "message_id": getattr(message, "message_id", None)})
+    # A placeholder left in history makes the model say the file result could not
+    # be read. Never silent: name the task and counts (no content, no ids of files).
+    unresolved = sum(1 for message in history
+                     if getattr(message, "sender_name", None) == "async_tool_result"
+                     and message.content == PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER)
+    if unresolved:
+        logger.warning(
+            "Private async tool results unresolved in continuation %s: %d placeholder(s), "
+            "%d history entr(ies) handed over, completion %s",
+            getattr(request, "async_skill_task_id", None), unresolved, len(entries),
+            "present" if isinstance(completion, dict) else "missing",
+        )
     setattr(request, "_private_async_tool_history", restored)
+
+
+PRIVATE_HANDOFF_BUDGET_BYTES = 195_000  # below the 200 KB transient store limit
+
+
+def private_async_tool_history_for_handoff(request: object, sealed_fields: dict) -> list[dict]:
+    """Carry restored Project file results across a same-turn barrier checkpoint.
+
+    The checkpoint's request copy serializes these results as placeholders, so
+    without this list a resumed turn tells the user the files could not be read.
+    Oldest results expire first when the handoff would exceed its size limit.
+    """
+    project_id = (getattr(request, "active_project_focus", None) or {}).get("project_id")
+    markers = getattr(request, "_private_async_tool_history", None) or []
+    history = [{"index": marker["index"], "content": marker["content"], "project_id": project_id}
+               for marker in markers[-20:]
+               if isinstance(marker, dict) and isinstance(marker.get("index"), int)
+               and isinstance(marker.get("content"), str) and marker["content"]]
+    if not history:
+        return []
+    if not isinstance(project_id, str) or not project_id:
+        logger.warning("Private Project tool results dropped from same-turn checkpoint: "
+                       "%d result(s) without an active Project binding", len(history))
+        return []
+    while history:
+        size = len(json.dumps({**sealed_fields, "async_tool_history": history},
+                              ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode())
+        if size <= PRIVATE_HANDOFF_BUDGET_BYTES:
+            return history
+        history.pop(0)
+        logger.warning("Expired an older private Project tool result from the same-turn "
+                       "checkpoint (%d byte budget, %d result(s) kept)",
+                       PRIVATE_HANDOFF_BUDGET_BYTES, len(history))
+    return history
 
 
 def rebind_private_async_tool_history_after_compression(request: object, compressed_history: list) -> list:
@@ -146,6 +196,9 @@ async def write_response_summary_completion(request: object, task_id: str, summa
     )
 
 
+CONTEXT_HANDOFF_TIMEOUT_SECONDS = 20.0
+
+
 class RecentWorkSummaryClient:
     """Worker-facing runtime IPC. Errors are optional cache misses without logging."""
 
@@ -158,18 +211,27 @@ class RecentWorkSummaryClient:
     async def _post(self, path: str, payload: dict) -> dict | None:
         if not self._token:
             return None
-
+        # A private context handoff carries required turn content (Project file results).
+        # It waits longer than an optional summary call, and a miss is never silent:
+        # the turn would otherwise tell the user the files could not be read.
+        handoff = path.startswith("context/")
         try:
-            async with httpx.AsyncClient(transport=self._transport, timeout=5.0, trust_env=False) as client:
+            async with httpx.AsyncClient(transport=self._transport,
+                                         timeout=CONTEXT_HANDOFF_TIMEOUT_SECONDS if handoff else 5.0,
+                                         trust_env=False) as client:
                 response = await client.post(
                     f"{self._base_url}/internal/recent-work/{path}", json=payload,
                     headers={"X-Internal-Service-Token": self._token},
                 )
                 if response.status_code != 200:
+                    if handoff:
+                        logger.warning("Private context %s refused with status %s", path, response.status_code)
                     return None
                 result = response.json()
                 return result if isinstance(result, dict) else None
-        except Exception:
+        except Exception as error:  # IPC miss stays a cache miss; handoffs are logged by type only.
+            if handoff:
+                logger.warning("Private context %s unavailable: %s", path, type(error).__name__)
             return None
 
     async def seal_context(self, *, owner_id: str, chat_id: str, turn_id: str,

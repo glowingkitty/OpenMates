@@ -22,6 +22,11 @@ export type SavedEmbedKind = SavedReminderKind;
 /** Apps whose result embeds can be saved. */
 export const SAVEABLE_EMBED_APP_IDS = ['events', 'travel', 'home', 'health'] as const;
 
+/** Slide template embeds are saveable too (Save adds them to the account's template library); decks are not. */
+export function isSaveableEmbed(appId: string, skillId?: string): boolean {
+  return (SAVEABLE_EMBED_APP_IDS as readonly string[]).includes(appId) || (appId === 'slides' && skillId === 'template');
+}
+
 export const SAVED_EMBED_CHANGED_EVENT = 'savedEmbedChanged';
 
 /** A saved embed with the fields the continue section and lists need. */
@@ -243,4 +248,38 @@ export function selectUpcomingSavedEmbeds(items: SavedEmbed[], nowMs: number = D
     .filter((entry): entry is { item: SavedEmbed; start: number } => entry.start !== null && entry.start > nowMs)
     .sort((a, b) => a.start - b.start)
     .map((entry) => entry.item);
+}
+
+/** A saved slide template of the library (markup parsed by the caller). */
+export interface SavedTemplate {
+  embedId: string;
+  title: string;
+  markup: string;
+  savedAt: number;
+}
+
+const TEMPLATE_KIND_RE = /<deck\b[^>]*\bkind\s*=\s*["']template["']/i;
+
+function isTemplateEmbed(loaded: LoadedEmbed, markup: string): boolean {
+  return loaded.appId === 'slides' && (loaded.skillId === 'template' || TEMPLATE_KIND_RE.test(markup));
+}
+
+/**
+ * Saved slide templates of one account: Team chats' embeds for `teamId`, personal
+ * chats' embeds when `teamId` is null. Newest save first.
+ */
+export async function listSavedTemplates(teamId: string | null): Promise<SavedTemplate[]> {
+  const { chatTeamOf } = await import('./rustCore/embeds/embedContentEdit');
+  const found: SavedTemplate[] = [];
+  for (const entry of await embedStore.getEmbedsByAppId('slides')) {
+    const embedId = asString((entry as unknown as Record<string, unknown>).embed_id);
+    if (!embedId) continue;
+    const loaded = await loadEmbed(embedId);
+    if (!loaded || !isContentSaved(loaded.content)) continue;
+    const markup = asString(loaded.content.slides_markup);
+    if (!markup || !isTemplateEmbed(loaded, markup)) continue;
+    if ((await chatTeamOf(loaded.chatId)) !== teamId) continue;
+    found.push({ embedId, title: asString(loaded.content.title), markup, savedAt: Number(loaded.content.saved_at) || 0 });
+  }
+  return found.sort((a, b) => b.savedAt - a.savedAt);
 }

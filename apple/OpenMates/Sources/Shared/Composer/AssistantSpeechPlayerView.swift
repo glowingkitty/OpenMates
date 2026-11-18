@@ -36,7 +36,7 @@ struct AssistantSpeechPlayerView: View {
                                         SpeechPlayerGlyph(kind: .previous).frame(width: 9, height: 9)
                                     }
                                 }.buttonStyle(.plain).opacity(0.54)
-                                    .accessibilityLabel("Previous chapter: \(speech.chapter(for: previous))")
+                                    .accessibilityLabel(AppStrings.assistantSpeechPreviousChapter(speech.chapter(for: previous)))
                                     .accessibilityIdentifier("assistant-speech-previous-chapter")
                             }
                         }.frame(maxWidth: .infinity)
@@ -65,7 +65,7 @@ struct AssistantSpeechPlayerView: View {
                                         if !compact { Text(speech.chapter(for: next)).lineLimit(1).frame(maxWidth: 150).fixedSize(horizontal: true, vertical: false) }
                                     }
                                 }.buttonStyle(.plain).opacity(0.54)
-                                    .accessibilityLabel("Next chapter: \(speech.chapter(for: next))")
+                                    .accessibilityLabel(AppStrings.assistantSpeechNextChapter(speech.chapter(for: next)))
                                     .accessibilityIdentifier("assistant-speech-next-chapter")
                             }
                             Spacer(minLength: 0)
@@ -74,7 +74,7 @@ struct AssistantSpeechPlayerView: View {
                 }.padding(.top, .spacing2).padding(.horizontal, compact ? .spacing4 : .spacing6)
                 HStack(spacing: .spacing2) {
                     control(speech.canPause ? .pause : .play, id: "assistant-speech-primary-control",
-                            label: speech.playbackStatus == .failed ? AppStrings.retry : speech.canPause ? "Pause voice response" : "Play voice response") {
+                            label: speech.playbackStatus == .failed ? AppStrings.retry : speech.canPause ? AppStrings.assistantSpeechPause : AppStrings.assistantSpeechPlay) {
                         if speech.canPause { speech.pause() } else { speech.play() }
                     }
                     if !speech.canPause {
@@ -92,7 +92,7 @@ struct AssistantSpeechPlayerView: View {
             .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: speech.canPause)
             .accessibilityElement(children: .contain)
-            .accessibilityLabel("Voice response player")
+            .accessibilityLabel(AppStrings.assistantSpeechPlayerLabel)
             .accessibilityValue(speech.playbackStatus.rawValue)
             .accessibilityIdentifier("assistant-speech-player")
         }.frame(height: viewportWidth <= 730 ? 92 : 82)

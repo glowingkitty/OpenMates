@@ -1335,7 +1335,8 @@ async def run_events_preview(args: argparse.Namespace) -> int:
     return 0
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """Command-line parser; also the single source of defaults for in-process callers."""
     parser = argparse.ArgumentParser(
         description="Send an OpenMates newsletter issue",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1401,7 +1402,31 @@ def main() -> int:
             "Default: app.dev.openmates.org for --test-to, openmates.org for --send."
         ),
     )
-    args = parser.parse_args()
+    return parser
+
+
+def programmatic_args(**overrides: Any) -> argparse.Namespace:
+    """Arguments for in-process callers such as the admin campaign API.
+
+    Starts from the parser defaults so every option run() reads exists. A
+    hand-built Namespace missed --events-preview/--run-at and crashed admin
+    previews and broadcasts with AttributeError (TASK-427).
+    """
+    args = build_parser().parse_args([])
+    # Set only by in-process callers that already hold an admin approval.
+    args.non_interactive_approved = False
+    unknown = sorted(set(overrides) - set(vars(args)))
+    if unknown:
+        raise ValueError(f"Unknown send_newsletter arguments: {', '.join(unknown)}")
+    for name, value in overrides.items():
+        setattr(args, name, value)
+    # Back-compat placeholder for legacy --issue-dir callers.
+    args.issue_dir = None
+    return args
+
+
+def main() -> int:
+    args = build_parser().parse_args()
 
     # Back-compat placeholder for legacy --issue-dir callers.
     args.issue_dir = None

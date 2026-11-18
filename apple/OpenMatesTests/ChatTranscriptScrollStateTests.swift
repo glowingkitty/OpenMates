@@ -35,12 +35,14 @@ final class ChatTranscriptScrollStateTests: XCTestCase {
             previous = next
         }
         XCTAssertEqual(published, [
-            .init(isAtTop: true, isAtBottom: false, overlapsBanner: true),
-            .init(isAtTop: false, isAtBottom: false, overlapsBanner: true),
-            .init(isAtTop: false, isAtBottom: false, overlapsBanner: false),
-            .init(isAtTop: false, isAtBottom: true, overlapsBanner: false),
-            .init(isAtTop: false, isAtBottom: false, overlapsBanner: false),
-            .init(isAtTop: true, isAtBottom: false, overlapsBanner: true),
+            .init(isAtTop: true, isAtBottom: false, overlapsBanner: true, stripPinned: false),
+            .init(isAtTop: false, isAtBottom: false, overlapsBanner: true, stripPinned: false),
+            .init(isAtTop: false, isAtBottom: false, overlapsBanner: false, stripPinned: false),
+            // The call strip pins once the banner (its natural slot) has scrolled away.
+            .init(isAtTop: false, isAtBottom: false, overlapsBanner: false, stripPinned: true),
+            .init(isAtTop: false, isAtBottom: true, overlapsBanner: false, stripPinned: true),
+            .init(isAtTop: false, isAtBottom: false, overlapsBanner: false, stripPinned: true),
+            .init(isAtTop: true, isAtBottom: false, overlapsBanner: true, stripPinned: false),
         ])
     }
 
@@ -54,7 +56,7 @@ final class ChatTranscriptScrollStateTests: XCTestCase {
         XCTAssertNil(state.bannerOverlap(bannerHeight: 0), "An absent banner must not change overlay state")
         let initial = state.record(contentOffsetY: -40, isAtBottom: false, bannerHeight: 200)
         XCTAssertNotEqual(initial, old)
-        XCTAssertEqual(initial, .init(isAtTop: true, isAtBottom: false, overlapsBanner: true))
+        XCTAssertEqual(initial, .init(isAtTop: true, isAtBottom: false, overlapsBanner: true, stripPinned: false))
         XCTAssertEqual(state.contentOffsetY, 0, "Overscroll uses the existing nonnegative normalization")
         XCTAssertEqual(state.bannerOverlap(bannerHeight: 64), false)
     }

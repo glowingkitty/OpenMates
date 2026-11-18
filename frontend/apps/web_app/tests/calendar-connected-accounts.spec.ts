@@ -18,6 +18,7 @@ const {
 } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { openAppSettings } = require('./helpers/settings-readiness');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -25,6 +26,7 @@ test.describe('Calendar connected accounts', () => {
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	// contract-test: direct surface=gui.web assertions=connected-accounts.connection.private-reusable
 	test('shows Calendar OAuth capability toggles and sends only selected capabilities', async ({ page }: { page: any }) => {
 		const logCheckpoint = createSignupLogger('CALENDAR_CONNECTED_ACCOUNTS');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -58,9 +60,7 @@ test.describe('Calendar connected accounts', () => {
 		});
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
-		await page.goto(getE2EDebugUrl('/#settings/apps/calendar'), { waitUntil: 'domcontentloaded' });
-		const settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="apps/calendar"]');
-		await expect(settingsMenu).toBeVisible({ timeout: 15000 });
+		const settingsMenu = await openAppSettings(page, getE2EDebugUrl('/#apps/calendar'), 'calendar');
 
 		const capabilityToggles = settingsMenu.getByTestId('calendar-capability-toggles');
 		await expect(capabilityToggles).toBeVisible({ timeout: 15000 });
@@ -92,6 +92,7 @@ test.describe('Calendar connected accounts', () => {
 		await takeStepScreenshot(page, 'calendar-capability-summary');
 	});
 
+	// contract-test: direct surface=gui.web assertions=connected-accounts.connection.private-reusable
 	test('opens shared Privacy account details and updates only missing Calendar write access', async ({ page }: { page: any }) => {
 		const logCheckpoint = createSignupLogger('CALENDAR_PRIVACY_CONNECTED_ACCOUNTS');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -210,9 +211,7 @@ test.describe('Calendar connected accounts', () => {
 		});
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
-		await page.goto(getE2EDebugUrl('/#settings/apps/calendar'), { waitUntil: 'domcontentloaded' });
-		let settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="apps/calendar"]');
-		await expect(settingsMenu).toBeVisible({ timeout: 15000 });
+		let settingsMenu = await openAppSettings(page, getE2EDebugUrl('/#apps/calendar'), 'calendar');
 
 		const capabilityToggles = settingsMenu.getByTestId('calendar-capability-toggles');
 		await capabilityToggles.getByLabel('Write events').click();

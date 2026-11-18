@@ -6,6 +6,7 @@ export const privacyPolicyLinks = {
   ipApi: "https://members.ip-api.com/privacy-policy",
   sightengine: "https://sightengine.com/policies/privacy",
   apiVideo: "https://api.video/privacy-policy/", // verified 2026-04-14
+  upcloud: "https://upcloud.com/privacy-policy/",
 
   // Local browser privacy protection — verified 2026-10-28
   desertAntLabs: "https://desertant.com/privacy/",
@@ -80,6 +81,7 @@ export const privacyPolicyLinks = {
 
   // Group J2 — Connected services
   googleCalendar: "https://policies.google.com/privacy",
+  figma: "https://www.figma.com/legal/privacy/",
 
   // Group J3 — Public company data
   secEdgar: "https://www.sec.gov/about/privacy-information",

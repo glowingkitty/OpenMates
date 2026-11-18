@@ -43,19 +43,35 @@ paths:
   `rustc`, `wasm-pack`, vitest, `svelte-check` (several GB per run),
   `vite`/`svelte-kit`/`pnpm build`, local
   headless-browser benches) may run on the dev server only through
-  `python3 scripts/heavy_slot.py run -- <command>`: it waits until
-  `host_load_guard` reports a healthy host, allows at most 2 heavy commands
-  host-wide at once, starts one only when its 6 GB fit in free memory, and runs
-  each in a systemd scope capped at 4 CPUs and 6 GB RAM with low priority. One
-  heavy command per chat at a time; parallel lanes queue, they never bypass it. `.claude/hooks/bash-guard.sh` blocks direct runs.
-  The same wrapper runs `cargo test/check/clippy` (host target) and `vitest`
-  without `-u` in an E2B sandbox (8 CPUs, 8 GB, no local slot): it uploads the
-  worktree's differences from the template baseline and streams output and exit
-  code back. Write such commands directly (`cargo test -p openmates-sdk`,
-  `pnpm --dir frontend/packages/ui exec vitest run <file>`, or `bash -c "cd DIR &&
-  CMD | tail -N"`); other shell syntax runs locally. If E2B is unavailable it
-  says so and runs locally; `--local` forces a local run. Refresh the template
-  with `heavy_slot.py remote-template` when it reports a stale baseline.
+  `python3 scripts/heavy_slot.py run -- <command>`. `.claude/hooks/bash-guard.sh`
+  blocks direct runs. One heavy command per chat at a time; parallel lanes
+  queue, they never bypass it.
+  - E2B first: `cargo test/check/clippy/build` (host target), `vitest` without
+    `-u`, the translation build, `svelte-check`/`svelte-kit sync` and Playwright
+    runs (a proof config folder under `/tmp` is copied in, its results, videos
+    and the files the command changed are copied back) run in an E2B sandbox
+    (8 CPUs, 8 GB, no local slot). Write such commands directly (`cargo test -p
+    openmates-sdk`, `npm --prefix frontend/packages/ui run build:translations`,
+    or `bash -c "cd DIR && CMD 2>&1 | grep -E 'a|b'; echo done"`); file
+    redirection, `&` and substitution run locally.
+  - Dev E2B use is capped at 70% of the team's concurrency limit (E2B Pro: 100;
+    the rest stays free for product usage) with a $100 daily budget
+    (`scripts/e2b_dev_capacity.py status`). `scripts/e2b_credits.py` shows the
+    daily spend, the credit balance (an estimate: E2B has no balance API) and
+    the runway, and pushes "Feedback needed" below 30 days of runway. At the cap, cargo/vitest/Playwright
+    runs wait in the E2B queue; the translation build runs locally instead.
+    Remote-eligible runs never wait for host memory; real-inference browser
+    proofs against the dev stack (`design_embroidery_web_real_test.py` and the
+    real tests built on it) run there too, with the lease and draft guard on
+    the host (`OPENMATES_HEAVY_REMOTE_ENV`/`_DIRS` pass extra env and /tmp
+    inputs). If E2B is unavailable or the budget is used up it says so and runs
+    locally, logged as `heavy_remote_fallback`; `--local` forces a local run.
+    What must stay on the host, and why: `heavy_slot.py` docstring. Refresh the template with
+    `heavy_slot.py remote-template` when it reports a stale baseline.
+  - Local runs wait for a healthy host and size by class: heavy (builds,
+    other Rust, docker; 6 GB, 4 CPUs, max 2 at once), browser (3 GB) and light
+    (translation build, pytest, tsc, eslint; 2 GB), each started only when its
+    cap fits in free memory, in a systemd scope at low priority.
   Prefer isolated GitHub CI (`ci_coordinator.py submit --mode
   rust-check|rust-wasm|rust-native-dev|vitest|pytest`) for full suites.
 - Product REST/WebSocket, CLI/SDK and browser E2E: isolated GitHub CI only (one
@@ -67,6 +83,17 @@ paths:
   Flow: `sessions.py ci-source` → `ci_coordinator.py submit` →
   `ci_coordinator.py wait <id>`. Never start a second scheduler, deploy before
   E2E, or use the shared dev stack for these tests.
+  - E2B overflow: when the 20 GitHub-hosted slots are full, the coordinator
+    runs queued component, pytest and e2e jobs (e2e once its preparation
+    succeeded) on a single-use E2B GitHub runner
+    (`scripts/ci_e2b_runner.py`, label `openmates-e2b`), within the 70% dev
+    E2B cap and daily budget; otherwise they wait for GitHub. Switch:
+    `logs/ci-coordinator/e2b-overflow.json` `{"enabled": true}`. Evidence is
+    admitted only when GitHub names the exact runner registered for that job.
+    `submit --runner e2b` forces one job onto E2B (component, pytest, e2e;
+    never the daily batch). Runs at 90% of the 8 GB sandbox or with an OOM
+    kill go to Discord and `logs/ci-coordinator/e2b/memory-alerts.jsonl`;
+    `ci_e2b_runner.py memory` lists runs by peak memory.
 - Real AI inference: only on the dev server, never in CI. Deploy the candidate
   via the session helper first, use disposable Projects and isolated
   CLI state, select `@Gemini-3.8-Flash` (unless the user names another model)
@@ -75,6 +102,11 @@ paths:
   lease `playwright-account:personal-dev`); when that lease is busy,
   `scripts/dev_test_account.py` creates a throwaway account for the test, backs
   up its chats to `~/.openmates/test-chat-backups` (kept 7 days) and deletes it.
+  Credits: a dev test account that is low or out of credits is topped up with
+  the existing operator script (`backend/scripts/top_up_test_account_credits.py`;
+  `python3 scripts/dev_test_account.py top-up-personal`). `acquire_real_test_account`
+  does this automatically before every personal-account run. Never ask the owner
+  for credits and never use a throwaway account for a final proof because of credits.
   Numbered `OPENMATES_TEST_ACCOUNT_<n>_*` slots are CI accounts and may not exist
   on dev. If a login fails, stop and report; never sign up or repair accounts by
   hand. Details: `docs/contributing/guides/testing.md`.
@@ -83,6 +115,26 @@ paths:
 - Client-core capability work (`.claude/rules/client-core.md`): core contract tests
   plus `sdk-conformance`; web Playwright with the core flag on; Apple
   `apple-unit`/`apple-core`/`apple-ui` on GitHub `macos-26`. Parity vectors never gate.
+
+## Report every failure, then rerun only the failures
+- Run the whole selected set and report ALL failures in one result: never
+  `pytest -x`/`--maxfail`, vitest `--bail`, Playwright `--max-failures`/
+  `maxFailures`, `cargo test` without `--no-fail-fast`, `xcodebuild` without
+  continuing after errors, or `set -e` around a test loop (capture each exit
+  code and continue). `forbidOnly` stays on in CI; never use `.only` to narrow
+  a run. `scripts/tests.py run` runs every spec by default (`--fail-fast` is
+  opt-in).
+- Fail fast only where an early failure makes the rest meaningless: the build
+  or code generation is broken, or the server/stack did not start.
+- Never cancel the rest of a submitted set because one job failed; start on
+  the first failure while the others finish. Then
+  `ci_coordinator.py failures <id> [<id> ...]` lists every failure of the set
+  with its trace lines, screenshots, videos and traces, and prints the
+  `submit` arguments that rerun only the failed targets (failed spec files,
+  exact pytest node IDs, failed vitest files). After the fix, rerun only
+  those; run the full set again once they pass. Locally the same rule:
+  `pytest --lf`, `playwright test --last-failed`, `vitest` with the failed
+  files.
 
 ## Debugging bounds
 Existing browser observations, logs or failing checks suffice to start; do not

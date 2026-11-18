@@ -176,3 +176,41 @@ async def test_in_process_callers_can_widen_the_search_rerank_but_outside_caller
     kwargs = BatchRequestSkill.captured_kwargs or {}
     assert kwargs.get("rerank_candidates") == expected.get("rerank_candidates")
     assert ("rerank_candidates" in kwargs) == bool(expected)
+
+
+class RecoveryRejectingSkill:
+    error: Exception = RuntimeError("unset")
+
+    def __init__(self, **_kwargs: Any) -> None:
+        pass
+
+    async def execute(self, requests: list[dict[str, Any]], **_kwargs: Any) -> dict[str, Any]:
+        raise self.__class__.error
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+async def test_recovery_rejection_keeps_its_status_through_skill_dispatch() -> None:
+    """A 409 immutable-binding refusal from ai.ask must not become a generic 422.
+
+    Production 2026-11-15: the wrapped 422 made the message handler tell the
+    client "AI did not start, retry" for a turn whose retry can never bind.
+    """
+    from fastapi import HTTPException
+
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+
+    RecoveryRejectingSkill.error = ChatRecoveryProtocolError(409, "legacy_dispatch_mismatch")
+    with pytest.raises(ChatRecoveryProtocolError) as rejected:
+        await _fake_base_app()._dispatch_skill_with_class(
+            _batch_definition(), RecoveryRejectingSkill, {"requests": [{"query": "x"}]},
+        )
+    assert (rejected.value.status_code, rejected.value.code) == (409, "legacy_dispatch_mismatch")
+
+    # Ordinary skill errors are still wrapped as generic execution failures.
+    RecoveryRejectingSkill.error = ValueError("bad input")
+    with pytest.raises(HTTPException) as wrapped:
+        await _fake_base_app()._dispatch_skill_with_class(
+            _batch_definition(), RecoveryRejectingSkill, {"requests": [{"query": "x"}]},
+        )
+    assert wrapped.value.status_code == 500

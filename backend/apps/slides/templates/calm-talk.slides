@@ -1,0 +1,33 @@
+<deck title="Calm talk" aspect="16:9" template="builtin:plain" kind="template">
+  <theme heading="Georgia" body="Georgia" background="#f6f3ee" foreground="#3a3a3a" accent="#8a9a8b" accent-2="#c7b8a3" muted="#8c8c84" surface="#ebe6dd"/>
+  <slide id="s1" layout="title">
+    <shape id="e1" x="900" y="300" w="120" h="2" kind="rect" fill="accent"/>
+    <text id="e2" x="260" y="380" w="1400" h="240" role="title" font="heading" size="96" color="foreground" align="center" weight="normal">A quiet beginning</text>
+    <text id="e3" x="260" y="680" w="1400" h="70" role="subtitle" size="36" color="muted" align="center" weight="normal">Notes for a slower conversation</text>
+  </slide>
+  <slide id="s2" layout="section">
+    <shape id="e4" x="260" y="520" w="2" h="60" kind="rect" fill="accent"/>
+    <text id="e5" x="260" y="420" w="1400" h="200" role="title" font="heading" size="84" color="foreground" align="left" weight="normal">Part two</text>
+    <text id="e6" x="260" y="640" w="1400" h="60" role="subtitle" size="34" color="muted" align="left">What stays when the noise fades</text>
+  </slide>
+  <slide id="s3" layout="content">
+    <text id="e7" x="260" y="160" w="1400" h="140" role="title" font="heading" size="72" color="foreground" align="left" weight="normal">Three small ideas</text>
+    <shape id="e8" x="260" y="320" w="100" h="2" kind="rect" fill="accent"/>
+    <text id="e9" x="260" y="400" w="1400" h="520" role="body" size="40" color="foreground" align="left" weight="normal"><ul><li>Leave room to breathe</li><li>Say less, mean more</li><li>Let the pauses speak</li></ul></text>
+  </slide>
+  <slide id="s4" layout="image">
+    <shape id="e10" x="260" y="160" w="1400" h="620" kind="rect" fill="surface"/>
+    <shape id="e11" x="900" y="440" w="120" h="120" kind="ellipse" fill="accent-2"/>
+    <text id="e12" x="260" y="830" w="1400" h="50" role="caption" size="28" color="muted" align="center">Caption: a single quiet image</text>
+  </slide>
+  <slide id="s5" layout="quote">
+    <text id="e13" x="300" y="300" w="1320" h="340" role="quote" font="heading" size="60" color="foreground" align="center" weight="normal">Almost everything will work again if you unplug it for a few minutes</text>
+    <shape id="e14" x="900" y="690" w="120" h="2" kind="rect" fill="accent"/>
+    <text id="e15" x="300" y="730" w="1320" h="50" role="caption" size="30" color="muted" align="center">Anne Lamott</text>
+  </slide>
+  <slide id="s6" layout="closing">
+    <shape id="e16" x="900" y="420" w="120" h="2" kind="rect" fill="accent"/>
+    <text id="e17" x="260" y="460" w="1400" h="160" role="title" font="heading" size="80" color="foreground" align="center" weight="normal">Thank you for listening</text>
+    <text id="e18" x="260" y="660" w="1400" h="60" role="subtitle" size="32" color="muted" align="center">name@example.org</text>
+  </slide>
+</deck>

@@ -4,9 +4,9 @@ import Combine
 import Foundation
 
 @MainActor final class SignupViewModel: ObservableObject {
-    enum SignupStep: Int, CaseIterable { case alphaDisclaimer, basics, confirmEmail, secureAccount, password, passkeyPRFError, complete }
+    enum SignupStep: Int, CaseIterable { case basics, confirmEmail, secureAccount, password, passkeyPRFError, complete }
     typealias Login = @MainActor (NativeSignupPasswordMaterial, String?, String, SignupBasicsForm) async throws -> Void
-    @Published private(set) var currentStep: SignupStep = .alphaDisclaimer
+    @Published private(set) var currentStep: SignupStep = .basics
     @Published private(set) var transitionIsForward = true
     @Published private(set) var submittedBasics: SignupBasicsForm?
     @Published private(set) var requirements: NativeSignupRequirements?
@@ -72,7 +72,6 @@ import Foundation
         self.configuration = configuration
         self.login = login
     }
-    func continueFromDisclaimer() { guard active, currentStep == .alphaDisclaimer else { return }; move(to: .basics) }
     func selectPassword() { guard canChoosePassword else { return }; move(to: .password) }
     func returnFromPasskeyError() {
         guard active, currentStep == .passkeyPRFError, !passkeyCreationAttempted else { return }

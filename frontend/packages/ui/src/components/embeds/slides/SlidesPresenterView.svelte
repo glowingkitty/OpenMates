@@ -107,11 +107,11 @@
       <div class="current" data-testid="presenter-current">
         {#if current}
           {#key current.id}
-            <SlideCanvas
+            <SlideCanvas motion={true}
               slide={current}
               width={deck.width}
               height={deck.height}
-              template={deck.template}
+              template={deck.template} theme={deck.theme}
               step={position.step}
               interactive={true}
               animated={true}
@@ -149,7 +149,7 @@
             aria-current={i === position.index ? 'true' : undefined}
             onclick={() => onGoto(i)}
           >
-            <SlideCanvas slide={slide} width={deck.width} height={deck.height} template={deck.template} />
+            <SlideCanvas motion={false} slide={slide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
           </button>
         {/each}
       </div>
@@ -160,11 +160,11 @@
         <h3>{$text('embeds.slides_next')}</h3>
         {#if upcoming}
           {#key `${upcoming.slide.id}:${upcoming.step}`}
-            <SlideCanvas
+            <SlideCanvas motion={false}
               slide={upcoming.slide}
               width={deck.width}
               height={deck.height}
-              template={deck.template}
+              template={deck.template} theme={deck.theme}
               step={upcoming.step}
             />
           {/key}
@@ -188,7 +188,8 @@
   .presenter {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    /* Above the main content, which rises to 10001 while a fullscreen embed is in overlay mode (web_app +page.svelte). */
+    z-index: 10002;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-6);

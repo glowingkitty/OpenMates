@@ -982,3 +982,103 @@ async def test_existing_cards_context_lists_only_this_chats_finished_authored_ca
     for hidden in [card, foreign_chat, foreign_owner, document, "Indexed document"]:
         assert hidden not in context
     assert format_existing_cards_context([]) is None
+
+
+SKILL_SEARCH = "55555555-5555-4555-8555-555555555555"
+SKILL_CONNECTION = "66666666-0000-4000-8000-000000000001"
+
+
+async def _skill_connection(h, *, departure="2027-01-29T07:00:00+01:00", arrival="2027-01-29T14:00:00+01:00",
+                            chat_id=CHAT, owner_hash=OWNER_HASH):
+    """Store one travel search_connections result card and expose its ref like a finished skill turn."""
+    body = {
+        "type": "connection", "app_id": "travel", "skill_id": "search_connections",
+        "departure": departure, "arrival": arrival, "origin": "Berlin Hbf", "destination": "Brussels Midi",
+        "provider": "Example Rail", "booking_url": "https://example.org/book",
+        "legs": [{"origin": "Berlin Hbf", "destination": "Brussels Midi", "departure": departure, "arrival": arrival,
+                  "segments": [{"departure_station": "Berlin Hbf", "departure_latitude": 52.525,
+                                "departure_longitude": 13.369, "arrival_station": "Brussels Midi",
+                                "arrival_latitude": 50.836, "arrival_longitude": 4.336}]}],
+        "embed_ref": "train-0700-abc",
+    }
+    await h.put_reference(SKILL_CONNECTION, body, owner_hash=owner_hash, chat_id=chat_id, parent=SKILL_SEARCH)
+    h.service.authoring_reference_index = {"train-0700-abc": SKILL_CONNECTION}
+    return "train-0700-abc"
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.groups.same-response-and-reuse
+@pytest.mark.asyncio
+async def test_researched_connection_repeating_a_skill_result_reuses_the_complete_card(authored_service):
+    """Regression: a re-authored train connection lost its legs, map and provider (TASK-3927)."""
+    h = authored_service
+    await _skill_connection(h)
+    original_row = copy.deepcopy(h.record(SKILL_CONNECTION))
+    carrier = await h.create()
+    repeated = valid_authored_item("travel.connection", "night", origin="researched")
+    repeated["details"].pop("legs")
+    other = valid_authored_item("travel.connection", "later", origin="researched")
+    other["details"].update(departure="2027-01-29T09:00:00+01:00", arrival="2027-01-29T16:00:00+01:00")
+    assert await h.update(carrier, [repeated, other])
+    parent = await h.content(carrier)
+    later = authored_child_id(carrier, "later")
+    assert parent["member_ids"] == [SKILL_CONNECTION, later]
+    assert parent["embed_ids"] == [later]
+    assert parent["view"]["embeds"] == [SKILL_CONNECTION, later]
+    assert f"embed:{authored_child_id(carrier, 'night')}" not in h.cache.values
+    # The skill card is reused unchanged, still owned by its search.
+    assert h.record(SKILL_CONNECTION) == original_row
+
+
+@pytest.mark.parametrize("variant", ["other_time", "foreign_chat", "foreign_owner", "user_provided"])
+# contract-test: direct surface=rest_api assertions=authored-results.groups.same-response-and-reuse,authored-results.lifecycle.encrypted-and-stable
+@pytest.mark.asyncio
+async def test_connection_reuse_requires_same_chat_owner_and_identity(authored_service, variant):
+    h = authored_service
+    other_chat = "44444444-4444-4444-8444-444444444444"
+    await _skill_connection(
+        h, departure="2027-01-29T08:00:00+01:00" if variant == "other_time" else "2027-01-29T07:00:00+01:00",
+        chat_id=other_chat if variant == "foreign_chat" else CHAT,
+        owner_hash="b" * 64 if variant == "foreign_owner" else OWNER_HASH,
+    )
+    carrier = await h.create()
+    item = valid_authored_item("travel.connection", "trip",
+                               origin="user_provided" if variant == "user_provided" else "researched")
+    assert await h.update(carrier, [item])
+    own = authored_child_id(carrier, "trip")
+    assert (await h.content(carrier))["member_ids"] == [own]
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.followups.reuse-or-version
+@pytest.mark.asyncio
+async def test_existing_reference_may_name_a_skill_result_card(authored_service):
+    h = authored_service
+    reference = await _skill_connection(h)
+    carrier = await h.create()
+    assert await h.update(carrier, raw=_followup_source({"id": "fastest", "existing": reference}))
+    parent = await h.content(carrier)
+    assert parent["member_ids"] == [SKILL_CONNECTION] and h.record(carrier)["embed_ids"] == []
+    assert h.record(carrier)["status"] == "finished"
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.groups.same-response-and-reuse
+@pytest.mark.asyncio
+async def test_existing_cards_prompt_still_lists_only_authored_cards(authored_service):
+    """Skill results are reusable on request but are not advertised as existing authored cards."""
+    from backend.core.api.app.services.authored_existing_cards import existing_cards_for_chat
+
+    h = authored_service
+    await _skill_connection(h)
+    cards = await existing_cards_for_chat(h.service, h.service.authoring_reference_index, chat_id=CHAT,
+                                          user_id_hash=OWNER_HASH, user_vault_key_id=VAULT)
+    assert cards == []
+
+
+# contract-test: direct surface=rest_api assertions=authored-results.groups.same-response-and-reuse
+def test_connection_identity_compares_instants_across_offsets():
+    from backend.core.api.app.services.authored_skill_result_reuse import IDENTITY_KEYS
+
+    key = IDENTITY_KEYS["travel.connection"]
+    assert key({"departure": "2026-11-16T20:52:00+01:00", "arrival": "2026-11-17T09:05:00+01:00"}) == key(
+        {"legs": [{"departure": "2026-11-16T19:52:00Z", "arrival": "x"},
+                  {"arrival": "2026-11-17T08:05:00+00:00"}]})
+    assert key({"departure": "2026-11-16T20:52:00", "arrival": "2026-11-17T09:05:00+01:00"}) is None

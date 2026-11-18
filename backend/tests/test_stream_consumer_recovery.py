@@ -12,6 +12,7 @@ aggregation.
 from __future__ import annotations
 
 import asyncio
+import logging
 import inspect
 import importlib
 import json
@@ -796,6 +797,54 @@ def test_sub_chat_parent_continuation_preserves_inference_without_reusing_execut
     assert request_payload["budget_spent"] == original_request.budget_spent
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+def test_sub_chat_parent_continuation_inherits_legacy_admission_as_root(monkeypatch) -> None:
+    """A parent admitted without a sealed recovery turn keeps its admission authority.
+
+    Production 2026-11-17: the continuation dropped the legacy cutover identity,
+    so the worker refused it ("Saved AI task lacks durable admission authority")
+    and the parent never answered after its sub-chats finished.
+    """
+    import hashlib
+
+    user_id = "44444444-4444-4444-8444-444444444444"
+    chat_id = "22222222-2222-4222-8222-222222222222"
+    message_id = "33333333-3333-4333-8333-333333333333"
+    legacy_identity = hashlib.sha256(f"{user_id}:{chat_id}:{message_id}".encode()).hexdigest()
+    original_request = AskSkillRequest(
+        chat_id=chat_id, message_id=message_id, user_id=user_id, user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(role="user", content="research this", created_at=100)],
+        legacy_cutover_task_id=legacy_identity,
+    )
+    captured: dict[str, object] = {}
+
+    def fake_send_task(*, name: str, kwargs: dict, queue: str, task_id: str | None = None):
+        captured.update(kwargs=kwargs, task_id=task_id)
+        return SimpleNamespace(id=task_id)
+
+    monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", fake_send_task)
+    asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(
+        cache_service=SimpleNamespace(set=AsyncMock(return_value=True)),
+        pending_context={
+            "parent_request_data": original_request.model_dump(mode="json"),
+            "skill_config_dict": {},
+            "expected_sub_chat_ids": ["child-1"],
+            "completed": {"child-1": {"summary": "Child report", "chat_id": "child-1"}},
+        },
+        parent_chat_id=chat_id,
+        log_prefix="test",
+    ))
+
+    continuation = AskSkillRequest(**captured["kwargs"]["request_data_dict"])
+    assert continuation.is_sub_chat_continuation is True
+    assert continuation.resolved_recovery_inference_task_id() is None
+    # Inherited as the root admission: the worker admits it, but the
+    # continuation never claims or completes the parent's admission again.
+    assert continuation.root_legacy_cutover_task_id == legacy_identity
+    assert continuation.legacy_cutover_task_id is None
+    assert (continuation.chat_id, continuation.message_id) == (chat_id, message_id)
+
+
 # contract-test: supporting surface=rest_api assertions=chats.rendering.inline-entity-interaction
 def test_sub_chat_web_citations_use_only_exact_child_and_task_authority() -> None:
     parent = AskSkillRequest(
@@ -1221,7 +1270,7 @@ def test_initial_child_resolves_dispatched_inference_identity_for_assistant_and_
 
 # contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger
 @pytest.mark.parametrize("failure_reason", ["provider_exhausted", "anonymous_usage_limit"])
-def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monkeypatch, failure_reason):
+def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monkeypatch, caplog, failure_reason):
     from backend.shared.python_utils.chat_failure_notifications import terminal_class
 
     async def failed_stream(**kwargs):
@@ -1251,12 +1300,24 @@ def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monk
         is_anonymous=failure_reason == "anonymous_usage_limit",
     )
 
-    result = asyncio.run(stream_consumer._consume_main_processing_stream(
-        task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
-        base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
-        all_mates_configs=[], discovered_apps_metadata={}, cache_service=SimpleNamespace(),
-    ))
+    with caplog.at_level(logging.WARNING, logger=stream_consumer.logger.name):
+        result = asyncio.run(stream_consumer._consume_main_processing_stream(
+            task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
+            base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
+            all_mates_configs=[], discovered_apps_metadata={}, cache_service=SimpleNamespace(),
+        ))
 
+    # An anonymous user's sign-up limit is an expected rejection: the hourly
+    # production chat-failure check reads ERROR logs, so it must stay WARNING.
+    expected = failure_reason == "anonymous_usage_limit"
+    failure_levels = {
+        record.levelno
+        for record in caplog.records
+        if "classified terminal failure" in record.getMessage()
+        or "Finished consuming stream (FAILED" in record.getMessage()
+    }
+    assert failure_levels == {logging.WARNING if expected else logging.ERROR}
+    assert aggregate_log.call_args.kwargs["expected_failure"] is expected
     assert result[0].startswith("A partial answer that must not make the turn look successful.")
     assert result[0].endswith(stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE)
     assert result[4]["main_processing_failure_reason"] == failure_reason
@@ -1279,6 +1340,20 @@ def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monk
         {"main_processing_output": result[0]},
         stream_consumer.STANDARDIZED_USER_ERROR_MESSAGE,
     ) == "failed_during_main"
+
+
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger
+@pytest.mark.parametrize("expected_failure,level", [(True, logging.WARNING), (False, logging.ERROR)])
+def test_aggregated_output_log_level_follows_expected_failure(monkeypatch, caplog, expected_failure, level):
+    from backend.apps.ai.utils import llm_utils
+
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+    with caplog.at_level(logging.WARNING, logger=llm_utils.logger.name):
+        llm_utils.log_main_llm_stream_aggregated_output(
+            "task-1", "partial", error_message="Main processing failed: x.", expected_failure=expected_failure,
+        )
+
+    assert [record.levelno for record in caplog.records] == [level]
 
 
 # contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger
@@ -2087,3 +2162,105 @@ def test_final_validator_removes_skill_use_refs_and_shows_their_results(
             aggregated_response=answer, tool_calls_info=None, cache_service=None,
             directus_service=None, encryption_service=None, user_vault_key_id=None,
         ))
+
+
+def _voice_parent_request() -> "AskSkillRequest":
+    return AskSkillRequest(
+        chat_id="22222222-2222-4222-8222-222222222222",
+        message_id="33333333-3333-4333-8333-333333333333",
+        user_id="44444444-4444-4444-8444-444444444444",
+        user_id_hash="a" * 64,
+        message_history=[AIHistoryMessage(role="user", content="compare three laptops", created_at=100)],
+        voice_mode=True,
+        voice_call_id="1" * 32,
+        voice_turn_id="33333333-3333-4333-8333-333333333333",
+        auto_speak_response=True,
+        assistant_response_source_revision=2,
+    )
+
+
+def _dispatch_voice_continuation(monkeypatch, recheck) -> dict:
+    from backend.shared.python_utils import voice_call_admission
+
+    monkeypatch.setattr(voice_call_admission, "require_active_voice_dispatch", recheck)
+    captured: dict = {}
+
+    def fake_send_task(*, name, kwargs, queue, task_id=None):
+        captured.update(kwargs=kwargs)
+        return SimpleNamespace(id="continuation-task")
+
+    monkeypatch.setattr(stream_consumer.celery_config.app, "send_task", fake_send_task)
+    request = _voice_parent_request()
+    asyncio.run(stream_consumer._dispatch_sub_chat_parent_continuation(
+        cache_service=SimpleNamespace(set=AsyncMock(return_value=True)),
+        pending_context={
+            "parent_request_data": request.model_dump(mode="json"), "skill_config_dict": {},
+            "expected_sub_chat_ids": ["child-1"], "completed": {"child-1": {"summary": "Synthetic child result"}},
+        },
+        parent_chat_id=request.chat_id, log_prefix="test",
+    ))
+    return captured["kwargs"]["request_data_dict"]
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.chat.orchestration-continuity
+def test_sub_chat_continuation_during_an_active_call_stays_spoken(monkeypatch) -> None:
+    rechecked = []
+
+    async def active_call(cache, request):
+        rechecked.append(request)
+
+    payload = _dispatch_voice_continuation(monkeypatch, active_call)
+    assert payload["voice_mode"] is True and payload["auto_speak_response"] is True
+    assert payload["voice_turn_id"] == payload["message_id"]
+    assert rechecked and rechecked[0]["chat_id"] == payload["chat_id"]
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.chat.orchestration-continuity
+def test_sub_chat_continuation_after_hangup_continues_as_a_text_turn(monkeypatch) -> None:
+    async def ended_call(cache, request):
+        raise ValueError("Voice call has ended")
+
+    payload = _dispatch_voice_continuation(monkeypatch, ended_call)
+    assert payload["voice_mode"] is False and payload["auto_speak_response"] is False
+    assert payload["voice_call_id"] is None and payload["voice_turn_id"] is None
+    assert payload["is_sub_chat_continuation"] is True
+    assert payload["assistant_response_source_revision"] == 2
+
+
+def test_revocation_probe_rate_limits_celery_state_reads(monkeypatch):
+    """The hot chunk path must not do a synchronous Redis GET per chunk."""
+    calls = []
+    monkeypatch.setattr(
+        stream_consumer.celery_config.app, "AsyncResult",
+        lambda task_id: calls.append(task_id) or SimpleNamespace(state="REVOKED"),
+    )
+    clock = [100.0]
+    monkeypatch.setattr(stream_consumer.time, "monotonic", lambda: clock[0])
+    probe = stream_consumer._RevocationProbe("task-1", interval=0.25)
+    assert probe.revoked() is True
+    assert [probe.revoked() for _ in range(50)] == [False] * 50
+    assert len(calls) == 1
+    clock[0] += 0.3
+    assert probe.revoked() is True
+    assert len(calls) == 2
+
+
+def test_metadata_settle_waits_and_logs_without_raising():
+    from backend.apps.ai.tasks import ask_skill_task
+
+    async def check():
+        done = []
+
+        async def slow_write():
+            await asyncio.sleep(0.05)
+            done.append(True)
+
+        async def failing_write():
+            raise RuntimeError("db down")
+
+        slow = asyncio.create_task(slow_write())
+        failing = asyncio.create_task(failing_write())
+        await ask_skill_task._settle_metadata_before_finalize(slow, failing, None)
+        assert done == [True]
+
+    asyncio.run(check())

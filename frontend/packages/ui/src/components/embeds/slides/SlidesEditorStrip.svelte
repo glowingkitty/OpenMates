@@ -13,6 +13,7 @@
   import { tick } from 'svelte';
   import { text } from '@repo/ui';
   import SlideCanvas from './SlideCanvas.svelte';
+  import type { DeckTheme } from './slidesMarkup';
   import EmbedIconButton from '../shared/EmbedIconButton.svelte';
   import { toRenderSlide } from './slidesEditorView';
   import type { DeckSlideModel } from '../../../services/rustCore/deckDocument/deckDocumentTypes';
@@ -22,6 +23,7 @@
     width: number;
     height: number;
     template: string;
+    theme?: DeckTheme;
     currentId: string;
     onOpen: (slideId: string) => void;
     onAdd: () => void;
@@ -30,7 +32,7 @@
     onMove: (delta: -1 | 1) => void;
   }
 
-  let { slides, width, height, template, currentId, onOpen, onAdd, onDuplicate, onDelete, onMove }: Props = $props();
+  let { slides, width, height, template, theme, currentId, onOpen, onAdd, onDuplicate, onDelete, onMove }: Props = $props();
 
   const actionsId = $props.id();
   let position = $derived(slides.findIndex((slide) => slide.id === currentId));
@@ -80,7 +82,7 @@
           aria-current={slide.id === currentId ? 'true' : undefined}
           onclick={() => onOpen(slide.id)}
         >
-          <SlideCanvas slide={toRenderSlide(slide)} {width} {height} {template} />
+          <SlideCanvas motion={false} slide={toRenderSlide(slide)} {width} {height} {template} {theme} />
         </button>
       </div>
     {/each}

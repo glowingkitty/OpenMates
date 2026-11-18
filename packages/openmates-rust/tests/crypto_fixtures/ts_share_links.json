@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "synthetic_only": true,
+  "ts_sources": {
+    "frontend/packages/ui/src/services/embedShareEncryption.ts": "dc5de67311e1f8461653475bbd3790f7ebe749c5ef0e765256704f2847fbd7f4",
+    "frontend/packages/ui/src/services/shortUrlEncryption.ts": "20faa8aeceb7dc9180a28686af2185faafb735913981d8ea8cb6880ca2ebf356"
+  },
+  "generated_at": 1790000000,
+  "embed_id": "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f",
+  "embed_blobs": [
+    {
+      "label": "key32:no-password-forever",
+      "embed_key_b64": "qG7/V6NTLxUf7IWNOAgftn1fyt7nskUJxhe9bBVpMkk=",
+      "duration_seconds": 0,
+      "password": null,
+      "blob": "7N9yLt_yxHqo8P8oFIduLYmk_GoQAPpK3pi84-X_jQUtKCguARSbzTeADOBfXxHMVcB-3YRv7f3G96LSyMTQcTVZ_fekzYTaDN3nhbHMyZRlLLxteIH9pQdwATSGdpJrM-Ev1uLwDjXof8WO5ynyWgYumK3o0ANb4zgUNmfRvn9R4gd8FaYT0wAnvHa5bimQsFg"
+    },
+    {
+      "label": "key32:empty-password-means-none",
+      "embed_key_b64": "qG7/V6NTLxUf7IWNOAgftn1fyt7nskUJxhe9bBVpMkk=",
+      "duration_seconds": 0,
+      "password": null,
+      "blob": "rz0jph4p0ttT7P42s_3vhr49LQkj-6UD9xsAFE0pKiSWu46gc4RZDZzo1ToJdGtMlXc-G2FoMLj-R6dGWut5LFF7T90tWyoqVCwy4qXWjPTEQVRr_D5LFYRkWSELDVB8KEq7UqLWhFHTHiCJkVCip59J4XSgCJOOGdaGp9k6JOZfU2TO1bFbaCrMBFnPp8Oi76Q"
+    },
+    {
+      "label": "key32:password-1week",
+      "embed_key_b64": "qG7/V6NTLxUf7IWNOAgftn1fyt7nskUJxhe9bBVpMkk=",
+      "duration_seconds": 604800,
+      "password": "embed pw",
+      "blob": "p4hUg4HHwJV4d5DFmTRm4EolZX8U1yczLVWZ0aMaJG16ujWklml4dHEXW9zYZyfQFdDX2CWsogWk7nXM6-k04HpGvmLEgt3JgDDJuiDPPQS_fRQsfOl00xVhgkc5xA2hmIPoGu0qOTlVuGcSb7cVfMKLMq0MGb-FEo9caQ2JtFu8IMyCzP8e-9QPZqJ9fIF5XFd6FYAzznIhLPOZbb7cVPY7q47vr8eVscGNbVzeGns1fzQCYbO9ehJ3jCvbXxa62F2b3arajA"
+    },
+    {
+      "label": "key32:password-ten-chars-unicode",
+      "embed_key_b64": "qG7/V6NTLxUf7IWNOAgftn1fyt7nskUJxhe9bBVpMkk=",
+      "duration_seconds": 3600,
+      "password": "pässwörd1!",
+      "blob": "yc6smjybJwjV7RirZ_jS2LqEJr1vplPyQMIAG9qvzJqUzD3C2jhO5116cgD5YI9pP8PigIALiBr-EQ9rciDAOAoHgki1CM34xMVyQeLfacrxHhrhHv4ytnxBmSrmtnM-pHTB1BXHl9YeVjkf_o2KX8-X323Yfdmz8Mv6kuiuHtt_lMTYxRxL-_9GXF7SZKizkC85zTPtRP2Vsuxjuy7h_eETxur0oi7pV5bGzpbIPVQ3Ehc2zKbRhU3kEITZOl0bjROgNVw"
+    },
+    {
+      "label": "key16:no-password-forever",
+      "embed_key_b64": "wPUt4/f6+7gPSe7HUHS9Qw==",
+      "duration_seconds": 0,
+      "password": null,
+      "blob": "xUAA9PJArCw5YVBJMDQC10EMBFuDT1wzVH2tDOpWLYdA2Aa6PJIRR8-ZdpRYD1M8Q4D104tdMf5AJ31mcUmF_sr8cZeOyXbEDxcskJhJcoR45ywx10y3Gwb0r25XYdPxF-AkGy8D9p3iqDqDqOvC55qct7_o6LQQ6CHRcmInntNYqQ"
+    },
+    {
+      "label": "key16:empty-password-means-none",
+      "embed_key_b64": "wPUt4/f6+7gPSe7HUHS9Qw==",
+      "duration_seconds": 0,
+      "password": null,
+      "blob": "OqOJGtFmrW4RaA8b9I2xtRrJETCE8B0WO6i_3CChG62qMHFlUoTL8RAxj-Gg7hZamHah1nGY_9tVnqitabuys4FQrQKas5mZLLhf_AbRjZ4_5cK4tj6JBtM0rIDQcw5It3AzJRlnBnW6c-JPT3D40goR3gEMVKm3BaVKdhhjKC7L_g"
+    },
+    {
+      "label": "key16:password-1week",
+      "embed_key_b64": "wPUt4/f6+7gPSe7HUHS9Qw==",
+      "duration_seconds": 604800,
+      "password": "embed pw",
+      "blob": "onsmSzbYXdjy38pKLhU3uB63D1SswPrzzjKcl6Dxyl9pJr8LeHcZv1-69-vDZssVw8-6mftDJX3waPjQaEVygSQ2nJq7L2pcnX9Gg_GEVDBj8FLuvEPXS4Gi6FHsS7x16mbDqph72A2t9PJwO5MSnn3Ane9KRLzqoQqU87rsn15IXtwfbVfcwn8_3rjQLT8pTgKz8xkscpgJ5MNLzlfFrAQ6ArLxRuFQIl7pSNE"
+    },
+    {
+      "label": "key16:password-ten-chars-unicode",
+      "embed_key_b64": "wPUt4/f6+7gPSe7HUHS9Qw==",
+      "duration_seconds": 3600,
+      "password": "pässwörd1!",
+      "blob": "JrJXlYKcdGdKMyMqEVPAr7LTLoC-6KDzOsHFGCH0flXqLvFyfuL24ItH-c4vKXqdvVM97sE2hjNyy2ulFfwLBtUOaADClqv47ZCMyUWL_uQGOccJNirs3obobNY9mojXJJxrYmHyftfsGBIfPg2gljQ_85RSMLGdPmni2MfxiuaCoAyiln4vY-0Z193g6sGuedWyKgkKpmdkYNo-FQCfA-VeM8uX0uxdHeJF"
+    }
+  ],
+  "short_urls": [
+    {
+      "label": "current-8-22",
+      "token": "Qw3rTy9U",
+      "short_key": "MG56JGwigUoMz4RAbwfC0N",
+      "url": "https://openmates.org/share/chat/0d9f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b#key=abc-_123",
+      "encrypted": "abzwVqg0KLfbp4RwtY28XAgrYS3XrWEMXbHoaanUhNOgcO9qHxnu6onmJxyaQNwW0sUbZfez1ADBJ7kEiHO-CYFIpk9rwXGfOE3ct_m1TX-fruA3wx_Yh41gLRGION22ekaLUVmg5z2zbPX_9A8"
+    },
+    {
+      "label": "legacy-six-char-key",
+      "token": "a8f3kLmN",
+      "short_key": "Xk7pQr",
+      "url": "https://openmates.org/share/chat/0d9f1a2b-3c4d-4e5f-8a9b-0c1d2e3f4a5b#key=abc-_123",
+      "encrypted": "Sb_J7qclgxbA6Mzd2afhxQDXOa1EkyoMysNiBdW6fCvVc8cJw2HPbF0ToBB6tX-Ybxt4OMHENSMZUZYQQQLVeRkhK0DwsLyWfWHH4WTM2LgyB0Qy5zg_iVwTm2JzgLBiI07012odz8Sxlo77Y-c"
+    },
+    {
+      "label": "legacy-six-char-token-and-key",
+      "token": "a8f3kL",
+      "short_key": "Xk7pQr",
+      "url": "https://openmates.org/share/embed/7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f#key=zz_-9",
+      "encrypted": "c_d7Rx6PNk6pVcoJI0dY7fkahBlNyEltz8gT_GJB3fWv7wULw8Rp7W_oT_PS45b0u-Yjd-3wTKI1B4TdEl0QTiGHPbp3MWh5tcR4X4B5nowLCkOEf218yd9KZVUI5sMjm9xHS9Bj9n7ufcx0"
+    },
+    {
+      "label": "non-ascii-url",
+      "token": "Zq81LmPd",
+      "short_key": "N0n4sc11Key0123456789a",
+      "url": "https://openmates.org/share/chat/ü-ö?x=日本語#key=a-b_c",
+      "encrypted": "aSVJCxkfZMxU6kD4TcxkCQe5ovUJmkoOTz5HX4_-WQxIN-1yZVLYAiwe7SIW-3M3IdxmunDRWvYvMbmIIA-n3tGiXPMUDtHAAsW7s3kJppW9GOA9CBuVxg"
+    }
+  ]
+}

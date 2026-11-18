@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.language-preferences
 version: 1
-status: draft
+status: approved
 title: Website and Web App Language Preferences
 summary: Website and web-app visitors receive their selected or best-supported browser language from the first visible text, with consistent manual controls and localized German content.
 scope:
@@ -29,6 +29,10 @@ assertions:
     type: behavior
     must: German legal documents contain translated prose, including storage, audio and retention disclosures. German daily inspirations use German static and fallback copy and never silently fill shortages with English. Language changes refresh mismatched cached or persisted sets while preserving opened-chat associations and personal history.
     depends_on: [examples.content]
+  - id: language-preferences.chat-metadata-language
+    type: behavior
+    must: Generated chat titles, summaries and tags use the language the user writes in, ignoring quoted text, code and data, even when the interface shows another language. Only when that language is unclear, such as a very short or mixed message, they use the language the web app is displaying when the message is sent (including Automatic browser language and a URL language that never rewrote the saved account language), and the saved account language when no valid displayed language arrives. The client sends the displayed language with each message. New-chat suggestions stay in the displayed interface language.
+    depends_on: [examples.chat-metadata]
 applies_to:
   rest_api: {required: true, role: Public default-inspiration locale response semantics.}
   cli: {required: false}
@@ -40,6 +44,6 @@ applies_to:
     implementations: {web: {required: true}, apple: {required: false}}
 examples:
   file: examples.yml
-  required_groups: [resolution, startup, controls, content]
+  required_groups: [resolution, startup, controls, content, chat-metadata]
 approval_source:
   instruction: User explicitly approved the six concrete recommendations in this chat and requested implementation, deployment and video proof. This transcribes that approved scope without claiming a new exact-fingerprint review.

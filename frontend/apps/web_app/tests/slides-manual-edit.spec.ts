@@ -17,7 +17,7 @@ export {};
  * Run: ci_coordinator.py submit --mode e2e --web-rust-core --spec slides-manual-edit.spec.ts
  */
 
-const { test, expect, attachConsoleListeners, attachNetworkListeners } = require('./console-monitor');
+const { test, expect, attachConsoleListeners, attachNetworkListeners, allowConsoleErrorPatterns } = require('./console-monitor');
 const { createSignupLogger, createStepScreenshotter, getTestAccount, installE2EServerContentOverrideGate } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, sendMessage, waitForAssistantMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
@@ -39,6 +39,9 @@ test('a manual deck edit is saved as a new version and survives a reload', async
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'slides-manual-edit' });
 
 	attachConsoleListeners(page);
+	// A socket reconnect during the run makes a housekeeping send meet the closing socket;
+	// the client retries it and it is not part of the edit flow (as in videos-generate-chat).
+	allowConsoleErrorPatterns([/WebSocket changed before message dispatch/, /Connection failed, cannot send message: \{type: get_chat_model_preference/]);
 	attachNetworkListeners(page);
 	// The version timeline reads the server's version list; log each page so a
 	// missing version dot shows whether the stored head or its rows were absent.
@@ -114,8 +117,11 @@ test('a manual deck edit is saved as a new version and survives a reload', async
 		await expect(editor()).toHaveAttribute('data-dirty', 'true');
 		await screenshot(page, 'deck-editing');
 
-		await page.getByTestId('slides-editor-done').click();
+		// The header Edit button is now the round check: it saves and leaves edit mode.
+		await expect(overlay.getByTestId('slides-edit')).toHaveAttribute('data-edit-state', 'save');
+		await overlay.getByTestId('slides-edit').click();
 		await expect(editor()).toHaveCount(0, { timeout: 30_000 });
+		await expect(overlay.getByTestId('slides-edit')).toHaveAttribute('data-edit-state', 'edit');
 		await expect(page.getByTestId('slides-editor-save-failed')).toHaveCount(0);
 		await expect(overlay.getByTestId('version-dot-2')).toBeVisible({ timeout: 30_000 });
 		await expect(overlay.getByTestId('version-dot-1')).toBeVisible();
@@ -146,7 +152,7 @@ test('a manual deck edit is saved as a new version and survives a reload', async
 		await page.locator('[data-testid="slides-editor-strip-item"][data-slide-id="s2"]').click();
 		await expect(hit('e4')).toHaveAttribute('data-x', '90');
 		await expect(editor()).toHaveAttribute('data-dirty', 'false');
-		await page.getByTestId('slides-editor-done').click();
+		await overlay.getByTestId('slides-edit').click();
 		await expect(editor()).toHaveCount(0);
 		await expect(overlay.getByTestId('version-dot-2')).toBeVisible({ timeout: 30_000 });
 		await expect(overlay.getByTestId('version-dot-3')).toHaveCount(0);

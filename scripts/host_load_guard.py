@@ -1,11 +1,23 @@
 #!/usr/bin/env python3
-"""Host load gate for the shared OpenMates dev server.
+"""Host load gate for the shared OpenMates dev server (memory part of the host-resources guard).
 
 Reads /proc/loadavg, /proc/meminfo (MemAvailable) and PSI (/proc/pressure/*)
 and decides whether the host is overloaded, with hysteresis: once overloaded,
-work stays blocked until every resume threshold is met. Used by Claude hooks
-(new sub-agents, new prompts), `sessions.py start` and the heavy-command guard,
-plus a systemd user timer (`monitor`) that only logs; nothing is ever killed.
+work stays held until every resume threshold is met. Used by Claude hooks
+(new sub-agents, new prompts), `sessions.py start` and the heavy-command guard.
+The systemd user timer runs `monitor`, which hands over to
+scripts/host_resources.py (RAM and disk together: self-healing by stopping idle
+chats, releasing held prompts, and a Discord alert only when that fails).
+
+Memory is judged by pressure, not by free RAM. The host has no swap, and most
+"used" RAM is page cache and idle chats that the kernel or the chat lifecycle
+can reclaim, so 3-5 GiB free with memory PSI at 0 is a healthy host. Memory
+PSI ("some avg10": share of time tasks stalled waiting for memory) measures the
+real harm directly; MemAvailable only matters near the OOM floor.
+
+A held prompt is never refused: the prompt hook waits (up to PROMPT_WAIT_SECONDS,
+with a spinner message saying why) and then lets the prompt run, so queued work
+resumes by itself.
 
 Commands:
   status [--json]          print the current sample and decision
@@ -38,10 +50,10 @@ class Thresholds:
 
     def __init__(
         self,
-        block_mem_available_bytes: int = 3 * GIB,
+        block_mem_available_bytes: int = int(1.5 * GIB),
         block_load1_per_cpu: float = 3.0,
         block_mem_psi_some_avg10: float = 20.0,
-        resume_mem_available_bytes: int = 5 * GIB,
+        resume_mem_available_bytes: int = int(2.5 * GIB),
         resume_load1_per_cpu: float = 1.5,
         resume_mem_psi_some_avg10: float = 10.0,
     ) -> None:
@@ -57,6 +69,9 @@ THRESHOLDS = Thresholds()
 EXIT_OVERLOADED = 3
 IGNORE_ENV = "OPENMATES_IGNORE_HOST_LOAD"
 PROMPT_OVERRIDE_MARKER = "[host-load-override]"
+# Below the prompt hook's 600 s timeout in .claude/settings.json; the env override is for tests.
+PROMPT_WAIT_SECONDS = float(os.environ.get("OPENMATES_HOST_LOAD_PROMPT_WAIT", "540"))
+PROMPT_POLL_SECONDS = min(5.0, PROMPT_WAIT_SECONDS / 2) or 0.01
 WAIT_HINT = (
     "python3 scripts/host_load_guard.py wait --timeout 540 "
     "(one blocking call, or run_in_background; never a sleep/poll loop of turns)"
@@ -179,7 +194,7 @@ def evaluate(sample: Sample, was_overloaded: bool, t: Thresholds = THRESHOLDS) -
     psi = sample.mem_psi_some_avg10
     block_reasons: list[str] = []
     if sample.mem_available_bytes < t.block_mem_available_bytes:
-        block_reasons.append(f"MemAvailable {gib:.1f} GiB < {t.block_mem_available_bytes / GIB:.0f} GiB")
+        block_reasons.append(f"MemAvailable {gib:.1f} GiB < {t.block_mem_available_bytes / GIB:g} GiB")
     if sample.load1 > t.block_load1_per_cpu * sample.cpus:
         block_reasons.append(f"load1 {sample.load1:.0f} > {t.block_load1_per_cpu:g}x{sample.cpus} cpus")
     if psi is not None and psi > t.block_mem_psi_some_avg10:
@@ -191,7 +206,7 @@ def evaluate(sample: Sample, was_overloaded: bool, t: Thresholds = THRESHOLDS) -
 
     pending: list[str] = []
     if sample.mem_available_bytes <= t.resume_mem_available_bytes:
-        pending.append(f"MemAvailable {gib:.1f} GiB not yet > {t.resume_mem_available_bytes / GIB:.0f} GiB")
+        pending.append(f"MemAvailable {gib:.1f} GiB not yet > {t.resume_mem_available_bytes / GIB:g} GiB")
     if sample.load1 >= t.resume_load1_per_cpu * sample.cpus:
         pending.append(f"load1 {sample.load1:.0f} not yet < {t.resume_load1_per_cpu:g}x{sample.cpus} cpus")
     if psi is not None and psi >= t.resume_mem_psi_some_avg10:
@@ -304,18 +319,52 @@ def cmd_hook(event: str) -> int:
     if what is None:
         print(f"unknown hook event {event!r}", file=sys.stderr)
         return 1
+    if event == "prompt":
+        return hold_prompt(str(payload.get("session_id", "")))
     message = gate(what)
     if message is None:
         return 0
     if event == "pre-agent":
         out = {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
                                       "permissionDecisionReason": message}}
-    elif event == "prompt":
-        out = {"decision": "block", "reason": message + f" To proceed anyway (logged), resend the prompt "
-               f"containing {PROMPT_OVERRIDE_MARKER}."}
     else:  # SessionStart cannot block; inject a hard instruction instead.
         out = {"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": message}}
     print(json.dumps(out))
+    return 0
+
+
+def hold_prompt(session_id: str, wait_seconds: float = PROMPT_WAIT_SECONDS,
+                poll_seconds: float = PROMPT_POLL_SECONDS) -> int:
+    """Prompt hook: wait while the host is overloaded, then let the prompt run. Never refuses.
+
+    The hook's statusMessage (settings.json) tells the user why the prompt waits;
+    systemMessage says afterwards how long it waited."""
+    sample, decision = current_decision()
+    if not decision.overloaded or ignore_requested("starting new work from a prompt"):
+        return 0
+    started = time.monotonic()
+    first = describe(sample, decision)
+    while decision.overloaded and time.monotonic() - started < wait_seconds:
+        time.sleep(poll_seconds)
+        sample, decision = current_decision()
+    waited = time.monotonic() - started
+    try:
+        append_event(state_dir(), "prompt_held", {"session": session_id, "waited_s": round(waited),
+                                                  "released": "recovered" if not decision.overloaded else "timeout",
+                                                  "first": first})
+    except OSError as error:
+        print(f"host_load_guard: could not log held prompt: {error}", file=sys.stderr)
+    minutes = max(1, round(waited / 60))
+    if not decision.overloaded:
+        print(json.dumps({"systemMessage": f"Prompt held {minutes} min while the dev server was short on "
+                                           "memory; it runs now."}))
+        return 0
+    print(json.dumps({
+        "systemMessage": f"Prompt held {minutes} min; the dev server is still busy, so it runs now anyway.",
+        "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": (
+            f"The dev server is still overloaded ({describe(sample, decision)}). Do not spawn sub-agents; "
+            "heavy commands queue by themselves in heavy_slot.py. Builds/tests belong in isolated CI.")},
+    }))
     return 0
 
 
@@ -338,7 +387,10 @@ def cmd_monitor() -> int:
     if decision.overloaded:
         append_event(directory, "overload_sample", {"sample": asdict(sample), "reasons": decision.reasons,
                                                      "top": top_process_groups()})
-    return 0
+    sys.path.insert(0, str(Path(__file__).resolve().parent))  # `python3 -I` does not add the script dir
+    import host_resources  # heavier (subprocesses); never on the hook path
+
+    return host_resources.tick(sample, decision)
 
 
 def top_process_groups(proc: Path = Path("/proc"), limit: int = 8) -> list[dict]:

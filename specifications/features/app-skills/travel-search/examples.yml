@@ -25,3 +25,56 @@ boundary_and_history:
   then: Both searches fail visibly and the historical itinerary remains readable.
   assertion_ids:
   - travel-search.surface-parity
+mixed_routes:
+- id: travel-search-mixed-route-munich-zurich
+  given: Alice owns a Deutschland-Ticket and asks for connections from Munich to Zurich next Monday morning.
+  when: The installed providers offer a direct bus for 18.98 EUR, a regional train from Munich to Lindau and a
+    bus from Lindau to Zurich for 8.98 EUR.
+  then: The results also show a route of the regional train to Lindau, covered by her Deutschland-Ticket, and
+    the bus from Lindau to Zurich for 8.98 EUR, with at least 45 minutes to walk from the station to the bus
+    stop. It ranks above the 18.98 EUR bus and says it saves 10.00 EUR and needs two separate tickets.
+  assertion_ids:
+  - travel-search.mixed-routes.pass-hub-composition
+  - travel-search.mixed-routes.total-price-ranking
+- id: travel-search-mixed-route-no-saving
+  given: Bob owns a Deutschland-Ticket and asks for Berlin to Prague; a direct bus costs 14.48 EUR and takes
+    4 hours 40 minutes.
+  when: The only composed route is the regional train to Dresden plus a 14.90 EUR bus, arriving later.
+  then: No composed route is shown, because the direct bus is both cheaper and faster.
+  assertion_ids:
+  - travel-search.mixed-routes.pass-hub-composition
+- id: travel-search-mixed-route-coverage
+  given: A composed route to Lindau uses a EuroCity train for part of the way.
+  when: Alice's Deutschland-Ticket is checked against that part.
+  then: The part is shown as paid or of unknown fare, never as covered, because the pass covers only regional
+    trains.
+  assertion_ids:
+  - travel-search.mixed-routes.pass-coverage-conservative
+- id: travel-search-mixed-route-transfer
+  given: The regional train reaches Lindau at 10:41 and buses to Zurich leave at 11:00 and 11:45.
+  when: Routes are composed through Lindau.
+  then: Only the 11:45 bus is combined, because a change from train to bus needs at least 45 minutes.
+  assertion_ids:
+  - travel-search.mixed-routes.transfer-buffer
+- id: travel-search-mixed-route-tickets
+  input:
+    language: sh
+    code: openmates apps travel search_connections --input '{"origin":"Munich","destination":"Zurich","date":"2026-11-23","transport_methods":["train","bus"],"owned_passes":["deutschland_ticket"]}' --json
+  expect: A composed result lists ticket 1 "Munich -> Lindau, covered by Deutschland-Ticket" and ticket 2
+    "Lindau -> Zurich, 8.98 EUR" with its booking link, and the web card shows the same two tickets.
+  assertion_ids:
+  - travel-search.mixed-routes.per-ticket-display
+- id: travel-search-mixed-route-bounded
+  given: Alice asks the same Munich to Zurich question twice within ten minutes, and later names one provider.
+  when: The searches run.
+  then: The second search reuses the earlier hub searches, and the search that names a provider composes
+    nothing. No provider name appears in the public hub data or copy.
+- id: travel-search-mixed-route-slow-hubs
+  given: Alice owns a Deutschland-Ticket and asks for Munich to Zurich while the hub searches are slow.
+  when: The hub searches have not finished 30 seconds after the providers answered.
+  then: She gets the direct connections ranked by what she pays, without composed routes, instead of a failed
+    search; asking again a little later reuses the hub searches that did finish.
+  assertion_ids:
+  - travel-search.mixed-routes.provider-neutral-and-bounded
+  assertion_ids:
+  - travel-search.mixed-routes.provider-neutral-and-bounded

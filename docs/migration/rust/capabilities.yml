@@ -14,7 +14,7 @@ capabilities:
     status: rust-only
     old: []
     unit: ws
-    note: WebSocket lifecycle decisions (online, connection change, resume, close, pong timeout, periodic retry) run only in the Worker ws unit; the TypeScript reconnect branches, flag and opt-out are deleted. The socket itself stays in the shell.
+    note: WebSocket lifecycle decisions (online, connection change, resume, close, pong timeout, periodic retry) run only in the Worker ws unit; the TypeScript reconnect branches, flag and opt-out are deleted. The socket itself stays in the shell. Received chat frames are also forwarded in order to the shared core (Worker ops ingest_socket_frames and admit_chat via the server-checked session); the TypeScript chat handlers still run beside it until their deletion lane.
     last_commit: c17164fa5b
   apple:
     status: rust-twin
@@ -35,7 +35,7 @@ capabilities:
     - frontend/packages/ui/src/services/authKeyDerivation.ts
     - frontend/packages/ui/src/services/encryption/
     unit: crypto
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists; the measurement opt-out is removed, so flag-on builds always run Rust crypto (round 2); share-link decrypt has a TS-generated vector corpus; key derivation (G-1) and the flag-off delete remain (docs/plans/web-crypto-rust-only)
     last_commit: 06da1b2448
   apple:
     status: rust-twin
@@ -68,12 +68,15 @@ capabilities:
 - id: auth-session
   what: login, session validation, pairing (OPAQUE), logout fences
   web:
-    status: rust-default
+    status: rust-only
     old: []
     unit: auth
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
-      auth unit
-    last_commit: 06da1b2448
+    note: 'Rust-only: login, session check, logout, recovery-key and backup-code login, signup step routing, pair
+      deadlines, 2FA app list and the recovery-key print page run only through the Worker auth unit; deleted the
+      TypeScript arms in authSessionActions.ts, authLoginLogoutActions.ts, signupState.ts, pairSessionStore.ts,
+      pairV2.ts, tfa.ts, recoveryKeyUtils.ts and the Login family, the flag checks, the openmates_rust_auth opt-out
+      and the TypeScript parity tests. rustAuthEnabled() is only the no-window (SSR) guard'
+    last_commit: 1c9cda9073
   apple:
     status: rust-default
     old:
@@ -94,7 +97,7 @@ capabilities:
     - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
     - frontend/packages/ui/src/services/chatSyncMerge.ts
     unit: sync
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists; the measurement opt-out is removed, so flag-on builds make every sync decision (merge, key admission, message keys, updates/recovery policy) in the Rust unit (round 2); the flag-off delete remains
     last_commit: 06da1b2448
   apple:
     status: swift-only
@@ -125,11 +128,11 @@ capabilities:
 - id: chat-list
   what: ordered chat list view model, pins, unread, hidden chats
   web:
-    status: rust-default
+    status: rust-only
     old: []
     unit: chatState
-    note: chatListUnit installed in the chatState unit; the TS chat-list path still exists
-    last_commit: 06da1b2448
+    note: chat list sort/group, selection and URL plans, read state, unread counts, activity, highlights, bookmarks, fork, hide/unhide and history-window transitions run only in the chatState unit; the TypeScript arms and the openmates_rust_core_chatstate opt-out are deleted
+    last_commit: bbe3b37da0
   apple:
     status: rust-default
     old:
@@ -142,10 +145,11 @@ capabilities:
 - id: chat-window
   what: bounded message window, paging, full read
   web:
-    status: ts-only
+    status: rust-default
     old:
     - frontend/packages/ui/src/services/authenticatedChatMessageWindow.ts
-    last_commit: null
+    note: personal saved-chat open, older/around paging (activeChatRustHistory.ts) and the live window (socketFrameForwarder.ts frames and chat admission into the Worker core) run in the core; the TS window still serves team and shared chats, unsynced local chats and the voice-call context (voiceCallMessages.ts)
+    last_commit: 21cab7f8f2
   apple:
     status: rust-default
     old:
@@ -160,8 +164,7 @@ capabilities:
     status: rust-default
     old: []
     unit: sendPrep
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
-      sendPrep unit
+    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists; sendPrep unit; the send-prep E2E counts each Rust preparation op (round 2); the flag-off TypeScript path is deleted at the flip; voice-call turns are built by the core (voiceTurn unit; early-end prepare on turn.likely_end, commit on the final transcript, on the chat state admit_chat loaded) and the page only carries their frames; text-chat send is still TypeScript
     last_commit: 06da1b2448
   apple:
     status: rust-default
@@ -210,8 +213,10 @@ capabilities:
     status: rust-default
     old: []
     unit: drafts
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists;
-      drafts unit
+    note: Every draft save runs in the Rust drafts unit (personal, team, new/unsaved and draft-only chats, and offline
+      boots with a local-read-only client); the TypeScript draft writer is deleted. Still TypeScript, so not rust-only
+      yet - draft deletion and clearing (chatSyncService.sendDeleteDraft, chatDB.deleteDraftOnlyChat) and the offline
+      queue replay (sendersSync.sendOfflineChanges)
     last_commit: 06da1b2448
   apple:
     status: rust-default
@@ -312,12 +317,15 @@ capabilities:
 - id: settings
   what: app settings and memories requests/policy
   web:
-    status: rust-default
-    old:
-    - frontend/packages/ui/src/services/chatSyncServiceHandlersAppSettings.ts
+    status: rust-only
+    old: []
     unit: settings
-    note: Worker unit installed and on by default in dev and production builds; the TypeScript path still exists
-    last_commit: 06da1b2448
+    note: 'Rust-only: request categories, answered guard, request message, key and entry selection, response
+      content, confirm outcome and privacy entry plans run only in the Worker settings unit; deleted
+      appSettingsResponsePolicy.ts, privacyEntryPolicy.ts, the TypeScript planRequestCategories/isRequestAnswered,
+      the flag branch and their parity tests. chatSyncServiceHandlersAppSettings.ts keeps only dialog, IndexedDB,
+      notification and system-message work; formatDisplayName and getAppGradient stay as synchronous display helpers'
+    last_commit: 1c9cda9073
   apple:
     status: rust-twin
     old: []

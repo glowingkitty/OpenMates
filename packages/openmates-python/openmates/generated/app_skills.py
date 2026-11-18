@@ -991,9 +991,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'currently focused remote Project source. Remote execution requires an explicit '
                  'one-run approval or an exact currently enabled command preset; never infer '
                  'approval from Project write mode, chat text, or prior runs. Pass remote commands '
-                 'as argv, never as a composed shell string. When running E2B code the assistant '
-                 'is creating in this same turn, pass the source through files[].code plus '
-                 'entry_path; do not invent a target_embed_',
+                 'as argv, never as a composed shell string. In a focused cloud Project (no '
+                 'connected machine), run installs, builds, tests, linters and dev servers with '
+                 'target e2b plus argv (no files, no test_r',
   'description_key': 'app_skills.code.run.description',
   'output_schema': {'properties': {'results': {'items': {'properties': {'credits_per_minute': {'type': 'integer'},
                                                                         'execution_id': {'type': 'string'},
@@ -1502,10 +1502,12 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'events',
   'app_namespace_py': 'events',
   'app_namespace_ts': 'events',
-  'description': 'Search only official conference schedules for GPN24, 39C3, 38C3 and 37C3. Set '
-                 'conference to the requested event. General city, concert and online event '
-                 'discovery are unavailable. Include past_events only when requested. Never retry '
-                 'another source or fall back to web search.',
+  'description': 'Prefer this over web search for any question about upcoming events or '
+                 'conferences, anywhere: in a city, a country, a region such as Europe, or '
+                 'worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3 and '
+                 '37C3, from their official schedules (set conference only for those). Without a '
+                 'city give only a topic query. Include past_events only when requested. Never '
+                 'retry another source or fall back to web search.',
   'description_key': 'events.search.description',
   'output_schema': {'properties': {'events': {'example': [{'canonical_url': 'https://example.invalid/events/ai',
                                                            'date_end': '2026-09-23T20:00:00+02:00',
@@ -1573,15 +1575,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'type': ['number',
                                                                                                  'null'],
                                                                                         'x-ui': {'basic': False}},
-                                                                       'provider': {'description': 'Official '
+                                                                       'provider': {'description': 'Source '
+                                                                                                   'of '
+                                                                                                   'the '
+                                                                                                   'results '
+                                                                                                   '(an '
+                                                                                                   'official '
                                                                                                    'conference '
-                                                                                                   'schedule '
-                                                                                                   'provider; '
-                                                                                                   'general '
-                                                                                                   'event '
-                                                                                                   'discovery '
-                                                                                                   'is '
-                                                                                                   'unavailable.',
+                                                                                                   'schedule, '
+                                                                                                   'web '
+                                                                                                   'for '
+                                                                                                   'public '
+                                                                                                   'web '
+                                                                                                   'pages, '
+                                                                                                   'or '
+                                                                                                   'an '
+                                                                                                   'installed '
+                                                                                                   'provider).',
                                                                                     'enum': ['auto',
                                                                                              'pretalx',
                                                                                              'GPN24',
@@ -1611,9 +1621,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                    'partial': {'example': False,
                                                'type': 'boolean',
                                                'x-ui': {'basic': False}},
-                                   'provider': {'description': 'Official conference schedule '
-                                                               'provider; general event discovery '
-                                                               'is unavailable.',
+                                   'provider': {'description': 'Source of the results (an official '
+                                                               'conference schedule, web for '
+                                                               'public web pages, or an installed '
+                                                               'provider).',
                                                 'enum': ['auto',
                                                          'pretalx',
                                                          'GPN24',
@@ -1692,15 +1703,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                          'type': ['number',
                                                                                                   'null'],
                                                                                          'x-ui': {'basic': False}},
-                                                                        'provider': {'description': 'Official '
+                                                                        'provider': {'description': 'Source '
+                                                                                                    'of '
+                                                                                                    'the '
+                                                                                                    'results '
+                                                                                                    '(an '
+                                                                                                    'official '
                                                                                                     'conference '
-                                                                                                    'schedule '
-                                                                                                    'provider; '
-                                                                                                    'general '
-                                                                                                    'event '
-                                                                                                    'discovery '
-                                                                                                    'is '
-                                                                                                    'unavailable.',
+                                                                                                    'schedule, '
+                                                                                                    'web '
+                                                                                                    'for '
+                                                                                                    'public '
+                                                                                                    'web '
+                                                                                                    'pages, '
+                                                                                                    'or '
+                                                                                                    'an '
+                                                                                                    'installed '
+                                                                                                    'provider).',
                                                                                      'enum': ['auto',
                                                                                               'pretalx',
                                                                                               'GPN24',
@@ -1735,8 +1754,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                 'type': 'array',
                                                 'x-ui': {'basic': False}}},
                     'type': 'object'},
-  'schema': {'properties': {'provider': {'description': 'Official conference schedule provider; '
-                                                        'general event discovery is unavailable.',
+  'schema': {'properties': {'provider': {'description': 'Source to limit the search to; omit or '
+                                                        'use auto to search public web pages and '
+                                                        'the official schedules. pretalx or a '
+                                                        'conference id searches only that official '
+                                                        'schedule.',
                                          'enum': ['auto',
                                                   'pretalx',
                                                   'GPN24',
@@ -1745,12 +1767,14 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                   '37C3'],
                                          'type': 'string',
                                          'x-ui': {'basic': False}},
-                            'requests': {'description': 'Array of official conference schedule '
-                                                        'searches. Set conference to GPN24, 39C3, '
-                                                        '38C3 or 37C3, or name the conference in '
-                                                        'query. General city and online discovery '
-                                                        'are unavailable. IDs are generated when '
-                                                        'omitted.',
+                            'requests': {'description': 'Array of event searches. Use for upcoming '
+                                                        'events and conferences anywhere: in a '
+                                                        'city (set location), or in a country, a '
+                                                        'region such as Europe or worldwide (omit '
+                                                        'location; results come from public web '
+                                                        'pages). Set conference only for GPN24, '
+                                                        '39C3, 38C3 or 37C3. IDs are generated '
+                                                        'when omitted.',
                                          'items': {'properties': {'concert_tags': {'description': 'Reserved '
                                                                                                   'tags; '
                                                                                                   'no '
@@ -1873,25 +1897,37 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                          'provided.',
                                                                           'type': 'number',
                                                                           'x-ui': {'basic': False}},
-                                                                  'location': {'description': 'Optional '
-                                                                                              'location '
-                                                                                              'text '
-                                                                                              'retained '
+                                                                  'location': {'description': 'City '
+                                                                                              'or '
+                                                                                              'place '
+                                                                                              'to '
+                                                                                              'search '
+                                                                                              'in. '
+                                                                                              'Omit '
                                                                                               'for '
-                                                                                              'compatibility. '
+                                                                                              'a '
+                                                                                              'country, '
+                                                                                              'a '
+                                                                                              'region '
+                                                                                              'such '
+                                                                                              'as '
+                                                                                              'Europe, '
+                                                                                              'or '
+                                                                                              'worldwide '
+                                                                                              'and '
+                                                                                              'give '
+                                                                                              'only '
+                                                                                              'the '
+                                                                                              'topic '
+                                                                                              'in '
+                                                                                              'query. '
                                                                                               'A '
                                                                                               'location '
                                                                                               'alone '
-                                                                                              'does '
-                                                                                              'not '
-                                                                                              'enable '
-                                                                                              'event '
-                                                                                              'discovery; '
-                                                                                              'a '
-                                                                                              'known '
-                                                                                              'conference '
                                                                                               'is '
-                                                                                              'required.',
+                                                                                              'not '
+                                                                                              'a '
+                                                                                              'query.',
                                                                                'type': 'string',
                                                                                'x-ui': {'basic': True}},
                                                                   'lon': {'description': 'Longitude '
@@ -1925,15 +1961,23 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                  'sessions.',
                                                                                   'type': 'boolean',
                                                                                   'x-ui': {'basic': False}},
-                                                                  'provider': {'description': 'Official '
+                                                                  'provider': {'description': 'Source '
+                                                                                              'of '
+                                                                                              'the '
+                                                                                              'results '
+                                                                                              '(an '
+                                                                                              'official '
                                                                                               'conference '
-                                                                                              'schedule '
-                                                                                              'provider; '
-                                                                                              'general '
-                                                                                              'event '
-                                                                                              'discovery '
-                                                                                              'is '
-                                                                                              'unavailable.',
+                                                                                              'schedule, '
+                                                                                              'web '
+                                                                                              'for '
+                                                                                              'public '
+                                                                                              'web '
+                                                                                              'pages, '
+                                                                                              'or '
+                                                                                              'an '
+                                                                                              'installed '
+                                                                                              'provider).',
                                                                                'enum': ['auto',
                                                                                         'pretalx',
                                                                                         'GPN24',
@@ -3996,50 +4040,85 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'For '
                                                                                              'raster '
                                                                                              'output '
-                                                                                             '(output_filetype="png"/"jpg") '
-                                                                                             'with '
-                                                                                             'a '
-                                                                                             'Recraft '
-                                                                                             'model '
-                                                                                             'selected:\n'
+                                                                                             '(output_filetype="png"/"jpg"):\n'
                                                                                              '  '
                                                                                              '"default" '
-                                                                                             'uses '
+                                                                                             '(use '
+                                                                                             'for '
+                                                                                             'every '
+                                                                                             'normal '
+                                                                                             'request, '
+                                                                                             'also '
+                                                                                             'for '
+                                                                                             'changes '
+                                                                                             'of '
+                                                                                             'an '
+                                                                                             'earlier '
+                                                                                             'picture):\n'
+                                                                                             '  '
                                                                                              'Recraft '
                                                                                              'V4.1 '
-                                                                                             '(50 '
-                                                                                             'credits '
-                                                                                             '— '
-                                                                                             'fast, '
-                                                                                             'cost-effective).\n'
+                                                                                             'Flash '
+                                                                                             '(15 '
+                                                                                             'credits, '
+                                                                                             'fast), '
+                                                                                             'or '
+                                                                                             'FLUX.2 '
+                                                                                             '[klein] '
+                                                                                             'edit '
+                                                                                             'when '
+                                                                                             'reference_images '
+                                                                                             'are '
+                                                                                             'given.\n'
                                                                                              '  '
                                                                                              '"max" '
-                                                                                             'uses '
-                                                                                             'Recraft '
-                                                                                             'V4.1 '
-                                                                                             'Pro '
-                                                                                             '(250 '
-                                                                                             'credits '
-                                                                                             '— '
-                                                                                             'high-resolution, '
-                                                                                             'print-ready).\n'
-                                                                                             'For '
-                                                                                             'other '
-                                                                                             'raster '
-                                                                                             'models '
-                                                                                             '(Google '
-                                                                                             'Gemini, '
-                                                                                             'GPT '
-                                                                                             'Image '
-                                                                                             '2, '
-                                                                                             'FLUX), '
-                                                                                             'quality '
-                                                                                             'may '
-                                                                                             'be '
-                                                                                             'handled '
-                                                                                             'by '
+                                                                                             'ONLY '
+                                                                                             'when '
                                                                                              'the '
-                                                                                             'provider.\n',
+                                                                                             'user '
+                                                                                             'explicitly '
+                                                                                             'asks '
+                                                                                             'for '
+                                                                                             'the '
+                                                                                             'highest '
+                                                                                             'quality, '
+                                                                                             'e.g. '
+                                                                                             '"best '
+                                                                                             'quality",\n'
+                                                                                             '  '
+                                                                                             '"highest '
+                                                                                             'quality", '
+                                                                                             '"high '
+                                                                                             'resolution", '
+                                                                                             '"print '
+                                                                                             'quality" '
+                                                                                             'or '
+                                                                                             '"final '
+                                                                                             'version":\n'
+                                                                                             '  '
+                                                                                             'Gemini '
+                                                                                             '3 '
+                                                                                             'Pro '
+                                                                                             'Image '
+                                                                                             '(205 '
+                                                                                             'credits, '
+                                                                                             'also '
+                                                                                             'with '
+                                                                                             'reference_images).\n'
+                                                                                             'When '
+                                                                                             'the '
+                                                                                             'user '
+                                                                                             'saved '
+                                                                                             'another '
+                                                                                             'image '
+                                                                                             'model '
+                                                                                             'in '
+                                                                                             'settings, '
+                                                                                             'quality '
+                                                                                             'selects '
+                                                                                             'that '
+                                                                                             "model's "
+                                                                                             'tier.\n',
                                                                               'enum': ['default',
                                                                                        'max'],
                                                                               'type': 'string',
@@ -6843,6 +6922,90 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'get-docs',
   'skill_method_py': 'get_docs',
   'skill_method_ts': 'getDocs'},
+ {'app_id': 'openmates',
+  'app_namespace_py': 'openmates',
+  'app_namespace_ts': 'openmates',
+  'description': 'Use when the user asks, in any language, to start, open or spawn a new separate '
+                 "chat for a task (for example 'start a new chat for the kitchen quotes'), to run "
+                 'several workstreams in parallel chats, or when a voice call should delegate work '
+                 'to other chats. The new chat appears in the sidebar and the current chat can '
+                 'follow its progress.',
+  'description_key': 'openmates_app.start_chat.description',
+  'schema': {'properties': {'brief': {'description': 'The complete task brief that becomes the '
+                                                     'first user message of the new chat. Include '
+                                                     'all needed context.\n',
+                                      'type': 'string',
+                                      'x-ui': {'basic': True}},
+                            'title': {'description': 'Short title of the new chat.\n',
+                                      'type': 'string',
+                                      'x-ui': {'basic': True}}},
+             'required': ['title', 'brief'],
+             'type': 'object'},
+  'skill_id': 'start-chat',
+  'skill_method_py': 'start_chat',
+  'skill_method_ts': 'startChat'},
+ {'app_id': 'openmates',
+  'app_namespace_py': 'openmates',
+  'app_namespace_ts': 'openmates',
+  'description': 'Use to list the chats that this chat started and their state (starting, running, '
+                 'waiting for user, finished, failed).',
+  'description_key': 'openmates_app.list_spawned_chats.description',
+  'schema': {'properties': {}, 'type': 'object'},
+  'skill_id': 'list-spawned-chats',
+  'skill_method_py': 'list_spawned_chats',
+  'skill_method_ts': 'listSpawnedChats'},
+ {'app_id': 'openmates',
+  'app_namespace_py': 'openmates',
+  'app_namespace_ts': 'openmates',
+  'description': 'Use to read the latest messages of a chat that this chat started, to check its '
+                 'progress or result.',
+  'description_key': 'openmates_app.read_spawned_chat.description',
+  'schema': {'properties': {'limit': {'description': 'Number of latest messages to read, at most '
+                                                     '20.\n',
+                                      'type': 'integer',
+                                      'x-ui': {'basic': True}},
+                            'spawned_chat_id': {'description': 'Id of a chat started by this chat '
+                                                               '(from start-chat or '
+                                                               'list-spawned-chats).\n',
+                                                'type': 'string',
+                                                'x-ui': {'basic': True}}},
+             'required': ['spawned_chat_id'],
+             'type': 'object'},
+  'skill_id': 'read-spawned-chat',
+  'skill_method_py': 'read_spawned_chat',
+  'skill_method_ts': 'readSpawnedChat'},
+ {'app_id': 'openmates',
+  'app_namespace_py': 'openmates',
+  'app_namespace_ts': 'openmates',
+  'description': 'Use to send a follow-up message into a chat that this chat started. Refused '
+                 'while the user is active in that chat or an answer is being written.',
+  'description_key': 'openmates_app.send_to_spawned_chat.description',
+  'schema': {'properties': {'spawned_chat_id': {'description': 'Id of a chat started by this '
+                                                               'chat.\n',
+                                                'type': 'string',
+                                                'x-ui': {'basic': True}},
+                            'text': {'description': 'The message to send.\n',
+                                     'type': 'string',
+                                     'x-ui': {'basic': True}}},
+             'required': ['spawned_chat_id', 'text'],
+             'type': 'object'},
+  'skill_id': 'send-to-spawned-chat',
+  'skill_method_py': 'send_to_spawned_chat',
+  'skill_method_ts': 'sendToSpawnedChat'},
+ {'app_id': 'openmates',
+  'app_namespace_py': 'openmates',
+  'app_namespace_ts': 'openmates',
+  'description': 'Use only in a chat that was started by another chat: report a concise result or '
+                 'question back to the creator chat.',
+  'description_key': 'openmates_app.report_to_creator.description',
+  'schema': {'properties': {'text': {'description': 'Concise report, at most 2000 characters.\n',
+                                     'type': 'string',
+                                     'x-ui': {'basic': True}}},
+             'required': ['text'],
+             'type': 'object'},
+  'skill_id': 'report-to-creator',
+  'skill_method_py': 'report_to_creator',
+  'skill_method_ts': 'reportToCreator'},
  {'app_id': 'pdf',
   'app_namespace_py': 'pdf',
   'app_namespace_ts': 'pdf',
@@ -6958,6 +7121,147 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'search',
   'skill_method_py': 'search',
   'skill_method_ts': 'search'},
+ {'app_id': 'plans',
+  'app_namespace_py': 'plans',
+  'app_namespace_ts': 'plans',
+  'description': 'Draft or update a Specification, spec, PRD or requirements document as an embed '
+                 'for review. Use this whenever the user asks to write, draft, update or review a '
+                 'spec, specification, requirements document or PRD for a feature, product or '
+                 'change. Content is saved by the client into the Project on approval.',
+  'description_key': 'plans.skills.specification.description',
+  'schema': {'properties': {'assumptions': {'description': 'Open assumptions the user has not '
+                                                           'confirmed yet, each stated plainly so '
+                                                           'it can be confirmed or corrected.',
+                                            'items': {'type': 'string'},
+                                            'type': 'array'},
+                            'category': {'description': 'Optional category.', 'type': 'string'},
+                            'design_decisions': {'description': 'Agreed design decisions (screens, '
+                                                                'layout, interaction, data or '
+                                                                'architecture choices) the '
+                                                                'requirements rely on.',
+                                                 'items': {'type': 'string'},
+                                                 'type': 'array'},
+                            'flows': {'description': 'User flows and edge cases with unique ids.',
+                                      'items': {'properties': {'id': {'type': 'string'},
+                                                               'kind': {'enum': ['user_flow',
+                                                                                 'edge_case'],
+                                                                        'type': 'string'},
+                                                               'steps': {'items': {'type': 'string'},
+                                                                         'type': 'array'},
+                                                               'title': {'type': 'string'}},
+                                                'required': ['id', 'title', 'kind'],
+                                                'type': 'object'},
+                                      'type': 'array'},
+                            'outcome': {'description': 'The user-visible outcome the Specification '
+                                                       'delivers.',
+                                        'type': 'string'},
+                            'related_specifications': {'description': 'Other Specifications of the '
+                                                                      'same project this one links '
+                                                                      'to, when the user agreed to '
+                                                                      'a split.',
+                                                       'items': {'properties': {'relation': {'description': 'How '
+                                                                                                            'the '
+                                                                                                            'two '
+                                                                                                            'Specifications '
+                                                                                                            'relate, '
+                                                                                                            'in '
+                                                                                                            'a '
+                                                                                                            'few '
+                                                                                                            'words.',
+                                                                                             'type': 'string'},
+                                                                                'role': {'enum': ['product',
+                                                                                                  'design',
+                                                                                                  'technical'],
+                                                                                         'type': 'string'},
+                                                                                'title': {'type': 'string'}},
+                                                                 'required': ['title'],
+                                                                 'type': 'object'},
+                                                       'type': 'array'},
+                            'requirements': {'description': 'Requirements with unique ids.',
+                                             'items': {'properties': {'example': {'type': 'string'},
+                                                                      'id': {'type': 'string'},
+                                                                      'statement': {'type': 'string'}},
+                                                       'required': ['id', 'statement'],
+                                                       'type': 'object'},
+                                             'type': 'array'},
+                            'role': {'description': 'Only when the user agreed to split a complex '
+                                                    'project into linked Specifications - this '
+                                                    "Specification's role. Omit for a single "
+                                                    'Specification.',
+                                     'enum': ['product', 'design', 'technical'],
+                                     'type': 'string'},
+                            'scope_excluded': {'description': 'What is explicitly out of scope.',
+                                               'items': {'type': 'string'},
+                                               'type': 'array'},
+                            'scope_included': {'description': 'What is in scope.',
+                                               'items': {'type': 'string'},
+                                               'type': 'array'},
+                            'summary': {'description': 'One or two sentence summary.',
+                                        'type': 'string'},
+                            'title': {'description': 'Short Specification title.',
+                                      'type': 'string'}},
+             'required': ['title', 'summary'],
+             'type': 'object'},
+  'skill_id': 'specification',
+  'skill_method_py': 'specification',
+  'skill_method_ts': 'specification'},
+ {'app_id': 'plans',
+  'app_namespace_py': 'plans',
+  'app_namespace_ts': 'plans',
+  'description': 'Draft a Check (verification gate) grouping tests, AI questions and human '
+                 'confirmations. Use this whenever the user asks to draft, define or update a '
+                 'Check, verification check, acceptance check or quality gate, or to group tests '
+                 '(e2e, unit, integration), AI evaluation questions and human confirmations that '
+                 'prove a requirement works; the Check is shown as an embed for review.',
+  'description_key': 'plans.skills.check.description',
+  'schema': {'properties': {'covered_claims': {'description': 'Requirement ids or claims the Check '
+                                                              'covers.',
+                                               'items': {'type': 'string'},
+                                               'type': 'array'},
+                            'description': {'description': 'What the Check proves.',
+                                            'type': 'string'},
+                            'requires_deterministic': {'description': 'True for security, privacy, '
+                                                                      'encryption, permission, '
+                                                                      'migration or exact API '
+                                                                      'claims.',
+                                                       'type': 'boolean'},
+                            'sources': {'description': 'Sources that prove the Check; at least one '
+                                                       'must be required.',
+                                        'items': {'properties': {'instruction': {'description': 'Required '
+                                                                                                'for '
+                                                                                                'human_confirmation.',
+                                                                                 'type': 'string'},
+                                                                 'label': {'type': 'string'},
+                                                                 'question': {'description': 'Required '
+                                                                                             'for '
+                                                                                             'ai_evaluation.',
+                                                                              'type': 'string'},
+                                                                 'role': {'enum': ['required',
+                                                                                   'supporting'],
+                                                                          'type': 'string'},
+                                                                 'source_binding_id': {'type': 'string'},
+                                                                 'source_kind': {'enum': ['e2e',
+                                                                                          'unit',
+                                                                                          'integration',
+                                                                                          'static_analysis',
+                                                                                          'deterministic_audit',
+                                                                                          'ai_evaluation',
+                                                                                          'human_confirmation'],
+                                                                                 'type': 'string'},
+                                                                 'test_target': {'type': 'string'},
+                                                                 'threshold': {'type': 'number'}},
+                                                  'required': ['source_binding_id',
+                                                               'source_kind',
+                                                               'role',
+                                                               'label'],
+                                                  'type': 'object'},
+                                        'type': 'array'},
+                            'title': {'description': 'Short Check title.', 'type': 'string'}},
+             'required': ['title', 'sources'],
+             'type': 'object'},
+  'skill_id': 'check',
+  'skill_method_py': 'check',
+  'skill_method_ts': 'check'},
  {'app_id': 'projects',
   'app_namespace_py': 'projects',
   'app_namespace_ts': 'projects',
@@ -7149,7 +7453,33 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         'Use separate entries for distinct user '
                                                         'requirements, not alternative sorts of '
                                                         'one visual requirement.\n',
-                                         'items': {'properties': {'category': {'description': 'Optional '
+                                         'items': {'properties': {'brand': {'description': 'Brand '
+                                                                                           'of one '
+                                                                                           'exact '
+                                                                                           'product '
+                                                                                           'to '
+                                                                                           'compare '
+                                                                                           'prices '
+                                                                                           'for, '
+                                                                                           'e.g. '
+                                                                                           '"Sony". '
+                                                                                           'Offers '
+                                                                                           'whose '
+                                                                                           'title '
+                                                                                           'lacks '
+                                                                                           'the '
+                                                                                           'brand '
+                                                                                           'are '
+                                                                                           'dropped. '
+                                                                                           'Omit '
+                                                                                           'for '
+                                                                                           'open '
+                                                                                           'product '
+                                                                                           'discovery.\n',
+                                                                            'maxLength': 80,
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
+                                                                  'category': {'description': 'Optional '
                                                                                               'product '
                                                                                               'category.',
                                                                                'enum': ['grocery',
@@ -7175,12 +7505,63 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'baby'],
                                                                                'type': 'string',
                                                                                'x-ui': {'basic': True}},
+                                                                  'condition': {'default': 'any',
+                                                                                'description': 'Offer '
+                                                                                               'condition: '
+                                                                                               '"used" '
+                                                                                               'for '
+                                                                                               'second-hand '
+                                                                                               'or '
+                                                                                               '"used '
+                                                                                               'nearby" '
+                                                                                               'questions, '
+                                                                                               '"new" '
+                                                                                               'when '
+                                                                                               'the '
+                                                                                               'user '
+                                                                                               'wants '
+                                                                                               'new, '
+                                                                                               'otherwise '
+                                                                                               '"any".\n',
+                                                                                'enum': ['any',
+                                                                                         'new',
+                                                                                         'used'],
+                                                                                'type': 'string',
+                                                                                'x-ui': {'basic': True}},
                                                                   'country': {'description': 'Optional '
                                                                                              'destination '
                                                                                              'country '
                                                                                              'code.',
                                                                               'type': 'string',
                                                                               'x-ui': {'basic': False}},
+                                                                  'location': {'description': 'Postal '
+                                                                                              'code '
+                                                                                              'or '
+                                                                                              'city '
+                                                                                              'for '
+                                                                                              'nearby '
+                                                                                              '(pickup) '
+                                                                                              'offers, '
+                                                                                              'e.g. '
+                                                                                              '"10115" '
+                                                                                              'or '
+                                                                                              '"Berlin". '
+                                                                                              'Only '
+                                                                                              'when '
+                                                                                              'the '
+                                                                                              'user '
+                                                                                              'names '
+                                                                                              'a '
+                                                                                              'place '
+                                                                                              'or '
+                                                                                              'asks '
+                                                                                              'for '
+                                                                                              'offers '
+                                                                                              'near '
+                                                                                              'them.\n',
+                                                                               'maxLength': 120,
+                                                                               'type': 'string',
+                                                                               'x-ui': {'basic': True}},
                                                                   'max_price': {'description': 'Optional '
                                                                                                'maximum '
                                                                                                'price '
@@ -7238,6 +7619,43 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'currency.',
                                                                                 'type': 'number',
                                                                                 'x-ui': {'basic': False}},
+                                                                  'model': {'description': 'Model '
+                                                                                           'of one '
+                                                                                           'exact '
+                                                                                           'product, '
+                                                                                           'ideally '
+                                                                                           'its '
+                                                                                           'model '
+                                                                                           'number, '
+                                                                                           'e.g. '
+                                                                                           '"WH-1000XM5". '
+                                                                                           'Offers '
+                                                                                           'whose '
+                                                                                           'title '
+                                                                                           'lacks '
+                                                                                           'a '
+                                                                                           'model '
+                                                                                           'token '
+                                                                                           'with a '
+                                                                                           'digit '
+                                                                                           'are '
+                                                                                           'dropped, '
+                                                                                           'so '
+                                                                                           'accessories '
+                                                                                           'and '
+                                                                                           'neighbouring '
+                                                                                           'models '
+                                                                                           'do not '
+                                                                                           'appear '
+                                                                                           'as the '
+                                                                                           'cheapest '
+                                                                                           'offer. '
+                                                                                           'Omit '
+                                                                                           'when '
+                                                                                           'unknown.\n',
+                                                                            'maxLength': 120,
+                                                                            'type': 'string',
+                                                                            'x-ui': {'basic': True}},
                                                                   'query': {'description': 'Search '
                                                                                            'query, '
                                                                                            'e.g. '
@@ -7249,6 +7667,18 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                            'mouse".\n',
                                                                             'type': 'string',
                                                                             'x-ui': {'basic': True}},
+                                                                  'radius_km': {'description': 'Search '
+                                                                                               'radius '
+                                                                                               'around '
+                                                                                               '`location` '
+                                                                                               'in '
+                                                                                               'km '
+                                                                                               '(default '
+                                                                                               '25).',
+                                                                                'maximum': 200,
+                                                                                'minimum': 1,
+                                                                                'type': 'integer',
+                                                                                'x-ui': {'basic': False}},
                                                                   'reference_images': {'description': 'Up '
                                                                                                       'to '
                                                                                                       'three '
@@ -7376,14 +7806,31 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                          'type': 'string',
                                                                                          'x-ui': {'basic': True}},
                                                                   'sort': {'default': 'relevance',
-                                                                           'description': 'Requested '
-                                                                                          'result '
-                                                                                          'ordering '
-                                                                                          'when '
-                                                                                          'product '
-                                                                                          'search '
-                                                                                          'becomes '
-                                                                                          'available.',
+                                                                           'description': 'Result '
+                                                                                          'order. '
+                                                                                          '"price_asc" '
+                                                                                          'returns '
+                                                                                          'offers '
+                                                                                          'from '
+                                                                                          'all '
+                                                                                          'shops '
+                                                                                          'cheapest '
+                                                                                          'first '
+                                                                                          'by '
+                                                                                          'total '
+                                                                                          'price '
+                                                                                          'including '
+                                                                                          'shipping; '
+                                                                                          'use it '
+                                                                                          'for '
+                                                                                          '"cheapest", '
+                                                                                          '"best '
+                                                                                          'price" '
+                                                                                          'and '
+                                                                                          '"where '
+                                                                                          'can I '
+                                                                                          'buy '
+                                                                                          'it".\n',
                                                                            'enum': ['relevance',
                                                                                     'price_asc',
                                                                                     'price_desc',
@@ -8254,23 +8701,95 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                   'the '
                                                                                                   'traveller '
                                                                                                   'already '
-                                                                                                  'owns, '
-                                                                                                  'such '
-                                                                                                  'as '
-                                                                                                  '"deutschland_ticket". '
-                                                                                                  'Use '
-                                                                                                  'for '
-                                                                                                  'pass-aware '
-                                                                                                  'train '
-                                                                                                  'pricing '
-                                                                                                  'when '
+                                                                                                  'owns: '
+                                                                                                  '"deutschland_ticket", '
+                                                                                                  '"klimaticket_oesterreich" '
+                                                                                                  'or '
+                                                                                                  '"swiss_ga". '
+                                                                                                  'Pass '
+                                                                                                  'them '
+                                                                                                  'whenever '
                                                                                                   'the '
                                                                                                   'user '
                                                                                                   'says '
                                                                                                   'they '
                                                                                                   'have '
+                                                                                                  'one. '
+                                                                                                  'For '
                                                                                                   'a '
-                                                                                                  'Deutschlandticket.\n',
+                                                                                                  'trip '
+                                                                                                  'leaving '
+                                                                                                  'the '
+                                                                                                  'pass '
+                                                                                                  'area '
+                                                                                                  'the '
+                                                                                                  'search '
+                                                                                                  'then '
+                                                                                                  'also '
+                                                                                                  'adds '
+                                                                                                  'mixed '
+                                                                                                  'routes: '
+                                                                                                  'the '
+                                                                                                  'pass-covered '
+                                                                                                  'regional '
+                                                                                                  'train '
+                                                                                                  'to '
+                                                                                                  'a '
+                                                                                                  'transfer '
+                                                                                                  'hub '
+                                                                                                  'plus '
+                                                                                                  'a '
+                                                                                                  'paid '
+                                                                                                  'ticket '
+                                                                                                  'from '
+                                                                                                  'there, '
+                                                                                                  'ranked '
+                                                                                                  'by '
+                                                                                                  'the '
+                                                                                                  'amount '
+                                                                                                  'actually '
+                                                                                                  'paid. '
+                                                                                                  'Such '
+                                                                                                  'a '
+                                                                                                  'result '
+                                                                                                  'has '
+                                                                                                  '"tickets" '
+                                                                                                  '(one '
+                                                                                                  'per '
+                                                                                                  'part) '
+                                                                                                  'and '
+                                                                                                  '"route_composition"; '
+                                                                                                  'tell '
+                                                                                                  'the '
+                                                                                                  'user '
+                                                                                                  'it '
+                                                                                                  'needs '
+                                                                                                  'separate '
+                                                                                                  'tickets, '
+                                                                                                  'which '
+                                                                                                  'part '
+                                                                                                  'the '
+                                                                                                  'pass '
+                                                                                                  'covers, '
+                                                                                                  'the '
+                                                                                                  'price '
+                                                                                                  'of '
+                                                                                                  'the '
+                                                                                                  'paid '
+                                                                                                  'part, '
+                                                                                                  'the '
+                                                                                                  'transfer '
+                                                                                                  'time '
+                                                                                                  'at '
+                                                                                                  'the '
+                                                                                                  'hub '
+                                                                                                  'and '
+                                                                                                  'the '
+                                                                                                  'saving '
+                                                                                                  'when '
+                                                                                                  'one '
+                                                                                                  'is '
+                                                                                                  'given.\n',
                                                                                    'items': {'type': 'string'},
                                                                                    'type': 'array',
                                                                                    'x-ui': {'basic': False}},
@@ -10609,7 +11128,7 @@ class CodeAppSkills:
         return self._run_skill("code", "remove_secrets", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def run(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Run code in an isolated E2B sandbox or propose an exact command for the currently focused remote Project source. Remote execution requires an explicit one-run approval or an exact currently enabled command preset; never infer approval from Project write mode, chat text, or prior runs. Pass remote commands as argv, never as a composed shell string. When running E2B code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_
+        """Run code in an isolated E2B sandbox or propose an exact command for the currently focused remote Project source. Remote execution requires an explicit one-run approval or an exact currently enabled command preset; never infer approval from Project write mode, chat text, or prior runs. Pass remote commands as argv, never as a composed shell string. In a focused cloud Project (no connected machine), run installs, builds, tests, linters and dev servers with target e2b plus argv (no files, no test_r
 
         Description key: app_skills.code.run.description
         Skill: code/run
@@ -10653,7 +11172,7 @@ class EventsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search only official conference schedules for GPN24, 39C3, 38C3 and 37C3. Set conference to the requested event. General city, concert and online event discovery are unavailable. Include past_events only when requested. Never retry another source or fall back to web search.
+        """Prefer this over web search for any question about upcoming events or conferences, anywhere: in a city, a country, a region such as Europe, or worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3 and 37C3, from their official schedules (set conference only for those). Without a city give only a topic query. Include past_events only when requested. Never retry another source or fall back to web search.
 
         Description key: events.search.description
         Skill: events/search
@@ -10844,6 +11363,38 @@ class OpenmatesAppSkills:
         """
         return self._run_skill("openmates", "get-docs", input_data, prompt_injection_protection=prompt_injection_protection)
 
+    def list_spawned_chats(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Use to list the chats that this chat started and their state (starting, running, waiting for user, finished, failed).
+
+        Description key: openmates_app.list_spawned_chats.description
+        Skill: openmates/list-spawned-chats
+        """
+        return self._run_skill("openmates", "list-spawned-chats", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def read_spawned_chat(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Use to read the latest messages of a chat that this chat started, to check its progress or result.
+
+        Description key: openmates_app.read_spawned_chat.description
+        Skill: openmates/read-spawned-chat
+        """
+        return self._run_skill("openmates", "read-spawned-chat", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def report_to_creator(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Use only in a chat that was started by another chat: report a concise result or question back to the creator chat.
+
+        Description key: openmates_app.report_to_creator.description
+        Skill: openmates/report-to-creator
+        """
+        return self._run_skill("openmates", "report-to-creator", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def send_to_spawned_chat(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Use to send a follow-up message into a chat that this chat started. Refused while the user is active in that chat or an answer is being written.
+
+        Description key: openmates_app.send_to_spawned_chat.description
+        Skill: openmates/send-to-spawned-chat
+        """
+        return self._run_skill("openmates", "send-to-spawned-chat", input_data, prompt_injection_protection=prompt_injection_protection)
+
     def share_usecase(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Use when the user has explicitly agreed to anonymously share a summary of their intended use cases with the OpenMates team to help improve the product. NEVER call this without clear user consent.
 
@@ -10851,6 +11402,14 @@ class OpenmatesAppSkills:
         Skill: openmates/share-usecase
         """
         return self._run_skill("openmates", "share-usecase", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def start_chat(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Use when the user asks, in any language, to start, open or spawn a new separate chat for a task (for example 'start a new chat for the kitchen quotes'), to run several workstreams in parallel chats, or when a voice call should delegate work to other chats. The new chat appears in the sidebar and the current chat can follow its progress.
+
+        Description key: openmates_app.start_chat.description
+        Skill: openmates/start-chat
+        """
+        return self._run_skill("openmates", "start-chat", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class PdfAppSkills:
     def __init__(self, run_skill: SkillRunner):
@@ -10884,6 +11443,14 @@ class PlansAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
+    def check(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Draft a Check (verification gate) grouping tests, AI questions and human confirmations. Use this whenever the user asks to draft, define or update a Check, verification check, acceptance check or quality gate, or to group tests (e2e, unit, integration), AI evaluation questions and human confirmations that prove a requirement works; the Check is shown as an embed for review.
+
+        Description key: plans.skills.check.description
+        Skill: plans/check
+        """
+        return self._run_skill("plans", "check", input_data, prompt_injection_protection=prompt_injection_protection)
+
     def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
 
@@ -10899,6 +11466,14 @@ class PlansAppSkills:
         Skill: plans/search
         """
         return self._run_skill("plans", "search", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def specification(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Draft or update a Specification, spec, PRD or requirements document as an embed for review. Use this whenever the user asks to write, draft, update or review a spec, specification, requirements document or PRD for a feature, product or change. Content is saved by the client into the Project on approval.
+
+        Description key: plans.skills.specification.description
+        Skill: plans/specification
+        """
+        return self._run_skill("plans", "specification", input_data, prompt_injection_protection=prompt_injection_protection)
 
 class ProjectsAppSkills:
     def __init__(self, run_skill: SkillRunner):

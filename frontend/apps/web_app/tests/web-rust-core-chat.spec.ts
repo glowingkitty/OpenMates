@@ -58,14 +58,12 @@ test.afterEach(async ({ page }: { page: any }, testInfo: any) => {
 /** Paired ABBA send samples (plus one discarded warm-up pair): 12 sends stay under the per-account chat limit of one run. */
 const SEND_PAIRS = 5;
 const HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
-// Measurement-only opt-out of the Rust crypto unit (webCryptoRegistration.ts).
-const CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
 
-/** TS runs opt out of Rust history and Rust crypto; Rust runs use both. */
+/** TS runs opt out of Rust history; the crypto unit is always Rust. */
 async function selectPath(page: any, path: 'ts' | 'rust'): Promise<void> {
 	await page.evaluate(([keys, value]: [string[], string | null]) => {
 		for (const key of keys) { if (value) localStorage.setItem(key, value); else localStorage.removeItem(key); }
-	}, [[HISTORY_OPT_OUT_KEY, CRYPTO_OPT_OUT_KEY], path === 'ts' ? 'ts' : null]);
+	}, [[HISTORY_OPT_OUT_KEY], path === 'ts' ? 'ts' : null]);
 }
 
 const median = (rows: Array<Record<string, unknown>>, path: string, key: string) => {

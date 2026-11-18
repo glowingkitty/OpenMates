@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import asyncio
 import re
+from typing import Optional
 from uuid import uuid4
 
-from backend.shared.providers.typesafe.client import JevDecisionClient
+from backend.apps.ai.utils.internal_decisions import decision_client_for_policy
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
 from backend.shared.providers.typesafe.models import ChoiceAnswer
 from backend.shared.python_utils.public_images import download_public_image
 
@@ -67,7 +69,8 @@ def _fallback_preferences(criteria):
     return output
 
 
-async def resolve_home_preferences(request: dict, *, secrets_manager) -> dict:
+async def resolve_home_preferences(request: dict, *, secrets_manager,
+                                   policy: Optional[InternalLlmPolicy] = None) -> dict:
     """Resolve only material amenities; explicit structured lists take precedence."""
     result = dict(request)
     for field in LIST_FIELDS:
@@ -82,8 +85,8 @@ async def resolve_home_preferences(request: dict, *, secrets_manager) -> dict:
         result.update(fallback)
         return result
     try:
-        client = JevDecisionClient(secrets_manager=secrets_manager, max_retries=0,
-                                   telemetry_purpose="home_preferences")
+        client = decision_client_for_policy(policy, secrets_manager=secrets_manager, max_retries=0,
+                                            purpose="home_preferences")
         choices = ("required", "preferred", "excluded", "not_requested")
         response = await asyncio.wait_for(client.evaluate(
             state={"task": "home_preferences", "untrusted_user_criteria": criteria,
@@ -170,7 +173,7 @@ def _merge(listing, features, text, visual, indices, count, total, evaluated, ex
 
 
 async def assess_home_evidence(listings: list[dict], *, request: dict, secrets_manager,
-                               cache_service=None) -> list[str]:
+                               cache_service=None, policy: Optional[InternalLlmPolicy] = None) -> list[str]:
     """Mutate only derived evidence; preserve every original gallery and fact.
 
     No raw or prepared image cache is written. Optional cache_service is accepted
@@ -200,8 +203,8 @@ async def assess_home_evidence(listings: list[dict], *, request: dict, secrets_m
         _merge(listing, features, {}, {}, {}, 0, len(gallery), False, excluded)
     if secrets_manager is None:
         return warnings + ["Text and photo assessment unavailable: decision provider is not configured."]
-    client = JevDecisionClient(secrets_manager=secrets_manager, max_retries=0,
-                               telemetry_purpose="home_amenity_evidence")
+    client = decision_client_for_policy(policy, secrets_manager=secrets_manager, needs_images=bool(visual_enabled),
+                                        max_retries=0, purpose="home_amenity_evidence")
     semaphore = asyncio.Semaphore(3)
     failures = []
 

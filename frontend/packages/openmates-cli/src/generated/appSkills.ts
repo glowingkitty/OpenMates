@@ -1497,7 +1497,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "code",
     "skill_method_py": "run",
     "description_key": "app_skills.code.run.description",
-    "description": "Run code in an isolated E2B sandbox or propose an exact command for the currently focused remote Project source. Remote execution requires an explicit one-run approval or an exact currently enabled command preset; never infer approval from Project write mode, chat text, or prior runs. Pass remote commands as argv, never as a composed shell string. When running E2B code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_",
+    "description": "Run code in an isolated E2B sandbox or propose an exact command for the currently focused remote Project source. Remote execution requires an explicit one-run approval or an exact currently enabled command preset; never infer approval from Project write mode, chat text, or prior runs. Pass remote commands as argv, never as a composed shell string. In a focused cloud Project (no connected machine), run installs, builds, tests, linters and dev servers with target e2b plus argv (no files, no test_r",
     "schema": {
       "type": "object",
       "properties": {
@@ -2080,7 +2080,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "events",
     "skill_method_py": "search",
     "description_key": "events.search.description",
-    "description": "Search only official conference schedules for GPN24, 39C3, 38C3 and 37C3. Set conference to the requested event. General city, concert and online event discovery are unavailable. Include past_events only when requested. Never retry another source or fall back to web search.",
+    "description": "Prefer this over web search for any question about upcoming events or conferences, anywhere: in a city, a country, a region such as Europe, or worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3 and 37C3, from their official schedules (set conference only for those). Without a city give only a topic query. Include past_events only when requested. Never retry another source or fall back to web search.",
     "schema": {
       "type": "object",
       "properties": {
@@ -2089,7 +2089,7 @@ export const APP_SKILL_METADATA = [
             "basic": false
           },
           "type": "string",
-          "description": "Official conference schedule provider; general event discovery is unavailable.",
+          "description": "Source to limit the search to; omit or use auto to search public web pages and the official schedules. pretalx or a conference id searches only that official schedule.",
           "enum": [
             "auto",
             "pretalx",
@@ -2104,7 +2104,7 @@ export const APP_SKILL_METADATA = [
             "basic": true
           },
           "type": "array",
-          "description": "Array of official conference schedule searches. Set conference to GPN24, 39C3, 38C3 or 37C3, or name the conference in query. General city and online discovery are unavailable. IDs are generated when omitted.",
+          "description": "Array of event searches. Use for upcoming events and conferences anywhere: in a city (set location), or in a country, a region such as Europe or worldwide (omit location; results come from public web pages). Set conference only for GPN24, 39C3, 38C3 or 37C3. IDs are generated when omitted.",
           "items": {
             "type": "object",
             "x-ui": {
@@ -2127,7 +2127,7 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "string",
-                "description": "Optional location text retained for compatibility. A location alone does not enable event discovery; a known conference is required."
+                "description": "City or place to search in. Omit for a country, a region such as Europe, or worldwide and give only the topic in query. A location alone is not a query."
               },
               "lat": {
                 "x-ui": {
@@ -2199,7 +2199,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "string",
-                "description": "Official conference schedule provider; general event discovery is unavailable.",
+                "description": "Source of the results (an official conference schedule, web for public web pages, or an installed provider).",
                 "enum": [
                   "auto",
                   "pretalx",
@@ -2292,7 +2292,7 @@ export const APP_SKILL_METADATA = [
             "38C3",
             "37C3"
           ],
-          "description": "Official conference schedule provider; general event discovery is unavailable."
+          "description": "Source of the results (an official conference schedule, web for public web pages, or an installed provider)."
         },
         "results": {
           "x-ui": {
@@ -2351,7 +2351,7 @@ export const APP_SKILL_METADATA = [
                   "38C3",
                   "37C3"
                 ],
-                "description": "Official conference schedule provider; general event discovery is unavailable."
+                "description": "Source of the results (an official conference schedule, web for public web pages, or an installed provider)."
               },
               "description": {
                 "x-ui": {
@@ -2488,7 +2488,7 @@ export const APP_SKILL_METADATA = [
                   "38C3",
                   "37C3"
                 ],
-                "description": "Official conference schedule provider; general event discovery is unavailable."
+                "description": "Source of the results (an official conference schedule, web for public web pages, or an installed provider)."
               },
               "description": {
                 "x-ui": {
@@ -4771,7 +4771,7 @@ export const APP_SKILL_METADATA = [
                   "basic": true
                 },
                 "type": "string",
-                "description": "Generation quality.\nFor SVG output with vector_engine \"llm\" or \"script\": \"max\" lets the vector author reason longer\n(for complex, multi-part drawings; costs more tokens).\nFor SVG output with vector_engine \"recraft\":\n  \"default\" uses Recraft V4.1 Vector (100 credits \u2014 good for web/UI use).\n  \"max\" uses Recraft V4.1 Pro Vector (300 credits \u2014 best for print, large-format,\n  or highly detailed vector illustrations).\nFor raster output (output_filetype=\"png\"/\"jpg\") with a Recraft model selected:\n  \"default\" uses Recraft V4.1 (50 credits \u2014 fast, cost-effective).\n  \"max\" uses Recraft V4.1 Pro (250 credits \u2014 high-resolution, print-ready).\nFor other raster models (Google Gemini, GPT Image 2, FLUX), quality may be handled by the provider.\n",
+                "description": "Generation quality.\nFor SVG output with vector_engine \"llm\" or \"script\": \"max\" lets the vector author reason longer\n(for complex, multi-part drawings; costs more tokens).\nFor SVG output with vector_engine \"recraft\":\n  \"default\" uses Recraft V4.1 Vector (100 credits \u2014 good for web/UI use).\n  \"max\" uses Recraft V4.1 Pro Vector (300 credits \u2014 best for print, large-format,\n  or highly detailed vector illustrations).\nFor raster output (output_filetype=\"png\"/\"jpg\"):\n  \"default\" (use for every normal request, also for changes of an earlier picture):\n  Recraft V4.1 Flash (15 credits, fast), or FLUX.2 [klein] edit when reference_images are given.\n  \"max\" ONLY when the user explicitly asks for the highest quality, e.g. \"best quality\",\n  \"highest quality\", \"high resolution\", \"print quality\" or \"final version\":\n  Gemini 3 Pro Image (205 credits, also with reference_images).\nWhen the user saved another image model in settings, quality selects that model's tier.\n",
                 "enum": [
                   "default",
                   "max"
@@ -6885,6 +6885,143 @@ export const APP_SKILL_METADATA = [
     }
   },
   {
+    "app_id": "openmates",
+    "skill_id": "start-chat",
+    "app_namespace_ts": "openmates",
+    "skill_method_ts": "startChat",
+    "app_namespace_py": "openmates",
+    "skill_method_py": "start_chat",
+    "description_key": "openmates_app.start_chat.description",
+    "description": "Use when the user asks, in any language, to start, open or spawn a new separate chat for a task (for example 'start a new chat for the kitchen quotes'), to run several workstreams in parallel chats, or when a voice call should delegate work to other chats. The new chat appears in the sidebar and the current chat can follow its progress.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "string",
+          "description": "Short title of the new chat.\n"
+        },
+        "brief": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "string",
+          "description": "The complete task brief that becomes the first user message of the new chat. Include all needed context.\n"
+        }
+      },
+      "required": [
+        "title",
+        "brief"
+      ]
+    }
+  },
+  {
+    "app_id": "openmates",
+    "skill_id": "list-spawned-chats",
+    "app_namespace_ts": "openmates",
+    "skill_method_ts": "listSpawnedChats",
+    "app_namespace_py": "openmates",
+    "skill_method_py": "list_spawned_chats",
+    "description_key": "openmates_app.list_spawned_chats.description",
+    "description": "Use to list the chats that this chat started and their state (starting, running, waiting for user, finished, failed).",
+    "schema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "app_id": "openmates",
+    "skill_id": "read-spawned-chat",
+    "app_namespace_ts": "openmates",
+    "skill_method_ts": "readSpawnedChat",
+    "app_namespace_py": "openmates",
+    "skill_method_py": "read_spawned_chat",
+    "description_key": "openmates_app.read_spawned_chat.description",
+    "description": "Use to read the latest messages of a chat that this chat started, to check its progress or result.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "spawned_chat_id": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "string",
+          "description": "Id of a chat started by this chat (from start-chat or list-spawned-chats).\n"
+        },
+        "limit": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "integer",
+          "description": "Number of latest messages to read, at most 20.\n"
+        }
+      },
+      "required": [
+        "spawned_chat_id"
+      ]
+    }
+  },
+  {
+    "app_id": "openmates",
+    "skill_id": "send-to-spawned-chat",
+    "app_namespace_ts": "openmates",
+    "skill_method_ts": "sendToSpawnedChat",
+    "app_namespace_py": "openmates",
+    "skill_method_py": "send_to_spawned_chat",
+    "description_key": "openmates_app.send_to_spawned_chat.description",
+    "description": "Use to send a follow-up message into a chat that this chat started. Refused while the user is active in that chat or an answer is being written.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "spawned_chat_id": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "string",
+          "description": "Id of a chat started by this chat.\n"
+        },
+        "text": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "string",
+          "description": "The message to send.\n"
+        }
+      },
+      "required": [
+        "spawned_chat_id",
+        "text"
+      ]
+    }
+  },
+  {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator",
+    "app_namespace_ts": "openmates",
+    "skill_method_ts": "reportToCreator",
+    "app_namespace_py": "openmates",
+    "skill_method_py": "report_to_creator",
+    "description_key": "openmates_app.report_to_creator.description",
+    "description": "Use only in a chat that was started by another chat: report a concise result or question back to the creator chat.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "x-ui": {
+            "basic": true
+          },
+          "type": "string",
+          "description": "Concise report, at most 2000 characters.\n"
+        }
+      },
+      "required": [
+        "text"
+      ]
+    }
+  },
+  {
     "app_id": "pdf",
     "skill_id": "read",
     "app_namespace_ts": "pdf",
@@ -7028,6 +7165,252 @@ export const APP_SKILL_METADATA = [
       },
       "required": [
         "query"
+      ]
+    }
+  },
+  {
+    "app_id": "plans",
+    "skill_id": "specification",
+    "app_namespace_ts": "plans",
+    "skill_method_ts": "specification",
+    "app_namespace_py": "plans",
+    "skill_method_py": "specification",
+    "description_key": "plans.skills.specification.description",
+    "description": "Draft or update a Specification, spec, PRD or requirements document as an embed for review. Use this whenever the user asks to write, draft, update or review a spec, specification, requirements document or PRD for a feature, product or change. Content is saved by the client into the Project on approval.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Short Specification title."
+        },
+        "summary": {
+          "type": "string",
+          "description": "One or two sentence summary."
+        },
+        "outcome": {
+          "type": "string",
+          "description": "The user-visible outcome the Specification delivers."
+        },
+        "category": {
+          "type": "string",
+          "description": "Optional category."
+        },
+        "scope_included": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What is in scope."
+        },
+        "scope_excluded": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "What is explicitly out of scope."
+        },
+        "requirements": {
+          "type": "array",
+          "description": "Requirements with unique ids.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "statement": {
+                "type": "string"
+              },
+              "example": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "statement"
+            ]
+          }
+        },
+        "flows": {
+          "type": "array",
+          "description": "User flows and edge cases with unique ids.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user_flow",
+                  "edge_case"
+                ]
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "kind"
+            ]
+          }
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "product",
+            "design",
+            "technical"
+          ],
+          "description": "Only when the user agreed to split a complex project into linked Specifications - this Specification's role. Omit for a single Specification."
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Open assumptions the user has not confirmed yet, each stated plainly so it can be confirmed or corrected."
+        },
+        "design_decisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Agreed design decisions (screens, layout, interaction, data or architecture choices) the requirements rely on."
+        },
+        "related_specifications": {
+          "type": "array",
+          "description": "Other Specifications of the same project this one links to, when the user agreed to a split.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "product",
+                  "design",
+                  "technical"
+                ]
+              },
+              "relation": {
+                "type": "string",
+                "description": "How the two Specifications relate, in a few words."
+              }
+            },
+            "required": [
+              "title"
+            ]
+          }
+        }
+      },
+      "required": [
+        "title",
+        "summary"
+      ]
+    }
+  },
+  {
+    "app_id": "plans",
+    "skill_id": "check",
+    "app_namespace_ts": "plans",
+    "skill_method_ts": "check",
+    "app_namespace_py": "plans",
+    "skill_method_py": "check",
+    "description_key": "plans.skills.check.description",
+    "description": "Draft a Check (verification gate) grouping tests, AI questions and human confirmations. Use this whenever the user asks to draft, define or update a Check, verification check, acceptance check or quality gate, or to group tests (e2e, unit, integration), AI evaluation questions and human confirmations that prove a requirement works; the Check is shown as an embed for review.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Short Check title."
+        },
+        "description": {
+          "type": "string",
+          "description": "What the Check proves."
+        },
+        "covered_claims": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Requirement ids or claims the Check covers."
+        },
+        "requires_deterministic": {
+          "type": "boolean",
+          "description": "True for security, privacy, encryption, permission, migration or exact API claims."
+        },
+        "sources": {
+          "type": "array",
+          "description": "Sources that prove the Check; at least one must be required.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source_binding_id": {
+                "type": "string"
+              },
+              "source_kind": {
+                "type": "string",
+                "enum": [
+                  "e2e",
+                  "unit",
+                  "integration",
+                  "static_analysis",
+                  "deterministic_audit",
+                  "ai_evaluation",
+                  "human_confirmation"
+                ]
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "required",
+                  "supporting"
+                ]
+              },
+              "label": {
+                "type": "string"
+              },
+              "test_target": {
+                "type": "string"
+              },
+              "question": {
+                "type": "string",
+                "description": "Required for ai_evaluation."
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "instruction": {
+                "type": "string",
+                "description": "Required for human_confirmation."
+              }
+            },
+            "required": [
+              "source_binding_id",
+              "source_kind",
+              "role",
+              "label"
+            ]
+          }
+        }
+      },
+      "required": [
+        "title",
+        "sources"
       ]
     }
   },
@@ -7337,12 +7720,58 @@ export const APP_SKILL_METADATA = [
                 },
                 "description": "Up to three exact image embed_refs from the conversation, including uploaded and generated images. Authenticated API/CLI callers can supply their uploaded image embed UUIDs. Uses available product photos AND descriptions to rank and filter visual matches; preserves structured product and price results. An empty array leaves normal search behavior unchanged. No raw image URLs or base64. Inspect visual_evaluation and visual_match for unavailable comparisons.\n"
               },
+              "brand": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "maxLength": 80,
+                "description": "Brand of one exact product to compare prices for, e.g. \"Sony\". Offers whose title lacks the brand are dropped. Omit for open product discovery.\n"
+              },
+              "model": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "maxLength": 120,
+                "description": "Model of one exact product, ideally its model number, e.g. \"WH-1000XM5\". Offers whose title lacks a model token with a digit are dropped, so accessories and neighbouring models do not appear as the cheapest offer. Omit when unknown.\n"
+              },
+              "condition": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "enum": [
+                  "any",
+                  "new",
+                  "used"
+                ],
+                "default": "any",
+                "description": "Offer condition: \"used\" for second-hand or \"used nearby\" questions, \"new\" when the user wants new, otherwise \"any\".\n"
+              },
+              "location": {
+                "x-ui": {
+                  "basic": true
+                },
+                "type": "string",
+                "maxLength": 120,
+                "description": "Postal code or city for nearby (pickup) offers, e.g. \"10115\" or \"Berlin\". Only when the user names a place or asks for offers near them.\n"
+              },
+              "radius_km": {
+                "x-ui": {
+                  "basic": false
+                },
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "description": "Search radius around `location` in km (default 25)."
+              },
               "sort": {
                 "x-ui": {
                   "basic": false
                 },
                 "type": "string",
-                "description": "Requested result ordering when product search becomes available.",
+                "description": "Result order. \"price_asc\" returns offers from all shops cheapest first by total price including shipping; use it for \"cheapest\", \"best price\" and \"where can I buy it\".\n",
                 "enum": [
                   "relevance",
                   "price_asc",
@@ -8052,7 +8481,7 @@ export const APP_SKILL_METADATA = [
                   "basic": false
                 },
                 "type": "array",
-                "description": "Fare or mobility pass IDs the traveller already owns, such as \"deutschland_ticket\". Use for pass-aware train pricing when the user says they have a Deutschlandticket.\n",
+                "description": "Fare or mobility pass IDs the traveller already owns: \"deutschland_ticket\", \"klimaticket_oesterreich\" or \"swiss_ga\". Pass them whenever the user says they have one. For a trip leaving the pass area the search then also adds mixed routes: the pass-covered regional train to a transfer hub plus a paid ticket from there, ranked by the amount actually paid. Such a result has \"tickets\" (one per part) and \"route_composition\"; tell the user it needs separate tickets, which part the pass covers, the price of the paid part, the transfer time at the hub and the saving when one is given.\n",
                 "items": {
                   "type": "string"
                 }
@@ -10294,7 +10723,7 @@ export class CodeAppSkills {
     return this.runSkill<T>("code", "remove_secrets", input, options);
   }
   /**
-   * Run code in an isolated E2B sandbox or propose an exact command for the currently focused remote Project source. Remote execution requires an explicit one-run approval or an exact currently enabled command preset; never infer approval from Project write mode, chat text, or prior runs. Pass remote commands as argv, never as a composed shell string. When running E2B code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_
+   * Run code in an isolated E2B sandbox or propose an exact command for the currently focused remote Project source. Remote execution requires an explicit one-run approval or an exact currently enabled command preset; never infer approval from Project write mode, chat text, or prior runs. Pass remote commands as argv, never as a composed shell string. In a focused cloud Project (no connected machine), run installs, builds, tests, linters and dev servers with target e2b plus argv (no files, no test_r
    * Description key: app_skills.code.run.description
    * Skill: code/run
    */
@@ -10347,7 +10776,7 @@ export class EventsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search only official conference schedules for GPN24, 39C3, 38C3 and 37C3. Set conference to the requested event. General city, concert and online event discovery are unavailable. Include past_events only when requested. Never retry another source or fall back to web search.
+   * Prefer this over web search for any question about upcoming events or conferences, anywhere: in a city, a country, a region such as Europe, or worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3 and 37C3, from their official schedules (set conference only for those). Without a city give only a topic query. Include past_events only when requested. Never retry another source or fall back to web search.
    * Description key: events.search.description
    * Skill: events/search
    */
@@ -10581,12 +11010,52 @@ export class OpenmatesAppSkills {
     return this.runSkill<T>("openmates", "get-docs", input, options);
   }
   /**
+   * Use to list the chats that this chat started and their state (starting, running, waiting for user, finished, failed).
+   * Description key: openmates_app.list_spawned_chats.description
+   * Skill: openmates/list-spawned-chats
+   */
+  async listSpawnedChats<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("openmates", "list-spawned-chats", input, options);
+  }
+  /**
+   * Use to read the latest messages of a chat that this chat started, to check its progress or result.
+   * Description key: openmates_app.read_spawned_chat.description
+   * Skill: openmates/read-spawned-chat
+   */
+  async readSpawnedChat<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("openmates", "read-spawned-chat", input, options);
+  }
+  /**
+   * Use only in a chat that was started by another chat: report a concise result or question back to the creator chat.
+   * Description key: openmates_app.report_to_creator.description
+   * Skill: openmates/report-to-creator
+   */
+  async reportToCreator<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("openmates", "report-to-creator", input, options);
+  }
+  /**
+   * Use to send a follow-up message into a chat that this chat started. Refused while the user is active in that chat or an answer is being written.
+   * Description key: openmates_app.send_to_spawned_chat.description
+   * Skill: openmates/send-to-spawned-chat
+   */
+  async sendToSpawnedChat<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("openmates", "send-to-spawned-chat", input, options);
+  }
+  /**
    * Use when the user has explicitly agreed to anonymously share a summary of their intended use cases with the OpenMates team to help improve the product. NEVER call this without clear user consent.
    * Description key: openmates_app.share_usecase.description
    * Skill: openmates/share-usecase
    */
   async shareUsecase<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("openmates", "share-usecase", input, options);
+  }
+  /**
+   * Use when the user asks, in any language, to start, open or spawn a new separate chat for a task (for example 'start a new chat for the kitchen quotes'), to run several workstreams in parallel chats, or when a voice call should delegate work to other chats. The new chat appears in the sidebar and the current chat can follow its progress.
+   * Description key: openmates_app.start_chat.description
+   * Skill: openmates/start-chat
+   */
+  async startChat<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("openmates", "start-chat", input, options);
   }
 }
 
@@ -10627,6 +11096,14 @@ export class PlansAppSkills {
     this.runSkill = runSkill;
   }
   /**
+   * Draft a Check (verification gate) grouping tests, AI questions and human confirmations. Use this whenever the user asks to draft, define or update a Check, verification check, acceptance check or quality gate, or to group tests (e2e, unit, integration), AI evaluation questions and human confirmations that prove a requirement works; the Check is shown as an embed for review.
+   * Description key: plans.skills.check.description
+   * Skill: plans/check
+   */
+  async check<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("plans", "check", input, options);
+  }
+  /**
    * Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
    * Description key: plans.skills.create.description
    * Skill: plans/create
@@ -10641,6 +11118,14 @@ export class PlansAppSkills {
    */
   async search<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("plans", "search", input, options);
+  }
+  /**
+   * Draft or update a Specification, spec, PRD or requirements document as an embed for review. Use this whenever the user asks to write, draft, update or review a spec, specification, requirements document or PRD for a feature, product or change. Content is saved by the client into the Project on approval.
+   * Description key: plans.skills.specification.description
+   * Skill: plans/specification
+   */
+  async specification<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("plans", "specification", input, options);
   }
 }
 

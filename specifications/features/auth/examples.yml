@@ -5,17 +5,17 @@ signup_flows:
   - id: cloud-password-signup-current-steps
     input: {deployment: cloud, login_method: password}
     expect:
-      steps: [alpha_disclaimer, basics, confirm_email, secure_account, password, completion]
+      steps: [basics, confirm_email, secure_account, password, completion]
       forbidden_steps: [credits, payment, auto_top_up]
   - id: cloud-passkey-signup-current-steps
     input: {deployment: cloud, login_method: passkey}
     expect:
-      steps: [alpha_disclaimer, basics, confirm_email, secure_account, completion]
+      steps: [basics, confirm_email, secure_account, completion]
       forbidden_steps: [password, credits, payment, auto_top_up]
   - id: self-host-removes-email-confirmation-only
     input: {deployment: self_hosted, login_method: password, email_verification_required: false}
     expect:
-      steps: [alpha_disclaimer, basics, secure_account, password, completion]
+      steps: [basics, secure_account, password, completion]
       removed_steps: [confirm_email]
       forbidden_steps: [credits, payment, auto_top_up]
 

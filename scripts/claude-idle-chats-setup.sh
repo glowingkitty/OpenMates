@@ -14,7 +14,7 @@ mkdir -p "$SYSTEMD_DIR"
 
 cat > "$SYSTEMD_DIR/openmates-claude-idle-chats.service" <<UNIT
 [Unit]
-Description=Close Claude chat processes idle for more than 3 hours
+Description=Claude chat lifecycle: stop idle chats, enforce the running-chat cap, write counts
 
 [Service]
 Type=oneshot
@@ -25,12 +25,12 @@ UNIT
 
 cat > "$SYSTEMD_DIR/openmates-claude-idle-chats.timer" <<UNIT
 [Unit]
-Description=Close idle Claude chat processes every 30 minutes
+Description=Run the Claude chat lifecycle every 5 minutes
 
 [Timer]
-OnBootSec=10min
-OnActiveSec=10min
-OnUnitActiveSec=30min
+OnBootSec=5min
+OnActiveSec=1min
+OnUnitActiveSec=5min
 AccuracySec=1min
 
 [Install]

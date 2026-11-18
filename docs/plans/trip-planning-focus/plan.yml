@@ -1,0 +1,46 @@
+schema_version: 2
+profile: concise
+id: trip-planning-focus
+title: Travel - Trip planning focus mode
+status: draft
+goal: "Plan a new focus mode for planning a trip: compare several candidate cities or regions (or a vibe, budget and dates) on total cost, travel time, weather and fit and narrow them down; search connections per candidate and per leg of multi-city trips with the existing connection search incl. mixed routes with an owned pass; stays (hotels and hostels) through the existing stay search plus an additional stays provider, with duplicate detection across providers and a per-property price comparison (total incl. taxes and fees, cancellation terms); forecast for near dates and typical weather for later dates, used to adjust the plan; one question at a time, short shortlists, a clear itinerary with embeds, booking todos with deadlines and trip preferences saved to Memories with consent. Deliver this Plan and a Specification draft first; build only after the owner approves the Specification."
+specifications:
+  - feature.focus-modes.trip-planning@1
+  - feature.focus-modes@2
+  - feature.app-skill.travel-search@1
+  - feature.instance-app-packages@1
+inventory:
+  - "Focus modes: shared lifecycle feature.focus-modes@2 (approved): countdown/explicit activation, full instruction per request, versioned phases with Jev requirement gates (one phase at a time in the prompt), Project base plus one specialist layered (both instruction layers apply, specialist shown), context reselection after activation and phase change. Individual focus specs inherit it (pattern: focus-modes/life-compass). Focus source: backend/apps/<app>/focus_modes/<id>/SKILL.md with allowed-skills gating; travel has no focus mode yet."
+  - "Connections: travel search_connections has no built-in provider; operator-installed providers (skill.requests@1) serve it. Mixed routes with owned passes (hub composition, transfer buffers, effective-price ranking, per-ticket parts) are being built in TASK-1047 (plan travel-mixed-routes) through a generic delegate hook (backend/shared/app_packages/delegate_skill.py) and backend/apps/travel/routing/. price_calendar and get_flight exist."
+  - "Stays: travel search_stays is a provider-less stub served by operator-installed providers through skill.requests@1; one installed stays provider today. Installed results are deduplicated only when identical or sharing a provider dedupe_key; no cross-provider property matching or offer comparison exists. Stay embeds (search + child stay card) and StayResult fields (name, gps_coordinates, total_rate, free_cancellation, link, property_type) exist. A per-skill comparison precedent exists for product search (backend/shared/app_packages/price_comparison.py)."
+  - "Weather: weather forecast (DWD via Bright Sky for Germany, Open-Meteo worldwide, up to 14 days, hourly detail in embeds) and rain_radar. No typical-weather/climate-normal skill."
+  - "Supporting: maps search/location embeds and assistant-authored map embeds (source-faithful geometry), tasks create/search, reminder set-reminder, consent-gated assistant memory write (as used by Life compass)."
+scope:
+  - "Focus mode travel/trip_planning (backend/apps/travel/focus_modes/trip-planning/SKILL.md + translations + i18n): phased - 1 brief, 2 compare and choose destinations, 3 connections per leg, 4 stays, 5 itinerary with weather, booking todos and preference Memories. Requirements gate each phase on the user's confirmed choice; one question per reply. allowed-skills: travel search_connections, price_calendar, search_stays; weather forecast and the new typical-weather skill; maps search; events and web search for activities and indoor alternatives; tasks create/search; reminder set-reminder."
+  - "Stay comparison (search_stays behaviour, also outside the focus): after installed providers return, the travel stay skill refines the group through the generic delegate hook: conservative property matching (normalized name plus coordinates within 150 m or matching street address), one property with all offers, per-offer full total incl. taxes and fees, cancellation terms, bed/room type for hostels, offers ordered by known full total. Code in backend/apps/travel/stays/ (no provider names); reads only fields the stay result shape already carries plus optional address, taxes-included and cancellation fields that providers may add (generic skill.requests@1 output, no new per-skill contract)."
+  - "Stay cards (web): property card shows lowest known full total and offer count; fullscreen lists offers with provider, total, taxes/fees status, cancellation terms and link. CLI renders the same fields through the generic embed output. Apple: follow-up parity lane."
+  - "Typical-weather skill weather/climate: per place and date range beyond the forecast horizon, aggregates the same calendar window over the last 10 years from Open-Meteo's documented Historical Weather API (ERA5 reanalysis, https://open-meteo.com/en/docs/historical-weather-api): usual high/low, share of rain, snow, heat and storm-gust days, sunshine hours; labelled typical, not a forecast; 30-day cache per place and window. New embed type (preview + fullscreen) in the weather app."
+  - "Disruption risk from the existing forecast: thresholds for heavy rain, heat, storm gusts, snow and thunderstorm per day plus official warnings where the source supplies them, used by the focus to flag travel days and swap outdoor items; no new provider."
+  - "Additional stays provider: an operator-installed package outside the public repository (skill.requests@1, personal use on the dev server, polite rate, no anti-bot circumvention, no proxies). The public repo, docs, tests and commit messages stay provider-neutral (operator-installed providers, synthetic names)."
+  - "Out: booking/payment, a dedicated itinerary embed type, stored travel passes, visa/health advice, Apple-specific trip UI beyond catalog and card parity, production enablement."
+phases:
+  - "P0 (this chat): inventory, Plan and Specification draft; owner approval. No product code."
+  - "P1 backend: typical-weather skill + provider wrapper + embed contract; stay comparison module and delegate wiring (after TASK-1047 deploys the hook); disruption-risk helper. Real REST proof on dev."
+  - "P2 focus: SKILL.md with phases and allowed skills, i18n, translations; real dev CLI persona chats (city comparison, vibe-only, multi-city with pass, far-future trip, storm day, todos, memory consent)."
+  - "P3 web: stay offers card/fullscreen and typical-weather embed via /dev/preview component specs first, then a real-inference web E2E of a full trip plan on phone and laptop with video."
+  - "P4 private provider: stays package outside the repo, installed with openmates server apps install on dev only; proof shared in chat/Tasks only."
+  - "P5 follow-ups as Tasks: Apple parity for stay offers and typical-weather card; feature overview entries."
+checks:
+  - "specifications.py validate for the trip-planning bundle; plan_validate.py for this Plan."
+  - "Backend pytest with synthetic fixtures: property matching (merge and non-merge cases), offer totals/taxes/cancellation ordering, climate aggregation and labels, disruption thresholds."
+  - "Real REST proof on api.dev for weather climate (happy path, invalid date range, rate limit) and search_stays with two installed providers returning a shared property."
+  - "Real dev CLI chats per example group of the Specification (no mocks)."
+  - "Web component preview specs for the stay offers card/fullscreen and the typical-weather embed; then trip-planning real-inference web E2E with video on phone and laptop."
+  - "Private-name grep of the staged diff and commit message before every deploy; feature_overview.py --check."
+decisions:
+  - "Owner request 2026-11-16: plan plus Specification draft first; build only after approval."
+  - "Official API check for the additional stays provider the owner named (details in the Task, not in the repo): its official API is issued only to contracted partners, so it is not usable now and P4 uses an operator-installed private package. If the owner obtains partner access, a built-in official provider can replace it later without changing the Specification."
+  - "Stay comparison lives in the stay skill, not in the focus, so every stay search benefits; it reuses the generic delegate hook from TASK-1047 instead of adding a per-skill provider contract."
+  - "Typical weather uses Open-Meteo historical reanalysis (already the worldwide weather source). Open-Meteo's free API is for non-commercial use; production use needs its API subscription, to be confirmed with the owner before prod release."
+  - "Itinerary reuses existing embeds (map, connection, stay, weather) and a markdown cost summary; a dedicated itinerary embed is a later option."
+  - "Coordination: connection search, routing and the travel-search Specification are owned by TASK-1047 (chat 7bd1bbe3) while it runs; this work only consumes them (note posted on TASK-1047 2026-11-16)."

@@ -2,7 +2,7 @@
  * `drafts` namespace installer of the shared Rust core Worker.
  *
  * Draft policy (encryption, versioning, closed IndexedDB predicates, durable
- * encrypted sync intent, readback) is shared Rust (`prepare_local_draft_with_preview`,
+ * encrypted sync intent, readback) is shared Rust (`prepare_local_draft_with_options`,
  * `remote_payload`, `acknowledge_transport`). This unit only marshals: it runs the
  * Rust calls on the ADMITTED client of the bound history `core` lease (borrowed
  * via coreClientBorrow, never a second client or admission) and executes Rust's
@@ -24,7 +24,7 @@ import type { BrowserDraftEffectHandler } from '../browserDraftProtocol';
 import { borrowCoreClient } from './coreClientBorrow';
 import type { CoreBorrowRefusal, CoreClientBorrow } from './coreClientBorrow';
 import { isDraftRoutingCode, validDraftRemotePayload, validDraftResourceRequest, validDraftSaveRequest } from './draftsProtocol';
-import type { DraftSaveTiming, DraftsProtocol } from './draftsProtocol';
+import type { DraftRemotePayload, DraftSaveTiming, DraftsProtocol } from './draftsProtocol';
 
 /** Bounded wait for the history dispatcher to become idle before routing TS. */
 export const DRAFT_BORROW_TIMEOUT_MS = 3_000;
@@ -35,13 +35,15 @@ const CHATS_DB = 'chats_db';
 interface DraftsPublication { take(client: unknown): string; free(): void }
 interface DraftsWrite {
 	local_result(client: unknown): string;
-	remote_payload(client: unknown): string;
+	/** Undefined for an offline (local-read-only) client: nothing to publish. */
+	remote_payload(client: unknown): string | undefined;
 	acknowledge_transport(client: unknown, effect: (plan: string) => Promise<string>): Promise<DraftsPublication>;
 	free(): void;
 }
 interface DraftsClient {
-	prepare_local_draft_with_preview(handle: string, generation: number, owner: string, chatId: string, markdown: string,
-		preview: string, scope: string, now: number, effect: (plan: string) => Promise<string>): Promise<DraftsWrite>;
+	prepare_local_draft_with_options(handle: string, generation: number, owner: string, chatId: string, markdown: string,
+		preview: string, scope: string, now: number, teamId: string | undefined, createChat: boolean,
+		effect: (plan: string) => Promise<string>): Promise<DraftsWrite>;
 }
 
 export interface DraftsUnitDeps {
@@ -51,7 +53,7 @@ export interface DraftsUnitDeps {
 }
 
 const defaultDeps: DraftsUnitDeps = {
-	borrow: (principal, signal, observeBusy) => borrowCoreClient(principal, signal, DRAFT_BORROW_TIMEOUT_MS, observeBusy),
+	borrow: (principal, signal, observeBusy) => borrowCoreClient(principal, signal, DRAFT_BORROW_TIMEOUT_MS, observeBusy, { allowLocal: true }),
 	effects: (current) => createDraftEffectHandler({
 		current() {},
 		open: () => indexedDB.open(CHATS_DB),
@@ -92,7 +94,7 @@ export function installDraftsUnit(context: UnitInstallContext, deps: DraftsUnitD
 		const timing: DraftSaveTiming = { borrowWaitMs: performance.now() - borrowStarted, borrowBusy, prepareMs: 0, effectMs: {} };
 		if (borrow === 'none') throw new UnitRefusal('not_admitted');
 		if (borrow === 'busy') throw new UnitRefusal('core_busy');
-		if (borrow === 'local') throw new UnitRefusal('local_session');
+		if (borrow === 'local') throw new UnitRefusal('local_session'); // only if a caller did not allow local plans
 		const handler = deps.effects(current);
 		const ran = new Set<string>();
 		const effect = async (plan: string) => {
@@ -103,9 +105,6 @@ export function installDraftsUnit(context: UnitInstallContext, deps: DraftsUnitD
 				return await handler.execute(plan, signal);
 			} catch (error) {
 				ran.add(`failed:${kind}`);
-				// A read-only capture of a chat that has no chats_db row (new, public or
-				// incognito chat) is a shape refusal, not a write failure.
-				if (kind === 'capture_draft' && error instanceof Error && error.message === 'existing_chat_required') ran.add('missing_row');
 				throw error;
 			} finally {
 				timing.effectMs[kind] = (timing.effectMs[kind] ?? 0) + performance.now() - started;
@@ -128,12 +127,12 @@ export function installDraftsUnit(context: UnitInstallContext, deps: DraftsUnitD
 				let write: DraftsWrite;
 				const prepareStarted = performance.now();
 				try {
-					write = await client.prepare_local_draft_with_preview(borrow.status.handle, borrow.status.generation,
+					write = await client.prepare_local_draft_with_options(borrow.status.handle, borrow.status.generation,
 						borrow.status.principal, request.chatId, markdown, request.preview, JSON.stringify(request.scope),
-						request.nowSeconds, effect);
+						request.nowSeconds, request.teamId ?? undefined, request.createChat, effect);
 					timing.prepareMs = performance.now() - prepareStarted;
 				} catch (error) {
-					const code = ran.has('missing_row') ? 'existing_chat_required' : wasmCode(error);
+					const code = wasmCode(error);
 					// Routing to the TS writer is only sound when Rust refused before any write.
 					if (isDraftRoutingCode(code) && !ran.has('store_draft')) throw new UnitRefusal(code);
 					const failedEffect = [...ran].find((kind) => kind.startsWith('failed:'));
@@ -148,12 +147,19 @@ export function installDraftsUnit(context: UnitInstallContext, deps: DraftsUnitD
 					try {
 						local = JSON.parse(write.local_result(borrow.client)) as { version?: unknown };
 						stage = 'payload';
-						payload = JSON.parse(write.remote_payload(borrow.client));
+						const remote = write.remote_payload(borrow.client);
+						payload = remote === undefined ? null : JSON.parse(remote);
 					} catch (error) {
 						throw new UnitRefusal(writeFailure(stage, wasmCode(error)));
 					}
-					if (typeof local.version !== 'number' || !validDraftRemotePayload(payload, request.chatId) || payload.draft_v !== local.version) {
+					if (typeof local.version !== 'number' || (payload !== null && (!validDraftRemotePayload(payload, request.chatId) || payload.draft_v !== local.version))) {
 						throw new UnitRefusal(writeFailure('payload', 'shape'));
+					}
+					if (payload === null) {
+						// Offline: the local encrypted row and durable intent are written; the
+						// resource has nothing to acknowledge, and the queued intent replays later.
+						write.free();
+						return { resourceId: deps.resourceId(), version: local.version, payload: null, timing };
 					}
 					if (prepared.size >= MAX_PREPARED_DRAFTS) {
 						const [oldest] = prepared.keys();
@@ -162,7 +168,7 @@ export function installDraftsUnit(context: UnitInstallContext, deps: DraftsUnitD
 					}
 					const resourceId = deps.resourceId();
 					prepared.set(resourceId, { chatId: request.chatId, write });
-					return { resourceId, version: local.version, payload, timing };
+					return { resourceId, version: local.version, payload: payload as DraftRemotePayload, timing };
 				} catch (error) {
 					write.free();
 					if (error instanceof UnitRefusal) throw error;

@@ -292,6 +292,25 @@ def get_mock_group() -> str:
     return mock_group_var.get()
 
 
+# Replay groups whose Focus activation continues in a server-dispatched task.
+_FOCUS_CONTINUATION_REPLAY_GROUPS = frozenset({"slides_focus"})
+
+
+def signed_focus_continuation_marker(user_id: Optional[str]) -> Optional[str]:
+    """Re-sign the active replay marker for the server-fired Focus continuation.
+
+    The continuation task rebuilds history from the AI cache, where the user turn
+    is stored without its marker, so the replay would otherwise end at the Focus
+    activation. Only an active replay (never record or real) of an allowlisted
+    group in the isolated CI stack gets one; it binds to the same account.
+    """
+    group = mock_group_var.get()
+    if (mock_mode_var.get() != "mock" or group not in _FOCUS_CONTINUATION_REPLAY_GROUPS
+            or not user_id or os.getenv("OPENMATES_CI_ISOLATED") != "1" or os.getenv("CI") != "true"):
+        return None
+    return sign_live_marker(f"<<<TEST_LIVE_MOCK:{group}>>>", user_id, is_allowlisted_test_account=True)
+
+
 def get_record_candidate_root() -> Optional[Path]:
     """Get the request-scoped root used to isolate recorded cassettes."""
     return mock_candidate_root_var.get()
@@ -430,6 +449,7 @@ _ISOLATED_REPLAY_GROUPS = frozenset({
     "embed_diff_code_web", "embed_diff_doc_web", "embed_diff_sheet_web",
     "events_search_web", "math_calculate_web", "models3d_search_web",
     "travel_connections_web", "travel_stays_web", "videos_search_web",
+    "slides_focus",
 })
 
 

@@ -8082,31 +8082,28 @@ profile_image_not_allowed:
     בתמונות פרופיל.
   verified_by_human: []
 last_warning_image_not_allowed:
-  context: Last warning error message shown when profile image contains nudity or violence or gore
-  en: "Last warning:\nNo nudity, violence or gore in profile images.\nOne more violation and your account will be deleted.\n"
-  ar: "تحذير أخير: لا يُسمح بالعري أو العنف أو المحتوى الدموي في صور الملف الشخصي. انتهاك آخر وسيتم حذف حسابك."
-  de: "Letzte Warnung:\nKeine Nacktheit, Gewalt oder Blut in Profilbildern.\nNoch eine Verletzung und dein Konto wird gelöscht.\n"
-  zh: "最后警告：\n个人资料图片中不允许裸露、暴力或血腥。\n再次违规，您的帐户将被删除。\n"
-  es: "Última advertencia:\nNo se permiten desnudos, violencia o sangre en las imágenes\n"
-  fr: "Dernier avertissement :\nPas de nudité, de violence ou de sang dans les images de profil.\nUne violation supplémentaire et votre compte sera supprimé.\n"
-  pt: "Último aviso:\nSem nudez, violência ou gore em fotos de perfil.\nMais uma violação e sua conta será excluída.\n"
-  ru: "Последнее предупреждение:\nНикакой наготы, насилия или жестокости в фотографиях профиля.\nЕщё одно нарушение — и ваш аккаунт будет удалён.\n"
-  ja: "最後の警告：\nプロフィール画像にヌード、暴力、またはグロテスクなものを含めないでください。\nもう1回違反するとアカウントが削除されます。\n"
-  ko: "최후 경고:\n프로필 이미지에 노출, 폭력 또는 잔인한 콘텐츠를 사용할 수 없습니다.\n한 번 더 위반하면 계정이 삭제됩니다.\n"
-  it: "Ultimo avviso:\nVietate nudità, violenza o contenuti cruenti nelle immagini del profilo.\nUn'altra violazione e il tuo account verrà eliminato.\n"
-  tr: "Son uyarı:\nProfil resimlerinde çıplaklık, şiddet veya kan içeriklerine izin verilmez.\nBir ihlal daha ve hesabınız silinecek.\n"
-  vi: "Cảnh báo cuối cùng:\nKhông có khỏa thân, bạo lực hoặc nội dung rùng rợn trong ảnh hồ sơ.\nThêm một vi phạm nữa và tài khoản của bạn sẽ bị xóa.\n"
-  id: "Peringatan terakhir:\nTidak ada ketelanjangan, kekerasan, atau konten mengerikan di foto profil.\nSatu pelanggaran lagi dan akun Anda akan dihapus.\n"
-  pl: "Ostatnie ostrzeżenie:\nBrak nagości, przemocy lub makabrycznych treści w zdjęciach profilowych.\nJeszcze jedno naruszenie i Twoje konto zostanie usunięte.\n"
-  nl: "Laatste waarschuwing:\nGeen naaktheid, geweld of gore in profielfoto's.\nNog één overtreding en uw account wordt verwijderd.\n"
-  hi: "अंतिम चेतावनी:\nप्रोफ़ाइल छवियों में नग्नता, हिंसा या रक्तरंजित सामग्री नहीं।\nएक और उल्लंघन और आपका खाता हटा दिया जाएगा।\n"
-  th: "คำเตือนครั้งสุดท้าย:\nห้ามมีภาพเปลือย ความรุนแรง หรือเนื้อหาสยดสยองในรูปโปรไฟล์\nอีกหนึ่งการละเมิดและบัญชีของคุณจะถูกลบ\n"
-  cs: "Poslední varování:\nŽádná nahota, násilí ani krvavé scény na profilových obrázcích.\nJeště jedno porušení a váš účet bude smazán.\n"
-  sv: "Sista varningen:\nIngen nakenhet, våld eller blodbad i profilbilder.\nYtterligare en överträdelse och ditt konto raderas.\n"
-  he: |
-    אזהרה אחרונה:
-    אין להשתמש בעירום, אלימות או תכנים קשים בתמונות פרופיל.
-    הפרה נוספת אחת וחשבונך יימחק.
+  context: Last warning shown after the first safety strike for a profile image (explicit sexual content or extreme gore); the next violation suspends the account
+  en: "Last warning:\nNo explicit sexual content or extreme gore in profile images.\nOne more violation and your account will be suspended.\n"
+  de: "Letzte Warnung:\nKeine expliziten sexuellen Inhalte und keine extreme Gewaltdarstellung in Profilbildern.\nNoch ein Verstoß und dein Konto wird gesperrt.\n"
+  zh: "最后警告：\n个人资料图片中不允许露骨的性内容或极端血腥内容。\n再次违规，您的帐户将被暂停。\n"
+  es: "Última advertencia:\nNo se permite contenido sexual explícito ni violencia extrema en las imágenes de perfil.\nUna infracción más y tu cuenta será suspendida.\n"
+  fr: "Dernier avertissement :\nPas de contenu sexuel explicite ni de violence extrême dans les images de profil.\nUne infraction de plus et votre compte sera suspendu.\n"
+  pt: "Último aviso:\nSem conteúdo sexual explícito nem violência extrema em fotos de perfil.\nMais uma violação e a sua conta será suspensa.\n"
+  ru: "Последнее предупреждение:\nВ фотографиях профиля запрещены откровенный сексуальный контент и крайняя жестокость.\nЕщё одно нарушение — и ваш аккаунт будет приостановлен.\n"
+  ja: "最後の警告：\nプロフィール画像に露骨な性的コンテンツや極端に残虐な表現を含めないでください。\nもう1回違反するとアカウントが停止されます。\n"
+  ko: "최후 경고:\n프로필 이미지에 노골적인 성적 콘텐츠나 극단적으로 잔인한 콘텐츠를 사용할 수 없습니다.\n한 번 더 위반하면 계정이 정지됩니다.\n"
+  it: "Ultimo avviso:\nVietati contenuti sessuali espliciti o estremamente cruenti nelle immagini del profilo.\nUn'altra violazione e il tuo account verrà sospeso.\n"
+  tr: "Son uyarı:\nProfil resimlerinde açık cinsel içeriğe veya aşırı kanlı şiddete izin verilmez.\nBir ihlal daha ve hesabınız askıya alınacak.\n"
+  vi: "Cảnh báo cuối cùng:\nKhông dùng nội dung tình dục lộ liễu hoặc cực kỳ máu me trong ảnh hồ sơ.\nThêm một vi phạm nữa và tài khoản của bạn sẽ bị tạm ngưng.\n"
+  id: "Peringatan terakhir:\nTidak boleh ada konten seksual eksplisit atau kekerasan ekstrem di foto profil.\nSatu pelanggaran lagi dan akun Anda akan ditangguhkan.\n"
+  pl: "Ostatnie ostrzeżenie:\nŻadnych treści o charakterze jednoznacznie seksualnym ani skrajnie drastycznych w zdjęciach profilowych.\nJeszcze jedno naruszenie i Twoje konto zostanie zawieszone.\n"
+  nl: "Laatste waarschuwing:\nGeen expliciete seksuele inhoud of extreem geweld in profielfoto's.\nNog één overtreding en je account wordt opgeschort.\n"
+  ar: "تحذير أخير:\nلا يُسمح بالمحتوى الجنسي الصريح أو المحتوى الدموي الشديد في صور الملف الشخصي.\nانتهاك آخر وسيتم تعليق حسابك.\n"
+  hi: "अंतिम चेतावनी:\nप्रोफ़ाइल छवियों में स्पष्ट यौन सामग्री या अत्यधिक रक्तरंजित सामग्री नहीं।\nएक और उल्लंघन और आपका खाता निलंबित कर दिया जाएगा।\n"
+  th: "คำเตือนครั้งสุดท้าย:\nห้ามมีเนื้อหาทางเพศที่โจ่งแจ้งหรือความรุนแรงสยดสยองขั้นรุนแรงในรูปโปรไฟล์\nอีกหนึ่งการละเมิดและบัญชีของคุณจะถูกระงับ\n"
+  cs: "Poslední varování:\nŽádný explicitní sexuální obsah ani extrémně krvavé scény na profilových obrázcích.\nJeště jedno porušení a váš účet bude pozastaven.\n"
+  sv: "Sista varningen:\nInget explicit sexuellt innehåll eller extremt våld i profilbilder.\nYtterligare en överträdelse och ditt konto stängs av tillfälligt.\n"
+  he: "אזהרה אחרונה:\nאין להשתמש בתוכן מיני בוטה או באלימות קיצונית בתמונות פרופיל.\nהפרה נוספת אחת וחשבונך יושעה.\n"
   verified_by_human: []
 your_account_got_deleted:
   context: Message shown when account got deleted due to violation of guidelines or when user manually deletes account

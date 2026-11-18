@@ -1,39 +1,32 @@
 /**
  * Web login, session restore and logout through the shared Rust core.
  *
- * Default builds keep the existing TypeScript auth path (the flag folds to false
- * and the Worker is never bundled). VITE_OPENMATES_RUST_CORE builds run the
- * account logic in Rust (`openmates_sdk::web_auth` in a Worker); this module is
- * the thin browser adapter: it executes the exact requests Rust describes with
- * the page's credentialed Fetch (same URL, headers, body and cookies as the TS
- * path), and carries cross-tab frames over BroadcastChannel. Forms, stores,
- * IndexedDB/CryptoKey persistence and navigator.credentials stay in TS.
- *
- * Flag-on builds accept `localStorage.openmates_rust_auth = "ts"` to select the
- * TypeScript path in the same build, so E2E can compare both against one stack.
+ * The account logic runs in Rust (`openmates_sdk::web_auth` in a Worker); this
+ * module is the thin browser adapter: it executes the exact requests Rust
+ * describes with the page's credentialed Fetch, and carries cross-tab frames
+ * over BroadcastChannel. Forms, stores, IndexedDB/CryptoKey persistence and
+ * navigator.credentials stay in TS. Without a `window` (SSR) the core is not
+ * started: `rustAuthEnabled()` only guards the start-up helpers there; it never
+ * selects a TypeScript auth path.
  */
 import { getApiEndpoint } from '../../config/api';
 import type { RustAuthClient } from './auth/authClient';
-import { authFlowActive, primeSignupPath, RUST_AUTH_SELECT_KEY as SELECT_KEY } from './auth/flowPush';
+import { authFlowActive, primeSignupPath } from './auth/flowPush';
 import { PAGE_ORIGIN_PLACEHOLDER, type AuthHttpReply, type AuthHttpRequest, type PasswordLoginResult } from './auth/authProtocol';
 
-export const RUST_AUTH_SELECT_KEY = SELECT_KEY;
 const LOGOUT_CHANNEL = 'openmates-auth-v1';
 
 let testClient: RustAuthClient | null = null;
-let testEnabled: boolean | null = null;
 let client: Promise<RustAuthClient> | null = null;
 
-/** True when this page runs auth through the Rust core. */
+/** True when a Worker exists to start (browser, or a test client): the SSR guard for start-up helpers. */
 export function rustAuthEnabled(): boolean {
-	if (testEnabled !== null) return testEnabled;
-	return authFlowActive();
+	return testClient !== null || authFlowActive();
 }
 
-/** Test seam: inject a synthetic client and force the routing decision. */
-export function setRustAuthClientForTesting(next: RustAuthClient | null, forceEnabled: boolean | null = null): void {
+/** Test seam: inject a synthetic client (null restores the Worker-backed one). */
+export function setRustAuthClientForTesting(next: RustAuthClient | null): void {
 	testClient = next;
-	testEnabled = forceEnabled;
 	client = null;
 	sharedLogoutChannel?.close();
 	sharedLogoutChannel = null;
@@ -74,19 +67,17 @@ let drainWaiters: (() => void)[] = [];
  * cut off by the retirement and a hung call cannot keep the realm alive.
  */
 async function retireWhenDrained(force: boolean, own: number): Promise<void> {
-	if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
-		const { loadSharedAuthRealm } = await import('./auth/authWorkerPort');
-		const realm = await loadSharedAuthRealm();
-		const deadline = Date.now() + DRAIN_LIMIT_MS;
-		while (users > own && Date.now() < deadline) {
-			await new Promise<void>((resolve) => {
-				const timer = setTimeout(resolve, deadline - Date.now());
-				drainWaiters.push(() => { clearTimeout(timer); resolve(); });
-			});
-		}
-		keysDerived = false;
-		realm.retire({ force });
+	const { loadSharedAuthRealm } = await import('./auth/authWorkerPort');
+	const realm = await loadSharedAuthRealm();
+	const deadline = Date.now() + DRAIN_LIMIT_MS;
+	while (users > own && Date.now() < deadline) {
+		await new Promise<void>((resolve) => {
+			const timer = setTimeout(resolve, deadline - Date.now());
+			drainWaiters.push(() => { clearTimeout(timer); resolve(); });
+		});
 	}
+	keysDerived = false;
+	realm.retire({ force });
 }
 
 /** Each operation holds the Worker; the last one to finish releases it. */
@@ -94,24 +85,21 @@ function core(): Promise<RustAuthClient> {
 	users++;
 	if (idleTimer !== null) { clearTimeout(idleTimer); idleTimer = null; }
 	if (testClient) return Promise.resolve(testClient);
-	if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
-		if (!client) {
-			// A closed client (idle close, protocol failure, shared Worker crash or
-			// retirement) is dropped, so the next operation opens a fresh unit port.
-			const opening: Promise<RustAuthClient> = import('./auth/authWorkerPort').then(({ createSharedAuthClient }) =>
-				createSharedAuthClient((request) => executeAuthRequest(request), () => { if (client === opening) client = null; }));
-			opening.catch(() => { if (client === opening) client = null; });
-			client = opening;
-		}
-		return client;
+	if (!client) {
+		// A closed client (idle close, protocol failure, shared Worker crash or
+		// retirement) is dropped, so the next operation opens a fresh unit port.
+		const opening: Promise<RustAuthClient> = import('./auth/authWorkerPort').then(({ createSharedAuthClient }) =>
+			createSharedAuthClient((request) => executeAuthRequest(request), () => { if (client === opening) client = null; }));
+		opening.catch(() => { if (client === opening) client = null; });
+		client = opening;
 	}
-	return Promise.reject(new Error('rust_core_not_enabled'));
+	return client;
 }
 
 /** Release the Worker (and its WASM memory, e.g. the 64 MiB Argon2 arena) once idle. */
 function retire(): void {
 	users = Math.max(0, users - 1);
-	if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && drainWaiters.length > 0) {
+	if (drainWaiters.length > 0) {
 		const waiting = drainWaiters;
 		drainWaiters = [];
 		for (const resolve of waiting) resolve();
@@ -123,7 +111,7 @@ function retire(): void {
 		const closing = client;
 		client = null;
 		void closing.then((active) => active.close(), () => undefined);
-		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && keysDerived) {
+		if (keysDerived) {
 			void retireWhenDrained(false, 0).catch((error: unknown) => console.warn('[RustAuth] shared core retirement failed:', error instanceof Error ? error.message : 'unknown'));
 		}
 	}, WORKER_IDLE_MS);
@@ -176,7 +164,7 @@ function toOutcome(result: PasswordLoginResult): RustPasswordLoginOutcome {
  * page starts for the new session and recompile the WASM on the hot path.
  */
 function afterKeyDerivingLogin(): void {
-	if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') keysDerived = true;
+	keysDerived = true;
 }
 
 /** Password (+ optional OTP/backup code) step: challenge, proof, v2/v1 login and key unwrap in Rust. */
@@ -189,7 +177,7 @@ export async function rustPasswordLogin(input: RustPasswordLoginInput): Promise<
 			password: input.password,
 			tfa: input.tfa?.code ?? null,
 		});
-		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && !testClient) afterKeyDerivingLogin();
+		if (!testClient) afterKeyDerivingLogin();
 		return toOutcome(result);
 	} finally {
 		retire();
@@ -213,7 +201,7 @@ export async function rustRecoveryKeyLogin(input: RustRecoveryLoginInput): Promi
 				emailEncryptionKey: input.emailEncryptionKey, stayLoggedIn: input.stayLoggedIn },
 			recoveryKey: input.recoveryKey,
 		});
-		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && !testClient) afterKeyDerivingLogin();
+		if (!testClient) afterKeyDerivingLogin();
 		return toOutcome(result);
 	} finally {
 		retire();
@@ -304,7 +292,7 @@ export async function rustLogoutServer(input: LogoutInput & { signal: AbortSigna
 	} finally {
 		retire();
 		// Flag builds: logout ends the account's shared realm (no newer login started meanwhile).
-		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && !testClient && input.current() === input.captured) {
+		if (!testClient && input.current() === input.captured) {
 			await retireWhenDrained(true, Number.POSITIVE_INFINITY);
 		}
 	}
@@ -347,7 +335,7 @@ export function installRustCrossTabLogout(onPeerLogout: () => void): void {
 /**
  * Signup step routing, pair-session policy and the recovery-key print page,
  * evaluated by shared Rust (`web_auth_flow`) on the shared Worker. Flag builds
- * only: callers branch on `rustAuthEnabled()` and never fall back to TS here.
+ * only: callers never fall back to TS here.
  */
 export async function rustAuthFlow<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
 	try {

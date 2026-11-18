@@ -279,6 +279,12 @@ enum DevEmbedPreviewFixtures {
         guard let base = fullscreen ? fullscreenSkill(forRegistryKey: request.registryKey)
             : skill(forRegistryKey: request.registryKey) else { return nil }
         guard request.surface != .groupLarge || supportsLargeGroup(base) else { return nil }
+        // The PII reveal fixture maps the rendered HTML title, so its code fullscreen
+        // shows that source instead of the web fullscreen sample.
+        if fullscreen, request.registryKey == EmbedType.codeCode.rawValue,
+           ProcessInfo.processInfo.arguments.contains("--dev-pii-embed-preview") {
+            return codeEmbed
+        }
         return variants(for: base, fullscreen: fullscreen).first { $0.name == request.variant }?.skill
     }
 
@@ -905,6 +911,8 @@ enum DevEmbedPreviewFixtures {
 
     private static var codeEmbed: DevEmbedPreviewSkill {
         let hydratedIndexRegression = ProcessInfo.processInfo.arguments.contains("--dev-code-hydrated-index")
+        let rendersHTMLIndex = hydratedIndexRegression
+            || ProcessInfo.processInfo.arguments.contains("--dev-pii-embed-preview")
         let embed = record(
             id: "preview-code-1",
             type: EmbedType.codeCode.rawValue,
@@ -915,10 +923,10 @@ enum DevEmbedPreviewFixtures {
                 "app_id": "code",
                 "skill_id": "code",
                 "decodedContent": [
-                    "language": hydratedIndexRegression ? "html" : "typescript",
-                    "filename": hydratedIndexRegression ? "index.html" : "MyComponent.svelte",
-                    "line_count": hydratedIndexRegression ? 8 : 14,
-                    "code": hydratedIndexRegression ? """
+                    "language": rendersHTMLIndex ? "html" : "typescript",
+                    "filename": rendersHTMLIndex ? "index.html" : "MyComponent.svelte",
+                    "line_count": rendersHTMLIndex ? 8 : 14,
+                    "code": rendersHTMLIndex ? """
                     <!doctype html>
                     <html lang="en">
                     <head><title>OpenMates preview</title></head>
@@ -2616,6 +2624,7 @@ enum DevEmbedPreviewFixtures {
     }
 
     private static var tasksCreate: DevEmbedPreviewSkill {
+        let child = tasksTask.primaryEmbed
         let results: [[String: Any]] = [
             ["task_id": "task-garden-1", "short_id": "T-104",
              "title": "Buy starter soil and basil seeds",
@@ -2629,8 +2638,10 @@ enum DevEmbedPreviewFixtures {
         let parent = appSkill(id: "preview-task-create", type: EmbedType.tasksCreate.rawValue,
                               appId: "tasks", skillId: "create",
                               data: ["instruction": "Create a practical checklist for starting a small balcony herb garden",
-                                     "preview_results": results, "result_count": 2])
-        return skill(id: "tasks-create", label: "Create", primary: parent)
+                                     "preview_results": results, "result_count": 2],
+                              embedIds: child.id)
+        // Web TaskCreateEmbedFullscreen opens its created task embeds as children.
+        return skill(id: "tasks-create", label: "Create", primary: parent, children: [child])
     }
 
     private static var tasksSearch: DevEmbedPreviewSkill {
@@ -2721,7 +2732,8 @@ enum DevEmbedPreviewFixtures {
                 "type": "transcript_result",
                 "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "title": "Understanding Svelte 5 Runes",
-                "transcript": "Today we are going to learn about Svelte 5 runes. Runes are a powerful new reactivity system. The $state rune replaces let declarations for reactive variables. The $derived rune replaces $: for computed values. And the $effect rune replaces $: for side effects.",
+                "word_count": 1284,
+                "transcript": "Grouped transcript fixture proof text: today we are going to learn about Svelte 5 runes. Runes are a powerful new reactivity system. The $state rune replaces let declarations for reactive variables. The $derived rune replaces $: for computed values. And the $effect rune replaces $: for side effects.",
                 "channel_name": "Svelte Society",
                 "duration_formatted": "17:08"
             ],
@@ -2738,7 +2750,8 @@ enum DevEmbedPreviewFixtures {
                 "preview_results": [[
                     "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                     "title": "Understanding Svelte 5 Runes",
-                    "transcript": "Today we are going to learn about Svelte 5 runes. Runes are a powerful new reactivity system. The $state rune replaces let declarations for reactive variables. The $derived rune replaces $: for computed values. And the $effect rune replaces $: for side effects.",
+                    "word_count": 1284,
+                    "transcript": "Grouped transcript fixture proof text: today we are going to learn about Svelte 5 runes. Runes are a powerful new reactivity system. The $state rune replaces let declarations for reactive variables. The $derived rune replaces $: for computed values. And the $effect rune replaces $: for side effects.",
                     "channel_name": "Svelte Society", "duration_formatted": "17:08"
                 ]]
             ],
@@ -2750,7 +2763,7 @@ enum DevEmbedPreviewFixtures {
     private static var videoTranscriptFullscreen: DevEmbedPreviewSkill {
         let parentID = "preview-video-transcript-fs"
         let transcript = """
-        Today we are going to learn about Svelte 5 runes. Runes are a powerful new reactivity system that replaces the old reactive declarations.
+        Grouped transcript fixture proof text: today we are going to learn about Svelte 5 runes. Runes are a powerful new reactivity system that replaces the old reactive declarations.
 
         The $state rune replaces let declarations for reactive variables. When you declare a variable with $state, Svelte automatically tracks all assignments to it.
 
@@ -2761,6 +2774,7 @@ enum DevEmbedPreviewFixtures {
         let result: [String: Any] = [
             "type": "transcript_result", "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
             "title": "Understanding Svelte 5 Runes", "transcript": transcript,
+            "word_count": transcript.split(whereSeparator: \.isWhitespace).count,
             "channel_name": "Svelte Society", "duration_formatted": "17:08"
         ]
         let child = record(id: "preview-video-transcript-fs-result", type: EmbedType.videosVideo.rawValue,
@@ -2938,6 +2952,7 @@ enum DevEmbedPreviewFixtures {
     }
 
     private static var workflowsCreate: DevEmbedPreviewSkill {
+        let child = workflowsWorkflow.primaryEmbed
         let parent = appSkill(id: "preview-workflow-create", type: EmbedType.workflowsCreateOrModify.rawValue,
                               appId: "workflows", skillId: "create-or-modify",
                               data: ["instruction": "Create a simple manual workflow for a weekly balcony garden check-in",
@@ -2947,8 +2962,10 @@ enum DevEmbedPreviewFixtures {
                                         "description": "Every Saturday morning, remind me to water herbs and note which plants need trimming.",
                                         "status": "ready", "enabled": true,
                                         "trigger_summary": "Manual or weekly Saturday reminder"
-                                     ]], "result_count": 1])
-        return skill(id: "workflows-create", label: "Create or Modify", primary: parent)
+                                     ]], "result_count": 1],
+                              embedIds: child.id)
+        // Web WorkflowCreateEmbedFullscreen opens its created workflow embed as a child.
+        return skill(id: "workflows-create", label: "Create or Modify", primary: parent, children: [child])
     }
 
     private static var workflowsSearch: DevEmbedPreviewSkill {

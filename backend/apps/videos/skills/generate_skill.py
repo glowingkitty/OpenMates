@@ -175,6 +175,7 @@ class GenerateSkill(BaseSkill):
                 "image_embed_ids": image_ids,
                 "input_embed_ids": image_ids or list(request.first_frame_embed_ids),
                 "source_video_embed_id": source_video_id,
+                **({"internal_llm_policy": kwargs["internal_llm_policy"]} if kwargs.get("internal_llm_policy") else {}),
                 "user_id": kwargs.get("user_id"),
                 "user_vault_key_id": kwargs.get("user_vault_key_id"),
                 "api_key_hash": kwargs.get("api_key_hash"),

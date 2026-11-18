@@ -4,6 +4,9 @@
  */
 import { createHash, randomUUID } from 'node:crypto';
 import { quoteUsage } from '../../storage-usage-metering/src/quote.js';
+import {
+  MAIN_CHAT_DESCENDANT_LIMIT, isMainChat, spawnKind, subChatChildFilter,
+} from './main_chat_spawn.js';
 
 const ORCHESTRATIONS = 'sub_chat_orchestrations';
 const CHILDREN = 'sub_chat_orchestration_children';
@@ -45,7 +48,7 @@ const OPERATION_FIELDS = Object.freeze({
   health_check: new Set(['protocol_version']),
   create_root: new Set([
     'protocol_version', 'orchestration_id', 'hashed_user_id', 'hashed_team_id',
-    'root_chat_id', 'root_turn_id', 'descendant_limit', 'credit_limit', 'deep_research',
+    'root_chat_id', 'root_turn_id', 'descendant_limit', 'credit_limit', 'deep_research', 'spawn_kind',
   ]),
   approve_root_limits: new Set([
     'protocol_version', 'orchestration_id', 'hashed_user_id', 'descendant_limit', 'credit_limit',
@@ -188,7 +191,7 @@ const OPERATION_FIELDS = Object.freeze({
   inspect_team_storage_expiry: new Set(['protocol_version','hashed_team_id','now_at']),
   apply_team_storage_expiry: new Set(['protocol_version','hashed_team_id','episode_id','expected_version','now_at','regions']),
 });
-const CHILD_FIELDS = new Set(['child_chat_id', 'user_message_id', 'dispatch_token', 'budget_limit']);
+const CHILD_FIELDS = new Set(['child_chat_id', 'user_message_id', 'dispatch_token', 'budget_limit', 'spawn_kind']);
 const USAGE_FIELDS = new Set([
   'id', 'user_id_hash', 'app_id', 'skill_id', 'type', 'source', 'created_at', 'updated_at',
   'encrypted_credits_costs_total', 'chat_id', 'root_chat_id', 'actual_chat_id', 'root_turn_id',
@@ -305,6 +308,7 @@ function validatedChildren(rawChildren) {
       user_message_id: string(child.user_message_id, 'invalid_message_id'),
       dispatch_token: string(child.dispatch_token, 'invalid_dispatch_token', 255),
       budget_limit: budgetLimit,
+      spawn_kind: spawnKind(child.spawn_kind, fail),
     };
   });
 }
@@ -335,15 +339,17 @@ async function createRoot(database, raw, now) {
   const teamHash = body.hashed_team_id == null ? null : string(body.hashed_team_id, 'invalid_team', 64);
   const rootChatId = uuid(body.root_chat_id, 'invalid_root_chat_id');
   const rootTurnId = uuid(body.root_turn_id, 'invalid_root_turn_id');
-  const descendantLimit = integer(body.descendant_limit ?? AUTO_DESCENDANT_LIMIT, 'invalid_descendant_limit');
+  const rootKind = spawnKind(body.spawn_kind, fail);
+  const autoDescendantLimit = isMainChat(rootKind) ? MAIN_CHAT_DESCENDANT_LIMIT : AUTO_DESCENDANT_LIMIT;
+  const descendantLimit = integer(body.descendant_limit ?? autoDescendantLimit, 'invalid_descendant_limit');
   const creditLimit = integer(body.credit_limit ?? AUTO_CREDIT_LIMIT, 'invalid_credit_limit');
   if (body.deep_research != null && typeof body.deep_research !== 'boolean') fail(400, 'invalid_research_mode');
-  if (descendantLimit > AUTO_DESCENDANT_LIMIT || creditLimit > AUTO_CREDIT_LIMIT) fail(403, 'root_approval_required');
+  if (descendantLimit > autoDescendantLimit || creditLimit > AUTO_CREDIT_LIMIT) fail(403, 'root_approval_required');
   return database.transaction(async (trx) => {
     // A saved descendant must never reset its physical depth by starting a root.
     const rootChat = await trx(CHATS).where({ id: rootChatId }).first();
     if (rootChat?.parent_id || rootChat?.is_sub_chat
-      || await trx(CHILDREN).where({ child_chat_id: rootChatId }).first()) {
+      || await trx(CHILDREN).where({ child_chat_id: rootChatId }).where(subChatChildFilter()).first()) {
       fail(409, 'orchestration_root_is_sub_chat');
     }
     const existing = await trx(ORCHESTRATIONS).where({ id }).forUpdate().first();
@@ -453,8 +459,10 @@ async function prepareBatch(database, raw, now) {
       continuation_claimed: false, created_at: now, updated_at: now,
     });
     for (const child of children) {
-      if (await trx(CHATS).where({ id: child.child_chat_id }).first()) fail(409, 'child_chat_exists');
-      await trx(CHATS).insert({
+      if (!isMainChat(child.spawn_kind)) {
+        if (await trx(CHATS).where({ id: child.child_chat_id }).first()) fail(409, 'child_chat_exists');
+      }
+      if (!isMainChat(child.spawn_kind)) await trx(CHATS).insert({
         id: child.child_chat_id, hashed_user_id: root.hashed_user_id,
         hashed_team_id: root.hashed_team_id, created_at: timestamp, updated_at: timestamp,
         messages_v: 1, title_v: 0, metadata_v: 0,
@@ -467,6 +475,7 @@ async function prepareBatch(database, raw, now) {
         child_chat_id: child.child_chat_id, parent_chat_id: parentChatId,
         user_message_id: child.user_message_id, depth,
         dispatch_token_hash: tokenHash(child.dispatch_token), state: 'prepared',
+        spawn_kind: child.spawn_kind,
         created_at: now, updated_at: now,
       });
     }

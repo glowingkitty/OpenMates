@@ -20,6 +20,7 @@
 //          frontend/packages/ui/src/components/embeds/travel/TravelFlightDetailsEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/reminder/ReminderEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/workspace/WorkspaceDetailHeader.svelte
 //          frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/calendar/CalendarActionEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedPreview.svelte
@@ -308,7 +309,9 @@ struct AppSkillUseRenderer: View {
         } else if appId == "videos", skillId == "search" {
             return AnyView(VideosSearchEmbedRenderer(model: model, mode: .preview, onOpenEmbed: onOpenEmbed))
         } else if appId == "images", ImageGenerateCardState.skillIds.contains(skillId) {
-            return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview, status: embed.status, skillId: skillId))
+            return AnyView(ImageGenerateEmbedRenderer(data: data, mode: .preview, status: embed.status, skillId: skillId,
+                                       version: ImageVersionBadgeState.versions(of: embed).version,
+                                       headVersion: ImageVersionBadgeState.versions(of: embed).head))
         } else if appId == "images", skillId == "view" {
             let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
             return AnyView(ImageEmbedRenderer(
@@ -489,7 +492,9 @@ struct AppSkillUseRenderer: View {
         } else if appId == "videos", skillId == "search" {
             VideosSearchEmbedRenderer(model: model, mode: .fullscreen, onOpenEmbed: onOpenEmbed)
         } else if appId == "images", ImageGenerateCardState.skillIds.contains(skillId) {
-            ImageGenerateEmbedRenderer(data: data, mode: .fullscreen, status: embed.status, skillId: skillId)
+            ImageGenerateEmbedRenderer(data: data, mode: .fullscreen, status: embed.status, skillId: skillId,
+                                       version: ImageVersionBadgeState.versions(of: embed).version,
+                                       headVersion: ImageVersionBadgeState.versions(of: embed).head)
         } else if appId == "images", skillId == "view" {
             let model = ImageViewSkillModel(embed: embed, allEmbedRecords: allEmbedRecords)
             ImageEmbedRenderer(
@@ -973,40 +978,47 @@ struct TaskWorkflowEmbedRenderer: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
+    // Web: TaskEmbedFullscreen/WorkflowEmbedFullscreen embed WorkspaceDetailHeader
+    // (embedded, alignment="start"): a left-aligned column with a 38px icon, an h3
+    // bold title, a small description and "status · assignee" metadata at xs/0.78.
     private var fullscreen: some View {
-        VStack(alignment: .leading, spacing: .spacing8) {
-            HStack(alignment: .top, spacing: .spacing6) {
-                iconShell.frame(width: 72, height: 72)
-                VStack(alignment: .leading, spacing: .spacing3) {
-                    if let subtitle = kind.subtitle(from: raw) {
-                        Text(subtitle)
-                            .font(.omSmall)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.fontSecondary)
-                    }
-                    Text(kind.title(from: raw))
-                        .font(.omH1)
-                        .foregroundStyle(Color.fontPrimary)
-                        .lineLimit(3)
-                    if let description = kind.description(from: raw) {
-                        Text(description)
-                            .font(.omP)
-                            .foregroundStyle(Color.fontSecondary)
-                    }
-                }
+        VStack(alignment: .leading, spacing: .spacing5) {
+            Icon(kind.iconName, size: 38)
+                .foregroundStyle(Color.fontPrimary)
+                .accessibilityHidden(true)
+            Text(kind.title(from: raw))
+                .font(.omH3)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let description = kind.description(from: raw) {
+                Text(description)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-
-            HStack(spacing: .spacing3) {
-                pill(kind.statusLabel(from: raw))
-                if let assignee = kind.secondaryPill(from: raw), !assignee.isEmpty { pill(assignee) }
-            }
+            Text(fullscreenMetadata)
+                .font(.omXs)
+                .foregroundStyle(Color.fontPrimary)
+                .opacity(0.78)
+                .padding(.top, .spacing3)
         }
-        .padding(.spacing8)
         .frame(maxWidth: 860, alignment: .leading)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, .spacing12)
+        .padding(.horizontal, .spacing8)
+        .padding(.top, .spacing12)
         .padding(.bottom, 120)
         .accessibilityIdentifier(kind.fullscreenIdentifier)
+    }
+
+    private var fullscreenMetadata: String {
+        let status = kind.statusLabel(from: raw)
+        guard let assignee = kind.secondaryPill(from: raw), !assignee.isEmpty else { return status }
+        // taskEmbedData.ts taskAssigneeLabel: brand id keeps its casing, others title-case.
+        let label = assignee == "openmates"
+            ? "OpenMates"
+            : assignee.replacingOccurrences(of: "_", with: " ").capitalized
+        return "\(status) · \(label)"
     }
 
     private var iconShell: some View {

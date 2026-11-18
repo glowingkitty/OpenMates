@@ -17,6 +17,8 @@ category: productivity
 embeds:
   - id: deck
     description_embed: Slide deck made of positioned text, images, videos, shapes and sandboxed blocks
+  - id: template
+    description_embed: Presentation template (theme and sample slides) that can be saved and applied to decks
 embed_types:
   # Deck — direct-type, auto-detected from ```slides``` blocks by stream_consumer.py.
   # Preview/fullscreen components are added by the web rendering phase.
@@ -52,6 +54,39 @@ embed_types:
         required: true
       - name: aspect
         type: string
+  # Template — same fence as a deck, created when the normalised root has kind="template".
+  - id: template
+    category: direct
+    frontend_type: slides-template
+    backend_type: template
+    has_children: false
+    groupable: true
+    preview_component: slides/SlidesTemplateEmbedPreview.svelte
+    fullscreen_component: slides/SlidesTemplateEmbedFullscreen.svelte
+    icon: slides
+    gradient_var: "--color-app-slides"
+    i18n_namespace: embeds.slides.template
+    content_catalog:
+      enabled: true
+      diff_editable: true
+      content_type_id: template
+      name: Presentation template
+      description: Slide templates with a theme and one sample slide per layout.
+      icon: slides
+      example_key: slides.template
+      order: 11
+    content_fields:
+      - name: slides_markup
+        type: string
+        required: true
+        description: "Normalised slides markup (one element per line)"
+      - name: title
+        type: string
+      - name: slide_count
+        type: number
+        required: true
+      - name: aspect
+        type: string
 
 instructions:
   - instruction: |
@@ -68,7 +103,47 @@ instructions:
       - Use `<block>` (free HTML/CSS/JS, rendered in an isolated sandbox) only when the standard elements cannot express the idea.
       - No script, style, iframe or event-handler attributes outside blocks; they are removed.
       - To change an existing deck use ```diff:<embed_ref> against its slides markup; keep the x/y/w/h and ids the user already set, and change only what was asked.
+      - Themes: put `<theme heading="Georgia" body="Verdana" background="#f4faf5" foreground="#12301c" accent="#1f9d55" accent-2="#f2c94c" muted="#5b7a65" surface="#ffffff"/>` as the first line inside `<deck>`; fonts are safe font names, colours are #hex. Elements then use the tokens (color="accent").
+      - A template is a deck with `kind="template"` and one sample slide per layout (`title`, `section`, `content`, `image`, `quote`, `closing`; also `two-column`). It creates a template embed the user can save and apply.
+      - Built-in templates: builtin:plain, builtin:bold-pitch, builtin:clean-business, builtin:friendly-classroom, builtin:calm-talk. To show one, write only `<deck kind="template" template="builtin:<id>"></deck>` in a ```slides fence; it expands to that template.
+      - A deck with `template="builtin:<id>"` (not plain) automatically gets that template's theme and decoration; just write the slide content with layout and roles.
+      - When the user refers to a saved template, use `template="library:<template embed id>"` and copy its `<theme>` into the deck.
       - Mention the created deck embed inline in the final answer using its returned reference.
 
 skills: []
-focus_modes: []
+focus_modes:
+  - id: design_template
+    auto_activate_when_relevant: true
+    icon_image: slides.svg
+    name_translation_key: slides.design_template
+    description_translation_key: slides.design_template.description
+    process_translation_key: focus_modes.slides_design_template.process
+    systemprompt_translation_key: focus_modes.slides_design_template.systemprompt
+    how_to_use:
+      - Design a slide template for our club, our colours are green and white
+      - I want my own presentation look in our company colours and logo
+      - Make me a template for my school talks, friendly and colourful
+    preprocessor_hint: >
+      Select when the user wants a slide or presentation template, theme or
+      design of their own, for example design a slide template for our club,
+      make a template in our brand colours, or I want my own look for all my
+      presentations. Do not select for creating the slides of one specific
+      presentation, for planning a talk, or for editing a single existing deck.
+  - id: plan_presentation
+    auto_activate_when_relevant: true
+    icon_image: slides.svg
+    name_translation_key: slides.plan_presentation
+    description_translation_key: slides.plan_presentation.description
+    process_translation_key: focus_modes.slides_plan_presentation.process
+    systemprompt_translation_key: focus_modes.slides_plan_presentation.systemprompt
+    how_to_use:
+      - I need slides for my hackathon project but I don't know how to start
+      - Help me build a 15-minute quarterly update for my management team
+      - Teaching deck, 45 min, year 9 biology, photosynthesis, 12 slides, Friendly classroom, go
+    preprocessor_hint: >
+      Select when the user needs a whole presentation and wants help figuring
+      it out, for example I need slides for my hackathon project, help me build
+      a pitch deck, a quarterly update for my team, a lesson presentation or a
+      talk, especially when they are unsure how to start or what to include. Do
+      not select for a few quick slides on a clear topic, for editing or
+      restyling an existing deck, or for designing only a template.

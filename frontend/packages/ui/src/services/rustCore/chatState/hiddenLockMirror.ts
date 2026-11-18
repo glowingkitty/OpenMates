@@ -1,5 +1,5 @@
 /**
- * Page-side view mirror of the Worker hidden-chat vault (flag-on only). It has no
+ * Page-side view mirror of the Worker hidden-chat vault. It has no
  * imports so `hiddenChatService.ts` can read `isUnlocked()` / the lockout
  * synchronously without pulling the Rust adapter into default builds, where the
  * flag-guarded reads are dead code and this module is dropped.

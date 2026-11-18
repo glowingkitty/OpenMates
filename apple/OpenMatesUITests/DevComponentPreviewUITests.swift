@@ -692,13 +692,22 @@ final class DevComponentPreviewUITests: XCTestCase {
         attachScreenshot("Projects deployed landing at phone width")
         XCTAssertTrue(name.isHittable)
         name.tap()
-        name.typeText("Synthetic preview Project")
+        // UIKit's tap-to-edit can land after a busy first layout pass; type
+        // only once the tapped editor really owns the keyboard.
+        let nameFocused = landing.textViews.matching(NSPredicate(
+            format: "identifier == %@ AND hasKeyboardFocus == true", "project-input-textarea")).firstMatch
+        XCTAssertTrue(nameFocused.waitForExistence(timeout: 8), "Tapping the project name field must focus it")
+        attachScreenshot("Projects focused composer at phone width")
+        nameFocused.typeText("Synthetic preview Project")
         XCTAssertTrue(landing.buttons["project-input-submit"].isHittable)
         XCTAssertEqual(element(landing, "project-input-composer").frame.height, 64, accuracy: 1)
         attachScreenshot("Projects typed composer at phone width")
         landing.buttons["project-input-submit"].tap()
         XCTAssertTrue(element(landing, "project-write-policy-setup").waitForExistence(timeout: 3))
-        landing.buttons["Cancel"].tap()
+        // The focused composer keeps its own Cancel (outside the form, like web);
+        // dismiss the write-policy sheet with the sheet's Cancel.
+        landing.buttons.matching(NSPredicate(format: "label == %@ AND identifier != %@",
+            "Cancel", "project-input-composer-cancel")).firstMatch.tap()
         XCTAssertTrue(element(landing, "project-write-policy-setup").waitForNonExistence(timeout: 5))
         XCTAssertFalse(landing.keyboards.firstMatch.exists)
         XCTAssertTrue(card.isHittable)

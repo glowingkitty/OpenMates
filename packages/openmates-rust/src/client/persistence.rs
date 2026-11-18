@@ -44,6 +44,8 @@ impl Client {
         let team = self.team()?.map(str::to_owned);
         let mut keys: BTreeMap<String, Key> = BTreeMap::new();
         let mut pending = Plain::new(embeds.clone());
+        // Another turn's late rows are not this turn's to save (see the fn).
+        super::send::unfinished_embeds::drop_other_turns(&mut pending, message);
         let checkpoints = Plain::new(checkpoints.to_vec());
         let mut items = Plain::new(Vec::<Item>::new());
         // Parent-before-child ordering is independent of delivery order.

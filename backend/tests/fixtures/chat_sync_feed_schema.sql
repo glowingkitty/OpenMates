@@ -13,7 +13,7 @@ CREATE TABLE chats (
     pinned boolean, encrypted_recommendations text, parent_id uuid, is_sub_chat boolean,
     budget_limit integer, budget_spent integer, encrypted_shared_short_url text,
     encrypted_share_cta_text text, storage_state varchar(255), encrypted_auto_speak_response varchar(255),
-    encrypted_focus_phase_state text, archive_mutation_v integer, chat_visibility varchar(255),
+    encrypted_focus_phase_state text, encrypted_wellbeing_scores text, archive_mutation_v integer, chat_visibility varchar(255),
     participant_user_hashes json, participant_key_envelopes json, encrypted_suggested_followup_message text
 );
 CREATE TABLE messages (id uuid PRIMARY KEY, chat_id varchar(255), hashed_user_id varchar(255), encrypted_content text);

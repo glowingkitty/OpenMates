@@ -6,7 +6,8 @@
 //!
 //! Errors reject with a stable code string: an `Unavailable` code
 //! (`embed_parent_key_pending`, `embed_chat_key_unavailable`,
-//! `embed_key_unavailable`, `embed_history_read_failed`) or one of
+//! `embed_key_unavailable`, `embed_history_read_failed`, `embed_master_unavailable`,
+//! `embed_local_only_required`) or one of
 //! `conflict`, `protocol`, `crypto`, `invalid`, `cancelled`, `unavailable`.
 use openmates_sdk::client::embed_write::{
     self, CanonicalRead, EmbedRefIndex, EmbedRefIndexEntry, EmbedStatus, EmbedWriteSession, OsNonces,
@@ -78,6 +79,15 @@ impl BrowserEmbedWriter {
         let port = super::browser_crypto::BrowserMasterCrypto::new(master).map_err(code)?;
         let master = MasterCapability::from_browser_port(Rc::new(port));
         Ok(Self { session: Rc::new(RefCell::new(EmbedWriteSession::new(master))) })
+    }
+    /// Signed-out guest session without a master key (worker-only). It encrypts
+    /// with the guest chat key installed by `install_chat_key`, writes only
+    /// local-only embeds and rejects master-wrapped keys (`embed_master_unavailable`)
+    /// and server payloads (`embed_local_only_required`).
+    #[wasm_bindgen(js_name = newLocalOnly)]
+    pub fn new_local_only() -> Result<BrowserEmbedWriter, JsValue> {
+        worker_only()?;
+        Ok(Self { session: Rc::new(RefCell::new(EmbedWriteSession::local_only())) })
     }
     /// Adopt a chat key from its master-wrapped `encrypted_chat_key`.
     pub fn adopt_chat_key(&self, chat_id: &str, encrypted_chat_key: &str) -> Result<js_sys::Promise, JsValue> {

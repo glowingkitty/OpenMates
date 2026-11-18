@@ -551,6 +551,22 @@ fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
+    typealias FfiType = Double
+    typealias SwiftType = Double
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Double {
+        return try lift(readDouble(&buf))
+    }
+
+    public static func write(_ value: Double, into buf: inout [UInt8]) {
+        writeDouble(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterBool : FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
@@ -792,6 +808,222 @@ public func FfiConverterTypeCoreCancellation_lift(_ handle: UInt64) throws -> Co
 #endif
 public func FfiConverterTypeCoreCancellation_lower(_ value: CoreCancellation) -> UInt64 {
     return FfiConverterTypeCoreCancellation.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Resident chat search index: ingest each chat's entries once, query per keystroke.
+ * Named `CoreChatSearchIndex` because the Apple app module already has a Swift
+ * `ChatSearchEngine` (the shell code this object replaces) and the bindings share that module.
+ */
+public protocol CoreChatSearchIndexProtocol: AnyObject, Sendable {
+    
+    /**
+     * Number of chats held.
+     */
+    func chatCount()  -> UInt32
+    
+    /**
+     * Drops every chat (logout).
+     */
+    func clear() 
+    
+    /**
+     * Replaces the entries of `chat_id`; returns the chat ids the index budget evicted
+     * (re-ingest them before they are queried with `search_messages`).
+     */
+    func ingestChat(chatId: String, entries: [SearchIndexEntryRecord])  -> [String]
+    
+    /**
+     * One complete search (`web_search_query::run_search`).
+     */
+    func query(request: SearchRequestRecord)  -> SearchResultRecord
+    
+    /**
+     * Drops one chat's entries.
+     */
+    func removeChat(chatId: String) 
+    
+}
+/**
+ * Resident chat search index: ingest each chat's entries once, query per keystroke.
+ * Named `CoreChatSearchIndex` because the Apple app module already has a Swift
+ * `ChatSearchEngine` (the shell code this object replaces) and the bindings share that module.
+ */
+open class CoreChatSearchIndex: CoreChatSearchIndexProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_openmates_apple_bindings_fn_clone_corechatsearchindex(self.handle, $0) }
+    }
+    /**
+     * An empty index.
+     */
+public convenience init() {
+    let handle =
+        try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_constructor_corechatsearchindex_new(uniffiCallStatus
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_openmates_apple_bindings_fn_free_corechatsearchindex(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Number of chats held.
+     */
+open func chatCount() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_corechatsearchindex_chat_count(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Drops every chat (logout).
+     */
+open func clear()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_corechatsearchindex_clear(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Replaces the entries of `chat_id`; returns the chat ids the index budget evicted
+     * (re-ingest them before they are queried with `search_messages`).
+     */
+open func ingestChat(chatId: String, entries: [SearchIndexEntryRecord]) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_corechatsearchindex_ingest_chat(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chatId),
+        FfiConverterSequenceTypeSearchIndexEntryRecord.lower(entries),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * One complete search (`web_search_query::run_search`).
+     */
+open func query(request: SearchRequestRecord) -> SearchResultRecord  {
+    return try!  FfiConverterTypeSearchResultRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_corechatsearchindex_query(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeSearchRequestRecord_lower(request),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Drops one chat's entries.
+     */
+open func removeChat(chatId: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_corechatsearchindex_remove_chat(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chatId),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoreChatSearchIndex: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = CoreChatSearchIndex
+
+    public static func lift(_ handle: UInt64) throws -> CoreChatSearchIndex {
+        return CoreChatSearchIndex(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: CoreChatSearchIndex) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoreChatSearchIndex {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: CoreChatSearchIndex, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreChatSearchIndex_lift(_ handle: UInt64) throws -> CoreChatSearchIndex {
+    return try FfiConverterTypeCoreChatSearchIndex.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreChatSearchIndex_lower(_ value: CoreChatSearchIndex) -> UInt64 {
+    return FfiConverterTypeCoreChatSearchIndex.lower(value)
 }
 
 
@@ -1858,6 +2090,149 @@ public func FfiConverterTypeOpenMatesCore_lower(_ value: OpenMatesCore) -> UInt6
 
 
 /**
+ * Per-embed ordering of relayed states: decides which state a device applies.
+ * Create one per signed-in session and keep it next to the remote view model.
+ */
+public protocol SlidesRemoteOrderingsProtocol: AnyObject, Sendable {
+    
+    /**
+     * `true` when `state` should be applied (and is remembered).
+     */
+    func accept(state: SlidesRemoteStateRecord)  -> Bool
+    
+}
+/**
+ * Per-embed ordering of relayed states: decides which state a device applies.
+ * Create one per signed-in session and keep it next to the remote view model.
+ */
+open class SlidesRemoteOrderings: SlidesRemoteOrderingsProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_openmates_apple_bindings_fn_clone_slidesremoteorderings(self.handle, $0) }
+    }
+    /**
+     * Empty orderings: the first state of each embed is accepted.
+     */
+public convenience init() {
+    let handle =
+        try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_constructor_slidesremoteorderings_new(uniffiCallStatus
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_openmates_apple_bindings_fn_free_slidesremoteorderings(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * `true` when `state` should be applied (and is remembered).
+     */
+open func accept(state: SlidesRemoteStateRecord) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_slidesremoteorderings_accept(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeSlidesRemoteStateRecord_lower(state),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlidesRemoteOrderings: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = SlidesRemoteOrderings
+
+    public static func lift(_ handle: UInt64) throws -> SlidesRemoteOrderings {
+        return SlidesRemoteOrderings(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: SlidesRemoteOrderings) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlidesRemoteOrderings {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: SlidesRemoteOrderings, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteOrderings_lift(_ handle: UInt64) throws -> SlidesRemoteOrderings {
+    return try FfiConverterTypeSlidesRemoteOrderings.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteOrderings_lower(_ value: SlidesRemoteOrderings) -> UInt64 {
+    return FfiConverterTypeSlidesRemoteOrderings.lower(value)
+}
+
+
+
+
+
+
+/**
  * Event listener implemented in Swift. Called on a core thread in event
  * order; it must not block and hops to `@MainActor` itself.
  */
@@ -2149,6 +2524,20 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * session out and emits `Session(SignedOut)`.
      */
     func adoptSession(session: AdoptedSessionRecord, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * Save one call source frame as an encrypted image embed of `chat_id`
+     * and return its reference. `data` is the base64 JPEG exactly as the
+     * server's `voice_source_frame` message carries it. Team and Direct
+     * chats are refused.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed frame;
+     * `Forbidden` for a team/Direct/keyless chat or an unreadable existing
+     * key; `Offline` when the server did not confirm the store; `Protocol`
+     * for an upload rejection; transport and crypto errors; `Cancelled`.
+     */
+    func persistCallSourceFrame(callId: String, chatId: String, userMessageId: String, frameId: String, data: String, capturedAt: Double, createdAt: Int64, source: CallSourceKindRecord, cancellation: CoreCancellation?) async throws  -> CallSourceReferenceRecord
     
     /**
      * Clear the draft of `chat_id` with its versioned tombstone (a
@@ -2469,6 +2858,20 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * (the job keeps running), and the errors of `imageEnhanceStatus`.
      */
     func waitImageEnhance(operationId: String, deadlineMs: UInt64?, waker: ImageEnhanceWaker?, cancellation: CoreCancellation?) async throws  -> ImageEnhanceJobRecord
+    
+    /**
+     * Read the plaintext of `version` of `embed_id`, reconstructed in the
+     * core. `scope` is accepted for call-site symmetry with
+     * `embedVersionHistory`; the core reads the Personal account only and
+     * refuses Team accounts as `Unavailable`.
+     *
+     * # Errors
+     * `Validation` for a non canonical embed id or version below 1;
+     * `Transport { protocol }` for an invalid or too large response;
+     * `AccessDenied`/`Authentication`/`SessionExpired` when access changed;
+     * `Unavailable` for Team scope; `Offline`; `Cancelled`.
+     */
+    func embedVersionContent(embedId: String, scope: EmbedScopeRecord?, version: Int64, cancellation: CoreCancellation?) async throws  -> EmbedVersionContentRecord
     
     /**
      * Commit a user edit of a document, sheet, diagram or slides embed as
@@ -2853,6 +3256,39 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func updateMemoryDocument(id: String, fields: MemoryFieldsRecord, cancellation: CoreCancellation?) async throws  -> MemoryDocumentRecord
     
     /**
+     * Create a new empty Project file of `kind` (`document`, `sheet`,
+     * `slides`, `code`) named `name` in `folder_id` (the Project root when
+     * `None`). `team_id` is the Team of a Team Project, `None` for Personal.
+     * Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for an unknown kind or an
+     * empty name; `Forbidden`; `Offline`; `Cancelled`.
+     */
+    func createProjectDocument(projectId: String, teamId: String?, kind: String, name: String, folderId: String?, cancellation: CoreCancellation?) async throws  -> CreatedProjectDocumentRecord
+    
+    /**
+     * One page of the Project timeline, newest first (`limit` 1..=100).
+     * `before` is the previous page's `next_cursor`; `team_id` is the Team of
+     * a Team Project, nil for Personal. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid`; `Forbidden`; `Offline`;
+     * `Cancelled`.
+     */
+    func projectTimeline(projectId: String, teamId: String?, limit: UInt64?, before: String?, cancellation: CoreCancellation?) async throws  -> ProjectTimelinePageRecord
+    
+    /**
+     * Restore every file of `commit_id` as new versions; later history is
+     * kept. `operation_id` is a UUID that makes a retry idempotent.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` when nothing could be
+     * restored; `Forbidden`; `Offline`; `Cancelled`.
+     */
+    func restoreProjectCommit(projectId: String, teamId: String?, commitId: String, operationId: String, cancellation: CoreCancellation?) async throws  -> ProjectCommitRestoreRecord
+    
+    /**
      * Commit every change of the chat worktree (approved on the device by
      * `operation_id`).
      *
@@ -2918,6 +3354,37 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * `Cancelled`.
      */
     func reviseQueuedMessage(chatId: String, messageId: String, revision: UInt64, text: String?, modeChange: SendQueueModeRecord?, options: SendOptionsRecord, cancellation: CoreCancellation?) async throws  -> QueuedRevisionReceiptRecord
+    
+    /**
+     * The open recommendations of `chat_id` (Memory and Workflow
+     * suggestions of the latest completed turn), decrypted on this device;
+     * empty when the chat has none.
+     *
+     * # Errors
+     * `Authentication` when signed out; chat read errors (`Forbidden`,
+     * `Offline`, `Crypto`, `Expired`); `Cancelled`.
+     */
+    func chatRecommendations(chatId: String, cancellation: CoreCancellation?) async throws  -> [ChatRecommendationRecord]
+    
+    /**
+     * Accepts a Memory recommendation of `chat_id`: the billed create-draft
+     * or update-preview request built from the chat's latest turn. Request
+     * failures (insufficient credits, network, refused) come back as a
+     * status, not an error.
+     *
+     * # Errors
+     * `Authentication` when signed out; chat read errors; `Cancelled`.
+     */
+    func recommendationMemoryDraft(chatId: String, recommendation: ChatRecommendationRecord, cancellation: CoreCancellation?) async throws  -> RecommendationDraftRecord
+    
+    /**
+     * Marks a recommendation resolved after its entry was saved (encrypted
+     * state written back with the chat key); no-op when it is no longer open.
+     *
+     * # Errors
+     * `Authentication` when signed out; chat read and socket errors; `Cancelled`.
+     */
+    func resolveChatRecommendation(chatId: String, recommendationId: String, cancellation: CoreCancellation?) async throws 
     
     /**
      * The server region preference applied to this core's sends (`Eu`
@@ -3019,6 +3486,25 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * `Internal` for a binding failure only.
      */
     func sessionInfo() async throws  -> SessionInfoRecord?
+    
+    /**
+     * Decrypt a relayed `slides_present_state` ciphertext of `embed_id`.
+     *
+     * # Errors
+     * `CiphertextTooLong`, `Crypto`, `Malformed`, `UnknownVersion`,
+     * `EmbedMismatch`, `SeqOutOfRange`, `Unavailable`.
+     */
+    func slidesRemoteDecrypt(embedId: String, ciphertext: String) async throws  -> SlidesRemoteStateRecord
+    
+    /**
+     * Encrypt `state` with the deck's embed key (resolved in the core) for
+     * the `slides_present_state` frame.
+     *
+     * # Errors
+     * `SeqOutOfRange`, `PlaintextTooLong`, `CiphertextTooLong`, `Crypto`,
+     * `Unavailable` (no embed key, signed out, busy actor).
+     */
+    func slidesRemoteEncrypt(state: SlidesRemoteStateRecord) async throws  -> String
     
     /**
      * Opt in to unowned socket frames: from now on, also after a new
@@ -3289,6 +3775,34 @@ open func adoptSession(session: AdoptedSessionRecord, cancellation: CoreCancella
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
             liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Save one call source frame as an encrypted image embed of `chat_id`
+     * and return its reference. `data` is the base64 JPEG exactly as the
+     * server's `voice_source_frame` message carries it. Team and Direct
+     * chats are refused.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for a malformed frame;
+     * `Forbidden` for a team/Direct/keyless chat or an unreadable existing
+     * key; `Offline` when the server did not confirm the store; `Protocol`
+     * for an upload rejection; transport and crypto errors; `Cancelled`.
+     */
+open func persistCallSourceFrame(callId: String, chatId: String, userMessageId: String, frameId: String, data: String, capturedAt: Double, createdAt: Int64, source: CallSourceKindRecord, cancellation: CoreCancellation?)async throws  -> CallSourceReferenceRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_persist_call_source_frame(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(callId),FfiConverterString.lower(chatId),FfiConverterString.lower(userMessageId),FfiConverterString.lower(frameId),FfiConverterString.lower(data),FfiConverterDouble.lower(capturedAt),FfiConverterInt64.lower(createdAt),FfiConverterTypeCallSourceKindRecord_lower(source),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeCallSourceReferenceRecord_lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -3961,6 +4475,34 @@ open func waitImageEnhance(operationId: String, deadlineMs: UInt64?, waker: Imag
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeImageEnhanceJobRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Read the plaintext of `version` of `embed_id`, reconstructed in the
+     * core. `scope` is accepted for call-site symmetry with
+     * `embedVersionHistory`; the core reads the Personal account only and
+     * refuses Team accounts as `Unavailable`.
+     *
+     * # Errors
+     * `Validation` for a non canonical embed id or version below 1;
+     * `Transport { protocol }` for an invalid or too large response;
+     * `AccessDenied`/`Authentication`/`SessionExpired` when access changed;
+     * `Unavailable` for Team scope; `Offline`; `Cancelled`.
+     */
+open func embedVersionContent(embedId: String, scope: EmbedScopeRecord?, version: Int64, cancellation: CoreCancellation?)async throws  -> EmbedVersionContentRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_embed_version_content(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterOptionTypeEmbedScopeRecord.lower(scope),FfiConverterInt64.lower(version),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeEmbedVersionContentRecord_lift,
             errorHandler: FfiConverterTypeEmbedEditError_lift
         )
 }
@@ -4748,6 +5290,81 @@ open func updateMemoryDocument(id: String, fields: MemoryFieldsRecord, cancellat
 }
     
     /**
+     * Create a new empty Project file of `kind` (`document`, `sheet`,
+     * `slides`, `code`) named `name` in `folder_id` (the Project root when
+     * `None`). `team_id` is the Team of a Team Project, `None` for Personal.
+     * Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for an unknown kind or an
+     * empty name; `Forbidden`; `Offline`; `Cancelled`.
+     */
+open func createProjectDocument(projectId: String, teamId: String?, kind: String, name: String, folderId: String?, cancellation: CoreCancellation?)async throws  -> CreatedProjectDocumentRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_create_project_document(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterString.lower(kind),FfiConverterString.lower(name),FfiConverterOptionString.lower(folderId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeCreatedProjectDocumentRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * One page of the Project timeline, newest first (`limit` 1..=100).
+     * `before` is the previous page's `next_cursor`; `team_id` is the Team of
+     * a Team Project, nil for Personal. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid`; `Forbidden`; `Offline`;
+     * `Cancelled`.
+     */
+open func projectTimeline(projectId: String, teamId: String?, limit: UInt64?, before: String?, cancellation: CoreCancellation?)async throws  -> ProjectTimelinePageRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_project_timeline(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterOptionUInt64.lower(limit),FfiConverterOptionString.lower(before),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeProjectTimelinePageRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Restore every file of `commit_id` as new versions; later history is
+     * kept. `operation_id` is a UUID that makes a retry idempotent.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` when nothing could be
+     * restored; `Forbidden`; `Offline`; `Cancelled`.
+     */
+open func restoreProjectCommit(projectId: String, teamId: String?, commitId: String, operationId: String, cancellation: CoreCancellation?)async throws  -> ProjectCommitRestoreRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_restore_project_commit(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterString.lower(commitId),FfiConverterString.lower(operationId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeProjectCommitRestoreRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
      * Commit every change of the chat worktree (approved on the device by
      * `operation_id`).
      *
@@ -4894,6 +5511,79 @@ open func reviseQueuedMessage(chatId: String, messageId: String, revision: UInt6
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeQueuedRevisionReceiptRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * The open recommendations of `chat_id` (Memory and Workflow
+     * suggestions of the latest completed turn), decrypted on this device;
+     * empty when the chat has none.
+     *
+     * # Errors
+     * `Authentication` when signed out; chat read errors (`Forbidden`,
+     * `Offline`, `Crypto`, `Expired`); `Cancelled`.
+     */
+open func chatRecommendations(chatId: String, cancellation: CoreCancellation?)async throws  -> [ChatRecommendationRecord]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_chat_recommendations(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeChatRecommendationRecord.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Accepts a Memory recommendation of `chat_id`: the billed create-draft
+     * or update-preview request built from the chat's latest turn. Request
+     * failures (insufficient credits, network, refused) come back as a
+     * status, not an error.
+     *
+     * # Errors
+     * `Authentication` when signed out; chat read errors; `Cancelled`.
+     */
+open func recommendationMemoryDraft(chatId: String, recommendation: ChatRecommendationRecord, cancellation: CoreCancellation?)async throws  -> RecommendationDraftRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_recommendation_memory_draft(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterTypeChatRecommendationRecord_lower(recommendation),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeRecommendationDraftRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Marks a recommendation resolved after its entry was saved (encrypted
+     * state written back with the chat key); no-op when it is no longer open.
+     *
+     * # Errors
+     * `Authentication` when signed out; chat read and socket errors; `Cancelled`.
+     */
+open func resolveChatRecommendation(chatId: String, recommendationId: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_resolve_chat_recommendation(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(chatId),FfiConverterString.lower(recommendationId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -5085,6 +5775,53 @@ open func sessionInfo()async throws  -> SessionInfoRecord?  {
 }
     
     /**
+     * Decrypt a relayed `slides_present_state` ciphertext of `embed_id`.
+     *
+     * # Errors
+     * `CiphertextTooLong`, `Crypto`, `Malformed`, `UnknownVersion`,
+     * `EmbedMismatch`, `SeqOutOfRange`, `Unavailable`.
+     */
+open func slidesRemoteDecrypt(embedId: String, ciphertext: String)async throws  -> SlidesRemoteStateRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_slides_remote_decrypt(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterString.lower(ciphertext)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeSlidesRemoteStateRecord_lift,
+            errorHandler: FfiConverterTypeSlidesRemoteError_lift
+        )
+}
+    
+    /**
+     * Encrypt `state` with the deck's embed key (resolved in the core) for
+     * the `slides_present_state` frame.
+     *
+     * # Errors
+     * `SeqOutOfRange`, `PlaintextTooLong`, `CiphertextTooLong`, `Crypto`,
+     * `Unavailable` (no embed key, signed out, busy actor).
+     */
+open func slidesRemoteEncrypt(state: SlidesRemoteStateRecord)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_slides_remote_encrypt(
+                        self.uniffiCloneHandle(),FfiConverterTypeSlidesRemoteStateRecord_lower(state)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeSlidesRemoteError_lift
+        )
+}
+    
+    /**
      * Opt in to unowned socket frames: from now on, also after a new
      * sign-in, every frame of a type the core does not own reaches the
      * listener as `unownedSocketFrame` (a slow listener makes the core drop
@@ -5215,6 +5952,207 @@ public func FfiConverterTypeViewModelCore_lift(_ handle: UInt64) throws -> ViewM
 #endif
 public func FfiConverterTypeViewModelCore_lower(_ value: ViewModelCore) -> UInt64 {
     return FfiConverterTypeViewModelCore.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Call clock owned by one live call. Time is passed in as `now_ms`.
+ */
+public protocol VoiceCallActivityClockHandleProtocol: AnyObject, Sendable {
+    
+    /**
+     * Applies already-decoded server activity flags.
+     */
+    func applyActivity(nowMs: Double, inputListening: Bool, processing: Bool) 
+    
+    /**
+     * Applies a raw server frame for `call_id`. Returns false (and changes
+     * nothing) when the frame is not a well-formed `billing_activity` frame
+     * of this call.
+     */
+    func applyFrameJson(callId: String, nowMs: Double, json: String)  -> Bool
+    
+    /**
+     * Marks the call ended (both flags idle).
+     */
+    func finish(nowMs: Double) 
+    
+    /**
+     * Accounts time up to `now_ms` and returns the reading.
+     */
+    func tick(nowMs: Double)  -> VoiceCallClockRecord
+    
+}
+/**
+ * Call clock owned by one live call. Time is passed in as `now_ms`.
+ */
+open class VoiceCallActivityClockHandle: VoiceCallActivityClockHandleProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_openmates_apple_bindings_fn_clone_voicecallactivityclockhandle(self.handle, $0) }
+    }
+    /**
+     * New clock: activity unknown, nothing accumulated.
+     */
+public convenience init() {
+    let handle =
+        try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_constructor_voicecallactivityclockhandle_new(uniffiCallStatus
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_openmates_apple_bindings_fn_free_voicecallactivityclockhandle(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Applies already-decoded server activity flags.
+     */
+open func applyActivity(nowMs: Double, inputListening: Bool, processing: Bool)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_voicecallactivityclockhandle_apply_activity(
+            self.uniffiCloneHandle(),
+        FfiConverterDouble.lower(nowMs),
+        FfiConverterBool.lower(inputListening),
+        FfiConverterBool.lower(processing),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Applies a raw server frame for `call_id`. Returns false (and changes
+     * nothing) when the frame is not a well-formed `billing_activity` frame
+     * of this call.
+     */
+open func applyFrameJson(callId: String, nowMs: Double, json: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_voicecallactivityclockhandle_apply_frame_json(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(callId),
+        FfiConverterDouble.lower(nowMs),
+        FfiConverterString.lower(json),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Marks the call ended (both flags idle).
+     */
+open func finish(nowMs: Double)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_voicecallactivityclockhandle_finish(
+            self.uniffiCloneHandle(),
+        FfiConverterDouble.lower(nowMs),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Accounts time up to `now_ms` and returns the reading.
+     */
+open func tick(nowMs: Double) -> VoiceCallClockRecord  {
+    return try!  FfiConverterTypeVoiceCallClockRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_voicecallactivityclockhandle_tick(
+            self.uniffiCloneHandle(),
+        FfiConverterDouble.lower(nowMs),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallActivityClockHandle: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = VoiceCallActivityClockHandle
+
+    public static func lift(_ handle: UInt64) throws -> VoiceCallActivityClockHandle {
+        return VoiceCallActivityClockHandle(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: VoiceCallActivityClockHandle) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallActivityClockHandle {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: VoiceCallActivityClockHandle, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallActivityClockHandle_lift(_ handle: UInt64) throws -> VoiceCallActivityClockHandle {
+    return try FfiConverterTypeVoiceCallActivityClockHandle.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallActivityClockHandle_lower(_ value: VoiceCallActivityClockHandle) -> UInt64 {
+    return FfiConverterTypeVoiceCallActivityClockHandle.lower(value)
 }
 
 
@@ -5351,6 +6289,382 @@ public func FfiConverterTypeAdoptedSessionRecord_lift(_ buf: RustBuffer) throws 
 #endif
 public func FfiConverterTypeAdoptedSessionRecord_lower(_ value: AdoptedSessionRecord) -> RustBuffer {
     return FfiConverterTypeAdoptedSessionRecord.lower(value)
+}
+
+
+/**
+ * One block-level embed reference of a message body.
+ */
+public struct BodyEmbedRefRecord: Equatable, Hashable {
+    /**
+     * Authored reference.
+     */
+    public var embedRef: String
+    /**
+     * Resolved embed id, when known.
+     */
+    public var embedId: String?
+    /**
+     * Resolved embed type, when known.
+     */
+    public var typeName: String?
+    /**
+     * App id, when known.
+     */
+    public var appId: String?
+    /**
+     * Skill id, when known.
+     */
+    public var skillId: String?
+    /**
+     * Result child ids; `None` while not known yet.
+     */
+    public var childIds: [String]?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Authored reference.
+         */embedRef: String, 
+        /**
+         * Resolved embed id, when known.
+         */embedId: String?, 
+        /**
+         * Resolved embed type, when known.
+         */typeName: String?, 
+        /**
+         * App id, when known.
+         */appId: String?, 
+        /**
+         * Skill id, when known.
+         */skillId: String?, 
+        /**
+         * Result child ids; `None` while not known yet.
+         */childIds: [String]?) {
+        self.embedRef = embedRef
+        self.embedId = embedId
+        self.typeName = typeName
+        self.appId = appId
+        self.skillId = skillId
+        self.childIds = childIds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BodyEmbedRefRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBodyEmbedRefRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BodyEmbedRefRecord {
+        return
+            try BodyEmbedRefRecord(
+                embedRef: FfiConverterString.read(from: &buf), 
+                embedId: FfiConverterOptionString.read(from: &buf), 
+                typeName: FfiConverterOptionString.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf), 
+                skillId: FfiConverterOptionString.read(from: &buf), 
+                childIds: FfiConverterOptionSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BodyEmbedRefRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedRef, into: &buf)
+        FfiConverterOptionString.write(value.embedId, into: &buf)
+        FfiConverterOptionString.write(value.typeName, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
+        FfiConverterOptionString.write(value.skillId, into: &buf)
+        FfiConverterOptionSequenceString.write(value.childIds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyEmbedRefRecord_lift(_ buf: RustBuffer) throws -> BodyEmbedRefRecord {
+    return try FfiConverterTypeBodyEmbedRefRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyEmbedRefRecord_lower(_ value: BodyEmbedRefRecord) -> RustBuffer {
+    return FfiConverterTypeBodyEmbedRefRecord.lower(value)
+}
+
+
+/**
+ * One body node handed to carousel grouping.
+ */
+public struct BodyNodeRecord: Equatable, Hashable {
+    /**
+     * Node kind.
+     */
+    public var kind: BodyNodeKindRecord
+    /**
+     * Embed ref for `EmbedLarge`, else empty.
+     */
+    public var embedRef: String
+    /**
+     * Hidden placeholder: keeps position, renders nothing, never counted.
+     */
+    public var hidden: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Node kind.
+         */kind: BodyNodeKindRecord, 
+        /**
+         * Embed ref for `EmbedLarge`, else empty.
+         */embedRef: String, 
+        /**
+         * Hidden placeholder: keeps position, renders nothing, never counted.
+         */hidden: Bool) {
+        self.kind = kind
+        self.embedRef = embedRef
+        self.hidden = hidden
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BodyNodeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBodyNodeRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BodyNodeRecord {
+        return
+            try BodyNodeRecord(
+                kind: FfiConverterTypeBodyNodeKindRecord.read(from: &buf), 
+                embedRef: FfiConverterString.read(from: &buf), 
+                hidden: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BodyNodeRecord, into buf: inout [UInt8]) {
+        FfiConverterTypeBodyNodeKindRecord.write(value.kind, into: &buf)
+        FfiConverterString.write(value.embedRef, into: &buf)
+        FfiConverterBool.write(value.hidden, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyNodeRecord_lift(_ buf: RustBuffer) throws -> BodyNodeRecord {
+    return try FfiConverterTypeBodyNodeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyNodeRecord_lower(_ value: BodyNodeRecord) -> RustBuffer {
+    return FfiConverterTypeBodyNodeRecord.lower(value)
+}
+
+
+/**
+ * Reference to the saved image embed, sent back to the voice pipeline.
+ */
+public struct CallSourceReferenceRecord: Equatable, Hashable {
+    /**
+     * Embed id assigned by the upload server.
+     */
+    public var embedId: String
+    /**
+     * Echo of the frame id.
+     */
+    public var sourceFrameId: String
+    /**
+     * Echo of the capture time (seconds).
+     */
+    public var capturedAt: Double
+    /**
+     * Echo of the call id.
+     */
+    public var sourceCallId: String
+    /**
+     * Echo of the source kind.
+     */
+    public var source: CallSourceKindRecord
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Embed id assigned by the upload server.
+         */embedId: String, 
+        /**
+         * Echo of the frame id.
+         */sourceFrameId: String, 
+        /**
+         * Echo of the capture time (seconds).
+         */capturedAt: Double, 
+        /**
+         * Echo of the call id.
+         */sourceCallId: String, 
+        /**
+         * Echo of the source kind.
+         */source: CallSourceKindRecord) {
+        self.embedId = embedId
+        self.sourceFrameId = sourceFrameId
+        self.capturedAt = capturedAt
+        self.sourceCallId = sourceCallId
+        self.source = source
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CallSourceReferenceRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCallSourceReferenceRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CallSourceReferenceRecord {
+        return
+            try CallSourceReferenceRecord(
+                embedId: FfiConverterString.read(from: &buf), 
+                sourceFrameId: FfiConverterString.read(from: &buf), 
+                capturedAt: FfiConverterDouble.read(from: &buf), 
+                sourceCallId: FfiConverterString.read(from: &buf), 
+                source: FfiConverterTypeCallSourceKindRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CallSourceReferenceRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterString.write(value.sourceFrameId, into: &buf)
+        FfiConverterDouble.write(value.capturedAt, into: &buf)
+        FfiConverterString.write(value.sourceCallId, into: &buf)
+        FfiConverterTypeCallSourceKindRecord.write(value.source, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCallSourceReferenceRecord_lift(_ buf: RustBuffer) throws -> CallSourceReferenceRecord {
+    return try FfiConverterTypeCallSourceReferenceRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCallSourceReferenceRecord_lower(_ value: CallSourceReferenceRecord) -> RustBuffer {
+    return FfiConverterTypeCallSourceReferenceRecord.lower(value)
+}
+
+
+/**
+ * Placement and carousel metadata of one kept node.
+ */
+public struct CarouselPlacementRecord: Equatable, Hashable {
+    /**
+     * Index of the node in the input list.
+     */
+    public var sourceIndex: UInt32
+    /**
+     * Position in its run; -1 for hidden and non-embed nodes.
+     */
+    public var carouselIndex: Int32
+    /**
+     * Visible items in the run; 0 for hidden and non-embed nodes.
+     */
+    public var carouselTotal: UInt32
+    /**
+     * Ref of the run's first visible embed; empty when not applicable.
+     */
+    public var runRef: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Index of the node in the input list.
+         */sourceIndex: UInt32, 
+        /**
+         * Position in its run; -1 for hidden and non-embed nodes.
+         */carouselIndex: Int32, 
+        /**
+         * Visible items in the run; 0 for hidden and non-embed nodes.
+         */carouselTotal: UInt32, 
+        /**
+         * Ref of the run's first visible embed; empty when not applicable.
+         */runRef: String) {
+        self.sourceIndex = sourceIndex
+        self.carouselIndex = carouselIndex
+        self.carouselTotal = carouselTotal
+        self.runRef = runRef
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CarouselPlacementRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCarouselPlacementRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CarouselPlacementRecord {
+        return
+            try CarouselPlacementRecord(
+                sourceIndex: FfiConverterUInt32.read(from: &buf), 
+                carouselIndex: FfiConverterInt32.read(from: &buf), 
+                carouselTotal: FfiConverterUInt32.read(from: &buf), 
+                runRef: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CarouselPlacementRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.sourceIndex, into: &buf)
+        FfiConverterInt32.write(value.carouselIndex, into: &buf)
+        FfiConverterUInt32.write(value.carouselTotal, into: &buf)
+        FfiConverterString.write(value.runRef, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCarouselPlacementRecord_lift(_ buf: RustBuffer) throws -> CarouselPlacementRecord {
+    return try FfiConverterTypeCarouselPlacementRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCarouselPlacementRecord_lower(_ value: CarouselPlacementRecord) -> RustBuffer {
+    return FfiConverterTypeCarouselPlacementRecord.lower(value)
 }
 
 
@@ -5670,6 +6984,115 @@ public func FfiConverterTypeChatMetadataRecord_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeChatMetadataRecord_lower(_ value: ChatMetadataRecord) -> RustBuffer {
     return FfiConverterTypeChatMetadataRecord.lower(value)
+}
+
+
+/**
+ * One open recommendation as shown on the card.
+ */
+public struct ChatRecommendationRecord: Equatable, Hashable {
+    /**
+     * Stable id of the recommendation.
+     */
+    public var id: String
+    /**
+     * Memory or workflow.
+     */
+    public var kind: RecommendationKindRecord
+    /**
+     * Create or update.
+     */
+    public var action: RecommendationActionRecord
+    /**
+     * Existing entry id when updating.
+     */
+    public var targetId: String?
+    /**
+     * Short title.
+     */
+    public var title: String
+    /**
+     * One or two sentences.
+     */
+    public var summary: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable id of the recommendation.
+         */id: String, 
+        /**
+         * Memory or workflow.
+         */kind: RecommendationKindRecord, 
+        /**
+         * Create or update.
+         */action: RecommendationActionRecord, 
+        /**
+         * Existing entry id when updating.
+         */targetId: String?, 
+        /**
+         * Short title.
+         */title: String, 
+        /**
+         * One or two sentences.
+         */summary: String) {
+        self.id = id
+        self.kind = kind
+        self.action = action
+        self.targetId = targetId
+        self.title = title
+        self.summary = summary
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChatRecommendationRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChatRecommendationRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChatRecommendationRecord {
+        return
+            try ChatRecommendationRecord(
+                id: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterTypeRecommendationKindRecord.read(from: &buf), 
+                action: FfiConverterTypeRecommendationActionRecord.read(from: &buf), 
+                targetId: FfiConverterOptionString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                summary: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChatRecommendationRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterTypeRecommendationKindRecord.write(value.kind, into: &buf)
+        FfiConverterTypeRecommendationActionRecord.write(value.action, into: &buf)
+        FfiConverterOptionString.write(value.targetId, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.summary, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChatRecommendationRecord_lift(_ buf: RustBuffer) throws -> ChatRecommendationRecord {
+    return try FfiConverterTypeChatRecommendationRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChatRecommendationRecord_lower(_ value: ChatRecommendationRecord) -> RustBuffer {
+    return FfiConverterTypeChatRecommendationRecord.lower(value)
 }
 
 
@@ -6495,6 +7918,95 @@ public func FfiConverterTypeCoreConfig_lower(_ value: CoreConfig) -> RustBuffer 
 
 
 /**
+ * A Project file the core created.
+ */
+public struct CreatedProjectDocumentRecord: Equatable, Hashable {
+    /**
+     * The new embed id.
+     */
+    public var embedId: String
+    /**
+     * Embed type (`docs-doc`, `sheets-sheet`, `slides-deck`, `code-code`).
+     */
+    public var embedType: String
+    /**
+     * The Project item link id.
+     */
+    public var projectItemId: String
+    /**
+     * Embed content as the JSON string the viewers decode.
+     */
+    public var contentJson: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The new embed id.
+         */embedId: String, 
+        /**
+         * Embed type (`docs-doc`, `sheets-sheet`, `slides-deck`, `code-code`).
+         */embedType: String, 
+        /**
+         * The Project item link id.
+         */projectItemId: String, 
+        /**
+         * Embed content as the JSON string the viewers decode.
+         */contentJson: String) {
+        self.embedId = embedId
+        self.embedType = embedType
+        self.projectItemId = projectItemId
+        self.contentJson = contentJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CreatedProjectDocumentRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCreatedProjectDocumentRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CreatedProjectDocumentRecord {
+        return
+            try CreatedProjectDocumentRecord(
+                embedId: FfiConverterString.read(from: &buf), 
+                embedType: FfiConverterString.read(from: &buf), 
+                projectItemId: FfiConverterString.read(from: &buf), 
+                contentJson: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CreatedProjectDocumentRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterString.write(value.embedType, into: &buf)
+        FfiConverterString.write(value.projectItemId, into: &buf)
+        FfiConverterString.write(value.contentJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCreatedProjectDocumentRecord_lift(_ buf: RustBuffer) throws -> CreatedProjectDocumentRecord {
+    return try FfiConverterTypeCreatedProjectDocumentRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCreatedProjectDocumentRecord_lower(_ value: CreatedProjectDocumentRecord) -> RustBuffer {
+    return FfiConverterTypeCreatedProjectDocumentRecord.lower(value)
+}
+
+
+/**
  * The Project an assistant turn created for a chat.
  */
 public struct CreatedProjectRecord: Equatable, Hashable {
@@ -6951,6 +8463,184 @@ public func FfiConverterTypeEmbedNoticeReconcileRecord_lift(_ buf: RustBuffer) t
 #endif
 public func FfiConverterTypeEmbedNoticeReconcileRecord_lower(_ value: EmbedNoticeReconcileRecord) -> RustBuffer {
     return FfiConverterTypeEmbedNoticeReconcileRecord.lower(value)
+}
+
+
+/**
+ * Translatable status line: key, numeric values and a literal prefix.
+ */
+public struct EmbedProgressLineRecord: Equatable, Hashable {
+    /**
+     * Full i18n key (`embeds.progress_*`).
+     */
+    public var key: String
+    /**
+     * Placeholder names, parallel to `value_numbers`.
+     */
+    public var valueNames: [String]
+    /**
+     * Placeholder values, parallel to `value_names`.
+     */
+    public var valueNumbers: [UInt32]
+    /**
+     * Literal text shown before the translated key, such as `2/4 · `.
+     */
+    public var prefix: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Full i18n key (`embeds.progress_*`).
+         */key: String, 
+        /**
+         * Placeholder names, parallel to `value_numbers`.
+         */valueNames: [String], 
+        /**
+         * Placeholder values, parallel to `value_names`.
+         */valueNumbers: [UInt32], 
+        /**
+         * Literal text shown before the translated key, such as `2/4 · `.
+         */prefix: String) {
+        self.key = key
+        self.valueNames = valueNames
+        self.valueNumbers = valueNumbers
+        self.prefix = prefix
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EmbedProgressLineRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedProgressLineRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedProgressLineRecord {
+        return
+            try EmbedProgressLineRecord(
+                key: FfiConverterString.read(from: &buf), 
+                valueNames: FfiConverterSequenceString.read(from: &buf), 
+                valueNumbers: FfiConverterSequenceUInt32.read(from: &buf), 
+                prefix: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EmbedProgressLineRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.key, into: &buf)
+        FfiConverterSequenceString.write(value.valueNames, into: &buf)
+        FfiConverterSequenceUInt32.write(value.valueNumbers, into: &buf)
+        FfiConverterString.write(value.prefix, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedProgressLineRecord_lift(_ buf: RustBuffer) throws -> EmbedProgressLineRecord {
+    return try FfiConverterTypeEmbedProgressLineRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedProgressLineRecord_lower(_ value: EmbedProgressLineRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedProgressLineRecord.lower(value)
+}
+
+
+/**
+ * One validated progress frame.
+ */
+public struct EmbedProgressRecord: Equatable, Hashable {
+    /**
+     * Sources the skill searches (at least 1).
+     */
+    public var sourcesTotal: UInt32
+    /**
+     * Sources finished so far.
+     */
+    public var sourcesDone: UInt32
+    /**
+     * Results found so far.
+     */
+    public var resultCount: UInt32
+    /**
+     * Frame sequence number; the highest wins.
+     */
+    public var seq: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Sources the skill searches (at least 1).
+         */sourcesTotal: UInt32, 
+        /**
+         * Sources finished so far.
+         */sourcesDone: UInt32, 
+        /**
+         * Results found so far.
+         */resultCount: UInt32, 
+        /**
+         * Frame sequence number; the highest wins.
+         */seq: UInt32) {
+        self.sourcesTotal = sourcesTotal
+        self.sourcesDone = sourcesDone
+        self.resultCount = resultCount
+        self.seq = seq
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EmbedProgressRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedProgressRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedProgressRecord {
+        return
+            try EmbedProgressRecord(
+                sourcesTotal: FfiConverterUInt32.read(from: &buf), 
+                sourcesDone: FfiConverterUInt32.read(from: &buf), 
+                resultCount: FfiConverterUInt32.read(from: &buf), 
+                seq: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EmbedProgressRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.sourcesTotal, into: &buf)
+        FfiConverterUInt32.write(value.sourcesDone, into: &buf)
+        FfiConverterUInt32.write(value.resultCount, into: &buf)
+        FfiConverterUInt32.write(value.seq, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedProgressRecord_lift(_ buf: RustBuffer) throws -> EmbedProgressRecord {
+    return try FfiConverterTypeEmbedProgressRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedProgressRecord_lower(_ value: EmbedProgressRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedProgressRecord.lower(value)
 }
 
 
@@ -7459,6 +9149,75 @@ public func FfiConverterTypeEmbedUpdatedGroupRecord_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypeEmbedUpdatedGroupRecord_lower(_ value: EmbedUpdatedGroupRecord) -> RustBuffer {
     return FfiConverterTypeEmbedUpdatedGroupRecord.lower(value)
+}
+
+
+/**
+ * One reconstructed embed version.
+ */
+public struct EmbedVersionContentRecord: Equatable, Hashable {
+    /**
+     * Version the content belongs to.
+     */
+    public var version: Int64
+    /**
+     * The embed's stored plaintext (TOON/JSON string) at that version.
+     */
+    public var content: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Version the content belongs to.
+         */version: Int64, 
+        /**
+         * The embed's stored plaintext (TOON/JSON string) at that version.
+         */content: String) {
+        self.version = version
+        self.content = content
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EmbedVersionContentRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEmbedVersionContentRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EmbedVersionContentRecord {
+        return
+            try EmbedVersionContentRecord(
+                version: FfiConverterInt64.read(from: &buf), 
+                content: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EmbedVersionContentRecord, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.version, into: &buf)
+        FfiConverterString.write(value.content, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedVersionContentRecord_lift(_ buf: RustBuffer) throws -> EmbedVersionContentRecord {
+    return try FfiConverterTypeEmbedVersionContentRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEmbedVersionContentRecord_lower(_ value: EmbedVersionContentRecord) -> RustBuffer {
+    return FfiConverterTypeEmbedVersionContentRecord.lower(value)
 }
 
 
@@ -8564,6 +10323,144 @@ public func FfiConverterTypeImageEnhanceJobRecord_lower(_ value: ImageEnhanceJob
 
 
 /**
+ * Matches of one message in an in-chat search.
+ */
+public struct InChatSearchMatchRecord: Equatable, Hashable {
+    /**
+     * Message id.
+     */
+    public var messageId: String
+    /**
+     * Non-overlapping ranges in UTF-16 units of the lowercased text.
+     */
+    public var ranges: [SearchMatchRangeRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Message id.
+         */messageId: String, 
+        /**
+         * Non-overlapping ranges in UTF-16 units of the lowercased text.
+         */ranges: [SearchMatchRangeRecord]) {
+        self.messageId = messageId
+        self.ranges = ranges
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension InChatSearchMatchRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInChatSearchMatchRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InChatSearchMatchRecord {
+        return
+            try InChatSearchMatchRecord(
+                messageId: FfiConverterString.read(from: &buf), 
+                ranges: FfiConverterSequenceTypeSearchMatchRangeRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: InChatSearchMatchRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterSequenceTypeSearchMatchRangeRecord.write(value.ranges, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInChatSearchMatchRecord_lift(_ buf: RustBuffer) throws -> InChatSearchMatchRecord {
+    return try FfiConverterTypeInChatSearchMatchRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInChatSearchMatchRecord_lower(_ value: InChatSearchMatchRecord) -> RustBuffer {
+    return FfiConverterTypeInChatSearchMatchRecord.lower(value)
+}
+
+
+/**
+ * One message text for in-chat search.
+ */
+public struct InChatSearchMessageRecord: Equatable, Hashable {
+    /**
+     * Message id.
+     */
+    public var messageId: String
+    /**
+     * Searchable plaintext of the message.
+     */
+    public var text: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Message id.
+         */messageId: String, 
+        /**
+         * Searchable plaintext of the message.
+         */text: String) {
+        self.messageId = messageId
+        self.text = text
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension InChatSearchMessageRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInChatSearchMessageRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InChatSearchMessageRecord {
+        return
+            try InChatSearchMessageRecord(
+                messageId: FfiConverterString.read(from: &buf), 
+                text: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: InChatSearchMessageRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterString.write(value.text, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInChatSearchMessageRecord_lift(_ buf: RustBuffer) throws -> InChatSearchMessageRecord {
+    return try FfiConverterTypeInChatSearchMessageRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInChatSearchMessageRecord_lower(_ value: InChatSearchMessageRecord) -> RustBuffer {
+    return FfiConverterTypeInChatSearchMessageRecord.lower(value)
+}
+
+
+/**
  * What `WebSocketManager` needs to open its socket for the core's session.
  */
 public struct LegacySocketGrantRecord: Equatable, Hashable {
@@ -8817,6 +10714,75 @@ public func FfiConverterTypeMemoryDocumentRecord_lower(_ value: MemoryDocumentRe
 
 
 /**
+ * One changed field with the saved text the suggestion would replace.
+ */
+public struct MemoryFieldChangeRecord: Equatable, Hashable {
+    /**
+     * Which field differs.
+     */
+    public var field: MemoryDiffFieldRecord
+    /**
+     * The saved text (empty when the saved field is empty; the UI shows a dash).
+     */
+    public var current: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Which field differs.
+         */field: MemoryDiffFieldRecord, 
+        /**
+         * The saved text (empty when the saved field is empty; the UI shows a dash).
+         */current: String) {
+        self.field = field
+        self.current = current
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MemoryFieldChangeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMemoryFieldChangeRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MemoryFieldChangeRecord {
+        return
+            try MemoryFieldChangeRecord(
+                field: FfiConverterTypeMemoryDiffFieldRecord.read(from: &buf), 
+                current: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MemoryFieldChangeRecord, into buf: inout [UInt8]) {
+        FfiConverterTypeMemoryDiffFieldRecord.write(value.field, into: &buf)
+        FfiConverterString.write(value.current, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryFieldChangeRecord_lift(_ buf: RustBuffer) throws -> MemoryFieldChangeRecord {
+    return try FfiConverterTypeMemoryFieldChangeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryFieldChangeRecord_lower(_ value: MemoryFieldChangeRecord) -> RustBuffer {
+    return FfiConverterTypeMemoryFieldChangeRecord.lower(value)
+}
+
+
+/**
  * The editable fields of one Memory page (web `RuleDocumentFields` without
  * the save times, which the core stamps).
  */
@@ -8959,6 +10925,85 @@ public func FfiConverterTypeMemoryFieldsRecord_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeMemoryFieldsRecord_lower(_ value: MemoryFieldsRecord) -> RustBuffer {
     return FfiConverterTypeMemoryFieldsRecord.lower(value)
+}
+
+
+/**
+ * The version of the embed one message shows.
+ */
+public struct MessageEmbedVersionRecord: Equatable, Hashable {
+    /**
+     * Message id.
+     */
+    public var messageId: String
+    /**
+     * Version the message shows.
+     */
+    public var version: Int64
+    /**
+     * True when this message's own parent pins the embed.
+     */
+    public var pinnedHere: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Message id.
+         */messageId: String, 
+        /**
+         * Version the message shows.
+         */version: Int64, 
+        /**
+         * True when this message's own parent pins the embed.
+         */pinnedHere: Bool) {
+        self.messageId = messageId
+        self.version = version
+        self.pinnedHere = pinnedHere
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MessageEmbedVersionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMessageEmbedVersionRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MessageEmbedVersionRecord {
+        return
+            try MessageEmbedVersionRecord(
+                messageId: FfiConverterString.read(from: &buf), 
+                version: FfiConverterInt64.read(from: &buf), 
+                pinnedHere: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MessageEmbedVersionRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterInt64.write(value.version, into: &buf)
+        FfiConverterBool.write(value.pinnedHere, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMessageEmbedVersionRecord_lift(_ buf: RustBuffer) throws -> MessageEmbedVersionRecord {
+    return try FfiConverterTypeMessageEmbedVersionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMessageEmbedVersionRecord_lower(_ value: MessageEmbedVersionRecord) -> RustBuffer {
+    return FfiConverterTypeMessageEmbedVersionRecord.lower(value)
 }
 
 
@@ -9300,6 +11345,75 @@ public func FfiConverterTypeMessageMetadataRecord_lift(_ buf: RustBuffer) throws
 #endif
 public func FfiConverterTypeMessageMetadataRecord_lower(_ value: MessageMetadataRecord) -> RustBuffer {
     return FfiConverterTypeMessageMetadataRecord.lower(value)
+}
+
+
+/**
+ * The decrypted `app_skill_use` parent contents of one message, in chat order.
+ */
+public struct MessageParentsRecord: Equatable, Hashable {
+    /**
+     * Message id.
+     */
+    public var messageId: String
+    /**
+     * Decrypted parent contents (TOON or JSON); empty for a message without skill use.
+     */
+    public var parentContents: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Message id.
+         */messageId: String, 
+        /**
+         * Decrypted parent contents (TOON or JSON); empty for a message without skill use.
+         */parentContents: [String]) {
+        self.messageId = messageId
+        self.parentContents = parentContents
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MessageParentsRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMessageParentsRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MessageParentsRecord {
+        return
+            try MessageParentsRecord(
+                messageId: FfiConverterString.read(from: &buf), 
+                parentContents: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MessageParentsRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterSequenceString.write(value.parentContents, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMessageParentsRecord_lift(_ buf: RustBuffer) throws -> MessageParentsRecord {
+    return try FfiConverterTypeMessageParentsRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMessageParentsRecord_lower(_ value: MessageParentsRecord) -> RustBuffer {
+    return FfiConverterTypeMessageParentsRecord.lower(value)
 }
 
 
@@ -9877,6 +11991,463 @@ public func FfiConverterTypeProbeRecord_lower(_ value: ProbeRecord) -> RustBuffe
 
 
 /**
+ * Result of restoring a commit.
+ */
+public struct ProjectCommitRestoreRecord: Equatable, Hashable {
+    /**
+     * The commit that was restored.
+     */
+    public var sourceCommitId: String
+    /**
+     * The new commit recording the restore.
+     */
+    public var commitId: String
+    /**
+     * Files refused (conflicting path, unknown embed, ...); the rest was restored.
+     */
+    public var refusedCount: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The commit that was restored.
+         */sourceCommitId: String, 
+        /**
+         * The new commit recording the restore.
+         */commitId: String, 
+        /**
+         * Files refused (conflicting path, unknown embed, ...); the rest was restored.
+         */refusedCount: UInt64) {
+        self.sourceCommitId = sourceCommitId
+        self.commitId = commitId
+        self.refusedCount = refusedCount
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectCommitRestoreRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectCommitRestoreRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectCommitRestoreRecord {
+        return
+            try ProjectCommitRestoreRecord(
+                sourceCommitId: FfiConverterString.read(from: &buf), 
+                commitId: FfiConverterString.read(from: &buf), 
+                refusedCount: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectCommitRestoreRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.sourceCommitId, into: &buf)
+        FfiConverterString.write(value.commitId, into: &buf)
+        FfiConverterUInt64.write(value.refusedCount, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCommitRestoreRecord_lift(_ buf: RustBuffer) throws -> ProjectCommitRestoreRecord {
+    return try FfiConverterTypeProjectCommitRestoreRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCommitRestoreRecord_lower(_ value: ProjectCommitRestoreRecord) -> RustBuffer {
+    return FfiConverterTypeProjectCommitRestoreRecord.lower(value)
+}
+
+
+/**
+ * One file of a commit row.
+ */
+public struct ProjectTimelineCommitFileRecord: Equatable, Hashable {
+    /**
+     * Decrypted Project path; nil when the commit carried no path map.
+     */
+    public var path: String?
+    /**
+     * Embed version the commit recorded.
+     */
+    public var version: UInt64
+    /**
+     * `added`, `modified` or `unchanged` against the next older commit of the
+     * page; nil when no older commit is known.
+     */
+    public var change: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Decrypted Project path; nil when the commit carried no path map.
+         */path: String?, 
+        /**
+         * Embed version the commit recorded.
+         */version: UInt64, 
+        /**
+         * `added`, `modified` or `unchanged` against the next older commit of the
+         * page; nil when no older commit is known.
+         */change: String?) {
+        self.path = path
+        self.version = version
+        self.change = change
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectTimelineCommitFileRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectTimelineCommitFileRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectTimelineCommitFileRecord {
+        return
+            try ProjectTimelineCommitFileRecord(
+                path: FfiConverterOptionString.read(from: &buf), 
+                version: FfiConverterUInt64.read(from: &buf), 
+                change: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectTimelineCommitFileRecord, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.path, into: &buf)
+        FfiConverterUInt64.write(value.version, into: &buf)
+        FfiConverterOptionString.write(value.change, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineCommitFileRecord_lift(_ buf: RustBuffer) throws -> ProjectTimelineCommitFileRecord {
+    return try FfiConverterTypeProjectTimelineCommitFileRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineCommitFileRecord_lower(_ value: ProjectTimelineCommitFileRecord) -> RustBuffer {
+    return FfiConverterTypeProjectTimelineCommitFileRecord.lower(value)
+}
+
+
+/**
+ * The commit of a commit row.
+ */
+public struct ProjectTimelineCommitRecord: Equatable, Hashable {
+    /**
+     * Commit id.
+     */
+    public var commitId: String
+    /**
+     * Decrypted commit message.
+     */
+    public var message: String
+    /**
+     * Commit the restore came from, if any.
+     */
+    public var restoredFromCommitId: String?
+    /**
+     * Files of the snapshot.
+     */
+    public var files: [ProjectTimelineCommitFileRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Commit id.
+         */commitId: String, 
+        /**
+         * Decrypted commit message.
+         */message: String, 
+        /**
+         * Commit the restore came from, if any.
+         */restoredFromCommitId: String?, 
+        /**
+         * Files of the snapshot.
+         */files: [ProjectTimelineCommitFileRecord]) {
+        self.commitId = commitId
+        self.message = message
+        self.restoredFromCommitId = restoredFromCommitId
+        self.files = files
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectTimelineCommitRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectTimelineCommitRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectTimelineCommitRecord {
+        return
+            try ProjectTimelineCommitRecord(
+                commitId: FfiConverterString.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf), 
+                restoredFromCommitId: FfiConverterOptionString.read(from: &buf), 
+                files: FfiConverterSequenceTypeProjectTimelineCommitFileRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectTimelineCommitRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.commitId, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+        FfiConverterOptionString.write(value.restoredFromCommitId, into: &buf)
+        FfiConverterSequenceTypeProjectTimelineCommitFileRecord.write(value.files, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineCommitRecord_lift(_ buf: RustBuffer) throws -> ProjectTimelineCommitRecord {
+    return try FfiConverterTypeProjectTimelineCommitRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineCommitRecord_lower(_ value: ProjectTimelineCommitRecord) -> RustBuffer {
+    return FfiConverterTypeProjectTimelineCommitRecord.lower(value)
+}
+
+
+/**
+ * One timeline row.
+ */
+public struct ProjectTimelineEntryRecord: Equatable, Hashable {
+    /**
+     * `commit`, `file_version` or `file_operation`.
+     */
+    public var kind: String
+    /**
+     * Stable row id.
+     */
+    public var id: String
+    /**
+     * Unix seconds.
+     */
+    public var createdAt: UInt64
+    /**
+     * `user` or `assistant`.
+     */
+    public var author: String
+    /**
+     * File path; nil shows "Removed file".
+     */
+    public var path: String?
+    /**
+     * File version, when the row is a file version.
+     */
+    public var version: UInt64?
+    /**
+     * Server action (`create`, `update`, `restore`, `rename`, ...).
+     */
+    public var action: String?
+    /**
+     * Version a restore row came from.
+     */
+    public var restoredFromVersion: UInt64?
+    /**
+     * Set for `commit` rows.
+     */
+    public var commit: ProjectTimelineCommitRecord?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `commit`, `file_version` or `file_operation`.
+         */kind: String, 
+        /**
+         * Stable row id.
+         */id: String, 
+        /**
+         * Unix seconds.
+         */createdAt: UInt64, 
+        /**
+         * `user` or `assistant`.
+         */author: String, 
+        /**
+         * File path; nil shows "Removed file".
+         */path: String?, 
+        /**
+         * File version, when the row is a file version.
+         */version: UInt64?, 
+        /**
+         * Server action (`create`, `update`, `restore`, `rename`, ...).
+         */action: String?, 
+        /**
+         * Version a restore row came from.
+         */restoredFromVersion: UInt64?, 
+        /**
+         * Set for `commit` rows.
+         */commit: ProjectTimelineCommitRecord?) {
+        self.kind = kind
+        self.id = id
+        self.createdAt = createdAt
+        self.author = author
+        self.path = path
+        self.version = version
+        self.action = action
+        self.restoredFromVersion = restoredFromVersion
+        self.commit = commit
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectTimelineEntryRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectTimelineEntryRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectTimelineEntryRecord {
+        return
+            try ProjectTimelineEntryRecord(
+                kind: FfiConverterString.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf), 
+                createdAt: FfiConverterUInt64.read(from: &buf), 
+                author: FfiConverterString.read(from: &buf), 
+                path: FfiConverterOptionString.read(from: &buf), 
+                version: FfiConverterOptionUInt64.read(from: &buf), 
+                action: FfiConverterOptionString.read(from: &buf), 
+                restoredFromVersion: FfiConverterOptionUInt64.read(from: &buf), 
+                commit: FfiConverterOptionTypeProjectTimelineCommitRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectTimelineEntryRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.kind, into: &buf)
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterUInt64.write(value.createdAt, into: &buf)
+        FfiConverterString.write(value.author, into: &buf)
+        FfiConverterOptionString.write(value.path, into: &buf)
+        FfiConverterOptionUInt64.write(value.version, into: &buf)
+        FfiConverterOptionString.write(value.action, into: &buf)
+        FfiConverterOptionUInt64.write(value.restoredFromVersion, into: &buf)
+        FfiConverterOptionTypeProjectTimelineCommitRecord.write(value.commit, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineEntryRecord_lift(_ buf: RustBuffer) throws -> ProjectTimelineEntryRecord {
+    return try FfiConverterTypeProjectTimelineEntryRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelineEntryRecord_lower(_ value: ProjectTimelineEntryRecord) -> RustBuffer {
+    return FfiConverterTypeProjectTimelineEntryRecord.lower(value)
+}
+
+
+/**
+ * One page of the timeline, newest first.
+ */
+public struct ProjectTimelinePageRecord: Equatable, Hashable {
+    /**
+     * Rows in the server's order.
+     */
+    public var entries: [ProjectTimelineEntryRecord]
+    /**
+     * Cursor for the next page; nil at the end.
+     */
+    public var nextCursor: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Rows in the server's order.
+         */entries: [ProjectTimelineEntryRecord], 
+        /**
+         * Cursor for the next page; nil at the end.
+         */nextCursor: String?) {
+        self.entries = entries
+        self.nextCursor = nextCursor
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectTimelinePageRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectTimelinePageRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectTimelinePageRecord {
+        return
+            try ProjectTimelinePageRecord(
+                entries: FfiConverterSequenceTypeProjectTimelineEntryRecord.read(from: &buf), 
+                nextCursor: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectTimelinePageRecord, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeProjectTimelineEntryRecord.write(value.entries, into: &buf)
+        FfiConverterOptionString.write(value.nextCursor, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelinePageRecord_lift(_ buf: RustBuffer) throws -> ProjectTimelinePageRecord {
+    return try FfiConverterTypeProjectTimelinePageRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectTimelinePageRecord_lower(_ value: ProjectTimelinePageRecord) -> RustBuffer {
+    return FfiConverterTypeProjectTimelinePageRecord.lower(value)
+}
+
+
+/**
  * The server's confirmation of a queued-message revision.
  */
 public struct QueuedRevisionReceiptRecord: Equatable, Hashable {
@@ -9962,6 +12533,402 @@ public func FfiConverterTypeQueuedRevisionReceiptRecord_lift(_ buf: RustBuffer) 
 #endif
 public func FfiConverterTypeQueuedRevisionReceiptRecord_lower(_ value: QueuedRevisionReceiptRecord) -> RustBuffer {
     return FfiConverterTypeQueuedRevisionReceiptRecord.lower(value)
+}
+
+
+/**
+ * Result of `recommendation_memory_draft`.
+ */
+public struct RecommendationDraftRecord: Equatable, Hashable {
+    /**
+     * What happened.
+     */
+    public var status: RecommendationDraftStatusRecord
+    /**
+     * The draft fields when `status` is `Draft`.
+     */
+    public var fields: MemoryFieldsRecord?
+    /**
+     * Id of the Memory an update edits; `None` for a new Memory.
+     */
+    public var existingId: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * What happened.
+         */status: RecommendationDraftStatusRecord, 
+        /**
+         * The draft fields when `status` is `Draft`.
+         */fields: MemoryFieldsRecord?, 
+        /**
+         * Id of the Memory an update edits; `None` for a new Memory.
+         */existingId: String?) {
+        self.status = status
+        self.fields = fields
+        self.existingId = existingId
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RecommendationDraftRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRecommendationDraftRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RecommendationDraftRecord {
+        return
+            try RecommendationDraftRecord(
+                status: FfiConverterTypeRecommendationDraftStatusRecord.read(from: &buf), 
+                fields: FfiConverterOptionTypeMemoryFieldsRecord.read(from: &buf), 
+                existingId: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RecommendationDraftRecord, into buf: inout [UInt8]) {
+        FfiConverterTypeRecommendationDraftStatusRecord.write(value.status, into: &buf)
+        FfiConverterOptionTypeMemoryFieldsRecord.write(value.fields, into: &buf)
+        FfiConverterOptionString.write(value.existingId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecommendationDraftRecord_lift(_ buf: RustBuffer) throws -> RecommendationDraftRecord {
+    return try FfiConverterTypeRecommendationDraftRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecommendationDraftRecord_lower(_ value: RecommendationDraftRecord) -> RustBuffer {
+    return FfiConverterTypeRecommendationDraftRecord.lower(value)
+}
+
+
+/**
+ * Explanation block of the card.
+ */
+public struct RemoteCommandExplanationRecord: Equatable, Hashable {
+    /**
+     * Summary text.
+     */
+    public var summary: String
+    /**
+     * Expected effects.
+     */
+    public var effects: [String]
+    /**
+     * Risks.
+     */
+    public var risks: [String]
+    /**
+     * Open uncertainty.
+     */
+    public var uncertainty: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Summary text.
+         */summary: String, 
+        /**
+         * Expected effects.
+         */effects: [String], 
+        /**
+         * Risks.
+         */risks: [String], 
+        /**
+         * Open uncertainty.
+         */uncertainty: [String]) {
+        self.summary = summary
+        self.effects = effects
+        self.risks = risks
+        self.uncertainty = uncertainty
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RemoteCommandExplanationRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRemoteCommandExplanationRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RemoteCommandExplanationRecord {
+        return
+            try RemoteCommandExplanationRecord(
+                summary: FfiConverterString.read(from: &buf), 
+                effects: FfiConverterSequenceString.read(from: &buf), 
+                risks: FfiConverterSequenceString.read(from: &buf), 
+                uncertainty: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RemoteCommandExplanationRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.summary, into: &buf)
+        FfiConverterSequenceString.write(value.effects, into: &buf)
+        FfiConverterSequenceString.write(value.risks, into: &buf)
+        FfiConverterSequenceString.write(value.uncertainty, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandExplanationRecord_lift(_ buf: RustBuffer) throws -> RemoteCommandExplanationRecord {
+    return try FfiConverterTypeRemoteCommandExplanationRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandExplanationRecord_lower(_ value: RemoteCommandExplanationRecord) -> RustBuffer {
+    return FfiConverterTypeRemoteCommandExplanationRecord.lower(value)
+}
+
+
+/**
+ * Output accumulated from events (the card's streaming state).
+ */
+public struct RemoteCommandOutputRecord: Equatable, Hashable {
+    /**
+     * Highest applied sequence, `-1` before any event.
+     */
+    public var lastSequence: Int64
+    /**
+     * Latest status.
+     */
+    public var status: String
+    /**
+     * Cleaned output so far.
+     */
+    public var latestOutput: String
+    /**
+     * A sequence was skipped.
+     */
+    public var hasSequenceGap: Bool
+    /**
+     * Output was truncated upstream or locally.
+     */
+    public var upstreamTruncated: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Highest applied sequence, `-1` before any event.
+         */lastSequence: Int64, 
+        /**
+         * Latest status.
+         */status: String, 
+        /**
+         * Cleaned output so far.
+         */latestOutput: String, 
+        /**
+         * A sequence was skipped.
+         */hasSequenceGap: Bool, 
+        /**
+         * Output was truncated upstream or locally.
+         */upstreamTruncated: Bool) {
+        self.lastSequence = lastSequence
+        self.status = status
+        self.latestOutput = latestOutput
+        self.hasSequenceGap = hasSequenceGap
+        self.upstreamTruncated = upstreamTruncated
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RemoteCommandOutputRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRemoteCommandOutputRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RemoteCommandOutputRecord {
+        return
+            try RemoteCommandOutputRecord(
+                lastSequence: FfiConverterInt64.read(from: &buf), 
+                status: FfiConverterString.read(from: &buf), 
+                latestOutput: FfiConverterString.read(from: &buf), 
+                hasSequenceGap: FfiConverterBool.read(from: &buf), 
+                upstreamTruncated: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RemoteCommandOutputRecord, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.lastSequence, into: &buf)
+        FfiConverterString.write(value.status, into: &buf)
+        FfiConverterString.write(value.latestOutput, into: &buf)
+        FfiConverterBool.write(value.hasSequenceGap, into: &buf)
+        FfiConverterBool.write(value.upstreamTruncated, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandOutputRecord_lift(_ buf: RustBuffer) throws -> RemoteCommandOutputRecord {
+    return try FfiConverterTypeRemoteCommandOutputRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandOutputRecord_lower(_ value: RemoteCommandOutputRecord) -> RustBuffer {
+    return FfiConverterTypeRemoteCommandOutputRecord.lower(value)
+}
+
+
+/**
+ * Command policy of a review.
+ */
+public struct RemoteCommandPolicyRecord: Equatable, Hashable {
+    /**
+     * Command argv.
+     */
+    public var argv: [String]
+    /**
+     * Project-relative working directory.
+     */
+    public var cwd: String
+    /**
+     * `foreground` or `background`.
+     */
+    public var mode: String
+    /**
+     * `read_only` or `read_write`.
+     */
+    public var sourceAccess: String
+    /**
+     * Deadline in milliseconds.
+     */
+    public var deadlineMs: UInt64
+    /**
+     * Writable profile names.
+     */
+    public var writableProfiles: [String]
+    /**
+     * Optional network profile.
+     */
+    public var networkProfile: String?
+    /**
+     * Credential profile names.
+     */
+    public var credentialProfiles: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Command argv.
+         */argv: [String], 
+        /**
+         * Project-relative working directory.
+         */cwd: String, 
+        /**
+         * `foreground` or `background`.
+         */mode: String, 
+        /**
+         * `read_only` or `read_write`.
+         */sourceAccess: String, 
+        /**
+         * Deadline in milliseconds.
+         */deadlineMs: UInt64, 
+        /**
+         * Writable profile names.
+         */writableProfiles: [String], 
+        /**
+         * Optional network profile.
+         */networkProfile: String?, 
+        /**
+         * Credential profile names.
+         */credentialProfiles: [String]) {
+        self.argv = argv
+        self.cwd = cwd
+        self.mode = mode
+        self.sourceAccess = sourceAccess
+        self.deadlineMs = deadlineMs
+        self.writableProfiles = writableProfiles
+        self.networkProfile = networkProfile
+        self.credentialProfiles = credentialProfiles
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RemoteCommandPolicyRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRemoteCommandPolicyRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RemoteCommandPolicyRecord {
+        return
+            try RemoteCommandPolicyRecord(
+                argv: FfiConverterSequenceString.read(from: &buf), 
+                cwd: FfiConverterString.read(from: &buf), 
+                mode: FfiConverterString.read(from: &buf), 
+                sourceAccess: FfiConverterString.read(from: &buf), 
+                deadlineMs: FfiConverterUInt64.read(from: &buf), 
+                writableProfiles: FfiConverterSequenceString.read(from: &buf), 
+                networkProfile: FfiConverterOptionString.read(from: &buf), 
+                credentialProfiles: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RemoteCommandPolicyRecord, into buf: inout [UInt8]) {
+        FfiConverterSequenceString.write(value.argv, into: &buf)
+        FfiConverterString.write(value.cwd, into: &buf)
+        FfiConverterString.write(value.mode, into: &buf)
+        FfiConverterString.write(value.sourceAccess, into: &buf)
+        FfiConverterUInt64.write(value.deadlineMs, into: &buf)
+        FfiConverterSequenceString.write(value.writableProfiles, into: &buf)
+        FfiConverterOptionString.write(value.networkProfile, into: &buf)
+        FfiConverterSequenceString.write(value.credentialProfiles, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandPolicyRecord_lift(_ buf: RustBuffer) throws -> RemoteCommandPolicyRecord {
+    return try FfiConverterTypeRemoteCommandPolicyRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandPolicyRecord_lower(_ value: RemoteCommandPolicyRecord) -> RustBuffer {
+    return FfiConverterTypeRemoteCommandPolicyRecord.lower(value)
 }
 
 
@@ -10215,6 +13182,155 @@ public func FfiConverterTypeRemoteCommandResultRecord_lower(_ value: RemoteComma
 
 
 /**
+ * A validated review (the card's static state).
+ */
+public struct RemoteCommandReviewRecord: Equatable, Hashable {
+    /**
+     * Execution id, also the card id.
+     */
+    public var executionId: String
+    /**
+     * Chat id.
+     */
+    public var chatId: String
+    /**
+     * Project id.
+     */
+    public var projectId: String
+    /**
+     * Source id.
+     */
+    public var sourceId: String
+    /**
+     * Creation time (unix seconds).
+     */
+    public var createdAt: UInt64
+    /**
+     * Expiry (unix seconds).
+     */
+    public var reviewExpiresAt: UInt64
+    /**
+     * Token echoed on decisions.
+     */
+    public var reviewToken: String
+    /**
+     * `one_run` or `one_run_or_preset`.
+     */
+    public var approvalRequirement: String
+    /**
+     * Command policy.
+     */
+    public var command: RemoteCommandPolicyRecord
+    /**
+     * Explanation.
+     */
+    public var explanation: RemoteCommandExplanationRecord
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Execution id, also the card id.
+         */executionId: String, 
+        /**
+         * Chat id.
+         */chatId: String, 
+        /**
+         * Project id.
+         */projectId: String, 
+        /**
+         * Source id.
+         */sourceId: String, 
+        /**
+         * Creation time (unix seconds).
+         */createdAt: UInt64, 
+        /**
+         * Expiry (unix seconds).
+         */reviewExpiresAt: UInt64, 
+        /**
+         * Token echoed on decisions.
+         */reviewToken: String, 
+        /**
+         * `one_run` or `one_run_or_preset`.
+         */approvalRequirement: String, 
+        /**
+         * Command policy.
+         */command: RemoteCommandPolicyRecord, 
+        /**
+         * Explanation.
+         */explanation: RemoteCommandExplanationRecord) {
+        self.executionId = executionId
+        self.chatId = chatId
+        self.projectId = projectId
+        self.sourceId = sourceId
+        self.createdAt = createdAt
+        self.reviewExpiresAt = reviewExpiresAt
+        self.reviewToken = reviewToken
+        self.approvalRequirement = approvalRequirement
+        self.command = command
+        self.explanation = explanation
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RemoteCommandReviewRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRemoteCommandReviewRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RemoteCommandReviewRecord {
+        return
+            try RemoteCommandReviewRecord(
+                executionId: FfiConverterString.read(from: &buf), 
+                chatId: FfiConverterString.read(from: &buf), 
+                projectId: FfiConverterString.read(from: &buf), 
+                sourceId: FfiConverterString.read(from: &buf), 
+                createdAt: FfiConverterUInt64.read(from: &buf), 
+                reviewExpiresAt: FfiConverterUInt64.read(from: &buf), 
+                reviewToken: FfiConverterString.read(from: &buf), 
+                approvalRequirement: FfiConverterString.read(from: &buf), 
+                command: FfiConverterTypeRemoteCommandPolicyRecord.read(from: &buf), 
+                explanation: FfiConverterTypeRemoteCommandExplanationRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RemoteCommandReviewRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.executionId, into: &buf)
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterString.write(value.projectId, into: &buf)
+        FfiConverterString.write(value.sourceId, into: &buf)
+        FfiConverterUInt64.write(value.createdAt, into: &buf)
+        FfiConverterUInt64.write(value.reviewExpiresAt, into: &buf)
+        FfiConverterString.write(value.reviewToken, into: &buf)
+        FfiConverterString.write(value.approvalRequirement, into: &buf)
+        FfiConverterTypeRemoteCommandPolicyRecord.write(value.command, into: &buf)
+        FfiConverterTypeRemoteCommandExplanationRecord.write(value.explanation, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandReviewRecord_lift(_ buf: RustBuffer) throws -> RemoteCommandReviewRecord {
+    return try FfiConverterTypeRemoteCommandReviewRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRemoteCommandReviewRecord_lower(_ value: RemoteCommandReviewRecord) -> RustBuffer {
+    return FfiConverterTypeRemoteCommandReviewRecord.lower(value)
+}
+
+
+/**
  * A refusal of the Project source host or relay.
  */
 public struct RemoteRefusalRecord: Equatable, Hashable {
@@ -10282,6 +13398,1135 @@ public func FfiConverterTypeRemoteRefusalRecord_lift(_ buf: RustBuffer) throws -
 #endif
 public func FfiConverterTypeRemoteRefusalRecord_lower(_ value: RemoteRefusalRecord) -> RustBuffer {
     return FfiConverterTypeRemoteRefusalRecord.lower(value)
+}
+
+
+/**
+ * One settings or app catalog entry with its translated label.
+ */
+public struct SearchCatalogEntryRecord: Equatable, Hashable {
+    /**
+     * Result list.
+     */
+    public var kind: SearchCatalogKindRecord
+    /**
+     * Visibility.
+     */
+    public var access: SearchCatalogAccessRecord
+    /**
+     * Translated label.
+     */
+    public var label: String
+    /**
+     * Keyword synonyms.
+     */
+    public var keywords: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Result list.
+         */kind: SearchCatalogKindRecord, 
+        /**
+         * Visibility.
+         */access: SearchCatalogAccessRecord, 
+        /**
+         * Translated label.
+         */label: String, 
+        /**
+         * Keyword synonyms.
+         */keywords: [String]) {
+        self.kind = kind
+        self.access = access
+        self.label = label
+        self.keywords = keywords
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchCatalogEntryRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchCatalogEntryRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchCatalogEntryRecord {
+        return
+            try SearchCatalogEntryRecord(
+                kind: FfiConverterTypeSearchCatalogKindRecord.read(from: &buf), 
+                access: FfiConverterTypeSearchCatalogAccessRecord.read(from: &buf), 
+                label: FfiConverterString.read(from: &buf), 
+                keywords: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchCatalogEntryRecord, into buf: inout [UInt8]) {
+        FfiConverterTypeSearchCatalogKindRecord.write(value.kind, into: &buf)
+        FfiConverterTypeSearchCatalogAccessRecord.write(value.access, into: &buf)
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterSequenceString.write(value.keywords, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogEntryRecord_lift(_ buf: RustBuffer) throws -> SearchCatalogEntryRecord {
+    return try FfiConverterTypeSearchCatalogEntryRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogEntryRecord_lower(_ value: SearchCatalogEntryRecord) -> RustBuffer {
+    return FfiConverterTypeSearchCatalogEntryRecord.lower(value)
+}
+
+
+/**
+ * Page data for one searchable chat, in display order.
+ */
+public struct SearchChatRecord: Equatable, Hashable {
+    /**
+     * Chat id (also the index key; entries must be ingested under it).
+     */
+    public var chatId: String
+    /**
+     * Whether message entries are searched (ingested); `false` = metadata only.
+     */
+    public var searchMessages: Bool
+    /**
+     * Decrypted title.
+     */
+    public var title: String?
+    /**
+     * Active focus mode id.
+     */
+    public var activeFocusId: String?
+    /**
+     * Summary to search (`nil` for public chats).
+     */
+    public var summary: String?
+    /**
+     * Tags to search.
+     */
+    public var tags: [String]?
+    /**
+     * Unsent draft preview to search.
+     */
+    public var draft: String?
+    /**
+     * Last edited timestamp, the recency tie-breaker.
+     */
+    public var lastEdited: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id (also the index key; entries must be ingested under it).
+         */chatId: String, 
+        /**
+         * Whether message entries are searched (ingested); `false` = metadata only.
+         */searchMessages: Bool, 
+        /**
+         * Decrypted title.
+         */title: String?, 
+        /**
+         * Active focus mode id.
+         */activeFocusId: String?, 
+        /**
+         * Summary to search (`nil` for public chats).
+         */summary: String?, 
+        /**
+         * Tags to search.
+         */tags: [String]?, 
+        /**
+         * Unsent draft preview to search.
+         */draft: String?, 
+        /**
+         * Last edited timestamp, the recency tie-breaker.
+         */lastEdited: Double) {
+        self.chatId = chatId
+        self.searchMessages = searchMessages
+        self.title = title
+        self.activeFocusId = activeFocusId
+        self.summary = summary
+        self.tags = tags
+        self.draft = draft
+        self.lastEdited = lastEdited
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchChatRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchChatRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchChatRecord {
+        return
+            try SearchChatRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                searchMessages: FfiConverterBool.read(from: &buf), 
+                title: FfiConverterOptionString.read(from: &buf), 
+                activeFocusId: FfiConverterOptionString.read(from: &buf), 
+                summary: FfiConverterOptionString.read(from: &buf), 
+                tags: FfiConverterOptionSequenceString.read(from: &buf), 
+                draft: FfiConverterOptionString.read(from: &buf), 
+                lastEdited: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchChatRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterBool.write(value.searchMessages, into: &buf)
+        FfiConverterOptionString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.activeFocusId, into: &buf)
+        FfiConverterOptionString.write(value.summary, into: &buf)
+        FfiConverterOptionSequenceString.write(value.tags, into: &buf)
+        FfiConverterOptionString.write(value.draft, into: &buf)
+        FfiConverterDouble.write(value.lastEdited, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchChatRecord_lift(_ buf: RustBuffer) throws -> SearchChatRecord {
+    return try FfiConverterTypeSearchChatRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchChatRecord_lower(_ value: SearchChatRecord) -> RustBuffer {
+    return FfiConverterTypeSearchChatRecord.lower(value)
+}
+
+
+/**
+ * One matching chat in final display order.
+ */
+public struct SearchChatResultRecord: Equatable, Hashable {
+    /**
+     * Chat id.
+     */
+    public var chatId: String
+    /**
+     * Title match ranges (title matched when non-empty).
+     */
+    public var titleRanges: [SearchMatchRangeRecord]
+    /**
+     * Message and embed snippets.
+     */
+    public var messages: [SearchMessageSnippetRecord]
+    /**
+     * Summary, tag and draft snippets.
+     */
+    public var metadata: [SearchMetadataSnippetRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id.
+         */chatId: String, 
+        /**
+         * Title match ranges (title matched when non-empty).
+         */titleRanges: [SearchMatchRangeRecord], 
+        /**
+         * Message and embed snippets.
+         */messages: [SearchMessageSnippetRecord], 
+        /**
+         * Summary, tag and draft snippets.
+         */metadata: [SearchMetadataSnippetRecord]) {
+        self.chatId = chatId
+        self.titleRanges = titleRanges
+        self.messages = messages
+        self.metadata = metadata
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchChatResultRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchChatResultRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchChatResultRecord {
+        return
+            try SearchChatResultRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                titleRanges: FfiConverterSequenceTypeSearchMatchRangeRecord.read(from: &buf), 
+                messages: FfiConverterSequenceTypeSearchMessageSnippetRecord.read(from: &buf), 
+                metadata: FfiConverterSequenceTypeSearchMetadataSnippetRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchChatResultRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterSequenceTypeSearchMatchRangeRecord.write(value.titleRanges, into: &buf)
+        FfiConverterSequenceTypeSearchMessageSnippetRecord.write(value.messages, into: &buf)
+        FfiConverterSequenceTypeSearchMetadataSnippetRecord.write(value.metadata, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchChatResultRecord_lift(_ buf: RustBuffer) throws -> SearchChatResultRecord {
+    return try FfiConverterTypeSearchChatResultRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchChatResultRecord_lower(_ value: SearchChatResultRecord) -> RustBuffer {
+    return FfiConverterTypeSearchChatResultRecord.lower(value)
+}
+
+
+/**
+ * One ranked embed result.
+ */
+public struct SearchEmbedResultRecord: Equatable, Hashable {
+    /**
+     * Chat id.
+     */
+    public var chatId: String
+    /**
+     * Embed id.
+     */
+    public var embedId: String
+    /**
+     * Embed type (empty when unknown).
+     */
+    public var embedType: String
+    /**
+     * Parent message id.
+     */
+    public var messageId: String
+    /**
+     * Embed title.
+     */
+    public var title: String
+    /**
+     * Subtitle, source label or "Embed".
+     */
+    public var subtitle: String
+    /**
+     * Owning app id.
+     */
+    public var appId: String?
+    /**
+     * Embed message timestamp.
+     */
+    public var createdAt: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Chat id.
+         */chatId: String, 
+        /**
+         * Embed id.
+         */embedId: String, 
+        /**
+         * Embed type (empty when unknown).
+         */embedType: String, 
+        /**
+         * Parent message id.
+         */messageId: String, 
+        /**
+         * Embed title.
+         */title: String, 
+        /**
+         * Subtitle, source label or "Embed".
+         */subtitle: String, 
+        /**
+         * Owning app id.
+         */appId: String?, 
+        /**
+         * Embed message timestamp.
+         */createdAt: Double) {
+        self.chatId = chatId
+        self.embedId = embedId
+        self.embedType = embedType
+        self.messageId = messageId
+        self.title = title
+        self.subtitle = subtitle
+        self.appId = appId
+        self.createdAt = createdAt
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchEmbedResultRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchEmbedResultRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchEmbedResultRecord {
+        return
+            try SearchEmbedResultRecord(
+                chatId: FfiConverterString.read(from: &buf), 
+                embedId: FfiConverterString.read(from: &buf), 
+                embedType: FfiConverterString.read(from: &buf), 
+                messageId: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                subtitle: FfiConverterString.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf), 
+                createdAt: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchEmbedResultRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chatId, into: &buf)
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterString.write(value.embedType, into: &buf)
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.subtitle, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
+        FfiConverterDouble.write(value.createdAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchEmbedResultRecord_lift(_ buf: RustBuffer) throws -> SearchEmbedResultRecord {
+    return try FfiConverterTypeSearchEmbedResultRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchEmbedResultRecord_lower(_ value: SearchEmbedResultRecord) -> RustBuffer {
+    return FfiConverterTypeSearchEmbedResultRecord.lower(value)
+}
+
+
+/**
+ * Optional embed fields of an indexed entry (`nil` entry meta = message text).
+ */
+public struct SearchEntryMetaRecord: Equatable, Hashable {
+    /**
+     * Label of the embed source (set for every embed entry).
+     */
+    public var sourceLabel: String?
+    /**
+     * Embed id.
+     */
+    public var embedId: String?
+    /**
+     * Embed type.
+     */
+    public var embedType: String?
+    /**
+     * Embed title.
+     */
+    public var title: String?
+    /**
+     * Embed subtitle.
+     */
+    public var subtitle: String?
+    /**
+     * Owning app id.
+     */
+    public var appId: String?
+    /**
+     * Skill id.
+     */
+    public var skillId: String?
+    /**
+     * Focus mode id of a focus-mode activation.
+     */
+    public var focusId: String?
+    /**
+     * Focus mode display name.
+     */
+    public var focusModeName: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Label of the embed source (set for every embed entry).
+         */sourceLabel: String?, 
+        /**
+         * Embed id.
+         */embedId: String?, 
+        /**
+         * Embed type.
+         */embedType: String?, 
+        /**
+         * Embed title.
+         */title: String?, 
+        /**
+         * Embed subtitle.
+         */subtitle: String?, 
+        /**
+         * Owning app id.
+         */appId: String?, 
+        /**
+         * Skill id.
+         */skillId: String?, 
+        /**
+         * Focus mode id of a focus-mode activation.
+         */focusId: String?, 
+        /**
+         * Focus mode display name.
+         */focusModeName: String?) {
+        self.sourceLabel = sourceLabel
+        self.embedId = embedId
+        self.embedType = embedType
+        self.title = title
+        self.subtitle = subtitle
+        self.appId = appId
+        self.skillId = skillId
+        self.focusId = focusId
+        self.focusModeName = focusModeName
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchEntryMetaRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchEntryMetaRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchEntryMetaRecord {
+        return
+            try SearchEntryMetaRecord(
+                sourceLabel: FfiConverterOptionString.read(from: &buf), 
+                embedId: FfiConverterOptionString.read(from: &buf), 
+                embedType: FfiConverterOptionString.read(from: &buf), 
+                title: FfiConverterOptionString.read(from: &buf), 
+                subtitle: FfiConverterOptionString.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf), 
+                skillId: FfiConverterOptionString.read(from: &buf), 
+                focusId: FfiConverterOptionString.read(from: &buf), 
+                focusModeName: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchEntryMetaRecord, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.sourceLabel, into: &buf)
+        FfiConverterOptionString.write(value.embedId, into: &buf)
+        FfiConverterOptionString.write(value.embedType, into: &buf)
+        FfiConverterOptionString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.subtitle, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
+        FfiConverterOptionString.write(value.skillId, into: &buf)
+        FfiConverterOptionString.write(value.focusId, into: &buf)
+        FfiConverterOptionString.write(value.focusModeName, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchEntryMetaRecord_lift(_ buf: RustBuffer) throws -> SearchEntryMetaRecord {
+    return try FfiConverterTypeSearchEntryMetaRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchEntryMetaRecord_lower(_ value: SearchEntryMetaRecord) -> RustBuffer {
+    return FfiConverterTypeSearchEntryMetaRecord.lower(value)
+}
+
+
+/**
+ * One searchable entry of a chat: message text or extracted embed text.
+ */
+public struct SearchIndexEntryRecord: Equatable, Hashable {
+    /**
+     * Parent message id (snippet target).
+     */
+    public var messageId: String
+    /**
+     * Searchable plaintext.
+     */
+    public var content: String
+    /**
+     * Message timestamp (any monotonic unit; newest first).
+     */
+    public var createdAt: Double
+    /**
+     * Embed fields; `nil` for message text.
+     */
+    public var meta: SearchEntryMetaRecord?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Parent message id (snippet target).
+         */messageId: String, 
+        /**
+         * Searchable plaintext.
+         */content: String, 
+        /**
+         * Message timestamp (any monotonic unit; newest first).
+         */createdAt: Double, 
+        /**
+         * Embed fields; `nil` for message text.
+         */meta: SearchEntryMetaRecord?) {
+        self.messageId = messageId
+        self.content = content
+        self.createdAt = createdAt
+        self.meta = meta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchIndexEntryRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchIndexEntryRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchIndexEntryRecord {
+        return
+            try SearchIndexEntryRecord(
+                messageId: FfiConverterString.read(from: &buf), 
+                content: FfiConverterString.read(from: &buf), 
+                createdAt: FfiConverterDouble.read(from: &buf), 
+                meta: FfiConverterOptionTypeSearchEntryMetaRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchIndexEntryRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterString.write(value.content, into: &buf)
+        FfiConverterDouble.write(value.createdAt, into: &buf)
+        FfiConverterOptionTypeSearchEntryMetaRecord.write(value.meta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchIndexEntryRecord_lift(_ buf: RustBuffer) throws -> SearchIndexEntryRecord {
+    return try FfiConverterTypeSearchIndexEntryRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchIndexEntryRecord_lower(_ value: SearchIndexEntryRecord) -> RustBuffer {
+    return FfiConverterTypeSearchIndexEntryRecord.lower(value)
+}
+
+
+/**
+ * One match range in UTF-16 code units of the lowercased text.
+ */
+public struct SearchMatchRangeRecord: Equatable, Hashable {
+    /**
+     * Start offset in UTF-16 units.
+     */
+    public var start: UInt32
+    /**
+     * Length in UTF-16 units.
+     */
+    public var length: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Start offset in UTF-16 units.
+         */start: UInt32, 
+        /**
+         * Length in UTF-16 units.
+         */length: UInt32) {
+        self.start = start
+        self.length = length
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchMatchRangeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchMatchRangeRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchMatchRangeRecord {
+        return
+            try SearchMatchRangeRecord(
+                start: FfiConverterUInt32.read(from: &buf), 
+                length: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchMatchRangeRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.start, into: &buf)
+        FfiConverterUInt32.write(value.length, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMatchRangeRecord_lift(_ buf: RustBuffer) throws -> SearchMatchRangeRecord {
+    return try FfiConverterTypeSearchMatchRangeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMatchRangeRecord_lower(_ value: SearchMatchRangeRecord) -> RustBuffer {
+    return FfiConverterTypeSearchMatchRangeRecord.lower(value)
+}
+
+
+/**
+ * A message or embed snippet of a chat result.
+ */
+public struct SearchMessageSnippetRecord: Equatable, Hashable {
+    /**
+     * Snippet text (a cut surrogate pair becomes U+FFFD).
+     */
+    public var snippet: String
+    /**
+     * Match start in UTF-16 units of the snippet.
+     */
+    public var matchStart: UInt32
+    /**
+     * Match length in UTF-16 units.
+     */
+    public var matchLength: UInt32
+    /**
+     * Parent message id.
+     */
+    public var messageId: String
+    /**
+     * Embed fields when the snippet came from an embed.
+     */
+    public var meta: SearchEntryMetaRecord?
+    /**
+     * Focus-mode activation: is it the chat's active focus mode? `nil` otherwise.
+     */
+    public var focusActive: Bool?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Snippet text (a cut surrogate pair becomes U+FFFD).
+         */snippet: String, 
+        /**
+         * Match start in UTF-16 units of the snippet.
+         */matchStart: UInt32, 
+        /**
+         * Match length in UTF-16 units.
+         */matchLength: UInt32, 
+        /**
+         * Parent message id.
+         */messageId: String, 
+        /**
+         * Embed fields when the snippet came from an embed.
+         */meta: SearchEntryMetaRecord?, 
+        /**
+         * Focus-mode activation: is it the chat's active focus mode? `nil` otherwise.
+         */focusActive: Bool?) {
+        self.snippet = snippet
+        self.matchStart = matchStart
+        self.matchLength = matchLength
+        self.messageId = messageId
+        self.meta = meta
+        self.focusActive = focusActive
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchMessageSnippetRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchMessageSnippetRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchMessageSnippetRecord {
+        return
+            try SearchMessageSnippetRecord(
+                snippet: FfiConverterString.read(from: &buf), 
+                matchStart: FfiConverterUInt32.read(from: &buf), 
+                matchLength: FfiConverterUInt32.read(from: &buf), 
+                messageId: FfiConverterString.read(from: &buf), 
+                meta: FfiConverterOptionTypeSearchEntryMetaRecord.read(from: &buf), 
+                focusActive: FfiConverterOptionBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchMessageSnippetRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.snippet, into: &buf)
+        FfiConverterUInt32.write(value.matchStart, into: &buf)
+        FfiConverterUInt32.write(value.matchLength, into: &buf)
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterOptionTypeSearchEntryMetaRecord.write(value.meta, into: &buf)
+        FfiConverterOptionBool.write(value.focusActive, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMessageSnippetRecord_lift(_ buf: RustBuffer) throws -> SearchMessageSnippetRecord {
+    return try FfiConverterTypeSearchMessageSnippetRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMessageSnippetRecord_lower(_ value: SearchMessageSnippetRecord) -> RustBuffer {
+    return FfiConverterTypeSearchMessageSnippetRecord.lower(value)
+}
+
+
+/**
+ * A summary, tag or draft snippet.
+ */
+public struct SearchMetadataSnippetRecord: Equatable, Hashable {
+    /**
+     * Snippet text.
+     */
+    public var snippet: String
+    /**
+     * Match start in UTF-16 units of the snippet.
+     */
+    public var matchStart: UInt32
+    /**
+     * Match length in UTF-16 units.
+     */
+    public var matchLength: UInt32
+    /**
+     * Matched field.
+     */
+    public var source: SearchMetadataSourceRecord
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Snippet text.
+         */snippet: String, 
+        /**
+         * Match start in UTF-16 units of the snippet.
+         */matchStart: UInt32, 
+        /**
+         * Match length in UTF-16 units.
+         */matchLength: UInt32, 
+        /**
+         * Matched field.
+         */source: SearchMetadataSourceRecord) {
+        self.snippet = snippet
+        self.matchStart = matchStart
+        self.matchLength = matchLength
+        self.source = source
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchMetadataSnippetRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchMetadataSnippetRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchMetadataSnippetRecord {
+        return
+            try SearchMetadataSnippetRecord(
+                snippet: FfiConverterString.read(from: &buf), 
+                matchStart: FfiConverterUInt32.read(from: &buf), 
+                matchLength: FfiConverterUInt32.read(from: &buf), 
+                source: FfiConverterTypeSearchMetadataSourceRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchMetadataSnippetRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.snippet, into: &buf)
+        FfiConverterUInt32.write(value.matchStart, into: &buf)
+        FfiConverterUInt32.write(value.matchLength, into: &buf)
+        FfiConverterTypeSearchMetadataSourceRecord.write(value.source, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMetadataSnippetRecord_lift(_ buf: RustBuffer) throws -> SearchMetadataSnippetRecord {
+    return try FfiConverterTypeSearchMetadataSnippetRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMetadataSnippetRecord_lower(_ value: SearchMetadataSnippetRecord) -> RustBuffer {
+    return FfiConverterTypeSearchMetadataSnippetRecord.lower(value)
+}
+
+
+/**
+ * One complete search request (trimmed, non-empty query).
+ */
+public struct SearchRequestRecord: Equatable, Hashable {
+    /**
+     * Trimmed query.
+     */
+    public var query: String
+    /**
+     * Collect embed results (composer suggestions).
+     */
+    public var includeEmbeds: Bool
+    /**
+     * Caller is signed in.
+     */
+    public var authenticated: Bool
+    /**
+     * Caller is an admin.
+     */
+    public var admin: Bool
+    /**
+     * Searchable chats in display order.
+     */
+    public var chats: [SearchChatRecord]
+    /**
+     * Settings entries followed by app entries.
+     */
+    public var catalog: [SearchCatalogEntryRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Trimmed query.
+         */query: String, 
+        /**
+         * Collect embed results (composer suggestions).
+         */includeEmbeds: Bool, 
+        /**
+         * Caller is signed in.
+         */authenticated: Bool, 
+        /**
+         * Caller is an admin.
+         */admin: Bool, 
+        /**
+         * Searchable chats in display order.
+         */chats: [SearchChatRecord], 
+        /**
+         * Settings entries followed by app entries.
+         */catalog: [SearchCatalogEntryRecord]) {
+        self.query = query
+        self.includeEmbeds = includeEmbeds
+        self.authenticated = authenticated
+        self.admin = admin
+        self.chats = chats
+        self.catalog = catalog
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchRequestRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchRequestRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchRequestRecord {
+        return
+            try SearchRequestRecord(
+                query: FfiConverterString.read(from: &buf), 
+                includeEmbeds: FfiConverterBool.read(from: &buf), 
+                authenticated: FfiConverterBool.read(from: &buf), 
+                admin: FfiConverterBool.read(from: &buf), 
+                chats: FfiConverterSequenceTypeSearchChatRecord.read(from: &buf), 
+                catalog: FfiConverterSequenceTypeSearchCatalogEntryRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchRequestRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.query, into: &buf)
+        FfiConverterBool.write(value.includeEmbeds, into: &buf)
+        FfiConverterBool.write(value.authenticated, into: &buf)
+        FfiConverterBool.write(value.admin, into: &buf)
+        FfiConverterSequenceTypeSearchChatRecord.write(value.chats, into: &buf)
+        FfiConverterSequenceTypeSearchCatalogEntryRecord.write(value.catalog, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchRequestRecord_lift(_ buf: RustBuffer) throws -> SearchRequestRecord {
+    return try FfiConverterTypeSearchRequestRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchRequestRecord_lower(_ value: SearchRequestRecord) -> RustBuffer {
+    return FfiConverterTypeSearchRequestRecord.lower(value)
+}
+
+
+/**
+ * Result of one search.
+ */
+public struct SearchResultRecord: Equatable, Hashable {
+    /**
+     * Matching chats: title matches, then message matches, then by recency.
+     */
+    public var chats: [SearchChatResultRecord]
+    /**
+     * Ranked, deduplicated, capped embeds.
+     */
+    public var embeds: [SearchEmbedResultRecord]
+    /**
+     * Indices into the request catalog of matching settings entries.
+     */
+    public var settings: [UInt32]
+    /**
+     * Indices into the request catalog of matching app entries.
+     */
+    public var apps: [UInt32]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Matching chats: title matches, then message matches, then by recency.
+         */chats: [SearchChatResultRecord], 
+        /**
+         * Ranked, deduplicated, capped embeds.
+         */embeds: [SearchEmbedResultRecord], 
+        /**
+         * Indices into the request catalog of matching settings entries.
+         */settings: [UInt32], 
+        /**
+         * Indices into the request catalog of matching app entries.
+         */apps: [UInt32]) {
+        self.chats = chats
+        self.embeds = embeds
+        self.settings = settings
+        self.apps = apps
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SearchResultRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchResultRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchResultRecord {
+        return
+            try SearchResultRecord(
+                chats: FfiConverterSequenceTypeSearchChatResultRecord.read(from: &buf), 
+                embeds: FfiConverterSequenceTypeSearchEmbedResultRecord.read(from: &buf), 
+                settings: FfiConverterSequenceUInt32.read(from: &buf), 
+                apps: FfiConverterSequenceUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SearchResultRecord, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeSearchChatResultRecord.write(value.chats, into: &buf)
+        FfiConverterSequenceTypeSearchEmbedResultRecord.write(value.embeds, into: &buf)
+        FfiConverterSequenceUInt32.write(value.settings, into: &buf)
+        FfiConverterSequenceUInt32.write(value.apps, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchResultRecord_lift(_ buf: RustBuffer) throws -> SearchResultRecord {
+    return try FfiConverterTypeSearchResultRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchResultRecord_lower(_ value: SearchResultRecord) -> RustBuffer {
+    return FfiConverterTypeSearchResultRecord.lower(value)
 }
 
 
@@ -11057,6 +15302,820 @@ public func FfiConverterTypeSessionInfoRecord_lower(_ value: SessionInfoRecord) 
 
 
 /**
+ * Whole deck.
+ */
+public struct SlideDeckRecord: Equatable, Hashable {
+    /**
+     * Title (may be empty).
+     */
+    public var title: String
+    /**
+     * `16:9`, `16:10` or `4:3`.
+     */
+    public var aspect: String
+    /**
+     * Canvas width (1920).
+     */
+    public var width: UInt32
+    /**
+     * Canvas height for the aspect.
+     */
+    public var height: UInt32
+    /**
+     * Template reference.
+     */
+    public var template: String
+    /**
+     * Slides in order.
+     */
+    public var slides: [SlideRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Title (may be empty).
+         */title: String, 
+        /**
+         * `16:9`, `16:10` or `4:3`.
+         */aspect: String, 
+        /**
+         * Canvas width (1920).
+         */width: UInt32, 
+        /**
+         * Canvas height for the aspect.
+         */height: UInt32, 
+        /**
+         * Template reference.
+         */template: String, 
+        /**
+         * Slides in order.
+         */slides: [SlideRecord]) {
+        self.title = title
+        self.aspect = aspect
+        self.width = width
+        self.height = height
+        self.template = template
+        self.slides = slides
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SlideDeckRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlideDeckRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlideDeckRecord {
+        return
+            try SlideDeckRecord(
+                title: FfiConverterString.read(from: &buf), 
+                aspect: FfiConverterString.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                template: FfiConverterString.read(from: &buf), 
+                slides: FfiConverterSequenceTypeSlideRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SlideDeckRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.aspect, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterString.write(value.template, into: &buf)
+        FfiConverterSequenceTypeSlideRecord.write(value.slides, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideDeckRecord_lift(_ buf: RustBuffer) throws -> SlideDeckRecord {
+    return try FfiConverterTypeSlideDeckRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideDeckRecord_lower(_ value: SlideDeckRecord) -> RustBuffer {
+    return FfiConverterTypeSlideDeckRecord.lower(value)
+}
+
+
+/**
+ * One placed element with everything the canvas needs.
+ */
+public struct SlideElementRecord: Equatable, Hashable {
+    /**
+     * Stable element id.
+     */
+    public var id: String
+    /**
+     * Kind.
+     */
+    public var kind: SlideElementKindRecord
+    /**
+     * Final left edge in canvas units.
+     */
+    public var x: UInt32
+    /**
+     * Final top edge.
+     */
+    public var y: UInt32
+    /**
+     * Final width.
+     */
+    public var w: UInt32
+    /**
+     * Final height.
+     */
+    public var h: UInt32
+    /**
+     * Build step the element appears at (0 = always).
+     */
+    public var step: UInt32
+    /**
+     * `fade`, `slide-in` or `appear`.
+     */
+    public var animate: String?
+    /**
+     * Hidden notepad/to-do (kept but not drawn).
+     */
+    public var hidden: Bool
+    /**
+     * Text: runs; empty for other kinds.
+     */
+    public var runs: [SlideRunRecord]
+    /**
+     * Text: font size in canvas units.
+     */
+    public var fontSize: UInt32
+    /**
+     * Text: bold weight from the slot or attribute.
+     */
+    public var bold: Bool
+    /**
+     * Text: italic from the layout slot.
+     */
+    public var italic: Bool
+    /**
+     * Text: `left`, `center` or `right`.
+     */
+    public var align: String
+    /**
+     * Text: template colour token or `#hex`; shape: fill token or `#hex`.
+     */
+    public var color: String?
+    /**
+     * Text: explicit font family name, when not the template font; heading role flag below.
+     */
+    public var fontFamily: String?
+    /**
+     * Text: the title role (template heading font).
+     */
+    public var isHeading: Bool
+    /**
+     * Image/video: embed ref (without `embed:`) or provider id.
+     */
+    public var embedRef: String?
+    /**
+     * Video provider: `embed`, `youtube` or `vimeo`.
+     */
+    public var videoProvider: String?
+    /**
+     * Image/video alt text.
+     */
+    public var alt: String
+    /**
+     * Image fit: `cover` or `contain`.
+     */
+    public var fit: String?
+    /**
+     * Shape kind: `rect`, `ellipse`, `line` or `triangle`.
+     */
+    public var shapeKind: String
+    /**
+     * Shape stroke token or `#hex`.
+     */
+    public var stroke: String?
+    /**
+     * Notepad/to-do/block title.
+     */
+    public var title: String
+    /**
+     * Notepad text, link label or block body.
+     */
+    public var text: String
+    /**
+     * Link target.
+     */
+    public var href: String
+    /**
+     * To-do items.
+     */
+    public var items: [SlideTodoItemRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable element id.
+         */id: String, 
+        /**
+         * Kind.
+         */kind: SlideElementKindRecord, 
+        /**
+         * Final left edge in canvas units.
+         */x: UInt32, 
+        /**
+         * Final top edge.
+         */y: UInt32, 
+        /**
+         * Final width.
+         */w: UInt32, 
+        /**
+         * Final height.
+         */h: UInt32, 
+        /**
+         * Build step the element appears at (0 = always).
+         */step: UInt32, 
+        /**
+         * `fade`, `slide-in` or `appear`.
+         */animate: String?, 
+        /**
+         * Hidden notepad/to-do (kept but not drawn).
+         */hidden: Bool, 
+        /**
+         * Text: runs; empty for other kinds.
+         */runs: [SlideRunRecord], 
+        /**
+         * Text: font size in canvas units.
+         */fontSize: UInt32, 
+        /**
+         * Text: bold weight from the slot or attribute.
+         */bold: Bool, 
+        /**
+         * Text: italic from the layout slot.
+         */italic: Bool, 
+        /**
+         * Text: `left`, `center` or `right`.
+         */align: String, 
+        /**
+         * Text: template colour token or `#hex`; shape: fill token or `#hex`.
+         */color: String?, 
+        /**
+         * Text: explicit font family name, when not the template font; heading role flag below.
+         */fontFamily: String?, 
+        /**
+         * Text: the title role (template heading font).
+         */isHeading: Bool, 
+        /**
+         * Image/video: embed ref (without `embed:`) or provider id.
+         */embedRef: String?, 
+        /**
+         * Video provider: `embed`, `youtube` or `vimeo`.
+         */videoProvider: String?, 
+        /**
+         * Image/video alt text.
+         */alt: String, 
+        /**
+         * Image fit: `cover` or `contain`.
+         */fit: String?, 
+        /**
+         * Shape kind: `rect`, `ellipse`, `line` or `triangle`.
+         */shapeKind: String, 
+        /**
+         * Shape stroke token or `#hex`.
+         */stroke: String?, 
+        /**
+         * Notepad/to-do/block title.
+         */title: String, 
+        /**
+         * Notepad text, link label or block body.
+         */text: String, 
+        /**
+         * Link target.
+         */href: String, 
+        /**
+         * To-do items.
+         */items: [SlideTodoItemRecord]) {
+        self.id = id
+        self.kind = kind
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.step = step
+        self.animate = animate
+        self.hidden = hidden
+        self.runs = runs
+        self.fontSize = fontSize
+        self.bold = bold
+        self.italic = italic
+        self.align = align
+        self.color = color
+        self.fontFamily = fontFamily
+        self.isHeading = isHeading
+        self.embedRef = embedRef
+        self.videoProvider = videoProvider
+        self.alt = alt
+        self.fit = fit
+        self.shapeKind = shapeKind
+        self.stroke = stroke
+        self.title = title
+        self.text = text
+        self.href = href
+        self.items = items
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SlideElementRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlideElementRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlideElementRecord {
+        return
+            try SlideElementRecord(
+                id: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterTypeSlideElementKindRecord.read(from: &buf), 
+                x: FfiConverterUInt32.read(from: &buf), 
+                y: FfiConverterUInt32.read(from: &buf), 
+                w: FfiConverterUInt32.read(from: &buf), 
+                h: FfiConverterUInt32.read(from: &buf), 
+                step: FfiConverterUInt32.read(from: &buf), 
+                animate: FfiConverterOptionString.read(from: &buf), 
+                hidden: FfiConverterBool.read(from: &buf), 
+                runs: FfiConverterSequenceTypeSlideRunRecord.read(from: &buf), 
+                fontSize: FfiConverterUInt32.read(from: &buf), 
+                bold: FfiConverterBool.read(from: &buf), 
+                italic: FfiConverterBool.read(from: &buf), 
+                align: FfiConverterString.read(from: &buf), 
+                color: FfiConverterOptionString.read(from: &buf), 
+                fontFamily: FfiConverterOptionString.read(from: &buf), 
+                isHeading: FfiConverterBool.read(from: &buf), 
+                embedRef: FfiConverterOptionString.read(from: &buf), 
+                videoProvider: FfiConverterOptionString.read(from: &buf), 
+                alt: FfiConverterString.read(from: &buf), 
+                fit: FfiConverterOptionString.read(from: &buf), 
+                shapeKind: FfiConverterString.read(from: &buf), 
+                stroke: FfiConverterOptionString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                text: FfiConverterString.read(from: &buf), 
+                href: FfiConverterString.read(from: &buf), 
+                items: FfiConverterSequenceTypeSlideTodoItemRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SlideElementRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterTypeSlideElementKindRecord.write(value.kind, into: &buf)
+        FfiConverterUInt32.write(value.x, into: &buf)
+        FfiConverterUInt32.write(value.y, into: &buf)
+        FfiConverterUInt32.write(value.w, into: &buf)
+        FfiConverterUInt32.write(value.h, into: &buf)
+        FfiConverterUInt32.write(value.step, into: &buf)
+        FfiConverterOptionString.write(value.animate, into: &buf)
+        FfiConverterBool.write(value.hidden, into: &buf)
+        FfiConverterSequenceTypeSlideRunRecord.write(value.runs, into: &buf)
+        FfiConverterUInt32.write(value.fontSize, into: &buf)
+        FfiConverterBool.write(value.bold, into: &buf)
+        FfiConverterBool.write(value.italic, into: &buf)
+        FfiConverterString.write(value.align, into: &buf)
+        FfiConverterOptionString.write(value.color, into: &buf)
+        FfiConverterOptionString.write(value.fontFamily, into: &buf)
+        FfiConverterBool.write(value.isHeading, into: &buf)
+        FfiConverterOptionString.write(value.embedRef, into: &buf)
+        FfiConverterOptionString.write(value.videoProvider, into: &buf)
+        FfiConverterString.write(value.alt, into: &buf)
+        FfiConverterOptionString.write(value.fit, into: &buf)
+        FfiConverterString.write(value.shapeKind, into: &buf)
+        FfiConverterOptionString.write(value.stroke, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterString.write(value.href, into: &buf)
+        FfiConverterSequenceTypeSlideTodoItemRecord.write(value.items, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideElementRecord_lift(_ buf: RustBuffer) throws -> SlideElementRecord {
+    return try FfiConverterTypeSlideElementRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideElementRecord_lower(_ value: SlideElementRecord) -> RustBuffer {
+    return FfiConverterTypeSlideElementRecord.lower(value)
+}
+
+
+/**
+ * One slide.
+ */
+public struct SlideRecord: Equatable, Hashable {
+    /**
+     * Stable slide id.
+     */
+    public var id: String
+    /**
+     * `none`, `fade` or `slide`.
+     */
+    public var transition: String?
+    /**
+     * Speaker notes.
+     */
+    public var notes: String
+    /**
+     * Elements in paint order.
+     */
+    public var elements: [SlideElementRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable slide id.
+         */id: String, 
+        /**
+         * `none`, `fade` or `slide`.
+         */transition: String?, 
+        /**
+         * Speaker notes.
+         */notes: String, 
+        /**
+         * Elements in paint order.
+         */elements: [SlideElementRecord]) {
+        self.id = id
+        self.transition = transition
+        self.notes = notes
+        self.elements = elements
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SlideRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlideRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlideRecord {
+        return
+            try SlideRecord(
+                id: FfiConverterString.read(from: &buf), 
+                transition: FfiConverterOptionString.read(from: &buf), 
+                notes: FfiConverterString.read(from: &buf), 
+                elements: FfiConverterSequenceTypeSlideElementRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SlideRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterOptionString.write(value.transition, into: &buf)
+        FfiConverterString.write(value.notes, into: &buf)
+        FfiConverterSequenceTypeSlideElementRecord.write(value.elements, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideRecord_lift(_ buf: RustBuffer) throws -> SlideRecord {
+    return try FfiConverterTypeSlideRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideRecord_lower(_ value: SlideRecord) -> RustBuffer {
+    return FfiConverterTypeSlideRecord.lower(value)
+}
+
+
+/**
+ * One styled text stretch of a text element.
+ */
+public struct SlideRunRecord: Equatable, Hashable {
+    /**
+     * Text (`"\n"` is a line break; list items carry their marker).
+     */
+    public var text: String
+    /**
+     * Bold.
+     */
+    public var bold: Bool
+    /**
+     * Italic.
+     */
+    public var italic: Bool
+    /**
+     * Underlined.
+     */
+    public var underline: Bool
+    /**
+     * Struck through.
+     */
+    public var strike: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Text (`"\n"` is a line break; list items carry their marker).
+         */text: String, 
+        /**
+         * Bold.
+         */bold: Bool, 
+        /**
+         * Italic.
+         */italic: Bool, 
+        /**
+         * Underlined.
+         */underline: Bool, 
+        /**
+         * Struck through.
+         */strike: Bool) {
+        self.text = text
+        self.bold = bold
+        self.italic = italic
+        self.underline = underline
+        self.strike = strike
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SlideRunRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlideRunRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlideRunRecord {
+        return
+            try SlideRunRecord(
+                text: FfiConverterString.read(from: &buf), 
+                bold: FfiConverterBool.read(from: &buf), 
+                italic: FfiConverterBool.read(from: &buf), 
+                underline: FfiConverterBool.read(from: &buf), 
+                strike: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SlideRunRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterBool.write(value.bold, into: &buf)
+        FfiConverterBool.write(value.italic, into: &buf)
+        FfiConverterBool.write(value.underline, into: &buf)
+        FfiConverterBool.write(value.strike, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideRunRecord_lift(_ buf: RustBuffer) throws -> SlideRunRecord {
+    return try FfiConverterTypeSlideRunRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideRunRecord_lower(_ value: SlideRunRecord) -> RustBuffer {
+    return FfiConverterTypeSlideRunRecord.lower(value)
+}
+
+
+/**
+ * One to-do item.
+ */
+public struct SlideTodoItemRecord: Equatable, Hashable {
+    /**
+     * Item text.
+     */
+    public var label: String
+    /**
+     * Checked.
+     */
+    public var done: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Item text.
+         */label: String, 
+        /**
+         * Checked.
+         */done: Bool) {
+        self.label = label
+        self.done = done
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SlideTodoItemRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlideTodoItemRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlideTodoItemRecord {
+        return
+            try SlideTodoItemRecord(
+                label: FfiConverterString.read(from: &buf), 
+                done: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SlideTodoItemRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterBool.write(value.done, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideTodoItemRecord_lift(_ buf: RustBuffer) throws -> SlideTodoItemRecord {
+    return try FfiConverterTypeSlideTodoItemRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideTodoItemRecord_lower(_ value: SlideTodoItemRecord) -> RustBuffer {
+    return FfiConverterTypeSlideTodoItemRecord.lower(value)
+}
+
+
+/**
+ * One presentation state snapshot (same fields as the web `PresentRemoteState`).
+ */
+public struct SlidesRemoteStateRecord: Equatable, Hashable {
+    /**
+     * Deck embed the state belongs to.
+     */
+    public var embedId: String
+    /**
+     * Presentation session id.
+     */
+    public var sessionId: String
+    /**
+     * Ordering number, increasing within a session (at most 2^53 - 1).
+     */
+    public var seq: UInt64
+    /**
+     * Current slide index.
+     */
+    public var index: UInt32
+    /**
+     * Current build step.
+     */
+    public var step: UInt32
+    /**
+     * Whether the presenter shows its notes.
+     */
+    public var notesVisible: Bool
+    /**
+     * False once the presentation ended.
+     */
+    public var presenting: Bool
+    /**
+     * Producer of this snapshot.
+     */
+    public var origin: SlidesRemoteOriginRecord
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Deck embed the state belongs to.
+         */embedId: String, 
+        /**
+         * Presentation session id.
+         */sessionId: String, 
+        /**
+         * Ordering number, increasing within a session (at most 2^53 - 1).
+         */seq: UInt64, 
+        /**
+         * Current slide index.
+         */index: UInt32, 
+        /**
+         * Current build step.
+         */step: UInt32, 
+        /**
+         * Whether the presenter shows its notes.
+         */notesVisible: Bool, 
+        /**
+         * False once the presentation ended.
+         */presenting: Bool, 
+        /**
+         * Producer of this snapshot.
+         */origin: SlidesRemoteOriginRecord) {
+        self.embedId = embedId
+        self.sessionId = sessionId
+        self.seq = seq
+        self.index = index
+        self.step = step
+        self.notesVisible = notesVisible
+        self.presenting = presenting
+        self.origin = origin
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SlidesRemoteStateRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlidesRemoteStateRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlidesRemoteStateRecord {
+        return
+            try SlidesRemoteStateRecord(
+                embedId: FfiConverterString.read(from: &buf), 
+                sessionId: FfiConverterString.read(from: &buf), 
+                seq: FfiConverterUInt64.read(from: &buf), 
+                index: FfiConverterUInt32.read(from: &buf), 
+                step: FfiConverterUInt32.read(from: &buf), 
+                notesVisible: FfiConverterBool.read(from: &buf), 
+                presenting: FfiConverterBool.read(from: &buf), 
+                origin: FfiConverterTypeSlidesRemoteOriginRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SlidesRemoteStateRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterString.write(value.sessionId, into: &buf)
+        FfiConverterUInt64.write(value.seq, into: &buf)
+        FfiConverterUInt32.write(value.index, into: &buf)
+        FfiConverterUInt32.write(value.step, into: &buf)
+        FfiConverterBool.write(value.notesVisible, into: &buf)
+        FfiConverterBool.write(value.presenting, into: &buf)
+        FfiConverterTypeSlidesRemoteOriginRecord.write(value.origin, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteStateRecord_lift(_ buf: RustBuffer) throws -> SlidesRemoteStateRecord {
+    return try FfiConverterTypeSlidesRemoteStateRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteStateRecord_lower(_ value: SlidesRemoteStateRecord) -> RustBuffer {
+    return FfiConverterTypeSlidesRemoteStateRecord.lower(value)
+}
+
+
+/**
  * One entry of `batch_unwrap_chat_keys`, in input order.
  */
 public struct UnwrappedChatKeyRecord: Equatable, Hashable {
@@ -11306,6 +16365,927 @@ public func FfiConverterTypeUserProfileRecord_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeUserProfileRecord_lower(_ value: UserProfileRecord) -> RustBuffer {
     return FfiConverterTypeUserProfileRecord.lower(value)
+}
+
+
+/**
+ * One generated sound on the timeline.
+ */
+public struct VideoAudioEntryRecord: Equatable, Hashable {
+    /**
+     * Stable entry id.
+     */
+    public var id: String
+    /**
+     * Entry kind.
+     */
+    public var kind: VideoAudioKindRecord
+    /**
+     * Display label.
+     */
+    public var label: String
+    /**
+     * First frame.
+     */
+    public var from: UInt32
+    /**
+     * Length in frames.
+     */
+    public var durationInFrames: UInt32
+    /**
+     * Narration line of a speech entry.
+     */
+    public var text: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable entry id.
+         */id: String, 
+        /**
+         * Entry kind.
+         */kind: VideoAudioKindRecord, 
+        /**
+         * Display label.
+         */label: String, 
+        /**
+         * First frame.
+         */from: UInt32, 
+        /**
+         * Length in frames.
+         */durationInFrames: UInt32, 
+        /**
+         * Narration line of a speech entry.
+         */text: String?) {
+        self.id = id
+        self.kind = kind
+        self.label = label
+        self.from = from
+        self.durationInFrames = durationInFrames
+        self.text = text
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VideoAudioEntryRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVideoAudioEntryRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VideoAudioEntryRecord {
+        return
+            try VideoAudioEntryRecord(
+                id: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterTypeVideoAudioKindRecord.read(from: &buf), 
+                label: FfiConverterString.read(from: &buf), 
+                from: FfiConverterUInt32.read(from: &buf), 
+                durationInFrames: FfiConverterUInt32.read(from: &buf), 
+                text: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VideoAudioEntryRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterTypeVideoAudioKindRecord.write(value.kind, into: &buf)
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterUInt32.write(value.from, into: &buf)
+        FfiConverterUInt32.write(value.durationInFrames, into: &buf)
+        FfiConverterOptionString.write(value.text, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoAudioEntryRecord_lift(_ buf: RustBuffer) throws -> VideoAudioEntryRecord {
+    return try FfiConverterTypeVideoAudioEntryRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoAudioEntryRecord_lower(_ value: VideoAudioEntryRecord) -> RustBuffer {
+    return FfiConverterTypeVideoAudioEntryRecord.lower(value)
+}
+
+
+/**
+ * One part of a track.
+ */
+public struct VideoPartRecord: Equatable, Hashable {
+    /**
+     * Stable part id.
+     */
+    public var id: String
+    /**
+     * Display label.
+     */
+    public var label: String
+    /**
+     * First frame.
+     */
+    public var from: UInt32
+    /**
+     * Length in frames.
+     */
+    public var durationInFrames: UInt32
+    /**
+     * Part kind.
+     */
+    public var kind: VideoPartKindRecord
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable part id.
+         */id: String, 
+        /**
+         * Display label.
+         */label: String, 
+        /**
+         * First frame.
+         */from: UInt32, 
+        /**
+         * Length in frames.
+         */durationInFrames: UInt32, 
+        /**
+         * Part kind.
+         */kind: VideoPartKindRecord) {
+        self.id = id
+        self.label = label
+        self.from = from
+        self.durationInFrames = durationInFrames
+        self.kind = kind
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VideoPartRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVideoPartRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VideoPartRecord {
+        return
+            try VideoPartRecord(
+                id: FfiConverterString.read(from: &buf), 
+                label: FfiConverterString.read(from: &buf), 
+                from: FfiConverterUInt32.read(from: &buf), 
+                durationInFrames: FfiConverterUInt32.read(from: &buf), 
+                kind: FfiConverterTypeVideoPartKindRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VideoPartRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.label, into: &buf)
+        FfiConverterUInt32.write(value.from, into: &buf)
+        FfiConverterUInt32.write(value.durationInFrames, into: &buf)
+        FfiConverterTypeVideoPartKindRecord.write(value.kind, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoPartRecord_lift(_ buf: RustBuffer) throws -> VideoPartRecord {
+    return try FfiConverterTypeVideoPartRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoPartRecord_lower(_ value: VideoPartRecord) -> RustBuffer {
+    return FfiConverterTypeVideoPartRecord.lower(value)
+}
+
+
+/**
+ * Normalised timeline of a video.
+ */
+public struct VideoTimelineRecord: Equatable, Hashable {
+    /**
+     * Frames per second.
+     */
+    public var fps: UInt32
+    /**
+     * Total length in frames.
+     */
+    public var durationInFrames: UInt32
+    /**
+     * Picture width, 0 when unknown.
+     */
+    public var width: UInt32
+    /**
+     * Picture height, 0 when unknown.
+     */
+    public var height: UInt32
+    /**
+     * Who made the video.
+     */
+    public var madeBy: VideoMadeByRecord
+    /**
+     * Non-empty tracks.
+     */
+    public var tracks: [VideoTrackRecord]
+    /**
+     * Generated sound sorted by start.
+     */
+    public var audio: [VideoAudioEntryRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Frames per second.
+         */fps: UInt32, 
+        /**
+         * Total length in frames.
+         */durationInFrames: UInt32, 
+        /**
+         * Picture width, 0 when unknown.
+         */width: UInt32, 
+        /**
+         * Picture height, 0 when unknown.
+         */height: UInt32, 
+        /**
+         * Who made the video.
+         */madeBy: VideoMadeByRecord, 
+        /**
+         * Non-empty tracks.
+         */tracks: [VideoTrackRecord], 
+        /**
+         * Generated sound sorted by start.
+         */audio: [VideoAudioEntryRecord]) {
+        self.fps = fps
+        self.durationInFrames = durationInFrames
+        self.width = width
+        self.height = height
+        self.madeBy = madeBy
+        self.tracks = tracks
+        self.audio = audio
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VideoTimelineRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVideoTimelineRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VideoTimelineRecord {
+        return
+            try VideoTimelineRecord(
+                fps: FfiConverterUInt32.read(from: &buf), 
+                durationInFrames: FfiConverterUInt32.read(from: &buf), 
+                width: FfiConverterUInt32.read(from: &buf), 
+                height: FfiConverterUInt32.read(from: &buf), 
+                madeBy: FfiConverterTypeVideoMadeByRecord.read(from: &buf), 
+                tracks: FfiConverterSequenceTypeVideoTrackRecord.read(from: &buf), 
+                audio: FfiConverterSequenceTypeVideoAudioEntryRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VideoTimelineRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.fps, into: &buf)
+        FfiConverterUInt32.write(value.durationInFrames, into: &buf)
+        FfiConverterUInt32.write(value.width, into: &buf)
+        FfiConverterUInt32.write(value.height, into: &buf)
+        FfiConverterTypeVideoMadeByRecord.write(value.madeBy, into: &buf)
+        FfiConverterSequenceTypeVideoTrackRecord.write(value.tracks, into: &buf)
+        FfiConverterSequenceTypeVideoAudioEntryRecord.write(value.audio, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoTimelineRecord_lift(_ buf: RustBuffer) throws -> VideoTimelineRecord {
+    return try FfiConverterTypeVideoTimelineRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoTimelineRecord_lower(_ value: VideoTimelineRecord) -> RustBuffer {
+    return FfiConverterTypeVideoTimelineRecord.lower(value)
+}
+
+
+/**
+ * One track with its parts in time order.
+ */
+public struct VideoTrackRecord: Equatable, Hashable {
+    /**
+     * Stable track id.
+     */
+    public var id: String
+    /**
+     * Display name.
+     */
+    public var name: String
+    /**
+     * Track kind.
+     */
+    public var kind: VideoTrackKindRecord
+    /**
+     * Parts sorted by start.
+     */
+    public var parts: [VideoPartRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable track id.
+         */id: String, 
+        /**
+         * Display name.
+         */name: String, 
+        /**
+         * Track kind.
+         */kind: VideoTrackKindRecord, 
+        /**
+         * Parts sorted by start.
+         */parts: [VideoPartRecord]) {
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.parts = parts
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VideoTrackRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVideoTrackRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VideoTrackRecord {
+        return
+            try VideoTrackRecord(
+                id: FfiConverterString.read(from: &buf), 
+                name: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterTypeVideoTrackKindRecord.read(from: &buf), 
+                parts: FfiConverterSequenceTypeVideoPartRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VideoTrackRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterTypeVideoTrackKindRecord.write(value.kind, into: &buf)
+        FfiConverterSequenceTypeVideoPartRecord.write(value.parts, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoTrackRecord_lift(_ buf: RustBuffer) throws -> VideoTrackRecord {
+    return try FfiConverterTypeVideoTrackRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoTrackRecord_lower(_ value: VideoTrackRecord) -> RustBuffer {
+    return FfiConverterTypeVideoTrackRecord.lower(value)
+}
+
+
+/**
+ * One reading of the call clock.
+ */
+public struct VoiceCallClockRecord: Equatable, Hashable {
+    /**
+     * Whole seconds of server-confirmed (or not yet known) active time.
+     */
+    public var activeElapsedSeconds: UInt64
+    /**
+     * True only after the server confirmed input and processing idle.
+     */
+    public var dimmed: Bool
+    /**
+     * Whether a server `billing_activity` frame has arrived yet.
+     */
+    public var activityKnown: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Whole seconds of server-confirmed (or not yet known) active time.
+         */activeElapsedSeconds: UInt64, 
+        /**
+         * True only after the server confirmed input and processing idle.
+         */dimmed: Bool, 
+        /**
+         * Whether a server `billing_activity` frame has arrived yet.
+         */activityKnown: Bool) {
+        self.activeElapsedSeconds = activeElapsedSeconds
+        self.dimmed = dimmed
+        self.activityKnown = activityKnown
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceCallClockRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallClockRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallClockRecord {
+        return
+            try VoiceCallClockRecord(
+                activeElapsedSeconds: FfiConverterUInt64.read(from: &buf), 
+                dimmed: FfiConverterBool.read(from: &buf), 
+                activityKnown: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceCallClockRecord, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.activeElapsedSeconds, into: &buf)
+        FfiConverterBool.write(value.dimmed, into: &buf)
+        FfiConverterBool.write(value.activityKnown, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallClockRecord_lift(_ buf: RustBuffer) throws -> VoiceCallClockRecord {
+    return try FfiConverterTypeVoiceCallClockRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallClockRecord_lower(_ value: VoiceCallClockRecord) -> RustBuffer {
+    return FfiConverterTypeVoiceCallClockRecord.lower(value)
+}
+
+
+/**
+ * A call notice ready to render or to write as a system message.
+ */
+public struct VoiceCallNoticeRecord: Equatable, Hashable {
+    /**
+     * Started or ended.
+     */
+    public var action: VoiceCallNoticeAction
+    /**
+     * Call id.
+     */
+    public var callId: String
+    /**
+     * Unix seconds.
+     */
+    public var createdAt: Int64
+    /**
+     * Floored active seconds.
+     */
+    public var activeElapsedSeconds: UInt64?
+    /**
+     * Deterministic message id (same as web).
+     */
+    public var messageId: String
+    /**
+     * System-message content JSON exactly as the web writes it.
+     */
+    public var contentJson: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Started or ended.
+         */action: VoiceCallNoticeAction, 
+        /**
+         * Call id.
+         */callId: String, 
+        /**
+         * Unix seconds.
+         */createdAt: Int64, 
+        /**
+         * Floored active seconds.
+         */activeElapsedSeconds: UInt64?, 
+        /**
+         * Deterministic message id (same as web).
+         */messageId: String, 
+        /**
+         * System-message content JSON exactly as the web writes it.
+         */contentJson: String) {
+        self.action = action
+        self.callId = callId
+        self.createdAt = createdAt
+        self.activeElapsedSeconds = activeElapsedSeconds
+        self.messageId = messageId
+        self.contentJson = contentJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceCallNoticeRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallNoticeRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallNoticeRecord {
+        return
+            try VoiceCallNoticeRecord(
+                action: FfiConverterTypeVoiceCallNoticeAction.read(from: &buf), 
+                callId: FfiConverterString.read(from: &buf), 
+                createdAt: FfiConverterInt64.read(from: &buf), 
+                activeElapsedSeconds: FfiConverterOptionUInt64.read(from: &buf), 
+                messageId: FfiConverterString.read(from: &buf), 
+                contentJson: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceCallNoticeRecord, into buf: inout [UInt8]) {
+        FfiConverterTypeVoiceCallNoticeAction.write(value.action, into: &buf)
+        FfiConverterString.write(value.callId, into: &buf)
+        FfiConverterInt64.write(value.createdAt, into: &buf)
+        FfiConverterOptionUInt64.write(value.activeElapsedSeconds, into: &buf)
+        FfiConverterString.write(value.messageId, into: &buf)
+        FfiConverterString.write(value.contentJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallNoticeRecord_lift(_ buf: RustBuffer) throws -> VoiceCallNoticeRecord {
+    return try FfiConverterTypeVoiceCallNoticeRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallNoticeRecord_lower(_ value: VoiceCallNoticeRecord) -> RustBuffer {
+    return FfiConverterTypeVoiceCallNoticeRecord.lower(value)
+}
+
+
+/**
+ * One embed handed to the stage policy: row fields plus decrypted content JSON.
+ */
+public struct VoiceCallStageEmbedInput: Equatable, Hashable {
+    /**
+     * Embed id.
+     */
+    public var embedId: String
+    /**
+     * Row-level app id.
+     */
+    public var appId: String?
+    /**
+     * Row-level skill id.
+     */
+    public var skillId: String?
+    /**
+     * Row-level embed type.
+     */
+    public var embedType: String?
+    /**
+     * Row-level status.
+     */
+    public var status: String?
+    /**
+     * Decryption failed.
+     */
+    public var decryptionFailed: Bool
+    /**
+     * Decryption pending.
+     */
+    public var decryptionPending: Bool
+    /**
+     * Decrypted content as a JSON object string.
+     */
+    public var contentJson: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Embed id.
+         */embedId: String, 
+        /**
+         * Row-level app id.
+         */appId: String?, 
+        /**
+         * Row-level skill id.
+         */skillId: String?, 
+        /**
+         * Row-level embed type.
+         */embedType: String?, 
+        /**
+         * Row-level status.
+         */status: String?, 
+        /**
+         * Decryption failed.
+         */decryptionFailed: Bool, 
+        /**
+         * Decryption pending.
+         */decryptionPending: Bool, 
+        /**
+         * Decrypted content as a JSON object string.
+         */contentJson: String) {
+        self.embedId = embedId
+        self.appId = appId
+        self.skillId = skillId
+        self.embedType = embedType
+        self.status = status
+        self.decryptionFailed = decryptionFailed
+        self.decryptionPending = decryptionPending
+        self.contentJson = contentJson
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceCallStageEmbedInput: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallStageEmbedInput: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallStageEmbedInput {
+        return
+            try VoiceCallStageEmbedInput(
+                embedId: FfiConverterString.read(from: &buf), 
+                appId: FfiConverterOptionString.read(from: &buf), 
+                skillId: FfiConverterOptionString.read(from: &buf), 
+                embedType: FfiConverterOptionString.read(from: &buf), 
+                status: FfiConverterOptionString.read(from: &buf), 
+                decryptionFailed: FfiConverterBool.read(from: &buf), 
+                decryptionPending: FfiConverterBool.read(from: &buf), 
+                contentJson: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceCallStageEmbedInput, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterOptionString.write(value.appId, into: &buf)
+        FfiConverterOptionString.write(value.skillId, into: &buf)
+        FfiConverterOptionString.write(value.embedType, into: &buf)
+        FfiConverterOptionString.write(value.status, into: &buf)
+        FfiConverterBool.write(value.decryptionFailed, into: &buf)
+        FfiConverterBool.write(value.decryptionPending, into: &buf)
+        FfiConverterString.write(value.contentJson, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageEmbedInput_lift(_ buf: RustBuffer) throws -> VoiceCallStageEmbedInput {
+    return try FfiConverterTypeVoiceCallStageEmbedInput.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageEmbedInput_lower(_ value: VoiceCallStageEmbedInput) -> RustBuffer {
+    return FfiConverterTypeVoiceCallStageEmbedInput.lower(value)
+}
+
+
+/**
+ * A displayable stage item; the shell fetches and decrypts the file itself.
+ */
+public struct VoiceCallStageMediaRecord: Equatable, Hashable {
+    /**
+     * Owning embed id.
+     */
+    public var embedId: String
+    /**
+     * Image or video.
+     */
+    public var kind: VoiceCallStageMediaKind
+    /**
+     * File variant to fetch.
+     */
+    public var variant: VoiceCallStageMediaVariant
+    /**
+     * Object key of the encrypted file.
+     */
+    public var s3Key: String
+    /**
+     * Object store base URL.
+     */
+    public var s3BaseUrl: String
+    /**
+     * Declared mime type.
+     */
+    public var mimeType: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Owning embed id.
+         */embedId: String, 
+        /**
+         * Image or video.
+         */kind: VoiceCallStageMediaKind, 
+        /**
+         * File variant to fetch.
+         */variant: VoiceCallStageMediaVariant, 
+        /**
+         * Object key of the encrypted file.
+         */s3Key: String, 
+        /**
+         * Object store base URL.
+         */s3BaseUrl: String, 
+        /**
+         * Declared mime type.
+         */mimeType: String?) {
+        self.embedId = embedId
+        self.kind = kind
+        self.variant = variant
+        self.s3Key = s3Key
+        self.s3BaseUrl = s3BaseUrl
+        self.mimeType = mimeType
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceCallStageMediaRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallStageMediaRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallStageMediaRecord {
+        return
+            try VoiceCallStageMediaRecord(
+                embedId: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterTypeVoiceCallStageMediaKind.read(from: &buf), 
+                variant: FfiConverterTypeVoiceCallStageMediaVariant.read(from: &buf), 
+                s3Key: FfiConverterString.read(from: &buf), 
+                s3BaseUrl: FfiConverterString.read(from: &buf), 
+                mimeType: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceCallStageMediaRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.embedId, into: &buf)
+        FfiConverterTypeVoiceCallStageMediaKind.write(value.kind, into: &buf)
+        FfiConverterTypeVoiceCallStageMediaVariant.write(value.variant, into: &buf)
+        FfiConverterString.write(value.s3Key, into: &buf)
+        FfiConverterString.write(value.s3BaseUrl, into: &buf)
+        FfiConverterOptionString.write(value.mimeType, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaRecord_lift(_ buf: RustBuffer) throws -> VoiceCallStageMediaRecord {
+    return try FfiConverterTypeVoiceCallStageMediaRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaRecord_lower(_ value: VoiceCallStageMediaRecord) -> RustBuffer {
+    return FfiConverterTypeVoiceCallStageMediaRecord.lower(value)
+}
+
+
+/**
+ * Displayed-item choice after a resolve.
+ */
+public struct VoiceCallStageSelectionRecord: Equatable, Hashable {
+    /**
+     * Index to display; `None` leaves the stage unchanged.
+     */
+    public var displayedIndex: UInt32?
+    /**
+     * A not-yet-presented item was chosen.
+     */
+    public var fresh: Bool
+    /**
+     * Ids to add to the presented set.
+     */
+    public var newlyPresented: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Index to display; `None` leaves the stage unchanged.
+         */displayedIndex: UInt32?, 
+        /**
+         * A not-yet-presented item was chosen.
+         */fresh: Bool, 
+        /**
+         * Ids to add to the presented set.
+         */newlyPresented: [String]) {
+        self.displayedIndex = displayedIndex
+        self.fresh = fresh
+        self.newlyPresented = newlyPresented
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VoiceCallStageSelectionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallStageSelectionRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallStageSelectionRecord {
+        return
+            try VoiceCallStageSelectionRecord(
+                displayedIndex: FfiConverterOptionUInt32.read(from: &buf), 
+                fresh: FfiConverterBool.read(from: &buf), 
+                newlyPresented: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VoiceCallStageSelectionRecord, into buf: inout [UInt8]) {
+        FfiConverterOptionUInt32.write(value.displayedIndex, into: &buf)
+        FfiConverterBool.write(value.fresh, into: &buf)
+        FfiConverterSequenceString.write(value.newlyPresented, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageSelectionRecord_lift(_ buf: RustBuffer) throws -> VoiceCallStageSelectionRecord {
+    return try FfiConverterTypeVoiceCallStageSelectionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageSelectionRecord_lower(_ value: VoiceCallStageSelectionRecord) -> RustBuffer {
+    return FfiConverterTypeVoiceCallStageSelectionRecord.lower(value)
 }
 
 
@@ -11634,6 +17614,295 @@ public func FfiConverterTypeAccessDenialRecord_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeAccessDenialRecord_lower(_ value: AccessDenialRecord) -> RustBuffer {
     return FfiConverterTypeAccessDenialRecord.lower(value)
+}
+
+
+
+/**
+ * What the body renders in place of one block reference.
+ */
+
+public enum BodyEmbedSlotRecord: Equatable, Hashable {
+    
+    /**
+     * A result card.
+     */
+    case card(
+        /**
+         * Reference to render.
+         */embedRef: String, 
+        /**
+         * Embed id, when known.
+         */embedId: String?
+    )
+    /**
+     * A compact activity line marking where a skill ran.
+     */
+    case activity(
+        /**
+         * Invocation embed id.
+         */embedId: String, 
+        /**
+         * App id, when known.
+         */appId: String?, 
+        /**
+         * Skill id, when known.
+         */skillId: String?, 
+        /**
+         * Children are not known yet.
+         */resultsPending: Bool
+    )
+    /**
+     * Keeps the position, renders nothing.
+     */
+    case hidden(
+        /**
+         * Embed id kept for later resolution.
+         */embedId: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BodyEmbedSlotRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBodyEmbedSlotRecord: FfiConverterRustBuffer {
+    typealias SwiftType = BodyEmbedSlotRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BodyEmbedSlotRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .card(embedRef: try FfiConverterString.read(from: &buf), embedId: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        case 2: return .activity(embedId: try FfiConverterString.read(from: &buf), appId: try FfiConverterOptionString.read(from: &buf), skillId: try FfiConverterOptionString.read(from: &buf), resultsPending: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 3: return .hidden(embedId: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BodyEmbedSlotRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .card(embedRef,embedId):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(embedRef, into: &buf)
+            FfiConverterOptionString.write(embedId, into: &buf)
+            
+        
+        case let .activity(embedId,appId,skillId,resultsPending):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(embedId, into: &buf)
+            FfiConverterOptionString.write(appId, into: &buf)
+            FfiConverterOptionString.write(skillId, into: &buf)
+            FfiConverterBool.write(resultsPending, into: &buf)
+            
+        
+        case let .hidden(embedId):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(embedId, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyEmbedSlotRecord_lift(_ buf: RustBuffer) throws -> BodyEmbedSlotRecord {
+    return try FfiConverterTypeBodyEmbedSlotRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyEmbedSlotRecord_lower(_ value: BodyEmbedSlotRecord) -> RustBuffer {
+    return FfiConverterTypeBodyEmbedSlotRecord.lower(value)
+}
+
+
+
+/**
+ * Kind of one body node at one nesting level.
+ */
+
+public enum BodyNodeKindRecord: Equatable, Hashable {
+    
+    /**
+     * A paragraph without content.
+     */
+    case emptyParagraph
+    /**
+     * A paragraph with content.
+     */
+    case paragraph
+    /**
+     * A large embed preview block.
+     */
+    case embedLarge
+    /**
+     * Any other node.
+     */
+    case other
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BodyNodeKindRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBodyNodeKindRecord: FfiConverterRustBuffer {
+    typealias SwiftType = BodyNodeKindRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BodyNodeKindRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .emptyParagraph
+        
+        case 2: return .paragraph
+        
+        case 3: return .embedLarge
+        
+        case 4: return .other
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BodyNodeKindRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .emptyParagraph:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .paragraph:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .embedLarge:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .other:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyNodeKindRecord_lift(_ buf: RustBuffer) throws -> BodyNodeKindRecord {
+    return try FfiConverterTypeBodyNodeKindRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBodyNodeKindRecord_lower(_ value: BodyNodeKindRecord) -> RustBuffer {
+    return FfiConverterTypeBodyNodeKindRecord.lower(value)
+}
+
+
+
+/**
+ * Where a call source frame was captured.
+ */
+
+public enum CallSourceKindRecord: Equatable, Hashable {
+    
+    /**
+     * The device camera.
+     */
+    case camera
+    /**
+     * A screen share.
+     */
+    case screen
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension CallSourceKindRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCallSourceKindRecord: FfiConverterRustBuffer {
+    typealias SwiftType = CallSourceKindRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CallSourceKindRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .camera
+        
+        case 2: return .screen
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CallSourceKindRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .camera:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .screen:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCallSourceKindRecord_lift(_ buf: RustBuffer) throws -> CallSourceKindRecord {
+    return try FfiConverterTypeCallSourceKindRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCallSourceKindRecord_lower(_ value: CallSourceKindRecord) -> RustBuffer {
+    return FfiConverterTypeCallSourceKindRecord.lower(value)
 }
 
 
@@ -14387,6 +20656,91 @@ public func FfiConverterTypeMachineProjectDecisionRecord_lower(_ value: MachineP
 
 
 /**
+ * A field an unsaved suggestion can change (web test id `memory-draft-diff-{field}`).
+ */
+
+public enum MemoryDiffFieldRecord: Equatable, Hashable {
+    
+    /**
+     * `title`.
+     */
+    case title
+    /**
+     * `when_to_use`.
+     */
+    case whenToUse
+    /**
+     * `body`.
+     */
+    case body
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MemoryDiffFieldRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMemoryDiffFieldRecord: FfiConverterRustBuffer {
+    typealias SwiftType = MemoryDiffFieldRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MemoryDiffFieldRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .title
+        
+        case 2: return .whenToUse
+        
+        case 3: return .body
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MemoryDiffFieldRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .title:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .whenToUse:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .body:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryDiffFieldRecord_lift(_ buf: RustBuffer) throws -> MemoryDiffFieldRecord {
+    return try FfiConverterTypeMemoryDiffFieldRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMemoryDiffFieldRecord_lower(_ value: MemoryDiffFieldRecord) -> RustBuffer {
+    return FfiConverterTypeMemoryDiffFieldRecord.lower(value)
+}
+
+
+
+/**
  * When the assistant loads a Memory (`load_mode`).
  */
 
@@ -14936,6 +21290,271 @@ public func FfiConverterTypePiiRestorationRecord_lower(_ value: PiiRestorationRe
 
 
 /**
+ * Whether a recommendation creates or updates an entry.
+ */
+
+public enum RecommendationActionRecord: Equatable, Hashable {
+    
+    /**
+     * Create a new entry.
+     */
+    case create
+    /**
+     * Update the entry `target_id` names.
+     */
+    case update
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension RecommendationActionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRecommendationActionRecord: FfiConverterRustBuffer {
+    typealias SwiftType = RecommendationActionRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RecommendationActionRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .create
+        
+        case 2: return .update
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RecommendationActionRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .create:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .update:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecommendationActionRecord_lift(_ buf: RustBuffer) throws -> RecommendationActionRecord {
+    return try FfiConverterTypeRecommendationActionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecommendationActionRecord_lower(_ value: RecommendationActionRecord) -> RustBuffer {
+    return FfiConverterTypeRecommendationActionRecord.lower(value)
+}
+
+
+
+/**
+ * Outcome of accepting a Memory recommendation (billed draft request).
+ */
+
+public enum RecommendationDraftStatusRecord: Equatable, Hashable {
+    
+    /**
+     * `fields` holds the unsaved draft for the Memory editor.
+     */
+    case draft
+    /**
+     * The update changes nothing ("already up to date").
+     */
+    case upToDate
+    /**
+     * The account cannot pay for the draft (HTTP 402).
+     */
+    case insufficientCredits
+    /**
+     * The Memory an update targets no longer exists.
+     */
+    case memoryNotFound
+    /**
+     * The server refused or answered with something unusable.
+     */
+    case requestFailed
+    /**
+     * No response twice, or the retried request id was already received.
+     */
+    case networkUnavailable
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension RecommendationDraftStatusRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRecommendationDraftStatusRecord: FfiConverterRustBuffer {
+    typealias SwiftType = RecommendationDraftStatusRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RecommendationDraftStatusRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .draft
+        
+        case 2: return .upToDate
+        
+        case 3: return .insufficientCredits
+        
+        case 4: return .memoryNotFound
+        
+        case 5: return .requestFailed
+        
+        case 6: return .networkUnavailable
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RecommendationDraftStatusRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .draft:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .upToDate:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .insufficientCredits:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .memoryNotFound:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .requestFailed:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .networkUnavailable:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecommendationDraftStatusRecord_lift(_ buf: RustBuffer) throws -> RecommendationDraftStatusRecord {
+    return try FfiConverterTypeRecommendationDraftStatusRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecommendationDraftStatusRecord_lower(_ value: RecommendationDraftStatusRecord) -> RustBuffer {
+    return FfiConverterTypeRecommendationDraftStatusRecord.lower(value)
+}
+
+
+
+/**
+ * Kind of entry a recommendation would create or update.
+ */
+
+public enum RecommendationKindRecord: Equatable, Hashable {
+    
+    /**
+     * A Memory.
+     */
+    case memory
+    /**
+     * A workflow.
+     */
+    case workflow
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension RecommendationKindRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRecommendationKindRecord: FfiConverterRustBuffer {
+    typealias SwiftType = RecommendationKindRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RecommendationKindRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .memory
+        
+        case 2: return .workflow
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: RecommendationKindRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .memory:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .workflow:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecommendationKindRecord_lift(_ buf: RustBuffer) throws -> RecommendationKindRecord {
+    return try FfiConverterTypeRecommendationKindRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecommendationKindRecord_lower(_ value: RecommendationKindRecord) -> RustBuffer {
+    return FfiConverterTypeRecommendationKindRecord.lower(value)
+}
+
+
+
+/**
  * Outcome of a remote command.
  */
 
@@ -15018,6 +21637,251 @@ public func FfiConverterTypeRemoteCommandOutcomeRecord_lift(_ buf: RustBuffer) t
 #endif
 public func FfiConverterTypeRemoteCommandOutcomeRecord_lower(_ value: RemoteCommandOutcomeRecord) -> RustBuffer {
     return FfiConverterTypeRemoteCommandOutcomeRecord.lower(value)
+}
+
+
+
+/**
+ * Visibility of a settings catalog entry.
+ */
+
+public enum SearchCatalogAccessRecord: Equatable, Hashable {
+    
+    /**
+     * Everyone.
+     */
+    case `public`
+    /**
+     * Signed-in users.
+     */
+    case authenticated
+    /**
+     * Admins.
+     */
+    case admin
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SearchCatalogAccessRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchCatalogAccessRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SearchCatalogAccessRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchCatalogAccessRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .`public`
+        
+        case 2: return .authenticated
+        
+        case 3: return .admin
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SearchCatalogAccessRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .`public`:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .authenticated:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .admin:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogAccessRecord_lift(_ buf: RustBuffer) throws -> SearchCatalogAccessRecord {
+    return try FfiConverterTypeSearchCatalogAccessRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogAccessRecord_lower(_ value: SearchCatalogAccessRecord) -> RustBuffer {
+    return FfiConverterTypeSearchCatalogAccessRecord.lower(value)
+}
+
+
+
+/**
+ * Result list a catalog entry belongs to.
+ */
+
+public enum SearchCatalogKindRecord: Equatable, Hashable {
+    
+    /**
+     * Settings entry (filtered by access).
+     */
+    case settings
+    /**
+     * App catalog entry (never filtered).
+     */
+    case app
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SearchCatalogKindRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchCatalogKindRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SearchCatalogKindRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchCatalogKindRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .settings
+        
+        case 2: return .app
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SearchCatalogKindRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .settings:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .app:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogKindRecord_lift(_ buf: RustBuffer) throws -> SearchCatalogKindRecord {
+    return try FfiConverterTypeSearchCatalogKindRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchCatalogKindRecord_lower(_ value: SearchCatalogKindRecord) -> RustBuffer {
+    return FfiConverterTypeSearchCatalogKindRecord.lower(value)
+}
+
+
+
+/**
+ * Where a metadata snippet matched.
+ */
+
+public enum SearchMetadataSourceRecord: Equatable, Hashable {
+    
+    /**
+     * Chat summary.
+     */
+    case summary
+    /**
+     * One tag.
+     */
+    case tags
+    /**
+     * Unsent draft preview.
+     */
+    case draft
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SearchMetadataSourceRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSearchMetadataSourceRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SearchMetadataSourceRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SearchMetadataSourceRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .summary
+        
+        case 2: return .tags
+        
+        case 3: return .draft
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SearchMetadataSourceRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .summary:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .tags:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .draft:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMetadataSourceRecord_lift(_ buf: RustBuffer) throws -> SearchMetadataSourceRecord {
+    return try FfiConverterTypeSearchMetadataSourceRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSearchMetadataSourceRecord_lower(_ value: SearchMetadataSourceRecord) -> RustBuffer {
+    return FfiConverterTypeSearchMetadataSourceRecord.lower(value)
 }
 
 
@@ -15621,6 +22485,363 @@ public func FfiConverterTypeSessionVerificationRecord_lower(_ value: SessionVeri
 
 
 /**
+ * Element kind (markup tag).
+ */
+
+public enum SlideElementKindRecord: Equatable, Hashable {
+    
+    /**
+     * Rich text box.
+     */
+    case text
+    /**
+     * Image of a child embed.
+     */
+    case image
+    /**
+     * Video placeholder.
+     */
+    case video
+    /**
+     * Rectangle, ellipse, line or triangle.
+     */
+    case shape
+    /**
+     * Notepad card.
+     */
+    case notepad
+    /**
+     * To-do card.
+     */
+    case todo
+    /**
+     * Link label.
+     */
+    case link
+    /**
+     * Sandboxed HTML block (not rendered on Apple yet).
+     */
+    case block
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SlideElementKindRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlideElementKindRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SlideElementKindRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlideElementKindRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .text
+        
+        case 2: return .image
+        
+        case 3: return .video
+        
+        case 4: return .shape
+        
+        case 5: return .notepad
+        
+        case 6: return .todo
+        
+        case 7: return .link
+        
+        case 8: return .block
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SlideElementKindRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .text:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .image:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .video:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .shape:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .notepad:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .todo:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .link:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .block:
+            writeInt(&buf, Int32(8))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideElementKindRecord_lift(_ buf: RustBuffer) throws -> SlideElementKindRecord {
+    return try FfiConverterTypeSlideElementKindRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlideElementKindRecord_lower(_ value: SlideElementKindRecord) -> RustBuffer {
+    return FfiConverterTypeSlideElementKindRecord.lower(value)
+}
+
+
+
+/**
+ * Typed refusal; each case has a stable `code` string.
+ */
+public 
+enum SlidesRemoteError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    /**
+     * Ciphertext too long.
+     */
+    case CiphertextTooLong
+    /**
+     * Plaintext too long.
+     */
+    case PlaintextTooLong
+    /**
+     * Wrong key, tampered or malformed ciphertext.
+     */
+    case Crypto
+    /**
+     * Not a valid state document.
+     */
+    case Malformed
+    /**
+     * Unknown wire version.
+     */
+    case UnknownVersion
+    /**
+     * The state belongs to another embed.
+     */
+    case EmbedMismatch
+    /**
+     * `seq` too large.
+     */
+    case SeqOutOfRange
+    /**
+     * The embed key or the session is unavailable; `code` is stable.
+     */
+    case Unavailable(
+        /**
+         * Stable machine code.
+         */code: String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension SlidesRemoteError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlidesRemoteError: FfiConverterRustBuffer {
+    typealias SwiftType = SlidesRemoteError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlidesRemoteError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .CiphertextTooLong
+        case 2: return .PlaintextTooLong
+        case 3: return .Crypto
+        case 4: return .Malformed
+        case 5: return .UnknownVersion
+        case 6: return .EmbedMismatch
+        case 7: return .SeqOutOfRange
+        case 8: return .Unavailable(
+            code: try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SlidesRemoteError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .CiphertextTooLong:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .PlaintextTooLong:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .Crypto:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .Malformed:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .UnknownVersion:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .EmbedMismatch:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .SeqOutOfRange:
+            writeInt(&buf, Int32(7))
+        
+        
+        case let .Unavailable(code):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(code, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteError_lift(_ buf: RustBuffer) throws -> SlidesRemoteError {
+    return try FfiConverterTypeSlidesRemoteError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteError_lower(_ value: SlidesRemoteError) -> RustBuffer {
+    return FfiConverterTypeSlidesRemoteError.lower(value)
+}
+
+
+/**
+ * Which device produced a state.
+ */
+
+public enum SlidesRemoteOriginRecord: Equatable, Hashable {
+    
+    /**
+     * The device showing the full-screen presentation.
+     */
+    case presenter
+    /**
+     * A device acting as the remote.
+     */
+    case remote
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SlidesRemoteOriginRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSlidesRemoteOriginRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SlidesRemoteOriginRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SlidesRemoteOriginRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .presenter
+        
+        case 2: return .remote
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SlidesRemoteOriginRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .presenter:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .remote:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteOriginRecord_lift(_ buf: RustBuffer) throws -> SlidesRemoteOriginRecord {
+    return try FfiConverterTypeSlidesRemoteOriginRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSlidesRemoteOriginRecord_lower(_ value: SlidesRemoteOriginRecord) -> RustBuffer {
+    return FfiConverterTypeSlidesRemoteOriginRecord.lower(value)
+}
+
+
+
+/**
  * Progress of a send or live reply (core `StreamEvent`).
  */
 
@@ -15929,6 +23150,346 @@ public func FfiConverterTypeSyncPhaseRecord_lift(_ buf: RustBuffer) throws -> Sy
 #endif
 public func FfiConverterTypeSyncPhaseRecord_lower(_ value: SyncPhaseRecord) -> RustBuffer {
     return FfiConverterTypeSyncPhaseRecord.lower(value)
+}
+
+
+
+/**
+ * Kind of a generated sound entry.
+ */
+
+public enum VideoAudioKindRecord: Equatable, Hashable {
+    
+    /**
+     * Narration line.
+     */
+    case speech
+    /**
+     * Sound effect.
+     */
+    case sound
+    /**
+     * Music bed.
+     */
+    case music
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension VideoAudioKindRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVideoAudioKindRecord: FfiConverterRustBuffer {
+    typealias SwiftType = VideoAudioKindRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VideoAudioKindRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .speech
+        
+        case 2: return .sound
+        
+        case 3: return .music
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VideoAudioKindRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .speech:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .sound:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .music:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoAudioKindRecord_lift(_ buf: RustBuffer) throws -> VideoAudioKindRecord {
+    return try FfiConverterTypeVideoAudioKindRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoAudioKindRecord_lower(_ value: VideoAudioKindRecord) -> RustBuffer {
+    return FfiConverterTypeVideoAudioKindRecord.lower(value)
+}
+
+
+
+/**
+ * Who made the video.
+ */
+
+public enum VideoMadeByRecord: Equatable, Hashable {
+    
+    /**
+     * One generative model call.
+     */
+    case generative
+    /**
+     * Composed from scenes, clips and sound.
+     */
+    case composed
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension VideoMadeByRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVideoMadeByRecord: FfiConverterRustBuffer {
+    typealias SwiftType = VideoMadeByRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VideoMadeByRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .generative
+        
+        case 2: return .composed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VideoMadeByRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .generative:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .composed:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoMadeByRecord_lift(_ buf: RustBuffer) throws -> VideoMadeByRecord {
+    return try FfiConverterTypeVideoMadeByRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoMadeByRecord_lower(_ value: VideoMadeByRecord) -> RustBuffer {
+    return FfiConverterTypeVideoMadeByRecord.lower(value)
+}
+
+
+
+/**
+ * Kind of a part on a track.
+ */
+
+public enum VideoPartKindRecord: Equatable, Hashable {
+    
+    /**
+     * Generated scene.
+     */
+    case scene
+    /**
+     * Footage clip.
+     */
+    case clip
+    /**
+     * Text card.
+     */
+    case text
+    /**
+     * Still image.
+     */
+    case image
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension VideoPartKindRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVideoPartKindRecord: FfiConverterRustBuffer {
+    typealias SwiftType = VideoPartKindRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VideoPartKindRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .scene
+        
+        case 2: return .clip
+        
+        case 3: return .text
+        
+        case 4: return .image
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VideoPartKindRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .scene:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .clip:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .text:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .image:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoPartKindRecord_lift(_ buf: RustBuffer) throws -> VideoPartKindRecord {
+    return try FfiConverterTypeVideoPartKindRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoPartKindRecord_lower(_ value: VideoPartKindRecord) -> RustBuffer {
+    return FfiConverterTypeVideoPartKindRecord.lower(value)
+}
+
+
+
+/**
+ * Kind of a timeline track.
+ */
+
+public enum VideoTrackKindRecord: Equatable, Hashable {
+    
+    /**
+     * Picture track.
+     */
+    case visual
+    /**
+     * Text overlay track.
+     */
+    case text
+    /**
+     * Sound track.
+     */
+    case audio
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension VideoTrackKindRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVideoTrackKindRecord: FfiConverterRustBuffer {
+    typealias SwiftType = VideoTrackKindRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VideoTrackKindRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .visual
+        
+        case 2: return .text
+        
+        case 3: return .audio
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VideoTrackKindRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .visual:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .text:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .audio:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoTrackKindRecord_lift(_ buf: RustBuffer) throws -> VideoTrackKindRecord {
+    return try FfiConverterTypeVideoTrackKindRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoTrackKindRecord_lower(_ value: VideoTrackKindRecord) -> RustBuffer {
+    return FfiConverterTypeVideoTrackKindRecord.lower(value)
 }
 
 
@@ -16474,6 +24035,231 @@ public func FfiConverterTypeViewEventRecord_lower(_ value: ViewEventRecord) -> R
 }
 
 
+
+/**
+ * Start or end of a call.
+ */
+
+public enum VoiceCallNoticeAction: Equatable, Hashable {
+    
+    /**
+     * The call started.
+     */
+    case started
+    /**
+     * The call ended.
+     */
+    case ended
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension VoiceCallNoticeAction: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallNoticeAction: FfiConverterRustBuffer {
+    typealias SwiftType = VoiceCallNoticeAction
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallNoticeAction {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .started
+        
+        case 2: return .ended
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VoiceCallNoticeAction, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .started:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .ended:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallNoticeAction_lift(_ buf: RustBuffer) throws -> VoiceCallNoticeAction {
+    return try FfiConverterTypeVoiceCallNoticeAction.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallNoticeAction_lower(_ value: VoiceCallNoticeAction) -> RustBuffer {
+    return FfiConverterTypeVoiceCallNoticeAction.lower(value)
+}
+
+
+
+/**
+ * Kind of a stage media item.
+ */
+
+public enum VoiceCallStageMediaKind: Equatable, Hashable {
+    
+    /**
+     * Still image.
+     */
+    case image
+    /**
+     * Video clip.
+     */
+    case video
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension VoiceCallStageMediaKind: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallStageMediaKind: FfiConverterRustBuffer {
+    typealias SwiftType = VoiceCallStageMediaKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallStageMediaKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .image
+        
+        case 2: return .video
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VoiceCallStageMediaKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .image:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .video:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaKind_lift(_ buf: RustBuffer) throws -> VoiceCallStageMediaKind {
+    return try FfiConverterTypeVoiceCallStageMediaKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaKind_lower(_ value: VoiceCallStageMediaKind) -> RustBuffer {
+    return FfiConverterTypeVoiceCallStageMediaKind.lower(value)
+}
+
+
+
+/**
+ * Which stored file variant to fetch.
+ */
+
+public enum VoiceCallStageMediaVariant: Equatable, Hashable {
+    
+    /**
+     * `files.original`.
+     */
+    case original
+    /**
+     * `files.preview` (images only).
+     */
+    case preview
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension VoiceCallStageMediaVariant: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVoiceCallStageMediaVariant: FfiConverterRustBuffer {
+    typealias SwiftType = VoiceCallStageMediaVariant
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VoiceCallStageMediaVariant {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .original
+        
+        case 2: return .preview
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VoiceCallStageMediaVariant, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .original:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .preview:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaVariant_lift(_ buf: RustBuffer) throws -> VoiceCallStageMediaVariant {
+    return try FfiConverterTypeVoiceCallStageMediaVariant.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVoiceCallStageMediaVariant_lower(_ value: VoiceCallStageMediaVariant) -> RustBuffer {
+    return FfiConverterTypeVoiceCallStageMediaVariant.lower(value)
+}
+
+
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
@@ -16789,6 +24575,30 @@ fileprivate struct FfiConverterOptionTypeDraftViewRecord: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeEmbedProgressRecord: FfiConverterRustBuffer {
+    typealias SwiftType = EmbedProgressRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeEmbedProgressRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeEmbedProgressRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeMemoryFieldsRecord: FfiConverterRustBuffer {
     typealias SwiftType = MemoryFieldsRecord?
 
@@ -16813,6 +24623,54 @@ fileprivate struct FfiConverterOptionTypeMemoryFieldsRecord: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeProjectTimelineCommitRecord: FfiConverterRustBuffer {
+    typealias SwiftType = ProjectTimelineCommitRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeProjectTimelineCommitRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeProjectTimelineCommitRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSearchEntryMetaRecord: FfiConverterRustBuffer {
+    typealias SwiftType = SearchEntryMetaRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSearchEntryMetaRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSearchEntryMetaRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeSessionInfoRecord: FfiConverterRustBuffer {
     typealias SwiftType = SessionInfoRecord?
 
@@ -16829,6 +24687,54 @@ fileprivate struct FfiConverterOptionTypeSessionInfoRecord: FfiConverterRustBuff
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeSessionInfoRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeVideoTimelineRecord: FfiConverterRustBuffer {
+    typealias SwiftType = VideoTimelineRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeVideoTimelineRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeVideoTimelineRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeVoiceCallNoticeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = VoiceCallNoticeRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeVoiceCallNoticeRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeVoiceCallNoticeRecord.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -17151,6 +25057,81 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBodyEmbedRefRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [BodyEmbedRefRecord]
+
+    public static func write(_ value: [BodyEmbedRefRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBodyEmbedRefRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BodyEmbedRefRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BodyEmbedRefRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBodyEmbedRefRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeBodyNodeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [BodyNodeRecord]
+
+    public static func write(_ value: [BodyNodeRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBodyNodeRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BodyNodeRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BodyNodeRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBodyNodeRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCarouselPlacementRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [CarouselPlacementRecord]
+
+    public static func write(_ value: [CarouselPlacementRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCarouselPlacementRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CarouselPlacementRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CarouselPlacementRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCarouselPlacementRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeChatListRowRecord: FfiConverterRustBuffer {
     typealias SwiftType = [ChatListRowRecord]
 
@@ -17193,6 +25174,31 @@ fileprivate struct FfiConverterSequenceTypeChatMetadataRecord: FfiConverterRustB
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeChatMetadataRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeChatRecommendationRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ChatRecommendationRecord]
+
+    public static func write(_ value: [ChatRecommendationRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeChatRecommendationRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ChatRecommendationRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ChatRecommendationRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeChatRecommendationRecord.read(from: &buf))
         }
         return seq
     }
@@ -17426,6 +25432,56 @@ fileprivate struct FfiConverterSequenceTypeHttpFieldRecord: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeInChatSearchMatchRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [InChatSearchMatchRecord]
+
+    public static func write(_ value: [InChatSearchMatchRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeInChatSearchMatchRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [InChatSearchMatchRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [InChatSearchMatchRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeInChatSearchMatchRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeInChatSearchMessageRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [InChatSearchMessageRecord]
+
+    public static func write(_ value: [InChatSearchMessageRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeInChatSearchMessageRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [InChatSearchMessageRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [InChatSearchMessageRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeInChatSearchMessageRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMemoryDocumentRecord: FfiConverterRustBuffer {
     typealias SwiftType = [MemoryDocumentRecord]
 
@@ -17451,6 +25507,56 @@ fileprivate struct FfiConverterSequenceTypeMemoryDocumentRecord: FfiConverterRus
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeMemoryFieldChangeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [MemoryFieldChangeRecord]
+
+    public static func write(_ value: [MemoryFieldChangeRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMemoryFieldChangeRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MemoryFieldChangeRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MemoryFieldChangeRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMemoryFieldChangeRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeMessageEmbedVersionRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [MessageEmbedVersionRecord]
+
+    public static func write(_ value: [MessageEmbedVersionRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMessageEmbedVersionRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MessageEmbedVersionRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MessageEmbedVersionRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMessageEmbedVersionRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMessageFieldsRecord: FfiConverterRustBuffer {
     typealias SwiftType = [MessageFieldsRecord]
 
@@ -17468,6 +25574,31 @@ fileprivate struct FfiConverterSequenceTypeMessageFieldsRecord: FfiConverterRust
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeMessageFieldsRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeMessageParentsRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [MessageParentsRecord]
+
+    public static func write(_ value: [MessageParentsRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMessageParentsRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MessageParentsRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MessageParentsRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMessageParentsRecord.read(from: &buf))
         }
         return seq
     }
@@ -17518,6 +25649,256 @@ fileprivate struct FfiConverterSequenceTypePiiMappingRecord: FfiConverterRustBuf
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypePiiMappingRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectTimelineCommitFileRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectTimelineCommitFileRecord]
+
+    public static func write(_ value: [ProjectTimelineCommitFileRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectTimelineCommitFileRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectTimelineCommitFileRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectTimelineCommitFileRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectTimelineCommitFileRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectTimelineEntryRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectTimelineEntryRecord]
+
+    public static func write(_ value: [ProjectTimelineEntryRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectTimelineEntryRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectTimelineEntryRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectTimelineEntryRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectTimelineEntryRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchCatalogEntryRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchCatalogEntryRecord]
+
+    public static func write(_ value: [SearchCatalogEntryRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchCatalogEntryRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchCatalogEntryRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchCatalogEntryRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchCatalogEntryRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchChatRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchChatRecord]
+
+    public static func write(_ value: [SearchChatRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchChatRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchChatRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchChatRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchChatRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchChatResultRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchChatResultRecord]
+
+    public static func write(_ value: [SearchChatResultRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchChatResultRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchChatResultRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchChatResultRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchChatResultRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchEmbedResultRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchEmbedResultRecord]
+
+    public static func write(_ value: [SearchEmbedResultRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchEmbedResultRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchEmbedResultRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchEmbedResultRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchEmbedResultRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchIndexEntryRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchIndexEntryRecord]
+
+    public static func write(_ value: [SearchIndexEntryRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchIndexEntryRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchIndexEntryRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchIndexEntryRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchIndexEntryRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchMatchRangeRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchMatchRangeRecord]
+
+    public static func write(_ value: [SearchMatchRangeRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchMatchRangeRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchMatchRangeRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchMatchRangeRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchMatchRangeRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchMessageSnippetRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchMessageSnippetRecord]
+
+    public static func write(_ value: [SearchMessageSnippetRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchMessageSnippetRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchMessageSnippetRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchMessageSnippetRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchMessageSnippetRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSearchMetadataSnippetRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SearchMetadataSnippetRecord]
+
+    public static func write(_ value: [SearchMetadataSnippetRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSearchMetadataSnippetRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SearchMetadataSnippetRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SearchMetadataSnippetRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSearchMetadataSnippetRecord.read(from: &buf))
         }
         return seq
     }
@@ -17601,6 +25982,106 @@ fileprivate struct FfiConverterSequenceTypeSessionCookieRecord: FfiConverterRust
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeSlideElementRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SlideElementRecord]
+
+    public static func write(_ value: [SlideElementRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSlideElementRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SlideElementRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SlideElementRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSlideElementRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSlideRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SlideRecord]
+
+    public static func write(_ value: [SlideRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSlideRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SlideRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SlideRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSlideRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSlideRunRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SlideRunRecord]
+
+    public static func write(_ value: [SlideRunRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSlideRunRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SlideRunRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SlideRunRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSlideRunRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSlideTodoItemRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [SlideTodoItemRecord]
+
+    public static func write(_ value: [SlideTodoItemRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSlideTodoItemRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SlideTodoItemRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SlideTodoItemRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSlideTodoItemRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeUnwrappedChatKeyRecord: FfiConverterRustBuffer {
     typealias SwiftType = [UnwrappedChatKeyRecord]
 
@@ -17618,6 +26099,131 @@ fileprivate struct FfiConverterSequenceTypeUnwrappedChatKeyRecord: FfiConverterR
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeUnwrappedChatKeyRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVideoAudioEntryRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [VideoAudioEntryRecord]
+
+    public static func write(_ value: [VideoAudioEntryRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVideoAudioEntryRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VideoAudioEntryRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VideoAudioEntryRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVideoAudioEntryRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVideoPartRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [VideoPartRecord]
+
+    public static func write(_ value: [VideoPartRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVideoPartRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VideoPartRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VideoPartRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVideoPartRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVideoTrackRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [VideoTrackRecord]
+
+    public static func write(_ value: [VideoTrackRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVideoTrackRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VideoTrackRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VideoTrackRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVideoTrackRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVoiceCallStageEmbedInput: FfiConverterRustBuffer {
+    typealias SwiftType = [VoiceCallStageEmbedInput]
+
+    public static func write(_ value: [VoiceCallStageEmbedInput], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVoiceCallStageEmbedInput.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VoiceCallStageEmbedInput] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VoiceCallStageEmbedInput]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVoiceCallStageEmbedInput.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVoiceCallStageMediaRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [VoiceCallStageMediaRecord]
+
+    public static func write(_ value: [VoiceCallStageMediaRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVoiceCallStageMediaRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VoiceCallStageMediaRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VoiceCallStageMediaRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVoiceCallStageMediaRecord.read(from: &buf))
         }
         return seq
     }
@@ -17651,6 +26257,31 @@ fileprivate struct FfiConverterSequenceTypeWrappedChatKeyRecord: FfiConverterRus
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBodyEmbedSlotRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [BodyEmbedSlotRecord]
+
+    public static func write(_ value: [BodyEmbedSlotRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBodyEmbedSlotRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BodyEmbedSlotRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BodyEmbedSlotRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBodyEmbedSlotRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeEmbedTimelineItemRecord: FfiConverterRustBuffer {
     typealias SwiftType = [EmbedTimelineItemRecord]
 
@@ -17668,6 +26299,56 @@ fileprivate struct FfiConverterSequenceTypeEmbedTimelineItemRecord: FfiConverter
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeEmbedTimelineItemRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceSequenceTypeBodyEmbedRefRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [[BodyEmbedRefRecord]]
+
+    public static func write(_ value: [[BodyEmbedRefRecord]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterSequenceTypeBodyEmbedRefRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [[BodyEmbedRefRecord]] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [[BodyEmbedRefRecord]]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterSequenceTypeBodyEmbedRefRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceSequenceTypeBodyEmbedSlotRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [[BodyEmbedSlotRecord]]
+
+    public static func write(_ value: [[BodyEmbedSlotRecord]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterSequenceTypeBodyEmbedSlotRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [[BodyEmbedSlotRecord]] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [[BodyEmbedSlotRecord]]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterSequenceTypeBodyEmbedSlotRecord.read(from: &buf))
         }
         return seq
     }
@@ -17965,6 +26646,97 @@ public func startServerLogin(serverSetup: String, registrationRecord: String, st
 })
 }
 /**
+ * Groups consecutive large embeds of one nesting level into carousels. Output
+ * is the kept nodes in render order; dropped empty paragraphs are absent.
+ */
+public func bodyAssignCarouselRuns(nodes: [BodyNodeRecord]) -> [CarouselPlacementRecord]  {
+    return try!  FfiConverterSequenceTypeCarouselPlacementRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_body_assign_carousel_runs(
+        FfiConverterSequenceTypeBodyNodeRecord.lower(nodes),uniffiCallStatus
+    )
+})
+}
+/**
+ * Replaces skill-invocation embeds in the body with their result cards.
+ * Output keeps the group count and order.
+ */
+public func bodyEnforceBlockEmbeds(groups: [[BodyEmbedRefRecord]], activityIds: [String]) -> [[BodyEmbedSlotRecord]]  {
+    return try!  FfiConverterSequenceSequenceTypeBodyEmbedSlotRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_body_enforce_block_embeds(
+        FfiConverterSequenceSequenceTypeBodyEmbedRefRecord.lower(groups),
+        FfiConverterSequenceString.lower(activityIds),uniffiCallStatus
+    )
+})
+}
+/**
+ * May an authored body reference render this embed? A skill invocation never does.
+ */
+public func bodyMayShowEmbed(embedRef: String?, typeName: String?) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_body_may_show_embed(
+        FfiConverterOptionString.lower(embedRef),
+        FfiConverterOptionString.lower(typeName),uniffiCallStatus
+    )
+})
+}
+/**
+ * Resolve the version of `embed_id` each of `messages` (chat order, up to and
+ * including the asking message) shows. `versions_page_json` is the
+ * `GET /v1/embeds/{id}/versions` page (`{"versions": [...]}`) when the head
+ * version is above 1, else `None`. The caller reads its own message's entry.
+ *
+ * # Errors
+ * `CoreError` for a malformed parent pin or versions page.
+ */
+public func embedVersionsByMessage(messages: [MessageParentsRecord], embedId: String, versionsPageJson: String?)throws  -> [MessageEmbedVersionRecord]  {
+    return try  FfiConverterSequenceTypeMessageEmbedVersionRecord.lift(try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_embed_versions_by_message(
+        FfiConverterSequenceTypeMessageParentsRecord.lower(messages),
+        FfiConverterString.lower(embedId),
+        FfiConverterOptionString.lower(versionsPageJson),uniffiCallStatus
+    )
+})
+}
+/**
+ * The status line of a frame as key, values and prefix for the shell to translate.
+ */
+public func embedProgressLine(progress: EmbedProgressRecord) -> EmbedProgressLineRecord  {
+    return try!  FfiConverterTypeEmbedProgressLineRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_embed_progress_line(
+        FfiConverterTypeEmbedProgressRecord_lower(progress),uniffiCallStatus
+    )
+})
+}
+/**
+ * Keep the frame with the higher `seq`; lower or equal frames are ignored.
+ */
+public func embedProgressNext(current: EmbedProgressRecord?, incoming: EmbedProgressRecord?) -> EmbedProgressRecord?  {
+    return try!  FfiConverterOptionTypeEmbedProgressRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_embed_progress_next(
+        FfiConverterOptionTypeEmbedProgressRecord.lower(current),
+        FfiConverterOptionTypeEmbedProgressRecord.lower(incoming),uniffiCallStatus
+    )
+})
+}
+/**
+ * Validate the JSON text of a decoded embed `progress` object; `None` when it
+ * is malformed or not JSON.
+ */
+public func embedProgressParse(progressJson: String) -> EmbedProgressRecord?  {
+    return try!  FfiConverterOptionTypeEmbedProgressRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_embed_progress_parse(
+        FfiConverterString.lower(progressJson),uniffiCallStatus
+    )
+})
+}
+/**
  * Fold the `embed_updated` system events of an open chat window (rows in
  * window order, as `ChatWindow` delivers them) the way the web timeline
  * shows them: consecutive events of one embed with no other row between
@@ -17989,6 +26761,301 @@ public func contextEntryNotice(content: String) -> ContextEntryNoticeRecord?  {
         uniffiCallStatus in
     uniffi_openmates_apple_bindings_fn_func_context_entry_notice(
         FfiConverterString.lower(content),uniffiCallStatus
+    )
+})
+}
+/**
+ * The fields `draft` changes compared with the `saved` Memory, in display
+ * order (title, when to use, text). Empty when nothing differs.
+ */
+public func diffMemoryDraftFields(saved: MemoryFieldsRecord, draft: MemoryFieldsRecord) -> [MemoryFieldChangeRecord]  {
+    return try!  FfiConverterSequenceTypeMemoryFieldChangeRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_diff_memory_draft_fields(
+        FfiConverterTypeMemoryFieldsRecord_lower(saved),
+        FfiConverterTypeMemoryFieldsRecord_lower(draft),uniffiCallStatus
+    )
+})
+}
+/**
+ * The SVG document to draw for `source`, or `None` to keep the last good
+ * frame (no complete root `<svg>` open tag yet, or blank complete source).
+ * `complete` is false while the code embed streams.
+ */
+public func progressiveSvg(source: String, complete: Bool) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_progressive_svg(
+        FfiConverterString.lower(source),
+        FfiConverterBool.lower(complete),uniffiCallStatus
+    )
+})
+}
+/**
+ * Whether a review may become a card in `active_chat_id` now.
+ *
+ * # Errors
+ * `Invalid` for another chat, an expired review or a full window.
+ */
+public func checkRemoteCommandReviewAcceptable(review: RemoteCommandReviewRecord, activeChatId: String, nowUnix: UInt64, openReviews: UInt32)throws   {try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_check_remote_command_review_acceptable(
+        FfiConverterTypeRemoteCommandReviewRecord_lower(review),
+        FfiConverterString.lower(activeChatId),
+        FfiConverterUInt64.lower(nowUnix),
+        FfiConverterUInt32.lower(openReviews),uniffiCallStatus
+    )
+}
+}
+/**
+ * Decode and validate a `remote_command_review` JSON payload.
+ *
+ * # Errors
+ * `Invalid` when the payload breaks the review contract.
+ */
+public func parseRemoteCommandReview(payloadJson: String)throws  -> RemoteCommandReviewRecord  {
+    return try  FfiConverterTypeRemoteCommandReviewRecord_lift(try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_parse_remote_command_review(
+        FfiConverterString.lower(payloadJson),uniffiCallStatus
+    )
+})
+}
+/**
+ * Fold one decrypted event into the output state.
+ *
+ * # Errors
+ * `Invalid` for an unknown kind/status, a kind/status mismatch or a repeated sequence.
+ */
+public func remoteCommandApplyEvent(state: RemoteCommandOutputRecord, eventKind: String, status: String, sequence: Int64, text: String?)throws  -> RemoteCommandOutputRecord  {
+    return try  FfiConverterTypeRemoteCommandOutputRecord_lift(try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_remote_command_apply_event(
+        FfiConverterTypeRemoteCommandOutputRecord_lower(state),
+        FfiConverterString.lower(eventKind),
+        FfiConverterString.lower(status),
+        FfiConverterInt64.lower(sequence),
+        FfiConverterOptionString.lower(text),uniffiCallStatus
+    )
+})
+}
+/**
+ * Canonical portable request JSON that the user approves (the plaintext Swift encrypts).
+ */
+public func remoteCommandCanonicalRequest(review: RemoteCommandReviewRecord) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_remote_command_canonical_request(
+        FfiConverterTypeRemoteCommandReviewRecord_lower(review),uniffiCallStatus
+    )
+})
+}
+/**
+ * JSON of the `remote_command_origin_completion` payload for a terminal state.
+ */
+public func remoteCommandCompletionPayloadJson(review: RemoteCommandReviewRecord, state: RemoteCommandOutputRecord) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_remote_command_completion_payload_json(
+        FfiConverterTypeRemoteCommandReviewRecord_lower(review),
+        FfiConverterTypeRemoteCommandOutputRecord_lower(state),uniffiCallStatus
+    )
+})
+}
+/**
+ * Whether a card in `status` can still be stopped.
+ */
+public func remoteCommandIsStoppable(status: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_remote_command_is_stoppable(
+        FfiConverterString.lower(status),uniffiCallStatus
+    )
+})
+}
+/**
+ * Fresh output state before the first event.
+ */
+public func remoteCommandNewOutput() -> RemoteCommandOutputRecord  {
+    return try!  FfiConverterTypeRemoteCommandOutputRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_remote_command_new_output(uniffiCallStatus
+    )
+})
+}
+/**
+ * JSON of the `remote_command_prepare` payload.
+ */
+public func remoteCommandPreparePayloadJson(review: RemoteCommandReviewRecord, encryptedRequest: String, requestDigest: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_remote_command_prepare_payload_json(
+        FfiConverterTypeRemoteCommandReviewRecord_lower(review),
+        FfiConverterString.lower(encryptedRequest),
+        FfiConverterString.lower(requestDigest),uniffiCallStatus
+    )
+})
+}
+/**
+ * JSON of the `remote_command_reject` payload.
+ */
+public func remoteCommandRejectPayloadJson(review: RemoteCommandReviewRecord) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_remote_command_reject_payload_json(
+        FfiConverterTypeRemoteCommandReviewRecord_lower(review),uniffiCallStatus
+    )
+})
+}
+/**
+ * Base64url request digest over the canonical request, keyed with the 32-byte Project key.
+ *
+ * # Errors
+ * `Invalid` when the key is not 32 bytes.
+ */
+public func remoteCommandRequestDigest(canonicalRequest: String, projectKey: Data)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_remote_command_request_digest(
+        FfiConverterString.lower(canonicalRequest),
+        FfiConverterData.lower(projectKey),uniffiCallStatus
+    )
+})
+}
+/**
+ * Card status a server response maps to, or nothing to keep the current one.
+ */
+public func remoteCommandStatusForResponse(kind: String, state: String?, resultStatus: String?) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_remote_command_status_for_response(
+        FfiConverterString.lower(kind),
+        FfiConverterOptionString.lower(state),
+        FfiConverterOptionString.lower(resultStatus),uniffiCallStatus
+    )
+})
+}
+/**
+ * JSON of the `remote_command_stop` payload.
+ */
+public func remoteCommandStopPayloadJson(review: RemoteCommandReviewRecord) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_remote_command_stop_payload_json(
+        FfiConverterTypeRemoteCommandReviewRecord_lower(review),uniffiCallStatus
+    )
+})
+}
+/**
+ * Case-insensitive non-overlapping match ranges of `query` in `text` (UTF-16 units).
+ */
+public func searchFindMatchRanges(text: String, query: String) -> [SearchMatchRangeRecord]  {
+    return try!  FfiConverterSequenceTypeSearchMatchRangeRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_search_find_match_ranges(
+        FfiConverterString.lower(text),
+        FfiConverterString.lower(query),uniffiCallStatus
+    )
+})
+}
+/**
+ * In-chat search: the messages of one chat that contain `query`, in input
+ * order, with their match ranges (an empty query matches nothing).
+ */
+public func searchInChatMessages(query: String, messages: [InChatSearchMessageRecord]) -> [InChatSearchMatchRecord]  {
+    return try!  FfiConverterSequenceTypeInChatSearchMatchRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_search_in_chat_messages(
+        FfiConverterString.lower(query),
+        FfiConverterSequenceTypeInChatSearchMessageRecord.lower(messages),uniffiCallStatus
+    )
+})
+}
+/**
+ * Parses normalised slides markup into the render records.
+ *
+ * # Errors
+ * `CoreError::Invalid` with the deck error code for markup that is not normalised
+ * (for example a deck that is still streaming) or holds no slide.
+ */
+public func slideDeckFromMarkup(markup: String)throws  -> SlideDeckRecord  {
+    return try  FfiConverterTypeSlideDeckRecord_lift(try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_slide_deck_from_markup(
+        FfiConverterString.lower(markup),uniffiCallStatus
+    )
+})
+}
+/**
+ * The timeline to show under a `videos.generate` video: the stored one, else a
+ * one-clip timeline from the stored `duration_seconds` or `loaded_seconds`,
+ * else `None`. `content_json` is the decoded embed content as a JSON object;
+ * unparsable content counts as no content.
+ */
+public func videoTimeline(contentJson: String, loadedSeconds: Double, clipLabel: String) -> VideoTimelineRecord?  {
+    return try!  FfiConverterOptionTypeVideoTimelineRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_video_timeline(
+        FfiConverterString.lower(contentJson),
+        FfiConverterDouble.lower(loadedSeconds),
+        FfiConverterString.lower(clipLabel),uniffiCallStatus
+    )
+})
+}
+/**
+ * Builds the start/end notice the shell writes when a call starts or ends.
+ *
+ * # Errors
+ * `CoreError::Invalid` for an invalid call id, creation time or elapsed time.
+ */
+public func buildVoiceCallNotice(action: VoiceCallNoticeAction, callId: String, createdAt: Int64, activeElapsedSeconds: Double)throws  -> VoiceCallNoticeRecord  {
+    return try  FfiConverterTypeVoiceCallNoticeRecord_lift(try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_build_voice_call_notice(
+        FfiConverterTypeVoiceCallNoticeAction_lower(action),
+        FfiConverterString.lower(callId),
+        FfiConverterInt64.lower(createdAt),
+        FfiConverterDouble.lower(activeElapsedSeconds),uniffiCallStatus
+    )
+})
+}
+/**
+ * Parses a transcript message into a call notice; `None` for any message
+ * the web would not render as a call notice.
+ */
+public func voiceCallNoticeFromMessage(role: String, content: String) -> VoiceCallNoticeRecord?  {
+    return try!  FfiConverterOptionTypeVoiceCallNoticeRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_voice_call_notice_from_message(
+        FfiConverterString.lower(role),
+        FfiConverterString.lower(content),uniffiCallStatus
+    )
+})
+}
+/**
+ * Picks the generated media the call stage shows: `candidate_ids_newest_first`
+ * are the call's media embed ids newest first. Embeds with unparseable
+ * content JSON are treated as having no content (the web skips them too).
+ */
+public func voiceCallStageMediaItems(candidateIdsNewestFirst: [String], embeds: [VoiceCallStageEmbedInput]) -> [VoiceCallStageMediaRecord]  {
+    return try!  FfiConverterSequenceTypeVoiceCallStageMediaRecord.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_voice_call_stage_media_items(
+        FfiConverterSequenceString.lower(candidateIdsNewestFirst),
+        FfiConverterSequenceTypeVoiceCallStageEmbedInput.lower(embeds),uniffiCallStatus
+    )
+})
+}
+/**
+ * Chooses which resolved item to display (web `refreshCallMedia` rule).
+ */
+public func voiceCallStageMediaSelection(itemEmbedIds: [String], presented: [String], displayedEmbedId: String?) -> VoiceCallStageSelectionRecord  {
+    return try!  FfiConverterTypeVoiceCallStageSelectionRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_voice_call_stage_media_selection(
+        FfiConverterSequenceString.lower(itemEmbedIds),
+        FfiConverterSequenceString.lower(presented),
+        FfiConverterOptionString.lower(displayedEmbedId),uniffiCallStatus
     )
 })
 }
@@ -18050,10 +27117,97 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_func_start_server_login() != 494) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_func_body_assign_carousel_runs() != 35339) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_body_enforce_block_embeds() != 15214) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_body_may_show_embed() != 36607) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_embed_versions_by_message() != 51637) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_embed_progress_line() != 50686) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_embed_progress_next() != 34331) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_embed_progress_parse() != 19666) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_func_embed_update_timeline() != 59258) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_func_context_entry_notice() != 3233) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_diff_memory_draft_fields() != 13366) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_progressive_svg() != 19207) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_check_remote_command_review_acceptable() != 30865) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_parse_remote_command_review() != 55942) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_remote_command_apply_event() != 58329) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_remote_command_canonical_request() != 33248) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_remote_command_completion_payload_json() != 24800) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_remote_command_is_stoppable() != 43581) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_remote_command_new_output() != 63138) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_remote_command_prepare_payload_json() != 61679) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_remote_command_reject_payload_json() != 35960) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_remote_command_request_digest() != 43229) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_remote_command_status_for_response() != 31042) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_remote_command_stop_payload_json() != 34813) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_search_find_match_ranges() != 36503) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_search_in_chat_messages() != 65314) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_slide_deck_from_markup() != 62492) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_video_timeline() != 8967) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_build_voice_call_notice() != 17192) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_voice_call_notice_from_message() != 43754) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_voice_call_stage_media_items() != 21749) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_voice_call_stage_media_selection() != 35621) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_corecancellation_cancel() != 32025) {
@@ -18114,6 +27268,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_adopt_session() != 31921) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_persist_call_source_frame() != 58956) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_clear_draft() != 47493) {
@@ -18192,6 +27349,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_wait_image_enhance() != 54777) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_embed_version_content() != 32178) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_commit_embed_edit() != 32110) {
@@ -18281,6 +27441,15 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_update_memory_document() != 35185) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_create_project_document() != 934) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_project_timeline() != 41623) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_restore_project_commit() != 19112) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_git_commit() != 18370) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18297,6 +27466,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_revise_queued_message() != 55808) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_chat_recommendations() != 17308) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_recommendation_memory_draft() != 48604) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_resolve_chat_recommendation() != 35889) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_server_region_preference() != 12846) {
@@ -18323,6 +27501,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_session_info() != 51951) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_slides_remote_decrypt() != 51054) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_slides_remote_encrypt() != 37074) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_forward_unowned_frames() != 62339) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18335,6 +27519,36 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_imageenhancewaker_notify_frame() != 22400) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_chat_count() != 39420) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_clear() != 57049) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_ingest_chat() != 34448) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_query() != 27920) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_remove_chat() != 40529) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_slidesremoteorderings_accept() != 57005) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_voicecallactivityclockhandle_apply_activity() != 57860) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_voicecallactivityclockhandle_apply_frame_json() != 23223) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_voicecallactivityclockhandle_finish() != 17260) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_voicecallactivityclockhandle_tick() != 40439) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_constructor_corecancellation_new() != 2322) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18345,6 +27559,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_constructor_imageenhancewaker_new() != 49111) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_constructor_corechatsearchindex_new() != 11853) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_constructor_slidesremoteorderings_new() != 6215) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_constructor_voicecallactivityclockhandle_new() != 43106) {
         return InitializationResult.apiChecksumMismatch
     }
 

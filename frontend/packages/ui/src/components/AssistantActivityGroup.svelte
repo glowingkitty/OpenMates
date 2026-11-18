@@ -26,6 +26,7 @@
   import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
   import { loadedMemoryName } from '../utils/loadedMemoryDisplay';
   import { activitySummaryCandidates } from '../utils/assistantActivitySummary';
+  import { EMBED_ANSWER_CARD_SKILLS } from '../data/embedRegistry.generated';
 
   let {
     document, appIds = [], thinkingContent = '', thinkingStreaming = false, active = false, trackPendingSkills = false,
@@ -204,6 +205,22 @@
       return true;
     }),
   } : updatedDocument);
+  // Skill cards that are the requested result (a drafted Specification, Check
+  // or Plan; answer_card in app.yml) stay visible below the collapsed summary.
+  const answerCardSkills = new Set(EMBED_ANSWER_CARD_SKILLS);
+  // Items may sit in a grouped node (a Specification and its Checks in one
+  // "app-skill-use-group"), so each answer-card item gets its own embed node.
+  const answerCardDocument = $derived.by(() => {
+    const seen = new Set<string>();
+    const content = assistantActivityItems(document).filter((item) => {
+      if (item.type !== 'app-skill-use' || !answerCardSkills.has(`app:${String(item.app_id)}:${String(item.skill_id)}`)) return false;
+      const key = String(item.id ?? item.contentRef ?? '');
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map((item) => ({ type: 'paragraph', content: [{ type: 'embed', attrs: { ...item } }] }));
+    return content.length ? { type: 'doc' as const, content } : null;
+  });
   function displayName(key: string, fallback: string): string {
     if (!key || !key.includes('.')) return fallback;
     const translated = $text(key);
@@ -319,6 +336,12 @@
       {/if}
       {@render children?.()}
     </div>
+  {:else if answerCardDocument}
+    <div class="answer-cards" data-testid="assistant-activity-answer-cards">
+      <ReadOnlyMessage content={answerCardDocument} role="assistant" {chatId} isStreaming={false}
+        _embedUpdateTimestamp={embedUpdateTimestamp} {piiMappings} {piiRevealed}
+        on:message-embed-click={onEmbedClick} />
+    </div>
   {/if}
 </div>
 
@@ -337,6 +360,7 @@
   .activity-arrow { width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); margin-inline-start: auto; flex: 0 0 auto; transition: transform var(--duration-fast) var(--easing-default); }
   .activity-arrow.expanded { transform: rotate(225deg); }
   .activity-body { padding: var(--spacing-2) var(--spacing-4) var(--spacing-4); background: var(--color-grey-10); }
+  .answer-cards { padding-block-start: var(--spacing-2); }
   .response-thinking { margin-block-end: var(--spacing-3); color: var(--color-grey-70); }
   .response-thinking-label { font-size: var(--font-size-small); font-weight: 600; margin-block-end: var(--spacing-2); }
   @media (min-width: 768px) { .summary-text { --activity-summary-lines: 1; } }

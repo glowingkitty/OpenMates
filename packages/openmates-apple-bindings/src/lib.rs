@@ -21,8 +21,11 @@ mod error;
 mod pairing;
 mod view_account;
 mod view_adopt;
+mod view_call_source;
 mod view_chat_actions;
 mod view_consent;
+mod view_project_files;
+mod view_project_timeline;
 mod view_projects;
 mod view_queued_revision;
 #[cfg(test)]
@@ -31,7 +34,21 @@ mod view_core;
 mod view_draft_versions;
 mod view_drafts;
 mod view_embed_enhance;
+mod view_embed_message_version;
 mod view_embeds;
+mod view_progressive_svg;
+mod view_body_embeds;
+mod view_search;
+mod view_embed_progress;
+mod view_embed_version_content;
+mod view_memory_draft_diff;
+mod view_remote_commands;
+mod view_video_timeline;
+/// Stored video timeline of `videos.generate` embeds (`view_video_timeline`).
+pub use view_video_timeline::{
+    VideoAudioEntryRecord, VideoAudioKindRecord, VideoMadeByRecord, VideoPartKindRecord,
+    VideoPartRecord, VideoTimelineRecord, VideoTrackKindRecord, VideoTrackRecord, video_timeline,
+};
 #[cfg(any(test, feature = "test-support"))]
 mod view_fixture;
 #[cfg(any(test, feature = "test-support"))]
@@ -44,6 +61,7 @@ mod view_login;
 mod view_login_migration;
 mod view_login_passkey;
 mod view_memories;
+mod view_recommendations;
 mod view_record_details;
 mod view_records;
 mod view_region;
@@ -54,7 +72,10 @@ mod view_send_stream;
 mod view_unowned;
 mod view_vault;
 mod view_session;
+mod view_slides;
+mod view_slides_remote;
 mod view_upload;
+mod view_voice_call;
 
 pub use crate::core::{
     CoreCancellation, CoreConfig, CoreListener, CredentialSnapshotRecord, OpenMatesCore,
@@ -120,6 +141,10 @@ pub use view_projects::{
     RemoteCommandOutcomeRecord, RemoteCommandRecord, RemoteCommandResultRecord,
     RemoteRefusalRecord,
 };
+pub use view_project_timeline::{
+    ProjectCommitRestoreRecord, ProjectTimelineCommitFileRecord, ProjectTimelineCommitRecord,
+    ProjectTimelineEntryRecord, ProjectTimelinePageRecord,
+};
 pub use view_region::ServerRegionPreferenceRecord;
 /// Per-turn send options and the delivery receipt (`view_send_options`).
 pub use view_send_options::{
@@ -158,6 +183,8 @@ mod view_drafts_tests;
 #[cfg(test)]
 mod view_embeds_tests;
 #[cfg(test)]
+mod view_embed_version_content_tests;
+#[cfg(test)]
 mod view_fixture_tests;
 #[cfg(test)]
 mod view_fixture_rows_tests;
@@ -189,3 +216,9 @@ mod view_upload_tests;
 mod view_profile_cache_tests;
 #[cfg(test)]
 mod view_window_tests;
+#[cfg(test)]
+mod view_remote_commands_tests;
+#[cfg(test)]
+mod view_search_tests;
+#[cfg(test)]
+mod view_slides_remote_tests;

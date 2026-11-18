@@ -49,6 +49,11 @@ BACKUPS = HOME / "test-chat-backups"
 API_URL = "https://api.dev.openmates.org"
 CMS_URL = "http://localhost:8055"
 GIFTED_CREDITS = 20000  # dev-only credits; enough for image/video real runs
+# Owner rule: a dev test account that runs low is topped up automatically before
+# a real run, never replaced by a throwaway account for that reason.
+PERSONAL_MINIMUM_CREDITS = 20000
+PERSONAL_TARGET_CREDITS = 50000
+TOP_UP_SCRIPT = "/app/backend/scripts/top_up_test_account_credits.py"
 LOGIN_ATTEMPTS = 4
 EXPORT_MAX_PAGES = 20
 LOGIN_RATE_LIMIT_PAUSE_SECONDS = 45
@@ -332,6 +337,28 @@ def login_state(credentials: dict[str, str], state_dir: Path) -> None:
     raise ThrowawayAccountError(f"throwaway_login_failed: {reason}")
 
 
+def top_up_personal_account(environment: dict[str, str]) -> str:
+    """Top the personal dev test account up when its balance is below the minimum.
+
+    Runs the operator top-up script inside the dev API container before every
+    real run on the personal account (a no-op when the balance is enough).
+    Returns the script's status line (slot labels and balances, no email).
+    Refuses on a non-development server.
+    """
+    if not server_is_development():
+        raise ThrowawayAccountError("personal_top_up_refused_not_development")
+    output = _docker(
+        "exec", "-i", "api", "python", TOP_UP_SCRIPT,
+        "--accounts-json", "-", "--minimum", str(PERSONAL_MINIMUM_CREDITS), "--target", str(PERSONAL_TARGET_CREDITS),
+        stdin=json.dumps([{"email": environment["OPENMATES_TEST_ACCOUNT_EMAIL"]}]), timeout=120,
+    )
+    lines = [line for line in output.strip().splitlines() if line.startswith(("ok ", "updated", "failed"))]
+    status = re.sub(r"[\w.%+-]+@[\w.-]+", "<email>", (lines or output.strip().splitlines()[-1:] or [""])[-1])
+    if status.startswith("failed"):
+        raise ThrowawayAccountError(f"personal_top_up_failed: {status[:200]}")
+    return status
+
+
 def grant_credits(credentials: dict[str, str]) -> None:
     """Top the new account up to GIFTED_CREDITS with the operator script inside the API container.
 
@@ -413,19 +440,28 @@ def _email_hash(email: str) -> str:
 
 
 def acquire_real_test_account(
-    prefix: str, session_id: str, test_name: str, *, stack_timeout: int, allow_throwaway: bool = True
+    prefix: str, session_id: str, test_name: str, *, stack_timeout: int, allow_throwaway: bool = True,
+    prefer_throwaway: bool = False,
 ) -> RealTestAccount:
-    """Personal account when free, else a throwaway account (or wait when not allowed)."""
-    account_lease = try_personal_account_lease(prefix, session_id)
+    """Personal account when free, else a throwaway account (or wait when not allowed).
+
+    ``prefer_throwaway`` skips the personal account, e.g. when it has no credits left.
+    """
+    account_lease = None if prefer_throwaway else try_personal_account_lease(prefix, session_id)
     if account_lease is None and not allow_throwaway:
-        return RealTestAccount(
-            "personal", personal_environment(), wait_for_personal_leases(prefix, session_id, stack_timeout),
-            test_name=test_name,
-        )
+        environment = personal_environment()
+        leases = wait_for_personal_leases(prefix, session_id, stack_timeout)
+        try:
+            top_up_personal_account(environment)
+        except BaseException:
+            release_leases(leases)
+            raise
+        return RealTestAccount("personal", environment, leases, test_name=test_name)
     if account_lease is not None:
         try:
             environment = personal_environment()
             leases = [account_lease, stack_lease(prefix, session_id, stack_timeout)]
+            top_up_personal_account(environment)
         except BaseException:
             release_leases([account_lease])
             raise
@@ -543,8 +579,11 @@ def main(argv: list[str] | None = None) -> int:
     finish_parser = sub.add_parser("finish")
     finish_parser.add_argument("--email", required=True)
     finish_parser.add_argument("--test-name", required=True)
+    sub.add_parser("top-up-personal", help="Top the personal dev test account up when its credits are low")
     args = parser.parse_args(argv)
-    if args.command == "sweep":
+    if args.command == "top-up-personal":
+        print(json.dumps({"status": top_up_personal_account(personal_environment())}))
+    elif args.command == "sweep":
         print(json.dumps(sweep(args.dry_run), indent=2))
     elif args.command == "provision":
         credentials = provision_throwaway(args.test_name)

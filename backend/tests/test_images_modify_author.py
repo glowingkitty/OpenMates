@@ -323,7 +323,6 @@ def test_drafts_are_small_jpegs():
 
 # contract-test: supporting surface=rest_api assertions=images-modify.review.requirements-checked
 def test_jev_review_sends_square_jpegs_and_only_a_clear_no_rejects(monkeypatch):
-    from backend.shared.providers.typesafe import client as client_module
     from backend.shared.providers.typesafe.models import NoulAnswer
 
     sent = {}
@@ -335,13 +334,14 @@ def test_jev_review_sends_square_jpegs_and_only_a_clear_no_rejects(monkeypatch):
         async def evaluate_with_images(self, *, state, questions, images):
             sent.update(state=state, questions=questions, images=images)
             answers = {"requirement_1": NoulAnswer(type="noul", noul=0.1), "requirement_2": NoulAnswer(type="noul", noul=0.5)}
-            return SimpleNamespace(answers=answers, usage=SimpleNamespace(input_tokens=1234))
+            return SimpleNamespace(answers=answers, usage=SimpleNamespace(input_tokens=1234, output_tokens=56))
 
-    monkeypatch.setattr(client_module, "JevDecisionClient", FakeClient)
+    monkeypatch.setattr("backend.apps.ai.utils.internal_decisions.JevDecisionClient", FakeClient)
     outcome = asyncio.run(modify_review.review_image_with_jev(
         image=_png((400, 300)), instructions="put it on the back", requirements=REQUIREMENTS,
         input_images=[_png((300, 400)), _png((50, 80), "RGBA")], secrets_manager=None, task_id="t"))
     assert not outcome.accepted and outcome.unmet == (REQUIREMENTS[0],) and outcome.input_tokens == 1234
+    assert outcome.output_tokens == 56 and outcome.model_id == "typesafe/jev-1.14"
     assert len(sent["images"]) == 3
     for reference, content in sent["images"].items():
         with PIL_Image.open(io.BytesIO(content)) as image:
@@ -361,7 +361,7 @@ def test_jev_review_unreachable_is_unavailable(monkeypatch):
         async def evaluate_with_images(self, **_kwargs):
             raise client_module.DecisionProviderUnavailable("down")
 
-    monkeypatch.setattr(client_module, "JevDecisionClient", DownClient)
+    monkeypatch.setattr("backend.apps.ai.utils.internal_decisions.JevDecisionClient", DownClient)
     outcome = asyncio.run(modify_review.review_image_with_jev(
         image=_png(), instructions="x", requirements=REQUIREMENTS, input_images=[], secrets_manager=None,
         task_id="t"))

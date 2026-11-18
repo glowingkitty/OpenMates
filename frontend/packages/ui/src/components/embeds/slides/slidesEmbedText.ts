@@ -37,9 +37,18 @@ function elementText(element: SlideElement): string | null {
 
 /** slides-deck: slide deck embed */
 export function renderSlidesDeck(c: Record<string, unknown>): string {
+  return renderSlidesMarkupEmbed(c, 'Presentation');
+}
+
+/** slides-template: design embed (theme and sample slides), labelled as a template. */
+export function renderSlidesTemplate(c: Record<string, unknown>): string {
+  return renderSlidesMarkupEmbed(c, 'Presentation template');
+}
+
+function renderSlidesMarkupEmbed(c: Record<string, unknown>, label: string): string {
   const title = str(c.title) ?? '';
   const count = typeof c.slide_count === 'number' ? c.slide_count : 0;
-  const header = `**Presentation**${title ? ` — ${title}` : ''}`;
+  const header = `**${label}**${title ? ` — ${title}` : ''}`;
   const markup = str(c.slides_markup);
   if (!markup || typeof DOMParser === 'undefined') {
     return count ? `${header}\n${count} slides` : header;

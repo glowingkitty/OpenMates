@@ -183,6 +183,8 @@ struct ChatScrollBoundaries: Equatable {
     let isAtTop: Bool
     let isAtBottom: Bool
     let overlapsBanner: Bool?
+    /// The call strip's natural slot (directly beneath the header) has scrolled out of view.
+    let stripPinned: Bool
 }
 
 /// Retains exact geometry without invalidating ChatView on every scroll pixel.
@@ -194,7 +196,8 @@ final class ChatTranscriptScrollState {
         self.contentOffsetY = max(0, contentOffsetY)
         return ChatScrollBoundaries(isAtTop: self.contentOffsetY <= 8,
                                     isAtBottom: isAtBottom,
-                                    overlapsBanner: bannerOverlap(bannerHeight: bannerHeight))
+                                    overlapsBanner: bannerOverlap(bannerHeight: bannerHeight),
+                                    stripPinned: self.contentOffsetY >= max(bannerHeight, 8))
     }
 
     func bannerOverlap(bannerHeight: CGFloat) -> Bool? {
@@ -337,6 +340,13 @@ enum ChatAssistantIdentityPolicy {
               !name.isEmpty,
               !["assistant", "ai"].contains(name.lowercased()) else { return nil }
         return name
+    }
+
+    /// Web: ChatMessage.isOpenMatesIdentity. A category naming no Mate (missing, retired,
+    /// unknown) is shown with the OpenMates name and favicon.
+    static func usesOpenMatesIdentity(category: String?) -> Bool {
+        guard let category, category != "openmates_official" else { return true }
+        return !CategoryMapping.isKnownCategory(category)
     }
 }
 
@@ -500,6 +510,7 @@ struct ChatView: View {
     @State private var openedInitialEmbedId: String?
     @State private var showReminder = false
     @State private var chatHeaderMoreOpen = false
+    @State private var callStripPinned = false
     @State private var chatHeaderActionsOverlapBanner = true
     @State private var chatBannerHeight: CGFloat = 0
     @State private var transcriptScrollState = ChatTranscriptScrollState()
@@ -541,6 +552,7 @@ struct ChatView: View {
     @State private var highlightComment = ""
     @State private var explanationChatID: String?
     @State private var chatViewportHeight: CGFloat = 0
+    @State private var composerOutsideLane = MessageComposerMetric.OutsideLaneHeights()
     @State private var chatContainerWidth: CGFloat = 0
     @State private var historyNavigationTask: Task<Void, Never>?
     @State private var historyNavigationID = UUID()
@@ -722,6 +734,17 @@ struct ChatView: View {
                         AssistantSpeechPlayerHostView(chatID: chatId, viewportWidth: chatContainerWidth)
 
                         messageList
+                            .overlay(alignment: .top) {
+                                if callStripPinned {
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        callStrip(pinned: true, hosts: false)
+                                        if chatHeaderMoreOpen {
+                                            chatHeaderMoreActions(includeQuickActions: true)
+                                                .padding(.horizontal, .spacing4)
+                                        }
+                                    }
+                                }
+                            }
                             .overlay(alignment: .bottom) {
                                 if authManager.state == .authenticated, !IncognitoChatSession.isIncognitoChatId(chatId) {
                                     CoreConsentRequestOverlay(chatId: chatId)
@@ -738,6 +761,7 @@ struct ChatView: View {
                         returnToParentButton
 
                     }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { composerOutsideLane.above = $0 }
                     .workspacePromptBackground(active: isInputFocused || isComposerExpanded,
                         identifier: "chat-composer-workspace-backdrop",
                         activeOpacity: !displayedChatMessages.isEmpty || (presentedChat?.messagesV ?? 0) > 0 ? 0.35 : 0,
@@ -853,6 +877,13 @@ struct ChatView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .embedVersionHeadChanged)) { _ in
             Task { await viewModel.refreshEmbedsAfterVersionChange() }
+        }
+        // Generated media of this chat's live call (video-call.video.generated-media-stage).
+        .onReceive(viewModel.$embedRecords) { records in
+            voiceCallRuntime?.coordinator?.considerChatMedia(chatID: chatId, messages: viewModel.messages, embeds: records)
+        }
+        .onReceive(viewModel.$messages) { messages in
+            voiceCallRuntime?.coordinator?.considerChatMedia(chatID: chatId, messages: messages, embeds: viewModel.embedRecords)
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsSyncEvent)) { note in
             receiveCompressionCheckpoint(note)
@@ -1638,6 +1669,8 @@ struct ChatView: View {
                                     }
                             }
 
+                            callStrip(pinned: callStripPinned, hosts: true)
+
                             // The initial history window is capped by the model.
                             // Realize that window with stable measured heights:
                             // lazy placement repeatedly invalidates its estimated
@@ -1810,6 +1843,12 @@ struct ChatView: View {
                                     .id("assistant-response-feedback")
                                 }
 
+                                if !viewModel.isLoading && !viewModel.hasNewerMessages && !viewModel.isStreaming {
+                                    ChatRecommendationsContainer(chatId: chatId, category: viewModel.chat?.category,
+                                                                 refreshKey: "\(viewModel.messages.count)")
+                                        .id("chat-recommendations")
+                                }
+
                                 if !viewModel.isLoading && !viewModel.hasNewerMessages && !viewModel.followUpSuggestions.isEmpty && !viewModel.isStreaming {
                                     FollowUpSuggestions(
                                         suggestions: viewModel.followUpSuggestions,
@@ -1872,6 +1911,7 @@ struct ChatView: View {
                             let reachedTop = !isAtTop && boundaries.isAtTop
                             let reachedBottom = !isAtBottom && boundaries.isAtBottom
                             updateChatHeaderBannerOverlap(boundaries.overlapsBanner)
+                            if callStripPinned != boundaries.stripPinned { callStripPinned = boundaries.stripPinned }
                             if isAtTop != boundaries.isAtTop { isAtTop = boundaries.isAtTop }
                             if isAtBottom != boundaries.isAtBottom { isAtBottom = boundaries.isAtBottom }
                             if reachedTop { pageHistoryAtBoundary(isTop: true, proxy: proxy) }
@@ -2636,9 +2676,28 @@ struct ChatView: View {
         .accessibilityValue(chatHeaderActionsOverlapBanner ? "banner-overlay" : "standard")
     }
 
-    private var chatHeaderMoreActions: some View {
+    /// Voice-call strip hosted by this chat (`video-call.chat.call-strip-layout`).
+    @ViewBuilder
+    private func callStrip(pinned: Bool, hosts: Bool) -> some View {
+        if let runtime = voiceCallRuntime {
+            NativeVoiceCallChatStrip(runtime: runtime, chatID: chatId, pinned: pinned, hosts: hosts,
+                onMore: { chatHeaderMoreOpen.toggle() },
+                onCloseChat: { chatHeaderMoreOpen = false; onCloseChat?() })
+        }
+    }
+
+    private var chatHeaderMoreActions: some View { chatHeaderMoreActions(includeQuickActions: false) }
+
+    /// The fixed call strip has no floating report/share pills, so its More menu lists them too.
+    private func chatHeaderMoreActions(includeQuickActions: Bool) -> some View {
         VStack(alignment: .leading, spacing: .spacing2) {
-            if chatContainerWidth < 460, onShareChat != nil {
+            if includeQuickActions {
+                chatFloatingMenuAction(icon: "bug", label: AppStrings.settingsReportIssue, identifier: "chat-more-report-button") {
+                    chatHeaderMoreOpen = false
+                    onReportIssue?(.assistantResponseQuality())
+                }
+            }
+            if includeQuickActions || chatContainerWidth < 460, onShareChat != nil {
                 chatFloatingMenuAction(icon: "share", label: AppStrings.share, identifier: "chat-more-share-button") {
                     chatHeaderMoreOpen = false
                     onShareChat?()
@@ -3145,6 +3204,9 @@ struct ChatView: View {
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing3)
             .onChange(of: isInputFocused) { _, focused in
+                #if DEBUG
+                recordComposerSendFixturePhase("focus:\(focused)")
+                #endif
                 composerSearchFocusTask?.cancel()
                 if focused { composerSearchRecentlyFocused = true }
                 else {
@@ -3348,7 +3410,8 @@ struct ChatView: View {
             hasActiveOverlay: overlayActive || editingContextMessage != nil || recordAttemptActive
         )
         let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) && !piiExcludedValues.contains($0.value) }
-        let maximumViewportFieldHeight = max(0, chatViewportHeight - MessageComposerMetric.expandedTopReservedHeight)
+        let maximumViewportFieldHeight = composerOutsideLane.fieldCap(
+            viewportCap: max(0, chatViewportHeight - MessageComposerMetric.expandedTopReservedHeight))
         let recordingOverlayActive = composerOverlay == .recording || isUITestRecordingOverlayForced
         let overlayHeight = recordingOverlayActive
             ? ComposerRecordingOverlay.recordingPanelHeight
@@ -3399,7 +3462,7 @@ struct ChatView: View {
             }
             MessageComposerView(
                 session: composerSession,
-                isFocused: $isInputFocused,
+                isFocused: composerFocusBinding,
                 compact: compact && !overlayActive,
                 placeholder: placeholder,
                 expandedMinHeight: isComposerExpanded
@@ -3504,6 +3567,7 @@ struct ChatView: View {
                 }.frame(height: 56)
 
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { composerOutsideLane.field = $0 }
             .environment(\.composerFieldMaximumHeight, chatViewportHeight > 0 ? maximumViewportFieldHeight : nil)
             .environment(\.composerFullscreen, isComposerExpanded)
             .environment(\.composerFullscreenControlHandler,
@@ -4260,7 +4324,10 @@ struct ChatView: View {
                         .foregroundStyle(Color.fontTertiary)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
-                        .alignmentGuide(.top) { $0[.bottom] + .spacing2 }
+                        .padding(.bottom, .spacing2)
+                        // A zero-height anchor on the control's top edge: the
+                        // hint grows upward, clear of the action lane.
+                        .frame(height: 0, alignment: .bottom)
                         .allowsHitTesting(false)
                         .transition(.opacity)
                         .accessibilityIdentifier("press-hold-label")
@@ -4587,6 +4654,21 @@ struct ChatView: View {
             guard !Task.isCancelled else { return }
             recordHintVisible = false
         }
+    }
+
+    // The composer's focus binding. DEBUG fixtures mark changes that originate
+    // in the editor (UIKit/AppKit first responder) so a UI test can tell them
+    // from ChatView focus requests.
+    private var composerFocusBinding: Binding<Bool> {
+        #if DEBUG
+        guard ProcessInfo.processInfo.arguments.contains("--ui-test-composer-send") else { return $isInputFocused }
+        return Binding(get: { isInputFocused }, set: { focused in
+            if focused != isInputFocused { recordComposerSendFixturePhase("editor-focus:\(focused)") }
+            isInputFocused = focused
+        })
+        #else
+        return $isInputFocused
+        #endif
     }
 
     #if DEBUG
@@ -5502,6 +5584,7 @@ struct ChatMessageRenderPresentation {
     let progressiveContent: String
     let stableRenderDocument: ChatHistoryRenderDocument?
     let agentContextEvent: AgentContextEvent?
+    let voiceCallNotice: VoiceCallEventNoticeModel?
     let topLevelAppSkillEmbeds: [EmbedRecord]
     let hiddenInlineEmbedIds: Set<String>
 
@@ -5534,6 +5617,7 @@ struct ChatMessageRenderPresentation {
             stableRenderDocument = nil
         }
         agentContextEvent = message.role == .system ? AgentContextEvent.parse(displayContent) : nil
+        voiceCallNotice = message.role == .system ? VoiceCallEventNoticeModel.systemMessage(displayContent) : nil
         topLevelAppSkillEmbeds = message.role == .assistant
             ? parentResolver(embeds, allEmbedRecords, displayContent) : []
         hiddenInlineEmbedIds = Set(topLevelAppSkillEmbeds.map(\.id))
@@ -5808,7 +5892,7 @@ struct MessageBubble: View {
 
     private var assistantAvatar: some View {
         Group {
-            if isOpenMatesOfficial {
+            if isOpenMatesOfficial || (importedProvider == nil && ChatAssistantIdentityPolicy.usesOpenMatesIdentity(category: assistantCategory)) {
                 // Web: .mate-profile.openmates_official — favicon as background-image,
                 // background-size:contain, border-radius:50%, no AI badge.
                 // Use the PNG brand asset because Xcode distorts this colorful SVG.
@@ -6037,6 +6121,8 @@ struct MessageBubble: View {
                         try await NativeProjectAuthoringClient.shared.start(recommendation, messages: store.messages(for: chatId))
                     }
                 })
+            } else if let notice = presentation.voiceCallNotice {
+                VoiceCallEventNoticeView(model: notice)
             } else if let event = FocusPhaseEvent.parse(presentation.displayContent) {
                 FocusPhaseNoticeView(event: event)
             } else if FocusPhaseEvent.isTypedPayload(presentation.displayContent) {

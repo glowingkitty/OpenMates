@@ -19,13 +19,16 @@ vi.mock('../../utils/reminderNotificationContext', async (orig) => ({
   ...(await orig<typeof import('../../utils/reminderNotificationContext')>()),
   captureReminderThumbnail: vi.fn(async () => undefined),
 }));
+vi.mock('../rustCore/embeds/embedContentEdit', () => ({
+  chatTeamOf: async (chatId: string) => (chatId === 'team-chat' ? 'team-1' : null),
+}));
 vi.mock('../embedStore', () => ({ embedStore: { get: mocks.get, getEmbedsByAppId: mocks.byApp } }));
 vi.mock('../embedResolver', () => ({ decodeToonContent: mocks.decode }));
 vi.mock('../embedDiffStore', () => ({ commitEmbedContentRevision: mocks.commit }));
 vi.mock('../../stores/notificationStore', () => ({ notificationStore: { error: mocks.error, success: mocks.success } }));
 
 import {
-  listSavedEmbeds, loadEmbedSaved, savedEmbedIds, selectUpcomingSavedEmbeds, setEmbedSaved,
+  listSavedEmbeds, listSavedTemplates, loadEmbedSaved, savedEmbedIds, selectUpcomingSavedEmbeds, setEmbedSaved,
   toggleEmbedSaved, type SavedEmbed,
 } from '../savedEmbedService';
 import {
@@ -186,5 +189,33 @@ describe('reminder on save', () => {
     expect(buildSavedReminderPlan('home_listing', 'home', { title: 'Flat' })).toBeNull();
     // Event 2h away: only the 60 min offset remains.
     expect(getReminderTriggerDateTimes('event', '2026-11-07T12:00:00Z', now)).toEqual(['2026-11-07T11:00:00.000Z']);
+  });
+});
+
+describe('saved slide templates', () => {
+  const TEMPLATE = '<deck title="Club" kind="template"><slide><text>x</text></slide></deck>';
+
+  function seedSlides(id: string, content: Record<string, unknown>, chatId: string, skillId = 'template') {
+    contents[id] = content;
+    const base = mocks.get.getMockImplementation()!;
+    mocks.get.mockImplementation(async (ref: string) =>
+      ref === `embed:${id}`
+        ? { embed_id: id, content: JSON.stringify(content), app_id: 'slides', skill_id: skillId, chat_id: chatId, version_number: 1 }
+        : base(ref));
+    const byApp = mocks.byApp.getMockImplementation()!;
+    mocks.byApp.mockImplementation(async (appId: string) =>
+      appId === 'slides' ? [...(await byApp('slides')), { embed_id: id }].filter((e, i, all) => all.findIndex((o) => o.embed_id === e.embed_id) === i) : byApp(appId));
+  }
+
+  // contract-test: direct surface=gui.web assertions=slides.templates.library
+  it('lists saved templates of the active account only', async () => {
+    seedSlides('tpl-personal', { title: 'Mine', slides_markup: TEMPLATE, saved: true, saved_at: 5 }, 'solo-chat');
+    seedSlides('tpl-team', { title: 'Team look', slides_markup: TEMPLATE, saved: true, saved_at: 9 }, 'team-chat');
+    seedSlides('tpl-unsaved', { title: 'Not saved', slides_markup: TEMPLATE }, 'solo-chat');
+    seedSlides('deck-saved', { title: 'A deck', slides_markup: '<deck><slide/></deck>', saved: true }, 'solo-chat', 'deck');
+
+    expect((await listSavedTemplates(null)).map((t) => t.title)).toEqual(['Mine']);
+    const team = await listSavedTemplates('team-1');
+    expect(team.map((t) => [t.embedId, t.title, t.markup])).toEqual([['tpl-team', 'Team look', TEMPLATE]]);
   });
 });

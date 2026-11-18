@@ -254,6 +254,7 @@ struct NativeComposerEditorView: UIViewRepresentable {
         context.coordinator.updateScrollFade(textView)
         context.coordinator.onFocusChange = { isFocused.wrappedValue = $0 }
         context.coordinator.onSubmit = onSubmit
+        context.coordinator.adapter.focusRequested = isFocused.wrappedValue
         context.coordinator.adapter.updatePIIDecorations(piiDecorations, onExclude: onExcludePII)
         context.coordinator.adapter.synchronize(textView)
         let nativeOverflow = context.coordinator.overflowMeasurement(textView, width: textView.bounds.width, limit: maximumUnscrolledHeight)
@@ -450,7 +451,10 @@ struct NativeComposerEditorView: UIViewRepresentable {
                     // The text inset belongs to the document, not each scroll
                     // viewport. Adding it again after scrolling skips the real
                     // partially visible first row beside the sticky control.
-                    y: max(textView.bounds.minY, textView.textContainerInset.top))) ?? textView.beginningOfDocument
+                    // While scrolled, a row showing less than half its height
+                    // sits under the top fade and is not the visible first line.
+                    y: max(textView.bounds.minY + (active ? (textView.font?.lineHeight ?? 0) / 2 : 0),
+                           textView.textContainerInset.top))) ?? textView.beginningOfDocument
                 let first = textView.caretRect(for: position)
                 let selected = textView.caretRect(for: textView.selectedTextRange?.end ?? textView.beginningOfDocument)
                 let right = textView.bounds.maxX - textView.textContainerInset.right - textView.textContainer.lineFragmentPadding

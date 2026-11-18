@@ -14,7 +14,8 @@ vi.mock('../../host/sharedCoreRegistry', () => ({
 vi.mock('../embedWriteClient', () => ({ openEmbedWriteClient: vi.fn(async () => ({ unit: { closed: false }, close: () => undefined })) }));
 
 import { registerPrincipalBinder } from '../../host/serverSessionRegistry';
-import { rustEmbedWriter } from '../embedWriteSession';
+import { openEmbedWriteClient } from '../embedWriteClient';
+import { rustEmbedWriter, rustGuestEmbedWriter } from '../embedWriteSession';
 
 describe('embed write principal binding', () => {
 	afterEach(() => { state.userId = null; state.generation = null; state.key = null; });
@@ -52,5 +53,28 @@ describe('embed write principal binding', () => {
 		expect(binder).not.toHaveBeenCalled();
 		off();
 		vi.useRealTimers();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=billing.anonymous.local-only-content
+	it('opens the guest writer without a principal, a bound generation or a master key', async () => {
+		const binder = vi.fn(async () => undefined);
+		const off = registerPrincipalBinder(binder);
+		await expect(rustGuestEmbedWriter()).resolves.toMatchObject({ unit: { closed: false } });
+		expect(openEmbedWriteClient).toHaveBeenLastCalledWith(expect.anything(), null);
+		expect(binder).not.toHaveBeenCalled();
+		off();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=billing.anonymous.local-only-content
+	it('closes the guest writer when an account writer opens', async () => {
+		const closeGuest = vi.fn();
+		vi.mocked(openEmbedWriteClient).mockResolvedValueOnce({ unit: { closed: false }, close: closeGuest } as never);
+		await rustGuestEmbedWriter();
+		state.userId = PRINCIPAL;
+		state.key = { extractable: false };
+		const off = registerPrincipalBinder(async () => { state.generation = 1; });
+		await rustEmbedWriter();
+		expect(closeGuest).toHaveBeenCalledOnce();
+		off();
 	});
 });

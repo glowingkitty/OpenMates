@@ -134,91 +134,6 @@ export function getPrintTranslations(): PrintTranslations {
 }
 
 /**
- * Generate the HTML content for the print page.
- * @param recoveryKey - The recovery key to display
- * @param translations - Translated strings for the page content
- * @returns HTML string for the print page
- */
-export function generatePrintPageHtml(
-  recoveryKey: string,
-  translations: PrintTranslations,
-): string {
-  return `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>${translations.title}</title>
-            <style>
-                body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-                    padding: 40px;
-                    max-width: 600px;
-                    margin: 0 auto;
-                }
-                h1 {
-                    color: #333;
-                    font-size: 24px;
-                    margin-bottom: 20px;
-                }
-                .warning {
-                    background: #fff3cd;
-                    border: 1px solid #ffc107;
-                    border-radius: 8px;
-                    padding: 16px;
-                    margin-bottom: 24px;
-                }
-                .warning p {
-                    margin: 0;
-                    color: #856404;
-                }
-                .key-container {
-                    background: #f5f5f5;
-                    border: 2px dashed #ccc;
-                    border-radius: 8px;
-                    padding: 20px;
-                    text-align: center;
-                }
-                .recovery-key {
-                    font-family: 'Courier New', monospace;
-                    font-size: 18px;
-                    font-weight: bold;
-                    letter-spacing: 2px;
-                    word-break: break-all;
-                    color: #333;
-                }
-                .instructions {
-                    margin-top: 24px;
-                    color: #666;
-                    font-size: 14px;
-                }
-                .instructions li {
-                    margin-bottom: 8px;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>🔐 ${translations.title}</h1>
-            <div class="warning">
-                <p><strong>⚠️ ${translations.warning}</strong></p>
-            </div>
-            <div class="key-container">
-                <div class="recovery-key">${recoveryKey}</div>
-            </div>
-            <div class="instructions">
-                <p><strong>${translations.storageTitle}</strong></p>
-                <ul>
-                    <li>${translations.storage1}</li>
-                    <li>${translations.storage2}</li>
-                    <li>${translations.storage3}</li>
-                    <li>${translations.storage4}</li>
-                </ul>
-            </div>
-        </body>
-        </html>
-    `;
-}
-
-/**
  * Open print dialog with the recovery key.
  * Creates a new window with formatted print page and triggers print.
  * @param recoveryKey - The recovery key to print
@@ -237,30 +152,7 @@ export function printRecoveryKey(
   try {
     // Get translations if not provided
     const trans = translations || getPrintTranslations();
-
-    if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
-      const rustResult = printRecoveryKeyViaRust(recoveryKey, trans);
-      if (rustResult) return rustResult;
-    }
-
-    // Generate the print page HTML
-    const htmlContent = generatePrintPageHtml(recoveryKey, trans);
-
-    // Open print window
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      console.error(
-        "[recoveryKeyUtils] Could not open print window (popup blocked?)",
-      );
-      return { success: false, error: "Could not open print window" };
-    }
-
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.print();
-
-    console.log("[recoveryKeyUtils] Recovery key print dialog opened");
-    return { success: true };
+    return printRecoveryKeyViaRust(recoveryKey, trans);
   } catch (error) {
     console.error("[recoveryKeyUtils] Error printing recovery key:", error);
     return {
@@ -271,16 +163,14 @@ export function printRecoveryKey(
 }
 
 /**
- * Flag builds: the shared Rust core renders the print page. The window opens
+ * The shared Rust core renders the print page. The window opens
  * synchronously (keeps the click's popup permission); the document is written
- * once Rust answers. Returns null when the Rust path is not selected for this
- * page (localStorage override), so the TypeScript path above runs as deployed.
+ * once Rust answers.
  */
 function printRecoveryKeyViaRust(
   recoveryKey: string,
   trans: PrintTranslations,
-): SaveResult | null {
-  if (!window.localStorage || window.localStorage.getItem("openmates_rust_auth") === "ts") return null;
+): SaveResult {
   const printWindow = window.open("", "_blank");
   if (!printWindow) {
     console.error("[recoveryKeyUtils] Could not open print window (popup blocked?)");

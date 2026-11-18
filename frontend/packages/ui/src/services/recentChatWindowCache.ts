@@ -3,7 +3,6 @@ import { BoundedCache, estimatePayloadBytes } from '../utils/boundedCache';
 import { getWorkspaceCacheEpoch, registerWorkspaceCacheClear } from './workspaceCacheLifecycle';
 import { get } from 'svelte/store';
 import { userProfile } from '../stores/userProfile';
-import { shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
 
 
 // Optional test-installed observation only. No cache, navigation or security policy.
@@ -218,13 +217,6 @@ export class RecentChatWarmReadGuard {
   complete(): void {
     if (this.state === 'active') this.state = 'completed';
   }
-}
-
-/** Keep older loaded pages while refreshing canonical fields of the latest page. */
-export function reconcileRecentChatMessages(current: Message[], incoming: Message[], hasMoreBefore: boolean): Message[] {
-  if (!hasMoreBefore || !shouldPreserveExpandedMessageWindow(current, incoming)) return incoming;
-  const freshById = new Map(incoming.map((message) => [message.message_id, message]));
-  return current.map((message) => freshById.get(message.message_id) ?? message);
 }
 
 export type RecentChatInvalidationCategory = 'metadata' | 'metadata-local-list' | 'metadata-chat-updated' | 'metadata-draft-save' | 'metadata-chat-row' | 'metadata-draft-websocket' | 'metadata-draft-delete-sender' | 'metadata-sync-draft' | 'metadata-sync-header' | 'metadata-phase-sync' | 'message' | 'key' | 'delete' | 'unknown';

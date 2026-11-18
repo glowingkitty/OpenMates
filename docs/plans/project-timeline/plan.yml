@@ -1,0 +1,40 @@
+schema_version: 2
+id: project-timeline
+title: Project Timeline tab on web and Apple (commits, file changes, whole-commit restore)
+status: approved
+profile: concise
+goal: >
+  (Owner request 2026-11-14, receipt 77ce7e942e778f7b.) Every Project shows a
+  "Timeline" tab in the Project view on web and Apple. It lists file changes and
+  commits newest first with author (user or assistant), time and affected paths;
+  a commit opens to show its files; Restore brings every file back to that commit
+  as new versions and records a commit with restored_from, also relinking files
+  deleted after the commit. Commits and restore already work in the backend, the
+  Rust core and the CLI; this Plan makes them visible and usable in both GUIs
+  without moving logic out of the Rust core.
+task: d915776b-4116-4e3a-891c-ea2667789544
+specifications:
+  - feature.projects@2
+scope:
+  in:
+    - "Backend: first-party read route GET /v1/projects/{id}/timeline?limit&before&team_id (new routes/project_timeline.py). Merges project_commits, project_item_operations, embed_version_commits (assistant) and Project-scope embed_user_revision_commits (user) newest first. Returns kinds, target_id_hash, versions, actions, author kind, created_at and the commit rows as list_project_commits returns them; never embed ids or paths. Cookie session only, projects feature gate, Team read roles, rate limited, cursor (created_at, kind, id)."
+    - "Rust core: work/projects/timeline.rs (Projects::timeline decrypts paths from live links, falls back to the newest commit's encrypted path map, else 'Removed file'); client/project_commit_restore.rs (user restore through Project-scope user revisions, author user, no chat, relinks files unlinked after the commit); restore helpers in hosted/restore.rs become pub(crate); CLI projects timeline and commits restore without --chat; sdk-capabilities classification."
+    - "Web: browser bindings browser_project_timeline.rs, a shared-worker unit, new components/projects/ProjectTimeline.svelte with a .preview.ts fixture; ProjectsPage.svelte only gains the tab and one branch."
+    - "Apple: view_project_timeline.rs UniFFI export, CoreProjectTimeline.swift, Features/Projects/ProjectTimelineView.swift, case timeline in ProjectWorkspaceTab, a preview fixture variant."
+  out:
+    - "Storing removed file names server-side (an encrypted timeline path on rename/delete receipts); decided later if the commit-path fallback proves insufficient."
+    - "Chat-scope user edits of Project-linked embeds in the Project timeline (known gap, separate Task if needed)."
+    - "Moving the legacy TypeScript Projects decryption into the core beyond what the timeline reads."
+decisions:
+  - "Hashes only on the wire: the client core joins target_id_hash to decrypted Project links, so the server learns no paths or embed ids it did not already store."
+  - "GUI restore is a user action through Project-scope user revisions, never the assistant publication path, so the timeline attributes it to the user."
+  - "Restore relinks files deleted after the commit, as projects.files.rename-delete requires; a missing embed (not just a missing link) refuses that file with a visible reason."
+  - "Coordination: the spec-driven development chat (63fbd09b) also edits ProjectsPage.svelte; this Plan touches it only for the tab wiring and keeps the panel in a new component."
+verification:
+  required:
+    - "Pytest for the timeline route: owner and Team viewer read, foreign Project forbidden, unauthenticated refused, hashes-only response, newest-first merge and cursor."
+    - "Direct REST proof against api.dev.openmates.org: happy path plus unauthorized and forbidden."
+    - "Rust crate tests for timeline assembly (path fallback, ordering) and user restore (changed, unchanged, relinked file, Team Project); rust-check and sdk-conformance green."
+    - "Component preview spec frontend/apps/web_app/tests/components/project-timeline.spec.ts with screenshots (commits and file changes, expanded commit, restore confirm, empty state)."
+    - "Apple UI test with a Timeline screenshot (apple-ui) and Apple unit tests for the mapping."
+    - "Real-stack E2E: CLI creates a file and a commit, changes the file again, the web Timeline shows both, the user restores from the GUI, a new version and a commit with restored_from appear and the later commit stays listed; result video from the deployed commit."

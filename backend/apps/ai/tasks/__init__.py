@@ -9,6 +9,7 @@
 # to make them discoverable under the `backend.apps.ai.tasks` namespace.
 
 from .ask_skill_task import process_ai_skill_ask_task
+from .chat_orchestration_interpretation_task import interpret_creator_events
 from .focus_mode_auto_confirm_task import focus_mode_auto_confirm_task
 from .runtime_health_probe_task import runtime_health_chat_plumbing_probe, runtime_health_worker_probe
 
@@ -17,6 +18,7 @@ from .runtime_health_probe_task import runtime_health_chat_plumbing_probe, runti
 # from .another_skill_task import process_another_skill_task
 
 __all__ = [
+    "interpret_creator_events",
     "process_ai_skill_ask_task",
     "focus_mode_auto_confirm_task",
     "runtime_health_worker_probe",

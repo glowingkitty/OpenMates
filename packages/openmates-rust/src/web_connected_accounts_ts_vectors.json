@@ -67,6 +67,17 @@
       "out": {"kind": "error", "code": "malformed"}
     },
     {
+      "name": "figma account resolves the design app with a read-only token ref",
+      "params": {"appId": "design"},
+      "rows": [
+        {"id": "acct-8", "encrypted_provider_type": "enc:figma", "provider_type_hash": "hash:figma", "encrypted_account_label": "enc:Figma", "encrypted_refresh_token_bundle": "enc:{\"ref\":\"placeholder-envelope-8\"}", "encrypted_capabilities": "enc:[\"read\",\"variables\"]", "encrypted_app_permissions": "enc:{\"app_id\":\"design\",\"allowed_actions\":[\"read\"],\"runtime_modes\":{\"read\":\"allow_automatically\"}}"}
+      ],
+      "out": {"kind": "ok", "value": {
+        "directory": [{"connected_account_id": "acct-8", "app_id": "design", "provider_id": "figma", "account_ref": "acct-8", "label": "Figma", "capabilities": ["read", "variables"], "runtime_modes": {"read": "allow_automatically"}}],
+        "tokenRefInputs": [{"connected_account_id": "acct-8", "app_id": "design", "provider_id": "figma", "allowed_actions": ["read"], "refresh_token_envelope": {"ref": "placeholder-envelope-8"}}]
+      }}
+    },
+    {
       "name": "revolut legacy envelope resolves the finance app",
       "params": {"appId": "finance"},
       "rows": [

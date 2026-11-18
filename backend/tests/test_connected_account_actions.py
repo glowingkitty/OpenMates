@@ -54,6 +54,7 @@ class FakeCalendarEvent:
         self.id = event_id
 
 
+# contract-test: supporting surface=rest_api assertions=calendar.events.safe-mutations,connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_cancel_pending_action_marks_journal_cancelled() -> None:
     from backend.core.api.app.routes.connected_account_actions import (
@@ -96,6 +97,7 @@ async def test_cancel_pending_action_marks_journal_cancelled() -> None:
     assert "Pending Calendar write" not in str(directus.updated)
 
 
+# contract-test: supporting surface=rest_api assertions=calendar.events.safe-mutations,connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_cancel_rejects_expired_cancel_window() -> None:
     from fastapi import HTTPException
@@ -134,6 +136,7 @@ async def test_cancel_rejects_expired_cancel_window() -> None:
     assert exc_info.value.status_code == 409
 
 
+# contract-test: supporting surface=rest_api assertions=calendar.events.safe-mutations,connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_undo_create_event_deletes_created_event_and_marks_journal(monkeypatch) -> None:
     from backend.core.api.app.routes import connected_account_actions
@@ -155,8 +158,10 @@ async def test_undo_create_event_deletes_created_event_and_marks_journal(monkeyp
         def __init__(self, *, access_token: str) -> None:
             assert access_token == "access-for-refresh-secret"
 
-        async def delete_event(self, *, calendar_id: str, event_id: str) -> dict[str, str]:
-            deleted_events.append({"calendar_id": calendar_id, "event_id": event_id})
+        async def delete_event(
+            self, *, calendar_id: str, event_id: str, etag: str | None, send_updates: str = "none",
+        ) -> dict[str, str]:
+            deleted_events.append({"calendar_id": calendar_id, "event_id": event_id, "etag": etag})
             return {"status": "deleted", "event_id": event_id}
 
     monkeypatch.setattr(connected_account_actions, "exchange_google_refresh_token", exchange)
@@ -178,6 +183,7 @@ async def test_undo_create_event_deletes_created_event_and_marks_journal(monkeyp
                     "undo_type": "delete_created_event",
                     "calendar_id": "primary",
                     "event_id": "event-1",
+                    "etag": "etag-created",
                 }
             ]
         },
@@ -216,12 +222,14 @@ async def test_undo_create_event_deletes_created_event_and_marks_journal(monkeyp
 
     assert response.status == "undone"
     assert response.undo_type == "delete_created_event"
-    assert deleted_events == [{"calendar_id": "primary", "event_id": "event-1"}]
+    # The delete is conditional on the created event being unchanged since.
+    assert deleted_events == [{"calendar_id": "primary", "event_id": "event-1", "etag": "etag-created"}]
     assert directus.updated is not None
     assert directus.updated["decision"] == "undo_success"
     assert "refresh-secret" not in str(directus.updated)
 
 
+# contract-test: supporting surface=rest_api assertions=calendar.events.safe-mutations,connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_undo_update_restores_previous_event_snapshot(monkeypatch) -> None:
     from backend.core.api.app.routes import connected_account_actions
@@ -243,7 +251,14 @@ async def test_undo_update_restores_previous_event_snapshot(monkeypatch) -> None
         def __init__(self, *, access_token: str) -> None:
             assert access_token == "access-for-refresh-secret"
 
-        async def update_event(self, **kwargs) -> FakeCalendarEvent:
+        async def get_event_raw(self, **_kwargs) -> dict[str, Any]:
+            return {
+                "id": "event-1", "summary": "Changed title", "etag": "etag-after-update",
+                "start": {"dateTime": "2026-06-15T10:00:00Z"}, "end": {"dateTime": "2026-06-15T11:00:00Z"},
+                "location": "Added room",
+            }
+
+        async def patch_event(self, **kwargs) -> FakeCalendarEvent:
             updated_events.append(kwargs)
             return FakeCalendarEvent(kwargs["event_id"])
 
@@ -266,6 +281,8 @@ async def test_undo_update_restores_previous_event_snapshot(monkeypatch) -> None
                     "undo_type": "restore_updated_event",
                     "calendar_id": "primary",
                     "event_id": "event-1",
+                    "applied_etag": "etag-after-update",
+                    "changed_fields": ["location", "title"],
                     "snapshot": {
                         "title": "Original title",
                         "start": "2026-06-15T10:00:00Z",
@@ -301,9 +318,12 @@ async def test_undo_update_restores_previous_event_snapshot(monkeypatch) -> None
     assert response.status == "undone"
     assert response.undo_type == "restore_updated_event"
     assert response.events == [{"calendar_id": "primary", "event_id": "event-1", "status": "restored"}]
-    assert updated_events[0]["title"] == "Original title"
+    assert updated_events[0]["etag"] == "etag-after-update"
+    # Only the fields the update changed are restored; the added location is cleared.
+    assert updated_events[0]["body"] == {"summary": "Original title", "location": ""}
 
 
+# contract-test: supporting surface=rest_api assertions=calendar.events.safe-mutations,connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_undo_delete_recreates_deleted_event_snapshot(monkeypatch) -> None:
     from backend.core.api.app.routes import connected_account_actions
@@ -325,9 +345,9 @@ async def test_undo_delete_recreates_deleted_event_snapshot(monkeypatch) -> None
         def __init__(self, *, access_token: str) -> None:
             assert access_token == "access-for-refresh-secret"
 
-        async def create_event(self, **kwargs) -> FakeCalendarEvent:
+        async def create_event(self, **kwargs) -> tuple[FakeCalendarEvent, bool]:
             created_events.append(kwargs)
-            return FakeCalendarEvent("event-recreated")
+            return FakeCalendarEvent("event-recreated"), False
 
     monkeypatch.setattr(connected_account_actions, "exchange_google_refresh_token", exchange)
     monkeypatch.setattr(connected_account_actions, "GoogleCalendarClient", FakeCalendarClient)
@@ -383,9 +403,11 @@ async def test_undo_delete_recreates_deleted_event_snapshot(monkeypatch) -> None
     assert response.status == "undone"
     assert response.undo_type == "recreate_deleted_event"
     assert response.events == [{"calendar_id": "primary", "event_id": "event-recreated", "status": "recreated"}]
-    assert created_events[0]["title"] == "Deleted title"
+    assert created_events[0]["body"]["summary"] == "Deleted title"
+    assert "attendees" not in created_events[0]["body"]
 
 
+# contract-test: supporting surface=rest_api assertions=calendar.events.safe-mutations,connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_undo_rejects_already_undone_action() -> None:
     from fastapi import HTTPException
@@ -428,6 +450,7 @@ async def test_undo_rejects_already_undone_action() -> None:
     assert exc_info.value.status_code == 409
 
 
+# contract-test: supporting surface=rest_api assertions=calendar.events.safe-mutations,connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_undo_rejects_token_ref_for_different_connected_account() -> None:
     from fastapi import HTTPException
@@ -460,6 +483,7 @@ async def test_undo_rejects_token_ref_for_different_connected_account() -> None:
                     "undo_type": "delete_created_event",
                     "calendar_id": "primary",
                     "event_id": "event-1",
+                    "etag": "etag-created",
                 }
             ]
         },

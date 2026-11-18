@@ -608,7 +608,9 @@ assertions:
 - id: projects.items.create-documents
   type: behavior
   must: From the Create menu of a Project, in the Project root or any folder or subfolder, a member with write access can
-    create a new document, sheet or slides deck without opening a chat. The new item appears in that folder at once, opens
+    create a new chat, workflow, folder, document, sheet, slides deck or code file; files and folders are made without opening a
+    chat. Each new item belongs to exactly the folder the menu was opened in, never to the root or a parent folder. Folders that
+    mirror a hosted app or a connected remote source do not offer new files or folders. The new item appears in that folder at once, opens
     in its editor, is client-encrypted with owner and Project wrappers like an upload, and can afterwards be renamed, moved,
     edited, versioned and referenced in chats like an item created by the assistant. A new deck uses the Project's pinned
     template, else the user's chosen library template. Members without write access do not see these entries.
@@ -688,8 +690,15 @@ assertions:
     shows a confirmation with the Project name and the target machine, and nothing is created on the machine before the
     user confirms that exact request. After confirmation the remote-access host creates a new folder for the Project
     inside the configured folder, initializes a Git repository on the branch main with a first commit, and serves it as
-    a connected source of the Project. The host never writes outside the configured folder and never into or over an
-    existing path; a machine without that setting does not offer creation. A refusal (creation_not_configured,
+    a connected source of the Project. While that folder is the Project's only remote source, an assistant Project file
+    operation that names no source goes to it, so the files land in the machine folder and not in hosted storage. Every
+    client that runs assistant file jobs for the chat (web app and CLI) relays such a job end to end encrypted to that
+    machine's host and reports the host's result; while the machine is unreachable the job keeps waiting for an executor
+    instead of failing or falling back to hosted storage. A new application in such a Project is written file by file
+    with the Project file tools into its folder there, not as a hosted application block; creating a file also creates
+    its missing parent folders inside the Project folder. An assistant commit there is a Git commit of the chat's
+    worktree on that machine, recorded under the job's operation; deleting or renaming files there is refused as
+    unsupported and changes nothing. The host never writes outside the configured folder and never into or over an existing path; a machine without that setting does not offer creation. A refusal (creation_not_configured,
     invalid_project_name, creation_folder_unavailable, identity_missing, target_exists) creates nothing and consumes no
     confirmation, and the pending request can be retried or removed without the machine. Only the bound machine of the
     confirming user can complete the creation.
@@ -705,10 +714,10 @@ assertions:
     subfolder is an ordinary folder whose files are visible, and the application card is shown at the top of that folder
     as the entry for starting and previewing the application. Every file the assistant writes for the application is one
     of these files, also script sources it sends after a combined file bundle or as unfenced language:path sections; none
-    of them stays chat text.
+    of them stays chat text. In a Project whose files live only in a machine folder, projects.creation.machine-folder
+    applies instead.
   depends_on:
   - models.ProjectItemLink
-  - examples.project_application_files
 - id: projects.agentic.long-turn-stays-online
   type: behavior
   must: A coding turn that writes, tests and fixes an application can run longer than the client response timeout. The
@@ -716,7 +725,7 @@ assertions:
     at the latest after one day. A turn whose server stays silent for the whole timeout still ends as Offline with its
     recovery hint.
   depends_on:
-  - examples.project_application_files
+  - examples.project_agentic_coding
 - id: projects.agentic.test-result-in-reply
   type: behavior
   must: Each test run the assistant starts in a coding turn produces a test result embed (status, step timeline and, for
@@ -724,14 +733,14 @@ assertions:
     not link it itself, so every client shows the failing and the passing runs in the chat. This holds as well when
     several runs of one turn resume together.
   depends_on:
-  - examples.project_application_files
+  - examples.project_agentic_coding
 - id: projects.agentic.test-run-installs-dependencies
   type: behavior
   must: A hosted test run of a Node project installs its dependencies before the server or tests start. When the folder
     the server (or, without a server, the test command) runs in has a package.json and no setup command installs
     packages, the run adds one npm install step there, shown in its step timeline.
   depends_on:
-  - examples.project_application_files
+  - examples.project_agentic_coding
 - id: projects.files.adopt-embed
   type: behavior
   must: An existing chat embed the user may write is adopted into a Project they may write as one atomic, idempotent
@@ -742,14 +751,12 @@ assertions:
     the embed, which projects.files.user-edit-direct allows.
   depends_on:
   - models.ProjectItemLink
-  - examples.project_application_files
 - id: projects.files.user-edit-direct
   type: behavior
   must: A member with write access can edit a Project file directly in the Project view without an open chat. The edit is
     the next version of that same embed, and the Project timeline shows who made it.
   depends_on:
   - models.ProjectItemLink
-  - examples.project_application_files
 - id: projects.files.rename-delete
   type: behavior
   must: The user and the assistant can rename a Project file, which changes only the path of its link and keeps the embed
@@ -759,7 +766,6 @@ assertions:
     learning the path.
   depends_on:
   - models.ProjectItemLink
-  - examples.project_application_files
 - id: projects.files.server-owned-fields
   type: invariant
   must: For Project links of kind application and test result the server may still publish its own narrow non-content
@@ -767,7 +773,6 @@ assertions:
     field and no file content ever passes the Project write fence this way, and links of kind file admit no server write.
   depends_on:
   - models.ProjectItemLink
-  - examples.project_application_files
 - id: projects.history.native-commits
   type: behavior
   must: A Project commit is a named snapshot with a message that records the exact revision of every OpenMates-stored

@@ -8,7 +8,6 @@ Tests: N/A (covered manually via Playwright signup/login flow and task logs)
 import asyncio
 import hashlib
 import logging
-import os
 from datetime import datetime, timezone
 
 from backend.core.api.app.services.email_delivery_guard import send_email_once
@@ -80,11 +79,11 @@ async def _async_process_password_security_reminders(task: BaseServiceTask) -> d
             users = await task.directus_service.get_items(
                 "directus_users",
                 params={
-                    "fields": "id,date_created,language,darkmode,vault_key_id,encrypted_email_address,encrypted_tfa_secret",
+                    "fields": "id,signup_started_at,language,darkmode,vault_key_id,encrypted_email_address,encrypted_tfa_secret",
                     "filter": {
                         "status": {"_eq": "active"},
                     },
-                    "sort": "date_created",
+                    "sort": "signup_started_at",
                     "page": page,
                     "limit": USER_PAGE_SIZE,
                 },
@@ -104,7 +103,7 @@ async def _async_process_password_security_reminders(task: BaseServiceTask) -> d
                 if user.get("encrypted_tfa_secret"):
                     continue
 
-                created_at = _parse_iso_datetime(user.get("date_created"))
+                created_at = _parse_iso_datetime(user.get("signup_started_at"))
                 if not created_at:
                     continue
 

@@ -6,7 +6,7 @@
 // video-call.lifecycle.recovery-and-billing, video-call.privacy.first-call-warning,
 // video-call.audio.intentional-interruption, video-call.audio.spoken-rich-response,
 // video-call.audio.complete-turn-admission, video-call.chat.activity-status, video-call.usage.provider-metering, video-call.chat.skill-integration,
-// video-call.audio.background-resume
+// video-call.audio.background-resume, video-call.video.input-and-output, video-call.video.source-frame-provenance
 
 import Foundation
 
@@ -17,6 +17,9 @@ actor NativeVoiceCallController {
     private let audio: any NativeVoiceCallAudio
     private let persistence: any NativeVoiceCallPersistence
     private let makeTransport: TransportFactory
+    /// Answers a `voice_source_frame` (frame, call id, chat id); `nil` answer = duplicate, ignore.
+    typealias SourceFrameAnswer = @Sendable (NativeVoiceCallFrame, String, String) async -> NativeVoiceCallFrame?
+    private let answerSourceFrame: SourceFrameAnswer?
     private let event: Handler
     private var state = NativeVoiceCallSnapshot()
     private var generation = UUID()
@@ -40,8 +43,10 @@ actor NativeVoiceCallController {
     private var mateName: String?
     private var terminalInProgress = false
     private var startInProgress = false
-    private var activityUpdatedAt: Date?
+    /// Shared core call clock (web voiceCall.ts billing_activity accounting).
+    private var clock = VoiceCallActivityClockHandle()
     private var submittedTurns = Set<String>()
+    private var orchestrationTurns = NativeVoiceCallOrchestrationTurns()
     private var pendingTyped: [String: (text: String, createdAt: Int)] = [:]
     private struct ArtifactOrigin {
         let assistantID: String
@@ -53,7 +58,9 @@ actor NativeVoiceCallController {
 
     init(environment: NativeVoiceCallEnvironment, audio: any NativeVoiceCallAudio,
          persistence: any NativeVoiceCallPersistence,
-         transportFactory: @escaping TransportFactory, eventHandler: @escaping Handler) {
+         transportFactory: @escaping TransportFactory, sourceFrameAnswer: SourceFrameAnswer? = nil,
+         eventHandler: @escaping Handler) {
+        answerSourceFrame = sourceFrameAnswer
         self.environment = environment; self.audio = audio; self.persistence = persistence
         makeTransport = transportFactory; event = eventHandler
     }
@@ -89,8 +96,8 @@ actor NativeVoiceCallController {
         state = .init(status: .connecting, scope: scope)
         startup.removeAll(); startupBytes = 0; startupSpentBytes = 0
         pausedInputs.removeAll(); pausedBytes = 0; checkpointID = nil
-        submittedTurns.removeAll(); pendingTyped.removeAll(); issuedArtifacts.removeAll(); streamOpen = false; drainingStartup = false
-        modelName = nil; mateName = nil; activityUpdatedAt = nil
+        submittedTurns.removeAll(); orchestrationTurns.removeAll(); pendingTyped.removeAll(); issuedArtifacts.removeAll(); streamOpen = false; drainingStartup = false
+        modelName = nil; mateName = nil; clock = VoiceCallActivityClockHandle()
         assistantTaskID = nil; assistantMessageID = nil; assistantActive = false; providerProcessing = false
         await publish()
         do {
@@ -317,6 +324,21 @@ actor NativeVoiceCallController {
         issuedArtifacts[key] = ArtifactOrigin(assistantID: assistant, userID: user, type: reference.type, createdAt: timestamp)
     }
 
+    /// Tells the server the camera is on or off (web `camera_state`); queued while context is paused.
+    func sendCameraState(enabled: Bool) async {
+        guard state.status == .live, let scope = state.scope, let callID = state.callID else { return }
+        try? await input(["type": .string("camera_state"), "call_id": .string(callID), "enabled": .bool(enabled)],
+                         token: generation, scope: scope)
+    }
+
+    #if !os(watchOS)
+    /// Sends one JPEG camera frame (web `camera_frame`) while the call is live.
+    func sendCameraFrame(_ frame: NativeVoiceCallCameraFrame) async {
+        guard state.status == .live, let scope = state.scope, let callID = state.callID else { return }
+        try? await input(frame.message(callID: callID), token: generation, scope: scope)
+    }
+    #endif
+
     private func input(_ frame: NativeVoiceCallFrame, token: UUID, scope: NativeVoiceCallScope) async throws {
         // Queue in controller arrival order before any suspension. The writer
         // revalidates authenticated scope immediately before the actual write.
@@ -355,6 +377,7 @@ actor NativeVoiceCallController {
             else { throw NativeVoiceCallError.invalidResponse }
             deadline?.cancel(); deadline = nil
             state.callID = callID; state.status = .live
+            updateActivity() // the clock starts when the call is live
             state.cameraAvailable = frame["camera_available"]?.bool == true
             modelName = frame["model"]?.string; mateName = frame["mate_name"]?.string
             drainingStartup = true
@@ -414,6 +437,14 @@ actor NativeVoiceCallController {
             await event(.transcript(value))
             // The accepted turn is now an ordinary chat row.
             if state.liveTranscript?.messageID == id { state.liveTranscript = nil; await publish() }
+        case "orchestration_turn":
+            // The server started an interpreting turn for updates from chats this
+            // chat spawned. Its answer and speech belong to this call (web
+            // voiceCall.ts orchestration_turn); the server already waits for the
+            // current speech to end, so nothing is queued here.
+            guard state.status == .live, let callID = state.callID else { return }
+            orchestrationTurns.accept(callID: callID, frameCallID: frame["call_id"]?.string,
+                messageID: frame["message_id"]?.string)
         case "transcript.pending":
             // The broker holds an unfinished thought; the live line stays visible.
             guard state.status == .live, let id = frame["message_id"]?.string,
@@ -436,18 +467,18 @@ actor NativeVoiceCallController {
             if frame["enabled"]?.bool == false { state.cameraEnabled = false }
             await publish()
         case "voice_source_frame":
-            // Apple has no call camera and no client-core path to persist a
-            // source frame as an encrypted embed. Refuse it explicitly so the
-            // broker never waits for an attachment that cannot be saved.
-            guard state.status == .live, let callID = state.callID, frame["call_id"]?.string == callID,
-                  let userID = frame["user_message_id"]?.string, !userID.isEmpty, userID.utf8.count <= 128,
-                  let frameID = frame["frame_id"]?.string, !frameID.isEmpty, frameID.utf8.count <= 128,
-                  (frame["data"]?.string?.utf8.count ?? .max) <= NativeVoiceCallWire.maximumSourceFrameCharacters,
-                  frame["captured_at"]?.number != nil, frame["created_at"]?.number != nil else { return }
-            try await input(["type": .string("source_frame_failed"), "call_id": .string(callID),
-                "user_message_id": .string(userID), "frame_id": .string(frameID)], token: token, scope: scope)
-            state.cameraNotice = .sourceFrameFailed
-            await publish()
+            // The core saves the exact frame the server selected as an encrypted image
+            // embed; the answer (saved or failed) goes back on the same input path.
+            guard state.status == .live, let callID = state.callID, frame["call_id"]?.string == callID else { return }
+            let answer: NativeVoiceCallFrame?
+            if let answerSourceFrame { answer = await answerSourceFrame(frame, callID, scope.chatID) }
+            else { answer = NativeVoiceCallWire.sourceFrameFailure(frame: frame, callID: callID) }
+            guard let answer else { return }
+            try await input(answer, token: token, scope: scope)
+            if answer["type"]?.string == "source_frame_failed" {
+                state.cameraNotice = .sourceFrameFailed
+                await publish()
+            }
         case "text_input.accepted", "source", "waiting", "progress": break
         case "text_input_rejected":
             guard let id = frame["message_id"]?.string, pendingTyped.removeValue(forKey: id) != nil else { return }
@@ -482,11 +513,11 @@ actor NativeVoiceCallController {
         case "billing_activity":
             guard state.status == .live, frame["call_id"]?.string == state.callID,
                   frame["input_listening"]?.bool != nil, frame["processing"]?.bool != nil else { return }
-            updateActivity()
             state.inputListening = frame["input_listening"]?.bool ?? false
             providerProcessing = frame["processing"]?.bool ?? false
             state.processing = providerProcessing || assistantActive
-            activityUpdatedAt = environment.now()
+            clock.applyActivity(nowMs: nowMs, inputListening: state.inputListening, processing: providerProcessing)
+            updateActivity()
             await publish()
         case "usage": await event(.usage(frame))
         case "voice_compression_started": break
@@ -494,7 +525,11 @@ actor NativeVoiceCallController {
         case "error":
             let code = frame["code"]?.string
             await finish(error: code == "context_too_large" ? .contextTooLarge : .callUnavailable)
-        default: throw NativeVoiceCallError.invalidResponse
+        default:
+            // Well-formed frame of a type this client does not know (for example
+            // opt-in turn hints): ignore it; malformed frames fail earlier.
+            guard !kind.isEmpty, kind.utf8.count <= 64 else { throw NativeVoiceCallError.invalidResponse }
+            NativeDiagnostics.info("Voice call ignored unknown frame type \(kind)", category: "voice_call")
         }
     }
 
@@ -517,12 +552,13 @@ actor NativeVoiceCallController {
         catch { await fail((error as? NativeVoiceCallError) ?? .connectionLost, token: token) }
     }
 
+    private var nowMs: Double { environment.now().timeIntervalSince1970 * 1000 }
+    /// Reads the core clock: it counts while activity is unknown or the server
+    /// reports listening/processing; assistant playback is not an input.
     private func updateActivity() {
-        let now = environment.now()
-        if let previous = activityUpdatedAt, state.inputListening || state.processing {
-            state.activeSeconds += max(0, now.timeIntervalSince(previous))
-        }
-        activityUpdatedAt = now
+        let reading = clock.tick(nowMs: nowMs)
+        state.activeSeconds = TimeInterval(reading.activeElapsedSeconds)
+        state.activityDimmed = reading.dimmed
     }
     func hangup() async {
         guard state.status == .connecting || state.status == .live else { return }

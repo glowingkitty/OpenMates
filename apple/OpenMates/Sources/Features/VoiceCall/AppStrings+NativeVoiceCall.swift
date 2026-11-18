@@ -11,6 +11,7 @@ extension AppStrings {
         case .contextUnavailable: key = "context_unavailable"
         case .contextTooLarge: key = "context_too_large"
         case .persistenceFailed: key = "transcript_save_failed"
+        case .microphoneDenied: key = "microphone_denied"
         case .audioUnavailable, .audioQueueFull: key = "microphone_failed"
         case .scopeChanged: key = "session_expired"
         case .invalidResponse: key = "invalid_response"

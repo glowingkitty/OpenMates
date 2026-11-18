@@ -128,6 +128,7 @@ import SettingsFreeTestingCreditsBudget from "./server/SettingsFreeTestingCredit
 import SettingsAnonymousFreeUsageBudget from "./server/SettingsAnonymousFreeUsageBudget.svelte";
 import SettingsTests from "./server/SettingsTests.svelte";
 import SettingsLogs from "./SettingsLogs.svelte";
+import SettingsSafetyReviews from "./server/SettingsSafetyReviews.svelte";
 
 // Mates
 import SettingsMates from "./SettingsMates.svelte";
@@ -263,6 +264,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "server/free-testing-credits": SettingsFreeTestingCreditsBudget,
   "server/anonymous-free-usage": SettingsAnonymousFreeUsageBudget,
   "server/tests": SettingsTests,
+  "server/safety-reviews": SettingsSafetyReviews,
   // Admin logs viewer
   logs: SettingsLogs,
 };

@@ -61,7 +61,7 @@ pub struct HostedProposal {
 /// server issues the tool arguments verbatim (`{path, new_path}` for a
 /// rename, `{path}` for a delete; contract "Job payloads").
 pub(super) fn job_mutation(job: &HostedFileJob) -> HostedResult<Option<HostedFileMutation>> {
-    if !job.operation.is_mutation() {
+    if !job.operation.is_mutation() || job.operation == HostedFileOperation::ApplyChanges {
         return Ok(None);
     }
     let mut fields = job.arguments.clone();
@@ -105,24 +105,6 @@ impl Projects<'_> {
         }))
     }
 
-    /// Cookie-only resolution of one Project plus its decoded settings.
-    pub(super) async fn hosted_project(
-        &mut self,
-        selector: &str,
-    ) -> HostedResult<(String, Key, Value)> {
-        self.hosted_client()?;
-        self.scope()?;
-        let project = self.resolve(selector).await?;
-        let project_id = string(&project.raw, "project_id")?.to_owned();
-        let route = self.path(&format!("/v1/projects/{project_id}/settings"), &[]);
-        let data = self
-            .backend
-            .request(Method::GET, &route, None, None)
-            .await?;
-        let settings = super::super::decode_settings(&data["settings"], &project.key)?;
-        Ok((project_id, project.key, settings))
-    }
-
     async fn hosted_run(
         &mut self,
         selector: &str,
@@ -134,8 +116,11 @@ impl Projects<'_> {
         let (project_id, key, settings) = self.hosted_project(selector).await?;
         let private = private_paths(&settings)?;
         let mut chat_key = None;
-        if let Some(mutation) = &mutation {
-            mutation.validate()?;
+        let batch = job.operation == HostedFileOperation::ApplyChanges;
+        if mutation.is_some() || batch {
+            if let Some(mutation) = &mutation {
+                mutation.validate()?;
+            }
             uuid(&job.chat_id)?;
             // projects.files.chat-focus-required: this chat's own active focus
             // must be in this Project (the server re-checks on commit).
@@ -155,6 +140,11 @@ impl Projects<'_> {
                 None => return refused("write_policy_required"),
                 Some(ProjectWriteMode::ApplyAndShow) => {}
                 Some(ProjectWriteMode::AlwaysAsk) => {
+                    // A batch has no single proposal to approve (see
+                    // `apply_changes`): it is refused as a whole.
+                    let Some(mutation) = mutation.as_ref().filter(|_| !batch) else {
+                        return refused("approval_required");
+                    };
                     let approve =
                         approval.ok_or(HostedFileError::Refused("write_approval_required"))?;
                     if !approve(mutation)? {

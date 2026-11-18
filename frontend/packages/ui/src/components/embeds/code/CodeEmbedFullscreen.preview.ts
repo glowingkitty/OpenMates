@@ -77,6 +77,15 @@ export const variants = {
     hasPreviousEmbed: false,
     hasNextEmbed: false,
   },
+	/** A Project code file opened from its Project: the header shows the round Edit button. */
+	editableInProject: {
+		...defaultProps,
+		data: codeData('def greet(name):\n    return f"Hello, {name}!"\n', 'python', 'greet.py', 2),
+		embedId: 'preview-project-code',
+		projectId: 'preview-project',
+		hasPreviousEmbed: false,
+		hasNextEmbed: false
+	},
 	/** Single embed — no navigation arrows */
 	singleEmbed: {
 		...defaultProps,

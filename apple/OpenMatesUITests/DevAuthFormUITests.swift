@@ -145,8 +145,8 @@ import UIKit
     }
 
     // contract-test: supporting surface=gui.apple assertions=auth.surface.first-party-boundary
-    func testSignupBenefitsStayInVerticalOrderAndDisclaimerLinksRemainActions() {
-        var app = launch("signup", "basics")
+    func testSignupStartsOnBasicsWithBenefitsInVerticalOrder() {
+        let app = launch("signup", "basics")
         let benefits = (0..<4).map { app.staticTexts["signup-advantage-\($0)"] }
         for benefit in benefits {
             XCTAssertTrue(benefit.waitForExistence(timeout: 5))
@@ -158,20 +158,8 @@ import UIKit
         }
         XCTAssertFalse(app.buttons["signup-submit"].isEnabled)
         attachScreenshot("Signup benefits and consent layout")
-        app.terminate()
 
-        app = launch("signup", "alpha-disclaimer")
-        for (identifier, destination) in [
-            ("signup-alpha-github-link", "https://github.com/glowingkitty/OpenMates"),
-            ("signup-alpha-instagram-link", "https://instagram.com/openmates_official")
-        ] {
-            tap(app.buttons[identifier], in: app)
-            XCTAssertEqual(app.staticTexts["fixture-auth-destination"].label, destination)
-            tap(app.buttons["fixture-auth-return"], in: app)
-            XCTAssertFalse(app.textFields["signup-email"].exists)
-        }
-        tap(app.buttons["signup-alpha-continue"], in: app)
-        XCTAssertTrue(app.textFields["signup-email"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["signup-email"].exists)
         XCTAssertEqual(app.switches["signup-terms"].value as? String, "Off")
         XCTAssertEqual(app.switches["signup-privacy"].value as? String, "Off")
     }

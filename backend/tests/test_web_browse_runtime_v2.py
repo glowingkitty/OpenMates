@@ -345,6 +345,20 @@ def test_snapshot_excludes_private_fields_and_covers_shadow_and_frames():
     assert "scrollIntoView" in rt.PREPARE_JS
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.structured-data
+def test_snapshot_keeps_controls_nearest_the_viewport_and_links_beyond_the_window():
+    # A long product grid: menu links first in page order must not take the
+    # control window from the offers the user is looking at.
+    assert "__MAX_" not in rt.SNAPSHOT
+    assert f"ranked.slice(0,{rt.MAX_CONTROLS})" in rt.SNAPSHOT
+    assert "sort((a,b)=>a.d-b.d||a.i-b.i)" in rt.SNAPSHOT
+    # The chosen controls keep page order, so ids stay stable and readable.
+    assert "sort((a,b)=>a.i-b.i)" in rt.SNAPSHOT
+    # Links come from every candidate, nearest first, unique and bounded.
+    assert f".slice(0,{rt.MAX_LINKS})" in rt.SNAPSHOT and "seenLinks" in rt.SNAPSHOT
+    assert rt.MAX_CONTROLS < rt.MAX_LINKS < rt.MAX_CANDIDATES
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop
 def test_batch_stop_and_settle_decisions():
     assert rt.batch_stops("a", "b", 0, 0)
@@ -354,3 +368,42 @@ def test_batch_stop_and_settle_decisions():
     assert not rt.settle_ready(1, 5, 5)
     assert not rt.settle_ready(0, 0.1, 5)
     assert not rt.settle_ready(0, 5, 0.1)
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop
+def test_snapshot_describes_form_state_for_custom_radios_and_wrapped_checkboxes():
+    assert "[role=radio],[role=option],[role=switch]" in rt.SNAPSHOT
+    assert "e.closest('label')?.innerText" in rt.SNAPSHOT.split("const signature")[0]
+    for attr in ("aria-checked", "aria-selected", "aria-pressed"):
+        assert f"'{attr}'" in rt.SNAPSHOT
+    assert "checked:checkedOf(e)" in rt.SNAPSHOT and "group:groupOf(e)" in rt.SNAPSHOT
+    assert "legend" in rt.SNAPSHOT and "[role=radiogroup],[role=group]" in rt.SNAPSHOT
+    assert "aria-required" in rt.SNAPSHOT and "slice(0,120)" in rt.SNAPSHOT
+    # A toggled control must not match the signature of its earlier state.
+    assert "e.checked,e.getAttribute('aria-checked')" in rt.SNAPSHOT
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.form-with-user
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.form-with-user
+async def test_quiesce_waits_for_pending_requests_and_stays_bounded(monkeypatch):
+    import asyncio
+
+    runtime = make_runtime("https://example.com/form")
+    runtime.in_flight = 1
+    request = SimpleNamespace(is_navigation_request=lambda: False, frame=None)
+
+    async def finish():
+        await asyncio.sleep(0.2)
+        runtime.on_request_done(request)
+
+    done = asyncio.create_task(finish())
+    reply = await runtime.command({"operation": "quiesce", "seconds": 5})
+    await done
+    assert reply["in_flight"] == 0 and 0.2 <= reply["waited"] < 5
+    runtime.in_flight = 1
+    stuck = await runtime.command({"operation": "quiesce", "seconds": 0.2})
+    assert stuck["in_flight"] == 1 and stuck["waited"] < 1
+    monkeypatch.setattr(rt, "QUIESCE_MAX_SECONDS", 0.1)
+    capped = await runtime.command({"operation": "quiesce", "seconds": 999})
+    assert capped["waited"] < 0.5

@@ -75,8 +75,14 @@ def authored_card_kind(record: Mapping[str, Any], content: Any) -> str | None:
 async def resolve_existing_card(
     service: Any, reference: str, *, index: Mapping[str, Any] | None, chat_id: str,
     user_id_hash: str, user_vault_key_id: str, log_prefix: str = "",
+    include_skill_results: bool = False,
 ) -> ExistingCard | None:
-    """Resolve one model-supplied ref to a reusable card of this chat, else None."""
+    """Resolve one model-supplied ref to a reusable card of this chat, else None.
+
+    With ``include_skill_results`` a finished skill result card of an admitted
+    kind (for example a travel connection from ``search_connections``) is also
+    reusable, so an authored block can show the complete card instead of a copy.
+    """
     embed_id = index.get(reference) if isinstance(index, Mapping) else None
     if not isinstance(embed_id, str) or not embed_id:
         return None
@@ -87,6 +93,11 @@ async def resolve_existing_card(
     toon = await service._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
     content = decode(toon) if toon else None
     kind = authored_card_kind(record, content)
+    if kind is None and include_skill_results:
+        # Local import: the reuse module imports this module's chat-scope check.
+        from backend.core.api.app.services.authored_skill_result_reuse import skill_result_card_kind
+
+        kind = skill_result_card_kind(record, content)
     if kind is None:
         return None
     version = record.get("version_number") or content.get("version_number") or 1

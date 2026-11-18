@@ -8,6 +8,8 @@ import type { FirstSessionTerminal,LocalReadPlanState } from "./protocol";
 import { clearPasswordRequest,validFirstSessionStop,validRequest } from "./protocol";
 import { OwnedSendOperation } from "./sendOperation";
 import { dispatch } from "./workerDispatch";
+import type { PendingSocketQueue } from "./workerSocketQueue";
+import { newSocketQueue } from "./workerSocketQueue";
 import type { BrowserCoreBinding,CacheMonitorSlot,OwnedCacheRequest,OwnedCacheSlot,ProfileCacheSlot,RustCacheMonitor,RustClient,RustFirstSessionControl,RustInitialSyncStoreBootstrap,RustRecoveryBootstrap,RustRecoveryPort,RustStatus,WorkerConfiguration,WorkerEndpoint } from "./workerRuntimeTypes";
 import { projectStatus } from "./workerRuntimeTypes";
 
@@ -32,6 +34,7 @@ export interface WorkerRuntimeState {
   failedRecoveryPorts: Set<RustRecoveryPort>;
   reading: RustClient | null;
   sending: OwnedSendOperation | null;
+  socketQueue: PendingSocketQueue;
   casReply: {id:number;effectId:number;operationId:string;resolve:(value:string)=>void;reject:(error:string)=>void}|null;
   localRead: { planState: LocalReadPlanState; id: number; live: boolean; effectId: number; operationId?: string;
     reply: { effectId: number; operationId: string; maxBytes: number; resolve(packet: string): void; reject(error: string): void } | null } | null;
@@ -101,6 +104,7 @@ export const clearClient = (rt: WorkerRuntimeState) => {
     rt.foregroundRecoveryClient=null;
     retireRecoveryPort(rt);
     retireCacheMonitor(rt, rt.cacheMonitor);
+    rt.socketQueue=newSocketQueue();
     const owned=rt.client;rt.client=null;
     // Revoke when the actual mutable phase returns; free only after original
     // driver owners have also drained. No copied status/census authorizes IO.

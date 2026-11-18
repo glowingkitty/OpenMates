@@ -141,3 +141,81 @@ fn collapse_nodes(nodes: &[InlineNode]) -> Vec<InlineNode> {
 pub(crate) fn normalise_inline(source: &str) -> Result<String, &'static str> {
     parse_inline(source).map(|nodes| normalise_nodes(&nodes))
 }
+
+/// One styled stretch of text of a flattened text box (see [`inline_runs`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InlineRun {
+    /// Plain text; `"\n"` for a line break; list items carry their marker (`• `, `1. `).
+    pub text: String,
+    /// Bold.
+    pub bold: bool,
+    /// Italic.
+    pub italic: bool,
+    /// Underlined.
+    pub underline: bool,
+    /// Struck through.
+    pub strike: bool,
+}
+
+/// Flattens normalised inline markup into styled runs for shells that draw attributed
+/// text (lists become marker-prefixed lines). Markup the parser refuses yields a single
+/// plain run of the unparsed source so nothing is silently lost.
+pub fn inline_runs(source: &str) -> Vec<InlineRun> {
+    let Ok(nodes) = parse_inline(source) else {
+        return vec![InlineRun {
+            text: source.to_string(),
+            bold: false,
+            italic: false,
+            underline: false,
+            strike: false,
+        }];
+    };
+    let mut runs = Vec::new();
+    flatten(&nodes, (false, false, false, false), None, &mut runs);
+    runs
+}
+
+fn flatten(
+    nodes: &[InlineNode],
+    style: (bool, bool, bool, bool),
+    list: Option<bool>,
+    runs: &mut Vec<InlineRun>,
+) {
+    let mut item_index = 0usize;
+    let push = |runs: &mut Vec<InlineRun>, text: String| {
+        runs.push(InlineRun {
+            text,
+            bold: style.0,
+            italic: style.1,
+            underline: style.2,
+            strike: style.3,
+        });
+    };
+    for node in nodes {
+        match node {
+            InlineNode::Text(text) => push(runs, text.clone()),
+            InlineNode::Break => push(runs, "\n".to_string()),
+            InlineNode::Span { tag, children } => match *tag {
+                "b" => flatten(children, (true, style.1, style.2, style.3), list, runs),
+                "i" => flatten(children, (style.0, true, style.2, style.3), list, runs),
+                "u" => flatten(children, (style.0, style.1, true, style.3), list, runs),
+                "s" => flatten(children, (style.0, style.1, style.2, true), list, runs),
+                "ul" => flatten(children, style, Some(false), runs),
+                "ol" => flatten(children, style, Some(true), runs),
+                _ => {
+                    item_index += 1;
+                    if !runs.is_empty() && runs.last().is_some_and(|run| run.text != "\n") {
+                        push(runs, "\n".to_string());
+                    }
+                    let marker = if list == Some(true) {
+                        format!("{item_index}. ")
+                    } else {
+                        "\u{2022} ".to_string()
+                    };
+                    push(runs, marker);
+                    flatten(children, style, None, runs);
+                }
+            },
+        }
+    }
+}

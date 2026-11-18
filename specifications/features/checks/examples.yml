@@ -33,6 +33,52 @@ grouped_check_sources:
     input: {source_ref: {project_source_id: opencode-dev, path: backend/tests/test_teams.py, test_selector: test_unique_team_key, revision: git-abc}}
     expect: {raw_path_only: false, exact_revision_openable: true, code_embed_optional: true}
 
+mixed_sources:
+  - id: signup-with-passkey-mixed
+    input:
+      check: signup-works-passkey
+      requires_deterministic: false
+      sources:
+        - {kind: e2e, source: signup-flow-passkey.spec.ts, role: required}
+        - {kind: unit, source: test_signup_passkey_registration.py, role: required}
+        - {kind: ai_evaluation, question: "Is the passkey step explained in plain language without jargon?", role: supporting}
+        - {kind: human_confirmation, instruction: "Create a passkey on a real iPhone", role: required}
+      source_results: [{source: e2e, status: passed}, {source: unit, status: passed}, {source: ai_evaluation, status: failed}, {source: human_confirmation, status: pending}]
+    expect: {aggregate_status: waiting_for_confirmation, reported_as_failed: false, ai_result_visible: true, ai_result_gates: false, each_source_keeps_own_type: true}
+  - id: human-confirms-then-green
+    input: {check: signup-works-passkey, previous_status: waiting_for_confirmation, human_decision: confirmed}
+    expect: {aggregate_status: passed}
+  - id: human-rejects
+    input: {check: signup-works-passkey, previous_status: waiting_for_confirmation, human_decision: rejected}
+    expect: {aggregate_status: failed}
+  - id: required-ai-question-fails
+    input:
+      check: plan-detail-readable
+      sources:
+        - {kind: e2e, source: plan-detail-preview.spec.ts, role: required}
+        - {kind: ai_evaluation, question: "Can a non-technical reader tell which assumptions are still open?", role: required}
+      source_results: [{source: e2e, status: passed}, {source: ai_evaluation, status: failed, verdict: failed}]
+    expect: {aggregate_status: failed, feedback_present: true}
+  - id: security-claim-without-deterministic-source
+    input:
+      check: viewer-cannot-mutate-team
+      requires_deterministic: true
+      sources:
+        - {kind: ai_evaluation, question: "Does the code prevent viewers from editing?", role: required}
+        - {kind: human_confirmation, instruction: "Try to edit as a viewer", role: required}
+    expect_error: {code: CHECK_DETERMINISTIC_SOURCE_REQUIRED, revision_accepted: false}
+  - id: security-claim-with-deterministic-and-ai
+    input:
+      check: viewer-cannot-mutate-team
+      requires_deterministic: true
+      sources:
+        - {kind: integration, source: test_team_permissions.py, role: required}
+        - {kind: ai_evaluation, question: "Is the permission error message understandable?", role: supporting}
+    expect: {revision_accepted: true}
+  - id: result-type-must-match-binding
+    input: {binding_kind: unit, reported_result_kind: human_confirmation}
+    expect_error: {code: CHECK_RESULT_MISMATCH, result_accepted: false}
+
 test_catalog:
   - id: index-large-repository
     input: {repository_test_count: 5000}
@@ -55,19 +101,19 @@ check_runs:
     input: {latest_pass_check_revision: 3, current_check_revision: 4}
     expect: {status: stale, rerun_required: true}
   - id: result-kind-and-status-must-match
-    input: {check_kind: ai_evaluation, result_kind: human_confirmation, ai_verdict: failed, run_status: passed}
-    expect_error: {code: CHECK_RESULT_MISMATCH, run_accepted: false}
+    input: {binding_kind: ai_evaluation, result_kind: human_confirmation, ai_verdict: failed, source_status: passed}
+    expect_error: {code: CHECK_RESULT_MISMATCH, result_accepted: false}
 
 check_types:
   - id: deterministic-playwright
-    input: {kind: deterministic, source: plans-flow.spec.ts}
-    expect: {runner_required: true, human_decision_required: false}
+    input: {source_kind: e2e, source: plans-flow.spec.ts}
+    expect: {runner_required: true, human_decision_required: false, deterministic: true}
   - id: qualitative-design-review
-    input: {kind: ai_evaluation, subject: plan_detail_screenshots}
-    expect: {rubric_required: true, score_and_feedback_required: true}
+    input: {source_kind: ai_evaluation, question: "Is the plan detail hierarchy clear?", subject: plan_detail_screenshots}
+    expect: {question_required: true, verdict_and_feedback_required: true, deterministic: false}
   - id: physical-device-confirmation
-    input: {kind: human_confirmation, subject: hardware_button_works}
-    expect: {named_confirmation_required: true, fake_automated_pass: false}
+    input: {source_kind: human_confirmation, subject: hardware_button_works}
+    expect: {named_confirmation_required: true, fake_automated_pass: false, pending_shows: waiting_for_confirmation}
 
 ai_evaluation:
   - id: below-threshold
@@ -79,13 +125,16 @@ ai_evaluation:
       total: 78
     expect: {verdict: failed, feedback_present: true, required_fixes_present: true}
   - id: security-claim-needs-deterministic-proof
-    input: {claim: viewer_cannot_mutate_team, proposed_kind: ai_evaluation}
-    expect: {accepted_as_only_check: false, deterministic_check_required: true}
+    input: {claim: viewer_cannot_mutate_team, proposed_sources: [ai_evaluation]}
+    expect: {accepted_as_only_source: false, deterministic_source_required: true}
 
 human_confirmation:
   - id: user-approves-subjective-ui
     input: {subject: intended_visual_hierarchy, confirmer: user-1, decision: confirmed}
     expect: {timestamp_present: true, plan_may_continue: true}
+  - id: pending-confirmation-is-not-failure
+    input: {required_sources: [{kind: e2e, status: passed}, {kind: human_confirmation, status: pending}]}
+    expect: {check_status: waiting_for_confirmation, failed_visible: false}
   - id: inaccessible-external-system
     input: {subject: partner_portal_configuration, confirmer: user-1, decision: blocked}
     expect: {check_status: blocked, silent_pass: false}

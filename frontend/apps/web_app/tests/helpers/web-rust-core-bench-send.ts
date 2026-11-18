@@ -28,7 +28,6 @@ const { createBenchProfiler } = require('./bench-profile');
 const { rustCoreInstances } = require('./rust-core-instances');
 
 const HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
-const CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
 /** sessionStorage switch of recordSendPreparationPhase (chatSyncService.ts). */
 const SEND_PREP_TIMING_KEY = 'openmates:send-prep-timing';
 /** Approved budget (.claude/rules/cli-sdk.md): wall within max(+margin, +50 ms), p95 at most +100 ms, CPU within +15%. */
@@ -61,7 +60,7 @@ async function sendSample(page: any, arm: Arm, index: number, ctx: { processes: 
 	await page.evaluate(([keys, ts, prepKey]: [string[], boolean, string]) => {
 		for (const key of keys) { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); }
 		sessionStorage.setItem(prepKey, '1');
-	}, [[HISTORY_OPT_OUT_KEY, CRYPTO_OPT_OUT_KEY], arm === 'ts', SEND_PREP_TIMING_KEY]);
+	}, [[HISTORY_OPT_OUT_KEY], arm === 'ts', SEND_PREP_TIMING_KEY]);
 	await page.goto(getE2EDebugUrl('/'));
 	await page.reload();
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
@@ -174,7 +173,7 @@ async function runSendBench(page: any, options: { pairs: number; margin: number;
 			}
 		}
 	} finally {
-		await page.evaluate((keys: string[]) => { for (const key of keys) localStorage.removeItem(key); }, [HISTORY_OPT_OUT_KEY, CRYPTO_OPT_OUT_KEY]).catch(() => undefined);
+		await page.evaluate((keys: string[]) => { for (const key of keys) localStorage.removeItem(key); }, [HISTORY_OPT_OUT_KEY]).catch(() => undefined);
 	}
 	const column = (metric: string) => pairs.map((pair) => ({ ts: pair.ts[metric], rust: pair.rust[metric] }));
 	// Per send-preparation phase: paired difference (rust - ts) in ms, reported only (not gated).

@@ -2004,6 +2004,25 @@
    }
   },
   {
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   }
+  },
+  {
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
    "producerSkill": "search",
    "fields": null,
    "out": {
@@ -2068,6 +2087,27 @@
    }
   },
   {
+   "producerSkill": "search",
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "app_id": "openmates",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerSkill": "search",
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
    "producerSkill": null,
    "fields": null,
    "out": null
@@ -2125,6 +2165,27 @@
    }
   },
   {
+   "producerSkill": null,
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   }
+  },
+  {
+   "producerSkill": null,
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
    "producerSkill": "Bad",
    "fields": null,
    "out": {
@@ -2187,6 +2248,193 @@
    }
   },
   {
+   "producerSkill": "Bad",
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "Bad",
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "start-chat",
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "start-chat",
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "app_id": "web",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerSkill": "start-chat",
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "start-chat",
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "app_id": "web",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerSkill": "start-chat",
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "start-chat",
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "start-chat",
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "app_id": "openmates",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerSkill": "start-chat",
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "-x",
+   "fields": {},
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "-x",
+   "fields": {
+    "app_id": "web",
+    "skill_id": "search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "-x",
+   "fields": {
+    "app_id": null,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "-x",
+   "fields": {
+    "app_id": "web"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "-x",
+   "fields": {
+    "skill_id": "Search"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "-x",
+   "fields": {
+    "app_id": 7,
+    "skill_id": "x"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "-x",
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerSkill": "-x",
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
    "producerApp": null,
    "fields": null,
    "out": null
@@ -2245,6 +2493,43 @@
   },
   {
    "producerApp": null,
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   }
+  },
+  {
+   "producerApp": null,
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
    "producerSkill": "search",
    "fields": null,
    "out": {
@@ -2343,11 +2628,15 @@
   },
   {
    "producerApp": null,
-   "producerSkill": "Bad",
+   "producerSkill": null,
    "fields": null,
-   "out": {
-    "error": "Recovered embed catalog identity was invalid."
-   }
+   "out": null
+  },
+  {
+   "producerApp": null,
+   "producerSkill": null,
+   "fields": null,
+   "out": null
   },
   {
    "producerApp": null,
@@ -2392,6 +2681,174 @@
   {
    "producerApp": null,
    "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": null,
+   "producerSkill": "-x",
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -2464,6 +2921,46 @@
   },
   {
    "producerApp": "app_1",
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "report-to-creator"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "app_1",
    "producerSkill": "search",
    "fields": null,
    "out": {
@@ -2583,7 +3080,15 @@
   },
   {
    "producerApp": "app_1",
-   "producerSkill": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": null,
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -2632,6 +3137,183 @@
   {
    "producerApp": "app_1",
    "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "app_1",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "app_1",
+   "producerSkill": "-x",
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -2701,6 +3383,42 @@
   },
   {
    "producerApp": "Bad",
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
    "producerSkill": "search",
    "fields": null,
    "out": {
@@ -2813,7 +3531,15 @@
   },
   {
    "producerApp": "Bad",
-   "producerSkill": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": null,
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -2862,6 +3588,174 @@
   {
    "producerApp": "Bad",
    "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "Bad",
+   "producerSkill": "-x",
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -2931,6 +3825,42 @@
   },
   {
    "producerApp": "",
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
    "producerSkill": "search",
    "fields": null,
    "out": {
@@ -3043,7 +3973,15 @@
   },
   {
    "producerApp": "",
-   "producerSkill": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": null,
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -3092,6 +4030,174 @@
   {
    "producerApp": "",
    "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "",
+   "producerSkill": "-x",
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -3164,6 +4270,46 @@
   },
   {
    "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "report-to-creator"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "search"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
    "producerSkill": "search",
    "fields": null,
    "out": {
@@ -3283,7 +4429,15 @@
   },
   {
    "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-   "producerSkill": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -3332,6 +4486,183 @@
   {
    "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
    "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "app_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_id": "start-chat"
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -3401,6 +4732,42 @@
   },
   {
    "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
    "producerSkill": "search",
    "fields": null,
    "out": {
@@ -3513,7 +4880,15 @@
   },
   {
    "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-   "producerSkill": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": null,
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -3562,6 +4937,174 @@
   {
    "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
    "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "producerSkill": "-x",
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -3631,6 +5174,42 @@
   },
   {
    "producerApp": 5,
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
    "producerSkill": "search",
    "fields": null,
    "out": {
@@ -3743,7 +5322,15 @@
   },
   {
    "producerApp": 5,
-   "producerSkill": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": null,
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -3792,6 +5379,174 @@
   {
    "producerApp": 5,
    "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": 5,
+   "producerSkill": "-x",
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -3861,6 +5616,42 @@
   },
   {
    "producerApp": "1abc",
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
    "producerSkill": "search",
    "fields": null,
    "out": {
@@ -3973,7 +5764,15 @@
   },
   {
    "producerApp": "1abc",
-   "producerSkill": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": null,
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -4022,6 +5821,174 @@
   {
    "producerApp": "1abc",
    "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "1abc",
+   "producerSkill": "-x",
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -4091,6 +6058,42 @@
   },
   {
    "producerApp": "a-b",
+   "fields": {
+    "app_id": "openmates",
+    "skill_id": "report-to-creator"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "fields": {
+    "app_id": "open-mates",
+    "skill_id": "start-chat"
+   },
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "search",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
    "producerSkill": "search",
    "fields": null,
    "out": {
@@ -4203,7 +6206,15 @@
   },
   {
    "producerApp": "a-b",
-   "producerSkill": "Bad",
+   "producerSkill": null,
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": null,
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."
@@ -4252,6 +6263,174 @@
   {
    "producerApp": "a-b",
    "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "Bad",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "start-chat",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "-x",
+   "fields": null,
+   "out": {
+    "error": "Recovered embed catalog identity was invalid."
+   }
+  },
+  {
+   "producerApp": "a-b",
+   "producerSkill": "-x",
    "fields": null,
    "out": {
     "error": "Recovered embed catalog identity was invalid."

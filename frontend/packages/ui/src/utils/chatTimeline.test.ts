@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 import type { Message } from '../types/chat';
-import { mergeTimelineEntries, pairTimelineExchange, timelinePreviewText, timelineResponseId, bookmarkedTimelineExchanges, buildTimelineExchangeIndex } from './chatTimeline';
+import { timelinePreviewText, bookmarkedTimelineExchanges, buildTimelineExchangeIndex } from './chatTimeline';
 
 const row = (id: string, role: Message['role'], content = '', userId?: string): Message => ({
   message_id: id, chat_id: 'test-chat', created_at: 100, status: 'synced', role, content, user_message_id: userId,
@@ -14,44 +14,6 @@ it('highlights explicit reply associations across human turns and legacy replies
   expect([...bookmarkedTimelineExchanges(entries, new Set(['second', 'legacy']))]).toEqual(['second']);
   expect([...bookmarkedTimelineExchanges(entries, new Set(['answer', 'legacy']))]).toEqual(['first', 'second']);
   expect(bookmarkedTimelineExchanges(entries, new Set()).size).toBe(0);
-});
-
-// contract-test: supporting surface=gui.web assertions=chat-message-timeline.preview-and-activate,chat-message-timeline.full-history-loading
-it('identifies an answer beyond a bounded question window using only the catalogue', () => {
-  const entries = [row('question', 'user'), ...Array.from({ length: 30 }, (_, i) => row(`system-${i}`, 'system')),
-    row('answer', 'assistant', 'An answer outside the question window', 'question')];
-  expect(timelineResponseId(mergeTimelineEntries(entries), 'question')).toBe('answer');
-  expect(pairTimelineExchange(entries.slice(0, 20), 'question').assistant).toBeNull();
-  expect(pairTimelineExchange(entries, 'question').assistant?.message_id).toBe('answer');
-});
-
-// contract-test: supporting surface=gui.web assertions=chat-message-timeline.preview-and-activate
-describe('timeline exchange pairing', () => {
-  it('uses the explicit turn association across consecutive human messages', () => {
-    const first = row('first', 'user', 'First question');
-    const second = row('second', 'user', 'Another participant');
-    const answer = row('answer', 'assistant', 'Reply to the first question', 'first');
-    expect(pairTimelineExchange([first, second, answer], 'first').assistant).toEqual(answer);
-    expect(pairTimelineExchange([first, second, answer], 'second').assistant).toBeNull();
-  });
-  // contract-test: supporting surface=gui.web assertions=chat-message-timeline.preview-and-activate
-  it('pairs legacy answers only before the next user and keeps pending distinct from absent', () => {
-    const rows = [row('first', 'user'), row('system', 'system'), row('answer', 'assistant'), row('second', 'user')];
-    expect(pairTimelineExchange(rows, 'first').assistant?.message_id).toBe('answer');
-    expect(pairTimelineExchange(rows, 'second').pending).toBe(false);
-    expect(pairTimelineExchange(rows, 'second', 'second').pending).toBe(true);
-    expect(() => pairTimelineExchange(rows, 'missing')).toThrow();
-  });
-});
-
-// contract-test: supporting surface=gui.web assertions=chat-message-timeline.full-history-loading,chat-message-timeline.access-and-lifecycle
-it('keeps ten thousand stable identities without copying private bodies into the catalogue', () => {
-  const rows = Array.from({ length: 10000 }, (_, i) => ({ ...row(String(i).padStart(5, '0'), 'user', 'Private text'), created_at: i }));
-  const catalogue = mergeTimelineEntries(rows.slice(0, 6000), rows.slice(4000));
-  expect(catalogue).toHaveLength(10000);
-  expect(catalogue[0].message_id).toBe('00000');
-  expect(catalogue[catalogue.length - 1]?.message_id).toBe('09999');
-  expect(catalogue.every(entry => !('content' in entry))).toBe(true);
 });
 
 // contract-test: supporting surface=gui.web assertions=chat-message-timeline.preview-and-activate,chat-message-timeline.access-and-lifecycle

@@ -15,6 +15,7 @@
     formatDuration,
     parseTestResult,
     resolveArtifactEvidenceUrl,
+    testResultTitle,
     type EvidenceUrlResolver,
   } from './testResultContent';
 
@@ -73,14 +74,16 @@
     let cancelled = false;
     resolveEvidenceUrl(evidence).then((url) => {
       if (!cancelled) frameUrl = url;
-    }).catch(() => {
+    }).catch((error) => {
+      // Never silent: a missing frame otherwise looks like a run without evidence.
+      console.warn('[TestResultEmbedPreview] evidence frame unavailable:', error instanceof Error ? error.message : error);
       if (!cancelled) frameFailed = true;
     });
     return () => { cancelled = true; };
   });
 
   let statusLabel = $derived($text(`embeds.code.test_result.status_${view.runStatus}`));
-  let title = $derived(view.target || $text('embeds.code.test_result.title'));
+  let title = $derived(testResultTitle(view, $text('embeds.code.test_result.title')));
   let showFrame = $derived(Boolean(frameUrl) && !frameFailed);
 </script>
 
@@ -105,7 +108,7 @@
       {#if view.kind === 'browser'}
         <div class="tr-frame" data-testid="test-result-preview-frame-area">
           {#if showFrame}
-            <img class="tr-frame-img" data-testid="test-result-preview-frame" src={frameUrl} alt={title} loading="lazy" onerror={() => (frameFailed = true)} />
+            <img class="tr-frame-img" data-testid="test-result-preview-frame" src={frameUrl} alt={title} loading="lazy" onerror={() => { console.warn('[TestResultEmbedPreview] evidence frame failed to load'); frameFailed = true; }} />
           {:else}
             <div class="tr-placeholder" data-testid="test-result-preview-placeholder">
               <span class="tr-placeholder-status">{statusLabel}</span>
@@ -141,6 +144,8 @@
   .tr-failed .tr-placeholder, .tr-error .tr-placeholder, .tr-timed_out .tr-placeholder { background: var(--color-error-light); border-bottom: 4px solid var(--color-error); }
   .tr-placeholder-status { font-size: var(--font-size-p); font-weight: 600; color: var(--color-font-secondary); }
   .tr-info { display: flex; flex-direction: column; gap: var(--spacing-3); padding: var(--spacing-6) var(--spacing-12); flex: 0 0 auto; justify-content: center; }
+  /* Wide cards are the grouped carousel: clear its bottom arrows (10px inset + 36px). */
+  @container result-card (min-width: 401px) { .tr-info { padding-inline: calc(var(--spacing-12) + 32px); } }
   .tr-preview:not(:has(.tr-frame)) .tr-info { flex: 1 1 auto; }
   .tr-target { margin: 0; font-size: var(--font-size-p); font-weight: 600; color: var(--color-font-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tr-row { display: flex; flex-wrap: wrap; gap: var(--spacing-3); }

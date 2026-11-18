@@ -418,6 +418,14 @@ export class GroupRenderer implements EmbedRenderer {
           ),
       ],
       [
+        "slides-template",
+        (item, embedData, decodedContent, content) =>
+          mountSlidesDeckPreview(item, decodedContent, content, () =>
+            this.openFullscreen(item, embedData, decodedContent),
+            true,
+          ),
+      ],
+      [
         "sheets-sheet",
         (item, embedData, decodedContent, content) =>
           this.renderSheetComponent(item, embedData, decodedContent, content),
@@ -2013,6 +2021,25 @@ export class GroupRenderer implements EmbedRenderer {
             skillId,
             status,
             isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "plans" && (skillId === "specification" || skillId === "check" || skillId === "create")) {
+        // Spec-driven flow drafts: same preview inside groups as standalone.
+        const { default: Preview } = skillId === "specification"
+          ? await import("../../../embeds/specifications/SpecificationSkillEmbedPreview.svelte")
+          : skillId === "check"
+            ? await import("../../../embeds/checks/CheckSkillEmbedPreview.svelte")
+            : await import("../../../embeds/plans/PlanCreateEmbedPreview.svelte");
+        const component = mount(Preview, {
+          target,
+          props: {
+            id: embedId,
+            data: decodedContent ?? {},
             onFullscreen: handleFullscreen,
           },
         });

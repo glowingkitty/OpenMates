@@ -21,6 +21,8 @@ from backend.apps.ai.processing.stage_one_handoff import (
     request_fingerprint, routing_turn_is_current, routing_admission_is_current, store_stage_one,
 )
 
+from backend.core.api.app.utils.chat_id import is_valid_uuid
+
 logger = logging.getLogger(__name__)
 EARLY_ACTIVE_SUMMARY_BUDGET_SECONDS = 0.5
 _SOURCE_ROOT = Path(__file__).resolve().parents[4]
@@ -196,6 +198,7 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     fingerprint = request_fingerprint(request.model_dump(mode="json"), config.model_dump(mode="json"))
     logger.info("Stage-one admission current task=%s elapsed_ms=%.1f",
                 inference_task_id, (time.monotonic() - started_at) * 1000)
+    logger.info("PREPROCESS_TIMING step=stage_one_admission ms=%.1f", (time.monotonic() - started_at) * 1000)
 
     async def load_routing_configuration() -> tuple[dict, dict]:
         base = await cache.get_base_instructions() or load_base_instructions()
@@ -221,6 +224,7 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     base, apps = config_task.result()
     logger.info("Stage-one context and catalogue ready task=%s elapsed_ms=%.1f",
                 inference_task_id, (time.monotonic() - started_at) * 1000)
+    logger.info("PREPROCESS_TIMING step=stage_one_context ms=%.1f", (time.monotonic() - started_at) * 1000)
     request.message_history = filter_focus_phase_history(request.message_history, chat_id=request.chat_id)
     overrides = None
     if request.message_history:
@@ -253,6 +257,8 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
             encrypted_key = None
         if encrypted_key:
             return encrypted_key
+        if not is_valid_uuid(request.chat_id):
+            return None
         try:
             rows = await directus.get_items("chats", {
                 "filter[id][_eq]": request.chat_id,
@@ -308,11 +314,14 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
             return None
         if not await _routing_authority_is_current(cache, directus, request, inference_task_id):
             return None
+        # Reaching here means the live credit check passed; main may reuse it briefly.
+        routing["credit_admitted_at"] = time.time()
         reference = await store_stage_one(cache=cache, encryption=encryption, request=request,
             task_id=inference_task_id, fingerprint=fingerprint, routing=routing,
             typing_started=lifecycle.started)
         logger.info("Stage-one sealed handoff ready task=%s elapsed_ms=%.1f",
                     inference_task_id, (time.monotonic() - started_at) * 1000)
+        logger.info("PREPROCESS_TIMING step=stage_one_total ms=%.1f", (time.monotonic() - started_at) * 1000)
         return reference
     finally:
         if not chat_key_task.done():

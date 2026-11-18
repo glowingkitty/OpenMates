@@ -1544,3 +1544,171 @@ xlsx_feature_sheet_limit:
   sv: "blad efter de första 10"
   he: "גיליונות אחרי ה-10 הראשונים"
   verified_by_human: []
+guest_access_checking:
+  context: Screen-reader label of the short loading state shown instead of Send while the app checks whether a signed-out visitor can chat as a guest
+  en: Checking whether you can chat without an account…
+  de: Wir prüfen, ob du ohne Konto chatten kannst …
+  zh: 正在检查您是否可以无账户聊天…
+  es: Comprobando si puedes chatear sin cuenta…
+  fr: Vérification de la possibilité de discuter sans compte…
+  pt: Verificando se você pode conversar sem conta…
+  ru: Проверяем, можно ли общаться без аккаунта…
+  ja: アカウントなしでチャットできるか確認しています…
+  ko: 계정 없이 채팅할 수 있는지 확인하는 중…
+  it: 'Verifica in corso: puoi chattare senza account?…'
+  tr: Hesap olmadan sohbet edip edemeyeceğiniz kontrol ediliyor…
+  vi: Đang kiểm tra xem bạn có thể trò chuyện không cần tài khoản…
+  id: Memeriksa apakah Anda bisa mengobrol tanpa akun…
+  pl: Sprawdzamy, czy możesz czatować bez konta…
+  nl: We controleren of je zonder account kunt chatten…
+  ar: جارٍ التحقق مما إذا كان بإمكانك الدردشة بدون حساب…
+  hi: जाँच रहे हैं कि क्या आप बिना खाते के चैट कर सकते हैं…
+  th: กำลังตรวจสอบว่าคุณแชทได้โดยไม่ต้องมีบัญชีหรือไม่…
+  cs: Ověřujeme, zda můžeš chatovat bez účtu…
+  sv: Kontrollerar om du kan chatta utan konto …
+  he: בודקים אם אפשר לצ׳וטט בלי חשבון…
+  verified_by_human: []
+guest_access_logged_in_before:
+  context: Reason shown next to the Log in button when a signed-out browser has logged in to OpenMates before, so guest chat is not offered
+  en: You've logged in on this device before. Log in to keep chatting.
+  de: Du hast dich auf diesem Gerät schon einmal angemeldet. Melde dich an, um weiterzuchatten.
+  zh: 您之前在此设备上登录过。请登录以继续聊天。
+  es: Ya iniciaste sesión en este dispositivo. Inicia sesión para seguir chateando.
+  fr: Vous vous êtes déjà connecté sur cet appareil. Connectez-vous pour continuer à discuter.
+  pt: Você já entrou neste dispositivo antes. Entre para continuar conversando.
+  ru: Вы уже входили на этом устройстве. Войдите, чтобы продолжить общение.
+  ja: このデバイスでは以前ログインしています。チャットを続けるにはログインしてください。
+  ko: 이 기기에서 로그인한 적이 있습니다. 계속 채팅하려면 로그인하세요.
+  it: Hai già effettuato l'accesso su questo dispositivo. Accedi per continuare a chattare.
+  tr: Bu cihazda daha önce giriş yaptınız. Sohbete devam etmek için giriş yapın.
+  vi: Bạn đã từng đăng nhập trên thiết bị này. Hãy đăng nhập để tiếp tục trò chuyện.
+  id: Anda pernah masuk di perangkat ini. Masuk untuk terus mengobrol.
+  pl: Logowałeś się już na tym urządzeniu. Zaloguj się, aby dalej czatować.
+  nl: Je bent eerder op dit apparaat ingelogd. Log in om verder te chatten.
+  ar: سبق أن سجّلت الدخول على هذا الجهاز. سجّل الدخول لمتابعة الدردشة.
+  hi: आप इस डिवाइस पर पहले लॉग इन कर चुके हैं। चैट जारी रखने के लिए लॉग इन करें।
+  th: คุณเคยเข้าสู่ระบบบนอุปกรณ์นี้แล้ว เข้าสู่ระบบเพื่อแชทต่อ
+  cs: Na tomto zařízení ses už přihlásil. Přihlas se a chatuj dál.
+  sv: Du har loggat in på den här enheten tidigare. Logga in för att fortsätta chatta.
+  he: כבר התחברתם במכשיר הזה. התחברו כדי להמשיך לצ׳וטט.
+  verified_by_human: []
+guest_access_usage_limit:
+  context: Reason shown next to the Sign up button when the free messages without an account are used up for now
+  en: Free messages without an account are used up for now. Sign up to keep chatting.
+  de: Die kostenlosen Nachrichten ohne Konto sind vorerst aufgebraucht. Registriere dich, um weiterzuchatten.
+  zh: 无账户的免费消息暂时已用完。注册即可继续聊天。
+  es: Los mensajes gratis sin cuenta se han agotado por ahora. Regístrate para seguir chateando.
+  fr: Les messages gratuits sans compte sont épuisés pour le moment. Inscrivez-vous pour continuer à discuter.
+  pt: As mensagens grátis sem conta acabaram por enquanto. Cadastre-se para continuar conversando.
+  ru: Бесплатные сообщения без аккаунта пока закончились. Зарегистрируйтесь, чтобы продолжить.
+  ja: アカウントなしの無料メッセージは現在使い切りました。チャットを続けるには登録してください。
+  ko: 계정 없이 쓸 수 있는 무료 메시지를 지금은 모두 사용했습니다. 계속 채팅하려면 가입하세요.
+  it: I messaggi gratuiti senza account sono esauriti per ora. Registrati per continuare a chattare.
+  tr: Hesapsız ücretsiz mesajlar şimdilik tükendi. Sohbete devam etmek için kaydolun.
+  vi: Tin nhắn miễn phí không cần tài khoản tạm thời đã hết. Hãy đăng ký để tiếp tục trò chuyện.
+  id: Pesan gratis tanpa akun habis untuk saat ini. Daftar untuk terus mengobrol.
+  pl: Darmowe wiadomości bez konta na razie się skończyły. Zarejestruj się, aby dalej czatować.
+  nl: De gratis berichten zonder account zijn voorlopig op. Meld je aan om verder te chatten.
+  ar: نفدت الرسائل المجانية بدون حساب مؤقتًا. أنشئ حسابًا لمتابعة الدردشة.
+  hi: बिना खाते के मुफ़्त संदेश अभी के लिए ख़त्म हो गए हैं। चैट जारी रखने के लिए साइन अप करें।
+  th: ข้อความฟรีแบบไม่มีบัญชีหมดแล้วในตอนนี้ สมัครสมาชิกเพื่อแชทต่อ
+  cs: Bezplatné zprávy bez účtu jsou zatím vyčerpány. Zaregistruj se a chatuj dál.
+  sv: De gratis meddelandena utan konto är slut för tillfället. Registrera dig för att fortsätta chatta.
+  he: ההודעות החינמיות ללא חשבון נגמרו כרגע. הירשמו כדי להמשיך לצ׳וטט.
+  verified_by_human: []
+guest_access_unavailable:
+  context: Reason shown next to the Sign up button when chatting without an account is switched off or not offered by this server
+  en: Chatting without an account isn't available right now. Sign up to chat.
+  de: Chatten ohne Konto ist gerade nicht verfügbar. Registriere dich, um zu chatten.
+  zh: 目前无法在无账户的情况下聊天。注册即可聊天。
+  es: Ahora mismo no se puede chatear sin cuenta. Regístrate para chatear.
+  fr: Discuter sans compte n'est pas disponible pour le moment. Inscrivez-vous pour discuter.
+  pt: Conversar sem conta não está disponível agora. Cadastre-se para conversar.
+  ru: Общение без аккаунта сейчас недоступно. Зарегистрируйтесь, чтобы начать.
+  ja: 現在、アカウントなしではチャットできません。登録してチャットしてください。
+  ko: 지금은 계정 없이 채팅할 수 없습니다. 가입하고 채팅하세요.
+  it: Al momento non è possibile chattare senza account. Registrati per chattare.
+  tr: Şu anda hesap olmadan sohbet edilemiyor. Sohbet etmek için kaydolun.
+  vi: Hiện không thể trò chuyện mà không có tài khoản. Hãy đăng ký để trò chuyện.
+  id: Mengobrol tanpa akun sedang tidak tersedia. Daftar untuk mengobrol.
+  pl: Czat bez konta jest teraz niedostępny. Zarejestruj się, aby czatować.
+  nl: Chatten zonder account is nu niet beschikbaar. Meld je aan om te chatten.
+  ar: الدردشة بدون حساب غير متاحة حاليًا. أنشئ حسابًا للدردشة.
+  hi: अभी बिना खाते के चैट उपलब्ध नहीं है। चैट करने के लिए साइन अप करें।
+  th: ขณะนี้ยังแชทโดยไม่มีบัญชีไม่ได้ สมัครสมาชิกเพื่อแชท
+  cs: Chatování bez účtu teď není dostupné. Zaregistruj se a chatuj.
+  sv: Det går inte att chatta utan konto just nu. Registrera dig för att chatta.
+  he: צ׳אט בלי חשבון לא זמין כרגע. הירשמו כדי לצ׳וטט.
+  verified_by_human: []
+guest_access_status_unavailable:
+  context: Reason shown next to the Sign up button when the app could not check guest access (network or server problem); a later retry may bring back Send
+  en: We couldn't check whether you can chat without an account. Check your connection, or sign up to chat.
+  de: Wir konnten nicht prüfen, ob du ohne Konto chatten kannst. Prüfe deine Verbindung oder registriere dich, um zu chatten.
+  zh: 我们无法确认您是否可以无账户聊天。请检查网络连接，或注册后聊天。
+  es: No pudimos comprobar si puedes chatear sin cuenta. Revisa tu conexión o regístrate para chatear.
+  fr: Impossible de vérifier si vous pouvez discuter sans compte. Vérifiez votre connexion ou inscrivez-vous pour discuter.
+  pt: Não conseguimos verificar se você pode conversar sem conta. Verifique sua conexão ou cadastre-se para conversar.
+  ru: Не удалось проверить, можно ли общаться без аккаунта. Проверьте подключение или зарегистрируйтесь.
+  ja: アカウントなしでチャットできるか確認できませんでした。接続を確認するか、登録してチャットしてください。
+  ko: 계정 없이 채팅할 수 있는지 확인하지 못했습니다. 연결을 확인하거나 가입하고 채팅하세요.
+  it: Non è stato possibile verificare se puoi chattare senza account. Controlla la connessione o registrati per chattare.
+  tr: Hesap olmadan sohbet edip edemeyeceğiniz kontrol edilemedi. Bağlantınızı kontrol edin veya sohbet etmek için kaydolun.
+  vi: Không thể kiểm tra xem bạn có thể trò chuyện không cần tài khoản. Hãy kiểm tra kết nối hoặc đăng ký để trò chuyện.
+  id: Kami tidak bisa memeriksa apakah Anda bisa mengobrol tanpa akun. Periksa koneksi Anda, atau daftar untuk mengobrol.
+  pl: Nie udało się sprawdzić, czy możesz czatować bez konta. Sprawdź połączenie lub zarejestruj się, aby czatować.
+  nl: We konden niet controleren of je zonder account kunt chatten. Controleer je verbinding of meld je aan om te chatten.
+  ar: تعذّر التحقق مما إذا كان بإمكانك الدردشة بدون حساب. تحقّق من اتصالك أو أنشئ حسابًا للدردشة.
+  hi: हम जाँच नहीं पाए कि आप बिना खाते के चैट कर सकते हैं या नहीं। अपना कनेक्शन जाँचें, या चैट करने के लिए साइन अप करें।
+  th: ตรวจสอบไม่ได้ว่าคุณแชทโดยไม่มีบัญชีได้หรือไม่ ตรวจสอบการเชื่อมต่อ หรือสมัครสมาชิกเพื่อแชท
+  cs: Nepodařilo se ověřit, zda můžeš chatovat bez účtu. Zkontroluj připojení nebo se zaregistruj a chatuj.
+  sv: Vi kunde inte kontrollera om du kan chatta utan konto. Kontrollera anslutningen eller registrera dig för att chatta.
+  he: לא הצלחנו לבדוק אם אפשר לצ׳וטט בלי חשבון. בדקו את החיבור או הירשמו כדי לצ׳וטט.
+  verified_by_human: []
+guest_access_file_requires_account:
+  context: Reason shown next to the Sign up button when a signed-out visitor added a file, which needs an account
+  en: Sending files needs an account. Sign up to send this, or remove the file to chat for free.
+  de: Zum Senden von Dateien brauchst du ein Konto. Registriere dich oder entferne die Datei, um kostenlos zu chatten.
+  zh: 发送文件需要账户。请注册后发送，或移除文件以免费聊天。
+  es: Para enviar archivos necesitas una cuenta. Regístrate para enviarlo o quita el archivo para chatear gratis.
+  fr: L'envoi de fichiers nécessite un compte. Inscrivez-vous pour l'envoyer, ou retirez le fichier pour discuter gratuitement.
+  pt: Enviar arquivos exige uma conta. Cadastre-se para enviar ou remova o arquivo para conversar grátis.
+  ru: Для отправки файлов нужен аккаунт. Зарегистрируйтесь или удалите файл, чтобы общаться бесплатно.
+  ja: ファイルの送信にはアカウントが必要です。登録して送信するか、ファイルを削除して無料でチャットしてください。
+  ko: 파일을 보내려면 계정이 필요합니다. 가입해서 보내거나 파일을 빼고 무료로 채팅하세요.
+  it: Per inviare file serve un account. Registrati per inviarlo, oppure rimuovi il file per chattare gratis.
+  tr: Dosya göndermek için hesap gerekir. Göndermek için kaydolun veya ücretsiz sohbet için dosyayı kaldırın.
+  vi: Gửi tệp cần có tài khoản. Hãy đăng ký để gửi, hoặc xóa tệp để trò chuyện miễn phí.
+  id: Mengirim file memerlukan akun. Daftar untuk mengirimnya, atau hapus file untuk mengobrol gratis.
+  pl: Wysyłanie plików wymaga konta. Zarejestruj się, aby to wysłać, lub usuń plik, aby czatować za darmo.
+  nl: Voor het versturen van bestanden heb je een account nodig. Meld je aan om dit te versturen, of verwijder het bestand om gratis te chatten.
+  ar: يتطلب إرسال الملفات حسابًا. أنشئ حسابًا لإرساله، أو أزل الملف للدردشة مجانًا.
+  hi: फ़ाइलें भेजने के लिए खाता चाहिए। इसे भेजने के लिए साइन अप करें, या मुफ़्त चैट के लिए फ़ाइल हटा दें।
+  th: การส่งไฟล์ต้องมีบัญชี สมัครสมาชิกเพื่อส่ง หรือลบไฟล์ออกเพื่อแชทฟรี
+  cs: Odesílání souborů vyžaduje účet. Zaregistruj se, nebo soubor odeber a chatuj zdarma.
+  sv: Det krävs ett konto för att skicka filer. Registrera dig för att skicka den, eller ta bort filen för att chatta gratis.
+  he: שליחת קבצים דורשת חשבון. הירשמו כדי לשלוח, או הסירו את הקובץ כדי לצ׳וטט בחינם.
+  verified_by_human: []
+guest_send_timeout:
+  context: Error shown when a signed-out visitor's message could not start sending in time (slow network or browser storage); the message stays in the field so they can retry
+  en: Sending is taking too long, so your message was not sent. Check your connection and try again.
+  de: Das Senden dauert zu lange, deine Nachricht wurde nicht gesendet. Prüfe deine Verbindung und versuche es erneut.
+  zh: 发送时间过长，您的消息未发送。请检查网络连接后重试。
+  es: El envío está tardando demasiado, así que tu mensaje no se envió. Revisa tu conexión e inténtalo de nuevo.
+  fr: 'L''envoi prend trop de temps : votre message n''a pas été envoyé. Vérifiez votre connexion et réessayez.'
+  pt: O envio está demorando demais e sua mensagem não foi enviada. Verifique sua conexão e tente novamente.
+  ru: Отправка заняла слишком много времени, сообщение не отправлено. Проверьте подключение и попробуйте снова.
+  ja: 送信に時間がかかりすぎたため、メッセージは送信されませんでした。接続を確認して、もう一度お試しください。
+  ko: 전송이 너무 오래 걸려 메시지를 보내지 못했습니다. 연결을 확인하고 다시 시도하세요.
+  it: L'invio sta richiedendo troppo tempo e il messaggio non è stato inviato. Controlla la connessione e riprova.
+  tr: Gönderim çok uzun sürdü, mesajınız gönderilmedi. Bağlantınızı kontrol edip tekrar deneyin.
+  vi: Việc gửi mất quá nhiều thời gian nên tin nhắn chưa được gửi. Hãy kiểm tra kết nối và thử lại.
+  id: Pengiriman terlalu lama, jadi pesan Anda tidak terkirim. Periksa koneksi Anda dan coba lagi.
+  pl: Wysyłanie trwa zbyt długo, więc wiadomość nie została wysłana. Sprawdź połączenie i spróbuj ponownie.
+  nl: Versturen duurt te lang, dus je bericht is niet verstuurd. Controleer je verbinding en probeer het opnieuw.
+  ar: استغرق الإرسال وقتًا طويلاً، لذا لم تُرسل رسالتك. تحقّق من اتصالك وحاول مجددًا.
+  hi: भेजने में बहुत समय लग रहा है, इसलिए आपका संदेश नहीं भेजा गया। अपना कनेक्शन जाँचें और फिर से कोशिश करें।
+  th: การส่งใช้เวลานานเกินไป ข้อความจึงไม่ได้ถูกส่ง ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง
+  cs: Odesílání trvá příliš dlouho, zpráva nebyla odeslána. Zkontroluj připojení a zkus to znovu.
+  sv: Det tar för lång tid att skicka, så ditt meddelande skickades inte. Kontrollera anslutningen och försök igen.
+  he: השליחה לוקחת יותר מדי זמן ולכן ההודעה לא נשלחה. בדקו את החיבור ונסו שוב.
+  verified_by_human: []

@@ -9,19 +9,16 @@
 import { chatDB } from "./db";
 import { chatSyncService } from "./chatSyncService";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
-import { readGateAllows, type ReadGateFacts } from "./readGate";
+import type { ReadGateFacts } from "./readGate";
 
-// Opt-in shared Rust core (build-time VITE_OPENMATES_RUST_CORE === '1'): the chatState unit
-// decides what counts as unread and when a settled reply may be marked read; no TypeScript
-// fallback. Default builds keep the synchronous checks below.
-export const RUST_READ_STATE: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1" &&
-  !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_chatstate") === "ts");
+// The shared Rust chatState unit decides what counts as unread and when a settled reply may
+// be marked read; there is no TypeScript fallback.
 
 export function hasUnread(chatId: string, persistedUnreadCount: number | undefined): boolean {
   return unreadMessagesStore.getUnreadCount(chatId) > 0 || (persistedUnreadCount ?? 0) > 0;
 }
 
-/** `hasUnread` decided by the chatState unit (flag-on callers only). */
+/** `hasUnread` decided by the chatState unit. */
 export async function hasUnreadRust(chatId: string, persistedUnreadCount: number | undefined): Promise<boolean> {
   return (await unreadMessagesStore.queryUnread(chatId, persistedUnreadCount)).hasUnread;
 }
@@ -84,16 +81,13 @@ async function readGateFacts(check: LatestReplyReadCheck, stage: ReadGateFacts["
     stage,
     visible: document.visibilityState === "visible",
     manual: unreadMessagesStore.isManuallyUnread(check.chatId),
-    hasUnread: RUST_READ_STATE
-      ? await hasUnreadRust(check.chatId, check.persistedUnreadCount)
-      : hasUnread(check.chatId, check.persistedUnreadCount),
+    hasUnread: await hasUnreadRust(check.chatId, check.persistedUnreadCount),
     endVisible: check.isLatestMessageEndVisible(),
     stillOpen: check.isChatStillOpen ? check.isChatStillOpen() : null,
   };
 }
 
 async function readGateOpen(facts: ReadGateFacts): Promise<boolean> {
-  if (!RUST_READ_STATE) return readGateAllows(facts);
   const { chatStateCall } = await import("./rustCore/chatState/chatListUnitClient");
   return (await chatStateCall("unreadReadGate", facts)).proceed;
 }

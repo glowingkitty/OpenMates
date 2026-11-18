@@ -41,9 +41,12 @@ final class NativeEmbedActionTests: XCTestCase {
             location: "Public venue", description: "Public notes", url: "https://example.invalid/event", timeZone: zone))
         let store = EKEventStore()
         let event = NativeEmbedActionController.makeEvent(try XCTUnwrap(file.event), store: store)
-        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = zone
+        // Floating all-day events show their civil day in the device zone, whatever the event zone.
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = .current
         XCTAssertEqual(calendar.component(.day, from: event.startDate), 4)
-        XCTAssertEqual(calendar.component(.day, from: event.endDate), 5)
+        // EventKit stores an all-day end as the last covered day, so a one-day event ends on the 4th.
+        XCTAssertEqual(calendar.component(.day, from: event.endDate), 4)
+        XCTAssertEqual(calendar.dateComponents([.day], from: event.startDate, to: event.endDate).day, 0)
         XCTAssertEqual(calendar.component(.hour, from: event.startDate), 0)
         XCTAssertTrue(event.isAllDay)
         XCTAssertEqual(event.title, "Public all-day event")
@@ -219,7 +222,7 @@ final class NativeEmbedActionTests: XCTestCase {
         let context = try XCTUnwrap(CGContext(data: pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
         context.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
-        XCTAssertGreaterThan(pixel[3], 240, "PNG cannot be an empty/transparent placeholder")
+        XCTAssertGreaterThan(pixel[3], 240, "PNG cannot be an empty/transparent placeholder (render host: \(NativeDesignIconActions.lastRenderHost))")
         XCTAssertEqual(Double(pixel[0]), 18, accuracy: 2); XCTAssertEqual(Double(pixel[1]), 52, accuracy: 2); XCTAssertEqual(Double(pixel[2]), 86, accuracy: 2)
     }
 

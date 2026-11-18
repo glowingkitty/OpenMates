@@ -196,7 +196,7 @@ async function shown<T extends { event?: EmbedEventDelivery; notice?: EmbedEvent
 
 /** Enhance the head version of image `embedId` (joins a run already going); resolves once saved. */
 export async function enhanceImage(embedId: string, scope: EmbedEditScope): Promise<ImageEnhanceResult> {
-	return shown(withServerSession(async () => (await unit()).request('enhanceImage', { embedId, scope },
+	return shown(withServerSession(async () => (await unit()).request('enhanceImage', { embedId, scope: plainScope(scope) },
 		{ timeoutMs: ENHANCE_TIMEOUT_MS })));
 }
 
@@ -206,16 +206,24 @@ export async function runningEnhance(embedId: string): Promise<RunningEnhance | 
 }
 
 /** Save `content` (new head TOON) of an edit made on version `baseVersion` of `embedId` as its next version. */
+/**
+ * Plain copy of `scope` for the Worker message: editors keep their scope in
+ * Svelte state, and a state proxy cannot be cloned into `postMessage`.
+ */
+function plainScope(scope: EmbedEditScope): EmbedEditScope {
+	return { ...scope } as EmbedEditScope;
+}
+
 export async function commitContentRevision(embedId: string, scope: EmbedEditScope, baseVersion: number,
 	content: string): Promise<EmbedRevisionResult> {
 	return shown(withServerSession(async (timeoutMs = WRITE_TIMEOUT_MS) => (await unit()).request('commitContentRevision',
-		{ embedId, scope, baseVersion, content }, { timeoutMs })));
+		{ embedId, scope: plainScope(scope), baseVersion, content }, { timeoutMs })));
 }
 
 /** Restore version `restoredFrom` of `embedId` as its next version. */
 export async function restoreEmbedVersion(embedId: string, scope: EmbedEditScope, restoredFrom: number): Promise<EmbedRevisionResult> {
 	return shown(withServerSession(async (timeoutMs = WRITE_TIMEOUT_MS) => (await unit()).request('restoreVersion',
-		{ embedId, scope, restoredFrom }, { timeoutMs })));
+		{ embedId, scope: plainScope(scope), restoredFrom }, { timeoutMs })));
 }
 
 /** Chats whose chat-open reconcile waits for a server-checked session. */

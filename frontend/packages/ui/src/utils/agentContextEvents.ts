@@ -54,7 +54,11 @@ export interface ProjectAuthoringJobDisplay {
   chat_id: string;
   kind: 'focus' | 'workflow';
   status: string;
-  draft?: { question?: string; markdown?: string };
+  draft?: {
+    question?: string; markdown?: string;
+    collisions?: { topic: string; winner: 'focus' | 'project'; touches_project_constraint: boolean }[];
+    collision_check?: 'checked' | 'not_checked';
+  };
 }
 
 function object(value: unknown): value is Record<string, unknown> {

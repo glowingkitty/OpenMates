@@ -30,7 +30,7 @@ def _routing_module() -> Any:
     [
         ("low", "low"), ("medium", "medium"), ("high", "high"), ("max", "max"),
         ("simple", "low"), ("complex", "medium"), ("most_demanding", "max"),
-        ("uncertain", "medium"), ("invalid-tier", "medium"), (None, "medium"),
+        ("uncertain", "low"), ("invalid-tier", "low"), (None, "low"),
     ],
 )
 # contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way
@@ -393,3 +393,92 @@ def test_mercury_reasoning_budget_is_effort_specific(level, deadline, cap):
     # The default Mercury effort must not leak into its low-tier Gemini fallback.
     assert routing.automatic_attempt_thinking_level("low", routing.LOW_FALLBACK_MODEL, "MEDIUM") == "LOW"
     assert routing.automatic_attempt_thinking_level("medium", routing.MERCURY_MODEL, "HIGH") == "MEDIUM"
+
+
+# contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way
+def test_tier_resolution_reason_names_default_paths():
+    routing = _routing_module()
+    assert routing.tier_resolution_reason("low") == "jev_low"
+    assert routing.tier_resolution_reason(None) == "jev_missing_default"
+    assert routing.tier_resolution_reason("garbage") == "jev_unparseable_default"
+    assert routing.tier_resolution_reason("complex") == "jev_legacy_complex"
+
+
+def _routing_request(history, preferences=None):
+    from types import SimpleNamespace
+    return SimpleNamespace(message_history=history, has_image_upload_embed=False,
+                           user_preferences=preferences or {})
+
+
+def _patch_selection(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    from backend.apps.ai.processing import preprocessor
+    monkeypatch.setattr(preprocessor, "config_manager", SimpleNamespace(
+        get_model_display_name=lambda model, _: model, get_provider_config=_low_routing_provider_config))
+    monkeypatch.setattr(preprocessor, "_usable_chat_model_reference", lambda model, _: (model, model))
+    monkeypatch.setattr(preprocessor, "is_provider_healthy", AsyncMock(return_value=True))
+    return preprocessor, SimpleNamespace(enable_auto_model_selection=False, default_llms=SimpleNamespace(
+        main_processing_complex="google/gemini-3.8-flash", main_processing_complex_name="Gemini"))
+
+
+# contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way
+def test_missing_complexity_routes_low_and_logs_decision(monkeypatch, caplog):
+    import asyncio
+    import logging
+    preprocessor, skill = _patch_selection(monkeypatch)
+    with caplog.at_level(logging.INFO):
+        result = asyncio.run(preprocessor._select_main_model(
+            {"china_model_sensitive": False}, _routing_request([{"role": "user", "content": "hi"}]),
+            skill, None, "test"))
+    assert result["complexity_val"] == "low"
+    assert result["selected_llm_for_main_id"] == "inception/mercury-3"
+    line = next(r.getMessage() for r in caplog.records if "ROUTING_DECISION" in r.getMessage())
+    assert "tier=low" in line and "reason=jev_missing_default" in line
+    assert "model=inception/mercury-3" in line and "path=auto_selection_disabled" in line
+
+
+# contract-test: direct surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+def test_image_anywhere_in_history_routes_away_from_mercury_with_reason(monkeypatch, caplog):
+    """Dispatch refuses Mercury for media anywhere in history, so routing logs the same choice."""
+    import asyncio
+    import logging
+    preprocessor, skill = _patch_selection(monkeypatch)
+    image = {"role": "user", "content": [{"type": "image_url", "image_url": {"url": "x"}}]}
+    text = {"role": "assistant", "content": "ok"}
+    old = [image, text, text, text, {"role": "user", "content": "hi"}]
+    with caplog.at_level(logging.INFO):
+        result = asyncio.run(preprocessor._select_main_model(
+            {"complexity": "low", "china_model_sensitive": False}, _routing_request(old), skill, None, "test"))
+    assert result["selected_llm_for_main_id"] == "google/gemini-3.8-flash"
+    assert any("mercury_skipped:image_in_history" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.parametrize("model,tier,expected", [
+    ("google/gemini-3.8-flash", "medium", "MEDIUM"),
+    ("google/gemini-3.8-flash", "low", "LOW"),
+    ("google/gemini-4-argon", "low", "LOW"),
+    ("inception/mercury-3", "low", None),
+])
+# contract-test: direct surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles,ai-model-routing.precedence.chat-over-tier-over-auto
+def test_user_override_of_gemini_sends_explicit_thinking_level(monkeypatch, caplog, model, tier, expected):
+    import asyncio
+    import logging
+    from backend.core.api.app.utils.override_parser import UserOverrides
+    preprocessor, skill = _patch_selection(monkeypatch)
+    with caplog.at_level(logging.INFO):
+        result = asyncio.run(preprocessor._select_main_model(
+            {"complexity": tier, "china_model_sensitive": False}, _routing_request([]),
+            skill, UserOverrides(model_id=model), "test"))
+    assert result["selected_llm_thinking_level"] == expected
+    line = next(r.getMessage() for r in caplog.records if "ROUTING_DECISION" in r.getMessage())
+    assert "path=user_override" in line and "reason=user_override" in line
+    assert f"thinking={expected or 'unset'}" in line
+
+
+# contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way
+def test_classifier_prompt_judges_latest_request_and_defaults_low():
+    from backend.apps.ai.processing import jev_preprocessing
+    text = str(jev_preprocessing._early_routing_questions([], True)["complexity"]["instructions"])
+    assert "LATEST user request" in text and "If unsure, choose low" in text
+    assert "greeting" in text

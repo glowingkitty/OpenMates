@@ -29,7 +29,7 @@ const COLOR_TOKENS: [&str; 6] = [
     "muted",
     "surface",
 ];
-const SAFE_FONTS: [&str; 11] = [
+pub(crate) const SAFE_FONTS: [&str; 11] = [
     "Arial",
     "Helvetica",
     "Georgia",

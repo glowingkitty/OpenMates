@@ -1074,4 +1074,28 @@ describe('invalid results-view audience handling', () => {
       userProfile.update((profile) => ({ ...profile, is_admin: false }));
     }
   });
+
+  // contract-test: supporting surface=gui.web assertions=authored-results.streaming.progressive-cards
+  it('waits for the hosting message to finish streaming before showing the admin diagnostic', async () => {
+    userProfile.update((profile) => ({ ...profile, is_admin: true }));
+    const message = document.createElement('div');
+    message.dataset.streaming = 'true';
+    const target = document.createElement('div');
+    message.append(target);
+    document.body.append(message);
+    const component = mount(EmbedsMapView, { target, props: { id: 'streaming-descriptor', title: 'Streaming', embedRefs: [], sourceRefs: [] } });
+    try {
+      await flush(target);
+      expect(target.querySelector('[data-testid="results-view-admin-error"]')).toBeNull();
+      expect(target.querySelector('[data-result-view-visible]')?.getAttribute('data-result-view-visible')).toBe('false');
+      message.dataset.streaming = 'false';
+      await vi.waitFor(() => {
+        expect(target.querySelector('[data-testid="results-view-admin-error"]')).not.toBeNull();
+      });
+    } finally {
+      unmount(component);
+      message.remove();
+      userProfile.update((profile) => ({ ...profile, is_admin: false }));
+    }
+  });
 });

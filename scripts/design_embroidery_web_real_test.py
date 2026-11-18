@@ -81,6 +81,28 @@ def spec_name(spec: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", Path(spec).name.lower()).strip("-")[:40] or "web-real-test"
 
 
+# heavy_slot.py: no E2B slot (or, on a fallback, no host memory/slot) within its --timeout.
+HEAVY_SLOT_UNAVAILABLE_EXIT = 3
+HEAVY_SLOT_WAIT_SECONDS = 3600
+# Sandbox creation, upload and copy-back of a remote run, on top of the run limit.
+REMOTE_SETUP_SECONDS = 600
+REMOTE_RUN_MARKER = "heavy_slot[e2b]: running in E2B"
+
+
+def heavy_slot_command(config: Path, spec: str, run_seconds: int, grep: str | None) -> list[str]:
+    """The Playwright run through heavy_slot: in E2B by default, on this host only as a logged fallback.
+
+    The account lease, draft guard and CLI state stay on this host; the run gets the leased dev
+    account's env and the proof folder (and OPENMATES_HEAVY_REMOTE_DIRS) is copied in and back.
+    A Chrome build from OPENMATES_PROOF_BROWSER exists only on this host, so that run stays local."""
+    local = ["--local"] if os.environ.get("OPENMATES_PROOF_BROWSER") else []
+    cli = WEB_APP / "node_modules/@playwright/test/cli.js"
+    return [sys.executable, str(ROOT / "scripts/heavy_slot.py"), "run", *local,
+            "--timeout", str(HEAVY_SLOT_WAIT_SECONDS), "--run-timeout", str(run_seconds), "--",
+            "node", str(cli), "test", "--config", str(config), "--trace", "off", spec,
+            *(["--grep", grep] if grep else [])]
+
+
 def require_runtime_revision(revision: str) -> None:
     """The backend runtime checkout serves ``revision``: same commit, or an ancestor with identical backend files.
 
@@ -109,8 +131,15 @@ def require_runtime_revision(revision: str) -> None:
 def require_frontend_revision(revision: str) -> None:
     with urllib.request.urlopen(f"{APP_URL}/_app/version.json", timeout=20) as response:
         served = json.load(response).get("version")
-    if served != revision:
+    if served == revision:
+        return
+    # Other chats keep deploying while a real run waits for its heavy slot; a
+    # served build that already contains ``revision`` still proves it.
+    if not isinstance(served, str) or subprocess.run(
+            ["git", "-C", str(ROOT), "merge-base", "--is-ancestor", revision, served],
+            check=False, timeout=30).returncode:
         raise ProofError("frontend_revision_mismatch")
+    print(f"Served web app {served[:10]} already contains {revision[:10]}", file=sys.stderr)
 
 
 LOG_PATTERNS = (("card_numbers", r"card numbers: ([^\n]+)"),
@@ -169,6 +198,8 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
     parser.add_argument("--allow-paid-dev-inference", action="store_true")
     parser.add_argument("--personal-only", action="store_true",
                         help="Wait for the personal account instead of using a throwaway account when it is busy")
+    parser.add_argument("--throwaway-account", action="store_true",
+                        help="Skip the personal account (e.g. no credits left) and use a throwaway dev account")
     parser.add_argument("--timeout-seconds", type=int, default=1500, help="Whole Playwright run")
     parser.add_argument("--lease-timeout-seconds", type=int, default=1800, help="Wait for the account lease")
     if grep_option:
@@ -189,7 +220,9 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
     leases: list = []
     real_account = None
     draft_guard = None
-    cli_state = out / "cli-state"
+    # Beside the proof folder, not in it: that folder is copied into the E2B sandbox and the
+    # CLI login state of the draft guard stays on this host.
+    cli_state = out.parent / f"{out.name}.cli-state"
     stop, errors = threading.Event(), []
     heartbeat = None
     link = WEB_APP / "node_modules"
@@ -219,7 +252,7 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
         acquiring = True
         real_account = dev_test_account.acquire_real_test_account(
             "embroidery-web", args.session, spec_name(spec), stack_timeout=args.lease_timeout_seconds,
-            allow_throwaway=not args.personal_only)
+            allow_throwaway=not args.personal_only, prefer_throwaway=args.throwaway_account)
         acquiring = False
         leases = real_account.leases
         receipt["account_role"] = "personal_dev_test" if real_account.kind == "personal" else "throwaway_dev_test"
@@ -240,17 +273,22 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
         heartbeat = threading.Thread(target=renew, daemon=True)
         heartbeat.start()
         draft_guard = start_draft_guard(env, cli_state, receipt) if real_account.kind == "personal" else None
-        cli = WEB_APP / "node_modules/@playwright/test/cli.js"
-        command = [sys.executable, str(ROOT / "scripts/heavy_slot.py"), "run", "--", "node", str(cli), "test",
-                   "--config", str(config), "--trace", "off", spec,
-                   *(["--grep", args.grep] if getattr(args, "grep", None) else [])]
+        # heavy_slot's --timeout is the slot wait; --run-timeout limits the run itself.
+        command = heavy_slot_command(config, spec, args.timeout_seconds, getattr(args, "grep", None))
         with (out / "run.log").open("w") as log:
-            run = subprocess.run(command, cwd=out, env=env, stdout=log, stderr=subprocess.STDOUT,
-                                 check=False, timeout=args.timeout_seconds)
+            run = subprocess.run(command, cwd=out, env=env, stdout=log, stderr=subprocess.STDOUT, check=False,
+                                 timeout=HEAVY_SLOT_WAIT_SECONDS + args.timeout_seconds + REMOTE_SETUP_SECONDS)
         receipt["playwright_exit_code"] = run.returncode
+        receipt["ran_on"] = "e2b" if REMOTE_RUN_MARKER in (out / "run.log").read_text(errors="replace") else "host"
+        if run.returncode == HEAVY_SLOT_UNAVAILABLE_EXIT:
+            raise ProofError("heavy_slot_unavailable")
         if errors:
             raise ProofError(errors[0])
         require_runtime_revision(args.revision)
+        # Exit 0 also covers a run whose only test skipped; only a passed test proves the flow.
+        ran = re.search(r"^\s*\d+ passed\b", (out / "run.log").read_text(errors="replace"), re.M)
+        if run.returncode == 0 and not ran:
+            raise ProofError("no_test_passed")
         receipt["status"] = "passed" if run.returncode == 0 else "failed"
     except BaseException as exc:
         receipt["status"] = "failed"

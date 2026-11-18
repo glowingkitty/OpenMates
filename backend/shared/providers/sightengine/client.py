@@ -7,6 +7,10 @@
 #   nudity-2.0, face-attributes, minor, deepfake, celebrities,
 #   offensive, gore, weapon, genai
 #
+# Response shapes (checked against the live API): `gore` answers {"prob": p};
+# `weapon` answers {"classes": {"firearm": p, "knife": p, ...}}; `offensive`
+# carries no weapon score.
+#
 # The extended models cover the gaps that let the upload pipeline through:
 #   - minor age estimation (CSAM defense, see policy §S1)
 #   - celebrity identification (public figure block, see policy §S6)
@@ -29,7 +33,7 @@ SIGHTENGINE_SECRET_PATH = "kv/data/providers/sightengine"
 
 # Model list used for every safety pipeline call (both input and output).
 # Keep as a single combined request — one round-trip covers all signals.
-SAFETY_MODELS = "nudity-2.0,face-attributes,offensive,gore,genai,celebrities"
+SAFETY_MODELS = "nudity-2.0,face-attributes,offensive,gore,weapon,genai,celebrities"
 
 # Input-stage thresholds — see docs/architecture/image-safety-pipeline.md §1a
 # "Hard-block thresholds (input)" table.
@@ -40,21 +44,27 @@ INPUT_THRESHOLDS = {
     "sextoy": 0.3,
     "suggestive": 0.6,
     "gore": 0.5,
-    "blood": 0.6,
-    "weapon": 0.7,
     "deepfake_with_celebrity": 0.9,
 }
 
 # Output-stage thresholds are stricter — see §4 "Hard-block thresholds (output)".
 OUTPUT_THRESHOLDS = {
     **INPUT_THRESHOLDS,
-    "minor_plus_any_nudity_or_suggestive": 0.0,  # zero tolerance on output
+    # Output is stricter than input (0.05 sexual / 0.2 suggestive) but keeps a
+    # small noise floor: with a zero floor a harmless, fully clothed generated
+    # portrait of a child was filed as a CSAM hit. The block log line records
+    # the raw scores for calibration.
+    "minor_plus_any_nudity_or_suggestive": 0.02,
 }
 
 
 @dataclass
 class SightengineFindings:
     """Structured Sightengine response for the safety pipeline."""
+
+    # Which classifier produced these findings: "sightengine", or "jev" when
+    # the image safety pipeline mapped Jev labels onto the same fields.
+    classifier: str = "sightengine"
 
     # Hard block decision + category for the safeguard prompt
     hard_block: bool = False
@@ -67,9 +77,8 @@ class SightengineFindings:
     erotica: float = 0.0
     sextoy: float = 0.0
     suggestive: float = 0.0
-    weapon: float = 0.0
+    weapon: float = 0.0  # soft signal: sends the image to the safeguard review
     gore: float = 0.0
-    blood: float = 0.0
 
     # Face / identity signals
     face_count: int = 0
@@ -90,6 +99,7 @@ class SightengineFindings:
     def to_audit_dict(self) -> Dict[str, Any]:
         """Compact representation for the safety_audit_log collection."""
         return {
+            "classifier": self.classifier,
             "hard_block": self.hard_block,
             "hard_block_reason": self.hard_block_reason,
             "category_hint": self.category_hint,
@@ -101,7 +111,6 @@ class SightengineFindings:
                 "suggestive": round(self.suggestive, 3),
                 "weapon": round(self.weapon, 3),
                 "gore": round(self.gore, 3),
-                "blood": round(self.blood, 3),
                 "deepfake": round(self.deepfake_score, 3),
                 "ai_generated": round(self.ai_generated, 3),
             },
@@ -232,7 +241,8 @@ class SightengineSafetyClient:
         self._apply_thresholds(findings, stage=stage)
         logger.info(
             f"{log_prefix} block={findings.hard_block} reason={findings.hard_block_reason} "
-            f"sexual={findings.sexual_activity:.2f} minor={findings.minor_detected} "
+            f"sexual={findings.sexual_activity:.3f} display={findings.sexual_display:.3f} "
+            f"suggestive={findings.suggestive:.3f} minor={findings.minor_detected} "
             f"celeb={findings.celebrity_match} deepfake={findings.deepfake_score:.2f}"
         )
         return findings
@@ -241,8 +251,8 @@ class SightengineSafetyClient:
     def _parse_response(data: Dict[str, Any]) -> SightengineFindings:
         """Parse Sightengine JSON into structured findings."""
         nudity = data.get("nudity", {}) or {}
-        offensive = data.get("offensive", {}) or {}
         gore = data.get("gore", {}) or {}
+        weapon_classes = (data.get("weapon", {}) or {}).get("classes", {}) or {}
         faces = data.get("faces", []) or []
         # "faces" may also appear under "face" or "face-attributes"; normalize
         if not faces and isinstance(data.get("face"), dict):
@@ -254,9 +264,8 @@ class SightengineSafetyClient:
             erotica=float(nudity.get("erotica", 0.0)),
             sextoy=float(nudity.get("sextoy", 0.0)),
             suggestive=float(nudity.get("suggestive", 0.0)),
-            weapon=float(offensive.get("weapon", 0.0)),
-            gore=float(gore.get("gore", 0.0)),
-            blood=float(gore.get("blood", 0.0)),
+            weapon=max(float(weapon_classes.get("firearm", 0.0)), float(weapon_classes.get("knife", 0.0))),
+            gore=float(gore.get("prob", 0.0)),
             ai_generated=float((data.get("type") or {}).get("ai_generated", 0.0)),
             raw=data,
         )
@@ -322,8 +331,11 @@ class SightengineSafetyClient:
             f.hard_block_reason = "minor_plus_suggestive"
             f.category_hint = "S1_csam"
             return
+        floor = OUTPUT_THRESHOLDS["minor_plus_any_nudity_or_suggestive"]
         if stage == "output" and f.minor_detected and (
-            f.sexual_activity > 0 or f.sexual_display > 0 or f.suggestive > 0
+            f.sexual_activity > floor
+            or f.sexual_display > floor
+            or f.suggestive > floor
         ):
             f.hard_block = True
             f.hard_block_reason = "minor_on_output_any_suggestion"
@@ -353,11 +365,6 @@ class SightengineSafetyClient:
         if f.gore > thresholds["gore"]:
             f.hard_block = True
             f.hard_block_reason = f"gore={f.gore:.2f}"
-            f.category_hint = "S4_violent_recontextualization"
-            return
-        if f.blood > thresholds["blood"]:
-            f.hard_block = True
-            f.hard_block_reason = f"blood={f.blood:.2f}"
             f.category_hint = "S4_violent_recontextualization"
             return
 

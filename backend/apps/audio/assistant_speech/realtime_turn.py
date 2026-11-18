@@ -24,6 +24,8 @@ MAX_TURN_SECONDS = 600
 MAX_PENDING_SPANS = 64
 AUTHORITY_INTERVAL_SECONDS = 0.5
 PUBLISH_TIMEOUT_SECONDS = 1.0
+# A semantic check slower than this counts as NOT approved (fail closed).
+SAFETY_TIMEOUT_SECONDS = 1.5
 AUDIO_CHUNK_BYTES = 32 * 1024
 MAX_WORD_STARTS_PER_EVENT = 512
 # mp3_44100_128 is constant-bitrate: 16 bytes per millisecond.
@@ -96,7 +98,14 @@ class RealtimeSpeechTurn:
         # Each span carries its already-running safety decision, so the semantic
         # check overlaps earlier synthesis instead of serializing after it.
         self._queue: asyncio.Queue[tuple[str, asyncio.Task[bool], bool] | None] = asyncio.Queue(MAX_PENDING_SPANS + 1)
+        # The durable claim starts at the first handoff, concurrently with the
+        # first check and synthesis; the first audio waits for it (replay guard).
         self._prepare_task: asyncio.Task[int] | None = None
+        # Per span: (safety decision, cumulative credit headroom), both started
+        # at handoff. Span 1 text goes to TTS at once; later spans only after approval.
+        self._checks: list[tuple[asyncio.Task[bool], asyncio.Task[None]]] = []
+        self._first_released = False
+        self._first_audio_task: asyncio.Task[None] | None = None
         self._task: asyncio.Task[None] | None = None
         self._provider: Any = None
         self._input_finished = False
@@ -149,8 +158,61 @@ class RealtimeSpeechTurn:
         except Exception:
             logger.warning("Realtime speech prewarmed transport cleanup failed")
 
+    def _sync_prepare(self) -> bool:
+        """Adopt the durable claim once its background write finished (raises on failure)."""
+        task = self._prepare_task
+        if task is None or not task.done():
+            return False
+        self._execution_version = task.result()
+        return True
+
+    def _start_prepare(self) -> None:
+        """Start the durable claim once; its failure is surfaced at first-audio release."""
+        if self._prepare_task is None:
+            self._prepare_task = asyncio.create_task(self._prepare())
+            self._prepare_task.add_done_callback(lambda task: task.cancelled() or task.exception())
+
+    async def _run_first_audio_hook(self) -> None:
+        if self._on_first_audio is None:
+            return
+        try:
+            await self._on_first_audio()
+        except Exception:
+            logger.warning("Realtime speech waiting-speech stop failed", exc_info=True)
+
+    async def _timed_safety(self, text: str) -> bool:
+        """One check per span; a slow check is a denial, never unchecked audio."""
+        try:
+            return await asyncio.wait_for(self._safety_check(text), SAFETY_TIMEOUT_SECONDS)
+        except TimeoutError:
+            logger.warning("Realtime speech safety check timed out after %.1fs; treating as not approved",
+                           SAFETY_TIMEOUT_SECONDS)
+            return False
+
+    async def _approve_span(self, index: int) -> None:
+        """Fail closed: a span needs its own safety approval and credit headroom."""
+        safety, credit = self._checks[index]
+        if not await safety:
+            raise RealtimeTurnUnavailable("Speech safeguard denied")
+        await credit
+
+    async def _await_first_release(self) -> None:
+        """First audio needs span 1 approved AND the durable claim (no replayed speech)."""
+        if self._first_released:
+            return
+        await self._approve_span(0)
+        assert self._prepare_task is not None
+        self._execution_version = await self._prepare_task
+        self._first_released = True
+
     async def _ensure_recently_active(self) -> None:
-        """Authority check for hot paths; the watcher re-checks every interval."""
+        """Authority check for hot paths; the watcher re-checks every interval.
+
+        Authority needs the durable claim; until the background write finished
+        the in-memory state is authoritative.
+        """
+        if not self._sync_prepare():
+            return
         now = monotonic()
         if self._authority_checked_at is not None and now - self._authority_checked_at < AUTHORITY_INTERVAL_SECONDS:
             return
@@ -158,16 +220,13 @@ class RealtimeSpeechTurn:
         self._authority_checked_at = monotonic()
 
     async def prepare(self) -> None:
-        """Publish/claim track metadata before any semantic status or paid work."""
-        if self._prepare_task is None:
-            self._prepare_task = asyncio.create_task(self._prepare())
-        self._execution_version = await self._prepare_task
+        """Start the durable claim early without waiting for it."""
+        self._start_prepare()
 
     async def enqueue(self, segment: Mapping[str, object]) -> None:
         """Hand off one already projected span; repeated immutable IDs are no-ops."""
         if self._closed or self._input_finished:
             raise RealtimeTurnUnavailable("Speech turn is closed")
-        await self.prepare()
         identity = str(segment["segment_id"])
         if identity in self._seen:
             return
@@ -185,7 +244,15 @@ class RealtimeSpeechTurn:
         # Status lines (acknowledgements, recaps) are spoken but are not part of
         # the written answer, so they never advance its word highlighting.
         hidden = segment.get("kind") == "voice_status"
-        self._queue.put_nowait((submitted, asyncio.create_task(self._safety_check(submitted)), hidden))
+        # The check starts at handoff, concurrently with synthesis; audio release
+        # (not text submission) waits for it.
+        safety = asyncio.create_task(self._timed_safety(submitted))
+        credit = asyncio.create_task(self._credit_check(self._queued_characters))
+        for task in (safety, credit):
+            task.add_done_callback(lambda done: done.cancelled() or done.exception())
+        self._checks.append((safety, credit))
+        self._start_prepare()
+        self._queue.put_nowait((submitted, safety, hidden))
         if self._task is None:
             self._task = asyncio.create_task(self._run())
 
@@ -221,19 +288,19 @@ class RealtimeSpeechTurn:
             raise RealtimeTurnUnavailable("Speech delivery unavailable") from None
 
     async def _write(self) -> None:
-        count = 0
+        index = 0
         while True:
             item = await self._queue.get()
             if item is None:
-                await self._ensure_active()
                 await self._provider.finish_input()
                 return
-            text, safety, hidden = item
+            text, _safety, hidden = item
             await self._ensure_recently_active()
-            if not await safety:
-                raise RealtimeTurnUnavailable("Speech safeguard denied")
-            await self._credit_check(count + len(text))
-            await self._ensure_active()
+            if index > 0:
+                # Later spans reach the provider only once approved, in order, so
+                # every released audio chunk belongs to an approved span.
+                await self._approve_span(index)
+            index += 1
             await self._provider.append_text(text)
             offset = len(self._spoken_source)
             if hidden:
@@ -243,28 +310,27 @@ class RealtimeSpeechTurn:
                     (offset + match.start(), offset + match.end()) for match in _DELIVERY_CUE_TAG.finditer(text)
                 )
             self._spoken_source += text
-            count += len(text)
             await self._provider.flush()
 
     async def _read(self) -> None:
         completed = False
         async for event in self._provider.audio_events():
             await self._ensure_recently_active()
+            await self._await_first_release()
             self._event_audio_bytes = len(event.audio_bytes or b"")
             if event.audio_bytes:
                 audio = event.audio_bytes
                 if not isinstance(audio, bytes) or self._audio_bytes + len(audio) > MAX_TURN_AUDIO_BYTES:
                     raise RealtimeTurnUnavailable("Speech audio bound exceeded")
                 if not self._audio_started:
-                    if self._on_first_audio is not None:
-                        await self._on_first_audio()
-                    await self._ensure_active()
                     await self._emit("start")
                     self._audio_started = True
                 self._audio_bytes += len(audio)
                 for offset in range(0, len(audio), AUDIO_CHUNK_BYTES):
                     await self._emit("chunk", audio[offset:offset + AUDIO_CHUNK_BYTES])
                     self._chunk_index += 1
+                if self._first_audio_task is None:
+                    self._first_audio_task = asyncio.create_task(self._run_first_audio_hook())
             # Heard boundaries never use alignment. Word starts below are a
             # display-only estimate for highlighting spoken text.
             word_starts = self._word_starts(getattr(event, "alignment", None))
@@ -275,6 +341,9 @@ class RealtimeSpeechTurn:
                 break
         if not completed or not self._input_finished or not self._audio_bytes:
             raise RealtimeTurnUnavailable("Speech provider did not complete")
+        # The turn is only complete once its background writes landed.
+        if self._first_audio_task is not None:
+            await self._first_audio_task
         await self._ensure_active()
         await self._emit("end")
 
@@ -310,7 +379,7 @@ class RealtimeSpeechTurn:
 
     async def _watch_authority(self) -> None:
         while True:
-            await self._ensure_active()
+            await self._ensure_recently_active()
             await asyncio.sleep(AUTHORITY_INTERVAL_SECONDS)
 
     async def _run(self) -> None:
@@ -319,7 +388,6 @@ class RealtimeSpeechTurn:
         stage = "authority"
         try:
             async with asyncio.timeout(self._max_seconds):
-                await self._ensure_active()
                 stage = "provider_setup"
                 if self._provider is None:
                     self._provider = self._provider_factory()
@@ -380,8 +448,23 @@ class RealtimeSpeechTurn:
                 item = self._queue.get_nowait()
                 if item is not None:
                     item[1].cancel()
+            for pending_task in (*(t for pair in self._checks for t in pair), self._first_audio_task):
+                if pending_task is not None and not pending_task.done():
+                    pending_task.cancel()
+            prepared = False
+            if self._prepare_task is not None:
+                outcome = (await asyncio.gather(self._prepare_task, return_exceptions=True))[0]
+                prepared = not isinstance(outcome, BaseException)
+                if not prepared:
+                    self.failed = True
+                    success = False
+                    logger.warning("Realtime speech background writes failed: %s", type(outcome).__name__)
+                else:
+                    self._execution_version = outcome
             try:
                 submitted = int(self._provider.submitted_characters) if success and self._provider else 0
+                if not prepared:
+                    return
                 self._finalized = True
                 await self._finalize(success, submitted)
             except Exception:

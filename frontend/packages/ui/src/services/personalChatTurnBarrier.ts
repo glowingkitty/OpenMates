@@ -1,7 +1,10 @@
 import { registerWorkspaceCacheClear } from './workspaceCacheLifecycle';
 
-/** In-memory ordering for personal encrypted turns. Only a canonical terminal
- * persistence acknowledgement may advance the next turn's server version. */
+/** In-memory ordering for personal encrypted turns. While the predecessor's reply
+ * runs, a follower proceeds once that turn's admission was accepted (admitted
+ * version) and the server queues it behind the run. Once the reply has ended, the
+ * server no longer queues: the follower waits for the predecessor's terminal
+ * persistence, whose encrypted assistant row advances messages_v. */
 type TurnResult = { version: number } | { error: Error };
 
 export interface PersonalChatTurn {
@@ -9,16 +12,27 @@ export interface PersonalChatTurn {
   readonly messageId: string;
   readonly predecessor: Promise<TurnResult> | null;
   readonly done: Promise<TurnResult>;
+  /** Settles when the server accepted this turn's admission (its committed
+   * version is then the next turn's expected version) or when the turn settles. */
+  readonly admitted: Promise<TurnResult>;
+  /** The turn reserved before this one in the same chat, if still pending then. */
+  readonly predecessorTurn: PersonalChatTurn | null;
+  /** The server's AI task for this turn ended; its reply may still be persisting. */
+  replyEnded: boolean;
   turnId: string | null;
   /** Epoch-zero admission: the reply persists through legacy storage, not sealed recovery. */
   legacy: boolean;
   settled: boolean;
   resolve: (result: TurnResult) => void;
+  resolveAdmitted: (result: TurnResult) => void;
 }
 
 const tails = new Map<string, PersonalChatTurn>();
 const turns = new Map<string, PersonalChatTurn>();
 const settledVersions = new Map<string, number>();
+/** Followers waiting on an ended reply's persistence, woken when a new AI task
+ * (e.g. a focus-mode continuation) starts in the chat and the server queues again. */
+const runRestartWaiters = new Map<string, Set<() => void>>();
 
 /** Accept only authenticated server versions; optimistic local counts never enter here. */
 export function observePersonalChatCanonicalVersion(chatId: string, version: number): void {
@@ -54,8 +68,12 @@ export function reservePersonalChatTurn(chatId: string, messageId: string): Pers
   if (existing) return existing;
   let resolve!: (result: TurnResult) => void;
   const done = new Promise<TurnResult>((settle) => { resolve = settle; });
+  let resolveAdmitted!: (result: TurnResult) => void;
+  const admitted = new Promise<TurnResult>((settleAdmitted) => { resolveAdmitted = settleAdmitted; });
+  const predecessorTurn = tails.get(chatId) ?? null;
   const turn: PersonalChatTurn = {
-    chatId, messageId, predecessor: tails.get(chatId)?.done
+    chatId, messageId, admitted, resolveAdmitted, predecessorTurn, replyEnded: false,
+    predecessor: predecessorTurn?.admitted
       ?? (settledVersions.has(chatId) ? Promise.resolve({ version: settledVersions.get(chatId)! }) : null),
     done, turnId: null, legacy: false, settled: false, resolve,
   };
@@ -66,9 +84,46 @@ export function reservePersonalChatTurn(chatId: string, messageId: string): Pers
 
 export async function awaitPersonalChatPredecessor(turn: PersonalChatTurn): Promise<number | null> {
   if (!turn.predecessor) return null;
-  const result = await turn.predecessor;
+  let result = await turn.predecessor;
+  const prior = turn.predecessorTurn;
+  if ('version' in result && prior && !prior.settled && prior.replyEnded) {
+    // The reply ended but its encrypted row is not stored yet: the server would
+    // check this turn against a version that the pending row is about to move.
+    let wake!: () => void;
+    const restarted = new Promise<null>((resolveRestart) => { wake = () => resolveRestart(null); });
+    const waiters = runRestartWaiters.get(turn.chatId) ?? new Set<() => void>();
+    waiters.add(wake);
+    runRestartWaiters.set(turn.chatId, waiters);
+    try {
+      result = (await Promise.race([prior.done, restarted])) ?? result;
+    } finally {
+      waiters.delete(wake);
+      if (!waiters.size) runRestartWaiters.delete(turn.chatId);
+    }
+  }
   if ('error' in result) throw Object.defineProperty(new Error('The previous encrypted reply has not been saved. Retry this message after recovery.'), 'cause', { value: result.error, configurable: true, writable: true });
-  return result.version;
+  // Another device (or a queued CLI send) may have committed rows after the
+  // predecessor: the newest authenticated server version is the expected one.
+  return Math.max(result.version, settledVersions.get(turn.chatId) ?? 0);
+}
+
+/** Record the server-accepted admission: `version` is the committed messages_v
+ * of this turn's user row, which a queued follower must send as its expected version. */
+export function admitPersonalChatTurn(turn: PersonalChatTurn, version: number): void {
+  if (turn.settled || !Number.isSafeInteger(version) || version < 0) return;
+  turn.resolveAdmitted({ version });
+}
+
+/** The server's AI task for this user message ended (completed or stopped). */
+export function markPersonalChatReplyEnded(chatId: string, messageId: string): void {
+  const turn = turns.get(key(chatId, messageId));
+  if (turn && !turn.settled) turn.replyEnded = true;
+}
+
+/** A new AI task started in the chat: the server queues followers behind it again. */
+export function markPersonalChatReplyRunning(chatId: string): void {
+  for (const turn of turns.values()) if (turn.chatId === chatId) turn.replyEnded = false;
+  for (const wake of runRestartWaiters.get(chatId) ?? []) wake();
 }
 
 export function bindPersonalChatTurn(turn: PersonalChatTurn, turnId: string): void {
@@ -84,6 +139,7 @@ function settle(turn: PersonalChatTurn, result: TurnResult): void {
     settledVersions.set(turn.chatId, Math.max(settledVersions.get(turn.chatId) ?? 0, result.version));
   } else settledVersions.delete(turn.chatId);
   turn.resolve(result);
+  turn.resolveAdmitted(result);
   turns.delete(key(turn.chatId, turn.messageId));
   if (tails.get(turn.chatId) === turn) tails.delete(turn.chatId);
 }

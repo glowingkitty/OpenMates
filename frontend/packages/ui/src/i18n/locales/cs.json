@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Tato odpověď byla odstraněna, protože nesplňovala naše bezpečnostní pravidla."
+    },
+    "wellbeing": {
+      "text": "Svou poslední odpověď jsem odstranil, protože by ti mohla ublížit. Nejsi sám. Pokud přemýšlíš o tom, že si ublížíš, obrať se na někoho, komu věříš, na krizovou linku nebo na záchranné služby. Pořád jsem tu, abychom si mohli promluvit."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -134,6 +142,12 @@
         "text": "Naplánovat kolo financování",
         "description": {
           "text": "Spočítejte, kolik získat, jaký nástroj se hodí, ředění podílu a časový plán, s upravitelnou tabulkou kapitalizace."
+        }
+      },
+      "write_press_release": {
+        "text": "Napsat tiskovou zprávu",
+        "description": {
+          "text": "Napište tiskovou zprávu, kterou mohou novináři použít, ve vlastním tiskovém stylu vaší firmy, jako dokument Word nebo v jiném požadovaném formátu."
         }
       }
     },
@@ -221,6 +235,12 @@
         "description": {
           "text": "Prověřte konfigurační soubory na bezpečnostní zranitelnosti a vystavení."
         }
+      },
+      "write_specification": {
+        "text": "Napsat specifikaci",
+        "description": {
+          "text": "Proměňte nápad krok za krokem ve schválenou specifikaci - rozsah, požadavky, návrh a akceptační kontroly - a poté zahajte plán s úkoly."
+        }
       }
     },
     "events": {
@@ -303,6 +323,12 @@
         "description": {
           "text": "Mocná technika životního koučinku."
         }
+      },
+      "life_compass": {
+        "text": "Životní kompas",
+        "description": {
+          "text": "Najděte svůj směr ke šťastnějšímu životu, krok za krokem."
+        }
       }
     },
     "news": {
@@ -358,6 +384,20 @@
           "3": {
             "text": "Prozkoumej fakta a protiargumenty, než budu tuto **klimatickou politiku** probírat se skeptickým přítelem"
           }
+        }
+      }
+    },
+    "slides": {
+      "design_template": {
+        "text": "Navrhnout šablonu",
+        "description": {
+          "text": "Navrhněte krok za krokem opakovaně použitelnou šablonu snímků - tři návrhy na výběr, doladěné s vámi a uložené do vaší knihovny."
+        }
+      },
+      "plan_presentation": {
+        "text": "Naplánovat prezentaci",
+        "description": {
+          "text": "Naplánujte prezentaci krok za krokem - cíl, příběh, jedno sdělení na snímek, design - pak vytvořte snímky s poznámkami řečníka a zkontrolujte je."
         }
       }
     },
@@ -910,6 +950,12 @@
         "description": {
           "text": "Převeďte vektorovou grafiku na soubory pro vyšívací stroj s náhledem stehů."
         }
+      },
+      "get_design": {
+        "text": "Načíst návrh",
+        "description": {
+          "text": "Načte návrh z Figmy a vrátí strukturu, styly a předání do kódu."
+        }
       }
     },
     "electronics": {
@@ -947,6 +993,9 @@
           "3": {
             "text": "Jaké technologické akce se konají v Londýně v lednu?"
           }
+        },
+        "pricing_note": {
+          "text": "Běžné hledání akcí stojí asi 15–25 kreditů: 10 kreditů za vyhledávání na webu plus tokeny, které Mercury 3 použije ke čtení až pěti veřejných stránek. Hledání, na které odpoví jen oficiální program konference, stojí 1 kredit. Hledání, která selžou nebo nic nenajdou, jsou zdarma."
         }
       }
     },
@@ -2885,6 +2934,21 @@
       "structured": {
         "text": "Obsah"
       },
+      "player_label": {
+        "text": "Přehrávač hlasové odpovědi"
+      },
+      "pause": {
+        "text": "Pozastavit hlasovou odpověď"
+      },
+      "play": {
+        "text": "Přehrát hlasovou odpověď"
+      },
+      "previous_chapter": {
+        "text": "Předchozí kapitola: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Další kapitola: {chapter}"
+      },
       "speak_response": {
         "text": "Přečíst odpověď"
       },
@@ -3353,6 +3417,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3852,6 +3917,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "Správce"
@@ -3941,6 +4007,12 @@
     },
     "download": {
       "text": "Stáhnout"
+    },
+    "download_pdf": {
+      "text": "Stáhnout PDF"
+    },
+    "download_word": {
+      "text": "Stáhnout Word"
     },
     "loading": {
       "text": "Načítání..."
@@ -5926,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Tvůj účet OpenMates je pozastaven"
+      },
+      "headline": {
+        "text": "Tvůj účet je pozastaven"
+      },
+      "body": {
+        "text": "Naše bezpečnostní kontroly zamítly požadavky z tvého účtu."
+      },
+      "appeal": {
+        "text": "Na odvolání máš 14 dní. Můžeš si také stáhnout svá data."
+      },
+      "button": {
+        "text": "Odvolat se nebo stáhnout moje data"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Potřebujeme o tvém účtu více informací"
+      },
+      "headline": {
+        "text": "Potřebujeme ještě trochu informací"
+      },
+      "body": {
+        "text": "Posuzujeme pozastavení tvého účtu a máme otázku:"
+      },
+      "button": {
+        "text": "Odpovědět v aplikaci"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Tvůj účet OpenMates je opět aktivní"
+      },
+      "headline": {
+        "text": "Tvůj účet je opět aktivní"
+      },
+      "body": {
+        "text": "Pozastavení tvého účtu jsme přezkoumali a zrušili. Tvá porušení byla vymazána a OpenMates můžeš používat jako dřív."
+      },
+      "apology": {
+        "text": "Omlouváme se za přerušení."
+      }
     }
   },
   "embed_user_edits": {},
@@ -7622,7 +7739,7 @@
         "text": "{used} / {limit} kreditů"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "Přihlašujete se v cloudovém prohlížeči. Když necháte AI pokračovat, může přistupovat k údajům tohoto účtu. Relevantní obsah stránek může být odeslán našim poskytovatelům AI. Přihlašujte se jen k účtům, ke kterým chcete dát AI přístup."
@@ -7823,6 +7940,42 @@
     },
     "slides_count_plural": {
       "text": "snímků"
+    },
+    "slides_template_default_title": {
+      "text": "Šablona"
+    },
+    "slides_template_label": {
+      "text": "Šablona"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} rozvržení"
+    },
+    "slides_template_use": {
+      "text": "Použít tento návrh"
+    },
+    "slides_template_use_message": {
+      "text": "Použij návrh \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Název"
+    },
+    "slides_layout_section": {
+      "text": "Sekce"
+    },
+    "slides_layout_content": {
+      "text": "Obsah"
+    },
+    "slides_layout_two_column": {
+      "text": "Dva sloupce"
+    },
+    "slides_layout_image": {
+      "text": "Obrázek"
+    },
+    "slides_layout_quote": {
+      "text": "Citát"
+    },
+    "slides_layout_closing": {
+      "text": "Závěr"
     },
     "slides_prev": {
       "text": "Předchozí snímek"
@@ -8460,6 +8613,54 @@
     },
     "progress_result_one": {
       "text": "1 výsledek"
+    },
+    "slides_template_pick": {
+      "text": "Šablona"
+    },
+    "slides_template_picker_title": {
+      "text": "Vyberte šablonu"
+    },
+    "slides_template_builtin": {
+      "text": "Vestavěné"
+    },
+    "slides_template_library_personal": {
+      "text": "Vaše knihovna"
+    },
+    "slides_template_library_team": {
+      "text": "Knihovna týmu"
+    },
+    "slides_template_updated": {
+      "text": "Aktualizováno"
+    },
+    "slides_template_apply": {
+      "text": "Použít šablonu"
+    },
+    "slides_template_apply_failed": {
+      "text": "Šablonu se nepodařilo použít"
+    },
+    "slides_template_library_empty": {
+      "text": "Zatím žádné uložené šablony"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -8491,55 +8692,6 @@
       },
       "remove_pending_file": {
         "text": "Odebrat soubor"
-      }
-    },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} příloha {type}"
-      },
-      "embed_many": {
-        "text": "{count} příloh {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "obrázek"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "web"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "mapa"
-        },
-        "code": {
-          "text": "kód"
-        },
-        "document": {
-          "text": "dokument"
-        },
-        "sheet": {
-          "text": "tabulka"
-        },
-        "file": {
-          "text": "soubor"
-        },
-        "app": {
-          "text": "aplikace"
-        },
-        "embed": {
-          "text": "vložený"
-        }
       }
     },
     "file_size_limits": {
@@ -8800,6 +8952,27 @@
     },
     "xlsx_feature_sheet_limit": {
       "text": "listy za prvními 10"
+    },
+    "guest_access_checking": {
+      "text": "Ověřujeme, zda můžeš chatovat bez účtu…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Na tomto zařízení ses už přihlásil. Přihlas se a chatuj dál."
+    },
+    "guest_access_usage_limit": {
+      "text": "Bezplatné zprávy bez účtu jsou zatím vyčerpány. Zaregistruj se a chatuj dál."
+    },
+    "guest_access_unavailable": {
+      "text": "Chatování bez účtu teď není dostupné. Zaregistruj se a chatuj."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Nepodařilo se ověřit, zda můžeš chatovat bez účtu. Zkontroluj připojení nebo se zaregistruj a chatuj."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Odesílání souborů vyžaduje účet. Zaregistruj se, nebo soubor odeber a chatuj zdarma."
+    },
+    "guest_send_timeout": {
+      "text": "Odesílání trvá příliš dlouho, zpráva nebyla odeslána. Zkontroluj připojení a zkus to znovu."
     },
     "mention_dropdown": {
       "header": {
@@ -10735,6 +10908,21 @@
         "text": "Připravte krátký e-mail jednomu investorovi, přeposlatelné představení pro společného známého a dvě navazující zprávy."
       }
     },
+    "business_write_press_release": {
+      "text": "Napsat tiskovou zprávu",
+      "description": {
+        "text": "Napište tiskovou zprávu, kterou mohou novináři použít, ve vlastním tiskovém stylu vaší firmy, jako dokument Word nebo v jiném požadovaném formátu."
+      },
+      "process": {
+        "text": "- Používá váš uložený tiskový styl (názvy, medailonek firmy, mluvčí, kontakt, tón), nebo si jej nejprve vytvoří z dřívějších zpráv, několika otázek či neutrálních výchozích hodnot\n\n- Nabídne uložení stylu do vašeho projektu, aby každá další zpráva zněla stejně\n\n- Ptá se jen na to, co o novince chybí, vždy na jednu věc, a upřímně řekne, pokud je zpravodajský háček slabý\n\n- Ukáže varianty titulku, úvod a fakta, která použije, abyste je mohli opravit dřív, než se cokoli napíše\n\n- Napíše zprávu s titulkem, místem a datem, úvodem, citacemi, medailonkem firmy a kontaktem pro média, ve výchozím nastavení jako dokument Word, na požádání jako PDF, HTML nebo React\n\n- Používá jen fakta, která jste potvrdili, nikdy si nevymýšlí citace a každou označí ke schválení\n\n- Zkontroluje výsledek a nabídne pitch e-mail pro novináře, příspěvek na sociální sítě nebo překlad"
+      },
+      "how_to_use": {
+        "text": "- Napiš **tiskovou zprávu** o spuštění naší aplikace 18. listopadu. Tady jsou naše poslední dvě zprávy\n\n- Vytvoř náš **tiskový styl** z našeho webu a ulož ho do tohoto projektu\n\n- Přeměň toto oznámení na **tiskovou zprávu v PDF** a krátký pitch e-mail pro novináře"
+      },
+      "systemprompt": {
+        "text": "Pomáháte uživateli napsat tiskovou zprávu, kterou může novinář použít tak, jak je: nejdřív skutečná zpráva, ověřitelná fakta, jmenovaný hlas a kontakt, který odpovídá. Tiskový styl firmy a výslovná přání uživatele mají přednost před obecnými konvencemi.\n\nŘiďte se jen pokyny aktuální fáze. Ptejte se jednou otázkou za kolo, s konkrétním příkladem a doporučením, a počkejte na odpověď. Respektujte žádosti o přeskočení otázek, odpověď na všechno najednou nebo přechod rovnou ke konceptu.\n\nDůležité zásady:\n\n- Nikdy se neptejte na informace, které už obsahuje načtená vzpomínka, nahraný soubor nebo chat. Vyjděte z nich a nechte je potvrdit.\n\n- Fakta uživatele jsou jediným zdrojem. Vylepšujte formulace, pořadí a důraz; nikdy nevymýšlejte ani nenafukujte čísla, data, zákazníky, partnery, ocenění, výsledky ani jména. Pokud uživatel žádá, abyste něco vymysleli, odmítněte a nabídněte pravdivou alternativu.\n\n- Nikdy nepředkládejte citaci jako konečnou. Citace pište jako koncepty ke schválení jmenovanou osobou a nikdy nepřisuzujte slova skutečné osobě mimo organizaci uživatele bez zdroje.\n\n- Pište jednoduše a konkrétně. Odstraňte prázdné superlativy a módní slova nebo je nahraďte faktem.\n\n- Informace pod embargem nebo dosud nezveřejněné nechte jen v tomto chatu a v projektu uživatele; nikdy je nezveřejňujte, neodesílejte ani nesdílejte a nikdy neoslovujte novináře ani nikoho jiného. Vy píšete koncepty; odesílá je uživatel.\n\n- Výchozí výstup je Word. PDF, HTML nebo React vytvářejte jen na požádání, podle formátových pravidel fáze konceptu.\n\n- Tiskový styl patří jedné firmě. Doporučte uložit jej do Vzpomínek aktivního projektu; bez aktivního projektu nabídněte osobní vzpomínku, která se načte, jen když je zmíněna. Ukládejte až po souhlasu uživatele.\n\n- Že byla vzpomínka uložena nebo aktualizována, řekněte až po úspěšném volání nástroje pro ukládání. Pokud dostupný nástroj nemůže ukládat do projektu, řekněte to, nabídněte osobní vzpomínku nebo uživateli sdělte, že může styl vložit na kartu Vzpomínky v projektu.\n\n- Neposkytujte právní poradenství k oznamovacím povinnostem, burzovním pravidlům ani ochranným známkám; řekněte, kdy by se uživatel měl poradit s právníkem nebo týmem pro vztahy s investory.\n\n- Odpovědi v chatu držte krátké. Obsah nese dokument.\n\n- Hodnoty jako [EMAIL_1_org] nebo [PHONE_1_000] jsou zástupné symboly ochrany soukromí. Aplikace na jejich místě zobrazuje skutečné údaje uživatele na obrazovce i v dokumentu. Používejte je beze změny jako skutečnou hodnotu; nikdy je nenazývejte zástupnými, chybějícími ani neplatnými a nikdy nežádejte uživatele, aby je nahradil."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analyzovat protokoly",
       "description": {
@@ -10852,6 +11040,21 @@
         "text": "- pokud ještě není poskytnuto, požádat uživatele o URL github/gitlab repozitáře\n- pokud ještě není poskytnuto, zeptat se uživatele, co chce testovat / jaký je jeho případ použití\n- použít dovednost ke kontrole issues, zda byly nedávno nahlášeny kritické problémy s použitím repozitáře\n- pokud je projekt hlášen jako nefunkční, zeptat se uživatele, zda chce pokračovat v testování\n- zeptat se uživatele, kde klonovat a testovat repo: nastavit nový stroj? github codespaces? lokální stroj? atd.\n- klonovat repo na určené místo\n- přečíst strukturu složek a souborů projektu a readme.md pro přehled o projektu\n- zjistit, jak projekt testovat, a začít s testováním"
       }
     },
+    "code_write_specification": {
+      "text": "Napsat specifikaci",
+      "description": {
+        "text": "Proměňte nápad krok za krokem ve schválenou specifikaci - rozsah, požadavky, návrh a akceptační kontroly - a poté zahajte plán s úkoly."
+      },
+      "process": {
+        "text": "- Začíná vaším nápadem: pro koho je, jak vypadá úspěch a co spadá do rozsahu a co ne\n\n- Klade jednu až tři krátké otázky najednou, každou s doporučením, a přeskakuje, co jste už řekli\n\n- Shrne každý krok a před pokračováním čeká na vaše potvrzení\n\n- Vede viditelný seznam otevřených předpokladů, aby se nic nerozhodovalo potichu za vás\n\n- Ve výchozím stavu píše jednu specifikaci a propojené produktové, designové a technické specifikace navrhuje jen u složitých projektů, pokud s tím souhlasíte\n\n- Přidává akceptační kontroly, které dokazují každý požadavek, pomocí testů, dotazů na AI nebo vašeho vlastního potvrzení\n\n- Plán s úkoly zahájí až poté, co specifikaci schválíte"
+      },
+      "how_to_use": {
+        "text": "- Pomoz mi **napsat specifikaci** online objednávání kváskového chleba v mé pekárně\n\n- Mám nápad na aplikaci pro rezervaci lezeckých kurzů. **Dopracujme specifikaci**, než začneme stavět\n\n- **Zpracuj specifikaci** funkce týmového kalendáře pro náš projektový nástroj, s akceptačními kontrolami"
+      },
+      "systemprompt": {
+        "text": "Jsi klidný, zkušený produktový inženýr, který pomáhá uživateli proměnit nápad ve specifikaci, kterou schválí dřív, než se cokoli začne stavět. Rozhodují slova uživatele; ty strukturuješ, ptáš se a navrhuješ.\n\nŘiď se jen pokyny aktuální fáze. Kladi na jedno kolo jednu až tři krátké otázky, každou s doporučením a konkrétním příkladem, a počkej na odpověď. Nikdy se neptej na to, na co už odpovídá chat, nahraný soubor nebo projekt. Respektuj žádosti odpovědět na všechno najednou, přeskočit otázku nebo pokračovat s pojmenovanými předpoklady.\n\nDůležité zásady:\n- Každou fázi ukonči krátkým shrnutím a požádej uživatele, aby je před pokračováním potvrdil nebo opravil.\n- V každém shrnutí veď seznam s nadpisem \"Otevřené předpoklady\". Vše, co jsi předpokládal, ale uživatel nepotvrdil, patří tam; nikdy nepředkládej předpoklad jako rozhodnutí.\n- Výchozí je jedna specifikace. Propojené produktové, designové a technické specifikace navrhuj jen u zjevně složitých projektů, důvod vysvětli jedním řádkem a rozděl jen se souhlasem uživatele.\n- Požadavky jsou testovatelná tvrzení o pozorovatelném chování se stabilními identifikátory. Žádné implementační detaily v požadavcích; designová rozhodnutí patří do seznamu návrhu.\n- Pro specifikaci používej dovednost specifikace z plans a pro akceptační kontroly dovednost kontroly z plans. Citlivé oblasti (bezpečnost, soukromí, šifrování, oprávnění, platby, migrace, přesné chování API) vždy dostanou povinný deterministický zdroj.\n- Neplánuj, nepiš kód a nezačínej s implementací, dokud uživatel specifikaci neschválí. Po schválení vytvoř plán a jeho úkoly a vysvětli, co bude dál.\n- Odpovědi v chatu drž krátké a jednoduché. Podrobnosti nesou vložené karty specifikace a kontroly.\n- Nikdy si nevymýšlej fakta o podnikání, uživatelích nebo systémech uživatele; zeptej se, nebo zapiš otevřený předpoklad.\n- Hodnoty jako [EMAIL_1_org] nebo [PHONE_1_000] jsou zástupné hodnoty ochrany soukromí. Aplikace na jejich místě zobrazí skutečné údaje uživatele. Používej je beze změny jako skutečnou hodnotu; nikdy je nenazývej zástupnými, chybějícími ani neplatnými a nikdy nežádej uživatele, aby je nahradil."
+      }
+    },
     "code_write_test_debug_document": {
       "text": "Psát, testovat, ladit a dokumentovat",
       "description": {
@@ -10910,6 +11113,12 @@
       "text": "Rozhovor o budoucnosti",
       "description": {
         "text": "Mocná technika životního koučinku."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "Životní kompas",
+      "description": {
+        "text": "Najděte svůj směr ke šťastnějšímu životu, krok za krokem."
       }
     },
     "health_prepare_doctor_report": {
@@ -10973,6 +11182,24 @@
       },
       "systemprompt": {
         "text": "Jste neutrální kouč pro občanskou diskusi a výzkumný asistent. Vaším cílem je pomoci uživatelům připravit se na politické, občanské, celospolečenské, volební, geopolitické a další rozhovory ve veřejném zájmu s přesností, pokorou a v dobré víře.\n\nZačněte pochopením situace. V první odpovědi asistenta po aktivaci tohoto zaměření reagujte na původní požadavek uživatele stručným kontextuálním úvodem, i když uživatel výslovně o otázky nepožádal. Položte jednu až tři konkrétní otázky na chybějící podrobnosti, jako je jurisdikce, uživatelem požadovaný výsledek a postavení nebo vztah druhé osoby. Využijte téma a další fakta, která uživatel již uvedl; nežádejte ho o opakování těchto podrobností ani o znovuzformulování požadavku. Pokud vás uživatel požádá, abyste začali otázkami, dodržte toto pořadí, i když je téma známé. Pokud již byl poskytnut veškerý podstatný kontext, položte před dalším postupem jednu otázku ohledně hlavní priority uživatele nebo stručně potvrďte konkrétní rámec. Počkejte na odpověď uživatele, než přistoupíte k faktickému výzkumu, výkladu zásad nebo kompletnímu přípravnému listu, pokud uživatel výslovně nepožádá o okamžitou rešerši. Neomezujte se pouze na potvrzení aktivace a nedělejte z úvodního zjišťování dlouhý dotazník.\n\nPoužívejte tento pracovní postup:\n- Přeformulujte téma a uživatelem požadovaný výsledek neutrálním jazykem.\n- Identifikujte hlavní tvrzení, která se pravděpodobně objeví. Oddělte faktická tvrzení, hodnotové soudy, předpoklady, předpovědi a osobní zkušenosti.\n- U faktických nebo aktuálních tvrzení použijte web-search, vyhledávání zpráv a web-read, pokud přesnost závisí na čerstvých nebo sporných informacích. Upřednostňujte primární zdroje, oficiální data, volební materiály, legislativu, zprávy regulačních orgánů, soudní dokumenty, seriózní žurnalistiku a odborné instituce před shrnutími ze sociálních sítí.\n- Vyhodnocujte zdroje podle aktuálnosti, relevance, autority, přesnosti a účelu. Uveďte, kdy má zdroj advokační, stranický, vládní, komerční nebo kampaňový zájem.\n- Zmapujte nejsilnější verzi každého hlavního postoje, než jej začnete kritizovat. Zahrňte body shody, kompromisy, nejistoty a legitimní hodnoty na každé straně.\n- Připravte otázky, které vybízejí k vysvětlení, definují pojmy, testují předpoklady a vynášejí na povrch důkazy. Vyhněte se záludným otázkám (chytákům), pokud uživatel výslovně nepotřebuje formální přípravu na debatu.\n- Pomozte uživateli zvolit klidné formulace, hranice a únikové věty pro citlivé rozhovory.\n\nVýchozí struktura výstupu:\n\n## Cíl diskuse\nShrňte, na co se uživatel připravuje a jak by vypadala úspěšná konverzace.\n\n## Klíčová fakta k ověření\nUveďte důležitá faktická tvrzení, nejlepší dostupné důkazy a případné nejistoty. Uveďte, kdy je zapotřebí další výzkum.\n\n## Pravděpodobné perspektivy\nPopište nejsilnější argumenty a obavy hlavních stran vedené v dobré víře. Nekarizujte opačné názory.\n\n## Otázky, které lze položit\nPoskytněte promyšlené, otevřené otázky, které objasňují definice, důkazy, kompromisy, hodnoty a praktické důsledky.\n\n## Tvrzení, u nichž se vyvarovat přehánění\nVarujte před slabými tvrzeními, zastaralými fakty, tvrzeními z jediného zdroje, zavádějícím rámováním nebo body, které vyžadují nuanci.\n\n## Navrhovaný plán konverzace\nUveďte krátký plán pro zahájení diskuse, udržení její konstruktivnosti, zvládání napětí a následné kroky.\n\nDůležité hranice:\n- Nepište manipulativní propagandu, obtěžování, doxxing, zastrašování ani dehumanizující rétoriku.\n- Neposkytujte cílenou strategii politického přesvědčování založenou na demografických, psychologických, identitních profilech nebo profilech zranitelnosti.\n- Neoptimalizujte kampaňová sdělení, cílení na voliče, potlačování volební účasti nebo aktivistickou logistiku. Pokud se požadavek uživatele změní v advokacii nebo organizování, udržujte pomoc na obecné úrovni, zákonnou a nemanipulativní, nebo doporučte asistenta Activism mate pro etickou strategii organizování.\n- Neprezentujte nejistá nebo sporná tvrzení jako hotová fakta. Jasně rozlišujte důkazy, vyvození, interpretaci a názor.\n- Nepředpokládejte zlou vůli, korupci, extremismus nebo zlý úmysl, pokud toto rámování nepodporují spolehlivé důkazy.\n- Respektujte soukromí. Nežádejte o nepotřebné osobní údaje o uživateli nebo jiných zúčastněných osobách."
+      }
+    },
+    "slides_design_template": {
+      "text": "Navrhnout šablonu",
+      "description": {
+        "text": "Navrhněte krok za krokem opakovaně použitelnou šablonu snímků - tři návrhy na výběr, doladěné s vámi a uložené do vaší knihovny."
+      },
+      "process": {
+        "text": "- Zeptá se, k čemu šablona slouží a k jakým barvám značky, písmům nebo logu má ladit\n- Ukáže tři zřetelně odlišné návrhy jako karty šablon s náhledy šesti rozvržení snímků\n- Jeden vyberete tlačítkem „Použít tento návrh“ nebo jeho názvem\n- Doladí s vámi barvy, písma a rozvržení a po každé změně kartu aktualizuje\n- Řekne vám, ať na finální kartě stisknete Uložit, aby se dostala do vaší knihovny\n- Nabídne vytvoření první prezentace s vaší novou šablonou"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Naplánovat prezentaci",
+      "description": {
+        "text": "Naplánujte prezentaci krok za krokem - cíl, příběh, jedno sdělení na snímek, design - pak vytvořte snímky s poznámkami řečníka a zkontrolujte je."
+      },
+      "process": {
+        "text": "- Zeptá se na cíl, publikum, délku a prostředí, s jednoduchými příklady a doporučením\n- Navrhne vhodný příběh, například u pitche problém, řešení, demo, dopad a prosbu\n- Vypíše jedno sdělení na snímek a před tvorbou čeká na vaše potvrzení\n- Ukáže vhodné vestavěné návrhy jako karty, použije vaši uloženou šablonu nebo s vámi navrhne novou\n- Vytvoří snímky s poznámkami řečníka na každém, podle délky vašeho vystoupení\n- Zkontroluje výsledek a opraví, co přijmete, například příliš mnoho textu na snímku"
       }
     },
     "social_media_content_calendar_strategist": {
@@ -11200,22 +11427,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "Tvůj AI tým"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "pro vyřízení všeho, co čeká"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Napiš dokument"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "Najdi akce"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "Vytvoř webovou aplikaci"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "Vysvětli zprávy"
     },
     "landing_actionable_line1": {
       "text": "Praktické."
@@ -11229,35 +11456,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Samozřejmě, tady je:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Akce event website v Berlíně o decentralizovaných výpočtech a výzkumu DePIN."
+      "text": "Krátké přednášky a ukázky open-source AI nástrojů a potom čas na seznámení s dalšími lidmi."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Otevřít na event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Otevřít stránku akce"
     },
     "landing_actionable_event_city": {
       "text": "Berlín"
     },
     "landing_actionable_event_country": {
       "text": "Německo"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Online"
@@ -11268,62 +11480,44 @@
     "landing_actionable_event_rsvps": {
       "text": "účastníků"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "Tvoje chaty se šifrují na tvém zařízení, než se uloží."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "Osobní údaje se nahradí dřív, než je AI uvidí."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "Připrav e-mail pro"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "Ok, připravuji e-mail pro"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "Doporuč mi místa na moji příští cestu."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "Personalizované odpovědi, ale jen když chceš."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "Originály vidíš jen ty."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "Předchozí cesty"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "Oblíbená místa"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "Tvoji AI experti, specializovaní na různá témata."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "Optimalizované instrukce, vybrané ve chvíli, kdy jsou potřeba."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Přední modely AI na jednom místě."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "Přistupuj ke svým chatům v OpenMates tak, jak ti vyhovuje."
     }
   },
   "header": {
@@ -11344,6 +11538,26 @@
     },
     "report_issue": {
       "text": "Nahlásit problém"
+    }
+  },
+  "helplines": {
+    "title": {
+      "text": "Nemusíš tím procházet sám"
+    },
+    "call": {
+      "text": "Zavolat"
+    },
+    "send_text": {
+      "text": "Poslat SMS"
+    },
+    "chat": {
+      "text": "Chat online"
+    },
+    "emergency": {
+      "text": "V naléhavé situaci volej {emergency_number}"
+    },
+    "find_more": {
+      "text": "Najít další linky pomoci"
     }
   },
   "highlight": {
@@ -11429,6 +11643,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Tento požadavek byl zamítnut. Sexuální nebo sugestivní obrázky s nezletilými se nikdy nevytvářejí."
+    },
+    "reason_intimate_real_person": {
+      "text": "Tento požadavek byl zamítnut. Sexuální nebo intimní obrázky skutečných osob se nikdy nevytvářejí."
+    },
+    "reason_bypass": {
+      "text": "Tento požadavek byl zamítnut, protože se pokusil obejít bezpečnostní pravidla."
+    },
+    "reason_minor": {
+      "text": "Realistické obrázky nezletilých se nevytvářejí a fotky nezletilých lze upravovat jen v pozadí, osvětlení nebo barvách, protože by takové obrázky mohly být zneužity, například pro falešné profily vydávající se za nezletilé."
+    },
+    "alternative_minor": {
+      "text": "Možná je zjevně stylizovaná verze, například 3D render, ilustrace nebo kreslená postava, pokud scéna není sexuální."
+    },
+    "reason_sexual": {
+      "text": "Sexuální nebo explicitní obrázky se nevytvářejí."
+    },
+    "alternative_sexual": {
+      "text": "Možná je neexplicitní verze scény."
+    },
+    "reason_violent": {
+      "text": "Obrázky zobrazující skutečné osoby zraněné, napadené nebo na místě činu se nevytvářejí, protože by mohly být použity k jejich poškození nebo pomluvě."
+    },
+    "alternative_violent": {
+      "text": "Možná je scéna s fiktivními postavami místo skutečných osob."
+    },
+    "reason_public_figure": {
+      "text": "Obrázky skutečných veřejně známých osob se v tuto chvíli nevytvářejí, protože by mohly být použity jako deepfaky nebo pro nepravdivá tvrzení."
+    },
+    "alternative_public_figure": {
+      "text": "Možná je původní fiktivní postava ve stejné scéně."
+    },
+    "reason_identity": {
+      "text": "Výměna obličejů a nahrazení identity osoby se neprovádějí, protože by mohly být použity k vydávání se za někoho jiného."
+    },
+    "alternative_identity": {
+      "text": "Možné jsou úpravy, které zachovají identitu osoby, například nové pozadí, osvětlení nebo umělecký styl."
+    },
+    "reason_id_document": {
+      "text": "Obrázky dokladů totožnosti, jako jsou pasy, občanské průkazy nebo řidičské průkazy, se nevytvářejí, protože by mohly být použity k podvodu."
+    },
+    "reason_hate": {
+      "text": "Obrázky se symboly nenávisti nebo obrázky, které cílí na lidi kvůli tomu, kým jsou, se nevytvářejí."
+    },
+    "reason_self_harm": {
+      "text": "Obrázky, které zobrazují sebepoškozování nebo k němu vybízejí, se nevytvářejí."
+    },
+    "alternative_self_harm": {
+      "text": "Pokud máš těžké období, může pomoct promluvit si s někým, komu věříš, nebo s místní linkou pomoci."
+    },
+    "reason_weapons": {
+      "text": "Obrázky s návody nebo plány na zbraně či výbušniny se nevytvářejí."
+    },
+    "reason_scam": {
+      "text": "Média pro podvody, falešné dokumenty nebo vydávání se za někoho jiného se nevytvářejí."
+    },
+    "alternative_scam": {
+      "text": "Možný je původní design, který nenapodobuje skutečnou osobu, značku ani dokument."
+    },
+    "reason_spam": {
+      "text": "Hromadná výroba vatového obsahu nebo odstraňování označení AI není podporována."
+    },
+    "alternative_spam": {
+      "text": "Možných je několik obrázků pro konkrétní účel."
+    },
+    "reason_deceptive": {
+      "text": "Obrázky, které mají působit jako skutečné záběry, skutečné prohlášení nebo oficiální doporučení, se nevytvářejí."
+    },
+    "alternative_deceptive": {
+      "text": "Možná je zjevně fiktivní nebo kreslená verze."
+    },
+    "reason_other": {
+      "text": "Tento požadavek nelze podle bezpečnostních pravidel vytvořit."
+    },
+    "alternative_other": {
+      "text": "Může fungovat jiné téma nebo jiná formulace."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktura"
@@ -11949,6 +12243,22 @@
             },
             "description": {
               "text": "Používáme api.video (společnost EU, Francie) pro hostování a streamování ukázkových a prezentačních videí produktů zobrazených na našem webu a webové aplikaci. Když sledujete video, vaše IP adresa a základní data sledování jsou zpracovávána společností api.video. Identifikátory uživatelských účtů nejsou sdíleny."
+            }
+          }
+        },
+        "status_page": {
+          "heading": {
+            "text": "Stavová stránka (pouze když ji otevřeš)"
+          },
+          "description": {
+            "text": "Tento poskytovatel se používá jen tehdy, když otevřeš veřejnou stavovou stránku na status.openmates.org. Nepoužívá se pro tvůj účet ani pro jinou část OpenMates."
+          },
+          "upcloud": {
+            "heading": {
+              "text": "UpCloud (hosting stavové stránky)"
+            },
+            "description": {
+              "text": "Veřejnou stavovou stránku status.openmates.org (statická stránka a stavový soubor JSON) hostuje společnost UpCloud Oy na serveru v Amsterdamu v Nizozemsku. Když stránku otevřeš, tvůj prohlížeč se připojí k serveru UpCloud, takže UpCloud zpracovává tvou IP adresu a metadata připojení TLS. Neuchováváme přístupové logy a na této stránce nepoužíváme cookies ani sledovací nástroje. Stejný server také odesílá do OpenMates automatizované testovací požadavky, které neobsahují žádná uživatelská data."
             }
           }
         },
@@ -14087,6 +14397,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "přes"
@@ -14294,6 +14605,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Nemohu vytvářet propagandu, nenávistný obsah, dezinformace ani manipulativní bulvární obsah. Rád vysvětlím, jak fungují, rozeberu příklady, ověřím tvrzení nebo pomohu s jasně označenou satirou."
+    },
+    "illegal_category": {
+      "text": "S obsahem sexuálního charakteru s nezletilými, intimními snímky bez souhlasu, sexuálními deepfaky skutečných osob ani zbraněmi hromadného ničení pomoci nemohu."
+    },
+    "live_site_abuse": {
+      "text": "Ten web pravděpodobně opravdu vlastníte, ale na živých webech provádím jen běžné akce jednoho uživatele lidským tempem, takže nemohu spouštět hromadné ani zneužívající akce jako hromadné komentáře, registrace, hádání hesel nebo zahlcení. Takové testy zatím běží jen proti localhostu, lokálnímu vývojovému prostředí nebo lokálně spuštěné staging kopii. Rád vám to pomohu nastavit."
+    },
+    "strike_notice": {
+      "text": "Toto je porušení {strike} z {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Pojištění"
@@ -14396,6 +14721,82 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Tvůj účet je pozastaven"
+    },
+    "appeal_button": {
+      "text": "Podat odvolání"
+    },
+    "download_button": {
+      "text": "Stáhnout moje data"
+    },
+    "explanation_label": {
+      "text": "Řekni nám, co se stalo (až 1 000 znaků)"
+    },
+    "consent_label": {
+      "text": "Souhlasím, že s bezpečnostním posuzovatelem budou sdíleny jen označené požadavky"
+    },
+    "add_photo": {
+      "text": "Přidat fotku"
+    },
+    "photo_added": {
+      "text": "Fotka připojena. Vybrat jinou"
+    },
+    "submit": {
+      "text": "Odeslat odvolání"
+    },
+    "sent": {
+      "text": "Tvé odvolání bylo odesláno. Rozhodnutí dostaneš do 7 dnů."
+    },
+    "admin_title": {
+      "text": "Bezpečnostní kontroly"
+    },
+    "admin_restore": {
+      "text": "Obnovit"
+    },
+    "admin_delete": {
+      "text": "Smazat"
+    },
+    "admin_ask": {
+      "text": "Zeptat se uživatele"
+    },
+    "admin_delete_confirm": {
+      "text": "Smazat tento účet? Standardní smazání s plným vrácením peněz, e-mailem o smazání a záznamem o shodě."
+    },
+    "admin_empty": {
+      "text": "Žádný účet nečeká na kontrolu."
+    },
+    "until": {
+      "text": "Účet pozastaven do {date}"
+    }
+  },
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} bylo zamítnuto. {reason} Toto je porušení {strike} z {max}."
+    },
+    "what_image_generate": {
+      "text": "Tvůj požadavek na obrázek"
+    },
+    "what_image_edit": {
+      "text": "Tvůj požadavek na úpravu obrázku"
+    },
+    "what_video": {
+      "text": "Tvůj požadavek na video"
+    },
+    "what_upload": {
+      "text": "Tvůj nahraný obrázek"
+    },
+    "suspended_until": {
+      "text": "Toto je porušení 2 ze 3. Tvůj účet je pozastaven do {date} a poté bude znovu aktivní. Třetí porušení ho pozastaví, dokud ho nezkontroluje administrátor."
+    },
+    "suspended_pending_review": {
+      "text": "Toto je porušení 3 ze 3. Tvůj účet je pozastaven, dokud ho nezkontroluje administrátor. Proti tomuto rozhodnutí se můžeš odvolat."
+    },
+    "unavailable": {
+      "text": "Bezpečnostní kontrola je dočasně nedostupná, proto nešlo požadavek zpracovat. Zkus to prosím za chvíli znovu."
+    }
+  },
   "settings": {
     "account": {
       "username": {
@@ -19128,7 +19529,7 @@
       "text": "Žádná nahota, násilí ani krvavé scény\nna profilových obrázcích."
     },
     "last_warning_image_not_allowed": {
-      "text": "Poslední varování:\nŽádná nahota, násilí ani krvavé scény na profilových obrázcích.\nJeště jedno porušení a váš účet bude smazán."
+      "text": "Poslední varování:\nŽádný explicitní sexuální obsah ani extrémně krvavé scény na profilových obrázcích.\nJeště jedno porušení a váš účet bude pozastaven."
     },
     "your_account_got_deleted": {
       "text": "Váš účet byl smazán."
@@ -20749,7 +21150,7 @@
       "text": "Vyzkoušet zdarma"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "E-mailová doména není povolena."
@@ -20757,32 +21158,8 @@
     "email_ignored": {
       "text": "Tato e-mailová adresa nemůže být použita pro registraci. Pokud si myslíte, že se jedná o chybu, kontaktujte prosím podporu."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates je v současnosti alfa verze pro rané testery."
-    },
-    "decent_stable": {
-      "text": "Tato alfa verze je poměrně stabilní"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Nicméně ještě nejsou implementovány všechny základní funkce."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Očekávejte některé chyby tu a tam a pamatujte: AI chatboty mohou dělat chyby."
-    },
     "view_on_github": {
       "text": "Zobrazit OpenMates na GitHub"
-    },
-    "view_on_github_description": {
-      "text": "Pro diskusi o chybách, funkcích a aktualizacích o nových verzích."
-    },
-    "view_on_instagram": {
-      "text": "Zobrazit OpenMates na Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "Pro aktualizace o nových verzích a dalších aktualizacích."
-    },
-    "continue_with_alpha": {
-      "text": "Pokračovat s {version}"
     },
     "server_admin": {
       "text": "Správce serveru"
@@ -21542,6 +21919,7 @@
       "text": "Vlastní barva"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

@@ -25,8 +25,11 @@ fi
 
 LOCK_FILE="${OPENMATES_DOCKER_CLEANUP_LOCK:-/tmp/openmates-docker-cleanup.lock}"
 DOCKER_TIMEOUT_SECONDS="${OPENMATES_DOCKER_CLEANUP_TIMEOUT_SECONDS:-300}"
-BUILD_CACHE_KEEP="${OPENMATES_DOCKER_BUILD_CACHE_KEEP:-8GB}"
-AGGRESSIVE_DISK_PERCENT="${OPENMATES_DOCKER_AGGRESSIVE_PERCENT:-85}"
+# Images and BuildKit cache share one budget (TASK-7646, owner decision 2026-11-17):
+# the build cache keeps what the budget leaves after the images, 80% of it from
+# the pressure mark on. Cleanup starts at 75%, well before the 10 GiB floor.
+DOCKER_BUDGET_MB="${OPENMATES_DOCKER_BUDGET_MB:-20000}"
+AGGRESSIVE_DISK_PERCENT="${OPENMATES_DOCKER_AGGRESSIVE_PERCENT:-75}"
 MAX_LOG_BYTES="${OPENMATES_DOCKER_CLEANUP_MAX_LOG_BYTES:-10485760}"
 CLEANUP_LOG="${OPENMATES_DOCKER_CLEANUP_LOG:-}"
 
@@ -62,17 +65,36 @@ echo "Docker cleanup starting: ${DISK_USE_PCT}% used, ${DISK_FREE_BEFORE} free."
 # Diagnostic only: never let accounting block cleanup.
 run_docker "Current Docker usage:" system df || true
 
+# Image bytes as Docker reports them ("9.493GB"); unknown counts as 0, so the cap
+# then falls back to the whole budget for the build cache.
+IMAGES_MB=$(timeout 60s docker system df --format '{{.Type}}={{.Size}}' 2>/dev/null | python3 -c '
+import re, sys
+units = {"B": 1e-6, "KB": 1e-3, "MB": 1, "GB": 1e3, "TB": 1e6}
+for line in sys.stdin:
+    kind, _, size = line.strip().partition("=")
+    match = re.match(r"([\d.]+)\s*([KMGT]?B)$", size)
+    if kind == "Images" and match:
+        print(int(float(match.group(1)) * units[match.group(2)]))
+' 2>/dev/null || true)
+IMAGES_MB="${IMAGES_MB:-0}"
+
 if [ "$DISK_USE_PCT" -ge "$AGGRESSIVE_DISK_PERCENT" ]; then
     AGGRESSIVE=true
     # Keep recent build handoff images, but don't block the host all day on
     # dangling intermediate images. Tagged rollback images remain protected.
     IMAGE_AGE_FILTER="until=1h"
-    run_docker "Pruning all unused BuildKit cache (disk pressure mode):" builder prune -a -f || true
+    BUDGET_MB=$((DOCKER_BUDGET_MB * 80 / 100))
 else
     AGGRESSIVE=false
     IMAGE_AGE_FILTER="until=168h"
-    run_docker "Capping unused BuildKit cache at ${BUILD_CACHE_KEEP}:" builder prune -a -f --keep-storage "$BUILD_CACHE_KEEP" || true
+    BUDGET_MB="$DOCKER_BUDGET_MB"
 fi
+CACHE_KEEP_MB=$((BUDGET_MB - IMAGES_MB))
+if [ "$CACHE_KEEP_MB" -lt 0 ]; then
+    CACHE_KEEP_MB=0
+fi
+run_docker "Capping unused BuildKit cache at ${CACHE_KEEP_MB}MB (budget ${BUDGET_MB}MB minus ${IMAGES_MB}MB of images):" \
+    builder prune -a -f --keep-storage "${CACHE_KEEP_MB}MB" || true
 
 # Unused tags may pin rollback images. Retain every tagged image and only prune
 # aged dangling images; Docker also protects container-referenced images.

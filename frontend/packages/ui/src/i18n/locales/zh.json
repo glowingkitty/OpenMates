@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "此回答已被删除，因为它不符合我们的安全规则。"
+    },
+    "wellbeing": {
+      "text": "我删除了上一条回答，因为它可能对你有害。你并不孤单。如果你有伤害自己的念头，请联系你信任的人，或当地的危机热线或紧急服务。我仍然在这里陪你聊聊。"
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -134,6 +142,12 @@
         "text": "规划融资轮次",
         "description": {
           "text": "算出该融多少、选哪种工具、股权稀释和时间表，并附可编辑的股权结构表。"
+        }
+      },
+      "write_press_release": {
+        "text": "撰写新闻稿",
+        "description": {
+          "text": "撰写记者可直接使用的新闻稿，采用贵公司自己的新闻风格，输出为 Word 文档或你指定的其他格式。"
         }
       }
     },
@@ -221,6 +235,12 @@
         "description": {
           "text": "审核配置文件是否存在安全漏洞 and 暴露。"
         }
+      },
+      "write_specification": {
+        "text": "撰写规格说明",
+        "description": {
+          "text": "一步步把想法变成获批的规格说明——范围、需求、设计和验收检查——然后启动带任务的计划。"
+        }
       }
     },
     "events": {
@@ -303,6 +323,12 @@
         "description": {
           "text": "一种强大的生活指导技巧。"
         }
+      },
+      "life_compass": {
+        "text": "人生指南针",
+        "description": {
+          "text": "一步一个脚印，找到通往更幸福生活的方向。"
+        }
       }
     },
     "news": {
@@ -358,6 +384,20 @@
           "3": {
             "text": "在我和一位持怀疑态度的朋友讨论这项**气候政策**之前，研究事实和反方观点"
           }
+        }
+      }
+    },
+    "slides": {
+      "design_template": {
+        "text": "设计模板",
+        "description": {
+          "text": "一步步设计可重复使用的幻灯片模板 - 三种设计可选，与你一起完善，然后保存到你的资料库。"
+        }
+      },
+      "plan_presentation": {
+        "text": "规划演示文稿",
+        "description": {
+          "text": "一步步规划演示文稿 - 目标、故事、每页一个信息、设计 - 然后创建带演讲者备注的幻灯片并进行审阅。"
         }
       }
     },
@@ -910,6 +950,12 @@
         "description": {
           "text": "将矢量图形转换为带针迹预览的刺绣机文件。"
         }
+      },
+      "get_design": {
+        "text": "获取设计",
+        "description": {
+          "text": "读取 Figma 设计，获取结构、样式和代码交接信息。"
+        }
       }
     },
     "electronics": {
@@ -947,6 +993,9 @@
           "3": {
             "text": "一月份伦敦有哪些科技活动？"
           }
+        },
+        "pricing_note": {
+          "text": "一次典型的活动搜索约需 15–25 积分:网页搜索 10 积分,加上 Mercury 3 阅读最多五个公开网页所用的 token。仅由官方会议日程回答的搜索需 1 积分。失败或没有结果的搜索免费。"
         }
       }
     },
@@ -2885,6 +2934,21 @@
       "structured": {
         "text": "内容"
       },
+      "player_label": {
+        "text": "语音回复播放器"
+      },
+      "pause": {
+        "text": "暂停语音回复"
+      },
+      "play": {
+        "text": "播放语音回复"
+      },
+      "previous_chapter": {
+        "text": "上一章：{chapter}"
+      },
+      "next_chapter": {
+        "text": "下一章：{chapter}"
+      },
       "speak_response": {
         "text": "朗读回复"
       },
@@ -3353,6 +3417,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3852,6 +3917,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "管理员"
@@ -3941,6 +4007,12 @@
     },
     "download": {
       "text": "下载"
+    },
+    "download_pdf": {
+      "text": "下载 PDF"
+    },
+    "download_word": {
+      "text": "下载 Word"
     },
     "loading": {
       "text": "加载中..."
@@ -5926,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "你的 OpenMates 账户已被暂停"
+      },
+      "headline": {
+        "text": "你的账户已被暂停"
+      },
+      "body": {
+        "text": "我们的安全检查拒绝了来自你账户的请求。"
+      },
+      "appeal": {
+        "text": "你有 14 天时间提出申诉。你也可以下载自己的数据。"
+      },
+      "button": {
+        "text": "申诉或下载我的数据"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "关于你的账户,我们需要更多信息"
+      },
+      "headline": {
+        "text": "我们还需要一些信息"
+      },
+      "body": {
+        "text": "我们正在审核你的账户暂停情况,并有一个问题:"
+      },
+      "button": {
+        "text": "在应用中回复"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "你的 OpenMates 账户已恢复使用"
+      },
+      "headline": {
+        "text": "你的账户已恢复使用"
+      },
+      "body": {
+        "text": "我们审核了对你账户的暂停并已解除。你的违规记录已清除,你可以像以前一样使用 OpenMates。"
+      },
+      "apology": {
+        "text": "对于给你带来的中断,我们深表歉意。"
+      }
     }
   },
   "embed_user_edits": {},
@@ -7622,7 +7739,7 @@
         "text": "{used} / {limit} 积分"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "你正在登录云端浏览器。允许 AI 继续后，它可以访问此账户中的信息。相关页面内容可能会发送给我们的 AI 服务商。请仅登录你愿意允许 AI 访问的账户。"
@@ -7823,6 +7940,42 @@
     },
     "slides_count_plural": {
       "text": "张幻灯片"
+    },
+    "slides_template_default_title": {
+      "text": "模板"
+    },
+    "slides_template_label": {
+      "text": "模板"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} 种版式"
+    },
+    "slides_template_use": {
+      "text": "使用此设计"
+    },
+    "slides_template_use_message": {
+      "text": "使用设计“{title}”"
+    },
+    "slides_layout_title": {
+      "text": "标题"
+    },
+    "slides_layout_section": {
+      "text": "章节"
+    },
+    "slides_layout_content": {
+      "text": "内容"
+    },
+    "slides_layout_two_column": {
+      "text": "两栏"
+    },
+    "slides_layout_image": {
+      "text": "图片"
+    },
+    "slides_layout_quote": {
+      "text": "引用"
+    },
+    "slides_layout_closing": {
+      "text": "结束页"
     },
     "slides_prev": {
       "text": "上一张幻灯片"
@@ -8460,6 +8613,54 @@
     },
     "progress_result_one": {
       "text": "1 个结果"
+    },
+    "slides_template_pick": {
+      "text": "模板"
+    },
+    "slides_template_picker_title": {
+      "text": "选择模板"
+    },
+    "slides_template_builtin": {
+      "text": "内置"
+    },
+    "slides_template_library_personal": {
+      "text": "你的库"
+    },
+    "slides_template_library_team": {
+      "text": "团队库"
+    },
+    "slides_template_updated": {
+      "text": "已更新"
+    },
+    "slides_template_apply": {
+      "text": "应用模板"
+    },
+    "slides_template_apply_failed": {
+      "text": "无法应用模板"
+    },
+    "slides_template_library_empty": {
+      "text": "还没有已保存的模板"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -8491,55 +8692,6 @@
       },
       "remove_pending_file": {
         "text": "移除文件"
-      }
-    },
-    "draft_summary": {
-      "separator": {
-        "text": "，"
-      },
-      "embed_one": {
-        "text": "{count} 个{type}附件"
-      },
-      "embed_many": {
-        "text": "{count} 个{type}附件"
-      },
-      "type": {
-        "audio": {
-          "text": "音频"
-        },
-        "image": {
-          "text": "图片"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "网站"
-        },
-        "video": {
-          "text": "视频"
-        },
-        "map": {
-          "text": "地图"
-        },
-        "code": {
-          "text": "代码"
-        },
-        "document": {
-          "text": "文档"
-        },
-        "sheet": {
-          "text": "表格"
-        },
-        "file": {
-          "text": "文件"
-        },
-        "app": {
-          "text": "应用"
-        },
-        "embed": {
-          "text": "嵌入式"
-        }
       }
     },
     "file_size_limits": {
@@ -8800,6 +8952,27 @@
     },
     "xlsx_feature_sheet_limit": {
       "text": "前 10 个之后的工作表"
+    },
+    "guest_access_checking": {
+      "text": "正在检查您是否可以无账户聊天…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "您之前在此设备上登录过。请登录以继续聊天。"
+    },
+    "guest_access_usage_limit": {
+      "text": "无账户的免费消息暂时已用完。注册即可继续聊天。"
+    },
+    "guest_access_unavailable": {
+      "text": "目前无法在无账户的情况下聊天。注册即可聊天。"
+    },
+    "guest_access_status_unavailable": {
+      "text": "我们无法确认您是否可以无账户聊天。请检查网络连接，或注册后聊天。"
+    },
+    "guest_access_file_requires_account": {
+      "text": "发送文件需要账户。请注册后发送，或移除文件以免费聊天。"
+    },
+    "guest_send_timeout": {
+      "text": "发送时间过长，您的消息未发送。请检查网络连接后重试。"
     },
     "mention_dropdown": {
       "header": {
@@ -10735,6 +10908,21 @@
         "text": "为一位投资人起草简短邮件、可转发的引荐语和两封跟进邮件。"
       }
     },
+    "business_write_press_release": {
+      "text": "撰写新闻稿",
+      "description": {
+        "text": "撰写记者可直接使用的新闻稿，采用贵公司自己的新闻风格，输出为 Word 文档或你指定的其他格式。"
+      },
+      "process": {
+        "text": "- 使用你已保存的新闻风格（名称、公司简介、发言人、联系方式、语气），或先根据过往新闻稿、几个问题或中性默认值建立一个\n\n- 可将该风格保存到你的项目，让以后每篇新闻稿风格一致\n\n- 只询问新闻中缺少的信息，一次一个问题；如果新闻点不够有力，会坦率告诉你\n\n- 在动笔之前，先展示标题备选、导语和将使用的事实，供你修改\n\n- 撰写包含标题、电头、导语、引述、公司简介和媒体联系人的新闻稿，默认输出 Word 文档，也可按需输出 PDF、HTML 或 React\n\n- 只使用你确认过的事实，绝不编造引述，并把每条引述标记为待确认\n\n- 检查结果，并可提供给记者的推介邮件、社交媒体帖子或翻译"
+      },
+      "how_to_use": {
+        "text": "- 为我们 11 月 18 日的应用发布撰写一篇**新闻稿**。这是我们最近的两篇新闻稿\n\n- 根据我们的网站建立**新闻风格**，并保存到这个项目\n\n- 把这则公告改写成**PDF 格式的新闻稿**，再写一封给记者的简短推介邮件"
+      },
+      "systemprompt": {
+        "text": "你帮助用户撰写记者可以直接使用的新闻稿：先有真正的新闻，事实可核查，有明确的发声者，联系人能及时回复。公司的新闻风格和用户明确提出的要求优先于一般惯例。\n\n只遵循当前阶段的指示。每轮只问一个问题，附上具体示例和建议，并等待回复。如果用户要求跳过提问、一次性回答全部问题或直接出草稿，请照办。\n\n重要准则：\n\n- 不要询问已加载的记忆、上传文件或聊天中已有的信息。以它们为基础，请用户确认即可。\n\n- 用户提供的事实是唯一来源。可以改进措辞、顺序和重点；但绝不编造或夸大数字、日期、客户、合作伙伴、奖项、成果或名称。如果用户要求你编造内容，请拒绝并提供真实的替代方案。\n\n- 绝不把引述当作定稿。把引述写成草稿，由被点名的人确认；没有来源时，绝不把话归到用户组织之外的真实人物名下。\n\n- 文字要朴实、具体。删掉空洞的最高级和流行词，或换成一个事实。\n\n- 禁发或未公开的信息只留在本聊天和用户的项目中；绝不发布、发送或分享，也绝不联系记者或其他任何人。你负责写草稿，由用户自己发送。\n\n- 默认输出 Word。只有在用户要求时才生成 PDF、HTML 或 React，并遵循草稿阶段的格式规则。\n\n- 新闻风格属于某一家公司。建议保存到当前项目的记忆中；没有当前项目时，提供一个只在被提及时才加载的个人记忆。用户同意后才保存。\n\n- 只有在保存记忆的工具调用成功后，才可以说记忆已保存或更新。如果现有工具无法保存到项目，请如实说明，改为提供个人记忆，或告诉用户可以把风格粘贴到项目的“记忆”标签页。\n\n- 不要就披露义务、证券市场规定或商标问题提供法律建议；在需要时说明用户应咨询律师或投资者关系团队。\n\n- 聊天回复要简短，内容放在文档里。\n\n- [EMAIL_1_org] 或 [PHONE_1_000] 这类值是隐私占位符。应用会在屏幕和文档中用用户的真实信息替换它们。请原样把它们当作真实值使用；绝不称其为占位符、缺失或无效，也绝不要求用户替换。"
+      }
+    },
     "code_analyze_logs": {
       "text": "分析日志",
       "description": {
@@ -10852,6 +11040,21 @@
         "text": "- 如果尚未提供，请用户提供 github/gitlab 仓库 URL\n- 如果尚未提供，询问用户想测试什么/他们的使用场景是什么\n- 使用技能检查 issues，看是否有最近报告的关于使用该仓库的关键问题\n- 如果项目被报告为损坏，询问用户是否要继续测试\n- 询问用户在哪里克隆和测试仓库？设置新机器？使用 github codespaces？本地机器？等\n- 将仓库克隆到指定位置\n- 阅读项目文件夹和文件结构以及 readme.md，了解项目概况\n- 找出如何测试项目并开始测试"
       }
     },
+    "code_write_specification": {
+      "text": "撰写规格说明",
+      "description": {
+        "text": "一步步把想法变成获批的规格说明——范围、需求、设计和验收检查——然后启动带任务的计划。"
+      },
+      "process": {
+        "text": "- 从你的想法开始：面向谁、成功是什么样子、哪些在范围内、哪些不在\n\n- 每次提出一到三个简短问题，每个都附带建议，并跳过你已经说过的内容\n\n- 每一步都会做总结，并在继续之前等待你的确认\n\n- 维护一份可见的待确认假设清单，不会悄悄替你做决定\n\n- 默认撰写一份规格说明，只有在项目复杂且你同意时，才会建议拆分为相互关联的产品、设计和技术规格说明\n\n- 添加能证明每条需求的验收检查，方式包括测试、AI 提问或你自己的确认\n\n- 只有在你批准规格说明之后，才会启动带任务的计划"
+      },
+      "how_to_use": {
+        "text": "- 帮我为面包店的酸面包线上订购**撰写规格说明**\n\n- 我有一个预约攀岩课程的应用想法。在开发之前，我们先**梳理规格说明**\n\n- 为我们项目工具里的团队日历功能**编写规格说明**，并附上验收检查"
+      },
+      "systemprompt": {
+        "text": "你是一位冷静、经验丰富的产品工程师，帮助用户把想法变成一份在动手开发之前由用户批准的规格说明。以用户自己的话为准；你负责梳理结构、提问和提出建议。\n\n只遵循当前阶段的指示。每轮提出一到三个简短问题，每个都附带建议和具体示例，然后等待回复。凡是聊天、上传文件或项目中已经有答案的，绝不再问。用户若要求一次性全部回答、跳过某个问题，或带着明确标注的假设继续，请予以满足。\n\n重要准则：\n- 每个阶段结束时给出简短总结，并请用户在继续之前确认或更正。\n- 每份总结中都保留一份标题为“待确认假设”的清单。凡是你假设但用户未确认的内容都放在这里；绝不要把假设当作决定。\n- 默认只有一份规格说明。只有在项目明显复杂时，才建议拆分为相互关联的产品、设计和技术规格说明，用一句话说明原因，并且只在用户同意后才拆分。\n- 需求是对可观察行为的可测试陈述，并带有稳定的编号。需求中不写实现细节；设计决策放入设计清单。\n- 规格说明使用 plans 的规格说明技能，验收检查使用 plans 的检查技能。敏感领域（安全、隐私、加密、权限、支付、迁移、精确的 API 行为）必须配备必需的确定性来源。\n- 在用户批准规格说明之前，不要做计划、写代码或开始实施。批准后，创建计划及其任务，并说明接下来会发生什么。\n- 聊天回答保持简短平实。细节由规格说明和检查的嵌入内容承载。\n- 绝不编造关于用户的业务、用户群或系统的事实；要么提问，要么记录为待确认假设。\n- 类似 [EMAIL_1_org] 或 [PHONE_1_000] 的值是隐私占位符。应用会在其位置显示用户的真实信息。请原样把它们当作真实值使用；绝不要称其为占位符、缺失或无效，也不要让用户替换它们。"
+      }
+    },
     "code_write_test_debug_document": {
       "text": "编写、测试、调试和文档化",
       "description": {
@@ -10910,6 +11113,12 @@
       "text": "未来对话",
       "description": {
         "text": "一种强大的生活指导技巧。"
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "人生指南针",
+      "description": {
+        "text": "一步一个脚印，找到通往更幸福生活的方向。"
       }
     },
     "health_prepare_doctor_report": {
@@ -10973,6 +11182,24 @@
       },
       "systemprompt": {
         "text": "你是一位中立的公民讨论教练和研究助手。你的目标是帮助用户以准确、谦逊和诚实守信的态度，为政治、公民、政策、选举、地缘政治和其他公共利益对话做好准备。\n\n首先要了解情况。在此重点激活后的助手首次回复中，即使用户没有明确要求提问，也要通过简短的背景信息采集来回应用户的原始请求。针对管辖权、用户希望达成的目标以及对方的立场或关系等缺失细节，提出一到三个具体问题。利用用户已提供的主题和其他事实，不要要求其重复细节或重新陈述请求。如果用户要求你先提问，即使主题已知，也要遵循该顺序。如果所有必要的背景信息都已提供，请在继续之前询问一个关于用户首要任务的问题，或简要确认具体的框架。除非用户明确要求立即提供研究结果，否则在进行事实研究、政策宣讲或提供完整的准备清单之前，请先等待用户的回答。不要仅止于确认激活，也不要将信息采集变成冗长的调查问卷。\n\n使用以下工作流：\n- 以中立的语言重新陈述主题和用户期望的结果。\n- 识别可能出现的各种主要主张。区分事实主张、价值判断、假设、预测和个人经历。\n- 对于事实或当前的主张，当准确性取决于最新或有争议的信息时，请使用 web-search、新闻搜索和 web-read。相比社交媒体摘要，应优先选择第一手资料、官方数据、选举材料、立法、监管报告、法院文件、信誉良好的新闻报道和专家机构。\n- 根据时效性、相关性、权威性、准确性和目的评估来源。当来源具有倡导、政党、政府、商业或竞选利益时，请予以注明。\n- 在进行批判之前，先勾勒出每个主要立场的“最强版本”。包括各方的共识点、权衡、不确定性和合理的价值观。\n- 准备一些旨在引导解释、定义术语、测试假设和引出证据的问题。除非用户明确需要正式的辩论准备，否则请避免使用陷阱式问题。\n- 帮助用户为敏感对话选择冷静的措辞、界限和退出语。\n\n默认输出结构：\n\n## 讨论目标\n总结用户正在准备的内容以及一次成功的对话会是什么样子。\n\n## 待核实的关键事实\n列出重要的事实主张、现有的最佳证据以及任何不确定性。说明何时需要进一步研究。\n\n## 可能的观点\n描述主要各方最强有力的、基于诚信的论点和关切。不要丑化对立观点。\n\n## 待提出的问题\n提供深思熟虑的开放式问题，以澄清定义、证据、权衡、价值观和实际后果。\n\n## 避免夸大的主张\n对薄弱的主张、过时的事实、单一来源的主张、误导性的框架或需要细化处理的观点提出警告。\n\n## 建议的对话计划\n提供一个简短的计划，用于开启讨论、保持建设性、处理紧张局势以及后续跟进。\n\n重要界限：\n- 不得编写操纵性的宣传、骚扰、人肉搜索、恐吓或非人化言论。\n- 不得根据人口统计、心理、身份或弱势群体特征提供针对性的政治说服策略。\n- 不得优化竞选信息传递、选民定位、投票抑制或活动家后勤。如果用户的请求变成了倡导或组织活动，请保持协助处于高层级、合法且非操纵性的水平，或者推荐使用 Activism mate 来获取伦理组织策略。\n- 不得将不确定或有争议的主张呈现为既定事实。清晰区分证据、推论、解释和观点。\n- 不得假设对方具有恶意、腐败、极端主义或恶意企图。除非有可靠证据支持该框架。\n- 尊重隐私。不要索取有关用户或其他相关人员的不必要的个人数据。"
+      }
+    },
+    "slides_design_template": {
+      "text": "设计模板",
+      "description": {
+        "text": "一步步设计可重复使用的幻灯片模板 - 三种设计可选，与你一起完善，然后保存到你的资料库。"
+      },
+      "process": {
+        "text": "- 询问模板的用途，以及要匹配哪些品牌颜色、字体或标志\n- 以模板卡片展示三种明显不同的设计，并预览六种幻灯片版式\n- 通过“使用此设计”或说出名称来选择一种\n- 与你一起完善颜色、字体和版式，每次修改后更新卡片\n- 提示你在最终卡片上点击保存，使其进入你的资料库\n- 提出用你的新模板创建第一份演示文稿"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "规划演示文稿",
+      "description": {
+        "text": "一步步规划演示文稿 - 目标、故事、每页一个信息、设计 - 然后创建带演讲者备注的幻灯片并进行审阅。"
+      },
+      "process": {
+        "text": "- 询问你的目标、受众、时长和场合，附简单示例和建议\n- 提出适合你用途的故事线，例如路演可用问题、方案、演示、影响和请求\n- 列出每页一个信息，并在制作前等待你的确认\n- 以卡片展示合适的内置设计，或使用你保存的模板，或与你一起设计新模板\n- 创建每页都带演讲者备注的幻灯片，页数与演讲时长相符\n- 审阅结果并修正你接受的问题，例如某页文字过多"
       }
     },
     "social_media_content_calendar_strategist": {
@@ -11200,22 +11427,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "你的 AI 团队"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "帮你把事情做完"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "写一份文档"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "查找活动"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "构建网页应用"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "解读新闻"
     },
     "landing_actionable_line1": {
       "text": "可执行。"
@@ -11229,35 +11456,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "当然，给你："
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "在柏林举办的 event website 活动，探讨去中心化计算和 DePIN 研究。"
+      "text": "关于开源 AI 工具的短讲和演示，之后还有时间认识新朋友。"
     },
     "landing_actionable_event_open_provider": {
-      "text": "在 event website 中打开"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "打开活动页面"
     },
     "landing_actionable_event_city": {
       "text": "柏林"
     },
     "landing_actionable_event_country": {
       "text": "德国"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "线上"
@@ -11268,62 +11480,44 @@
     "landing_actionable_event_rsvps": {
       "text": "人参加"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "你的聊天在存储之前，会先在你的设备上加密。"
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "个人信息在 AI 看到之前就会被替换。"
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "写一封邮件给"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "好的，正在写一封邮件给"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "请为我的下一次旅行推荐一些地点。"
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "个性化的回复，但只在你想要的时候。"
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "只有你能查看原始内容。"
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "以前的旅行"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "喜爱的地点"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "你的 AI 专家，各自专注于不同的主题。"
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "经过优化的指令，在需要时自动选用。"
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "领先的 AI 模型，汇聚一处。"
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "用你喜欢的方式访问你的 OpenMates 聊天。"
     }
   },
   "header": {
@@ -11344,6 +11538,26 @@
     },
     "report_issue": {
       "text": "报告问题"
+    }
+  },
+  "helplines": {
+    "title": {
+      "text": "你不必独自面对这一切"
+    },
+    "call": {
+      "text": "拨打电话"
+    },
+    "send_text": {
+      "text": "发短信"
+    },
+    "chat": {
+      "text": "在线聊天"
+    },
+    "emergency": {
+      "text": "紧急情况请拨打 {emergency_number}"
+    },
+    "find_more": {
+      "text": "查找更多求助热线"
     }
   },
   "highlight": {
@@ -11429,6 +11643,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "此请求已被拒绝。涉及未成年人的性相关或暗示性图像永远不会被创建。"
+    },
+    "reason_intimate_real_person": {
+      "text": "此请求已被拒绝。涉及真实人物的性相关或私密图像永远不会被创建。"
+    },
+    "reason_bypass": {
+      "text": "此请求已被拒绝，因为它试图绕过安全规则。"
+    },
+    "reason_minor": {
+      "text": "不会创建逼真的未成年人图像，对未成年人的照片也只能编辑背景、光线或颜色，因为此类图像可能被滥用，例如用于冒充未成年人的虚假资料。"
+    },
+    "alternative_minor": {
+      "text": "可以使用明显风格化的版本，例如 3D 渲染、插画或卡通，只要场景不涉及性内容。"
+    },
+    "reason_sexual": {
+      "text": "不会创建性相关或露骨的图像。"
+    },
+    "alternative_sexual": {
+      "text": "可以提供该场景的非露骨版本。"
+    },
+    "reason_violent": {
+      "text": "不会创建显示真实人物受伤、遭到攻击或身处犯罪现场的图像，因为这些图像可能被用来伤害或诽谤他们。"
+    },
+    "alternative_violent": {
+      "text": "可以使用虚构角色而不是真实人物来呈现场景。"
+    },
+    "reason_public_figure": {
+      "text": "目前不会创建真实公众人物的图像，因为这些图像可能被用作深度伪造或用于虚假说法。"
+    },
+    "alternative_public_figure": {
+      "text": "可以在同一场景中使用一个原创的虚构角色。"
+    },
+    "reason_identity": {
+      "text": "不会进行换脸或替换他人身份，因为这可能被用来冒充他人。"
+    },
+    "alternative_identity": {
+      "text": "可以进行保留人物身份的编辑，例如更换背景、光线或艺术风格。"
+    },
+    "reason_id_document": {
+      "text": "不会创建护照、身份证或驾驶证等身份证件的图像，因为这些图像可能被用于欺诈。"
+    },
+    "reason_hate": {
+      "text": "不会创建带有仇恨符号的图像，或因人们的身份而针对他们的图像。"
+    },
+    "reason_self_harm": {
+      "text": "不会创建展示或鼓励自残的图像。"
+    },
+    "alternative_self_harm": {
+      "text": "如果你正经历艰难时期，和你信任的人聊聊或拨打当地求助热线可能会有帮助。"
+    },
+    "reason_weapons": {
+      "text": "不会创建包含武器或爆炸物制作说明或设计图的图像。"
+    },
+    "reason_scam": {
+      "text": "不会创建用于诈骗、伪造文件或冒充他人的媒体内容。"
+    },
+    "alternative_scam": {
+      "text": "可以提供不模仿真实人物、品牌或文件的原创设计。"
+    },
+    "reason_spam": {
+      "text": "不支持批量生成填充内容或去除 AI 标识。"
+    },
+    "alternative_spam": {
+      "text": "可以为特定用途生成少量图像。"
+    },
+    "reason_deceptive": {
+      "text": "不会创建旨在冒充真实影像、真实言论或官方背书的图像。"
+    },
+    "alternative_deceptive": {
+      "text": "可以提供明显是虚构或插画风格的版本。"
+    },
+    "reason_other": {
+      "text": "根据安全规则，无法创建此请求。"
+    },
+    "alternative_other": {
+      "text": "换一个主题或换种表述可能行得通。"
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "发票"
@@ -11949,6 +12243,22 @@
             },
             "description": {
               "text": "我们使用 api.video（欧盟公司，法国）在网站和网页应用中托管和播放产品演示及功能介绍视频。当你观看视频时，你的 IP 地址和基本观看数据会由 api.video 处理。不共享任何用户账号标识符。"
+            }
+          }
+        },
+        "status_page": {
+          "heading": {
+            "text": "状态页面（仅在你打开时）"
+          },
+          "description": {
+            "text": "仅当你打开 status.openmates.org 上的公开状态页面时才会使用此服务商。它不用于你的账号或 OpenMates 的任何其他部分。"
+          },
+          "upcloud": {
+            "heading": {
+              "text": "UpCloud（状态页面托管）"
+            },
+            "description": {
+              "text": "公开状态页面 status.openmates.org（一个静态页面加一个状态 JSON 文件）由 UpCloud Oy 托管在荷兰阿姆斯特丹的服务器上。当你打开该页面时，你的浏览器会连接到 UpCloud 的服务器，因此 UpCloud 会处理你的 IP 地址和 TLS 连接元数据。我们不保存访问日志，并且此页面不使用 Cookie 或跟踪器。该服务器还会向 OpenMates 发送自动化测试请求，这些请求不包含任何用户数据。"
             }
           }
         },
@@ -13180,7 +13490,7 @@
           "text": "关于 OpenMates"
         },
         "description": {
-          "text": "OpenMates 目前是一个处于初始开发阶段的闭源软件项目。 这种临时的闭源状态旨在确保早期开发和 beta 测试阶段的安全性和稳定性。 该项目将在完成初始 beta 测试和安全审查后过渡到开源。 本网站作为有关 OpenMates 项目及其开发进度的信息平台。"
+          "text": "OpenMates 是一个基于 AGPL-3.0 许可证提供的开源 AI 智能体平台。我们在 openmates.org 提供云托管服务、用于集成的开发者 API 以及 CLI 工具。该软件也可以自行托管 - 详情请参阅我们的 [GitHub 仓库](https://github.com/glowingkitty/OpenMates) 和 [文档](https://docs.openmates.org)。"
         }
       },
       "intellectual_property": {
@@ -14087,6 +14397,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "通过"
@@ -14294,6 +14605,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "我不能创作宣传、仇恨内容、虚假信息或操纵性的小报内容。但我可以解释其运作方式、分析案例、核查说法，或协助创作明确标注的讽刺作品。"
+    },
+    "illegal_category": {
+      "text": "我无法协助涉及未成年人的性内容、未经同意的私密图像、真人的性深度伪造，或旨在造成大规模伤害的武器。"
+    },
+    "live_site_abuse": {
+      "text": "你很可能确实拥有该网站，但我在线上网站只执行普通的单用户、人类速度的操作，因此无法执行批量评论、批量注册、猜密码或洪泛等大规模或滥用性操作。这类测试目前只在 localhost、本地开发环境或本地运行的预发布副本上进行。我很乐意帮你搭建。"
+    },
+    "strike_notice": {
+      "text": "这是第 {strike} 次警告（共 {max} 次）。"
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "保险"
@@ -14396,6 +14721,82 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "你的账户已被暂停"
+    },
+    "appeal_button": {
+      "text": "提出申诉"
+    },
+    "download_button": {
+      "text": "下载我的数据"
+    },
+    "explanation_label": {
+      "text": "请告诉我们发生了什么(最多 1,000 个字符)"
+    },
+    "consent_label": {
+      "text": "我同意仅向安全审核员分享被标记的请求"
+    },
+    "add_photo": {
+      "text": "添加照片"
+    },
+    "photo_added": {
+      "text": "已附加照片。选择其他照片"
+    },
+    "submit": {
+      "text": "发送申诉"
+    },
+    "sent": {
+      "text": "你的申诉已发送。我们将在 7 天内给出决定。"
+    },
+    "admin_title": {
+      "text": "安全审核"
+    },
+    "admin_restore": {
+      "text": "恢复"
+    },
+    "admin_delete": {
+      "text": "删除"
+    },
+    "admin_ask": {
+      "text": "询问用户"
+    },
+    "admin_delete_confirm": {
+      "text": "删除此账户?标准删除流程,全额退款,发送删除邮件并留存合规记录。"
+    },
+    "admin_empty": {
+      "text": "暂无账户等待审核。"
+    },
+    "until": {
+      "text": "账户暂停至 {date}"
+    }
+  },
+  "safety_strikes": {
+    "warning": {
+      "text": "{what}被拒绝。{reason}这是第 {strike} 次警告（共 {max} 次）。"
+    },
+    "what_image_generate": {
+      "text": "你的图片生成请求"
+    },
+    "what_image_edit": {
+      "text": "你的图片编辑请求"
+    },
+    "what_video": {
+      "text": "你的视频生成请求"
+    },
+    "what_upload": {
+      "text": "你上传的图片"
+    },
+    "suspended_until": {
+      "text": "这是第 2 次违规（共 3 次）。你的账户已被暂停至 {date}，之后将恢复正常。第三次违规会使账户被暂停，直到管理员审核完毕。"
+    },
+    "suspended_pending_review": {
+      "text": "这是第 3 次违规（共 3 次）。你的账户已被暂停，直到管理员审核完毕。你可以对此决定提出申诉。"
+    },
+    "unavailable": {
+      "text": "安全检查暂时不可用，因此无法处理此请求。请稍后再试。"
+    }
+  },
   "settings": {
     "account": {
       "username": {
@@ -19128,7 +19529,7 @@
       "text": "在个人资料图片中\n不允许裸露、暴力或血腥。"
     },
     "last_warning_image_not_allowed": {
-      "text": "最后警告：\n个人资料图片中不允许裸露、暴力或血腥。\n再次违规，您的帐户将被删除。"
+      "text": "最后警告：\n个人资料图片中不允许露骨的性内容或极端血腥内容。\n再次违规，您的帐户将被暂停。"
     },
     "your_account_got_deleted": {
       "text": "您的帐户已被删除。"
@@ -20749,7 +21150,7 @@
       "text": "免费测试"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "不允许的电子邮件域名。"
@@ -20757,32 +21158,8 @@
     "email_ignored": {
       "text": "此电子邮件地址不能用于注册。如果您认为这是一个错误，请联系支持。"
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates 目前是面向早期测试者的测试版。"
-    },
-    "decent_stable": {
-      "text": "此测试版相当稳定"
-    },
-    "not_all_core_features_implemented": {
-      "text": "但是，尚未实现所有核心功能。"
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "请预期可能会出现一些错误，并记住：AI 聊天机器人可能会犯错。"
-    },
     "view_on_github": {
       "text": "在 GitHub 上查看 OpenMates"
-    },
-    "view_on_github_description": {
-      "text": "讨论错误、功能并了解新版本更新。"
-    },
-    "view_on_instagram": {
-      "text": "在 Instagram 上查看 OpenMates"
-    },
-    "view_on_instagram_description": {
-      "text": "了解新版本和其他更新。"
-    },
-    "continue_with_alpha": {
-      "text": "继续使用 {version}"
     },
     "server_admin": {
       "text": "服务器管理员"
@@ -21542,6 +21919,7 @@
       "text": "自定义颜色"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

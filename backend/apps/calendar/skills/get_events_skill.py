@@ -1,23 +1,30 @@
 # backend/apps/calendar/skills/get_events_skill.py
 #
-# Calendar get-events skill contract.
+# Calendar get-events skill.
+# Lists one page of events in a bounded, explicit interval with continuation.
 # The skill requires an access-token handle produced after connected-account
 # permission authorization; stateless REST execution is disabled in app.yml.
 #
-# Spec: docs/specs/calendar-permission-management/spec.yml
+# Spec: specifications/features/app-skills/calendar/specification.yml
 
 from __future__ import annotations
 
-import logging
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.google_calendar.client import GoogleCalendarClient
+from backend.shared.providers.google_calendar.event_body import EventInputError
 from backend.shared.providers.google_calendar.models import CalendarEventsRequest
+from backend.shared.python_utils.calendar_skill_support import (
+    access_token_for_handle,
+    run_calendar_request,
+    summarize_errors,
+)
 
-logger = logging.getLogger(__name__)
+MAX_INTERVAL_DAYS = 366
 
 
 class GetEventsRequest(BaseModel):
@@ -31,6 +38,24 @@ class GetEventsResponse(BaseModel):
 
     results: list[dict[str, Any]] = Field(default_factory=list)
     error: str | None = None
+
+
+def _bound(value: str, field: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00") if value.endswith("Z") else value)
+    except ValueError as exc:
+        raise EventInputError("invalid_time", f"{field} is not an RFC 3339 date-time.") from exc
+    if parsed.tzinfo is None:
+        raise EventInputError("timezone_required", f"{field} needs a UTC offset such as Z or +01:00.")
+    return parsed
+
+
+def validate_interval(time_min: str, time_max: str) -> None:
+    start, end = _bound(time_min, "time_min"), _bound(time_max, "time_max")
+    if end <= start:
+        raise EventInputError("end_before_start", "time_max must be after time_min.")
+    if (end - start).days > MAX_INTERVAL_DAYS:
+        raise EventInputError("interval_too_long", f"Read at most {MAX_INTERVAL_DAYS} days at once.")
 
 
 class GetEventsSkill(BaseSkill):
@@ -60,36 +85,32 @@ class GetEventsSkill(BaseSkill):
         calendar_client_factory: Any | None = None,
         **_: Any,
     ) -> GetEventsResponse:
-        normalized = [CalendarEventsRequest(**item) for item in requests]
-        results: list[dict[str, Any]] = []
-        for item in normalized:
-            access_token = _access_token_for_handle(
-                item.access_token_handle,
-                connected_account_access_tokens,
-            )
-            client_factory = calendar_client_factory or GoogleCalendarClient
-            client = client_factory(access_token=access_token)
-            events = await client.list_events(
+        client_factory = calendar_client_factory or GoogleCalendarClient
+
+        async def run(raw: dict[str, Any]) -> dict[str, Any]:
+            item = CalendarEventsRequest(**raw)
+            client = client_factory(access_token=access_token_for_handle(
+                item.access_token_handle, connected_account_access_tokens,
+            ))
+            validate_interval(item.time_min, item.time_max)
+            page = await client.list_events(
                 calendar_id=item.calendar_id,
                 time_min=item.time_min,
                 time_max=item.time_max,
+                max_results=item.max_results,
+                page_token=item.page_token,
+                query=item.query,
+                time_zone=item.timezone,
             )
-            results.append(
-                {
-                    "calendar_id": item.calendar_id,
-                    "events": [event.model_dump() for event in events],
-                }
-            )
-        return GetEventsResponse(results=results)
+            return {
+                "calendar_id": item.calendar_id,
+                "time_min": item.time_min,
+                "time_max": item.time_max,
+                "events": [event.model_dump() for event in page["events"]],
+                "next_page_token": page.get("next_page_token"),
+                "has_more": bool(page.get("next_page_token")),
+                "calendar_timezone": page.get("calendar_timezone"),
+            }
 
-
-def _access_token_for_handle(
-    access_token_handle: str,
-    connected_account_access_tokens: dict[str, str] | None,
-) -> str:
-    if not connected_account_access_tokens:
-        raise PermissionError("connected account access token context is required")
-    access_token = connected_account_access_tokens.get(access_token_handle)
-    if not access_token:
-        raise PermissionError("access_token_handle is not authorized for this skill call")
-    return access_token
+        results = [await run_calendar_request(item, run) for item in requests]
+        return GetEventsResponse(results=results, error=summarize_errors(results))

@@ -1,0 +1,12 @@
+# backend/providers/figma.yml
+#
+# Figma provider for user-connected Design skills (OAuth, read-only).
+# OAuth client credentials live in Vault at kv/data/providers/figma
+# (oauth_client_id, oauth_client_secret); setup: https://www.figma.com/developers/apps
+# Docs: https://developers.figma.com/docs/rest-api/oauth-apps/
+
+provider_id: figma
+name: Figma
+description: Read-only Figma file content for user-connected Design skills.
+privacy_policy: https://www.figma.com/legal/privacy/
+no_api_key: true

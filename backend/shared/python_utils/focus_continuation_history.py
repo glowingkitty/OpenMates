@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+from backend.shared.python_utils.queued_turn_marker import is_queued_turn_pending
 
 
 class FocusContinuationHistoryError(Exception):
@@ -45,6 +46,28 @@ def _decoded_rows(cached: list[str]) -> list[dict[str, Any]]:
     return rows
 
 
+async def _rows_without_queued_followups(
+    cache_service: Any, user_id: str, chat_id: str,
+) -> list[dict[str, Any]]:
+    """Decode cached rows, dropping follow-ups that still wait in the queue.
+
+    A queued follow-up is not a newer turn until it is dispatched, so it must
+    neither supersede the Focus source turn nor leak into its history.
+    """
+    rows = _decoded_rows(await cache_service.get_ai_messages_history(user_id, chat_id))
+    kept: list[dict[str, Any]] = []
+    for row in rows:
+        queued = False
+        if row.get("role") == "user":
+            for row_id in _row_ids(row):
+                if await is_queued_turn_pending(cache_service, user_id, chat_id, row_id):
+                    queued = True
+                    break
+        if not queued:
+            kept.append(row)
+    return kept
+
+
 async def current_focus_source_turn(cache_service: Any, pending_context: dict[str, Any]) -> bool:
     """Check both cached user order and the latest-turn key before dispatch."""
     try:
@@ -55,7 +78,7 @@ async def current_focus_source_turn(cache_service: Any, pending_context: dict[st
     chat_id = pending_context.get("chat_id")
     if not isinstance(user_id, str) or not user_id or not isinstance(chat_id, str) or not chat_id:
         return False
-    rows = _decoded_rows(await cache_service.get_ai_messages_history(user_id, chat_id))
+    rows = await _rows_without_queued_followups(cache_service, user_id, chat_id)
     matching = [index for index, row in enumerate(rows) if source_id in _row_ids(row)]
     if len(matching) != 1 or rows[matching[0]].get("role") != "user":
         return False
@@ -76,8 +99,7 @@ async def rebuild_focus_continuation_history(
     latest = await cache_service.get(async_skill_latest_user_turn_key(user_id, chat_id))
     if latest != source_id:
         raise FocusContinuationHistoryError("stale_source_turn")
-    cached = await cache_service.get_ai_messages_history(user_id, chat_id)
-    rows = _decoded_rows(cached)
+    rows = await _rows_without_queued_followups(cache_service, user_id, chat_id)
     matching = [index for index, row in enumerate(rows) if source_id in _row_ids(row)]
     if len(matching) != 1:
         raise FocusContinuationHistoryError("ambiguous_source_turn" if matching else "missing_source_turn")
@@ -161,8 +183,7 @@ async def publish_current_focus_continuation_failure(
     chat_id = pending_context.get("chat_id")
     if not isinstance(user_id, str) or not user_id or not isinstance(chat_id, str) or not chat_id:
         return False
-    cached = await cache_service.get_ai_messages_history(user_id, chat_id)
-    rows = _decoded_rows(cached)
+    rows = await _rows_without_queued_followups(cache_service, user_id, chat_id)
     matching = [index for index, row in enumerate(rows) if source_id in _row_ids(row)]
     if matching and any(row.get("role") == "user" for row in rows[:matching[0]]):
         return False
@@ -349,3 +370,4 @@ async def prepare_focus_continuation_authority(cache, pending_context: dict, req
     if stored is False:
         raise RuntimeError("Focus continuation authority mapping could not be stored")
     return child_id
+

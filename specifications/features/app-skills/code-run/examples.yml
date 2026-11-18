@@ -1,6 +1,42 @@
 schema_version: 1
 specification: feature.app-skill.code-run@2
 
+sandbox_tiers:
+  - id: linux-without-namespace-restriction
+    given: A Linux machine allows unprivileged user namespaces and has bubblewrap installed; commands are turned on for its Garden Planner folder.
+    when: The user approves running npm test there.
+    then: The tests run inside bubblewrap without root, and the result says it ran in the bubblewrap tier.
+  - id: no-usable-tier
+    given: An Ubuntu 24.04 machine restricts user namespaces and the AppArmor setup was never installed.
+    when: The assistant asks to run npm test on that machine.
+    then: Nothing runs; the chat shows that commands need the one-time sandbox setup on that machine, and reading and editing its files still works.
+sandbox_setup:
+  - id: start-without-sudo
+    given: A user starts remote access for a folder on an Ubuntu 24.04 laptop.
+    when: Remote access connects.
+    then: No sudo prompt appears and nothing on the system changes; the Project files can be read and edited right away.
+  - id: enable-commands-offers-setup
+    given: The same user turns on commands for that laptop.
+    when: The host finds that user namespaces are restricted.
+    then: It explains that it would install a dedicated bubblewrap copy and an AppArmor profile that lets only that copy use user namespaces, and asks once; if the user declines, commands stay off and files keep working.
+sandbox_boundary:
+  - id: write-outside-project-denied
+    given: An approved test script in the Garden Planner folder tries to write ~/.bashrc and to read ~/.ssh/id_ed25519.
+    when: It runs in any tier.
+    then: Both accesses fail inside the sandbox, the files are unchanged and unread, and writing web-app/dist inside the Project still works.
+  - id: no-network-without-profile
+    given: No resource profile grants network access to the Project.
+    when: An approved command calls curl https://example.org.
+    then: The request fails inside the sandbox, and the host's environment variables such as API tokens are not visible to the command.
+run_limits:
+  - id: timeout-stops-tree
+    given: An approved command starts a dev server that never exits, with a 2 minute time limit.
+    when: The limit is reached.
+    then: The server and every process it started are stopped, and the result reports the timeout.
+  - id: long-output-truncated
+    given: An approved test run prints 5 MB of logs.
+    when: The run finishes.
+    then: At most 96 KiB of output reaches OpenMates, marked as truncated, and the run's exit status is still reported.
 remote_commands:
   - id: isolated-explanation-has-no-authority
     assertion_ids: [code-run.remote.explanation]

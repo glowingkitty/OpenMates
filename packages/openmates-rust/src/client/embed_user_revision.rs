@@ -25,7 +25,7 @@ mod edit_keys;
 #[path = "embed_user_revision_refusal.rs"]
 pub(crate) mod refusal;
 #[path = "embed_user_restore.rs"]
-mod restore;
+pub(crate) mod restore;
 pub use client_io::{EmbedRevisionOutcome, EventDelivery, EventNotice};
 
 /// Highest version the server accepts (`MAX_VERSION` of the route).
@@ -328,6 +328,11 @@ pub struct UserRevisionRequest {
     /// Idempotency key; a fresh UUID when `None`. Reuse it only to resend the
     /// exact same edit.
     pub operation_id: Option<String>,
+    /// History snapshots `(version N, version N+1)` that differ from the head
+    /// contents. A hosted Project file keeps only its text in the history
+    /// chain (`work::projects::hosted::job`), so a revision of it records the
+    /// texts there; `None` snapshots the head contents (every other embed).
+    pub history_text: Option<(Zeroizing<String>, Zeroizing<String>)>,
 }
 
 impl UserRevisionRequest {
@@ -354,6 +359,7 @@ impl UserRevisionRequest {
             files: None,
             media_index: None,
             operation_id,
+            history_text: None,
         }
     }
 
@@ -382,6 +388,7 @@ impl UserRevisionRequest {
             files,
             media_index,
             operation_id: None,
+            history_text: None,
         }
     }
 }
@@ -551,7 +558,8 @@ fn validate(request: &UserRevisionRequest) -> RevisionResult<()> {
 ///   `encrypted_content` (the server hashes its stored head the same way).
 /// - Content and preview are encrypted with the embed key (MetadataEncryptor
 ///   layout, empty AAD); the history row N+1 reuses the head ciphertext, since
-///   a version's snapshot plaintext is its head content.
+///   a version's snapshot plaintext is its head content, unless
+///   `history_text` names other snapshots (hosted Project files).
 /// - `history_rows` holds only N+1; N is added when the server asks.
 ///
 /// # Errors
@@ -584,13 +592,31 @@ pub fn prepare_user_revision(
         .clone()
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let next = head.version + 1;
-    let next_row = snapshot_row(&head.embed_id, next, &head_ciphertext, now_seconds);
-    let base_row = snapshot_row(
-        &head.embed_id,
-        head.version,
-        &head.encrypted_content,
-        head.created_at,
-    );
+    let (next_row, base_row) = match &request.history_text {
+        Some((base_text, next_text)) => (
+            snapshot_row(
+                &head.embed_id,
+                next,
+                &encrypt_text(next_text, embed_key, None, nonces)?,
+                now_seconds,
+            ),
+            snapshot_row(
+                &head.embed_id,
+                head.version,
+                &encrypt_text(base_text, embed_key, None, nonces)?,
+                head.created_at,
+            ),
+        ),
+        None => (
+            snapshot_row(&head.embed_id, next, &head_ciphertext, now_seconds),
+            snapshot_row(
+                &head.embed_id,
+                head.version,
+                &head.encrypted_content,
+                head.created_at,
+            ),
+        ),
+    };
     let mut wire_head = json!({
         "encrypted_content": head_ciphertext,
         "content_hash": content_hash,

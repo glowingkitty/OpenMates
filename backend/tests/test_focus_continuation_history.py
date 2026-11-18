@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from backend.shared.python_utils.queued_turn_marker import QUEUED_TURN_PENDING, queued_turn_pending_key
 from backend.shared.python_utils.focus_continuation_history import (
     FocusContinuationHistoryError,
     publish_current_focus_continuation_failure,
@@ -402,3 +403,37 @@ async def test_continuation_resolves_the_attached_card_like_the_first_turn() -> 
     assert history[2]["content"].startswith("Tips for the talk?")
     assert "title: FOSDEM 2027" in history[2]["content"] and '"embed_id"' not in history[2]["content"]
     assert index == {"conference list": "id", "FOSDEM 2027": "id"}
+
+
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+@pytest.mark.asyncio
+async def test_queued_followup_during_countdown_does_not_supersede_focus_source() -> None:
+    rows = [
+        _row("user", "follower", "Queued follow-up"),
+        _row("assistant", "activation", '{"type":"focus_mode_activation"}'),
+        _row("user", None, "Current request", client_message_id="source"),
+    ]
+    cache = _cache(rows)
+    queued_key = queued_turn_pending_key("owner", "chat", "follower")
+    cache.get.side_effect = lambda key: QUEUED_TURN_PENDING if key == queued_key else "source"
+    history = await rebuild_focus_continuation_history(
+        cache_service=cache, encryption_service=_crypto(),
+        pending_context=_pending(), user_vault_key_id="vault-key",
+    )
+    assert [item["content"] for item in history] == ["Current request"]
+    assert await publish_current_focus_continuation_failure(cache, _pending()) is True
+
+
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+@pytest.mark.asyncio
+async def test_dispatched_followup_still_supersedes_focus_source() -> None:
+    rows = [
+        _row("user", "follower", "Follow-up"),
+        _row("user", None, "Current request", client_message_id="source"),
+    ]
+    with pytest.raises(FocusContinuationHistoryError) as error:
+        await rebuild_focus_continuation_history(
+            cache_service=_cache(rows), encryption_service=_crypto(),
+            pending_context=_pending(), user_vault_key_id="vault-key",
+        )
+    assert error.value.code == "stale_source_turn"

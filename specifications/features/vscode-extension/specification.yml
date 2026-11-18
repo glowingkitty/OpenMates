@@ -1,0 +1,64 @@
+schema_version: 1
+id: feature.vscode-extension
+version: 1
+status: draft
+title: VS Code extension
+summary: The open VS Code folder acts as a Project's connected machine, so assistant changes are made in a per-chat worktree there and reviewed and landed inside the editor.
+scope:
+  includes:
+  - VS Code and compatible editors that install from the Microsoft Marketplace or Open VSX (Cursor, Windsurf, VSCodium), in local and remote (SSH, WSL, container) windows.
+  - Pair login, connecting and disconnecting workspace folders as Project sources, reviewing chat worktree changes in the native diff editor, and landing or discarding them.
+  - A later chat panel showing the current Project's chats from the bundled web app (Phase 2).
+  excludes:
+  - A second implementation of the source host, its relay protocol, encryption or approvals; the extension starts the native OpenMates binary.
+  - Password, passkey, 2FA, recovery key or backup code entry inside the editor.
+  - Git push, and the full app shell (settings, billing, other apps) inside the editor.
+relationships:
+  related_specifications:
+  - feature.projects
+  - surface.cli
+assertions:
+- id: vscode-extension.pair-login
+  type: security
+  must: The extension signs in only through pair login started by the bundled OpenMates binary and approved on an already signed-in device. It registers as its own device that can be revoked separately. Credentials stay in the binary's passphrase vault in extension storage; only the vault passphrase is kept in editor SecretStorage. No master key, session cookie or token passes through extension JavaScript, settings or logs. Logout or revocation removes the vault and its passphrase.
+  depends_on:
+  - examples.login
+- id: vscode-extension.connect-folder
+  type: behavior
+  must: Connecting a workspace folder runs the existing remote-access source host for that folder through the binary, with the same operations, approvals, write modes, command sandbox and per-chat worktrees as the CLI. The editor shows connected, offline and revoked states from the binary's machine-readable status stream. Closing the window or disconnecting marks the source offline; server-side jobs continue and resume when it reconnects. A folder already served by another live host is not served twice.
+  depends_on:
+  - examples.connect
+- id: vscode-extension.review-changes
+  type: behavior
+  must: For each chat with a worktree on the connected folder, the editor lists changed files and opens each in the native diff editor against the target branch. Landing on the target branch happens only after an explicit user action and uses the existing git land operation; discarding removes only that chat's worktree changes. Nothing is pushed.
+  depends_on:
+  - examples.review
+- id: vscode-extension.privacy
+  type: privacy
+  must: File content read for the assistant goes only through the existing client-side encrypted remote-access envelopes and is never stored by OpenMates. The extension sends no telemetry and talks only to the configured OpenMates API through the binary.
+  depends_on:
+  - examples.connect
+applies_to:
+  rest_api:
+    required: false
+  cli:
+    required: true
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: false
+    implementations:
+      web:
+        required: false
+      apple:
+        required: false
+examples:
+  file: examples.yml
+  required_groups: [login, connect, review]
+approval_source:
+  instruction: Draft only. Research requested by the owner via the authenticated dev connector on 2026-11-14 (TASK-3700); no implementation or approval is claimed until the owner approves the Plan docs/plans/vscode-extension/plan.yml.

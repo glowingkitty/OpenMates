@@ -25,6 +25,7 @@ import type { GuestOp } from './guestOps';
 import type { ShareStateOp } from './shareStateOps';
 import type { WorkOp } from './workOps';
 import type { MemoryOp } from './memoryOps';
+import type { OrchestrationOp } from './orchestrationOps';
 
 export type WebCryptoOp =
   | 'decryptChatContent' | 'encryptChatContent' | 'masterDecrypt' | 'masterEncrypt'
@@ -38,6 +39,7 @@ export type WebCryptoOp =
   | ShareStateOp
   | WorkOp
   | MemoryOp
+  | OrchestrationOp
   | 'bulk';
 
 /** Per-item ops the flush coalesces: `[key, item]` args, one `bulk` request per key. */

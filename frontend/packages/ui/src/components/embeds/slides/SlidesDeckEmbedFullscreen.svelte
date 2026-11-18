@@ -19,12 +19,18 @@
   import EmbedChevron from '../EmbedChevron.svelte';
   import SlideCanvas from './SlideCanvas.svelte';
   import SlidesPresentation from './SlidesPresentation.svelte';
-  import { newPresentSessionId, openAudienceWindow } from './slidesPresentation';
+  import SlidesPresentRemote from './SlidesPresentRemote.svelte';
+  import { createPresentRemotePublisher, watchPresenter, type PresentRemotePublisher } from './slidesPresentRemote';
+  import { authStore } from '../../../stores/authStore';
+  import { applyAction, clampPosition, newPresentSessionId, openAudienceWindow, portalToBody } from './slidesPresentation';
   import { inlineToPlainText, maxStep, parseSlidesMarkup } from './slidesMarkup';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import type SlidesEditorComponent from './SlidesEditor.svelte';
   import { saveEditedDeck, type EditedDeck } from './slidesDeckVersion';
+  import SlidesTemplatePicker from './SlidesTemplatePicker.svelte';
+  import { applyTemplateToMarkup } from './slidesTemplateApply';
+  import type { TemplateOption } from './slidesTemplatePicker';
 
   interface Props {
     data: EmbedFullscreenRawData;
@@ -127,6 +133,36 @@
     step = 0;
   }
 
+  /**
+   * Presenting on another device of the signed-in owner. Only owners subscribe
+   * (share-link viewers are never signed in, so they never listen).
+   */
+  let remotePosition = $state({ index: 0, step: 0 });
+  let presentingElsewhere = $state(false);
+  let remoteOpen = $state(false);
+  let remotePublisher: PresentRemotePublisher | null = null;
+
+  $effect(() => {
+    if (!embedId || !$authStore.isAuthenticated || presenting) return;
+    remotePublisher = createPresentRemotePublisher(embedId, 'remote');
+    const stop = watchPresenter(embedId, (live, state) => {
+      presentingElsewhere = live;
+      if (state) remotePosition = { index: state.index, step: state.step };
+    });
+    return () => {
+      stop();
+      remotePublisher = null;
+      presentingElsewhere = false;
+    };
+  });
+
+  function remoteMove(next: { index: number; step: number }) {
+    remotePosition = next;
+    remotePublisher
+      ?.publish({ ...next, notesVisible: false, presenting: true })
+      .catch((error) => console.warn('[SlidesDeckEmbed] remote move not sent', error));
+  }
+
   /** Set while presenting; `popup` is the audience window in presenter mode. */
   let presenting = $state<{ mode: 'single' | 'presenter'; sessionId: string; popup: Window | null } | null>(null);
   let popupBlocked = $state(false);
@@ -158,11 +194,21 @@
   /** Loaded on first Edit so builds without the core never ship the editor. */
   let Editor = $state<typeof SlidesEditorComponent | null>(null);
   let editing = $state(false);
+  let editorRef = $state<{ done: () => Promise<void> } | undefined>(undefined);
+  let editorFinishing = $state(false);
 
   async function startEditing() {
     if (!canEdit) return;
     Editor ??= (await import('./SlidesEditor.svelte')).default;
+    // A successful Done unmounts the editor while its finishing flag is still set.
+    editorFinishing = false;
     editing = true;
+  }
+
+  /** The header Edit button: opens the editor; while editing it is the check mark that saves and closes it. */
+  function toggleSlidesEdit(): void {
+    if (!editing) { void startEditing(); return; }
+    void editorRef?.done();
   }
 
   /** Persists the edit as the next version; a rejection keeps the editor open with a retry. */
@@ -175,6 +221,14 @@
     );
     if (result.saved) saved = { markup: edited.markup, version: result.version, title: edited.title };
     selectedMarkup = null;
+  }
+
+  /** Template picker: needs the core (set_theme) and a stored deck, like editing. */
+  let pickingTemplate = $state(false);
+
+  /** Applies the template to the head deck and saves the result as the next version. */
+  async function applyTemplate(option: TemplateOption): Promise<void> {
+    await saveEdit(await applyTemplateToMarkup(headMarkup, option));
   }
 
   function stopEditing() {
@@ -275,11 +329,18 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  onEdit={canEdit && (editing || !streaming) ? toggleSlidesEdit : undefined}
+  editActive={editing}
+  editBusy={editorFinishing}
+  editTestId="slides-edit"
 >
   {#snippet content()}
     <div class="deck-viewer" data-testid="slides-deck-fullscreen" data-slide-index={index}>
       {#if editing && Editor}
         <Editor
+          bind:this={editorRef}
+          bind:finishing={editorFinishing}
+          showDone={false}
           {markup}
           initialSlideId={current?.id}
           onSave={saveEdit}
@@ -288,11 +349,11 @@
       {:else if deck && current}
         <div class="stage" bind:this={stageEl} style:max-width={stageMaxWidth}>
           {#key current.id}
-            <SlideCanvas
+            <SlideCanvas motion={true}
               slide={current}
               width={deck.width}
               height={deck.height}
-              template={deck.template}
+              template={deck.template} theme={deck.theme}
               {step}
               interactive={true}
               animated={true}
@@ -322,18 +383,33 @@
         </div>
 
         <div class="present-actions">
+          {#if canEdit}
+            <button
+              type="button"
+              class="present-button"
+              data-testid="slides-deck-template-action"
+              aria-expanded={pickingTemplate}
+              onclick={() => (pickingTemplate = !pickingTemplate)}
+            >{$text('embeds.slides_template_pick')}</button>
+          {/if}
           <button type="button" class="present-button primary" data-testid="slides-present" onclick={startPresenting}>
             {$text('embeds.slides_present')}
           </button>
           <button type="button" class="present-button" data-testid="slides-present-presenter-view" onclick={startPresenterView}>
             {$text('embeds.slides_presenter_view')}
           </button>
-          {#if canEdit && !streaming}
-            <button type="button" class="present-button" data-testid="slides-edit" onclick={startEditing}>
-              {$text('common.edit')}
-            </button>
-          {/if}
         </div>
+        {#if pickingTemplate && canEdit}
+          <SlidesTemplatePicker
+            deckTemplate={deck.template}
+            deckTheme={deck.theme}
+            {chatId}
+            {teamId}
+            disabled={streaming || editing}
+            onApply={applyTemplate}
+            onClose={() => (pickingTemplate = false)}
+          />
+        {/if}
         {#if popupBlocked}
           <p class="popup-blocked" role="status" data-testid="slides-popup-blocked">{$text('embeds.slides_popup_blocked')}</p>
         {/if}
@@ -350,7 +426,7 @@
               aria-current={position === index ? 'true' : undefined}
               onclick={() => select(position)}
             >
-              <SlideCanvas {slide} width={deck.width} height={deck.height} template={deck.template} />
+              <SlideCanvas motion={false} {slide} width={deck.width} height={deck.height} template={deck.template} theme={deck.theme} />
             </button>
           {/each}
         </div>
@@ -368,7 +444,29 @@
           sessionId={presenting.sessionId}
           notice={popupBlocked ? $text('embeds.slides_popup_blocked') : ''}
           onExit={stopPresenting}
+          embedId={embedId ?? ''}
         />
+      {/if}
+
+      {#if presentingElsewhere && !presenting}
+        <div class="elsewhere" role="status" data-testid="slides-presenting-elsewhere">
+          <span>{$text('embeds.slides_presenting_elsewhere')}</span>
+          <button type="button" class="present-button primary" data-testid="slides-remote-open" onclick={() => (remoteOpen = true)}>
+            {$text('embeds.slides_remote_open')}
+          </button>
+        </div>
+      {/if}
+      {#if remoteOpen && !presenting}
+        <div class="remote-overlay" use:portalToBody>
+          <SlidesPresentRemote
+            {markup}
+            position={remotePosition}
+            presenting={presentingElsewhere}
+            onAction={(action) => remoteMove(applyAction(slides, remotePosition, action))}
+            onGoto={(target) => remoteMove(clampPosition(slides, { index: target, step: 0 }))}
+            onClose={() => (remoteOpen = false)}
+          />
+        </div>
       {/if}
 
       {#if embedId && headVersion > 1 && !editing}
@@ -477,6 +575,28 @@
     background: var(--color-button-primary);
     color: var(--color-grey-0);
     box-shadow: none;
+  }
+
+  .elsewhere {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-6);
+    padding: var(--spacing-4) var(--spacing-8);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-small);
+  }
+
+  .remote-overlay {
+    position: fixed;
+    inset: 0;
+    /* Moved to document.body (portalToBody); above the main content, which rises to 10001
+       while a fullscreen embed is in overlay mode (web_app +page.svelte). */
+    z-index: 10002;
+    overflow-y: auto;
+    background: var(--color-grey-0);
   }
 
   .popup-blocked {

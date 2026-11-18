@@ -7,7 +7,7 @@ import { writeFile } from 'node:fs/promises';
 import { clickChatTarget, scrollChatHistoryToStart } from './helpers/chat-scroll';
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing shared helpers use CommonJS. */
 const { expect, test } = require('./helpers/cookie-audit');
-const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, waitForChatReady } = require('./helpers/chat-test-helpers');
 const { naturalProjectName } = require('./helpers/project-names');
 const USER_SPEECH = 'How do I make ramen?';
 const ASSISTANT_SPEECH = 'For ramen, simmer the broth and cook the noodles.';
@@ -233,7 +233,7 @@ test.afterEach(async ({page},testInfo)=>{
     const callUIstatus=transcriptFailure?'transcript_save_failed':status?.getAttribute('role')==='alert'?'error':
       document.querySelector('[data-testid="voice-call-bar"]')?.getAttribute('aria-busy')==='true'?'connecting':status?'active':'inactive';
     return {observed:!!state,starts:count(state?.sent,'start'),ready:count(state?.received,'ready'),
-      microphoneFrames:count(state?.sent,'mic_audio'),canonicalSends:count(state?.sent,'chat_message_added'),
+      microphoneFrames:count(state?.sent,'mic_audio'),canonicalSends:count(state?.sent,'chat_message_added')+count(state?.sent,'chat_turn_admit'),
       finalUserTranscripts:state?.received.filter(frame=>frame.type==='transcript'&&frame.role==='user'&&frame.final).length??0,
       errors:state?.received.filter(frame=>frame.type==='error').slice(-3).map(frame=>({code:frame.code,stage:frame.stage,path:frame.path}))??[],
       speechStatuses:state?.received.filter(frame=>frame.type==='assistant_speech_status').slice(-8).map(frame=>({
@@ -259,10 +259,12 @@ test.afterEach(async ({page},testInfo)=>{
       manualSpeechNative:(window as unknown as {__voiceManualSpeechPlayback?:{native:unknown[]}}).__voiceManualSpeechPlayback?.native.slice(-64),
       draftDeletionEvents:state?.draftDeletionEvents,heldSpeechAudio:state?.heldSpeechAudio,
       memoryBatch:state?.memoryBatch,privacySnapshotHeld:state?.privacySnapshotHeld,privacyNoopReplay:state?.privacyNoopReplay,callUIstatus,
+      // Core builds: stage of the call chat's admission into the Worker core (sink, server_session, chain, request, worker, ok, failed:<code>).
+      rustCoreAdmit:document.documentElement.getAttribute('data-rust-core-admit'),
       turnDelivery:state?.turnDelivery?.slice(-48)??[],
       finalTranscriptTurns:state?.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='user'&&frame.final).slice(-24).map(ids)??[],
       textInputTurns:state?.sent.filter(frame=>frame.type==='text_input').slice(-24).map(ids)??[],
-      canonicalTurns:state?.sent.filter(frame=>frame.type==='chat_message_added').slice(-24).map(frame=>({...ids(frame),voiceMode:frame.voiceMode,heardBoundary:!!frame.heardBoundary}))??[],
+      canonicalTurns:state?.sent.filter(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type)).slice(-24).map(frame=>({...ids(frame),voiceMode:frame.voiceMode,heardBoundary:!!frame.heardBoundary}))??[],
       interruptionTargets:state?.received.filter(frame=>frame.type==='audio.interrupted').slice(-24).map(ids)??[],
       admissionEvents:[...(state?.sent??[]).map(frame=>({...frame,direction:'sent'})),
         ...(state?.received??[]).map(frame=>({...frame,direction:'received'}))]
@@ -362,7 +364,8 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
       replay.producerAt=performance.now();replay.producerUnchanged=detail.privacy_snapshot_unchanged===true;
     });
     const phases=new Set(['queued','started','validating','sender_loading','chat_loading','message_saving','chat_refreshing',
-      'chat_updating','canonical_sending','receipt_reading','accepted','refused','failed','canonical_prerequisite','canonical_prerequisite_failed']);
+      'chat_updating','canonical_sending','receipt_reading','accepted','refused','failed','canonical_prerequisite','canonical_prerequisite_failed',
+      'core_beginning','core_snapshot','core_preparing','core_committing','core_early_reused']);
     const reasons=new Set(['invalid_turn','scope_changed','disconnected','personal_chat_unavailable','message_row_unavailable',
       'message_failed','message_waiting_for_connection','predecessor_not_saved','message_identity_conflict','turn_already_settled',
       'immutable_chat_key_mismatch','message_identity_mismatch','preflight_mismatch','recovery_key_mismatch','version_conflict',
@@ -383,7 +386,9 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
       'privacy_owner_unavailable','privacy_owner_changed','privacy_receipt_mismatch','privacy_cache_mismatch',
       'privacy_policy_unconfirmed','privacy_freshness_changed','privacy_filter_changed',
       'pending_message_row_unavailable','pending_message_journal_invalid','reply_recovery_foreground_required',
-      'reply_recovery_discovery_timeout','reply_recovery_not_completed']);
+      'reply_recovery_discovery_timeout','reply_recovery_not_completed',
+      'voice_turn_chat_unknown','voice_turn_unknown','voice_turn_not_prepared','voice_turn_not_bound','voice_turn_failed',
+      'voice_turn_protocol','not_admitted','core_busy','local_session','disconnected','scope_changed']);
     for(const code of errorCodes)reasons.add(code);
     const httpStatuses=new Set([400,401,403,404,408,409,413,422,429,500,502,503,504]);
     const errorModules=new Set(['services/voiceCallTurns.ts','services/chatSyncService.ts','services/sendersChatMessages.ts',
@@ -392,7 +397,7 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
       'services/fastAdmissionPhaseJournal.ts','services/savedPersonalAdmissionHistory.ts','services/websocketService.ts',
       'services/chatKeyWriteGuard.ts','services/chatKeyConsistency.ts','services/encryption/ChatKeyManager.ts','services/db.ts',
       'services/db/messageOperations.ts','services/db/chatCrudOperations.ts','services/db/messageJournalOperations.ts',
-      'utils/chatCompletionRecovery.ts']);
+      'utils/chatCompletionRecovery.ts','services/rustCore/voice/voiceTurnDelivery.ts','services/rustCore/voice/voiceTurnClient.ts']);
     const safeId=(value:unknown)=>typeof value==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(value)?value:undefined;
     const taskStatuses=new Set(['queued','initiated','processing','running','streaming','completed','failed','timed_out',
       'cancelled','revocation_sent','revocation_failed','already_completed','already_cancelled','not_found','synced','stored',
@@ -465,6 +470,13 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
             plaintext:'content' in message||'text' in message,voiceMode:message.voice_mode===true,
             autoSpeak:message.auto_speak_response===true,forcedModel:!!(message.model||message.provider||message.model_id),
             ...(message.voice_heard_boundary?{heardBoundary:message.voice_heard_boundary}:{})}:{}),
+          // Rust core builds admit call turns in one chat_turn_admit frame:
+          // the same voice fields sit in its inference request message.
+          ...(event.type==='chat_turn_admit'?(()=>{const turn=payload.inference_request?.message??{};const stored=payload.encrypted_user_message??{};return{
+            ciphertextLength:typeof stored.encrypted_content==='string'?stored.encrypted_content.length:0,
+            plaintext:'content' in stored||'text' in stored,voiceMode:turn.voice_mode===true,
+            autoSpeak:turn.auto_speak_response===true,forcedModel:!!(turn.model||turn.provider||turn.model_id),
+            ...(turn.voice_heard_boundary?{heardBoundary:turn.voice_heard_boundary}:{})};})():{}),
           ...(event.type==='billing_activity'?{inputListening:payload.input_listening,processing:payload.processing}:{}),
           ...(event.type==='usage'?{creditsCharged:payload.credits_charged}:{}),
           ...(event.type==='transcript'?{final:payload.final===true,createdAt:payload.created_at}:{}),
@@ -636,7 +648,7 @@ async function evidence(page: Page): Promise<Omit<CallEvidence, 'tracks'>> {
   return page.evaluate(() => {
     const state = (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence;
     return { sent: state.sent, received: state.received, draftAtBootstrap: state.draftAtBootstrap,
-      draftDeletionEvents: state.draftDeletionEvents };
+      draftDeletionEvents: state.draftDeletionEvents, turnDelivery: state.turnDelivery };
   });
 }
 
@@ -673,6 +685,7 @@ interface NativeVoiceInputEvidence {
   nativeTracks: MediaStreamTrack[];
   outputTracks: MediaStreamTrack[];
   contexts: AudioContext[];
+  pageContexts: AudioContext[];
   localToneStarts: number;
   samples: number;
   sampleRate: number;
@@ -696,7 +709,7 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const state: NativeVoiceInputEvidence = {
       speechPrimes: [], speechAcknowledgementPosts: [], speechAudioId: () => 0,
-      nativeTracks: [], outputTracks: [], contexts: [], localToneStarts: 0, samples: 0, sampleRate: 0,
+      nativeTracks: [], outputTracks: [], contexts: [], pageContexts: [], localToneStarts: 0, samples: 0, sampleRate: 0,
       capturedSpeech: false, capturedQuietSamples: 0,
       captureRequests: 0, interruptOnPermission: false, permissionInterruptions: 0, speechReady: false, playing: false, workersCreated: 0,
       workersTerminated: 0, detectorReady: 0, readyUploadedSamples: 0, error: false, play: () => {},
@@ -734,7 +747,12 @@ async function installNativeVoiceInput(page: Page): Promise<void> {
     window.AudioContext = new Proxy(NativeAudioContext, {
       construct(Target, args) {
         const context: AudioContext = Reflect.construct(Target, args);
-        state.contexts.push(context);
+        // Event sounds open one page-lifetime output from the capture-phase
+        // pointerdown/keydown unlock (services/eventSounds.ts), before the click
+        // that starts a call. It is not call audio, so call cleanup never owns it.
+        const eventType = (window.event as Event | undefined)?.type;
+        if (eventType === 'pointerdown' || eventType === 'keydown') state.pageContexts.push(context);
+        else state.contexts.push(context);
         // Observe genuine local WebAudio cue output without replacing its sound
         // implementation or exposing product-only diagnostic hooks.
         const createOscillator = context.createOscillator.bind(context);
@@ -1095,6 +1113,19 @@ async function chooseAppsHome(page: Page): Promise<void> {
 }
 
 /** Meaningful drafts and ordinary conversation history must survive call end. */
+/** A call chat with a turn is recorded as last opened, so it leads "Continue where you left off" (3X228). */
+async function expectCallChatLastOpened(page: Page, chatId: string): Promise<void> {
+  await expect.poll(()=>page.evaluate(async()=>{
+    const db=await new Promise<IDBDatabase>((resolve,reject)=>{
+      const request=indexedDB.open('user_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+    });
+    try { return await new Promise<string>((resolve,reject)=>{
+      const request=db.transaction('user_data','readonly').objectStore('user_data').get('last_opened');
+      request.onsuccess=()=>resolve(String(request.result??''));request.onerror=()=>reject(request.error);
+    }); } finally { db.close(); }
+  }),{message:'The voice call chat must become last_opened'}).toBe(chatId);
+}
+
 async function assertCallChatPreserved(page: Page, chatId: string): Promise<void> {
   expect((await evidence(page)).sent.filter(frame=>frame.type==='delete_empty_call_chat'&&frame.chatId===chatId)).toHaveLength(0);
   expect(await page.evaluate(async id=>{
@@ -1531,6 +1562,27 @@ async function sendCameraCallText(page: Page, text: string): Promise<string> {
 }
 
 test.describe('Voice mode through ordinary chat', () => {
+  // The first-call privacy case resets this job's shared account to "must ask".
+  // Restore the saved acknowledgement even when that case fails, so later cases
+  // never start behind the consent notice.
+  let voiceAcknowledgementResetPending = false;
+  test.afterEach(async ({page}) => {
+    if (!voiceAcknowledgementResetPending) return;
+    voiceAcknowledgementResetPending = false;
+    const restored = await page.evaluate(async apiUrl => {
+      // One retry covers a pending isolated fail_next_write fixture.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const response = await fetch(`${apiUrl}/v1/settings/voice-processing-ack`, {
+          method: 'POST', credentials: 'include', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({version: 3}),
+        });
+        if (response.ok && (await response.json()).acknowledged === true) return true;
+      }
+      return false;
+    }, process.env.PLAYWRIGHT_TEST_API_URL!);
+    expect(restored, 'restore the saved voice processing acknowledgement for later cases').toBe(true);
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.chat.project-context,video-call.audio.single-owner,video-call.audio.complete-turn-admission,projects.lifecycle.encrypted-crud
   test('registers an unsent personal Project chat before opening its voice call',async({page},testInfo)=>{
     test.setTimeout(120_000);
@@ -1580,7 +1632,7 @@ test.describe('Voice mode through ordinary chat', () => {
             userRows:document.querySelectorAll('[data-testid="message-user"]').length,
             assistantRows:document.querySelectorAll('[data-testid="message-assistant"]').length,
             starts:state.sent.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='start').length,
-            canonicalSends:state.sent.filter(frame=>frame.type==='chat_message_added').length}});
+            canonicalSends:state.sent.filter(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type)).length}});
         },{capture:true});
         for(const type of ['chatDeleted','localChatListChanged'])window.addEventListener(type,event=>{
           const detail=(event as CustomEvent).detail;
@@ -1700,7 +1752,7 @@ test.describe('Voice mode through ordinary chat', () => {
       expect(registration!.observedAt!).toBeLessThan(receipt!.observedAt!);
       expect(receipt!.observedAt!).toBeLessThan(starts[0].observedAt!);
       expect(receipt!.observedAt!).toBeLessThan(ready[0].observedAt!);
-      expect(protocol.sent.filter(frame=>frame.type==='chat_message_added'||frame.type==='text_input')).toHaveLength(0);
+      expect(protocol.sent.filter(frame=>['chat_message_added','chat_turn_admit','text_input'].includes(frame.type))).toHaveLength(0);
       expect(protocol.received.filter(frame=>frame.type==='transcript'&&frame.role==='user'&&frame.final)).toHaveLength(0);
       expect(protocol.received.filter(frame=>frame.type==='error'&&frame.path==='/v1/voice-call')).toHaveLength(0);
       await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
@@ -1804,7 +1856,7 @@ test.describe('Voice mode through ordinary chat', () => {
       await expect(page.getByTestId('voice-call-error')).toHaveCount(0);await assertVoiceInputCleanup(page);
       const protocol=await evidence(page);
       expect(protocol.sent.filter(frame=>frame.type==='voice_call_chat_prepare'&&frame.chatId===chatId)).toHaveLength(2);
-      expect(protocol.sent.filter(frame=>frame.type==='chat_message_added'||frame.type==='text_input'||frame.type==='chat_turn_admit')).toHaveLength(0);
+      expect(protocol.sent.filter(frame=>['chat_message_added','chat_turn_admit','text_input'].includes(frame.type))).toHaveLength(0);
       expect(voiceFrames(protocol,'start')).toHaveLength(0);
       expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='ready')).toHaveLength(0);
       expect(protocol.received.filter(frame=>frame.type==='ai_task_initiated')).toHaveLength(0);
@@ -1889,6 +1941,7 @@ test.describe('Voice mode through ordinary chat', () => {
       expect(voiceFrames(await evidence(page),'start')).toHaveLength(0);
     };
     await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    voiceAcknowledgementResetPending = true;
     await configure('reset');
     expect(await profileAcknowledgement()).toEqual({ok:true,versionValid:true,acknowledged:false,timestampValid:false});
     await page.locator('[data-testid="voice-call-start"]:visible').click();
@@ -2410,7 +2463,7 @@ test.describe('Voice mode through ordinary chat', () => {
     const pending=held.received.find(frame=>frame.type==='transcript.pending')!;
     expect(pending.pendingReason).toBe('incomplete');expect(pending.messageId).toBeTruthy();
     expect(held.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.final)).toHaveLength(0);
-    expect(held.sent.filter(frame=>frame.type==='chat_message_added')).toHaveLength(0);
+    expect(held.sent.filter(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type))).toHaveLength(0);
     expect(held.received.filter(frame=>frame.type==='ai_task_initiated')).toHaveLength(0);
     await expect(page.getByTestId('chat-header-wrapper')).toHaveCount(0);
     await expect(page.getByTestId('message-user')).toHaveCount(0);
@@ -2450,6 +2503,9 @@ test.describe('Voice mode through ordinary chat', () => {
     });
     const resumedAt=await page.evaluate(()=>performance.now());
     await playNativeVoiceFixture(page);
+    // The first admitted turn makes the call chat the resume chat (3X228).
+    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1,{timeout:60_000});
+    await expectCallChatLastOpened(page,voiceFrames(await evidence(page),'start')[0].chatId!);
     await waitForSpokenAssistant(page);
     // Unspoken words render translucent during playback, then the whole reply
     // becomes fully visible once speech finishes.
@@ -2465,9 +2521,16 @@ test.describe('Voice mode through ordinary chat', () => {
     const completed=resumedSpeech.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='user'&&frame.final);
     expect(completed).toHaveLength(1);expect(completed[0].messageId).toBe(pending.messageId);
     expect(completed[0].observedAt!).toBeGreaterThan(resumedAt);
-    const voiceSends=resumedSpeech.sent.filter(frame=>frame.type==='chat_message_added');
+    const voiceSends=resumedSpeech.sent.filter(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type));
     expect(voiceSends).toHaveLength(1);expect(voiceSends[0].messageId).toBe(pending.messageId);
     expect(voiceSends[0].observedAt!).toBeGreaterThan(completed[0].observedAt!);
+    // Early-end prep (feature.video-call complete-turn-admission): the
+    // incomplete first segment's hint is withdrawn when speech resumes, and the
+    // final send reuses the core's preparation from the second hint.
+    const hints=resumedSpeech.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.messageId===pending.messageId&&
+      (frame.type==='turn.likely_end'||frame.type==='turn.resumed')).map(frame=>frame.type);
+    expect(hints).toEqual(['turn.likely_end','turn.resumed','turn.likely_end']);
+    expect(resumedSpeech.turnDelivery?.some(event=>event.turnId===pending.messageId&&event.phase==='core_early_reused')).toBe(true);
     await expect(page.getByTestId('chat-header-wrapper')).toBeVisible();
     await expect(page.getByTestId('chat-header-title')).not.toBeEmpty();
     const first=page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH});
@@ -2493,7 +2556,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(rich.locator('img').first()).toBeVisible();
     const protocol=await evidence(page);
     const finals=protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.final);
-    const sends=protocol.sent.filter(frame=>frame.type==='chat_message_added');
+    const sends=protocol.sent.filter(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type));
     expect(finals.filter(frame=>frame.messageId===typedId)).toHaveLength(1);
     expect(finals.filter(frame=>frame.messageId===richId)).toHaveLength(1);
     expect(sends.filter(frame=>frame.messageId===typedId)).toHaveLength(1);
@@ -2521,7 +2584,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-phone.png')});
     await page.getByTestId('voice-call-hangup').click();await expect(page.getByTestId('voice-call-ended')).toHaveCount(1);
     await assertVoiceInputCleanup(page);await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
-    await assertCallChatPreserved(page,chatId);
+    await assertCallChatPreserved(page,chatId);await expectCallChatLastOpened(page,chatId);
     await evictOwnedCallRows(page,chatId,ready.callId!,messageIds);await page.reload();await waitForChatReady(page);
     await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
     await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
@@ -2531,6 +2594,10 @@ test.describe('Voice mode through ordinary chat', () => {
     // expose the ordinary recording control before checking audio ownership.
     await page.getByTestId('message-editor').click();
     await expect(page.getByTestId('record-audio-button')).toBeEnabled();
+    // Back on the new-chat screen the call chat is the first resume card.
+    await startNewChat(page,()=>{});
+    await expect(page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first())
+      .toHaveAttribute('data-chat-id',chatId);
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.audio.single-owner,video-call.audio.spoken-rich-response,assistant-speech.playback.live-call-streaming,assistant-speech.on-demand.generate-missing-only,assistant-speech.lifecycle.disable-delete-invalidate
@@ -2734,7 +2801,7 @@ test.describe('Voice mode through ordinary chat', () => {
       await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+cameraQuestion})).toHaveCount(1);
       await page.getByTestId('voice-call-video').click();await expect(page.getByTestId('voice-call-video')).toHaveAttribute('aria-pressed','false');
       await expect(page.getByTestId('voice-call-bar')).toBeVisible();
-      expect((await evidence(page)).sent.filter(frame=>frame.type==='chat_message_added'&&frame.messageId===userId)).toHaveLength(1);
+      expect((await evidence(page)).sent.filter(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type)&&frame.messageId===userId)).toHaveLength(1);
       await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
       await page.reload();await waitForChatReady(page);await expect(user).toHaveCount(1);
       await assertEncryptedSourceAttachment(page,chatId,userId,source.embedId,source.hash);
@@ -2764,7 +2831,7 @@ test.describe('Voice mode through ordinary chat', () => {
     const reply=page.getByTestId('message-assistant').filter({hasText:'Ich habe das geprüft. Hier ist das Ergebnis.'});
     await expect(reply).toHaveCount(1);await expect(page.getByTestId('message-assistant')).toHaveCount(1);
     const protocol=await evidence(page);
-    expect(protocol.sent.filter(frame=>frame.type==='chat_message_added'&&frame.messageId===id)).toHaveLength(1);
+    expect(protocol.sent.filter(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type)&&frame.messageId===id)).toHaveLength(1);
     expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='assistant')).toHaveLength(0);
     await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
   });
@@ -2967,7 +3034,7 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(privacyNoop.replay!.producerAt!).toBeGreaterThanOrEqual(privacyNoop.replay!.replayedAt);
     await testInfo.attach('voice-privacy-noop-during-fresh-send',{body:JSON.stringify(privacyNoop),contentType:'application/json'});
     await page.evaluate(()=>(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence.releasePrivacySnapshot!());
-    await expect.poll(async()=>(await evidence(page)).sent.find(frame=>frame.type==='chat_message_added'&&frame.messageId===nextId)?.heardBoundary,{timeout:45_000}).toBeTruthy();
+    await expect.poll(async()=>(await evidence(page)).sent.find(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type)&&frame.messageId===nextId)?.heardBoundary,{timeout:45_000}).toBeTruthy();
     const protocol=await evidence(page);
     const privacyOrder=await page.evaluate(() => {
       const state=(window as unknown as {__voiceCallEvidence:CallEvidence}).__voiceCallEvidence;
@@ -2975,9 +3042,9 @@ test.describe('Voice mode through ordinary chat', () => {
     });
     expect(privacyOrder.releasedAt).toBeDefined();
     expect(privacyOrder.producerAt!).toBeLessThanOrEqual(privacyOrder.releasedAt!);
-    expect(protocol.sent.find(frame=>frame.type==='chat_message_added'&&frame.messageId===nextId)!.observedAt!)
+    expect(protocol.sent.find(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type)&&frame.messageId===nextId)!.observedAt!)
       .toBeGreaterThan(privacyOrder.releasedAt!);
-    const boundary=protocol.sent.find(frame=>frame.type==='chat_message_added'&&frame.messageId===nextId)!.heardBoundary!;
+    const boundary=protocol.sent.find(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type)&&frame.messageId===nextId)!.heardBoundary!;
     const prior=page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'});
     await expect(prior).toHaveCount(1);
     expect(boundary.assistant_message_id).toBe(await prior.getAttribute('data-message-id'));

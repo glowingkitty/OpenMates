@@ -107,6 +107,9 @@ fn machine_code(error: &RemoteOpError) -> String {
                 "machine_failed".to_owned()
             }
         }
+        // A 409 here comes from a source or approval step, never from the
+        // Project slug (that is `create_project`, mapped by `failure_code`).
+        RemoteOpError::Core(Error::Conflict) => "machine_request_conflict".to_owned(),
         RemoteOpError::Core(error) => failure_code(error.clone()).to_owned(),
     }
 }

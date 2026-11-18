@@ -67,6 +67,8 @@ RUN mkdir -p /app/backend/shared/python_utils && touch /app/backend/shared/__ini
 COPY backend/shared/python_utils/media_encryption.py /app/backend/shared/python_utils/media_encryption.py
 COPY backend/shared/python_utils/object_storage_regions.py /app/backend/shared/python_utils/object_storage_regions.py
 COPY backend/shared/python_utils/storage_availability.py /app/backend/shared/python_utils/storage_availability.py
+# SVG uploads are sanitized at upload time (upload_route); standard library + defusedxml only.
+COPY backend/shared/python_utils/svg_sanitizer.py /app/backend/shared/python_utils/svg_sanitizer.py
 COPY backend/upload/ /app/backend/upload/
 # PDF uploads are triaged and priced at upload time (lazy import in upload_route._handle_pdf_upload).
 # The module only needs the standard library and pymupdf, so only it is copied, not the PDF app.

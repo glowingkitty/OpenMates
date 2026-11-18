@@ -5,7 +5,9 @@ These are the chats that are easy to forget: the assistant answered (a question,
 finished work) and nothing was sent after it. The daily meeting asks about them one at a time.
 A chat counts when it has at least one human prompt, its last text event is an assistant
 reply, it has been idle for MIN_IDLE_HOURS and its last activity is within LOOKBACK_DAYS.
-Chats dismissed in a meeting (`waiting-reviewed.json`) are skipped for REVIEW_PAUSE_DAYS.
+Every such chat is listed (no cap, no age cut-off for finished-work replies): a chat leaves the
+list only when it is answered, archived (`waiting-reviewed.json`), its Task is done, or its Task
+is paused (then it shows in "Paused chats", scripts/daily_meeting_paused.py).
 Docs: docs/contributing/guides/daily-meeting.md
 """
 
@@ -16,11 +18,10 @@ import json
 from pathlib import Path
 import re
 
-LOOKBACK_DAYS = 5
+import daily_meeting_paused as paused_mod
+
+LOOKBACK_DAYS = 30
 MIN_IDLE_HOURS = 2
-REVIEW_PAUSE_DAYS = 14
-MAX_LISTED = 12
-DONE_RELEVANT_HOURS = 36  # finished-work replies older than this are not a forgotten chat
 BLOCKED = re.compile(r"\b(blocked|cannot|can't|unable|failed|failing|need your|waiting for|your call|decide)\b", re.I)
 
 
@@ -100,7 +101,7 @@ def scan_transcript(path: Path) -> dict | None:
 
 
 def waiting_chats(base: Path, now: datetime, tasks: list[dict] | None = None,
-                  reviewed: dict[str, str] | None = None, current: str = "") -> list[dict]:
+                  reviewed: dict[str, str] | None = None, current: str = "", topics=paused_mod.PRIORITY_TOPICS) -> list[dict]:
     """Chats waiting on the founder, longest-waiting first, with their Task if one is linked."""
     reviewed, found = reviewed or {}, []
     by_chat = {t["chat"].split(":", 1)[1]: t for t in tasks or [] if str(t.get("chat", "")).startswith("claude:")}
@@ -111,9 +112,7 @@ def waiting_chats(base: Path, now: datetime, tasks: list[dict] | None = None,
                 continue
         except OSError:
             continue
-        paused = reviewed.get(path.stem)
-        if paused and date.fromisoformat(paused) > (now - timedelta(days=REVIEW_PAUSE_DAYS)).date():
-            continue
+        archived = reviewed.get(path.stem)
         scan = scan_transcript(path)
         if not scan:
             continue
@@ -123,25 +122,32 @@ def waiting_chats(base: Path, now: datetime, tasks: list[dict] | None = None,
         idle = now - said_at
         if idle < timedelta(hours=MIN_IDLE_HOURS) or said_at < oldest:
             continue
+        if archived and date.fromisoformat(archived) >= said_at.date():
+            continue  # archived in a meeting and silent since
         verdict = signal(reply)
-        if verdict == "reports it is done" and idle > timedelta(hours=DONE_RELEVANT_HOURS):
-            continue
         task = by_chat.get(path.stem)
-        if task and task.get("status") == "done":
+        if task and (task.get("status") == "done" or "paused" in (task.get("labels") or [])):
             continue
         last_prompt = re.sub(r"\s+", " ", scan["human"][1]).strip()[:300] if scan["human"] else ""
+        rank = paused_mod.importance({"title": scan["title"], "last_prompt": last_prompt, "last_reply": reply}, task, topics)
         found.append({
             "session": path.stem, "title": plain_title(scan["title"], last_prompt, reply), "branch": scan["branch"],
-            "idle_hours": round(idle.total_seconds() / 3600, 1), "signal": verdict,
+            "idle_hours": round(idle.total_seconds() / 3600, 1), "age_days": idle.days, "signal": verdict,
+            "needs": paused_mod.question_of(reply),
+            "priority_topic": paused_mod.topic_name(rank[0], topics), "_rank": rank,
             "last_reply": re.sub(r"\s+", " ", reply).strip()[:600],
             "last_prompt": last_prompt,
             "task": f"{task['id']} ({task['status']})" if task else "",
             "task_title": task.get("title", "") if task else "",
         })
-    # Questions and blockers first, then finished work; newest first within each group.
-    found.sort(key=lambda c: (c["signal"] == "reports it is done", c["idle_hours"]))
+    # Importance against the current priorities, then Task priority, then oldest wait first.
+    found.sort(key=lambda c: (*c["_rank"], c["signal"] == "reports it is done", -c["idle_hours"]))
+    for chat in found:
+        del chat["_rank"]
     return found
 
 
-def waiting_summary(chats: list[dict]) -> dict:
-    return {"chats": chats[:MAX_LISTED], "omitted": max(len(chats) - MAX_LISTED, 0)}
+def waiting_summary(chats: list[dict], tasks: list[dict] | None = None, now: datetime | None = None) -> dict:
+    """Every waiting chat, every paused chat and the no-decision flags (nothing is cut off)."""
+    paused = paused_mod.paused_chats(tasks, now or datetime.now(timezone.utc))
+    return {"chats": chats, "paused": paused, "flags": paused_mod.stale_flags(chats, paused)}

@@ -2,7 +2,7 @@
 //! envelope shape, approval order, result decoding and error mapping.
 // contract-test: supporting surface=sdks.rust assertions=sdk.encryption.local-only
 use super::*;
-use crate::work::projects::remote_files::tests::{PROJECT, host};
+use crate::work::projects::remote_files::tests::{PROJECT, host, host_with_write_mode};
 use crate::work::tasks::tests::client;
 
 const KEY: [u8; 32] = [7; 32];
@@ -208,6 +208,43 @@ async fn run_command_stores_the_approval_then_sends_the_sealed_request() {
     .unwrap();
     assert_eq!(opened["arguments"], command().arguments(CHAT));
     assert!(!requests[send].contains("npm"), "argv stays sealed");
+}
+
+// contract-test: supporting surface=sdks.rust assertions=sdk.encryption.local-only
+#[tokio::test]
+async fn apply_and_show_project_sends_the_digest_without_storing_an_approval() {
+    // The server refuses approvals outside `always_ask` (409
+    // PROJECT_WRITE_APPROVAL_NOT_REQUIRED), which used to fail machine creation.
+    let reply = json!({"ok":true,"result":{
+        "exit_code":0,"signal":null,"timed_out":false,"duration_ms":3,"stdout":"ok\n","stderr":"",
+        "stdout_truncated":false,"stderr_truncated":false,"sandbox":"bwrap","root":"worktree","cwd":"."}});
+    let (api, server) = host_with_write_mode(reply, "apply_and_show").await;
+    let mut c = client(&api);
+    let remote = RemoteCommand {
+        argv: vec!["npm".into(), "test".into()],
+        cwd: None,
+        timeout_ms: 5000,
+        max_output_bytes: None,
+    };
+    c.projects()
+        .run_remote_command(PROJECT, None, CHAT, "op-1", &remote)
+        .await
+        .unwrap();
+    let requests = server.await.unwrap();
+    assert!(!requests.iter().any(|r| r.contains("write-approvals")));
+    let send = requests
+        .iter()
+        .find(|r| {
+            r.starts_with(&format!(
+                "POST /v1/projects/{PROJECT}/sources/src/requests "
+            ))
+        })
+        .expect("request sent");
+    let body: Value = serde_json::from_str(send.split("\r\n\r\n").nth(1).unwrap()).unwrap();
+    assert_eq!(
+        body["proposal_digest"],
+        command().digest(&[8; 32], PROJECT, CHAT).unwrap()
+    );
 }
 
 // contract-test: supporting surface=sdks.rust assertions=sdk.encryption.local-only

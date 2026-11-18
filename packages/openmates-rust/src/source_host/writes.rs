@@ -48,7 +48,11 @@ pub(crate) struct Mutation {
 impl Mutation {
     /// The wire operation name.
     pub(crate) fn operation(&self) -> &'static str {
-        if self.create { "create_file" } else { "update_file" }
+        if self.create {
+            "create_file"
+        } else {
+            "update_file"
+        }
     }
 }
 
@@ -67,7 +71,14 @@ fn operation_id_valid(value: &str) -> bool {
 pub(crate) fn validate(value: &Value) -> HostResult<Mutation> {
     let fail = || HostError::failed("invalid_file_mutation");
     let object = value.as_object().ok_or_else(fail)?;
-    const ALLOWED: [&str; 6] = ["operation", "operation_id", "path", "expected_base", "content", "patch"];
+    const ALLOWED: [&str; 6] = [
+        "operation",
+        "operation_id",
+        "path",
+        "expected_base",
+        "content",
+        "patch",
+    ];
     if object.keys().any(|key| !ALLOWED.contains(&key.as_str())) {
         return Err(fail());
     }
@@ -90,18 +101,29 @@ pub(crate) fn validate(value: &Value) -> HostResult<Mutation> {
     let patch = object.get("patch");
     let expected = object.get("expected_base");
     if create {
-        if expected != Some(&Value::Null) || !content.is_some_and(Value::is_string) || patch.is_some() {
+        if expected != Some(&Value::Null)
+            || !content.is_some_and(Value::is_string)
+            || patch.is_some()
+        {
             return Err(fail());
         }
     } else {
-        let base_ok = expected
-            .and_then(Value::as_str)
-            .is_some_and(|b| b.len() == 64 && b.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)));
-        if !base_ok || !patch.and_then(Value::as_str).is_some_and(|p| !p.is_empty()) || content.is_some() {
+        let base_ok = expected.and_then(Value::as_str).is_some_and(|b| {
+            b.len() == 64
+                && b.bytes()
+                    .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+        });
+        if !base_ok
+            || !patch.and_then(Value::as_str).is_some_and(|p| !p.is_empty())
+            || content.is_some()
+        {
             return Err(fail());
         }
     }
-    let body = content.or(patch).and_then(Value::as_str).unwrap_or_default();
+    let body = content
+        .or(patch)
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     if body.len() > MAX_FILE_BYTES {
         return Err(HostError::failed("file_mutation_too_large"));
     }
@@ -122,7 +144,12 @@ pub(crate) fn validate(value: &Value) -> HostResult<Mutation> {
 ///
 /// # Errors
 /// `operation_failed` for an empty identity.
-pub(crate) fn digest(key: &[u8; 32], project_id: &str, chat_id: &str, m: &Mutation) -> HostResult<String> {
+pub(crate) fn digest(
+    key: &[u8; 32],
+    project_id: &str,
+    chat_id: &str,
+    m: &Mutation,
+) -> HostResult<String> {
     if project_id.is_empty() || chat_id.is_empty() {
         return Err(HostError::failed("invalid_file_mutation_identity"));
     }
@@ -152,7 +179,9 @@ fn strict_path(value: &str) -> HostResult<()> {
         || value.starts_with('/')
         || value.contains('\\')
         || value.chars().any(|c| (c as u32) < 32 || c as u32 == 127)
-        || value.split('/').any(|part| part.is_empty() || part == "." || part == "..")
+        || value
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
     {
         return Err(HostError::invalid_path(
             "Project file path must be a strict root-relative POSIX path",
@@ -162,7 +191,12 @@ fn strict_path(value: &str) -> HostResult<()> {
 }
 
 /// npm `enforcePathPolicy`.
-fn enforce_policy(root: &Path, state_dir: &Path, policy_source: Option<&Path>, path: &str) -> HostResult<()> {
+fn enforce_policy(
+    root: &Path,
+    state_dir: &Path,
+    policy_source: Option<&Path>,
+    path: &str,
+) -> HostResult<()> {
     if path.split('/').any(|p| p == ".git")
         || path == ".openmates/permissions.yml"
         || is_protected_read_path(path)
@@ -193,23 +227,40 @@ struct Parent {
 }
 
 /// npm `openPinnedParent` via an `openat` chain (no `/proc` dependency).
-fn pin_parent(root: &Path, path: &str) -> HostResult<Parent> {
+///
+/// `create_missing` (a create_file) makes each missing parent folder with
+/// `mkdirat` relative to the already pinned folder, so a new file can start a
+/// new folder (`web-app/src/services/storage.js`); a symbolic link anywhere in
+/// the chain is still refused because every step opens with `NOFOLLOW`.
+fn pin_parent(root: &Path, path: &str, create_missing: bool) -> HostResult<Parent> {
     let mut parts: Vec<&str> = path.split('/').collect();
     let name = parts.pop().unwrap_or_default().to_owned();
     let dir_flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
     let mut fd = rustix::fs::open(root, dir_flags, Mode::empty())
         .map_err(|_| HostError::invalid_path("Could not pin the source root"))?;
+    let refused = |errno: rustix::io::Errno| {
+        if errno == rustix::io::Errno::LOOP || errno == rustix::io::Errno::NOTDIR {
+            HostError::invalid_path("Project file path contains a symbolic link")
+        } else {
+            HostError::invalid_path("Project file parent does not exist or is unsupported")
+        }
+    };
     for part in parts {
-        fd = rustix::fs::openat(&fd, part, dir_flags, Mode::empty()).map_err(|errno| {
-            if errno == rustix::io::Errno::LOOP || errno == rustix::io::Errno::NOTDIR {
-                HostError::invalid_path("Project file path contains a symbolic link")
-            } else {
-                HostError::invalid_path("Project file parent does not exist or is unsupported")
+        fd = match rustix::fs::openat(&fd, part, dir_flags, Mode::empty()) {
+            Err(rustix::io::Errno::NOENT) if create_missing => {
+                // A concurrent creator may win the race; EEXIST then opens theirs.
+                match rustix::fs::mkdirat(&fd, part, Mode::from_raw_mode(0o755)) {
+                    Ok(()) | Err(rustix::io::Errno::EXIST) => {}
+                    Err(errno) => return Err(refused(errno)),
+                }
+                rustix::fs::openat(&fd, part, dir_flags, Mode::empty()).map_err(refused)?
             }
-        })?;
+            other => other.map_err(refused)?,
+        };
     }
-    let stats = rustix::fs::fstat(&fd)
-        .map_err(|_| HostError::invalid_path("Project file parent does not exist or is unsupported"))?;
+    let stats = rustix::fs::fstat(&fd).map_err(|_| {
+        HostError::invalid_path("Project file parent does not exist or is unsupported")
+    })?;
     Ok(Parent {
         identity: format!("{}:{}:{name}", stats.st_dev, stats.st_ino),
         fd,
@@ -236,7 +287,9 @@ fn read_pinned(parent: &Parent) -> HostResult<Option<Current>> {
         Ok(fd) => fd,
         Err(rustix::io::Errno::NOENT) => return Ok(None),
         Err(rustix::io::Errno::LOOP) => {
-            return Err(HostError::invalid_path("Project file target is a symbolic link"));
+            return Err(HostError::invalid_path(
+                "Project file target is a symbolic link",
+            ));
         }
         Err(_) => {
             return Err(HostError::invalid_path(
@@ -245,14 +298,19 @@ fn read_pinned(parent: &Parent) -> HostResult<Option<Current>> {
         }
     };
     let mut file = std::fs::File::from(fd);
-    let stats = file.metadata().map_err(|e| HostError::io("Project file", &e))?;
+    let stats = file
+        .metadata()
+        .map_err(|e| HostError::io("Project file", &e))?;
     if !stats.is_file() || stats.nlink() != 1 {
         return Err(HostError::unsupported(
             "Project file must be a regular file with one link",
         ));
     }
     if stats.len() > MAX_FILE_BYTES as u64 {
-        return Err(HostError::new("size_limit_exceeded", "Project file exceeds 204800 bytes"));
+        return Err(HostError::new(
+            "size_limit_exceeded",
+            "Project file exceeds 204800 bytes",
+        ));
     }
     let mut bytes = Vec::with_capacity(stats.len() as usize);
     (&mut file)
@@ -264,11 +322,15 @@ fn read_pinned(parent: &Parent) -> HostResult<Option<Current>> {
         return Err(changed());
     }
     if bytes.contains(&0) {
-        return Err(HostError::unsupported("Binary Project files are unsupported"));
+        return Err(HostError::unsupported(
+            "Binary Project files are unsupported",
+        ));
     }
     let content = String::from_utf8(bytes.clone())
         .map_err(|_| HostError::unsupported("Project file is not valid UTF-8 text"))?;
-    let after = file.metadata().map_err(|e| HostError::io("Project file", &e))?;
+    let after = file
+        .metadata()
+        .map_err(|e| HostError::io("Project file", &e))?;
     if after.len() != stats.len()
         || super::fs_safe::mtime_ms(&after) != super::fs_safe::mtime_ms(&stats)
         || after.ino() != stats.ino()
@@ -289,13 +351,17 @@ fn read_pinned(parent: &Parent) -> HostResult<Option<Current>> {
 fn propose(m: &Mutation, current: Option<&Current>) -> HostResult<(String, String)> {
     if m.create {
         if current.is_some() {
-            return Err(HostError::new("target_exists", "Create target already exists"));
+            return Err(HostError::new(
+                "target_exists",
+                "Create target already exists",
+            ));
         }
         let content = m.content.clone().unwrap_or_default();
         let diff = create_diff(&m.path, &content);
         return Ok((content, diff));
     }
-    let current = current.ok_or_else(|| HostError::new("file_changed", "Update target no longer exists"))?;
+    let current =
+        current.ok_or_else(|| HostError::new("file_changed", "Update target no longer exists"))?;
     if Some(&current.hash) != m.expected_base.as_ref() {
         return Err(HostError::new(
             "file_changed",
@@ -306,7 +372,10 @@ fn propose(m: &Mutation, current: Option<&Current>) -> HostResult<(String, Strin
     let content = apply(&current.content, &patch, &m.path)
         .map_err(|e| HostError::new("invalid_patch", e.0))?;
     if content.len() > MAX_FILE_BYTES {
-        return Err(HostError::new("size_limit_exceeded", "Updated file exceeds 204800 bytes"));
+        return Err(HostError::new(
+            "size_limit_exceeded",
+            "Updated file exceeds 204800 bytes",
+        ));
     }
     Ok((content, patch))
 }
@@ -321,7 +390,13 @@ fn temp_name() -> String {
 
 /// `chmod` is applied only for replacements (keep the original mode); creates
 /// keep the kernel's umask-filtered `0o666` like Node.
-fn write_temp(parent: &Parent, name: &str, content: &str, mode: u32, chmod: bool) -> HostResult<()> {
+fn write_temp(
+    parent: &Parent,
+    name: &str,
+    content: &str,
+    mode: u32,
+    chmod: bool,
+) -> HostResult<()> {
     let fd = rustix::fs::openat(
         &parent.fd,
         name,
@@ -351,14 +426,23 @@ fn remove_temp(parent: &Parent, name: &str) {
 fn create_pinned(parent: &Parent, content: &str) -> HostResult<()> {
     let temp = temp_name();
     let result = write_temp(parent, &temp, content, 0o666, false).and_then(|()| {
-        rustix::fs::linkat(&parent.fd, temp.as_str(), &parent.fd, parent.name.as_str(), AtFlags::empty())
-            .map_err(|errno| {
-                if errno == rustix::io::Errno::EXIST {
-                    HostError::new("target_exists", "Create target appeared during the final write")
-                } else {
-                    HostError::failed(format!("Create failed: {errno}"))
-                }
-            })
+        rustix::fs::linkat(
+            &parent.fd,
+            temp.as_str(),
+            &parent.fd,
+            parent.name.as_str(),
+            AtFlags::empty(),
+        )
+        .map_err(|errno| {
+            if errno == rustix::io::Errno::EXIST {
+                HostError::new(
+                    "target_exists",
+                    "Create target appeared during the final write",
+                )
+            } else {
+                HostError::failed(format!("Create failed: {errno}"))
+            }
+        })
     });
     remove_temp(parent, &temp);
     result?;
@@ -370,7 +454,9 @@ fn replace_pinned(parent: &Parent, expected: &Current, content: &str) -> HostRes
     let temp = temp_name();
     let result = write_temp(parent, &temp, content, expected.mode, true).and_then(|()| {
         let near = read_pinned(parent)?;
-        if !near.is_some_and(|n| n.hash == expected.hash && n.dev == expected.dev && n.ino == expected.ino) {
+        if !near.is_some_and(|n| {
+            n.hash == expected.hash && n.dev == expected.dev && n.ino == expected.ino
+        }) {
             return Err(HostError::new(
                 "file_changed",
                 "Project file changed at the final write boundary",
@@ -439,7 +525,9 @@ pub(crate) async fn execute<A: WriteAuthority>(
     let m = request.mutation;
     strict_path(&m.path)?;
     if request.scope.is_empty() || request.scope.len() > 2048 {
-        return Err(HostError::invalid_path("Operation scope is missing or invalid"));
+        return Err(HostError::invalid_path(
+            "Operation scope is missing or invalid",
+        ));
     }
     let root = match request.policy_source {
         Some(_) => canonical_worktree_root(request.root, request.state_dir),
@@ -447,15 +535,18 @@ pub(crate) async fn execute<A: WriteAuthority>(
     }
     .map_err(|_| HostError::invalid_path("Source root is unavailable or protected"))?;
     enforce_policy(&root, request.state_dir, request.policy_source, &m.path)?;
-    let journal_root = private_state_directory(&request.journal_root.clone().unwrap_or_else(journal_root))?;
-    let real_journal = std::fs::canonicalize(&journal_root).map_err(|e| HostError::io("Journal", &e))?;
+    let journal_root =
+        private_state_directory(&request.journal_root.clone().unwrap_or_else(journal_root))?;
+    let real_journal =
+        std::fs::canonicalize(&journal_root).map_err(|e| HostError::io("Journal", &e))?;
     if real_journal.starts_with(&root) {
         return Err(HostError::invalid_path(
             "Mutation journal must be outside the source root",
         ));
     }
     let scope_digest = sha256_hex(request.scope.as_bytes());
-    let stable = crate::remote_command::stable_json(&m.raw).map_err(|e| HostError::failed(e.message))?;
+    let stable =
+        crate::remote_command::stable_json(&m.raw).map_err(|e| HostError::failed(e.message))?;
     let payload_digest = sha256_hex(stable.as_bytes());
     let journal = journal_path(&journal_root, request.scope, &m.operation_id);
     if let Some(parent) = journal.parent() {
@@ -470,7 +561,8 @@ pub(crate) async fn execute<A: WriteAuthority>(
         }
     }
     let (preview_identity, preview_current, preview) = {
-        let parent = pin_parent(&root, &m.path)?;
+        // Folders are created only after the first authorization.
+        let parent = pin_parent(&root, &m.path, m.create)?;
         let current = read_pinned(&parent)?;
         let proposed = propose(m, current.as_ref())?;
         (parent.identity, current, proposed)
@@ -488,7 +580,7 @@ pub(crate) async fn execute<A: WriteAuthority>(
             return Ok(replay(prior));
         }
     }
-    let parent = pin_parent(&root, &m.path)?;
+    let parent = pin_parent(&root, &m.path, false)?;
     if parent.identity != preview_identity {
         return Err(HostError::new(
             "file_changed",
@@ -497,7 +589,10 @@ pub(crate) async fn execute<A: WriteAuthority>(
     }
     let current = read_pinned(&parent)?;
     if let Some(prior) = prior.filter(|p| p["state"] == "prepared") {
-        if current.as_ref().is_some_and(|c| prior["after_hash"] == c.hash.as_str()) {
+        if current
+            .as_ref()
+            .is_some_and(|c| prior["after_hash"] == c.hash.as_str())
+        {
             let mut recovered = prior.clone();
             recovered["state"] = json!("applied");
             write_journal(&journal, &recovered)?;
@@ -515,14 +610,20 @@ pub(crate) async fn execute<A: WriteAuthority>(
     };
     if !still_current {
         return Err(if m.create {
-            HostError::new("target_exists", "Create target appeared during authorization")
+            HostError::new(
+                "target_exists",
+                "Create target appeared during authorization",
+            )
         } else {
             HostError::new("file_changed", "Project file changed during authorization")
         });
     }
     let proposed = propose(m, current.as_ref())?;
     if proposed != preview {
-        return Err(HostError::new("file_changed", "Project file changed during authorization"));
+        return Err(HostError::new(
+            "file_changed",
+            "Project file changed during authorization",
+        ));
     }
     let (after, diff) = proposed;
     let before = current.as_ref().map(|c| c.hash.clone());

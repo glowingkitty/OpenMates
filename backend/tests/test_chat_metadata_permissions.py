@@ -83,6 +83,7 @@ class FocusCiphertextDirectus:
             "id": "saved-focus-chat",
             "encrypted_active_focus_id": "opaque-focus-id",
             "encrypted_focus_phase_state": "opaque-phase-state",
+            "encrypted_wellbeing_scores": "opaque-wellbeing",
         }
         return [{field: value for field, value in stored.items() if field in self.chat_fields}]
 
@@ -259,6 +260,7 @@ async def test_forced_chat_cache_warming_preserves_saved_focus_ciphertext(warmin
         assert wrapper is not None
         chat = wrapper["chat_details"]
 
-    assert {"encrypted_active_focus_id", "encrypted_focus_phase_state"} <= directus.chat_fields
+    assert {"encrypted_active_focus_id", "encrypted_focus_phase_state", "encrypted_wellbeing_scores"} <= directus.chat_fields
     assert chat["encrypted_active_focus_id"] == "opaque-focus-id"
     assert chat["encrypted_focus_phase_state"] == "opaque-phase-state"
+    assert chat["encrypted_wellbeing_scores"] == "opaque-wellbeing"

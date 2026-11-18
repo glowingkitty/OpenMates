@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "이 답변은 안전 규칙에 맞지 않아 삭제되었습니다."
+    },
+    "wellbeing": {
+      "text": "이전 답변이 당신에게 해로울 수 있어 삭제했습니다. 당신은 혼자가 아닙니다. 스스로를 해치는 생각이 든다면 믿을 수 있는 사람이나 지역의 위기 상담 전화, 응급 서비스에 연락해 주세요. 저는 여기서 계속 이야기할 수 있어요."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -134,6 +142,12 @@
         "text": "투자 라운드 계획하기",
         "description": {
           "text": "얼마를 조달할지, 어떤 수단이 맞는지, 지분 희석과 일정을 정리하고 수정 가능한 지분표를 만듭니다."
+        }
+      },
+      "write_press_release": {
+        "text": "보도자료 작성",
+        "description": {
+          "text": "기자가 바로 쓸 수 있는 보도자료를 회사만의 보도 스타일로 작성합니다. Word 문서 또는 원하는 다른 형식으로 받을 수 있습니다."
         }
       }
     },
@@ -221,6 +235,12 @@
         "description": {
           "text": "보안 취약점 및 노출에 대해 구성 파일을 감사하십시오."
         }
+      },
+      "write_specification": {
+        "text": "명세서 작성",
+        "description": {
+          "text": "아이디어를 범위, 요구 사항, 디자인, 인수 검사까지 단계별로 승인된 명세서로 만들고, 이어서 작업이 포함된 계획을 시작하세요."
+        }
       }
     },
     "events": {
@@ -303,6 +323,12 @@
         "description": {
           "text": "강력한 라이프 코칭 기법."
         }
+      },
+      "life_compass": {
+        "text": "인생 나침반",
+        "description": {
+          "text": "작은 한 걸음씩, 더 행복한 삶을 향한 방향을 찾아보세요."
+        }
       }
     },
     "news": {
@@ -358,6 +384,20 @@
           "3": {
             "text": "회의적인 친구와 이 **기후 정책**을 논의하기 전에 사실과 반론을 조사해줘"
           }
+        }
+      }
+    },
+    "slides": {
+      "design_template": {
+        "text": "템플릿 디자인",
+        "description": {
+          "text": "재사용 가능한 슬라이드 템플릿을 단계별로 디자인하세요 - 세 가지 디자인 중 선택하고 함께 다듬은 뒤 라이브러리에 저장합니다."
+        }
+      },
+      "plan_presentation": {
+        "text": "프레젠테이션 계획",
+        "description": {
+          "text": "프레젠테이션을 단계별로 계획하세요 - 목표, 스토리, 슬라이드당 하나의 메시지, 디자인 - 그런 다음 발표자 노트가 있는 슬라이드를 만들고 검토합니다."
         }
       }
     },
@@ -910,6 +950,12 @@
         "description": {
           "text": "벡터 그래픽을 스티치 미리보기가 포함된 자수기 파일로 변환합니다."
         }
+      },
+      "get_design": {
+        "text": "디자인 가져오기",
+        "description": {
+          "text": "Figma 디자인을 읽어 구조, 스타일, 코드 인계 정보를 가져옵니다."
+        }
       }
     },
     "electronics": {
@@ -947,6 +993,9 @@
           "3": {
             "text": "1월에 런던에서 어떤 기술 행사가 열리나요?"
           }
+        },
+        "pricing_note": {
+          "text": "일반적인 이벤트 검색은 약 15–25 크레딧입니다: 웹 검색 10 크레딧과 Mercury 3가 공개 페이지를 최대 5개 읽는 데 쓰는 토큰. 공식 컨퍼런스 일정만으로 답한 검색은 1 크레딧입니다. 실패했거나 결과가 없는 검색은 무료입니다."
         }
       }
     },
@@ -2885,6 +2934,21 @@
       "structured": {
         "text": "콘텐츠"
       },
+      "player_label": {
+        "text": "음성 응답 플레이어"
+      },
+      "pause": {
+        "text": "음성 응답 일시정지"
+      },
+      "play": {
+        "text": "음성 응답 재생"
+      },
+      "previous_chapter": {
+        "text": "이전 챕터: {chapter}"
+      },
+      "next_chapter": {
+        "text": "다음 챕터: {chapter}"
+      },
       "speak_response": {
         "text": "응답 읽기"
       },
@@ -3353,6 +3417,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3852,6 +3917,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "관리자"
@@ -3941,6 +4007,12 @@
     },
     "download": {
       "text": "다운로드"
+    },
+    "download_pdf": {
+      "text": "PDF 다운로드"
+    },
+    "download_word": {
+      "text": "Word 다운로드"
     },
     "loading": {
       "text": "로드 중..."
@@ -5926,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "OpenMates 계정이 정지되었습니다"
+      },
+      "headline": {
+        "text": "계정이 정지되었습니다"
+      },
+      "body": {
+        "text": "안전 점검에서 회원님 계정의 요청이 거부되었습니다."
+      },
+      "appeal": {
+        "text": "이의 제기 기간은 14일입니다. 데이터를 다운로드할 수도 있습니다."
+      },
+      "button": {
+        "text": "이의 제기 또는 데이터 다운로드"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "계정에 대한 추가 정보가 필요합니다"
+      },
+      "headline": {
+        "text": "조금 더 정보가 필요합니다"
+      },
+      "body": {
+        "text": "계정 정지를 검토 중이며 질문이 있습니다:"
+      },
+      "button": {
+        "text": "앱에서 답변하기"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "OpenMates 계정이 다시 활성화되었습니다"
+      },
+      "headline": {
+        "text": "계정이 다시 활성화되었습니다"
+      },
+      "body": {
+        "text": "계정 정지를 검토한 후 해제했습니다. 위반 기록이 삭제되었으며 이전처럼 OpenMates를 사용할 수 있습니다."
+      },
+      "apology": {
+        "text": "불편을 드려 죄송합니다."
+      }
     }
   },
   "embed_user_edits": {},
@@ -7622,7 +7739,7 @@
         "text": "{used} / {limit} 크레딧"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "클라우드 브라우저에 로그인합니다. AI가 계속하도록 허용하면 이 계정의 정보에 접근할 수 있습니다. 관련 페이지 내용이 AI 제공업체에 전송될 수 있습니다. AI에 접근을 허용할 수 있는 계정으로만 로그인하세요."
@@ -7823,6 +7940,42 @@
     },
     "slides_count_plural": {
       "text": "슬라이드"
+    },
+    "slides_template_default_title": {
+      "text": "템플릿"
+    },
+    "slides_template_label": {
+      "text": "템플릿"
+    },
+    "slides_template_layouts_count": {
+      "text": "레이아웃 {count}개"
+    },
+    "slides_template_use": {
+      "text": "이 디자인 사용"
+    },
+    "slides_template_use_message": {
+      "text": "\"{title}\" 디자인을 사용해 줘"
+    },
+    "slides_layout_title": {
+      "text": "제목"
+    },
+    "slides_layout_section": {
+      "text": "섹션"
+    },
+    "slides_layout_content": {
+      "text": "콘텐츠"
+    },
+    "slides_layout_two_column": {
+      "text": "2단"
+    },
+    "slides_layout_image": {
+      "text": "이미지"
+    },
+    "slides_layout_quote": {
+      "text": "인용"
+    },
+    "slides_layout_closing": {
+      "text": "마무리"
     },
     "slides_prev": {
       "text": "이전 슬라이드"
@@ -8460,6 +8613,54 @@
     },
     "progress_result_one": {
       "text": "결과 1개"
+    },
+    "slides_template_pick": {
+      "text": "템플릿"
+    },
+    "slides_template_picker_title": {
+      "text": "템플릿 선택"
+    },
+    "slides_template_builtin": {
+      "text": "기본 제공"
+    },
+    "slides_template_library_personal": {
+      "text": "내 라이브러리"
+    },
+    "slides_template_library_team": {
+      "text": "팀 라이브러리"
+    },
+    "slides_template_updated": {
+      "text": "업데이트됨"
+    },
+    "slides_template_apply": {
+      "text": "템플릿 적용"
+    },
+    "slides_template_apply_failed": {
+      "text": "템플릿을 적용할 수 없습니다"
+    },
+    "slides_template_library_empty": {
+      "text": "저장된 템플릿이 아직 없습니다"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -8491,55 +8692,6 @@
       },
       "remove_pending_file": {
         "text": "파일 제거"
-      }
-    },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{type} 첨부 {count}개"
-      },
-      "embed_many": {
-        "text": "{type} 첨부 {count}개"
-      },
-      "type": {
-        "audio": {
-          "text": "오디오"
-        },
-        "image": {
-          "text": "이미지"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "웹사이트"
-        },
-        "video": {
-          "text": "비디오"
-        },
-        "map": {
-          "text": "지도"
-        },
-        "code": {
-          "text": "코드"
-        },
-        "document": {
-          "text": "문서"
-        },
-        "sheet": {
-          "text": "스프레드시트"
-        },
-        "file": {
-          "text": "파일"
-        },
-        "app": {
-          "text": "앱"
-        },
-        "embed": {
-          "text": "임베드"
-        }
       }
     },
     "file_size_limits": {
@@ -8800,6 +8952,27 @@
     },
     "xlsx_feature_sheet_limit": {
       "text": "처음 10개를 넘는 시트"
+    },
+    "guest_access_checking": {
+      "text": "계정 없이 채팅할 수 있는지 확인하는 중…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "이 기기에서 로그인한 적이 있습니다. 계속 채팅하려면 로그인하세요."
+    },
+    "guest_access_usage_limit": {
+      "text": "계정 없이 쓸 수 있는 무료 메시지를 지금은 모두 사용했습니다. 계속 채팅하려면 가입하세요."
+    },
+    "guest_access_unavailable": {
+      "text": "지금은 계정 없이 채팅할 수 없습니다. 가입하고 채팅하세요."
+    },
+    "guest_access_status_unavailable": {
+      "text": "계정 없이 채팅할 수 있는지 확인하지 못했습니다. 연결을 확인하거나 가입하고 채팅하세요."
+    },
+    "guest_access_file_requires_account": {
+      "text": "파일을 보내려면 계정이 필요합니다. 가입해서 보내거나 파일을 빼고 무료로 채팅하세요."
+    },
+    "guest_send_timeout": {
+      "text": "전송이 너무 오래 걸려 메시지를 보내지 못했습니다. 연결을 확인하고 다시 시도하세요."
     },
     "mention_dropdown": {
       "header": {
@@ -10735,6 +10908,21 @@
         "text": "투자자에게 보낼 짧은 이메일, 지인이 전달할 소개 글, 후속 메시지 두 개를 초안으로 작성합니다."
       }
     },
+    "business_write_press_release": {
+      "text": "보도자료 작성",
+      "description": {
+        "text": "기자가 바로 쓸 수 있는 보도자료를 회사만의 보도 스타일로 작성합니다. Word 문서 또는 원하는 다른 형식으로 받을 수 있습니다."
+      },
+      "process": {
+        "text": "- 저장된 보도 스타일(이름, 회사 소개, 대변인, 연락처, 어조)을 사용하거나, 먼저 이전 보도자료나 몇 가지 질문, 중립적인 기본값으로 스타일을 만듭니다\n\n- 앞으로의 모든 보도자료가 같은 톤이 되도록 스타일을 프로젝트에 저장할지 제안합니다\n\n- 소식에서 부족한 부분만 한 번에 한 가지씩 묻고, 뉴스 가치가 약하면 솔직하게 알려 줍니다\n\n- 글을 쓰기 전에 제목 후보, 리드, 사용할 사실을 보여 주어 먼저 고칠 수 있게 합니다\n\n- 제목, 발신지와 날짜, 리드, 인용문, 회사 소개, 언론 담당 연락처를 갖춘 보도자료를 작성합니다. 기본은 Word 문서이며 요청하면 PDF, HTML, React로도 만듭니다\n\n- 확인한 사실만 사용하고, 인용문을 지어내지 않으며, 모든 인용문에 승인 필요 표시를 합니다\n\n- 결과를 점검하고 기자용 제안 이메일, 소셜 게시물 또는 번역을 제안합니다"
+      },
+      "how_to_use": {
+        "text": "- 11월 18일 앱 출시에 대한 **보도자료**를 써 줘. 최근 보도자료 두 개는 여기 있어\n\n- 우리 웹사이트로 **보도 스타일**을 만들고 이 프로젝트에 저장해 줘\n\n- 이 발표문을 **PDF 보도자료**로 만들고 기자에게 보낼 짧은 제안 이메일도 써 줘"
+      },
+      "systemprompt": {
+        "text": "당신은 기자가 그대로 쓸 수 있는 보도자료를 사용자가 쓰도록 돕습니다. 진짜 뉴스가 먼저이고, 확인 가능한 사실, 이름이 밝혀진 발언자, 답장하는 연락처가 있어야 합니다. 회사의 보도 스타일과 사용자의 명시적 요청이 일반적인 관례보다 우선합니다.\n\n현재 단계의 지침만 따르세요. 한 번에 질문 하나만, 구체적인 예시와 추천을 곁들여 묻고 답을 기다립니다. 질문을 건너뛰거나, 한꺼번에 답하거나, 바로 초안으로 가자는 요청은 따르세요.\n\n중요한 지침:\n\n- 불러온 기억, 업로드한 파일, 채팅에 이미 있는 정보는 절대 다시 묻지 마세요. 그것을 바탕으로 시작해 확인만 받으세요.\n\n- 사용자의 사실이 유일한 출처입니다. 표현, 순서, 강조는 다듬을 수 있지만 수치, 날짜, 고객, 파트너, 수상, 성과, 이름을 지어내거나 부풀리지 마세요. 사용자가 지어내라고 하면 거절하고 사실에 맞는 대안을 제시하세요.\n\n- 인용문을 확정본처럼 제시하지 마세요. 인용문은 해당 인물이 승인할 초안으로 쓰고, 사용자 조직 밖의 실존 인물의 말은 출처 없이 쓰지 마세요.\n\n- 담백하고 구체적으로 쓰세요. 내용 없는 최상급 표현과 유행어는 빼거나 사실로 바꾸세요.\n\n- 엠바고 중이거나 공개 전인 정보는 이 채팅과 사용자의 프로젝트 안에만 두세요. 공개, 발송, 공유를 하지 말고, 기자나 다른 누구에게도 연락하지 마세요. 당신은 초안을 쓰고, 보내는 것은 사용자입니다.\n\n- 기본 형식은 Word입니다. PDF, HTML, React는 요청할 때만 초안 단계의 형식 규칙에 따라 만드세요.\n\n- 보도 스타일은 한 회사에 속합니다. 활성 프로젝트의 기억에 저장하도록 권하고, 활성 프로젝트가 없으면 언급될 때만 불러오는 개인 기억을 제안하세요. 사용자가 동의한 뒤에만 저장하세요.\n\n- 기억이 저장되거나 업데이트되었다는 말은 저장 도구 호출이 성공한 뒤에만 하세요. 사용 가능한 도구로 프로젝트에 저장할 수 없으면 그렇게 말하고, 개인 기억을 제안하거나 프로젝트의 '기억' 탭에 스타일을 붙여넣을 수 있다고 안내하세요.\n\n- 공시 의무, 증권시장 규정, 상표 문제에 대한 법률 자문은 하지 마세요. 변호사나 IR 팀에 확인해야 할 때는 그렇게 알려 주세요.\n\n- 채팅 답변은 짧게 하세요. 내용은 문서에 담습니다.\n\n- [EMAIL_1_org]나 [PHONE_1_000] 같은 값은 개인정보 보호용 자리표시자입니다. 앱은 화면과 문서에서 그 자리에 사용자의 실제 정보를 보여 줍니다. 이를 변경 없이 실제 값으로 사용하고, 자리표시자·누락·잘못된 값이라고 부르거나 바꿔 달라고 요청하지 마세요."
+      }
+    },
     "code_analyze_logs": {
       "text": "로그 분석",
       "description": {
@@ -10852,6 +11040,21 @@
         "text": "- 아직 제공되지 않은 경우 사용자에게 github/gitlab 저장소 URL을 요청합니다\n- 아직 제공되지 않은 경우 사용자에게 무엇을 테스트하고 싶은지 / 사용 사례가 무엇인지 묻습니다\n- 기술을 사용하여 저장소 사용과 관련해 최근 보고된 중요한 이슈가 있는지 확인합니다\n- 프로젝트가 작동하지 않는다고 보고된 경우 사용자에게 계속 테스트할지 묻습니다\n- 사용자에게 저장소를 어디서 클론하고 테스트할지 묻습니다 (새 머신 설정? github codespaces? 로컬 머신? 등)\n- 지정된 위치에 저장소를 클론합니다\n- 프로젝트 폴더 및 파일 구조와 readme.md를 읽어 프로젝트 개요를 파악합니다\n- 프로젝트를 테스트하는 방법을 파악하고 테스트를 시작합니다"
       }
     },
+    "code_write_specification": {
+      "text": "명세서 작성",
+      "description": {
+        "text": "아이디어를 범위, 요구 사항, 디자인, 인수 검사까지 단계별로 승인된 명세서로 만들고, 이어서 작업이 포함된 계획을 시작하세요."
+      },
+      "process": {
+        "text": "- 당신의 아이디어에서 시작합니다: 누구를 위한 것인지, 성공이 어떤 모습인지, 무엇이 범위 안이고 밖인지\n\n- 한 번에 한 개에서 세 개의 짧은 질문을 각각 추천과 함께 하며, 이미 말한 내용은 건너뜁니다\n\n- 각 단계를 요약하고 다음으로 넘어가기 전에 당신의 확인을 기다립니다\n\n- 열린 가정을 눈에 보이는 목록으로 관리해, 아무것도 몰래 대신 결정되지 않게 합니다\n\n- 기본적으로 명세서 하나를 작성하며, 복잡한 프로젝트에서만 동의하시면 제품·디자인·기술 연결 명세서를 제안합니다\n\n- 각 요구 사항을 입증하는 인수 검사를 테스트, AI 질문 또는 직접 확인으로 추가합니다\n\n- 명세서를 승인한 뒤에야 작업이 포함된 계획을 시작합니다"
+      },
+      "how_to_use": {
+        "text": "- 우리 빵집의 천연발효 빵 온라인 주문 **명세서를 작성**하도록 도와줘\n\n- 클라이밍 수업 예약 앱 아이디어가 있어요. 만들기 전에 **명세서를 정리**해 봐요\n\n- 우리 프로젝트 도구의 팀 캘린더 기능을 인수 검사와 함께 **명세로 정리**해 줘"
+      },
+      "systemprompt": {
+        "text": "당신은 차분하고 경험 많은 프로덕트 엔지니어로, 무언가를 만들기 전에 사용자가 승인하는 명세서로 아이디어를 다듬도록 돕습니다. 결정하는 것은 사용자의 말이며, 당신은 구조화하고 질문하고 제안합니다.\n\n현재 단계의 지침만 따르세요. 한 턴에 한 개에서 세 개의 짧은 질문을 각각 추천과 구체적인 예시와 함께 하고 답을 기다리세요. 채팅, 업로드한 파일, 프로젝트에서 이미 답이 나온 내용은 절대 묻지 마세요. 한꺼번에 답하거나, 질문을 건너뛰거나, 명시한 가정을 두고 넘어가겠다는 요청을 존중하세요.\n\n중요한 지침:\n- 모든 단계를 짧은 요약으로 마치고, 넘어가기 전에 사용자에게 확인하거나 수정해 달라고 요청하세요.\n- 모든 요약에 \"열린 가정\"이라는 제목의 목록을 두세요. 당신이 가정했지만 사용자가 확인하지 않은 모든 것이 여기에 들어가며, 가정을 결정처럼 제시하지 마세요.\n- 명세서 하나가 기본입니다. 명백히 복잡한 프로젝트에만 제품·디자인·기술 연결 명세서를 제안하고, 이유를 한 줄로 설명하며, 사용자가 동의할 때만 나누세요.\n- 요구 사항은 안정적인 ID를 가진, 관찰 가능한 동작에 대한 검증 가능한 진술입니다. 요구 사항에는 구현 세부 사항을 넣지 말고, 디자인 결정은 디자인 목록에 넣으세요.\n- 명세서에는 plans 명세서 스킬을, 인수 검사에는 plans 검사 스킬을 사용하세요. 민감한 영역(보안, 개인정보, 암호화, 권한, 결제, 마이그레이션, 정확한 API 동작)에는 항상 필수 결정적 소스를 두세요.\n- 사용자가 명세서를 승인하기 전에는 계획하거나 코드를 작성하거나 구현을 시작하지 마세요. 승인 후에는 계획과 그 작업을 만들고 다음에 무슨 일이 일어나는지 설명하세요.\n- 채팅 답변은 짧고 평이하게 유지하세요. 세부 내용은 명세서와 검사 임베드가 담습니다.\n- 사용자의 사업, 사용자, 시스템에 대해 사실을 지어내지 마세요. 묻거나 열린 가정으로 기록하세요.\n- [EMAIL_1_org]나 [PHONE_1_000] 같은 값은 개인정보 보호용 자리 표시자입니다. 앱은 그 자리에 사용자의 실제 정보를 보여 줍니다. 변경 없이 실제 값으로 사용하고, 자리 표시자·누락·잘못된 값이라고 부르지 말며, 사용자에게 교체하라고 요청하지 마세요."
+      }
+    },
     "code_write_test_debug_document": {
       "text": "작성, 테스트, 디버그 및 문서화",
       "description": {
@@ -10910,6 +11113,12 @@
       "text": "미래 대화",
       "description": {
         "text": "강력한 라이프 코칭 기법."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "인생 나침반",
+      "description": {
+        "text": "작은 한 걸음씩, 더 행복한 삶을 향한 방향을 찾아보세요."
       }
     },
     "health_prepare_doctor_report": {
@@ -10973,6 +11182,24 @@
       },
       "systemprompt": {
         "text": "당신은 중립적인 시민 토론 코치이자 연구 보조원입니다. 당신의 목표는 사용자가 정치, 시민, 정책, 선거, 지정학 및 기타 공익 관련 대화를 정확성, 겸손함, 그리고 선의를 바탕으로 준비할 수 있도록 돕는 것입니다.\n\n상황을 파악하는 것부터 시작하십시오. 이 포커스가 활성화된 후 첫 번째 어시스턴트 응답에서, 사용자가 명시적으로 질문을 요청하지 않았더라도 사용자의 원래 요청에 대해 간결한 맥락 파악으로 응답하십시오. 관할권, 사용자가 원하는 결과, 상대방의 입장이나 관계와 같이 누락된 세부 사항에 대해 한 가지에서 세 가지 정도의 구체적인 질문을 하십시오. 사용자가 이미 제공한 주제와 기타 사실을 활용하되, 해당 세부 사항을 반복하게 하거나 요청을 다시 말하게 하지 마십시오. 사용자가 질문부터 시작해 달라고 요청하는 경우, 주제를 알고 있더라도 그 순서를 따르십시오. 모든 필수 맥락이 이미 제공되었다면, 진행하기 전에 사용자의 최우선 순위에 대해 한 가지 질문을 하거나 특정 프레임을 간략하게 확인하십시오. 사용자가 즉각적인 조사 답변을 명시적으로 요청하지 않는 한, 사실 조사, 정책 설명 또는 전체 준비 시트를 제공하기 전에 사용자의 답변을 기다리십시오. 활성화되었음을 알리는 데 그치지 말고, 맥락 파악 과정을 긴 설문지 형태로 만들지 마십시오.\n\n다음 워크플로우를 사용하십시오:\n- 주제와 사용자가 원하는 결과를 중립적인 언어로 다시 서술하십시오.\n- 제기될 가능성이 높은 주요 주장을 파악하십시오. 사실적 주장, 가치 판단, 가정, 예측, 개인적 경험을 구분하십시오.\n- 사실적 또는 최신 주장의 경우, 정확성이 최신 정보나 논쟁의 여지가 있는 정보에 달려 있다면 web-search, 뉴스 검색, web-read를 사용하십시오. 소셜 미디어 요약보다는 1차 자료, 공식 데이터, 선거 자료, 법안, 규제 기관 보고서, 법원 문서, 평판 좋은 언론 보도, 전문가 기관을 우선시하십시오.\n- 최신성, 관련성, 권위, 정확성, 목적에 따라 출처를 평가하십시오. 출처가 옹호, 정당, 정부, 상업 또는 선거 운동의 이해관계를 가지고 있는 경우 이를 명시하십시오.\n- 각 주요 입장을 비판하기 전에 해당 입장의 가장 강력한 논거를 정리하십시오. 각 측의 합의점, 절충점, 불확실성, 정당한 가치를 포함하십시오.\n- 설명을 유도하고, 용어를 정의하며, 가정을 테스트하고, 증거를 드러내는 질문을 준비하십시오. 사용자가 명시적으로 공식 토론 준비를 필요로 하지 않는 한, 함정 질문(gotcha questions)은 피하십시오.\n- 사용자가 민감한 대화를 위해 차분한 표현, 경계 설정, 대화 종료 멘트를 선택할 수 있도록 돕습니다.\n\n기본 출력 구조:\n\n## 토론 목표\n사용자가 무엇을 준비하고 있는지, 그리고 성공적인 대화는 어떤 모습일지 요약하십시오.\n\n## 확인해야 할 주요 사실\n중요한 사실적 주장, 이용 가능한 최선의 증거, 불확실한 부분을 나열하십시오. 추가 조사가 필요한 경우 이를 언급하십시오.\n\n## 예상되는 관점\n주요 진영의 가장 강력하고 선의에 기반한 논거와 우려 사항을 설명하십시오. 반대 의견을 희화화하지 마십시오.\n\n## 질문할 사항\n정의, 증거, 절충점, 가치, 실질적인 결과를 명확히 하는 사려 깊고 개방적인 질문을 제공하십시오.\n\n## 과장하지 말아야 할 주장\n근거가 약한 주장, 시대에 뒤떨어진 사실, 단일 출처 주장, 오해의 소지가 있는 프레임, 또는 미묘한 차이가 필요한 지점에 대해 경고하십시오.\n\n## 제안하는 대화 계획\n대화를 시작하고, 건설적으로 유지하며, 긴장을 관리하고, 후속 조치를 취하기 위한 짧은 계획을 제시하십시오.\n\n중요한 경계 사항:\n- 조작적인 선전, 괴롭힘, 신상 털기(doxxing), 위협 또는 비인간적인 수사를 작성하지 마십시오.\n- 인구통계학적, 심리학적, 정체성 또는 취약성 프로필에 기반한 표적 정치 설득 전략을 제공하지 마십시오.\n- 선거 운동 메시지 최적화, 유권자 타겟팅, 투표율 억제 또는 활동가 물류를 최적화하지 마십시오. 사용자의 요청이 옹호나 조직 활동으로 변질될 경우, 도움을 높은 수준의 법적이고 비조작적인 범위로 제한하거나, 윤리적인 조직 전략을 위해 Activism mate를 추천하십시오.\n- 불확실하거나 논쟁의 여지가 있는 주장을 확정된 사실로 제시하지 마십시오. 증거, 추론, 해석, 의견을 명확히 구분하십시오.\n- 신뢰할 수 있는 증거가 해당 프레임을 뒷받침하지 않는 한, 악의, 부패, 극단주의 또는 악의적인 의도를 가정하지 마십시오.\n- 개인정보를 존중하십시오. 사용자나 관련된 다른 사람들에 대한 불필요한 개인 정보를 요구하지 마십시오."
+      }
+    },
+    "slides_design_template": {
+      "text": "템플릿 디자인",
+      "description": {
+        "text": "재사용 가능한 슬라이드 템플릿을 단계별로 디자인하세요 - 세 가지 디자인 중 선택하고 함께 다듬은 뒤 라이브러리에 저장합니다."
+      },
+      "process": {
+        "text": "- 템플릿의 용도와 맞춰야 할 브랜드 색상, 글꼴, 로고를 묻습니다\n- 확연히 다른 세 가지 디자인을 여섯 가지 슬라이드 레이아웃 미리보기가 있는 템플릿 카드로 보여줍니다\n- \"이 디자인 사용\"을 누르거나 이름을 말해 하나를 고릅니다\n- 색상, 글꼴, 레이아웃을 함께 다듬고 변경할 때마다 카드를 업데이트합니다\n- 최종 카드에서 저장을 눌러 라이브러리에 넣도록 안내합니다\n- 새 템플릿으로 첫 프레젠테이션을 만들도록 제안합니다"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "프레젠테이션 계획",
+      "description": {
+        "text": "프레젠테이션을 단계별로 계획하세요 - 목표, 스토리, 슬라이드당 하나의 메시지, 디자인 - 그런 다음 발표자 노트가 있는 슬라이드를 만들고 검토합니다."
+      },
+      "process": {
+        "text": "- 목표, 청중, 길이, 상황을 간단한 예시와 추천과 함께 묻습니다\n- 용도에 맞는 스토리를 제안합니다. 예를 들어 피치라면 문제, 해결책, 데모, 효과, 요청\n- 슬라이드당 하나의 메시지를 나열하고 만들기 전에 확인을 기다립니다\n- 어울리는 기본 디자인을 카드로 보여주거나, 저장된 템플릿을 쓰거나, 함께 새로 디자인합니다\n- 발표 길이에 맞춰 모든 슬라이드에 발표자 노트를 넣어 만듭니다\n- 결과를 검토하고 슬라이드의 텍스트가 너무 많은 것처럼 수락한 부분을 고칩니다"
       }
     },
     "social_media_content_calendar_strategist": {
@@ -11200,22 +11427,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "나만의 AI 팀"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "할 일을 끝내도록 도와줘요"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "문서 작성하기"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "이벤트 찾기"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "웹 앱 만들기"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "뉴스 설명하기"
     },
     "landing_actionable_line1": {
       "text": "바로 실행할 수 있어요."
@@ -11229,35 +11456,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "물론이죠, 여기 있어요:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "탈중앙화 컴퓨팅과 DePIN 연구를 다루는 베를린 event website 이벤트입니다."
+      "text": "오픈소스 AI 도구에 대한 짧은 발표와 시연, 그리고 이후 사람들과 만날 시간이 있어요."
     },
     "landing_actionable_event_open_provider": {
-      "text": "event website에서 열기"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "이벤트 페이지 열기"
     },
     "landing_actionable_event_city": {
       "text": "베를린"
     },
     "landing_actionable_event_country": {
       "text": "독일"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "온라인"
@@ -11268,62 +11480,44 @@
     "landing_actionable_event_rsvps": {
       "text": "명 참석 예정"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "채팅은 저장되기 전에 내 기기에서 암호화돼요."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "개인 정보는 AI가 보기 전에 다른 값으로 대체돼요."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "이메일을 준비해줘, 수신자는"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "알겠어요, 이메일을 준비할게요, 수신자는"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "다음 여행에 갈 만한 장소를 추천해줘."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "맞춤형 답변, 하지만 원할 때만요."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "원본은 나만 볼 수 있어요."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "이전 여행"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "즐겨 찾는 장소"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "주제별로 전문화된 나만의 AI 전문가들이에요."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "최적화된 지침이 필요할 때 선택돼요."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "대표적인 AI 모델을 한곳에서."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "원하는 방식으로 OpenMates 채팅에 접근해요."
     }
   },
   "header": {
@@ -11344,6 +11538,26 @@
     },
     "report_issue": {
       "text": "문제 신고"
+    }
+  },
+  "helplines": {
+    "title": {
+      "text": "혼자서 견뎌내지 않아도 괜찮아요"
+    },
+    "call": {
+      "text": "전화하기"
+    },
+    "send_text": {
+      "text": "문자 보내기"
+    },
+    "chat": {
+      "text": "온라인 채팅"
+    },
+    "emergency": {
+      "text": "긴급 상황에는 {emergency_number}로 전화하세요"
+    },
+    "find_more": {
+      "text": "더 많은 상담 전화 찾기"
     }
   },
   "highlight": {
@@ -11429,6 +11643,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "이 요청은 거부되었습니다. 미성년자가 등장하는 성적이거나 암시적인 이미지는 절대 만들지 않습니다."
+    },
+    "reason_intimate_real_person": {
+      "text": "이 요청은 거부되었습니다. 실존 인물의 성적이거나 은밀한 이미지는 절대 만들지 않습니다."
+    },
+    "reason_bypass": {
+      "text": "이 요청은 안전 규칙을 우회하려고 했기 때문에 거부되었습니다."
+    },
+    "reason_minor": {
+      "text": "미성년자의 사실적인 이미지는 만들지 않으며, 미성년자 사진은 배경, 조명, 색상 편집만 가능합니다. 이런 이미지는 미성년자를 사칭하는 가짜 프로필 등에 악용될 수 있기 때문입니다."
+    },
+    "alternative_minor": {
+      "text": "명확히 양식화된 버전은 가능합니다. 예를 들어 3D 렌더링, 일러스트, 만화 형태이며 장면이 성적이지 않아야 합니다."
+    },
+    "reason_sexual": {
+      "text": "성적이거나 노골적인 이미지는 만들지 않습니다."
+    },
+    "alternative_sexual": {
+      "text": "장면을 노골적이지 않게 표현한 버전은 가능합니다."
+    },
+    "reason_violent": {
+      "text": "실존 인물이 다치거나 공격받거나 범죄 현장에 있는 이미지는 그 사람을 해치거나 명예를 훼손하는 데 쓰일 수 있어 만들지 않습니다."
+    },
+    "alternative_violent": {
+      "text": "실존 인물 대신 가상의 인물이 나오는 장면은 가능합니다."
+    },
+    "reason_public_figure": {
+      "text": "실존하는 공인의 이미지는 딥페이크나 허위 주장에 쓰일 수 있어 현재는 만들지 않습니다."
+    },
+    "alternative_public_figure": {
+      "text": "같은 장면에 직접 만든 가상의 인물을 넣는 것은 가능합니다."
+    },
+    "reason_identity": {
+      "text": "얼굴 바꾸기나 다른 사람의 신원을 대체하는 작업은 사람을 사칭하는 데 쓰일 수 있어 하지 않습니다."
+    },
+    "alternative_identity": {
+      "text": "사람의 정체성을 유지하는 편집은 가능합니다. 예를 들어 새 배경, 조명, 아트 스타일 변경 등이 있습니다."
+    },
+    "reason_id_document": {
+      "text": "여권, 신분증, 운전면허증 같은 신분 증명서 이미지는 사기에 쓰일 수 있어 만들지 않습니다."
+    },
+    "reason_hate": {
+      "text": "혐오 상징이 담긴 이미지나 사람을 그 정체성 때문에 겨냥하는 이미지는 만들지 않습니다."
+    },
+    "reason_self_harm": {
+      "text": "자해를 보여주거나 부추기는 이미지는 만들지 않습니다."
+    },
+    "alternative_self_harm": {
+      "text": "힘든 시간을 보내고 있다면 믿을 수 있는 사람이나 지역 상담 전화와 이야기해 보는 것이 도움이 될 수 있어요."
+    },
+    "reason_weapons": {
+      "text": "무기나 폭발물의 제작 방법이나 설계도가 담긴 이미지는 만들지 않습니다."
+    },
+    "reason_scam": {
+      "text": "사기, 위조 문서, 사칭을 위한 미디어는 만들지 않습니다."
+    },
+    "alternative_scam": {
+      "text": "실존 인물, 브랜드, 문서를 흉내 내지 않는 독창적인 디자인은 가능합니다."
+    },
+    "reason_spam": {
+      "text": "저품질 콘텐츠의 대량 생성이나 AI 표시 제거는 지원하지 않습니다."
+    },
+    "alternative_spam": {
+      "text": "특정 목적을 위한 몇 장의 이미지는 가능합니다."
+    },
+    "reason_deceptive": {
+      "text": "실제 촬영물, 실제 발언, 공식 추천인 것처럼 보이게 만든 이미지는 만들지 않습니다."
+    },
+    "alternative_deceptive": {
+      "text": "누가 봐도 가상이거나 일러스트인 버전은 가능합니다."
+    },
+    "reason_other": {
+      "text": "이 요청은 안전 규칙에 따라 만들 수 없습니다."
+    },
+    "alternative_other": {
+      "text": "다른 주제나 다른 표현이라면 될 수도 있습니다."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "청구서"
@@ -11949,6 +12243,22 @@
             },
             "description": {
               "text": "api.video(EU 기업, 프랑스)를 사용하여 웹사이트 및 웹 앱에서 제품 데모 및 기능 소개 동영상을 호스팅하고 스트리밍합니다. 동영상을 시청할 때 귀하의 IP 주소와 기본 시청 데이터가 api.video에 의해 처리됩니다. 사용자 계정 식별자는 공유되지 않습니다."
+            }
+          }
+        },
+        "status_page": {
+          "heading": {
+            "text": "상태 페이지 (열어볼 때만)"
+          },
+          "description": {
+            "text": "이 제공업체는 status.openmates.org의 공개 상태 페이지를 열 때만 사용됩니다. 계정이나 OpenMates의 다른 부분에는 사용되지 않습니다."
+          },
+          "upcloud": {
+            "heading": {
+              "text": "UpCloud (상태 페이지 호스팅)"
+            },
+            "description": {
+              "text": "공개 상태 페이지 status.openmates.org(정적 페이지와 상태 JSON 파일)는 네덜란드 암스테르담의 서버에서 UpCloud Oy가 호스팅합니다. 페이지를 열면 브라우저가 UpCloud 서버에 연결되므로 UpCloud이 IP 주소와 TLS 연결 메타데이터를 처리합니다. 접속 로그는 저장하지 않으며 이 페이지에서는 쿠키나 트래커를 사용하지 않습니다. 같은 서버는 OpenMates로 자동 테스트 요청도 보내며, 여기에는 사용자 데이터가 포함되지 않습니다."
             }
           }
         },
@@ -14087,6 +14397,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "통해"
@@ -14294,6 +14605,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "선전, 혐오 콘텐츠, 허위 정보, 조작적인 타블로이드 콘텐츠는 만들 수 없습니다. 작동 방식 설명, 사례 분석, 사실 확인, 명확히 표시된 풍자는 도와드릴 수 있습니다."
+    },
+    "illegal_category": {
+      "text": "미성년자가 관련된 성적 콘텐츠, 동의 없는 사적인 이미지, 실존 인물의 성적 딥페이크, 대량 살상 무기는 도와드릴 수 없습니다."
+    },
+    "live_site_abuse": {
+      "text": "그 사이트는 아마 본인 소유일 것이지만, 실제 운영 중인 사이트에서는 사람 속도의 일반적인 단일 사용자 동작만 수행하므로 대량 댓글, 대량 가입, 비밀번호 추측, 플러딩 같은 대규모·남용 동작은 할 수 없습니다. 이러한 테스트는 현재 localhost, 로컬 개발 환경 또는 로컬에서 실행하는 스테이징 사본에서만 실행됩니다. 설정을 도와드릴게요."
+    },
+    "strike_notice": {
+      "text": "이것은 {max}회 중 {strike}번째 경고입니다."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "보험"
@@ -14396,6 +14721,82 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "계정이 정지되었습니다"
+    },
+    "appeal_button": {
+      "text": "이의 제기"
+    },
+    "download_button": {
+      "text": "내 데이터 다운로드"
+    },
+    "explanation_label": {
+      "text": "무슨 일이 있었는지 알려 주세요 (최대 1,000자)"
+    },
+    "consent_label": {
+      "text": "표시된 요청만 안전 검토 담당자와 공유하는 데 동의합니다"
+    },
+    "add_photo": {
+      "text": "사진 추가"
+    },
+    "photo_added": {
+      "text": "사진이 첨부되었습니다. 다른 사진 선택"
+    },
+    "submit": {
+      "text": "이의 제기 보내기"
+    },
+    "sent": {
+      "text": "이의 제기가 전송되었습니다. 7일 이내에 결정을 알려 드립니다."
+    },
+    "admin_title": {
+      "text": "안전 검토"
+    },
+    "admin_restore": {
+      "text": "복원"
+    },
+    "admin_delete": {
+      "text": "삭제"
+    },
+    "admin_ask": {
+      "text": "사용자에게 질문"
+    },
+    "admin_delete_confirm": {
+      "text": "이 계정을 삭제할까요? 전액 환불, 삭제 이메일, 규정 준수 기록이 포함된 표준 삭제입니다."
+    },
+    "admin_empty": {
+      "text": "검토를 기다리는 계정이 없습니다."
+    },
+    "until": {
+      "text": "계정이 {date}까지 정지되었습니다"
+    }
+  },
+  "safety_strikes": {
+    "warning": {
+      "text": "{what}이(가) 거부되었습니다. {reason} 이것은 {max}회 중 {strike}번째 경고입니다."
+    },
+    "what_image_generate": {
+      "text": "이미지 요청"
+    },
+    "what_image_edit": {
+      "text": "이미지 편집 요청"
+    },
+    "what_video": {
+      "text": "동영상 요청"
+    },
+    "what_upload": {
+      "text": "업로드한 이미지"
+    },
+    "suspended_until": {
+      "text": "3회 중 2번째 위반입니다. 계정이 {date}까지 정지되며 그 이후 다시 활성화됩니다. 세 번째 위반 시 관리자가 검토할 때까지 계정이 정지됩니다."
+    },
+    "suspended_pending_review": {
+      "text": "3회 중 3번째 위반입니다. 관리자가 검토할 때까지 계정이 정지됩니다. 이 결정에 이의를 제기할 수 있습니다."
+    },
+    "unavailable": {
+      "text": "안전 검사를 일시적으로 사용할 수 없어 이 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
+    }
+  },
   "settings": {
     "account": {
       "username": {
@@ -19128,7 +19529,7 @@
       "text": "프로필 이미지에는 노출, 폭력 또는\n잔인한 콘텐츠를 사용할 수 없습니다."
     },
     "last_warning_image_not_allowed": {
-      "text": "최후 경고:\n프로필 이미지에 노출, 폭력 또는 잔인한 콘텐츠를 사용할 수 없습니다.\n한 번 더 위반하면 계정이 삭제됩니다."
+      "text": "최후 경고:\n프로필 이미지에 노골적인 성적 콘텐츠나 극단적으로 잔인한 콘텐츠를 사용할 수 없습니다.\n한 번 더 위반하면 계정이 정지됩니다."
     },
     "your_account_got_deleted": {
       "text": "귀하의 계정이 삭제되었습니다."
@@ -20749,7 +21150,7 @@
       "text": "무료로 테스트"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "이메일 도메인이 허용되지 않습니다."
@@ -20757,32 +21158,8 @@
     "email_ignored": {
       "text": "이 이메일 주소는 가입에 사용할 수 없습니다. 이것이 오류라고 생각되면 지원팀에 문의하십시오."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates는 현재 초기 테스터를 위한 알파 버전입니다."
-    },
-    "decent_stable": {
-      "text": "이 알파 버전은 상당히 안정적입니다"
-    },
-    "not_all_core_features_implemented": {
-      "text": "그러나 모든 핵심 기능이 아직 구현되지 않았습니다."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "여기저기 버그가 있을 수 있으며 기억하세요: AI 챗봇은 실수를 할 수 있습니다."
-    },
     "view_on_github": {
       "text": "GitHub에서 OpenMates 보기"
-    },
-    "view_on_github_description": {
-      "text": "버그 및 기능에 대해 논의하고 새 릴리스에 대한 최신 정보를 받으려면."
-    },
-    "view_on_instagram": {
-      "text": "Instagram에서 OpenMates 보기"
-    },
-    "view_on_instagram_description": {
-      "text": "새 릴리스 및 기타 업데이트에 대한 최신 정보를 받으려면."
-    },
-    "continue_with_alpha": {
-      "text": "{version}로 계속"
     },
     "server_admin": {
       "text": "서버 관리자"
@@ -21542,6 +21919,7 @@
       "text": "사용자 지정 색상"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

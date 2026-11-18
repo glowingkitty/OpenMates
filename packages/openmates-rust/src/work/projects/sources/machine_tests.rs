@@ -145,3 +145,54 @@ fn creation_codes_map_to_typed_variants() {
         assert_eq!(RemoteOpCode::from_wire(wire), code);
     }
 }
+
+// contract-test: supporting surface=cli assertions=projects.creation.machine-folder
+#[tokio::test]
+async fn create_waits_until_the_machine_binds_the_fresh_placeholder() {
+    use crate::work::projects::remote_files::tests::{PROJECT, raw, read_request};
+    use tokio::io::AsyncWriteExt;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let api = format!("http://{}", listener.local_addr().expect("addr"));
+    let server = tokio::spawn(async move {
+        let mut lists = 0;
+        loop {
+            let (mut socket, _) = listener.accept().await.expect("accept");
+            let request = read_request(&mut socket).await;
+            let line = request.lines().next().expect("line").to_owned();
+            let body = if line.starts_with(&format!("GET /v1/projects/{PROJECT}/sources")) {
+                lists += 1;
+                // The host binds the placeholder only on its next rescan.
+                let mut row = json!({"source_id":"src","status":"creation_pending"});
+                if lists > 1 {
+                    row["source_session_id"] = json!("sess");
+                    row["key_epoch"] = json!(1);
+                }
+                json!({"sources":[row]})
+            } else if line.starts_with(&format!("GET /v1/projects/{PROJECT} ")) {
+                json!({"project":raw()})
+            } else {
+                panic!("unexpected request {line}");
+            }
+            .to_string();
+            socket
+                .write_all(format!("HTTP/1.1 200 Fixture\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes())
+                .await
+                .expect("write");
+            if lists == 2 {
+                return lists;
+            }
+        }
+    });
+    let mut c = crate::work::tasks::tests::client(&api);
+    c.projects()
+        .wait_for_placeholder_binding(PROJECT, "src")
+        .await
+        .expect("bound");
+    assert_eq!(
+        server.await.expect("server"),
+        2,
+        "polled until the placeholder was bound"
+    );
+}

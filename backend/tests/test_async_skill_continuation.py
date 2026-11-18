@@ -488,6 +488,36 @@ async def test_cache_async_skill_continuation_context_stores_original_request(as
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+async def test_dispatch_async_skill_continuation_inherits_legacy_admission_as_root(monkeypatch, async_skill_continuation):
+    """A turn admitted without a sealed recovery turn passes its admission on."""
+    cache = _FakeCache()
+    fake_celery_app = _FakeCeleryApp()
+    monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
+    request = _request()
+    for field in ("recovery_task_id", "recovery_preflight_id", "recovery_turn_id", "recovery_public_key"):
+        setattr(request, field, None)
+    request.legacy_cutover_task_id = "legacy-admission-1"
+    await async_skill_continuation.cache_async_skill_continuation_context(
+        cache_service=cache, async_task_id="async-task-1", request_data=request,
+        skill_config_dict=_skill_config_dict(), app_id="social_media", skill_id="search",
+        tool_name="social_media-search", tool_arguments={"requests": [{"query": "privacy AI"}]},
+    )
+
+    await async_skill_continuation.dispatch_async_skill_continuation(
+        cache_service=cache, async_task_id="async-task-1",
+        completed_results=[{"title": "A useful post", "url": "https://example.com/post", "embed_ref": "useful-post-a1B"}],
+        request_metadata={"query": "privacy AI"},
+    )
+
+    request_payload = fake_celery_app.sent[0]["kwargs"]["request_data_dict"]
+    assert request_payload["is_async_skill_continuation"] is True
+    assert request_payload["recovery_inference_task_id"] is None
+    assert request_payload["root_legacy_cutover_task_id"] == "legacy-admission-1"
+    assert request_payload["legacy_cutover_task_id"] is None
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("assistant_tail", [False, True])
 @pytest.mark.parametrize("voice_mode", [False, True])
 # contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.audio.spoken-rich-response
@@ -1121,17 +1151,21 @@ async def test_restored_project_file_history_stays_opaque_across_next_tool(monke
 
 
 # contract-test: supporting surface=rest_api assertions=projects.focus.custom-catalog-privacy
-def test_private_file_history_budget_discards_old_bodies_first(async_skill_continuation):
+def test_private_file_history_budget_discards_old_bodies_first(async_skill_continuation, caplog):
     entries = [
         {"index": index, "project_id": "11111111-1111-4111-8111-111111111111",
          "content": f"FILE-{index}-" + ("x" * 75_000)}
         for index in range(3)
     ]
     payload = {"async_tool_history": entries}
-    async_skill_continuation._fit_private_async_tool_history(
-        payload, frozenset({"async_tool_history"}),
-    )
+    with caplog.at_level("WARNING"):
+        async_skill_continuation._fit_private_async_tool_history(
+            payload, frozenset({"async_tool_history"}),
+        )
     assert len(payload["async_tool_history"]) == 2
+    # An expired body later reads as "file result could not be read": it is logged.
+    assert "Expired an older private Project tool result" in caplog.text
+    assert "FILE-0-" not in caplog.text
     assert [entry["index"] for entry in payload["async_tool_history"]] == [1, 2]
     assert "FILE-0-" not in str(payload)
     oversized = {"async_tool_history": [{"index": 0, "project_id": entries[-1]["project_id"],
@@ -1327,3 +1361,35 @@ async def test_continue_mode_defers_completion_until_initial_response_finishes(m
     )
     assert dispatched == ["continuation-task-1"]
     assert len(fake_celery_app.sent) == 1
+
+
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+@pytest.mark.asyncio
+async def test_queued_followup_becomes_latest_turn_only_when_dispatched() -> None:
+    from types import SimpleNamespace
+    from backend.apps.ai.tasks.async_skill_continuation import (
+        async_skill_latest_user_turn_key, claim_queued_turn_as_latest,
+    )
+    from backend.shared.python_utils.queued_turn_marker import QUEUED_TURN_PENDING, queued_turn_pending_key
+
+    store = {async_skill_latest_user_turn_key("u", "c"): "source"}
+
+    class Cache:
+        async def get(self, key):
+            return store.get(key)
+
+        async def set(self, key, value, ttl=None):
+            store[key] = value
+            return True
+
+        async def delete(self, key):
+            return store.pop(key, None) is not None
+
+    request = SimpleNamespace(user_id="u", chat_id="c", message_id="follower")
+    assert await claim_queued_turn_as_latest(Cache(), request) is False
+    assert store[async_skill_latest_user_turn_key("u", "c")] == "source"
+    store[queued_turn_pending_key("u", "c", "follower")] = QUEUED_TURN_PENDING
+    assert await claim_queued_turn_as_latest(Cache(), request) is True
+    assert store[async_skill_latest_user_turn_key("u", "c")] == "follower"
+    assert queued_turn_pending_key("u", "c", "follower") not in store
+    assert await claim_queued_turn_as_latest(Cache(), request) is False

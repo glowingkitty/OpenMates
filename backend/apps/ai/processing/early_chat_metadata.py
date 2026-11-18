@@ -13,6 +13,10 @@ import json
 import logging
 from typing import Any
 
+from backend.apps.ai.processing.metadata_language import (
+    CONVERSATION_LANGUAGE_FIELD_RULE, conversation_language_instruction,
+)
+
 logger = logging.getLogger(__name__)
 PRIMARY_MODEL = "inception/mercury-3"
 FALLBACK_MODEL = "google/gemini-3.5-flash-lite"
@@ -67,8 +71,7 @@ def metadata_messages(history: list[dict[str, Any]], language: str) -> list[dict
         "Include only facts explicitly stated in the request. Describe the planning or research task "
         "and its budget/time constraints; omit instructions controlling which actions the assistant may execute. "
         "call only the supplied metadata function. Return plain text without Markdown in either field. "
-        "Use natural phrasing in the user's UI language for BOTH fields, even when the request "
-        f"or quoted text is in another language. UI language: {language}. "
+        "Use natural phrasing for BOTH fields. " + conversation_language_instruction(language) + " "
         "Return both fields null for greetings or empty/social messages without a substantive topic."
     )}, {"role": "user", "content": json.dumps({"conversation": context}, ensure_ascii=False)}]
 
@@ -99,12 +102,7 @@ async def generate_early_chat_metadata(*, task_id: str, message_history: list[di
         return _validated(fixture, "isolated_voice_fixture")
 
     messages = metadata_messages(message_history, user_system_language)
-    language_name = {"en": "English", "de": "German", "es": "Spanish", "fr": "French"}.get(
-        user_system_language.split("-", 1)[0].lower(), user_system_language,
-    )
-    language_instruction = (
-        f"Write entirely in {language_name} ({user_system_language}), even if the request is in another language."
-    )
+    language_instruction = CONVERSATION_LANGUAGE_FIELD_RULE
     tool = {"type": "function", "function": {"name": "early_chat_metadata",
         "description": "Name the pending chat and describe the user's intent without answering it.",
         "parameters": {"type": "object", "properties": {

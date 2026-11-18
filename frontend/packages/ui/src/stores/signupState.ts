@@ -2,7 +2,6 @@ import { writable } from "svelte/store";
 import { authFlowActive, isSettingsStepPushed, isSignupPathPushed, pathFromStepPushed, primeSignupPath, primeSignupStep, signupStepPushed } from "../services/rustCore/auth/flowPush";
 
 // Step name constants
-export const STEP_ALPHA_DISCLAIMER = "alpha_disclaimer";
 export const STEP_BASICS = "basics";
 export const STEP_CONFIRM_EMAIL = "confirm_email";
 export const STEP_SECURE_ACCOUNT = "secure_account";
@@ -167,7 +166,7 @@ export function resetForcedLogoutInProgress(): void {
 }
 
 // Store to track current signup step
-// Initialize to null/empty so that Signup.svelte can properly detect new signups and show alpha disclaimer
+// Initialize to null/empty so that Signup.svelte can properly detect new signups and start at the basics step
 export const currentSignupStep = writable<string>("");
 
 // Store to track if user is resetting 2FA from TFA App Reminder step
@@ -175,18 +174,8 @@ export const isResettingTFA = writable<boolean>(false);
 
 // Helper to determine if we're in settings steps
 export function isSettingsStep(step: string): boolean {
-  // Flag builds: last verdict pushed by the shared Rust core (neutral: false).
-  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && authFlowActive()) {
-    return isSettingsStepPushed(step);
-  }
-  const settingsSteps = [
-    STEP_SETTINGS,
-    STEP_MATE_SETTINGS,
-    STEP_CREDITS,
-    STEP_PAYMENT,
-    STEP_AUTO_TOP_UP,
-  ];
-  return settingsSteps.includes(step);
+  // Last verdict pushed by the shared Rust core (neutral: false).
+  return isSettingsStepPushed(step);
 }
 
 // Store to track if we're in a settings step
@@ -202,13 +191,8 @@ export const showSignupFooter = writable(true);
  * @returns True if the path indicates signup flow
  */
 export function isSignupPath(path: string | null | undefined): boolean {
-  // Flag builds: last verdict pushed by the shared Rust core (neutral: false).
-  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && authFlowActive()) {
-    return isSignupPathPushed(path);
-  }
-  if (!path) return false;
-  // Support both /signup/ and #signup/ formats
-  return path.startsWith("/signup/") || path.startsWith("#signup/");
+  // Last verdict pushed by the shared Rust core (neutral: false).
+  return isSignupPathPushed(path);
 }
 
 // Stores related to gifted credits check in Step 9
@@ -218,75 +202,8 @@ export const hasGiftForSignup = writable<boolean>(false); // Track if user has a
 // Parse step name from last_opened path
 // Supports both /signup/ and #signup/ formats for backward compatibility
 export function getStepFromPath(path: string): string {
-  // Flag builds: last step pushed by the shared Rust core (neutral: basics).
-  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && authFlowActive()) {
-    return signupStepPushed(path);
-  }
-  if (!path) return STEP_BASICS;
-
-  // Normalize path: remove leading # if present, and handle both /signup/ and #signup/ formats
-  let normalizedPath = path;
-  if (path.startsWith("#")) {
-    normalizedPath = path.substring(1); // Remove leading #
-  }
-
-  // Parse path format: /signup/basics or signup/basics (after removing #)
-  const pathParts = normalizedPath.split("/");
-  if (pathParts.length >= 2 && pathParts[pathParts.length - 2] === "signup") {
-    const stepSlug = pathParts[pathParts.length - 1];
-
-    // Handle both hyphenated and underscore formats
-    const normalizedSlug = stepSlug.replace(/_/g, "-");
-
-    // Map URL slugs to step names
-    switch (normalizedSlug) {
-      case "basics":
-        return STEP_BASICS;
-      case "confirm-email":
-        return STEP_CONFIRM_EMAIL;
-      case "secure-account":
-        return STEP_SECURE_ACCOUNT;
-      case "password":
-        return STEP_PASSWORD;
-      // case 'profile-picture': return STEP_PROFILE_PICTURE; // Moved to settings
-      case "one-time-codes":
-        return STEP_ONE_TIME_CODES;
-      case "skip-2fa-consent":
-        return STEP_SKIP_2FA_CONSENT;
-      case "backup-codes":
-        return STEP_BACKUP_CODES;
-      case "tfa-app-reminder":
-        return STEP_TFA_APP_REMINDER;
-      case "recovery-key":
-        return STEP_RECOVERY_KEY;
-      case "settings":
-        return STEP_SETTINGS;
-      case "mate-settings":
-        return STEP_MATE_SETTINGS;
-      case "credits":
-        return STEP_CREDITS;
-      case "payment":
-        return STEP_PAYMENT;
-      case "auto-top-up":
-        return STEP_AUTO_TOP_UP;
-      case "completion":
-        return STEP_COMPLETION;
-      // Legacy support for old numeric format
-      default:
-        // Try to extract step name from the URL slug
-        for (const stepName of STEP_SEQUENCE) {
-          if (normalizedSlug.includes(stepName.replace("_", "-"))) {
-            return stepName;
-          }
-        }
-        console.debug(
-          `[signupState] Could not map path "${path}" to a step, defaulting to basics`,
-        );
-        return STEP_BASICS;
-    }
-  }
-
-  return STEP_BASICS;
+  // Last step pushed by the shared Rust core (neutral: basics).
+  return signupStepPushed(path);
 }
 
 /**
@@ -299,23 +216,13 @@ export function getStepFromPath(path: string): string {
 export function getPathFromStep(stepName: string): string {
   // Flag builds: location pushed by the shared Rust core; async callers await
   // `primeSignupStepLocation(stepName)` first (neutral: #signup/basics).
-  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1" && authFlowActive()) {
-    return pathFromStepPushed(stepName);
-  }
-  if (!stepName) return "#signup/basics";
-
-  // Map step names to URL slugs (convert underscores to hyphens)
-  const stepSlug = stepName.replace(/_/g, "-");
-
-  // Return the hash-based path format for consistency with other deep linking
-  return `#signup/${stepSlug}`;
+  return pathFromStepPushed(stepName);
 }
 
 /**
  * Flag builds: lets the shared Rust core answer for `path` so the following
  * synchronous `isSignupPath` / `getStepFromPath` reads are exact. Async
- * callers await it behind an `import.meta.env.VITE_OPENMATES_RUST_CORE`
- * guard; it does nothing when the TypeScript path is selected.
+ * callers await it; it does nothing without a window (SSR, unit tests).
  */
 export async function primeSignupLocation(path: string | null | undefined): Promise<void> {
   if (authFlowActive()) await primeSignupPath(path);

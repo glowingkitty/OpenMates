@@ -21,6 +21,13 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
+from backend.apps.code.cloud_command import (
+    MAX_CLOUD_COMMANDS_PER_TURN,
+    cloud_command_limits,
+    command_budget_key,
+    command_display,
+    file_command_refusal,
+)
 from backend.apps.code.skills.dependency_install import with_dependency_install
 from backend.apps.code.test_run_target import resolve_test_run_target
 from backend.shared.python_schemas.code_test_run import TestRunSpec
@@ -88,6 +95,12 @@ class RunCodeRequest(BaseModel):
         default=None,
         description="Test-run mode: run a Project's tests (unit, browser or cli) and return a structured, recorded result.",
     )
+    ready_url: str | None = Field(
+        default=None,
+        description="Background cloud command only: localhost URL that answers once the dev server is ready.",
+    )
+    # Set by the pipeline when it injected the client's Project snapshot as files.
+    project_snapshot: bool = Field(default=False, exclude=True)
 
 
 class RunCodeResponse(BaseModel):
@@ -103,6 +116,9 @@ class RunCodeResponse(BaseModel):
     stream_path: str | None = None
     status_path: str | None = None
     error: str | None = None
+    # A same-turn repeat of a command that already succeeded (cloud_command_repeat).
+    note: str | None = None
+    previous_result: dict[str, Any] | None = None
 
 
 def assistant_code_run_authorization_key(chat_id: str, message_id: str, target_embed_id: str) -> str:
@@ -547,6 +563,17 @@ class RunCodeSkill(BaseSkill):
         if not chat_id or not message_id or not user_id or not user_vault_key_id or cache_service is None or encryption_service is None:
             return RunCodeResponse(status="error", error="Code Run requires chat, message, user, cache, and encryption context.")
 
+        if request.argv and request.test_run is None:
+            refusal = file_command_refusal(request.argv)
+            if refusal:
+                return RunCodeResponse(status="error", error=refusal)
+            if request.target == "e2b":
+                return await self._execute_cloud_command(
+                    request, chat_id=str(chat_id), message_id=str(message_id), user_id=str(user_id),
+                    user_vault_key_id=str(user_vault_key_id), cache_service=cache_service,
+                    encryption_service=encryption_service, kwargs=kwargs,
+                )
+
         if request.test_run is not None:
             request, rejection = await self._prepare_test_run(
                 request, chat_id=str(chat_id), user_id=str(user_id),
@@ -667,6 +694,108 @@ class RunCodeSkill(BaseSkill):
             status="processing",
             target_filename=execution.target_filename,
             files=list(execution.files),
+            credits_per_minute=execution.credits_per_minute,
+            stream_path=f"/v1/code/run/{execution.execution_id}/stream",
+            status_path=f"/v1/code/run/{execution.execution_id}",
+        )
+
+    async def _execute_cloud_command(
+        self,
+        request: RunCodeRequest,
+        *,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_vault_key_id: str,
+        cache_service: Any,
+        encryption_service: Any,
+        kwargs: dict[str, Any],
+    ) -> RunCodeResponse:
+        """Run one argv in the focused cloud Project's E2B workspace (code-run.cloud.commands)."""
+        from backend.core.api.app.services.project_write_authorization_service import (
+            ProjectWriteAuthorizationService,
+        )
+
+        timeout_seconds, limit_error = cloud_command_limits(
+            background=request.background, timeout_seconds=request.timeout_seconds, ready_url=request.ready_url,
+        )
+        if limit_error:
+            return RunCodeResponse(status="error", error=limit_error)
+        if not request.project_snapshot:
+            return RunCodeResponse(
+                status="error",
+                error="Cloud commands need an active cloud Project focus; its file snapshot is attached automatically.",
+            )
+        directus_service = create_directus_service(cache_service=cache_service, encryption_service=encryption_service)
+        focus = await ProjectWriteAuthorizationService(directus_service, cache_service).get_active_focus(
+            user_id=user_id, chat_id=chat_id,
+        )
+        project_id = str((focus or {}).get("project_id") or "")
+        if not project_id:
+            return RunCodeResponse(status="error", error="Cloud commands need an active cloud Project focus.")
+        from backend.apps.code import cloud_command_repeat
+
+        fingerprint = cloud_command_repeat.command_fingerprint(
+            list(request.argv), request.cwd, [(file.path, file.code) for file in request.files],
+        )
+        previous = await cloud_command_repeat.previous_success(
+            cache_service, chat_id=chat_id, message_id=message_id, fingerprint=fingerprint,
+        )
+        if previous is not None:
+            return RunCodeResponse(
+                status="already_succeeded", note=cloud_command_repeat.repeat_note(previous),
+                previous_result=previous,
+            )
+        count = await _increment_cache_counter(
+            cache_service, command_budget_key(chat_id, message_id), CODE_RUN_ASSISTANT_AUTH_TTL_SECONDS,
+        )
+        if count > MAX_CLOUD_COMMANDS_PER_TURN:
+            return RunCodeResponse(status="requires_confirmation", error=(
+                f"This turn already ran {MAX_CLOUD_COMMANDS_PER_TURN} cloud commands. Ask the user before running more."
+            ))
+        files: list[dict[str, Any]] = []
+        total_chars = 0
+        for file in request.files:
+            try:
+                path = _validate_inline_code_run_path(file.path)
+            except CodeRunInlineValidationError as exc:
+                return RunCodeResponse(status="error", error=str(exc))
+            total_chars += len(file.code)
+            if total_chars > CODE_RUN_ASSISTANT_MAX_TOTAL_CHARS:
+                return RunCodeResponse(status="error", error="The Project snapshot is too large for a cloud command.")
+            if _looks_like_secret(file.code):
+                return RunCodeResponse(status="error", error=f"Project file {path} appears to contain a secret; it is not sent to the sandbox.")
+            files.append({"path": path, "content": file.code, "language": file.language or _language_for_path(path)})
+        try:
+            credits = await get_assistant_user_credit_balance(cache_service, directus_service, user_id)
+        except RuntimeError as exc:
+            return RunCodeResponse(status="error", error=str(exc))
+        current_user = SimpleNamespace(
+            id=user_id, username="assistant-code-run-user", vault_key_id=user_vault_key_id, credits=credits,
+        )
+        card_path = "terminal.sh"
+        target_embed_id, created_embed_ids = await create_code_embeds_for_assistant(
+            files=[{"path": card_path, "content": command_display(request.argv, request.cwd), "language": "bash"}],
+            target_path=card_path, chat_id=chat_id, message_id=message_id, user_id=user_id,
+            user_vault_key_id=user_vault_key_id, cache_service=cache_service,
+            directus_service=directus_service, encryption_service=encryption_service,
+        )
+        execution = await start_code_run_for_assistant(
+            current_user=current_user, cache_service=cache_service, files=files, target_path=card_path,
+            enable_internet=True, chat_id=chat_id, target_embed_id=target_embed_id, message_id=message_id,
+            dependency_installs=[], api_key_hash=kwargs.get("api_key_hash"), device_hash=kwargs.get("device_hash"),
+            assistant_async_task=True, same_turn_batch_id=kwargs.get("same_turn_batch_id"),
+            command_run={
+                "argv": list(request.argv), "cwd": request.cwd, "timeout_seconds": timeout_seconds,
+                "background": request.background, "ready_url": request.ready_url, "project_id": project_id,
+                "repeat_fingerprint": fingerprint,
+                "focus_id_hash": (focus or {}).get("focus_id_hash"),
+            },
+        )
+        return RunCodeResponse(
+            execution_id=execution.execution_id, task_id=execution.execution_id, embed_id=target_embed_id,
+            target_embed_id=target_embed_id, created_embed_ids=created_embed_ids, status="processing",
+            target_filename=execution.target_filename, files=list(execution.files),
             credits_per_minute=execution.credits_per_minute,
             stream_path=f"/v1/code/run/{execution.execution_id}/stream",
             status_path=f"/v1/code/run/{execution.execution_id}",

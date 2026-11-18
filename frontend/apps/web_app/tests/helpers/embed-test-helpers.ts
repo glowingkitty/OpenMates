@@ -149,6 +149,29 @@ async function openFullscreen(page: any, embedLocator: any): Promise<any> {
 	return fullscreenOverlay;
 }
 
+/**
+ * Bring a card of a large-preview carousel (EmbedPreviewLarge) to the front.
+ * Inactive cards stay in the layout at opacity 0 with pointer-events off, so
+ * Playwright still reports them visible; step through the carousel's position
+ * tabs until the card is no longer inside a hidden slide. Returns the card.
+ */
+async function showCarouselCard(scope: any, cardLocator: any): Promise<any> {
+	const card = cardLocator.first();
+	await expect(card).toBeAttached({ timeout: 10000 });
+	const isActive = async (): Promise<boolean> => card.evaluate(
+		(el: Element) => !el.closest('.embed-preview-large-overlay--hidden, .embed-preview-large-content--hidden')
+	);
+	if (await isActive()) return card;
+	const tabs = scope.getByTestId('embed-preview-large').first().getByRole('tab');
+	const total = await tabs.count();
+	for (let index = 0; index < total; index += 1) {
+		await tabs.nth(index).click();
+		await expect(tabs.nth(index)).toHaveAttribute('aria-selected', 'true');
+		if (await isActive()) return card;
+	}
+	throw new Error('showCarouselCard: no carousel position shows the card');
+}
+
 async function dismissVisibleNotifications(page: any): Promise<void> {
 	const dismissButtons = page.getByTestId('notification-dismiss');
 	for (let index = await dismissButtons.count() - 1; index >= 0; index -= 1) {
@@ -260,6 +283,7 @@ module.exports = {
 	waitForEmbedFinished,
 	dismissVisibleNotifications,
 	openFullscreen,
+	showCarouselCard,
 	verifySearchGrid,
 	closeFullscreen
 };

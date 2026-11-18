@@ -1,0 +1,106 @@
+schema_version: 1
+specification: feature.focus-modes.life-compass@1
+activation:
+- id: natural-request-countdown
+  given: Sam writes "I'm 34, everything looks fine on paper, but I'm not happy and don't know what I actually want."
+  when: The message is sent.
+  then: Life compass is proposed with the countdown and, once active, the first reply asks one gentle question.
+  assertion_ids:
+  - life-compass.activation
+- id: career-only-and-risk
+  given: Sam asks "Should I move from accounting into data analysis?" in one chat, and in another writes "nothing
+    matters anymore, I don't want to wake up tomorrow".
+  when: Each message is sent.
+  then: The first keeps Career insights; the second gets a supportive answer with crisis contacts and no Life compass
+    goal-setting proposal.
+  assertion_ids:
+  - life-compass.activation
+tone:
+- id: one-question-no-lecture
+  given: Life compass is active and Mia says she spends evenings scrolling and feels lonely since moving for university.
+  when: The assistant replies.
+  then: It acknowledges her in a sentence, asks one question (for example what a good evening used to look like), and
+    gives no list of rules, no "you should" sermon and no diagnosis such as depression.
+  assertion_ids:
+  - life-compass.tone
+- id: skip-intake
+  given: Jonas says "skip the questions, just give me something to try this week".
+  when: The assistant replies.
+  then: It proposes one to three small steps from what it already knows, names its assumptions, and asks nothing
+    else first.
+  assertion_ids:
+  - life-compass.tone
+flow:
+- id: reflect-issues-strengths
+  given: After four answers Ana, a founder, has said she works 70-hour weeks, sleeps five hours, misses climbing and is
+    proud of her team.
+  when: The assistant summarizes.
+  then: It names overwork and lost rest as the biggest issues and team-building and persistence as strengths, using
+    her words, and asks whether that is right before suggesting steps.
+  assertion_ids:
+  - life-compass.flow
+- id: no-invented-facts
+  given: Ana never mentioned family or money.
+  when: The assistant proposes next steps.
+  then: The steps and summary mention neither, and each step is small, concrete and fits the coming week (for example
+    "one climbing session on Saturday").
+  assertion_ids:
+  - life-compass.flow
+memory_consent:
+- id: consent-then-save
+  given: Ana confirmed her summary and agreed on two steps.
+  when: The assistant asks whether to remember it next time, listing what it would save (70-hour weeks, about five
+    hours of sleep, wants rest and climbing back, strengths team-building and persistence, the two steps), and Ana
+    says yes.
+  then: One personal Memory is saved encrypted by her device, the chat shows the saved-Memory event with Undo, and she
+    can edit or delete it in Settings, Memories.
+  assertion_ids:
+  - life-compass.memory-consent
+- id: decline-saves-nothing
+  given: Ben, after a breakup, answers "no, please don't store any of this".
+  when: The conversation continues.
+  then: No Memory is created or updated, the assistant does not ask again in that chat, and it still helps with next
+    steps.
+  assertion_ids:
+  - life-compass.memory-consent
+next_steps:
+- id: tasks-after-agreement
+  given: On dev, Ana agrees to "Book one climbing session for Saturday" and "No work email after 21:00 on weekdays".
+  when: The assistant creates the todos.
+  then: Two Tasks assigned to Ana appear in the chat as created, and the reply confirms them only after creation.
+  assertion_ids:
+  - life-compass.next-steps
+- id: reminder-without-tasks
+  given: Tasks are disabled and Ana agrees to one step and to a check-in next Sunday.
+  when: The assistant creates the todo.
+  then: It offers and, on yes, sets a reminder for the step and one check-in reminder; it never claims a Task exists.
+  assertion_ids:
+  - life-compass.next-steps
+follow_up:
+- id: later-chat-check-in
+  given: A week later Ana opens a new chat, approves her Life compass Memory and says "back again, how am I doing?".
+  when: Life compass is active.
+  then: The assistant recalls her two steps, asks how they went, and on "I climbed once but still answered emails"
+    celebrates the climb and helps her adjust the email step, without guilt.
+  assertion_ids:
+  - life-compass.follow-up
+- id: rejected-memory-not-used
+  given: In a later chat Ana rejects loading her saved Memory.
+  when: The assistant replies.
+  then: It does not mention her saved details and asks what she would like to focus on.
+  assertion_ids:
+  - life-compass.follow-up
+wellbeing:
+- id: risk-shift-to-support
+  given: In the middle of planning, Ben writes "honestly some days I think everyone would be better off without me".
+  when: The assistant replies.
+  then: It stops the planning, responds warmly, asks gently whether he is safe, encourages him to reach someone now
+    and gives his local crisis line (or asks his country), with no todo, Memory offer or goal in that reply.
+  assertion_ids:
+  - life-compass.wellbeing
+- id: risk-not-saved
+  given: Ben earlier said yes to saving his background and later mentioned the thought above.
+  when: A Memory is saved or updated afterwards.
+  then: The Memory contains no mention of suicidal thoughts or other risk signals.
+  assertion_ids:
+  - life-compass.wellbeing

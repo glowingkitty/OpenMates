@@ -85,18 +85,19 @@ actor NativeVoiceCallCanonicalPersistence {
         let identifier: String
         var draft: NativeVoiceCallFrame
         if lifecycle {
+            // Content, validation and the deterministic id come from the shared
+            // core (same bytes and id as the web's recordCallLifecycle).
             guard let action = frame["action"]?.string, ["started", "ended"].contains(action),
-                  let createdAt = frame["created_at"]?.number, createdAt > 0,
+                  let createdAt = frame["created_at"]?.number, createdAt > 0, createdAt < 9_007_199_254_740_992,
                   createdAt.rounded(.down) == createdAt,
-                  let elapsed = frame["active_elapsed_seconds"]?.number, elapsed >= 0,
-                  elapsed.rounded(.down) == elapsed else { throw NativeVoiceCallError.persistenceFailed }
-            identifier = (action == "started" ? "00000000" : "ffffffff") + "-voice-call-" + callID + "-" + action
-            let content: NativeVoiceCallFrame = ["schema_version": .number(1), "type": .string("voice_call"),
-                "action": .string(action), "call_id": .string(callID), "created_at": .number(createdAt),
-                "active_elapsed_seconds": .number(elapsed)]
+                  let elapsed = frame["active_elapsed_seconds"]?.number,
+                  let notice = try? buildVoiceCallNotice(action: action == "started" ? .started : .ended,
+                      callId: callID, createdAt: Int64(createdAt), activeElapsedSeconds: elapsed)
+            else { throw NativeVoiceCallError.persistenceFailed }
+            identifier = notice.messageId
             let ciphertext: String
             if let retained = records[identifier]?.frame["message"]?.object?["encrypted_content"]?.string { ciphertext = retained }
-            else { ciphertext = try await crypto.encrypt(NativeVoiceCallWire.encode(content), scope: scope) }
+            else { ciphertext = try await crypto.encrypt(notice.contentJson, scope: scope) }
             draft = ["type": .string("chat_system_message_added"), "chat_id": .string(scope.chatID),
                 "message": .object(["message_id": .string(identifier), "role": .string("system"),
                     "created_at": .number(createdAt), "encrypted_content": .string(ciphertext)])]

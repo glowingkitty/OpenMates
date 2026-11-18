@@ -120,7 +120,12 @@ async def test_lifecycle_confirmation_uses_durable_version_without_a_second_incr
         user_id="owner", device_hash="device", owner_hash="a" * 64, chat_id="chat",
         message_id="00000000-voice-call-" + "f" * 32 + "-started", content="encrypted", created_at=1,
         message_status="synced", encrypted_chat_key="wrapped")
-    assert manager.send_personal_message.await_args.args[0]["payload"]["messages_v"] == 7
+    receipt = manager.send_personal_message.await_args.args[0]["payload"]
+    assert receipt["messages_v"] == 7
+    # The sender's client core keeps its own history: the receipt carries the
+    # stored ciphertext row; the cached replay marker stays version-only.
+    assert (receipt["role"], receipt["encrypted_content"], receipt["created_at"]) == ("system", "encrypted", 1)
+    assert "encrypted_content" not in cache.set.await_args.args[1]
     cache.delete_chat_versions.assert_awaited_once_with("owner", "chat")
     cache.delete_sync_messages_history.assert_awaited_once_with("owner", "chat")
     assert manager.broadcast_to_user.await_args.args[0]["data"]["status"] == "synced"

@@ -63,6 +63,7 @@ const EMBED_REF_RE = /^[A-Za-z0-9._-]{1,128}$/;
 const YOUTUBE_RE = /^[A-Za-z0-9_-]{6,20}$/;
 const VIMEO_RE = /^[0-9]{3,12}$/;
 const HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+const THEME_HEX_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 const INT_RE = /^-?[0-9]{1,6}(?:\.[0-9]+)?$/;
 const BLOCK_START_RE = /<block(?=[\s/>])/gi;
 const BLOCK_END_RE = /<\/block\s*>/gi;
@@ -159,8 +160,22 @@ export interface Slide {
   notes: string;
 }
 
+export const THEME_COLOR_TOKENS = ['background', 'foreground', 'accent', 'accent-2', 'muted', 'surface'] as const;
+export type ThemeColorToken = (typeof THEME_COLOR_TOKENS)[number];
+
+/** Deck theme: every field optional; a renderer falls back to Plain per token. */
+export interface DeckTheme {
+  heading?: string;
+  body?: string;
+  colors: Partial<Record<ThemeColorToken, string>>;
+}
+
+export type DeckKind = 'deck' | 'template';
+
 export interface Deck {
   title: string;
+  kind: DeckKind;
+  theme?: DeckTheme;
   aspect: SlideAspect;
   width: number;
   height: number;
@@ -207,6 +222,29 @@ function cleanFont(value: string | null): string | undefined {
   if (value === null) return undefined;
   const lower = value.trim().toLowerCase();
   return FONT_ROLES.has(lower) ? lower : SAFE_FONTS.get(lower);
+}
+
+/** Theme font: canonical safe-font spelling only (no role words). */
+function cleanThemeFont(value: string | null): string | undefined {
+  return value === null ? undefined : SAFE_FONTS.get(value.trim().toLowerCase());
+}
+
+/** Read the first `<theme>` of a deck; undefined when it has no valid attribute. */
+function readTheme(deckNode: Element): DeckTheme | undefined {
+  const node = collect(deckNode, 'theme')[0];
+  if (!node) return undefined;
+  const theme: DeckTheme = {
+    heading: cleanThemeFont(node.getAttribute('heading')),
+    body: cleanThemeFont(node.getAttribute('body')),
+    colors: {}
+  };
+  for (const token of THEME_COLOR_TOKENS) {
+    const raw = node.getAttribute(token)?.trim();
+    if (raw && THEME_HEX_RE.test(raw)) theme.colors[token] = raw.toLowerCase();
+  }
+  if (!theme.heading) delete theme.heading;
+  if (!theme.body) delete theme.body;
+  return theme.heading || theme.body || Object.keys(theme.colors).length > 0 ? theme : undefined;
 }
 
 function cleanWeight(value: string | null): string | undefined {
@@ -636,6 +674,7 @@ export function parseSlidesMarkup(source: unknown, options: ParseOptions = {}): 
   const aspect = (requestedAspect in ASPECT_HEIGHTS ? requestedAspect : DEFAULT_ASPECT) as SlideAspect;
   const height = ASPECT_HEIGHTS[aspect];
   const template = (deckNode.getAttribute('template') ?? '').trim();
+  const theme = readTheme(deckNode);
   const reserved = allIds(deckNode, new Set());
   const ids = new IdAllocator(reserved);
 
@@ -667,6 +706,8 @@ export function parseSlidesMarkup(source: unknown, options: ParseOptions = {}): 
     ok: true,
     deck: {
       title: cleanLabel(deckNode.getAttribute('title') ?? '', 200),
+      kind: (deckNode.getAttribute('kind') ?? '').trim().toLowerCase() === 'template' ? 'template' : 'deck',
+      ...(theme ? { theme } : {}),
       aspect,
       width: CANVAS_WIDTH,
       height,

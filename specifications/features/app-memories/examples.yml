@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.app-memories@5
+specification: feature.app-memories@6
 catalog:
 - id: no-typed-types
   given: The Code and Travel apps previously declared preferred_tech and trips types.
@@ -286,9 +286,10 @@ suggestions:
   then: The client shows it as an update of the existing memory instead of a new one.
 - id: existing-workflow
   assertion_ids: [app-memories.suggestions.no-duplicates]
-  given: The user already has a workflow "Weekly conference CFP alert".
-  when: Post-processing would recommend creating a similar workflow.
-  then: The card recommends updating the existing workflow.
+  given: The user already has a workflow "Weekly conference CFP alert", and in this turn the assistant itself saved the Memory
+    "Career profile".
+  when: Post-processing would recommend creating a similar workflow and creating "Career profile".
+  then: The card recommends updating the existing workflow and does not offer to create or update "Career profile".
 - id: draft-not-saved
   given: The user opens a memory recommendation and the draft appears in Settings.
   when: They leave without choosing Save, or choose Save after the memory changed on another device.
@@ -347,3 +348,23 @@ saved_items:
   given: A saved event starts tomorrow.
   when: The user opens the continue-where-you-left-off section.
   then: The event appears highlighted as upcoming.
+assistant_writes:
+- id: assistant-saves-profile
+  assertion_ids: [app-memories.assistant.direct-write]
+  given: In a job-search chat the user agrees to the mate's offer to save their career profile.
+  when: The turn finishes.
+  then: A personal Memory "Career profile" exists encrypted with load mode Ask first, and the chat shows "Memory created by
+    the assistant" with its title, a link and Undo; no review step appeared.
+- id: assistant-undo
+  assertion_ids: [app-memories.assistant.direct-write]
+  given: The chat shows the assistant's "Memory created" event for "Career profile".
+  when: The user chooses Undo, then reloads on another device.
+  then: The Memory is deleted and the event reads as undone on both devices.
+anonymized_send:
+- id: memory-placeholders
+  assertion_ids: [app-memories.privacy.anonymized-on-send]
+  given: The Ask first Memory "Career profile" contains the email alex@example.org and the phone number +49 30 0000000.
+  when: The user approves it in a new chat and the mate writes a cover letter.
+  then: The AI receives placeholders instead of the email and phone, the answer shown to the user contains the real details,
+    the stored Memory still holds the real details, and the human-readable CLI chat view lists "Memories shared with the
+    assistant" without printing the mapping.

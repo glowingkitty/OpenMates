@@ -249,10 +249,6 @@ export async function sendDeleteMessageImpl(
 	}
 }
 
-// Compile-time flag: default builds fold this to false and drop the Rust adapter.
-const RUST_KEY_UPDATE: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-	&& !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_chatstate") === "ts");
-
 /**
  * Send encrypted_chat_key update to server for chat metadata sync
  * Used for hiding/unhiding chats by updating the encryption wrapper
@@ -283,28 +279,10 @@ export async function sendUpdateChatKeyImpl(
 			return;
 		}
 
-		// Create payload for encrypted_chat_metadata handler
-		// This handler accepts encrypted_chat_key and updates it in Directus
-		// message_id is optional - we omit it since we're only updating metadata
-		const legacyPayload = {
-			chat_id,
-			encrypted_chat_key,
-			// Explicitly allow chat key rotation for hidden chat hide/unhide flows.
-			// This prevents accidental key overwrites from general message syncs.
-			allow_chat_key_rotation: true,
-			chat_key_rotation_reason: "hidden_chat",
-			// Include version info to preserve chat state
-			versions: {
-				messages_v: chat.messages_v || 0,
-				title_v: chat.title_v || 0,
-				last_edited_overall_timestamp:
-					chat.last_edited_overall_timestamp || Math.floor(Date.now() / 1000)
-			}
+		// The shared Rust core builds the encrypted_chat_metadata frame (versions default there).
+		const payload = (await (await import("./rustCore/chatState/rustHiddenChat")).rustHiddenKeyUpdatePayload(chat_id, encrypted_chat_key, chat)) as unknown as {
+			versions: { messages_v: number; title_v: number };
 		};
-		// Flag on: the shared Rust core builds the frame (versions default there).
-		const payload = RUST_KEY_UPDATE
-			? ((await (await import("./rustCore/chatState/rustHiddenChat")).rustHiddenKeyUpdatePayload(chat_id, encrypted_chat_key, chat)) as unknown as typeof legacyPayload)
-			: legacyPayload;
 
 		console.debug(
 			`[ChatSyncService:Senders] Sending encrypted_chat_key update for chat ${chat_id}`,

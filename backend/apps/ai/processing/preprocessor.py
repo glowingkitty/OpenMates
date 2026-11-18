@@ -18,6 +18,7 @@ from backend.core.api.app.services.cache import CacheService # Corrected import 
 from backend.core.api.app.services.directus.directus import DirectusService # Added for type hinting and reuse
 from backend.core.api.app.utils.encryption import EncryptionService # Added for type hinting and reuse
 from backend.core.api.app.services.translations import TranslationService # For loading translations
+from backend.apps.ai.processing.metadata_language import resolve_metadata_language
 
 # Import the new LLM utility
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult
@@ -51,9 +52,13 @@ from backend.apps.ai.processing.chat_request_safety import (
 )
 from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
+    focus_offered_skill_scope,
+)
+from backend.apps.ai.processing.request_purpose_policy import (
+    REQUEST_PURPOSE_REJECTION, decline_message, evaluate_request_purpose, record_request_strike,
 )
 from backend.apps.ai.processing.jev_preprocessing import decide_preprocessing_with_jev, _complete_public_decisions
-from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, select_explicit_plan_focus
+from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, has_active_app_focus, select_explicit_plan_focus
 from backend.apps.ai.utils.authored_result_instructions import admitted_authoring_definitions
 from backend.apps.ai.testing.voice_pipeline_fixture import voice_preprocessing_scope
 from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
@@ -66,7 +71,9 @@ from backend.apps.ai.processing.model_routing import (
     HIGH_TIER,
     MERCURY_MODEL,
     selects_media_generation,
+    format_routing_decision,
     history_requires_non_text,
+    tier_resolution_reason,
     automatic_model_candidates,
     automatic_model_allowed_servers,
     LOW_TIER,
@@ -78,6 +85,7 @@ from backend.apps.ai.processing.model_routing import (
     normalize_request_tier,
     tier_preference_key,
 )
+from backend.apps.ai.processing.browse_routing import resolve_browse_intent
 from backend.apps.ai.processing.routing_ledger import (
     RoutingLedgerSnapshot,
     build_preprocessing_history_projection,
@@ -89,6 +97,7 @@ from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 from backend.core.api.app.schemas.chat import AIHistoryMessage
+from backend.apps.ai.processing.parallel_url_safeguard import sanitize_texts_parallel
 from backend.shared.python_utils.url_normalizer import (
     extract_urls_from_text,
     sanitize_text_urls_with_safeguard,
@@ -270,6 +279,14 @@ def _content_has_image_upload_embed(content: Any) -> bool:
         ):
             return True
     return False
+
+
+def _current_turn_has_image_upload(request_data: AskSkillRequest) -> bool:
+    """The latest user request itself carries an uploaded image (history images do not count)."""
+    latest = getattr(request_data, "current_user_content", None)
+    if not isinstance(latest, str):
+        latest = _latest_user_text_from_history(getattr(request_data, "message_history", None) or [])
+    return bool(getattr(request_data, "has_image_upload_embed", False)) or _content_has_image_upload_embed(latest)
 
 
 def _embed_ref_is_image_upload(embed_ref: Any) -> bool:
@@ -640,7 +657,41 @@ def _resolve_explicit_skill_mentions_from_latest_user_text(
             if skill_id not in resolved_mentions:
                 resolved_mentions.append(skill_id)
 
+    for alias, skill_id in _named_skill_aliases(available_skill_ids).items():
+        alias_pattern = re.compile(
+            rf"(?<![\w-]){alias}\s+skill(?![\w-])",
+            re.IGNORECASE,
+        )
+        for match in alias_pattern.finditer(latest_user_text):
+            before = latest_user_text[max(0, match.start() - 48):match.start()]
+            if EXPLICIT_SKILL_DIRECTIVE_PATTERN.search(before) and skill_id not in resolved_mentions:
+                resolved_mentions.append(skill_id)
+
     return resolved_mentions
+
+
+def _named_skill_aliases(available_skill_ids: List[str]) -> Dict[str, str]:
+    """Map spoken skill names ("Browse", "web browse") to visible skill IDs.
+
+    Used only before the word "skill" after a directive ("use the Browse
+    skill"). A bare skill name counts only when one visible skill has it, so
+    "use the search skill" stays unresolved while "use the web search skill"
+    resolves. Values are regex fragments with flexible whitespace.
+    """
+    by_skill_name: Dict[str, List[str]] = {}
+    aliases: Dict[str, str] = {}
+    for valid_skill in available_skill_ids:
+        if "-" not in valid_skill:
+            continue
+        app_id, skill_id = valid_skill.split("-", 1)
+        skill_words = re.split(r"[-_]+", skill_id)
+        app_words = re.split(r"[-_]+", app_id)
+        aliases[r"\s+".join(map(re.escape, app_words + skill_words))] = valid_skill
+        by_skill_name.setdefault(r"\s+".join(map(re.escape, skill_words)), []).append(valid_skill)
+    for name, owners in by_skill_name.items():
+        if len(owners) == 1 and len(name) >= 3:
+            aliases.setdefault(name, owners[0])
+    return aliases
 
 
 def _resolve_explicit_natural_search_intent(
@@ -658,6 +709,16 @@ def _resolve_explicit_natural_search_intent(
     if EXPLICIT_NEWS_SEARCH_PATTERN.search(latest_user_text):
         return ["news-search"]
     return []
+
+
+# Skills that hand a written brief to another chat: search wording inside the
+# brief must not replace them with a search in this chat.
+CHAT_DELEGATION_SKILLS = frozenset({"openmates-start-chat", "openmates-send-to-spawned-chat"})
+
+
+def _delegates_to_another_chat(selected_skill_ids: List[str]) -> bool:
+    """True when the selection starts or writes to another chat."""
+    return bool(CHAT_DELEGATION_SKILLS.intersection(selected_skill_ids or []))
 
 
 def _news_follow_up_repeats_prior_topic(message_history: List[Any]) -> bool:
@@ -1434,6 +1495,7 @@ class PreprocessingResult(BaseModel):
     pending_project_catalog_id: Optional[str] = Field(None, exclude=True, description="Selected Project needs minimal owner-client Focus metadata before consent.")
     pending_project_specialist: Optional[Dict[str, str]] = Field(None, exclude=True, repr=False, description="Validated specialist selection metadata; its body remains hidden until consent.")
     pending_project_create: Optional[Dict[str, Any]] = Field(None, exclude=True, repr=False, description="Routing-only create_project outcome (ProjectCreateProposal); a client must create the encrypted Project before main inference.")
+    wellbeing_scores: Optional[Dict[str, float]] = Field(None, exclude=True, repr=False, description="Transient current-turn wellbeing likelihoods; never stored, logged or persisted.")
     routing_only: bool = Field(False, exclude=True, description="Consent-only routing must run complete preprocessing before later inference, including after rejection.")
 
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
@@ -1741,6 +1803,18 @@ def _resolve_explicit_mate(
     return None, None
 
 
+STAGE_ONE_CREDIT_ADMISSION_MAX_AGE_SECONDS = 30.0
+
+
+def stage_one_credit_admission_fresh(precomputed_stage_one: Optional[Dict[str, Any]]) -> bool:
+    """True when the sealed stage-one snapshot carries a recent passed credit check."""
+    admitted_at = (precomputed_stage_one or {}).get("credit_admitted_at")
+    if not isinstance(admitted_at, (int, float)) or isinstance(admitted_at, bool):
+        return False
+    age = time.time() - admitted_at
+    return 0 <= age <= STAGE_ONE_CREDIT_ADMISSION_MAX_AGE_SECONDS
+
+
 async def check_preprocessing_credits(
     request_data: AskSkillRequest,
     cache_service: CacheService,
@@ -1886,6 +1960,9 @@ async def _select_main_model(
     """Resolve the answer model once from the public first-stage decisions."""
     raw_complexity = llm_analysis_args.get("complexity")
     complexity_val = normalize_request_tier(raw_complexity)
+    tier_reason = tier_resolution_reason(raw_complexity)
+    selection_path = "intelligent"
+    mercury_skip_reasons: list[str] = []
     if raw_complexity not in APPROVED_REQUEST_TIERS and raw_complexity != complexity_val:
         logger.warning(
             f"{log_prefix} Normalized complexity '{raw_complexity}' to '{complexity_val}'. "
@@ -2013,6 +2090,7 @@ async def _select_main_model(
             # Look up human-readable name from config (e.g., "Claude Haiku 5.5" instead of "claude-haiku-5-5")
             selected_llm_for_main_name = config_manager.get_model_display_name(raw_model_id, provider_id) or raw_model_id
             model_override_applied = True
+            selection_path = "user_override"
             model_selection_reason = f"User override: {selected_llm_for_main_id}"
             logger.info(
                 f"{log_prefix} USER_OVERRIDE: Applied full model reference: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
@@ -2030,6 +2108,7 @@ async def _select_main_model(
             # Look up human-readable name from config
             selected_llm_for_main_name = config_manager.get_model_display_name(override_model_id, selected_provider) or override_model_id
             model_override_applied = True
+            selection_path = "user_override"
             model_selection_reason = f"User override with provider: {selected_llm_for_main_id}"
             logger.info(
                 f"{log_prefix} USER_OVERRIDE: Constructed model reference from provider: {selected_llm_for_main_id} (Display name: {selected_llm_for_main_name})"
@@ -2046,6 +2125,7 @@ async def _select_main_model(
                 # Look up human-readable name from config
                 selected_llm_for_main_name = config_manager.get_model_display_name(override_model_id, resolved_provider) or override_model_id
                 model_override_applied = True
+                selection_path = "user_override"
                 model_selection_reason = f"User override (provider resolved): {selected_llm_for_main_id}"
                 logger.info(
                     f"{log_prefix} USER_OVERRIDE: Resolved provider '{resolved_provider}' for model '{override_model_id}'. "
@@ -2087,6 +2167,7 @@ async def _select_main_model(
             else:
                 selected_llm_for_main_id, selected_llm_for_main_name = validated_default
                 model_override_applied = True
+                selection_path = "user_default"
                 model_selection_reason = f"User default ({user_default_key}): {selected_llm_for_main_id}"
                 logger.info(
                     f"{log_prefix} USER_DEFAULT_MODEL: Applying user default model "
@@ -2158,6 +2239,7 @@ async def _select_main_model(
                     provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
                     selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
 
+                selection_path = "selector_failure_fallback"
                 model_selection_reason = f"Fallback to skill_config (complexity={complexity_val}) after model selector error"
                 logger.info(
                     f"{log_prefix} MODEL_SELECTION: Using fallback model from skill_config: "
@@ -2182,6 +2264,7 @@ async def _select_main_model(
                 provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
                 selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
 
+            selection_path = "auto_selection_disabled"
             model_selection_reason = f"Hardcoded from skill_config (auto-selection disabled, complexity={complexity_val})"
 
     # Apply the same restrictions to every automatic tier and recovery model.
@@ -2206,13 +2289,21 @@ async def _select_main_model(
             ):
                 continue
             if model_id == MERCURY_MODEL:
-                if has_image_upload_embed or history_requires_non_text(request_data.message_history):
+                if has_image_upload_embed:
+                    mercury_skip_reasons.append("image_upload")
+                    continue
+                # Dispatch also refuses Mercury for media anywhere in history
+                # (visual evidence is never stripped), so route the same way.
+                if history_requires_non_text(request_data.message_history):
+                    mercury_skip_reasons.append("image_in_history")
                     continue
                 if selects_media_generation(selected_app_ids, llm_analysis_args.get("relevant_app_skills")):
+                    mercury_skip_reasons.append("media_generation_selected")
                     continue
                 # Avoid a known unavailable primary without a provider call.
                 # Recovery attempts recheck health at the dispatch boundary.
                 if not candidates and not await is_provider_healthy("inception", CacheService()):
+                    mercury_skip_reasons.append("inception_unhealthy")
                     continue
             candidates.append(model_id)
         selected_llm_for_main_id = candidates[0] if candidates else None
@@ -2237,6 +2328,30 @@ async def _select_main_model(
             use_case_thinking_level(use_case_val, selected_llm_for_main_id) if use_case_applied
             else automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id)
         )
+    elif selected_llm_for_main_id and selected_llm_for_main_id.startswith("google/"):
+        # An explicit Gemini choice without a level would fall to Google's slow
+        # default dynamic thinking; send the tier's profile level (else LOW).
+        selected_llm_thinking_level = (
+            automatic_profile_thinking_level(complexity_val, selected_llm_for_main_id) or "LOW"
+        )
+
+    if model_override_applied:
+        decision_reason = selection_path
+    elif use_case_applied:
+        decision_reason = f"use_case:{use_case_val}"
+    else:
+        decision_reason = tier_reason
+    if not model_override_applied and use_case_applied:
+        decision_reason = f"{decision_reason},{tier_reason}"
+    if mercury_skip_reasons:
+        decision_reason += ",mercury_skipped:" + "+".join(dict.fromkeys(mercury_skip_reasons))
+    if not model_override_applied and selected_llm_for_main_id is None:
+        decision_reason += ",no_permitted_model"
+    logger.info("%s %s", log_prefix, format_routing_decision(
+        tier=complexity_val, thinking_level=selected_llm_thinking_level,
+        model_id=selected_llm_for_main_id,
+        path=f"{selection_path}+use_case" if use_case_applied and not model_override_applied else selection_path,
+        reason=decision_reason))
 
     return {
         "complexity_val": complexity_val,
@@ -2433,10 +2548,15 @@ async def handle_preprocessing(
             credit_rejection = await check_preprocessing_credits(
                 request_data, cache_service, directus_service, encryption_service,
             )
-    else:
+    elif not stage_one_credit_admission_fresh(precomputed_stage_one):
         credit_rejection = await check_preprocessing_credits(
             request_data, cache_service, directus_service, encryption_service,
         )
+    else:
+        # Stage one passed the same live check moments ago; billing still
+        # settles against the real balance when the turn completes.
+        credit_rejection = None
+        logger.info("%s PREPROCESS_TIMING step=credit_check_reused ms=0", log_prefix)
     if credit_rejection is not None:
         return credit_rejection
 
@@ -2498,6 +2618,7 @@ async def handle_preprocessing(
     # which use invisible Unicode characters to embed hidden instructions.
     # See: docs/architecture/prompt_injection_protection.md
     sanitized_message_history = []
+    pending_url_checks: list[tuple[int, str, str]] = []
     for msg in projection_source:
         msg_dict = msg.model_dump() if hasattr(msg, "model_dump") else dict(msg)
         if msg_dict.get("role") == "user":
@@ -2505,24 +2626,29 @@ async def handle_preprocessing(
             if isinstance(original_content, str):
                 # Use comprehensive ASCII smuggling sanitization
                 sanitized_content = _sanitize_text_content(original_content, log_prefix=log_prefix)
-                sanitized_content = await sanitize_text_urls_with_safeguard(
-                    sanitized_content,
-                    secrets_manager=secrets_manager,
-                    log_prefix=log_prefix,
-                    allowed_source_urls=extract_urls_from_text(sanitized_content),
-                )
-                # Update the 'content' in the dictionary representation
-                msg_dict["content"] = sanitized_content
-                if original_content != sanitized_content: # Log only if changed
-                    logger.debug(f"{log_prefix} Sanitized user message content. Original length: {len(original_content)}, Sanitized length: {len(sanitized_content)}")
-                sanitized_message_history.append(msg_dict)
-            else:
-                # If content is not str (e.g. already a dict from Tiptap), append the dict representation of original msg
-                # The content in msg_dict is already correct from model_dump()
-                sanitized_message_history.append(msg_dict)
-        else:
-            # For non-user messages, append the dict representation
-            sanitized_message_history.append(msg_dict)
+                pending_url_checks.append((len(sanitized_message_history), original_content, sanitized_content))
+        sanitized_message_history.append(msg_dict)
+
+    # The per-message URL safeguard calls are independent; run them concurrently.
+    async def _safeguard_one(text: str) -> str:
+        return await sanitize_text_urls_with_safeguard(
+            text,
+            secrets_manager=secrets_manager,
+            log_prefix=log_prefix,
+            allowed_source_urls=extract_urls_from_text(text),
+        )
+
+    _url_started = time.monotonic()
+    safeguarded = await sanitize_texts_parallel(
+        [item[2] for item in pending_url_checks], _safeguard_one,
+    )
+    for (index, original_content, _), sanitized_content in zip(pending_url_checks, safeguarded):
+        sanitized_message_history[index]["content"] = sanitized_content
+        if original_content != sanitized_content:  # Log only if changed
+            logger.debug(f"{log_prefix} Sanitized user message content. Original length: {len(original_content)}, Sanitized length: {len(sanitized_content)}")
+    if pending_url_checks:
+        logger.info("PREPROCESS_TIMING step=url_safeguard ms=%.1f messages=%d",
+                    (time.monotonic() - _url_started) * 1000, len(pending_url_checks))
 
     # Compatibility histories can still be large. The bounded path is normally a
     # few recent messages, but both paths retain an explicit provider safety margin.
@@ -2699,6 +2825,7 @@ async def handle_preprocessing(
                 message_history=sanitized_message_history,
                 voice_heard_context=voice_heard_context,
                 authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
+                latest_request_has_upload=_current_turn_has_image_upload(request_data),
                 available_apps=list(discovered_apps_metadata or {}),
                 available_skills=public_skills, available_focus_modes=public_focuses,
                 project_candidates=request_data.project_focus_candidates,
@@ -3199,7 +3326,8 @@ async def handle_preprocessing(
                                           if focus in available_focus_mode_ids)
             explicit_skills = _resolve_explicit_skill_mentions_from_latest_user_text(
                 request_data.message_history, available_skill_ids,
-            ) + _resolve_explicit_natural_search_intent(request_data.message_history, available_skill_ids)
+            ) + _resolve_explicit_natural_search_intent(request_data.message_history, available_skill_ids
+            ) + resolve_browse_intent(request_data.message_history, available_skill_ids)
             forced_app_ids.extend(app_id for skill_id in explicit_skills
                                   for app_id in (discovered_apps_metadata or {})
                                   if skill_id.startswith(f"{app_id}-"))
@@ -3210,6 +3338,7 @@ async def handle_preprocessing(
                     message_history=sanitized_message_history,
                     voice_heard_context=voice_heard_context,
                     authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
+                    latest_request_has_upload=_current_turn_has_image_upload(request_data),
                     available_apps=list(discovered_apps_metadata or {}),
                     available_skills=available_skills_list,
                     available_focus_modes=available_focus_modes_list,
@@ -3407,6 +3536,7 @@ async def handle_preprocessing(
                 available_rules=[], available_workflows=[], effective_focus={},
                 telemetry_task_id=f"{request_data.chat_id}_{request_data.message_id}",
                 authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
+                latest_request_has_upload=_current_turn_has_image_upload(request_data),
                 available_apps=[], selected_app_ids=[], early_decisions=early_routing["early_decisions"],
                 candidate_discovery_complete=True,
                 related_discovery_complete=True,
@@ -3478,7 +3608,7 @@ async def handle_preprocessing(
                 request_data.message_history, available_skill_ids,
             ) + _resolve_explicit_natural_search_intent(
                 request_data.message_history, available_skill_ids,
-            )
+            ) + resolve_browse_intent(request_data.message_history, available_skill_ids)
             forced_app_ids.extend(
                 app_id for skill_id in explicit_skills for app_id in available_app_ids
                 if skill_id.startswith(f"{app_id}-")
@@ -3510,6 +3640,7 @@ async def handle_preprocessing(
                 effective_focus={"id": request_data.active_focus_id,
                                  "phase": ((request_data.focus_phase_state or {}).get(request_data.active_focus_id or "") or {}).get("phase_id")},
                 authoring_definitions=admitted_authoring_definitions(discovered_apps_metadata),
+                latest_request_has_upload=_current_turn_has_image_upload(request_data),
                 available_apps=available_app_ids,
                 forced_app_ids=forced_app_ids,
                 selected_app_ids=selected_app_ids,
@@ -3571,6 +3702,8 @@ async def handle_preprocessing(
     # Live inference snapshots must not enter durable summaries, recorder dumps,
     # logs or raw preprocessing receipts.
     preselected_rule_snapshots = llm_analysis_args.pop("relevant_rules", None)
+    wellbeing_scores_val = llm_analysis_args.pop("wellbeing_scores", None)
+    request_purpose_val = llm_analysis_args.pop("request_purpose", None)
     # Selected personal Memories (Auto include and Ask first alike) carry no body:
     # they become requests for the existing conversation flow (key "memory:<id>"),
     # answered by the client per its LOCAL load mode. Ids must be in the catalog.
@@ -3649,6 +3782,30 @@ async def handle_preprocessing(
 
     # Preliminary scores are candidate signals only. A user-visible block requires
     # separate deterministic confirmation with a supported category and exact evidence.
+    purpose_outcome = evaluate_request_purpose(request_purpose_val)
+    if purpose_outcome.action != "allow":
+        purpose_language = llm_analysis_args.get("output_language", user_system_language)
+        if not isinstance(purpose_language, str):
+            purpose_language = user_system_language
+        if purpose_outcome.strike:
+            purpose_message = await record_request_strike(
+                purpose_outcome, user_id=request_data.user_id,
+                assistant_response_id=request_data.message_id, language=purpose_language,
+                cache_service=cache_service, directus_service=directus_service,
+            )
+        else:
+            purpose_message = decline_message(purpose_outcome, purpose_language)
+        logger.warning(
+            f"{log_prefix} Request purpose declined: category={purpose_outcome.category}, "
+            f"strike={purpose_outcome.strike}"
+        )
+        return PreprocessingResult(
+            can_proceed=False,
+            rejection_reason=REQUEST_PURPOSE_REJECTION,
+            error_message=purpose_message,
+            raw_llm_response=llm_analysis_args,
+            output_language=purpose_language,
+        )
     safety_candidate = needs_safety_confirmation(
         harmful_or_illegal_val,
         misuse_risk_val,
@@ -3675,9 +3832,9 @@ async def handle_preprocessing(
                 f"reason={rejection_reason}, category={confirmation.category}, "
                 f"evidence_count={confirmation.evidence_count}"
             )
-            detected_language = llm_analysis_args.get("output_language", "en")
+            detected_language = llm_analysis_args.get("output_language", user_system_language)
             if not isinstance(detected_language, str):
-                detected_language = "en"
+                detected_language = user_system_language
             return PreprocessingResult(
                 can_proceed=False,
                 rejection_reason=rejection_reason,
@@ -4015,13 +4172,15 @@ async def handle_preprocessing(
     # --- Validate output_language field (ISO 639-1 two-letter code) ---
     # This is used for loading disclaimers and other user-facing messages in the correct language
     SUPPORTED_LANGUAGES = {"en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv"}
-    output_language_val = llm_analysis_args.get("output_language", "en")
-    if not isinstance(output_language_val, str) or output_language_val not in SUPPORTED_LANGUAGES:
+    # It is also the chat metadata language (language-preferences.chat-metadata-language):
+    # an unclear or invalid detection falls back to the displayed UI / account language.
+    raw_output_language = llm_analysis_args.get("output_language")
+    output_language_val = resolve_metadata_language(raw_output_language, user_system_language, SUPPORTED_LANGUAGES)
+    if output_language_val != raw_output_language:
         logger.warning(
-            f"{log_prefix} LLM returned invalid output_language '{output_language_val}'. "
-            f"Valid values are: {sorted(SUPPORTED_LANGUAGES)}. Defaulting to 'en'."
+            f"{log_prefix} LLM returned invalid output_language '{raw_output_language}'. "
+            f"Valid values are: {sorted(SUPPORTED_LANGUAGES)}. Using UI language '{output_language_val}'."
         )
-        output_language_val = "en"
         llm_analysis_args["output_language"] = output_language_val
     else:
         logger.info(f"{log_prefix} Detected output language: '{output_language_val}'")
@@ -4110,6 +4269,11 @@ async def handle_preprocessing(
             request_data.message_history,
             available_skill_ids,
         )
+        # A linked page to work through, or an answer inside a running Browse
+        # session (form filled together turn by turn), needs the real browser.
+        explicit_skill_mentions = list(dict.fromkeys(
+            explicit_skill_mentions + resolve_browse_intent(request_data.message_history, available_skill_ids)
+        ))
         natural_search_intents = _resolve_explicit_natural_search_intent(
             request_data.message_history,
             available_skill_ids,
@@ -4126,7 +4290,14 @@ async def handle_preprocessing(
                     f"{log_prefix} [RULE_BASED] Forced {forced_mentions} into preselected skills: "
                     "latest user message explicitly requested known app skill identifier(s)."
                 )
-        if natural_search_intents:
+        if natural_search_intents and _delegates_to_another_chat(validated_relevant_skills):
+            # The search wording is the brief for the started/addressed chat,
+            # not a request this chat should answer itself (feature.chat-orchestration).
+            logger.info(
+                f"{log_prefix} [RULE_BASED] Kept {validated_relevant_skills}: the search request is a brief "
+                "for another chat."
+            )
+        elif natural_search_intents:
             user_requested_skills_only = True
             validated_relevant_skills = natural_search_intents
             logger.info(
@@ -4134,6 +4305,15 @@ async def handle_preprocessing(
                 f"{natural_search_intents}: latest user message requested the corresponding "
                 "search or app skill."
             )
+
+    scoped_skills = focus_offered_skill_scope(
+        active_focus_id=request_data.active_focus_id, selected_skills=validated_relevant_skills,
+        available_skills=set(available_skill_ids or []), exact_request=user_requested_skills_only,
+    )
+    if scoped_skills != validated_relevant_skills:
+        logger.info(f"{log_prefix} [FOCUS_SKILLS] Active focus offers "
+                    f"{scoped_skills[len(validated_relevant_skills):]}")
+        validated_relevant_skills = scoped_skills
 
     # --- User override: explicit @focus mentions ---
     # When the user specifies focus mode(s) via @focus:app_id:focus_id, use only those and skip LLM selection.
@@ -4215,7 +4395,7 @@ async def handle_preprocessing(
     # planner the detailed pass ranked for this (multilingual) message, else the
     # generic planner; main processing then activates it immediately.
     if (user_overrides and user_overrides.plan_requested and not user_requested_focus_only
-            and not request_data.active_focus_id):
+            and not has_active_app_focus(request_data)):
         explicit_plan_focus = select_explicit_plan_focus(validated_relevant_focus_modes, available_focus_mode_ids)
         if explicit_plan_focus:
             validated_relevant_focus_modes = [explicit_plan_focus]
@@ -4600,6 +4780,7 @@ async def handle_preprocessing(
         category=validated_category or "general_knowledge",  # Use validated category, fallback to general_knowledge if None
         enable_subchats=enable_subchats_val,  # Set whether sub-chats are enabled for this request
         ai_model_topics=ai_model_topics,
+        wellbeing_scores=wellbeing_scores_val if isinstance(wellbeing_scores_val, dict) else None,
         selected_app_ids=final_selected_app_ids,
         context_fast_path=simple_context_fast_path,
         plain_prose_response=_plain_prose_routing_proof(
@@ -4646,22 +4827,14 @@ async def handle_preprocessing(
         error_message=None
     )
 
-    # Do not translate metadata in the critical preprocessing path. The main processor
-    # can start as soon as routing/safety/model metadata is ready; translated title or
-    # summary cleanup must be asynchronous and non-blocking. Same-language metadata is
-    # already correct, and cross-language cleanup can happen after main processing starts.
+    # The title is generated in the conversation language (output_language), so the
+    # critical preprocessing path never translates metadata.
     user_id_uuid_for_events = request_data.user_id
     chat_id_for_events = request_data.chat_id
-    if final_result.output_language == user_system_language:
-        logger.info(
-            f"{log_prefix} Skipping metadata translation: output_language matches UI language "
-            f"('{user_system_language}')."
-        )
-    else:
-        logger.info(
-            f"{log_prefix} Deferring metadata translation out of preprocessing critical path "
-            f"(chat_lang='{final_result.output_language}', ui_lang='{user_system_language}')."
-        )
+    logger.info(
+        f"{log_prefix} Metadata language: '{final_result.output_language}' "
+        f"(UI fallback '{user_system_language}')."
+    )
 
     # Emit title_generated immediately with the core preprocessing title. The frontend
     # listens to this event to display the chat title banner.

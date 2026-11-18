@@ -132,6 +132,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
     private let remoteClient: ProjectRemoteSourceClient
     private let listSourceRoot: @MainActor (ProjectWorkspaceProject, ProjectWorkspaceSource, ProjectsWorkspaceFence) async throws -> ProjectRemoteDirectory
     private let uploadService: ProjectUploadService
+    private let projectFiles: any ProjectFileCreating
     private let validateFence: @MainActor (ProjectsWorkspaceFence) async throws -> Void
     private var accountID: String?
     private var teamID: String?
@@ -152,6 +153,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
     init(service: any ProjectsWorkspaceServing = ProjectsWorkspaceService(),
          remoteClient: ProjectRemoteSourceClient = ProjectRemoteSourceClient(),
          uploadService: ProjectUploadService = ProjectUploadService(),
+         projectFiles: any ProjectFileCreating = CoreProjectFiles(),
          listSourceRoot: (@MainActor (ProjectWorkspaceProject, ProjectWorkspaceSource, ProjectsWorkspaceFence) async throws -> ProjectRemoteDirectory)? = nil,
          validateFence: @escaping @MainActor (ProjectsWorkspaceFence) async throws -> Void = { try await $0.check() }) {
         self.service = service
@@ -160,6 +162,7 @@ final class ProjectsWorkspaceStore: ObservableObject {
             try await remoteClient.list(project: project, source: source, path: ".", maxEntries: 12, fence: fence)
         }
         self.uploadService = uploadService
+        self.projectFiles = projectFiles
         self.validateFence = validateFence
     }
 
@@ -889,6 +892,29 @@ final class ProjectsWorkspaceStore: ObservableObject {
             itemEmbedPreviews[item.id] = skill.primaryEmbed
         }
         #endif
+    }
+
+    /// Creates an empty document, sheet, slide deck or code file named `name` in
+    /// `folderID` through the core, reloads the Project and returns the new item
+    /// so the caller opens it like any Project file. Nil on refusal or failure
+    /// (`errorMessage` is set). Web: ProjectsPage `createProjectFile`.
+    func createFile(kind: ProjectDocumentKind, name: String, folderID: String?) async -> ProjectWorkspaceItem? {
+        guard let project = selectedProject, accountID != nil, !isSaving,
+              project.permissions.manageOwnItems || project.permissions.manageAnyItems else { return nil }
+        let requestGeneration = generation
+        isSaving = true
+        errorMessage = nil
+        defer { if requestGeneration == generation { isSaving = false } }
+        do {
+            let created = try await projectFiles.createProjectFile(projectId: project.id,
+                teamId: project.teamId, kind: kind, name: name, folderId: folderID)
+            guard requestGeneration == generation, selectedProjectID == project.id else { return nil }
+            await reloadSelected()
+            return items.first { $0.targetID == created.embedId }
+        } catch {
+            if requestGeneration == generation { errorMessage = AppStrings.projectCreateFileFailed }
+            return nil
+        }
     }
 
     func uploadFile(url: URL, folderID: String?) async {

@@ -12,9 +12,11 @@
 // correction). The cache is still cleared entirely when setKeyWithProvenance fires.
 
 /**
- * Keyed by chatId → Set of "messageId:fieldName:keyFingerprint" strings that
+ * Keyed by chatId → Set of "subject:fieldName:keyFingerprint" strings that
  * permanently failed decryption. Cleared when a new key is loaded for a chat
- * or on logout.
+ * or on logout. Callers pass `failureSubject(messageId, ciphertext)` as the
+ * subject, so a failure belongs to one ciphertext: a row rewritten under the
+ * same message id (a streamed reply finished later) is decrypted again.
  */
 const decryptionFailureCache = new Map<string, Set<string>>();
 
@@ -29,6 +31,14 @@ export function clearDecryptionFailureCache(chatId?: string): void {
   } else {
     decryptionFailureCache.clear();
   }
+}
+
+/**
+ * The cache subject for one stored ciphertext of a message field. The tail of
+ * the base64 value covers the AES-GCM tag, which differs for every encryption.
+ */
+export function failureSubject(messageId: string, ciphertext: string): string {
+  return `${messageId}#${ciphertext.length}.${ciphertext.slice(-24)}`;
 }
 
 /** Check if a message field is known to fail decryption with the given key. */

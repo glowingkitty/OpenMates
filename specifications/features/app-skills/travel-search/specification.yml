@@ -3,8 +3,9 @@ id: feature.app-skill.travel-search
 version: 1
 status: draft
 title: Travel Connection Search
-summary: Connection discovery is unavailable; saved route, timing, source uncertainty and grouped itinerary history
-  remain readable.
+summary: Connection discovery runs only through operator-installed providers and is unavailable without one; travellers
+  with a regional pass get mixed routes that combine pass-covered and paid parts, ranked by what they actually pay;
+  saved route, timing, source uncertainty and grouped itinerary history remain readable.
 
 inherits:
   - architecture.app-skill-execution@1
@@ -14,10 +15,13 @@ scope:
   includes:
   - Explicit unavailable behavior for connection and stay discovery through the shared provider boundary.
   - Generic saved connection, segment and layover schemas with source-faithful display.
+  - Mixed routes for travellers with an owned pass, composed from the results of operator-installed providers.
   excludes:
   - Guaranteeing vehicle capacity, boarding, or provider uptime
   - Inventing a more specific disruption cause than the source supplies
   - Ticket issuance, refunds, or merchant-of-record responsibilities
+  - Discount cards that only reduce a fare; their price comes from the provider, not from composition
+  - Storing owned passes as a travel setting (passes come from the request)
 
 models:
   TravelSearchRequestItem:
@@ -70,6 +74,32 @@ models:
     legs: {type: array, required: true, items: TravelLegResult}
     transfer_quality: {type: object, nullable: true}
     optimization: {type: object, nullable: true}
+    tickets: {type: array, nullable: true, items: TravelTicketPart}
+    route_composition: {type: object, nullable: true, items: TravelRouteComposition}
+
+  OwnedPass:
+    id: {type: enum, values: [deutschland_ticket, klimaticket_oesterreich, swiss_ga]}
+    coverage:
+      type: object
+      constraints: {countries_and_product_classes: true, both_segment_endpoints_inside: true}
+
+  TravelTicketPart:
+    route: {type: string, required: true, constraints: {from_to_in_travel_order: true}}
+    departure: {type: string, required: true}
+    arrival: {type: string, required: true}
+    coverage: {type: enum, values: [pass, paid, unknown_fare], required: true}
+    pass_id: {type: string, nullable: true}
+    price: {type: number, nullable: true}
+    currency: {type: string, nullable: true}
+    booking_url: {type: string, nullable: true}
+    booking_provider: {type: string, nullable: true}
+
+  TravelRouteComposition:
+    kind: {type: enum, values: [pass_then_paid, paid_then_pass]}
+    hub: {type: string, required: true}
+    transfer_minutes: {type: integer, required: true}
+    separate_tickets: {type: boolean, required: true, constraints: {always_true: true}}
+    savings: {type: object, nullable: true, constraints: {amount_currency_and_compared_route: true}}
 
 assertions:
 - id: travel-search.realtime.source-faithful
@@ -91,6 +121,41 @@ assertions:
     transport mode.
   depends_on:
   - examples.boundary_and_history
+- id: travel-search.mixed-routes.pass-hub-composition
+  type: behavior
+  must: When a request names an owned pass that covers the origin side or the destination side of a route that
+    leaves the pass area, the search also composes routes that use the pass up to a transfer hub and a paid
+    connection from or to that hub. Hubs come from public geographic hub data, limited to the three with the
+    least detour. Every part is a real result of an installed provider; times, stations and prices are never
+    invented, and the single-provider results stay in the list. A composed route that a single-provider route
+    beats on both price and duration is left out.
+- id: travel-search.mixed-routes.pass-coverage-conservative
+  type: invariant
+  must: A part counts as covered by a pass only when its provider says so, or when every segment of the part has
+    a product class the pass covers and both ends of every segment lie inside the pass area. Anything else is
+    paid or of unknown fare, never free.
+- id: travel-search.mixed-routes.transfer-buffer
+  type: invariant
+  must: A composed transfer leaves at least the larger of the requested minimum transfer and 20 minutes, and at
+    least 45 minutes when the parts change between rail and bus or use different stops. Composed routes say
+    that they need separate tickets and carry no connection guarantee.
+- id: travel-search.mixed-routes.total-price-ranking
+  type: behavior
+  must: With an owned pass, results rank by the amount the traveller pays (pass-covered parts cost nothing,
+    routes with a part of unknown fare come after fully priced ones), then by duration, then by changes. A
+    composed route states its saving against the cheapest priced single-provider route only when both prices
+    are known.
+- id: travel-search.mixed-routes.per-ticket-display
+  type: behavior
+  must: A composed route lists its tickets in travel order, each with its route part and times, and either the
+    pass that covers it or its price and where to book it. REST, CLI, SDKs and web show these parts; the
+    assistant's answer names which ticket covers which part.
+- id: travel-search.mixed-routes.provider-neutral-and-bounded
+  type: security
+  must: Composition works only through the generic installed-provider contract, so public code, data and copy
+    name no provider. It adds at most two provider searches per hub, reuses identical searches within 15
+    minutes, and composes nothing when the request names its providers or has no owned pass. Hub searches
+    stop after 30 seconds; the traveller then still gets the ranked single-provider results.
 - id: travel-search.surface-parity
   type: parity
   must: REST, CLI, npm/pip SDKs and web/Apple preserve the same unavailable behavior for new searches and generic
@@ -119,6 +184,7 @@ examples:
   file: examples.yml
   required_groups:
   - boundary_and_history
+  - mixed_routes
 
 approval_source:
   instruction: The user approved the provider-boundary plan and requested implementation in the current Codex task

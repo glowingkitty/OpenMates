@@ -26,8 +26,10 @@
 // Not rendered natively yet (data or renderer missing, stated in the plan):
 // - the live partial SVG drawing (needs a sanitized streaming SVG renderer; the
 //   card shows the letterbox surface and stage label instead),
-// - the message-scoped version badge ("v2/3"), which the Rust core resolves on
-//   the web and the Apple binding does not expose to this renderer.
+// - the message-scoped version resolution (which version a chat message pins)
+//   is done by the core on the web; here the caller passes `version` and
+//   `headVersion`, and ImageVersionBadge draws the "vN" pill. The version list
+//   and restore live in the fullscreen container (EmbedVersionEditControls).
 
 import SwiftUI
 #if os(iOS)
@@ -41,6 +43,10 @@ struct ImageGenerateEmbedRenderer: View {
     let mode: EmbedDisplayMode
     let status: EmbedStatus
     let skillId: String
+    /// Version this card shows and the head version (both from the core's embed
+    /// head); the "vN" badge appears only when the head is above one.
+    let version: Int?
+    let headVersion: Int?
     private let state: ImageGenerateCardState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var skeletonDimmed = false
@@ -48,7 +54,10 @@ struct ImageGenerateEmbedRenderer: View {
     @State private var previewCopiedPrompt: String?
     #endif
 
-    init(data: [String: AnyCodable]?, mode: EmbedDisplayMode, status: EmbedStatus = .finished, skillId: String = "generate") {
+    init(data: [String: AnyCodable]?, mode: EmbedDisplayMode, status: EmbedStatus = .finished, skillId: String = "generate",
+         version: Int? = nil, headVersion: Int? = nil) {
+        self.version = version
+        self.headVersion = headVersion
         self.data = data
         self.mode = mode
         self.status = status
@@ -102,6 +111,7 @@ struct ImageGenerateEmbedRenderer: View {
                 )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay { ImageVersionBadge(version: version, headVersion: headVersion) }
             .clipped()
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(prompt ?? AppStrings.imageGenerateSkillGenerate)

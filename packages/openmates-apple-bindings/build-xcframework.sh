@@ -207,6 +207,14 @@ generate_host_bindings() {
 if [[ "$mode" == xcode-phase ]]; then
   platform="${PLATFORM_NAME:?}"
   archs="${ARCHS:-${CURRENT_ARCH:?}}"
+  # cc-rs asks xcrun for the SDK of iOS/watchOS targets, but for a macOS
+  # target it runs the toolchain `cc` that Xcode put on PATH, which has no
+  # default sysroot ("TargetConditionals.h not found" in ring). The macOS SDK
+  # is also the host SDK, so build scripts keep working.
+  if [[ "$platform" == macosx ]]; then
+    SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+    export SDKROOT
+  fi
   libraries=()
   for arch in $archs; do
     source_std=false

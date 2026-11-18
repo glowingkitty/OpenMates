@@ -1,0 +1,78 @@
+schema_version: 1
+id: feature.answer-safety-check
+version: 1
+status: draft
+title: Answer Safety Check
+summary: >
+  Every finished assistant answer is checked together with its request. An answer is withdrawn
+  only when it contains illegal content or puts the user's wellbeing at risk; the user then sees
+  a calm, localized notice instead of the answer and never gets a strike for it. Answers are
+  checked while they stream only in risky chats, so ordinary chats pay nothing extra.
+
+scope:
+  includes:
+    - The check of every finished answer, reusing the existing postprocessing decision call.
+    - Withdrawal of an answer for illegal content or a wellbeing risk, with a localized notice.
+    - Live checks during streaming in risky chats only, at a fixed interval and with a cap.
+  excludes:
+    - Strikes and suspensions (feature.safety-strikes); a withdrawn answer never strikes.
+    - Request-side declines (feature.chat-request-safety, feature.safety-strikes).
+    - Wellbeing support itself (feature.wellbeing-support).
+
+models:
+  AnswerWithdrawal:
+    reason:
+      type: enum
+      required: true
+      values: [illegal, wellbeing]
+    notice_text:
+      type: string
+      required: true
+      description: Localized notice that replaces the withdrawn answer in the user's language.
+
+assertions:
+  - id: answer-safety-check.every-answer-checked
+    type: behavior
+    must: Every finished assistant answer is checked with its request; where postprocessing already runs the check reuses its decision call, and only where postprocessing is skipped one minimal extra call carries the safety questions. A missing decision model is an error, never a silent pass.
+    depends_on: [examples.checks]
+  - id: answer-safety-check.withdraw-only-illegal-or-wellbeing
+    type: behavior
+    must: An answer is withdrawn only for illegal content or a wellbeing risk, judged at a high score; a merely harmful-sounding or uncomfortable answer stays. The withdrawn answer is replaced on every client and in any server cache by a localized notice that names the kind of reason.
+    depends_on: [models.AnswerWithdrawal, examples.withdrawals]
+  - id: answer-safety-check.no-strike
+    type: invariant
+    must: A withdrawn answer never records a strike, suspends or warns the user about strikes.
+    depends_on: [examples.withdrawals]
+  - id: answer-safety-check.replace-only-withdrawn
+    type: invariant
+    must: A stored assistant message can be overwritten with the withdrawal notice only when the server itself withdrew that message, for the chat's owner and for an existing assistant message; any other overwrite request is refused. The notice is sealed with the chat key on the client, so the server never stores it in plaintext.
+    depends_on: [examples.withdrawals]
+  - id: answer-safety-check.live-checks-risky-only
+    type: behavior
+    must: While an answer streams, it is checked only in risky chats (a raised wellbeing level or a flagged request), at a fixed character interval and with a small cap per answer; a live withdrawal stops the stream. Ordinary chats get no live checks.
+    depends_on: [examples.checks]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Existing first-party chat processing; no new endpoint. The withdrawal reaches clients as a chat event.
+  cli:
+    required: true
+    parity: semantic
+    role: The CLI shows the notice in place of the answer.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [checks, withdrawals]

@@ -52,9 +52,7 @@ async function unwrapTeamOrDirectChatKey(teamId: string, chatId: string, encrypt
 }
 import { isActiveTeamContext } from "../stores/teamStore";
 /** Opt-in shared Rust core build: sync decisions run in the shared Worker `sync` unit. */
-// Measurement-only opt-out (`openmates_rust_core_sync` = 'ts'), read once per page load.
-const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 function rustSyncPolicy() {
   return import("./rustCore/sync/rustChatSyncPolicy");
 }
@@ -158,6 +156,7 @@ export function buildMetadataOnlyChatFromDetails(
       details.encrypted_suggested_followup_message || null,
     encrypted_active_focus_id: details.encrypted_active_focus_id || null,
     encrypted_focus_phase_state: details.encrypted_focus_phase_state || null,
+    encrypted_wellbeing_scores: details.encrypted_wellbeing_scores || null,
     encrypted_auto_speak_response: details.encrypted_auto_speak_response || null,
     pinned: details.pinned || false,
     is_shared: details.is_shared ?? false,

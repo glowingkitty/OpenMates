@@ -42,3 +42,17 @@ export async function waitForSettingsView(
 		throw error;
 	}
 }
+
+/**
+ * Opens one app's settings the way a user does: the app page in the Apps
+ * workspace, then its settings button. Legacy `#settings/apps/...` links now
+ * forward to the app page instead of the settings menu.
+ */
+export async function openAppSettings(page: Page, appUrl: string, appId: string) {
+	await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+	await expect(page.getByTestId('apps-detail-fullscreen')).toBeVisible({ timeout: 30_000 });
+	await page.getByTestId('apps-settings-open').click();
+	const menu = page.locator(`[data-testid="settings-menu"][data-active-view="apps/${appId}"]`);
+	await expect(menu).toBeVisible({ timeout: 15_000 });
+	return menu;
+}

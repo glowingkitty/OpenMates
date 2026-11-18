@@ -2,7 +2,7 @@ schema_version: 1
 milestones:
   - tag: v0.10.0-alpha
     commit: f485d2f8d8c9c486d79cafbb0738d20d7f54ae60
-    title: "v0.10 Alpha: apps, sharing, and payments"
+    title: "v0.10: apps, sharing, and payments"
     prerelease: true
     historical_backfill: true
     original_release_window: "2026-05-21 to 2026-05-22"
@@ -37,7 +37,7 @@ milestones:
         status: unavailable
   - tag: v0.11.0-alpha
     commit: 688bca4e12537a431082bf1d6658d51b168829b7
-    title: "v0.11 Alpha: code tools and media creation"
+    title: "v0.11: code tools and media creation"
     prerelease: true
     historical_backfill: true
     original_release_window: "2026-05-26 to 2026-06-13"
@@ -70,7 +70,7 @@ milestones:
         status: unavailable
   - tag: v0.12.0-alpha
     commit: 74c88b619767753063bb294f36d1b55ed8c282d0
-    title: "v0.12 Alpha: SDK and video workflows"
+    title: "v0.12: SDK and video workflows"
     prerelease: true
     historical_backfill: true
     original_release_window: "2026-06-13 to 2026-06-20"
@@ -102,7 +102,7 @@ milestones:
         status: unavailable
   - tag: v0.13.0-alpha
     commit: 83d2504fcf0b47fe84458371ca71951dbf3dd628
-    title: "v0.13 Alpha: CLI, projects, and guest experience"
+    title: "v0.13: CLI, projects, and guest experience"
     prerelease: true
     historical_backfill: true
     original_release_window: "2026-06-22"
@@ -134,7 +134,7 @@ milestones:
         status: unavailable
   - tag: v0.14.0-alpha
     commit: 3eb0b67e2fb69cea5ad2c2ff8536df308da9880a
-    title: "v0.14 Alpha: release automation, package publishing, and platform polish"
+    title: "v0.14: release automation, package publishing, and platform polish"
     prerelease: true
     historical_backfill: false
     original_release_window: "2026-07-08 to 2026-07-09"

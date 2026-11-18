@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.assistant-authored-result-embeds
 version: 1
-status: draft
+status: approved
 title: Assistant-Authored Rich Result Embeds
 summary: >
   Turn researched, supplied, or explicitly requested draft information into
@@ -159,6 +159,8 @@ assertions:
       dates, place details, product specifications, job terms, recipe ingredients
       and steps, repository metadata, classes, and sourced observation fields.
       Optional facts may be omitted without fabricating values.
+      Travel times show the station's own wall-clock time and readable dates,
+      never a raw timestamp or a time shifted into the viewer's zone.
       Preserve all-day dates, offsets, unknown times, and per-segment timezones;
       reject impossible supplied dates, invalid coordinates, and malformed
       required values with a readable validation outcome.
@@ -199,7 +201,11 @@ assertions:
       inaccessible references. Bound input sizes and item counts, show clear
       limit or per-item validation outcomes, and preserve valid independent
       items and their order when another item fails. Opening a member shows
-      that member's existing rich fullscreen view.
+      that member's existing rich fullscreen view. An item may name a skill
+      result card of the same chat and owner as an existing reference, and a
+      researched item whose identity facts (for a connection: exact departure
+      and arrival instants) match such a card reuses that complete card instead
+      of storing a thinner copy without its legs, stations, map or provider.
     depends_on: [examples.groups]
   - id: authored-results.maps.source-faithful-geometry
     type: invariant
@@ -223,7 +229,9 @@ assertions:
       fullscreen of its own. It offers a Calendar view when any member has a
       usable date, a Map view when any member has usable coordinates or a route,
       and a switch between them when both exist; members lacking both remain in
-      the list. Opening a member shows that member's own fullscreen. A single
+      the list. While the Calendar view scrolls, the week toolbar and day
+      headers stay at its top and the hour column stays at its left edge.
+      Opening a member shows that member's own fullscreen. A single
       card appears as that card's own preview. The stored group record only keeps
       membership and order and is not shown as a separate element.
     depends_on: [examples.presentation]

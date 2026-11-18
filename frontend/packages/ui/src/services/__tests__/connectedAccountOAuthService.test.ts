@@ -17,6 +17,7 @@ import {
 	buildEncryptedConnectedAccountRow,
 	claimOAuthHandoff,
 	finalizeOAuthHandoffAsConnectedAccount,
+	startFigmaOAuth,
 	startGoogleCalendarOAuth
 } from '../connectedAccountOAuthService';
 
@@ -26,6 +27,7 @@ describe('connectedAccountOAuthService', () => {
 		vi.clearAllMocks();
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('starts Google Calendar OAuth with credentials and capability body', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
 			new Response(
@@ -49,6 +51,54 @@ describe('connectedAccountOAuthService', () => {
 		});
 	});
 
+	// contract-test: supporting surface=gui.web assertions=design-figma.connection.oauth
+	it('starts Figma OAuth with the provider path and design return path', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					authorization_url: 'https://example.org/oauth?state=s',
+					state_expires_at: 1760000000,
+					scopes: ['file_content:read']
+				}),
+				{ status: 200, headers: { 'Content-Type': 'application/json' } }
+			)
+		);
+
+		await expect(startFigmaOAuth({ capabilities: ['read', 'variables'] })).resolves.toMatchObject({
+			scopes: ['file_content:read']
+		});
+		expect(fetchMock).toHaveBeenCalledWith('https://api.test/v1/provider-oauth/figma/start', {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ capabilities: ['read', 'variables'], return_path: '/#settings/apps/design' })
+		});
+	});
+
+	// contract-test: supporting surface=gui.web assertions=design-figma.connection.oauth
+	it('stores a figma handoff as a design-app row with the figma provider hash', async () => {
+		const row = await buildEncryptedConnectedAccountRow({
+			connectedAccountId: 'acct-figma',
+			handoff: {
+				provider_id: 'figma',
+				refresh_token_bundle: { refresh_token: 'secret-refresh', scopes: ['file_content:read'] },
+				account_hint: { account_ref: 'figma-user', capabilities: ['read', 'variables'] },
+				expires_at: 1760000000
+			}
+		});
+
+		expect(row).toMatchObject({ id: 'acct-figma', provider_type_hash: 'hash:figma' });
+		expect(vi.mocked(encryptWithMasterKey)).toHaveBeenCalledWith(
+			expect.stringContaining('"app_id":"design"')
+		);
+		expect(vi.mocked(encryptWithMasterKey)).toHaveBeenCalledWith(
+			expect.stringContaining('"allowed_actions":["read"]')
+		);
+		expect(vi.mocked(encryptWithMasterKey)).toHaveBeenCalledWith('Figma');
+		expect(JSON.stringify(row)).not.toContain('secret-refresh');
+	});
+
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('claims OAuth handoffs with a one-time authenticated POST', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
 			new Response(
@@ -71,6 +121,7 @@ describe('connectedAccountOAuthService', () => {
 		);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('encrypts handoff payloads into connected-account rows without plaintext keys', async () => {
 		const row = await buildEncryptedConnectedAccountRow({
 			connectedAccountId: 'acct-1',
@@ -107,6 +158,7 @@ describe('connectedAccountOAuthService', () => {
 		expect(JSON.stringify(row)).not.toContain('"scopes"');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('finalizes a handoff by claiming then storing the encrypted row', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(
@@ -140,6 +192,7 @@ describe('connectedAccountOAuthService', () => {
 		expect(JSON.stringify(storageCall[1])).not.toContain('secret-refresh');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('finalizes an account update with a PATCH and merged capability envelope', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch')
 			.mockResolvedValueOnce(

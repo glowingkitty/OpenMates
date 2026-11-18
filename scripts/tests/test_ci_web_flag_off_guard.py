@@ -46,3 +46,11 @@ def test_scan_ignores_generated_documentation_pages(tmp_path):
     out = "\n".join(guard.scan(tmp_path, {"unit_unavailable"}, set()))
     assert "docs/status.html" not in out
     assert "app.js: markers" in out
+
+
+# contract-test: infrastructure
+def test_scan_reports_a_lone_rust_core_source_path_without_crashing(tmp_path):
+    (tmp_path / "turns.js").write_text("const modules=new Set(['services/rustCore/voice/x.ts'])")
+    out = "\n".join(guard.scan(tmp_path, {"install_failed"}, {"worker.entry"}))
+    assert "turns.js: markers ['rustCore/ source path']" in out
+    assert "services/rustCore/voice/x.ts" in out

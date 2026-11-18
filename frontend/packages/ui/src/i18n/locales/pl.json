@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Ta odpowiedź została usunięta, ponieważ nie spełniała naszych zasad bezpieczeństwa."
+    },
+    "wellbeing": {
+      "text": "Usunąłem swoją ostatnią odpowiedź, ponieważ mogła ci zaszkodzić. Nie jesteś sam. Jeśli myślisz o skrzywdzeniu siebie, skontaktuj się z zaufaną osobą, lokalną linią kryzysową lub służbami ratunkowymi. Nadal tu jestem, żeby porozmawiać."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -134,6 +142,12 @@
         "text": "Zaplanuj rundę finansowania",
         "description": {
           "text": "Ustal, ile pozyskać, jaki instrument pasuje, jakie będzie rozwodnienie i harmonogram, z edytowalnym arkuszem cap table."
+        }
+      },
+      "write_press_release": {
+        "text": "Napisz informację prasową",
+        "description": {
+          "text": "Napisz informację prasową, z której dziennikarze mogą korzystać, w stylu prasowym Twojej firmy, jako dokument Word lub w innym wybranym formacie."
         }
       }
     },
@@ -221,6 +235,12 @@
         "description": {
           "text": "Przeprowadź audyt plików konfiguracyjnych pod kątem luk bezpieczeństwa i ekspozycji."
         }
+      },
+      "write_specification": {
+        "text": "Napisz specyfikację",
+        "description": {
+          "text": "Zamień pomysł w zatwierdzoną specyfikację krok po kroku - zakres, wymagania, projekt i testy akceptacyjne - a potem rozpocznij plan z zadaniami."
+        }
       }
     },
     "events": {
@@ -303,6 +323,12 @@
         "description": {
           "text": "Potężna technika coachingu życiowego."
         }
+      },
+      "life_compass": {
+        "text": "Kompas życiowy",
+        "description": {
+          "text": "Znajdź swój kierunek ku szczęśliwszemu życiu, małymi krokami."
+        }
       }
     },
     "news": {
@@ -358,6 +384,20 @@
           "3": {
             "text": "Zbadaj fakty i kontrargumenty, zanim omówię tę **politykę klimatyczną** ze sceptycznym znajomym"
           }
+        }
+      }
+    },
+    "slides": {
+      "design_template": {
+        "text": "Zaprojektuj szablon",
+        "description": {
+          "text": "Zaprojektuj krok po kroku szablon slajdów wielokrotnego użytku - trzy projekty do wyboru, dopracowane razem z Tobą i zapisane w Twojej bibliotece."
+        }
+      },
+      "plan_presentation": {
+        "text": "Zaplanuj prezentację",
+        "description": {
+          "text": "Zaplanuj prezentację krok po kroku - cel, historia, jedna myśl na slajd, projekt - a potem utwórz slajdy z notatkami prelegenta i przejrzyj je."
         }
       }
     },
@@ -910,6 +950,12 @@
         "description": {
           "text": "Zamień grafikę wektorową na pliki dla hafciarki z podglądem ściegów."
         }
+      },
+      "get_design": {
+        "text": "Pobierz projekt",
+        "description": {
+          "text": "Odczytuje projekt Figma i zwraca strukturę, style oraz przekazanie do kodu."
+        }
       }
     },
     "electronics": {
@@ -947,6 +993,9 @@
           "3": {
             "text": "Jakie wydarzenia technologiczne odbywają się w Londynie w styczniu?"
           }
+        },
+        "pricing_note": {
+          "text": "Typowe wyszukiwanie wydarzeń kosztuje około 15–25 kredytów: 10 kredytów za wyszukiwanie w sieci plus tokeny, których Mercury 3 używa do przeczytania maksymalnie pięciu publicznych stron. Wyszukiwanie, na które odpowiada tylko oficjalny harmonogram konferencji, kosztuje 1 kredyt. Wyszukiwania nieudane lub bez wyników są bezpłatne."
         }
       }
     },
@@ -2885,6 +2934,21 @@
       "structured": {
         "text": "Treść"
       },
+      "player_label": {
+        "text": "Odtwarzacz odpowiedzi głosowej"
+      },
+      "pause": {
+        "text": "Wstrzymaj odpowiedź głosową"
+      },
+      "play": {
+        "text": "Odtwórz odpowiedź głosową"
+      },
+      "previous_chapter": {
+        "text": "Poprzedni rozdział: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Następny rozdział: {chapter}"
+      },
       "speak_response": {
         "text": "Odczytaj odpowiedź"
       },
@@ -3353,6 +3417,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3852,6 +3917,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "Administrator"
@@ -3941,6 +4007,12 @@
     },
     "download": {
       "text": "Pobierz"
+    },
+    "download_pdf": {
+      "text": "Pobierz PDF"
+    },
+    "download_word": {
+      "text": "Pobierz Word"
     },
     "loading": {
       "text": "Ładowanie..."
@@ -5926,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Twoje konto OpenMates jest zawieszone"
+      },
+      "headline": {
+        "text": "Twoje konto jest zawieszone"
+      },
+      "body": {
+        "text": "Nasze kontrole bezpieczeństwa odrzuciły prośby z Twojego konta."
+      },
+      "appeal": {
+        "text": "Masz 14 dni na odwołanie. Możesz też pobrać swoje dane."
+      },
+      "button": {
+        "text": "Odwołaj się lub pobierz moje dane"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Potrzebujemy więcej informacji o Twoim koncie"
+      },
+      "headline": {
+        "text": "Potrzebujemy jeszcze trochę informacji"
+      },
+      "body": {
+        "text": "Sprawdzamy zawieszenie Twojego konta i mamy pytanie:"
+      },
+      "button": {
+        "text": "Odpowiedz w aplikacji"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Twoje konto OpenMates jest znowu aktywne"
+      },
+      "headline": {
+        "text": "Twoje konto jest znowu aktywne"
+      },
+      "body": {
+        "text": "Sprawdziliśmy zawieszenie Twojego konta i je zniosliśmy. Twoje naruszenia zostały wyczyszczone i możesz korzystać z OpenMates jak dawniej."
+      },
+      "apology": {
+        "text": "Przepraszamy za utrudnienia."
+      }
     }
   },
   "embed_user_edits": {},
@@ -7622,7 +7739,7 @@
         "text": "{used} / {limit} kredytów"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "Logujesz się w przeglądarce w chmurze. Gdy pozwolisz AI kontynuować, będzie mogła uzyskać dostęp do informacji na tym koncie. Odpowiednia treść stron może być wysyłana do naszych dostawców AI. Loguj się tylko na konta, do których chcesz dać AI dostęp."
@@ -7823,6 +7940,42 @@
     },
     "slides_count_plural": {
       "text": "slajdów"
+    },
+    "slides_template_default_title": {
+      "text": "Szablon"
+    },
+    "slides_template_label": {
+      "text": "Szablon"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} układów"
+    },
+    "slides_template_use": {
+      "text": "Użyj tego projektu"
+    },
+    "slides_template_use_message": {
+      "text": "Użyj projektu \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Tytuł"
+    },
+    "slides_layout_section": {
+      "text": "Sekcja"
+    },
+    "slides_layout_content": {
+      "text": "Treść"
+    },
+    "slides_layout_two_column": {
+      "text": "Dwie kolumny"
+    },
+    "slides_layout_image": {
+      "text": "Obraz"
+    },
+    "slides_layout_quote": {
+      "text": "Cytat"
+    },
+    "slides_layout_closing": {
+      "text": "Zakończenie"
     },
     "slides_prev": {
       "text": "Poprzedni slajd"
@@ -8460,6 +8613,54 @@
     },
     "progress_result_one": {
       "text": "1 wynik"
+    },
+    "slides_template_pick": {
+      "text": "Szablon"
+    },
+    "slides_template_picker_title": {
+      "text": "Wybierz szablon"
+    },
+    "slides_template_builtin": {
+      "text": "Wbudowane"
+    },
+    "slides_template_library_personal": {
+      "text": "Twoja biblioteka"
+    },
+    "slides_template_library_team": {
+      "text": "Biblioteka zespołu"
+    },
+    "slides_template_updated": {
+      "text": "Zaktualizowano"
+    },
+    "slides_template_apply": {
+      "text": "Zastosuj szablon"
+    },
+    "slides_template_apply_failed": {
+      "text": "Nie udało się zastosować szablonu"
+    },
+    "slides_template_library_empty": {
+      "text": "Brak zapisanych szablonów"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -8491,55 +8692,6 @@
       },
       "remove_pending_file": {
         "text": "Usuń plik"
-      }
-    },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} załącznik {type}"
-      },
-      "embed_many": {
-        "text": "{count} załączników {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "obraz"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "strona internetowa"
-        },
-        "video": {
-          "text": "wideo"
-        },
-        "map": {
-          "text": "mapa"
-        },
-        "code": {
-          "text": "kod"
-        },
-        "document": {
-          "text": "dokument"
-        },
-        "sheet": {
-          "text": "arkusz"
-        },
-        "file": {
-          "text": "plik"
-        },
-        "app": {
-          "text": "aplikacja"
-        },
-        "embed": {
-          "text": "osadzony"
-        }
       }
     },
     "file_size_limits": {
@@ -8800,6 +8952,27 @@
     },
     "xlsx_feature_sheet_limit": {
       "text": "arkusze po pierwszych 10"
+    },
+    "guest_access_checking": {
+      "text": "Sprawdzamy, czy możesz czatować bez konta…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Logowałeś się już na tym urządzeniu. Zaloguj się, aby dalej czatować."
+    },
+    "guest_access_usage_limit": {
+      "text": "Darmowe wiadomości bez konta na razie się skończyły. Zarejestruj się, aby dalej czatować."
+    },
+    "guest_access_unavailable": {
+      "text": "Czat bez konta jest teraz niedostępny. Zarejestruj się, aby czatować."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Nie udało się sprawdzić, czy możesz czatować bez konta. Sprawdź połączenie lub zarejestruj się, aby czatować."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Wysyłanie plików wymaga konta. Zarejestruj się, aby to wysłać, lub usuń plik, aby czatować za darmo."
+    },
+    "guest_send_timeout": {
+      "text": "Wysyłanie trwa zbyt długo, więc wiadomość nie została wysłana. Sprawdź połączenie i spróbuj ponownie."
     },
     "mention_dropdown": {
       "header": {
@@ -10735,6 +10908,21 @@
         "text": "Przygotuj krótki e-mail do inwestora, wiadomość polecającą do przekazania wspólnemu znajomemu i dwa follow-upy."
       }
     },
+    "business_write_press_release": {
+      "text": "Napisz informację prasową",
+      "description": {
+        "text": "Napisz informację prasową, z której dziennikarze mogą korzystać, w stylu prasowym Twojej firmy, jako dokument Word lub w innym wybranym formacie."
+      },
+      "process": {
+        "text": "- Korzysta z zapisanego stylu prasowego (nazwy, opis firmy, rzecznicy, kontakt, ton) albo najpierw tworzy go na podstawie wcześniejszych informacji, kilku pytań lub neutralnych ustawień\n\n- Proponuje zapisanie stylu w Twoim projekcie, aby każda kolejna informacja brzmiała tak samo\n\n- Pyta tylko o to, czego brakuje do newsa, po jednym pytaniu naraz, i szczerze mówi, gdy temat jest słaby informacyjnie\n\n- Pokazuje propozycje nagłówka, lead i fakty, których użyje, abyś mógł je poprawić, zanim cokolwiek powstanie\n\n- Pisze informację z nagłówkiem, miejscem i datą, leadem, cytatami, opisem firmy i kontaktem dla mediów, domyślnie jako dokument Word, a na życzenie jako PDF, HTML lub React\n\n- Używa tylko faktów, które potwierdzisz, nigdy nie wymyśla cytatów i oznacza każdy cytat do zatwierdzenia\n\n- Sprawdza wynik i proponuje e-mail z ofertą tematu dla dziennikarzy, post w mediach społecznościowych lub tłumaczenie"
+      },
+      "how_to_use": {
+        "text": "- Napisz **informację prasową** o premierze naszej aplikacji 18 listopada. Oto nasze dwie ostatnie informacje\n\n- Stwórz nasz **styl prasowy** na podstawie strony internetowej i zapisz go w tym projekcie\n\n- Zamień to ogłoszenie na **informację prasową w PDF** i krótki e-mail z ofertą tematu dla dziennikarzy"
+      },
+      "systemprompt": {
+        "text": "Pomagasz użytkownikowi napisać informację prasową, z której dziennikarz może skorzystać bez zmian: najpierw prawdziwa wiadomość, sprawdzalne fakty, podpisany głos i kontakt, który odpowiada. Styl prasowy firmy i wyraźne życzenia użytkownika mają pierwszeństwo przed ogólnymi konwencjami.\n\nStosuj tylko instrukcje bieżącej fazy. Zadawaj jedno pytanie na rundę, z konkretnym przykładem i rekomendacją, i czekaj na odpowiedź. Respektuj prośby o pominięcie pytań, odpowiedź na wszystko naraz lub przejście od razu do szkicu.\n\nWażne zasady:\n\n- Nigdy nie pytaj o informacje, które zawiera już załadowane wspomnienie, przesłany plik lub czat. Zacznij od nich i poproś o potwierdzenie.\n\n- Fakty użytkownika są jedynym źródłem. Poprawiaj sformułowania, kolejność i akcenty; nigdy nie wymyślaj ani nie zawyżaj liczb, dat, klientów, partnerów, nagród, wyników ani nazw. Jeśli użytkownik prosi o wymyślenie czegoś, odmów i zaproponuj prawdziwą alternatywę.\n\n- Nigdy nie przedstawiaj cytatu jako ostatecznego. Pisz cytaty jako szkice do zatwierdzenia przez wskazaną osobę i nigdy nie przypisuj słów prawdziwej osobie spoza organizacji użytkownika bez źródła.\n\n- Pisz prosto i konkretnie. Usuwaj puste superlatywy i modne słowa lub zastępuj je faktem.\n\n- Informacje objęte embargiem lub jeszcze nieopublikowane zostają w tym czacie i w projekcie użytkownika; nigdy ich nie publikuj, nie wysyłaj ani nie udostępniaj i nigdy nie kontaktuj się z dziennikarzami ani nikim innym. Ty piszesz szkice; wysyła je użytkownik.\n\n- Domyślnym formatem jest Word. PDF, HTML lub React twórz tylko na prośbę, zgodnie z zasadami formatu z fazy szkicu.\n\n- Styl prasowy należy do jednej firmy. Zaleć zapisanie go we Wspomnieniach aktywnego projektu; bez aktywnego projektu zaproponuj osobiste wspomnienie ładowane tylko po wzmiance. Zapisuj dopiero po zgodzie użytkownika.\n\n- Mów, że wspomnienie zapisano lub zaktualizowano, dopiero po udanym wywołaniu narzędzia zapisu. Jeśli dostępne narzędzie nie może zapisać w projekcie, powiedz o tym, zaproponuj osobiste wspomnienie lub poinformuj, że użytkownik może wkleić styl na karcie Wspomnienia w projekcie.\n\n- Nie udzielaj porad prawnych dotyczących obowiązków informacyjnych, zasad giełdowych ani znaków towarowych; mów, kiedy użytkownik powinien skonsultować się z prawnikiem lub zespołem relacji inwestorskich.\n\n- Odpowiedzi na czacie niech będą krótkie. Treść niesie dokument.\n\n- Wartości takie jak [EMAIL_1_org] lub [PHONE_1_000] to zastępniki prywatności. Aplikacja pokazuje w ich miejsce prawdziwe dane użytkownika na ekranie i w dokumencie. Używaj ich bez zmian jako prawdziwej wartości; nigdy nie nazywaj ich zastępnikami, brakującymi ani nieprawidłowymi i nigdy nie proś użytkownika o ich zamianę."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analizuj logi",
       "description": {
@@ -10852,6 +11040,21 @@
         "text": "- jeśli nie podano, poprosić użytkownika o URL repozytorium github/gitlab\n- jeśli nie podano, zapytać użytkownika, co chce przetestować / jaki jest jego przypadek użycia\n- użyć umiejętności do sprawdzenia issues, czy były niedawno zgłoszone krytyczne problemy z użyciem repozytorium\n- jeśli projekt jest zgłoszony jako uszkodzony, zapytać użytkownika, czy chce kontynuować testowanie\n- zapytać użytkownika, gdzie sklonować i przetestować repo: nowa maszyna? github codespaces? maszyna lokalna? itp.\n- sklonować repo do wskazanego miejsca\n- przeczytać strukturę folderów i plików projektu oraz readme.md, aby uzyskać przegląd projektu\n- dowiedzieć się, jak przetestować projekt, i rozpocząć testowanie"
       }
     },
+    "code_write_specification": {
+      "text": "Napisz specyfikację",
+      "description": {
+        "text": "Zamień pomysł w zatwierdzoną specyfikację krok po kroku - zakres, wymagania, projekt i testy akceptacyjne - a potem rozpocznij plan z zadaniami."
+      },
+      "process": {
+        "text": "- Zaczyna od Twojego pomysłu: dla kogo jest, jak wygląda sukces oraz co wchodzi w zakres, a co nie\n\n- Zadaje od jednego do trzech krótkich pytań naraz, każde z rekomendacją, i pomija to, co już powiedziałeś\n\n- Podsumowuje każdy krok i czeka na Twoje potwierdzenie, zanim ruszy dalej\n\n- Prowadzi widoczną listę otwartych założeń, żeby nic nie było rozstrzygane za Ciebie po cichu\n\n- Domyślnie pisze jedną specyfikację, a powiązane specyfikacje produktową, projektową i techniczną proponuje tylko przy złożonych projektach, jeśli się zgodzisz\n\n- Dodaje sprawdzenia akceptacyjne, które dowodzą każdego wymagania, za pomocą testów, pytań do AI lub Twojego własnego potwierdzenia\n\n- Rozpoczyna plan z zadaniami dopiero po tym, jak zatwierdzisz specyfikację"
+      },
+      "how_to_use": {
+        "text": "- Pomóż mi **napisać specyfikację** zamawiania online chleba na zakwasie w mojej piekarni\n\n- Mam pomysł na aplikację do rezerwacji zajęć wspinaczkowych. **Dopracujmy specyfikację**, zanim zaczniemy budować\n\n- **Opisz w specyfikacji** funkcję kalendarza zespołu dla naszego narzędzia do projektów, ze sprawdzeniami akceptacyjnymi"
+      },
+      "systemprompt": {
+        "text": "Jesteś spokojnym, doświadczonym inżynierem produktu, który pomaga użytkownikowi zamienić pomysł w specyfikację, którą zatwierdzi, zanim cokolwiek powstanie. Decydują słowa użytkownika; ty porządkujesz, pytasz i proponujesz.\n\nPostępuj wyłącznie zgodnie z instrukcjami bieżącej fazy. Zadawaj od jednego do trzech krótkich pytań na turę, każde z rekomendacją i konkretnym przykładem, i czekaj na odpowiedź. Nigdy nie pytaj o to, na co odpowiada już czat, przesłany plik lub projekt. Szanuj prośby o odpowiedź na wszystko naraz, pominięcie pytania lub dalszą pracę z nazwanymi założeniami.\n\nWażne wytyczne:\n- Kończ każdą fazę krótkim podsumowaniem i poproś użytkownika o potwierdzenie lub poprawkę, zanim przejdziesz dalej.\n- W każdym podsumowaniu prowadź listę zatytułowaną \"Otwarte założenia\". Wszystko, co założyłeś, a użytkownik nie potwierdził, trafia tam; nigdy nie przedstawiaj założenia jako decyzji.\n- Domyślnie jedna specyfikacja. Powiązane specyfikacje produktową, projektową i techniczną proponuj tylko przy wyraźnie złożonych projektach, wyjaśnij powód w jednym wierszu i dziel tylko za zgodą użytkownika.\n- Wymagania to testowalne stwierdzenia o obserwowalnym zachowaniu ze stałymi identyfikatorami. Bez szczegółów implementacji w wymaganiach; decyzje projektowe trafiają na listę projektu.\n- Używaj umiejętności specyfikacji z plans do specyfikacji i umiejętności sprawdzenia z plans do sprawdzeń akceptacyjnych. Obszary wrażliwe (bezpieczeństwo, prywatność, szyfrowanie, uprawnienia, płatności, migracje, dokładne zachowanie API) zawsze dostają wymagane deterministyczne źródło.\n- Nie planuj, nie pisz kodu i nie zaczynaj implementacji, zanim użytkownik zatwierdzi specyfikację. Po zatwierdzeniu utwórz plan i jego zadania oraz wyjaśnij, co dzieje się dalej.\n- Odpowiedzi na czacie utrzymuj krótkie i proste. Szczegóły niosą osadzenia specyfikacji i sprawdzeń.\n- Nigdy nie zmyślaj faktów o firmie, użytkownikach ani systemach użytkownika; pytaj lub zapisz otwarte założenie.\n- Wartości takie jak [EMAIL_1_org] czy [PHONE_1_000] to symbole zastępcze prywatności. Aplikacja pokazuje w ich miejscu prawdziwe dane użytkownika. Używaj ich bez zmian jako prawdziwej wartości; nigdy nie nazywaj ich symbolami zastępczymi, brakującymi ani nieprawidłowymi i nigdy nie proś użytkownika o ich zastąpienie."
+      }
+    },
     "code_write_test_debug_document": {
       "text": "Pisz, testuj, debuguj i dokumentuj",
       "description": {
@@ -10910,6 +11113,12 @@
       "text": "Rozmowa o przyszłości",
       "description": {
         "text": "Potężna technika coachingu życiowego."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "Kompas życiowy",
+      "description": {
+        "text": "Znajdź swój kierunek ku szczęśliwszemu życiu, małymi krokami."
       }
     },
     "health_prepare_doctor_report": {
@@ -10973,6 +11182,24 @@
       },
       "systemprompt": {
         "text": "Jesteś neutralnym trenerem dyskusji obywatelskich i asystentem badawczym. Twoim celem jest pomaganie użytkownikom w przygotowaniu się do rozmów na tematy polityczne, obywatelskie, programowe, wyborcze, geopolityczne i inne dotyczące interesu publicznego, z zachowaniem dokładności, pokory i dobrej wiary.\n\nZacznij od zrozumienia sytuacji. W pierwszej odpowiedzi asystenta po aktywacji tego fokusu odpowiedz na pierwotną prośbę użytkownika krótkim wywiadem kontekstowym, nawet jeśli użytkownik nie poprosił wyraźnie o pytania. Zadaj od jednego do trzech konkretnych pytań o brakujące szczegóły, takie jak jurysdykcja, pożądany przez użytkownika rezultat oraz stanowisko lub relacja z drugą osobą. Wykorzystaj temat i inne fakty już podane przez użytkownika; nie proś o powtarzanie tych szczegółów ani o ponowne sformułowanie prośby. Jeśli użytkownik poprosi o rozpoczęcie od pytań, uszanuj tę kolejność, nawet jeśli temat jest znany. Jeśli podano już cały istotny kontekst, zadaj jedno pytanie o główny priorytet użytkownika lub krótko potwierdź konkretne ramy przed przejściem dalej. Poczekaj na odpowiedź użytkownika przed przeprowadzeniem badań faktograficznych, wygłoszeniem wykładu o zasadach lub przygotowaniem pełnego arkusza przygotowawczego, chyba że użytkownik wyraźnie poprosi o natychmiastową, popartą badaniami odpowiedź. Nie ograniczaj się do potwierdzenia aktywacji i nie zmieniaj wywiadu w długi kwestionariusz.\n\nStosuj następujący proces pracy:\n- Przeformułuj temat i pożądany przez użytkownika wynik w neutralnym języku.\n- Zidentyfikuj główne twierdzenia, które mogą się pojawić. Oddziel twierdzenia faktyczne, sądy wartościujące, założenia, przewidywania i doświadczenia osobiste.\n- W przypadku twierdzeń faktycznych lub aktualnych, korzystaj z web-search, wyszukiwania wiadomości i web-read, gdy dokładność zależy od świeżych lub spornych informacji. Preferuj źródła pierwotne, oficjalne dane, materiały wyborcze, ustawodawstwo, raporty organów regulacyjnych, dokumenty sądowe, renomowane dziennikarstwo i instytucje eksperckie nad podsumowaniami z mediów społecznościowych.\n- Oceniaj źródła pod kątem aktualności, trafności, autorytetu, dokładności i celu. Zaznaczaj, gdy źródło ma interes rzeczniczy, partyjny, rządowy, komercyjny lub kampanijny.\n- Przedstaw najsilniejszą wersję każdego głównego stanowiska przed jego krytyką. Uwzględnij punkty wspólne, kompromisy, niepewności i uzasadnione wartości po każdej ze stron.\n- Przygotuj pytania, które zachęcają do wyjaśnień, definiują terminy, testują założenia i wydobywają dowody. Unikaj pytań typu „pułapka”, chyba że użytkownik wyraźnie potrzebuje formalnego przygotowania do debaty.\n- Pomóż użytkownikowi wybrać spokojne sformułowania, granice i zwroty kończące dla wrażliwych rozmów.\n\nDomyślna struktura odpowiedzi:\n\n## Cel dyskusji\nPodsumuj, do czego przygotowuje się użytkownik i jak wyglądałaby udana rozmowa.\n\n## Kluczowe fakty do sprawdzenia\nWymień ważne twierdzenia faktyczne, najlepsze dostępne dowody i wszelkie niepewności. Poinformuj, kiedy potrzebne są dalsze badania.\n\n## Prawdopodobne perspektywy\nOpisz najsilniejsze argumenty i obawy podnoszone w dobrej wierze przez główne strony. Nie twórz karykatur przeciwnych poglądów.\n\n## Pytania, które warto zadać\nPodaj przemyślane, otwarte pytania, które wyjaśniają definicje, dowody, kompromisy, wartości i praktyczne konsekwencje.\n\n## Twierdzenia, których nie należy wyolbrzymiać\nOstrzeż przed słabymi twierdzeniami, nieaktualnymi faktami, twierdzeniami opartymi na jednym źródle, mylącym sformułowaniem lub punktami wymagającymi niuansowania.\n\n## Sugerowany plan rozmowy\nPodaj krótki plan rozpoczęcia dyskusji, utrzymania jej konstruktywnego charakteru, radzenia sobie z napięciem i kontynuacji.\n\nWażne ograniczenia:\n- Nie twórz manipulacyjnej propagandy, nękania, doxxingu, zastraszania ani dehumanizującej retoryki.\n- Nie dostarczaj ukierunkowanych strategii perswazji politycznej opartych na profilach demograficznych, psychologicznych, tożsamościowych lub podatnościach.\n- Nie optymalizuj przekazów kampanijnych, targetowania wyborców, tłumienia frekwencji ani logistyki aktywistycznej. Jeśli prośba użytkownika stanie się rzecznictwem lub organizowaniem działań, utrzymaj pomoc na wysokim poziomie ogólności, zgodnie z prawem i bez manipulacji, lub poleć asystenta Activism mate w celu uzyskania etycznej strategii organizacyjnej.\n- Nie przedstawiaj niepewnych lub spornych twierdzeń jako rozstrzygniętych faktów. Wyraźnie odróżniaj dowody, wnioski, interpretacje i opinie.\n- Nie zakładaj złej woli, korupcji, ekstremizmu ani złośliwych zamiarów, chyba że wiarygodne dowody potwierdzają takie ujęcie.\n- Szanuj prywatność. Nie proś o niepotrzebne dane osobowe użytkownika ani innych zaangażowanych osób."
+      }
+    },
+    "slides_design_template": {
+      "text": "Zaprojektuj szablon",
+      "description": {
+        "text": "Zaprojektuj krok po kroku szablon slajdów wielokrotnego użytku - trzy projekty do wyboru, dopracowane razem z Tobą i zapisane w Twojej bibliotece."
+      },
+      "process": {
+        "text": "- Pyta, do czego służy szablon i do jakich kolorów marki, czcionek lub logo ma pasować\n- Pokazuje trzy wyraźnie różne projekty jako karty szablonów z podglądem sześciu układów slajdów\n- Wybierasz jeden przyciskiem „Użyj tego projektu” lub podając jego nazwę\n- Dopracowuje z Tobą kolory, czcionki i układy, aktualizując kartę po każdej zmianie\n- Mówi, by nacisnąć Zapisz na końcowej karcie, aby trafiła do Twojej biblioteki\n- Proponuje utworzenie pierwszej prezentacji z nowym szablonem"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Zaplanuj prezentację",
+      "description": {
+        "text": "Zaplanuj prezentację krok po kroku - cel, historia, jedna myśl na slajd, projekt - a potem utwórz slajdy z notatkami prelegenta i przejrzyj je."
+      },
+      "process": {
+        "text": "- Pyta o cel, odbiorców, długość i okoliczności, z prostymi przykładami i rekomendacją\n- Proponuje pasującą historię, na przykład problem, rozwiązanie, demo, efekt i prośba w przypadku pitchu\n- Wypisuje jedną myśl na slajd i czeka na Twoje potwierdzenie, zanim cokolwiek zbuduje\n- Pokazuje pasujące wbudowane projekty jako karty, używa Twojego zapisanego szablonu lub projektuje z Tobą nowy\n- Tworzy slajdy z notatkami prelegenta na każdym, dopasowane do długości wystąpienia\n- Przegląda wynik i poprawia to, co zaakceptujesz, np. zbyt dużo tekstu na slajdzie"
       }
     },
     "social_media_content_calendar_strategist": {
@@ -11200,22 +11427,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "Twój zespół AI"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "do załatwiania spraw"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Napisz dokument"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "Znajdź wydarzenia"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "Zbuduj aplikację webową"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "Wyjaśnij wiadomości"
     },
     "landing_actionable_line1": {
       "text": "Konkretne działanie."
@@ -11229,35 +11456,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Oczywiście, proszę:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Wydarzenie event website w Berlinie o zdecentralizowanych obliczeniach i badaniach DePIN."
+      "text": "Krótkie prelekcje i pokazy narzędzi AI o otwartym kodzie, a potem czas na poznanie innych uczestników."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Otwórz w event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Otwórz stronę wydarzenia"
     },
     "landing_actionable_event_city": {
       "text": "Berlin"
     },
     "landing_actionable_event_country": {
       "text": "Niemcy"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Online"
@@ -11268,62 +11480,44 @@
     "landing_actionable_event_rsvps": {
       "text": "uczestników"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "Twoje czaty są szyfrowane na twoim urządzeniu, zanim zostaną zapisane."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "Dane osobowe są zastępowane, zanim zobaczy je AI."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "Przygotuj e-mail do"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "Ok, przygotowuję e-mail do"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "Poleć mi miejsca na moją następną podróż."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "Spersonalizowane odpowiedzi, ale tylko wtedy, gdy tego chcesz."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "Tylko ty możesz zobaczyć oryginały."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "Poprzednie podróże"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "Ulubione miejsca"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "Twoi eksperci AI, wyspecjalizowani w różnych tematach."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "Zoptymalizowane instrukcje, wybierane wtedy, gdy są potrzebne."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Wiodące modele AI w jednym miejscu."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "Korzystaj z czatów OpenMates tak, jak ci wygodnie."
     }
   },
   "header": {
@@ -11344,6 +11538,26 @@
     },
     "report_issue": {
       "text": "Zgłoś problem"
+    }
+  },
+  "helplines": {
+    "title": {
+      "text": "Nie musisz przechodzić przez to sam"
+    },
+    "call": {
+      "text": "Zadzwoń"
+    },
+    "send_text": {
+      "text": "Wyślij SMS"
+    },
+    "chat": {
+      "text": "Czat online"
+    },
+    "emergency": {
+      "text": "W nagłej sytuacji zadzwoń pod {emergency_number}"
+    },
+    "find_more": {
+      "text": "Znajdź więcej telefonów pomocy"
     }
   },
   "highlight": {
@@ -11429,6 +11643,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Ta prośba została odrzucona. Obrazy seksualne lub sugestywne z udziałem nieletnich nigdy nie są tworzone."
+    },
+    "reason_intimate_real_person": {
+      "text": "Ta prośba została odrzucona. Obrazy seksualne lub intymne prawdziwych osób nigdy nie są tworzone."
+    },
+    "reason_bypass": {
+      "text": "Ta prośba została odrzucona, ponieważ próbowała obejść zasady bezpieczeństwa."
+    },
+    "reason_minor": {
+      "text": "Realistyczne obrazy nieletnich nie są tworzone, a zdjęcia nieletnich można edytować tylko pod kątem tła, oświetlenia lub kolorów, ponieważ takie obrazy mogłyby zostać nadużyte, na przykład do fałszywych profili podszywających się pod nieletnich."
+    },
+    "alternative_minor": {
+      "text": "Możliwa jest wyraźnie stylizowana wersja, na przykład render 3D, ilustracja lub kreskówka, o ile scena nie jest seksualna."
+    },
+    "reason_sexual": {
+      "text": "Obrazy seksualne lub o charakterze jednoznacznym nie są tworzone."
+    },
+    "alternative_sexual": {
+      "text": "Możliwa jest wersja tej sceny bez jednoznacznych treści."
+    },
+    "reason_violent": {
+      "text": "Obrazy przedstawiające prawdziwe osoby ranne, zaatakowane lub na miejscu zbrodni nie są tworzone, ponieważ mogłyby posłużyć do wyrządzenia im krzywdy lub zniesławienia."
+    },
+    "alternative_violent": {
+      "text": "Możliwa jest scena z fikcyjnymi postaciami zamiast prawdziwych osób."
+    },
+    "reason_public_figure": {
+      "text": "Obrazy prawdziwych osób publicznych nie są obecnie tworzone, ponieważ mogłyby zostać użyte jako deepfake'i lub do fałszywych twierdzeń."
+    },
+    "alternative_public_figure": {
+      "text": "Możliwa jest oryginalna, fikcyjna postać w tej samej scenie."
+    },
+    "reason_identity": {
+      "text": "Zamiana twarzy i podmiana tożsamości osoby nie są wykonywane, ponieważ mogłyby posłużyć do podszywania się pod kogoś."
+    },
+    "alternative_identity": {
+      "text": "Możliwe są edycje zachowujące tożsamość osoby, takie jak nowe tło, oświetlenie lub styl artystyczny."
+    },
+    "reason_id_document": {
+      "text": "Obrazy dokumentów tożsamości, takich jak paszporty, dowody osobiste czy prawa jazdy, nie są tworzone, ponieważ mogłyby posłużyć do oszustwa."
+    },
+    "reason_hate": {
+      "text": "Obrazy z symbolami nienawiści lub wymierzone w ludzi z powodu tego, kim są, nie są tworzone."
+    },
+    "reason_self_harm": {
+      "text": "Obrazy przedstawiające samookaleczenie lub do niego zachęcające nie są tworzone."
+    },
+    "alternative_self_harm": {
+      "text": "Jeśli przechodzisz trudny czas, rozmowa z kimś zaufanym albo z lokalną infolinią pomocową może pomóc."
+    },
+    "reason_weapons": {
+      "text": "Obrazy z instrukcjami lub planami budowy broni albo materiałów wybuchowych nie są tworzone."
+    },
+    "reason_scam": {
+      "text": "Materiały do oszustw, fałszywych dokumentów lub podszywania się pod kogoś nie są tworzone."
+    },
+    "alternative_scam": {
+      "text": "Możliwy jest oryginalny projekt, który nie naśladuje prawdziwej osoby, marki ani dokumentu."
+    },
+    "reason_spam": {
+      "text": "Masowe tworzenie treści zapychaczy lub usuwanie oznaczeń AI nie jest obsługiwane."
+    },
+    "alternative_spam": {
+      "text": "Możliwe jest kilka obrazów do konkretnego celu."
+    },
+    "reason_deceptive": {
+      "text": "Obrazy mające uchodzić za prawdziwe nagrania, prawdziwą wypowiedź lub oficjalne poparcie nie są tworzone."
+    },
+    "alternative_deceptive": {
+      "text": "Możliwa jest wersja wyraźnie fikcyjna lub ilustrowana."
+    },
+    "reason_other": {
+      "text": "Tej prośby nie można zrealizować zgodnie z zasadami bezpieczeństwa."
+    },
+    "alternative_other": {
+      "text": "Może zadziałać inny temat lub inne sformułowanie."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktura"
@@ -11949,6 +12243,22 @@
             },
             "description": {
               "text": "Używamy api.video (firma UE, Francja) do hostowania i streamowania demonstracyjnych filmów produktowych i przewodników po funkcjach wyświetlanych na naszej stronie i w aplikacji webowej. Gdy oglądasz film, Twój adres IP i podstawowe dane oglądalności są przetwarzane przez api.video. Identyfikatory kont użytkowników nie są udostępniane."
+            }
+          }
+        },
+        "status_page": {
+          "heading": {
+            "text": "Strona statusu (tylko gdy ją otwierasz)"
+          },
+          "description": {
+            "text": "Ten dostawca jest używany tylko wtedy, gdy otwierasz publiczną stronę statusu pod adresem status.openmates.org. Nie jest używany dla Twojego konta ani żadnej innej części OpenMates."
+          },
+          "upcloud": {
+            "heading": {
+              "text": "UpCloud (hosting strony statusu)"
+            },
+            "description": {
+              "text": "Publiczna strona statusu status.openmates.org (strona statyczna i plik JSON ze statusem) jest hostowana przez UpCloud Oy na serwerze w Amsterdamie w Holandii. Gdy otwierasz stronę, Twoja przeglądarka łączy się z serwerem UpCloud, więc UpCloud przetwarza Twój adres IP i metadane połączenia TLS. Nie prowadzimy logów dostępu i nie używamy na tej stronie plików cookie ani trackerów. Ten sam serwer wysyła też do OpenMates automatyczne żądania testowe, które nie zawierają danych użytkowników."
             }
           }
         },
@@ -14087,6 +14397,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "przez"
@@ -14294,6 +14605,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Nie mogę tworzyć propagandy, treści nienawistnych, dezinformacji ani manipulacyjnych treści tabloidowych. Mogę wyjaśnić, jak działają, przeanalizować przykłady, sprawdzić twierdzenia lub pomóc w wyraźnie oznaczonej satyrze."
+    },
+    "illegal_category": {
+      "text": "Nie mogę pomóc w sprawie treści seksualnych z udziałem nieletnich, intymnych obrazów bez zgody, seksualnych deepfake'ów prawdziwych osób ani broni masowego rażenia."
+    },
+    "live_site_abuse": {
+      "text": "Prawdopodobnie ta strona naprawdę jest Twoja, ale na działających stronach wykonuję tylko zwykłe działania jednego użytkownika w ludzkim tempie, więc nie mogę wykonywać działań masowych ani nadużyć, jak masowe komentarze, rejestracje, zgadywanie haseł czy zalewanie. Takie testy działają obecnie tylko na localhost, w lokalnym środowisku dev lub lokalnie uruchomionej kopii stagingowej. Chętnie pomogę to skonfigurować."
+    },
+    "strike_notice": {
+      "text": "To naruszenie {strike} z {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Ubezpieczenie"
@@ -14396,6 +14721,82 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Twoje konto jest zawieszone"
+    },
+    "appeal_button": {
+      "text": "Odwołaj się"
+    },
+    "download_button": {
+      "text": "Pobierz moje dane"
+    },
+    "explanation_label": {
+      "text": "Opowiedz, co się stało (do 1000 znaków)"
+    },
+    "consent_label": {
+      "text": "Zgadzam się udostępnić recenzentowi bezpieczeństwa tylko oznaczone prośby"
+    },
+    "add_photo": {
+      "text": "Dodaj zdjęcie"
+    },
+    "photo_added": {
+      "text": "Zdjęcie dołączone. Wybierz inne"
+    },
+    "submit": {
+      "text": "Wyślij odwołanie"
+    },
+    "sent": {
+      "text": "Twoje odwołanie zostało wysłane. Decyzję otrzymasz w ciągu 7 dni."
+    },
+    "admin_title": {
+      "text": "Przeglądy bezpieczeństwa"
+    },
+    "admin_restore": {
+      "text": "Przywróć"
+    },
+    "admin_delete": {
+      "text": "Usuń"
+    },
+    "admin_ask": {
+      "text": "Zapytaj użytkownika"
+    },
+    "admin_delete_confirm": {
+      "text": "Usunąć to konto? Standardowe usunięcie z pełnym zwrotem, e-mailem o usunięciu i zapisem zgodności."
+    },
+    "admin_empty": {
+      "text": "Żadne konto nie czeka na przegląd."
+    },
+    "until": {
+      "text": "Konto zawieszone do {date}"
+    }
+  },
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} została odrzucona. {reason} To naruszenie {strike} z {max}."
+    },
+    "what_image_generate": {
+      "text": "Twoja prośba o obraz"
+    },
+    "what_image_edit": {
+      "text": "Twoja prośba o edycję obrazu"
+    },
+    "what_video": {
+      "text": "Twoja prośba o wideo"
+    },
+    "what_upload": {
+      "text": "Przesłany przez Ciebie obraz"
+    },
+    "suspended_until": {
+      "text": "To naruszenie 2 z 3. Twoje konto jest zawieszone do {date}, a potem znów będzie aktywne. Trzecie naruszenie zawiesi je do czasu sprawdzenia przez administratora."
+    },
+    "suspended_pending_review": {
+      "text": "To naruszenie 3 z 3. Twoje konto jest zawieszone do czasu sprawdzenia przez administratora. Możesz odwołać się od tej decyzji."
+    },
+    "unavailable": {
+      "text": "Kontrola bezpieczeństwa jest chwilowo niedostępna, więc nie udało się przetworzyć tej prośby. Spróbuj ponownie za chwilę."
+    }
+  },
   "settings": {
     "account": {
       "username": {
@@ -19128,7 +19529,7 @@
       "text": "Brak nagości, przemocy lub makabrycznych treści\nw zdjęciach profilowych."
     },
     "last_warning_image_not_allowed": {
-      "text": "Ostatnie ostrzeżenie:\nBrak nagości, przemocy lub makabrycznych treści w zdjęciach profilowych.\nJeszcze jedno naruszenie i Twoje konto zostanie usunięte."
+      "text": "Ostatnie ostrzeżenie:\nŻadnych treści o charakterze jednoznacznie seksualnym ani skrajnie drastycznych w zdjęciach profilowych.\nJeszcze jedno naruszenie i Twoje konto zostanie zawieszone."
     },
     "your_account_got_deleted": {
       "text": "Twoje konto zostało usunięte."
@@ -20749,7 +21150,7 @@
       "text": "Testuj za darmo"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "Domena e-mail niedozwolona."
@@ -20757,32 +21158,8 @@
     "email_ignored": {
       "text": "Ten adres e-mail nie może być użyty do rejestracji. Skontaktuj se z pomocą techniczną, jeśli uważasz, dass dies ein błąd jest."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates jest obecnie wersją alpha dla wczesnych testerów."
-    },
-    "decent_stable": {
-      "text": "Ta wersja alpha jest dość stabilna"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Jednak nie wszystkie główne funkcje są jeszcze zaimplementowane."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Oczekuj niektórych błędów tu i tam oraz pamiętaj: chatboty AI mogą popełniać błędy."
-    },
     "view_on_github": {
       "text": "Zobacz OpenMates na GitHub"
-    },
-    "view_on_github_description": {
-      "text": "Aby omawiać błędy, funkcje i być na bieżąco z nowymi wersjami."
-    },
-    "view_on_instagram": {
-      "text": "Zobacz OpenMates na Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "Aby być na bieżąco z nowymi wersjami i innymi aktualizacjami."
-    },
-    "continue_with_alpha": {
-      "text": "Kontynuuj z {version}"
     },
     "server_admin": {
       "text": "Administrator serwera"
@@ -21542,6 +21919,7 @@
       "text": "Kolor niestandardowy"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

@@ -251,3 +251,70 @@ async def test_refresh_task_tool_context_reloads_tasks_and_preserves_turn_state(
     assert refreshed.client_persisted_create_titles == {"created task": "task-created"}
     assert refreshed.created_task_sequence == 3
     assert "TASK-42: status=in_progress, version=2" in build_task_context_prompt(refreshed)
+
+
+def _check_directus(plans, counts=None, error=None):
+    from unittest.mock import patch  # noqa: F401
+    methods = AsyncMock()
+    methods.list_tasks.return_value = []
+    plan_methods = AsyncMock()
+    plan_methods.list_plans.return_value = plans
+    return SimpleNamespace(user_task=methods, user_plan=plan_methods)
+
+
+async def _run_checks(plans, counts=None, error=None):
+    from unittest.mock import patch
+    from backend.core.api.app.services.user_check_service import CheckError
+    state = AsyncMock(return_value=counts, side_effect=CheckError("check_storage_unavailable", 503) if error else None)
+    with patch("backend.apps.ai.processing.task_queue_continuation.UserCheckService") as service:
+        service.return_value.plan_required_checks_state = state
+        result = await evaluate_task_queue_post_turn(
+            task_tool_context=object(), directus_service=_check_directus(plans),
+            user_id="user-1", chat_id="chat-1", now=1500,
+        )
+    return result
+
+
+ACTIVE = [{"plan_id": "p1", "status": "executing"}]
+GREEN = {"required_total": 2, "passed": 2, "failing": 0, "running": 0, "waiting_for_confirmation": 0, "missing_run": 0}
+
+
+# contract-test: direct surface=rest_api assertions=checks.continuation.required-checks-open
+@pytest.mark.asyncio
+async def test_failing_required_check_continues() -> None:
+    result = await _run_checks(ACTIVE, {**GREEN, "passed": 1, "failing": 1})
+    assert result["state"] == "required_checks_open" and result["requires_model_retry"] is True
+    assert "1 failing" in task_queue_post_turn_prompt(result)
+    assert is_task_queue_continuation_system_content(task_queue_post_turn_prompt(result))
+
+
+# contract-test: direct surface=rest_api assertions=checks.continuation.required-checks-open
+@pytest.mark.asyncio
+async def test_missing_run_continues() -> None:
+    result = await _run_checks(ACTIVE, {**GREEN, "passed": 1, "missing_run": 1})
+    assert result["requires_model_retry"] is True and "1 not run" in task_queue_post_turn_prompt(result)
+
+
+# contract-test: direct surface=rest_api assertions=checks.continuation.required-checks-open
+@pytest.mark.asyncio
+async def test_only_waiting_for_confirmation_stops_with_state() -> None:
+    result = await _run_checks(ACTIVE, {**GREEN, "passed": 1, "waiting_for_confirmation": 1})
+    assert result["state"] == "waiting_for_confirmation" and result["requires_model_retry"] is False
+
+
+# contract-test: direct surface=rest_api assertions=checks.continuation.required-checks-open
+@pytest.mark.asyncio
+async def test_all_green_stops() -> None:
+    assert await _run_checks(ACTIVE, GREEN) is None
+
+
+# contract-test: direct surface=rest_api assertions=checks.continuation.required-checks-open
+@pytest.mark.asyncio
+async def test_draft_plan_does_not_count() -> None:
+    assert await _run_checks([{"plan_id": "p1", "status": "draft"}], {**GREEN, "failing": 1}) is None
+
+
+# contract-test: direct surface=rest_api assertions=checks.continuation.required-checks-open
+@pytest.mark.asyncio
+async def test_check_storage_unavailable_fails_closed() -> None:
+    assert await _run_checks(ACTIVE, error=True) is None

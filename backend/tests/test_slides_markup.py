@@ -147,3 +147,88 @@ def test_hidden_only_on_notepad_and_todo_and_only_when_true():
     assert out.count('hidden="true"') == 2
     assert 'hidden="true"' in out.split("<todo")[1].split("</todo>")[0] + ">"
     assert "<shape" in out and 'shape id="e5" hidden' not in out
+
+
+THEMED_TEMPLATE = """<deck title="Club Green" kind="TEMPLATE" template="builtin:plain" aspect="16:9">
+  <theme surface="#FFF" accent="#1F9D55" body="verdana" heading="Comic Sans" muted="green" background="#f4faf5"/>
+  <slide layout="title"><text role="title">Hello</text></slide>
+</deck>"""
+
+
+# contract-test: direct surface=rest_api assertions=slides.templates.library
+def test_theme_and_kind_are_serialised_in_canonical_order_and_invalid_values_dropped() -> None:
+    deck = normalise_slides_markup(THEMED_TEMPLATE)
+    assert deck.kind == "template"
+    assert deck.markup == (
+        '<deck title="Club Green" aspect="16:9" template="builtin:plain" kind="template">\n'
+        '  <theme body="Verdana" background="#f4faf5" accent="#1f9d55" surface="#fff"/>\n'
+        '  <slide id="s1" layout="title">\n'
+        '    <text id="e1" role="title">Hello</text>\n'
+        "  </slide>\n</deck>\n"
+    )
+    assert normalise_slides_markup(deck.markup).markup == deck.markup
+
+
+# contract-test: direct surface=rest_api assertions=slides.templates.library
+def test_plain_deck_has_no_kind_and_empty_theme_is_dropped() -> None:
+    deck = normalise_slides_markup('<deck kind="bogus"><theme accent="nope"/><slide><text>x</text></slide></deck>')
+    assert deck.kind == "deck"
+    assert "kind=" not in deck.markup and "<theme" not in deck.markup
+
+
+# contract-test: direct surface=rest_api assertions=slides.templates.built-in-set
+def test_builtin_templates_are_normalised_fixed_points_with_six_layouts() -> None:
+    from backend.shared.python_utils.slides_markup import builtin_template_ids, builtin_template_markup
+
+    assert builtin_template_ids()[0] == "plain"
+    assert set(builtin_template_ids()) == {"plain", "bold-pitch", "clean-business", "friendly-classroom", "calm-talk"}
+    for template_id in builtin_template_ids():
+        markup = builtin_template_markup(template_id)
+        deck = normalise_slides_markup(markup)
+        assert deck.markup == markup and deck.kind == "template" and deck.slide_count == 6
+        assert ("<theme" in markup) == (template_id != "plain")
+        for layout in ("title", "section", "content", "image", "quote", "closing"):
+            assert f'layout="{layout}"' in markup
+
+
+# contract-test: direct surface=rest_api assertions=slides.templates.built-in-set
+def test_builtin_shortcut_expands_and_unknown_id_is_an_error() -> None:
+    from backend.shared.python_utils.slides_markup import builtin_template_markup
+
+    deck = normalise_slides_markup('<deck kind="template" template="builtin:bold-pitch"></deck>')
+    assert deck.markup == builtin_template_markup("bold-pitch") and deck.title == "Bold pitch"
+    with pytest.raises(SlidesMarkupError):
+        normalise_slides_markup('<deck kind="template" template="builtin:nope"></deck>')
+    with pytest.raises(SlidesMarkupError):
+        normalise_slides_markup('<deck template="builtin:bold-pitch"></deck>')
+
+
+# contract-test: direct surface=rest_api assertions=slides.templates.built-in-set
+def test_deck_with_builtin_template_gets_theme_decoration_and_slots_idempotently() -> None:
+    source = (
+        '<deck title="T" template="builtin:bold-pitch"><slide layout="title">'
+        '<text role="title">Hi</text><text role="subtitle" x="1" y="2" w="3" h="4">Sub</text></slide>'
+        '<slide layout="unknown"><text role="title">Other</text></slide></deck>'
+    )
+    deck = normalise_slides_markup(source)
+    assert deck.kind == "deck"
+    assert '<theme heading="Arial" body="Helvetica"' in deck.markup
+    first_slide = deck.markup.split("<slide")[1]
+    assert first_slide.index("<shape") < first_slide.index("<text")
+    assert 'role="title" size="150"' in first_slide and 'weight="900"' in first_slide
+    assert 'x="1" y="2" w="3" h="4" role="subtitle">' in first_slide  # positioned text keeps its own box
+    assert 'role="title">Other' in deck.markup  # layout without a sample is untouched
+    assert normalise_slides_markup(deck.markup).markup == deck.markup
+    plain = normalise_slides_markup('<deck template="builtin:plain"><slide><text>x</text></slide></deck>')
+    assert "<theme" not in plain.markup
+
+
+# contract-test: tooling
+def test_generated_builtin_templates_file_is_current() -> None:
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    script = Path(__file__).resolve().parents[2] / "scripts" / "generate_slides_builtin_templates.py"
+    result = subprocess.run([sys.executable, str(script), "--check"], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout

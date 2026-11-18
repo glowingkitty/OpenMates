@@ -162,6 +162,12 @@ struct EmbedContentView: View {
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "icons")
             case .designIconResult:
                 DesignIconResultEmbedRenderer(data: rawData, mode: mode)
+            case .designEmbroidery:
+                DesignEmbroideryEmbedRenderer(data: rawData, mode: mode, embedID: embed.id)
+
+            // Slides
+            case .slidesDeck:
+                SlidesDeckEmbedRenderer(data: rawData, mode: mode, embedID: embed.id)
 
             // Documents
             case .docsDoc:
@@ -221,7 +227,9 @@ struct EmbedContentView: View {
                 ImageResultEmbedRenderer(data: rawData, mode: mode)
             case .imagesGenerate, .imagesGenerateDraft:
                 ImageGenerateEmbedRenderer(data: rawData, mode: mode, status: embed.status,
-                                           skillId: embedType == .imagesGenerateDraft ? "generate_draft" : "generate")
+                                           skillId: embedType == .imagesGenerateDraft ? "generate_draft" : "generate",
+                                           version: ImageVersionBadgeState.versions(of: embed).version,
+                                           headVersion: ImageVersionBadgeState.versions(of: embed).head)
             case .image:
                 ImageEmbedRenderer(data: rawData, mode: mode)
 
@@ -380,6 +388,10 @@ struct EmbedContentView: View {
             // Misc
             case .focusModeActivation:
                 FocusModeRenderer(data: rawData, mode: mode, embedID: embed.id, chatID: chatId)
+            case .helplines:
+                if let helplines = HelplineCardContent(data: rawData) {
+                    HelplineCardView(content: helplines)
+                }
             case .reminderSet:
                 ReminderRenderer(data: rawData, mode: mode)
             case .reminderList, .reminderCancel:

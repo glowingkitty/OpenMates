@@ -1,0 +1,44 @@
+schema_version: 2
+profile: concise
+id: external-status-monitoring
+title: External uptime monitor and public status page
+status: implementing
+goal: >
+  Public status page with external uptime monitoring for OpenMates production
+  (status.openmates.org), because all production AI chats were down from Fri
+  13 Nov 16:58 UTC with no alert. A small European VPS (not Hetzner, at most
+  3-4 EUR/month) runs a small open-source checker; real chats and a real skill
+  are checked, providers via their official status pages; alerts after 2
+  failures escalate (15 min, 1 h, then every few hours) with a clear resolved
+  message, Discord first and email as backup; the dev server checks the status
+  server. Config as code with a short spec and tests; production changes only
+  read-only checks; test traffic stays out of usage stats and billing.
+specification: architecture.external-status-monitoring
+scope:
+  in:
+    - deployment/status_server (Gatus, status agent, Caddy, static page) as one Docker image published by CI, running only on one UpCloud Starter server (Amsterdam).
+    - deployment/status_server/setup.sh plus docker-compose.yml: one command on the server pulls the image, writes the config from Vault and starts it; updating is the same command.
+    - scripts/status_server.py for Vault secrets and config, the deploy SSH key, starting the setup and the dev-server cross-check timer.
+    - Public GET /v1/health/liveness with a real no-spend AI-queue probe, cached and single-flight.
+    - Monitor probe token and monitoring accounts exempt from billing, free allowance, usage entries and growth metrics.
+    - OPENMATES_HEALTH_ALERTS_DELEGATED flag moving backend health-transition alerts to the external monitor.
+    - UpCloud as status-page host in the privacy policy.
+  out:
+    - Any production setting change without the owner's explicit approval.
+    - An OpenMates CLI command for the status server (owner decision 2026-11-15).
+    - Additional servers, the Gatus UI on the public internet, and the never-deployed backend/status service.
+    - Free checks for voice calls (no no-spend path exists; voice uses worker liveness plus the Mistral status page).
+decisions:
+  - UpCloud Starter 1 vCPU/1 GB/10 GB in Amsterdam (3 EUR/month net, IPv4 included, hourly billing, no minimum term, 99.99% SLA), approved by the owner 2026-11-15, over OVHcloud VPS-1 without commitment (4.49 EUR net) and Scaleway Stardust (about 5 EUR net with IPv4); netcup dropped because its cheap VPS needs a 12-month term. The owner creates the server by hand; no provider API token is stored.
+  - Gatus for plain checks and storage; a small stdlib agent for paid probes, escalation and the public JSON, because Gatus alerts cannot repeat with "still down for X" text and its UI exposes check URLs.
+  - Production /v1/health is used for API reachability and alert-only integration checks, not liveness, since it served stale healthy results during the outage.
+  - The public page publishes catalog names, statuses, daily uptime and incident times only.
+  - Secrets in dev Vault kv/data/providers/status_monitor, written through SECRET__STATUS_MONITOR__* in .env and the vault-setup import (hidden input for operator-entered values); only the VPS status.env (mode 600) holds copies.
+  - Owner decisions 2026-11-15 - code stays in the public repo with no secrets, server addresses or tokens; one small image built and published by CI; runs only on the separate status server; a setup script plus compose file instead of a CLI command.
+checks:
+  - scripts/tests/test_status_agent_alerts.py and scripts/tests/test_status_agent_modules.py pass.
+  - backend/tests/test_liveness_probe.py, test_health_status_alerts.py and test_monitor_traffic.py pass in isolated pytest CI.
+  - Gatus accepts deployment/status_server/gatus/config.yaml (container start against the config).
+  - The image builds in CI; on the dev server the image started by setup.sh serves the page, writes status.json and keeps the Gatus UI on loopback.
+  - After the VPS exists, a deployed page shows live component status and a forced failure produces DOWN, STILL DOWN and RESOLVED messages.
+evidence: {}

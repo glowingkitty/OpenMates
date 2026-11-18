@@ -393,3 +393,18 @@ source_frame_failed:
   en: The camera reference could not be saved.
   de: Das Kamerabild konnte nicht gespeichert werden.
   verified_by_human: []
+screen_share_on:
+  context: Start sharing the device screen with the assistant during a call
+  en: Share screen
+  de: Bildschirm teilen
+  verified_by_human: []
+screen_share_off:
+  context: Stop sharing the device screen during a call
+  en: Stop sharing screen
+  de: Bildschirmfreigabe beenden
+  verified_by_human: []
+connecting_short:
+  context: Short call status in the Lock Screen call banner while the call connects
+  en: Connecting…
+  de: Verbindung wird hergestellt…
+  verified_by_human: []

@@ -20,7 +20,9 @@ from uuid import uuid4
 
 import httpx
 
-from backend.shared.providers.typesafe.client import DecisionProviderError, JevDecisionClient
+from backend.apps.ai.utils.internal_decisions import decision_client_for_policy
+from backend.shared.providers.typesafe.client import DecisionProviderError
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
 from backend.shared.providers.typesafe.models import ScoreAnswer
 from backend.shared.python_utils.public_images import download_public_image
 from backend.shared.python_utils.search_relevance import _bounded_candidate_projection
@@ -186,9 +188,10 @@ def _decision_request(batch: Sequence[Tuple[int, Mapping[str, Any], List[bytes]]
 
 
 async def _score_batches(batches: Sequence[Sequence[Tuple[int, Mapping[str, Any], List[bytes]]]], criteria: str,
-                         searched: str, secrets_manager: Any) -> Dict[int, float]:
-    client = JevDecisionClient(secrets_manager=secrets_manager, max_retries=0,
-                               telemetry_task_id=str(uuid4()), telemetry_purpose="result_photo_relevance")
+                         searched: str, secrets_manager: Any,
+                         policy: Optional[InternalLlmPolicy] = None) -> Dict[int, float]:
+    client = decision_client_for_policy(policy, secrets_manager=secrets_manager, needs_images=True, max_retries=0,
+                                        task_id=str(uuid4()), purpose="result_photo_relevance")
     slots = asyncio.Semaphore(DECISION_SLOTS)
 
     async def score(batch: Sequence[Tuple[int, Mapping[str, Any], List[bytes]]]) -> Dict[int, float]:
@@ -217,7 +220,7 @@ async def _score_batches(batches: Sequence[Sequence[Tuple[int, Mapping[str, Any]
 
 
 async def rank_results_by_photos(results: Sequence[Dict[str, Any]], *, relevance_criteria: str, searched: str,
-                                 secrets_manager: Any) -> PhotoRanking:
+                                 secrets_manager: Any, policy: Optional[InternalLlmPolicy] = None) -> PhotoRanking:
     """Order results by criteria fit judged on photos and facts; drop clear conflicts.
 
     Results without a usable photo or without a completed decision are kept after
@@ -234,7 +237,7 @@ async def rank_results_by_photos(results: Sequence[Dict[str, Any]], *, relevance
         return PhotoRanking(original)
     batches = [available[start:start + CANDIDATES_PER_BATCH]
                for start in range(0, len(available), CANDIDATES_PER_BATCH)]
-    scores = await _score_batches(batches, relevance_criteria.strip(), searched, secrets_manager)
+    scores = await _score_batches(batches, relevance_criteria.strip(), searched, secrets_manager, policy)
     logger.info("[AppPackages] Result photo ranking candidates=%d with_photos=%d evaluated=%d wall_ms=%.0f",
                 len(candidates), len(available), len(scores), (time.monotonic() - started) * 1000)
     if not scores:

@@ -756,3 +756,50 @@ def test_memory_readiness_node_only_requires_real_source_services_and_egress(fau
         else harness,
     ) is (fault == "")
 
+
+
+def _e2b_job():
+    import json
+
+    return {
+        "e2b_runner": json.dumps(
+            {"label": "e2b-abc", "runner_id": 77, "runner_name": "e2b-runner-1"}
+        )
+    }
+
+
+GOOD_E2B_ENTRY = {
+    "labels": ["openmates-e2b", "e2b-abc"],
+    "runner_id": 77,
+    "runner_name": "e2b-runner-1",
+}
+
+
+# contract-test: tooling
+def test_e2b_runner_admitted_only_when_bound_to_registration():
+    assert ci_results.admitted_e2b_runner(_e2b_job(), GOOD_E2B_ENTRY)
+    assert ci_results.expected_runner_environment(_e2b_job()) == "self-hosted"
+    assert ci_results.expected_runner_environment({}) == "github-hosted"
+
+
+# contract-test: tooling
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"labels": ["self-hosted", "openmates-capacity"]},
+        {"runner_id": 78},
+        {"runner_name": "other"},
+        {"labels": ["self-hosted", "e2b-abc"]},
+        {"labels": ["e2b-abc"]},
+        {"labels": ["openmates-e2b"]},
+        {"labels": ["openmates-e2b", "e2b-other"]},
+    ],
+)
+def test_e2b_runner_rejects_mismatch(change):
+    assert not ci_results.admitted_e2b_runner(_e2b_job(), {**GOOD_E2B_ENTRY, **change})
+
+
+# contract-test: tooling
+def test_job_without_registration_never_admits_self_hosted_entry():
+    assert not ci_results.admitted_e2b_runner({}, GOOD_E2B_ENTRY)
+    assert not ci_results.admitted_e2b_runner({"e2b_runner": ""}, GOOD_E2B_ENTRY)

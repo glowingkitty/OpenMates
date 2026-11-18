@@ -31,7 +31,8 @@ import { UnitPortError, type UnitPort } from '../host/unitPort';
 import type { StreamCompletionInput } from '../embedWriteAdapter';
 import type { EmbedWriteProtocol, PersistedEmbedWrite } from './embedDataProtocol';
 import { rustEmbedData } from './embedDataClient';
-import { rustEmbedWriter } from './embedWriteSession';
+import { isAnonymousChatId } from '../../anonymousChatIds';
+import { rustEmbedWriter, rustGuestEmbedWriter } from './embedWriteSession';
 import { childRevisionIO, isChildRevisionEvent, runChildRevision } from './rustChildRevisionWrite';
 
 type EmbedData = SendEmbedDataPayload['payload'];
@@ -156,7 +157,11 @@ function dispatchUpdated(service: ChatSynchronizationService, embedData: EmbedDa
 export async function writeStreamedEmbedInRust(service: ChatSynchronizationService, embedData: EmbedData,
 	lease: CanonicalEmbedWriteLease, localOnly: boolean): Promise<boolean> {
 	if (!rustWebCrypto()) return false;
-	const { unit } = await rustEmbedWriter();
+	// Signed-out guest chat: the local-only unit encrypts with the guest chat key and
+	// persists on the device; nothing is sent to the server.
+	const guest = isAnonymousChatId(embedData.chat_id);
+	if (guest) localOnly = true;
+	const { unit } = guest ? await rustGuestEmbedWriter() : await rustEmbedWriter();
 	// The finalized branch validated this key (ensureChatKeySafeForWrite) before taking the lease.
 	await loadEmbedWriteKeys(unit, embedData.chat_id, embedData.embed_id, embedData.parent_embed_id);
 
@@ -181,7 +186,7 @@ export async function writeStreamedEmbedInRust(service: ChatSynchronizationServi
 	if (!localOnly && persisted.store_payload) {
 		const { sendStoreEmbedImpl } = await import('../../chatSyncServiceSenders');
 		durableHead = await sendStoreEmbedImpl(service, persisted.store_payload as unknown as StoreEmbedPayload,
-			persisted.server_keys ?? undefined, lease, 'stream-completion');
+			persisted.server_keys ? { keys: persisted.server_keys.keys.map((row) => ({ ...row })) } : undefined, lease, 'stream-completion');
 	}
 	await afterPersist(persisted);
 	if (!localOnly) {

@@ -12,8 +12,8 @@
 <script lang="ts">
   import InteractiveHtmlFrame from '../code/InteractiveHtmlFrame.svelte';
   import SlideImageElement from './SlideImageElement.svelte';
-  import { getTemplate, placeElements, resolveColor, resolveFont, templateStyleVars } from './slidesTemplates';
-  import type { InlineNode, Slide, SlideElement } from './slidesMarkup';
+  import { placeElements, resolveTemplate, resolveColor, resolveFont, templateStyleVars } from './slidesTemplates';
+  import type { DeckTheme, InlineNode, Slide, SlideElement } from './slidesMarkup';
 
   interface Props {
     slide: Slide;
@@ -21,19 +21,23 @@
     width: number;
     height: number;
     template: string;
+    /** The deck's own theme, laid over Plain's tokens per token. */
+    theme?: DeckTheme;
     /** Build steps shown so far; elements with a higher step are hidden. */
     step?: number;
     /** Blocks accept input (fullscreen) or stay inert (preview cards, thumbnails). */
     interactive?: boolean;
     /** Play element animations and the slide transition. */
     animated?: boolean;
+    /** Animated SVG images play (fullscreen, editor, presentation); false shows the still picture. */
+    motion: boolean;
   }
 
-  let { slide, width, height, template: templateId, step = 99, interactive = false, animated = false }: Props = $props();
+  let { slide, width, height, template: templateId, theme, step = 99, interactive = false, animated = false, motion }: Props = $props();
 
   let viewportWidth = $state(0);
   let scale = $derived(viewportWidth > 0 ? viewportWidth / width : 0);
-  let template = $derived(getTemplate(templateId));
+  let template = $derived(resolveTemplate(templateId, theme));
   let placed = $derived(placeElements(slide, template, height));
   let visible = $derived(
     placed.filter(
@@ -115,7 +119,7 @@
           {#if element.type === 'text'}
             <div class="text-body" data-testid="slide-text" style={textStyle(entry)}>{@render inline(element.content)}</div>
           {:else if element.type === 'image'}
-            <SlideImageElement embedRef={element.ref} alt={element.alt} fit={element.fit} />
+            <SlideImageElement embedRef={element.ref} alt={element.alt} fit={element.fit} {motion} />
           {:else if element.type === 'video'}
             <div class="video-placeholder" role="img" aria-label={element.alt || element.provider}>
               <span class="play-glyph" aria-hidden="true"></span>

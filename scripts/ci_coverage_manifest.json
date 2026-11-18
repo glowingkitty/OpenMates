@@ -38,6 +38,20 @@
         "components/embed-updated-event-notice.spec.ts"
       ]
     },
+    "helpline_card_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare preview of the wellbeing helpline card (two-line, three-line and emergency-only fixtures at phone and tablet widths). Pure presentation fixtures with synthetic example.org helplines; no backend, account credentials, provider or AI inference.",
+      "specs": [
+        "components/helpline-card.spec.ts"
+      ]
+    },
+    "safety_appeal_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare previews of the account-suspended screen and the safety appeal form (character limit, consent to share requests). Pure presentation fixtures; no backend, account credentials, provider or AI inference.",
+      "specs": [
+        "components/safety-appeal.spec.ts"
+      ]
+    },
     "ai_generated_badge_component": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare previews of the AI generated badge over a finished generated image in the preview card and the fullscreen view (collapsed, expanded, no overlap with the card buttons). Pure presentation fixtures; no backend, account credentials, provider or AI inference.",
@@ -265,9 +279,6 @@
         "skill-music-generate.spec.ts",
         "skill-shopping-search.spec.ts",
         "skill-social-media.spec.ts",
-        "skill-travel-connections.spec.ts",
-        "skill-travel-stays.spec.ts",
-        "skill-travel-train-connections.spec.ts",
         "skill-videos-search.spec.ts",
         "skill-videos-transcript.spec.ts",
         "skill-weather-forecast.spec.ts"
@@ -296,6 +307,7 @@
         "components/voice-call-bar.spec.ts",
         "components/voice-call-chat-header.spec.ts",
         "components/voice-call-media.spec.ts",
+        "components/voice-call-apple-parity.spec.ts",
         "components/voice-call-artifact-progress.spec.ts",
         "components/skill-input-thumbnails.spec.ts",
         "components/voice-call-audio-gate.spec.ts",
@@ -319,6 +331,7 @@
         "components/shared-auxiliary-load-button.spec.ts",
         "components/read-only-message-parsed-doc.spec.ts",
         "components/read-only-message-pii-labels.spec.ts",
+        "components/read-only-message-project-mention.spec.ts",
         "components/voice-call-speech-rendering.spec.ts",
         "components/svg-image-embed.spec.ts",
         "components/chat-header-image-lifecycle.spec.ts",
@@ -356,6 +369,11 @@
         "components/chat-processing-indicator.spec.ts",
         "components/chat-inline-ratio-math.spec.ts",
         "components/specification-fullscreen.spec.ts",
+        "components/specification-embed.spec.ts",
+        "components/plan-embed.spec.ts",
+        "components/check-embed.spec.ts",
+        "components/chat-active-plan.spec.ts",
+        "components/plan-skill-embeds.spec.ts",
         "components/workflow-graph-ai-authoring.spec.ts",
         "components/workflow-message-editor-metadata.spec.ts",
         "components/workflow-ask-ai-editor.spec.ts",
@@ -371,6 +389,8 @@
         "components/chat-sent-message-visibility.spec.ts",
         "components/composer-send-readiness.spec.ts",
         "components/message-input-minimized-send.spec.ts",
+        "components/message-input-guest-states.spec.ts",
+        "components/message-input-embed-draft-minimized.spec.ts",
         "components/message-input-image-send.spec.ts",
         "components/composer-ghost-suggestion.spec.ts",
         "components/workflow-prompt-composer.spec.ts",
@@ -389,6 +409,7 @@
         "components/password-and-tfa-otp.spec.ts",
         "components/map-load-recovery.spec.ts",
         "components/map-result-deduplication.spec.ts",
+        "components/results-calendar-sticky-axes.spec.ts",
         "components/newsroom-surface.spec.ts",
         "components/publication-code-highlighting.spec.ts",
         "components/marketing-landing.spec.ts",
@@ -492,7 +513,9 @@
         "components/maps-discovery.spec.ts",
         "components/maps-place-label.spec.ts",
         "components/agent-context-message.spec.ts",
+        "components/figma-connected-accounts.spec.ts",
         "components/project-focus-specialist.spec.ts",
+        "components/focus-banner-placement.spec.ts",
         "components/rule-document-manager.spec.ts",
         "components/workflow-memory-snapshots.spec.ts",
         "components/wiki-learning.spec.ts",
@@ -508,6 +531,7 @@
         "components/settings-avatar.spec.ts",
         "components/ai-model-cache-pricing.spec.ts",
         "components/app-skill-model-cache-pricing.spec.ts",
+        "components/events-search-pricing.spec.ts",
         "components/settings-usage-cache-receipt.spec.ts",
         "components/chat-message-team-attribution.spec.ts",
         "components/skill-failure-feedback.spec.ts",
@@ -661,6 +685,7 @@
         "chat-reload-followup-send.spec.ts",
         "daily-inspiration-chat-flow.spec.ts",
         "default-model-cli.spec.ts",
+        "chat-settings-active-plan.spec.ts",
         "default-model-settings-proof.spec.ts",
         "default-model-settings.spec.ts",
         "embed-canonical-replay.spec.ts",
@@ -690,6 +715,7 @@
         "unified-detail-metadata-sync.spec.ts",
         "maps-discovery-chat.spec.ts",
         "chat-queued-followups-protocol.spec.ts",
+        "chat-queued-followups-same-tab.spec.ts",
         "chat-interrupted-followup.spec.ts",
         "workflow-metadata-warmup.spec.ts",
         "voice-call.spec.ts",
@@ -711,6 +737,7 @@
         "web-rust-core-embeds.spec.ts",
         "web-rust-core-search.spec.ts",
         "web-rust-core-send-bench.spec.ts",
+        "web-rust-core-send-prep.spec.ts",
         "web-rust-core-bench.spec.ts",
         "web-rust-core-profile.spec.ts",
         "web-rust-core-reload-memory.spec.ts",
@@ -808,7 +835,11 @@
         "skill-web-read.spec.ts",
         "skill-web-search.spec.ts",
         "mercury3-model-picker.spec.ts",
-        "slides-manual-edit.spec.ts"
+        "slides-manual-edit.spec.ts",
+        "slides-present-remote.spec.ts",
+        "chat-embed-header-edit.spec.ts",
+        "slides-focus-template-designer.spec.ts",
+        "slides-focus-presentation-planner.spec.ts"
       ]
     },
     "local_email_signup": {
@@ -968,11 +999,15 @@
         "persisted-draft-discovery.spec.ts",
         "draft-only-chat-delete.spec.ts",
         "plan-acceptance-checks-flow.spec.ts",
+        "chat-settings-active-plan.spec.ts",
         "plan-assumptions-flow.spec.ts",
         "plans-flow.spec.ts",
         "project-plans-flow.spec.ts",
+        "project-specifications-web-flow.spec.ts",
+        "project-checks-web-flow.spec.ts",
         "project-task-sync.spec.ts",
         "projects-flow.spec.ts",
+        "projects-create-edit-files.spec.ts",
         "projects-remote-sources.spec.ts",
         "teams-settings-context.spec.ts",
         "workflow-files.spec.ts",
@@ -1039,6 +1074,7 @@
         "web-read-public-page.spec.ts",
         "cli-claude-session-tasks.spec.ts",
         "cli-native-project-hosted-files.spec.ts",
+        "project-timeline-flow.spec.ts",
         "cli-native-project-application-files.spec.ts",
         "cli-memory-write.spec.ts",
         "cli-native-project-create-request.spec.ts",
@@ -1054,8 +1090,10 @@
         "teams-chat-collaboration-real.spec.ts",
         "vector-graphic-chat.spec.ts",
         "design-embroidery-chat.spec.ts",
+        "slides-focus-modes-real.spec.ts",
         "skill-search-live-progress-chat.spec.ts",
-        "videos-generate-chat.spec.ts"
+        "videos-generate-chat.spec.ts",
+        "chat-orchestration-main-chats.spec.ts"
       ]
     },
     "real_stripe_sandbox_settlement": {
@@ -1125,8 +1163,16 @@
         "components/grouped-result-preview.spec.ts",
         "components/slides-deck-embed.spec.ts",
         "components/slides-presenter.spec.ts",
+        "components/slides-present-remote.spec.ts",
+        "components/slides-svg-animation.spec.ts",
         "components/slides-editor.spec.ts",
-        "components/test-result-embed.spec.ts"
+        "components/embed-header-edit-button.spec.ts",
+        "components/code-editor.spec.ts",
+        "components/docs-editor.spec.ts",
+        "components/test-result-embed.spec.ts",
+        "components/application-embed-preview.spec.ts",
+        "components/slides-template-embed.spec.ts",
+        "components/project-timeline.spec.ts"
       ]
     },
     "chat_message_timeline": {
@@ -1144,7 +1190,10 @@
         "provider-boundary.spec.ts",
         "skill-events-search.spec.ts",
         "skill-shopping-images.spec.ts",
-        "skill-fitness-unavailable.spec.ts"
+        "skill-fitness-unavailable.spec.ts",
+        "skill-travel-connections.spec.ts",
+        "skill-travel-stays.spec.ts",
+        "skill-travel-train-connections.spec.ts"
       ]
     },
     "rust_core_session_harness": {
@@ -1227,6 +1276,13 @@
         "components/result-embed-card-media.spec.ts"
       ]
     },
+    "guest_intro_actionable_event_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free runner-local bare preview of the guest intro Actionable event demo with fixed in-page event data and a fixed browser clock. Vite-only component profile; no backend, account, provider action or inference.",
+      "specs": [
+        "components/landing-actionable-event-demo.spec.ts"
+      ]
+    },
     "authored_result_landing_component": {
       "execution": "e2e",
       "enabling_work": "Account-free runner-local bare public landing animation fixture, supplied date-only FOSDEM facts, source/provenance and reduced-motion controls. Vite-only component profile; no backend, account, provider action or inference.",
@@ -1247,6 +1303,13 @@
       "specs": [
         "components/code-run-dependencies.spec.ts"
       ]
+    },
+    "chat_orchestration_event_notice_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare preview of the chat orchestration system event (started, report, finished, waiting for you, you wrote) as one compact clickable line. Pure presentation fixtures; no backend, account credentials, provider or AI inference.",
+      "specs": [
+        "components/chat-orchestration-event-notice.spec.ts"
+      ]
     }
   },
   "holds": {
@@ -1255,6 +1318,12 @@
     },
     "web-browse-real.spec.ts": {
       "next_action": "Real Jev/text-helper inference and E2B sessions: run only against dev with automatic chat routing, the isolated personal test profile, explicit shared-runtime lease and exact owned-source check. Account authentication is excluded from recordings; demo website credentials are public training fixtures. Never submit this provider-billed flow to isolated CI. Deterministic component and HTTP boundaries run in CI separately."
+    },
+    "voice-call-real.spec.ts": {
+      "next_action": "Real voice calls (ElevenLabs speaker audio as the fake microphone, real Mistral speech-to-text, AI routing, skills and Mate speech): run only on the dev host through scripts/voice_call_web_real_test.py with the personal-dev lease and explicit paid opt-in. Never submit this provider-billed flow to isolated CI; voice-call.spec.ts covers the deterministic call contract there."
+    },
+    "voice-call-orchestration-real.spec.ts": {
+      "next_action": "Real voice call that starts a spawned chat and speaks its interpreted report (ElevenLabs speaker audio, real speech-to-text, AI routing, Mate speech): run only on the dev host through scripts/voice_call_orchestration_web_real_test.py with the personal-dev lease and explicit paid opt-in. Never submit this provider-billed flow to isolated CI."
     },
     "anonymous-cli-skill.spec.ts": {
       "dependency": "official_cloud_eligibility_and_billing",
@@ -1885,33 +1954,6 @@
         "social_media_get_posts_web": 0,
         "social_media_search_web": 0
       }
-    },
-    "skill-travel-connections.spec.ts": {
-      "dependency": "current_capability_verification",
-      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
-      "user_input_required": false,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ]
-    },
-    "skill-travel-stays.spec.ts": {
-      "dependency": "current_capability_verification",
-      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
-      "user_input_required": false,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ]
-    },
-    "skill-travel-train-connections.spec.ts": {
-      "dependency": "current_capability_verification",
-      "next_action": "Verify the current unavailable-response contract in the isolated test environment.",
-      "user_input_required": false,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ]
     },
     "skill-videos-search.spec.ts": {
       "dependency": "original_direct_cli_provider_credentials",

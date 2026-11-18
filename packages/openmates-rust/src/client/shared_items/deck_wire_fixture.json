@@ -35,7 +35,8 @@
     "clear_interactive_element",
     "clear_all_interactive",
     "set_interactive_hidden",
-    "set_all_interactive_hidden"
+    "set_all_interactive_hidden",
+    "set_theme"
   ],
   "operations": [
     {
@@ -179,6 +180,20 @@
     {
       "hidden": false,
       "op": "set_all_interactive_hidden"
+    },
+    {
+      "op": "set_theme",
+      "template": "library:club",
+      "theme": {
+        "accent": "#1f9d55",
+        "accent_2": "#f2c94c",
+        "background": null,
+        "body": null,
+        "foreground": null,
+        "heading": "Georgia",
+        "muted": null,
+        "surface": null
+      }
     }
   ],
   "outcomes": [
@@ -207,6 +222,7 @@
     "can_undo": false,
     "canvas_height": 1080,
     "canvas_width": 1920,
+    "kind": "deck",
     "slides": [
       {
         "elements": [
@@ -362,6 +378,7 @@
       }
     ],
     "template": "builtin:plain",
+    "theme": null,
     "title": "Q3 & \"results\" '26"
   }
 }

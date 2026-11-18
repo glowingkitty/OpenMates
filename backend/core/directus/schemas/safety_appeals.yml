@@ -1,0 +1,26 @@
+# Appeals against a safety suspension. One row per appeal; the flagged requests
+# are stored only when the user consented to share them, and the optional photo
+# only when the user attached it again. Rows are purged 6 months after the decision.
+safety_appeals:
+  type: collection
+  note: "Safety suspension appeals with consented request text"
+  fields:
+    id: {type: uuid, primary: true}
+    user_id: {type: string, length: 64, required: true}
+    status: {type: string, length: 32, required: true, note: "open, needs_information or decided"}
+    explanation: {type: text, required: true, note: "User explanation, at most 1000 characters"}
+    consent_share_requests: {type: boolean, required: true}
+    flagged_requests: {type: json, nullable: true, note: "Plaintext of the flagged requests; present only with consent"}
+    attachment_data_url: {type: text, nullable: true, note: "Photo the user attached again (upload categories without minors); deleted at the decision"}
+    admin_question: {type: text, nullable: true, note: "Last question the admin asked the user"}
+    user_reply: {type: text, nullable: true, note: "User answer to the admin question, at most 1000 characters"}
+    decision: {type: string, length: 32, nullable: true, note: "restored or deleted"}
+    created_at: {type: datetime, required: true}
+    decision_due_at: {type: datetime, required: true}
+    decided_at: {type: datetime, nullable: true}
+    purge_after: {type: datetime, nullable: true}
+  indexes:
+    - name: idx_safety_appeals_user
+      fields: [user_id, status]
+    - name: idx_safety_appeals_purge
+      fields: [purge_after]

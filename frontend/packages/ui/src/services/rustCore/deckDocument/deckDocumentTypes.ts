@@ -49,11 +49,32 @@ export interface DeckSlideModel {
 	elements: DeckElementModel[];
 }
 
+/** `deck` is a presentation, `template` a reusable template (Rust `DeckKind`). */
+export type DeckKind = 'deck' | 'template';
+
+/**
+ * Fonts and colours a deck or template overrides (Rust `DeckTheme`). Fonts are canonical
+ * safe font names, colours lower-case `#hex` (3 or 6 digits); `null` falls back to Plain.
+ * `accent_2` is the markup attribute `accent-2`.
+ */
+export interface DeckTheme {
+	heading: string | null;
+	body: string | null;
+	background: string | null;
+	foreground: string | null;
+	accent: string | null;
+	accent_2: string | null;
+	muted: string | null;
+	surface: string | null;
+}
+
 /** Render model of a deck: everything an editor draws, plus undo state. */
 export interface DeckView {
 	title: string;
 	aspect: DeckAspect;
 	template: string;
+	kind: DeckKind;
+	theme: DeckTheme | null;
 	canvas_width: number;
 	canvas_height: number;
 	slides: DeckSlideModel[];
@@ -105,7 +126,9 @@ export type DeckOperation =
 	| { op: 'clear_interactive_element'; slide_id: string; element_id: string }
 	| { op: 'clear_all_interactive' }
 	| { op: 'set_interactive_hidden'; slide_id: string; element_id: string; hidden: boolean }
-	| { op: 'set_all_interactive_hidden'; hidden: boolean };
+	| { op: 'set_all_interactive_hidden'; hidden: boolean }
+	/** Apply a template: replaces only `template` and `theme` (one undo step). Missing theme keys are treated as unset. */
+	| { op: 'set_theme'; template: string; theme: Partial<DeckTheme> | null };
 
 export type DeckOperationName = DeckOperation['op'];
 

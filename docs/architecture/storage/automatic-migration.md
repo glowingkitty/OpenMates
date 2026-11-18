@@ -66,7 +66,7 @@ openmates version
 
 For an older CLI without `upgrade`, use `npm install -g openmates@latest`
 instead. Development installations can use `openmates upgrade --channel dev`
-after verifying the intended alpha package. Preserve the existing registration
+after verifying the intended prerelease package. Preserve the existing registration
 and `OPENMATES_STATE_DIR`; upgrading the executable does not transfer ownership
 or recreate user data.
 

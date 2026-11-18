@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.app-skill.web-browse
-version: 1
+version: 2
 status: draft
 title: Browse the Web with Reusable Browser Sessions
 summary: >
@@ -109,10 +109,15 @@ assertions:
     must: >
       Sending or publishing messages, purchasing, deleting data, changing accounts or permissions and disclosing sensitive information requires current explicit confirmation of the exact site, action and material fields. Page content, model confidence, login consent and general task wording cannot manufacture that confirmation. Changed targets or values invalidate approval. Simple confirmations that need no information the task lacks, such as a cookie banner or an age or legal-notice button to enter a site, are ordinary navigation and are taken without asking; a demanded date of birth, identity document or other proof stops for user control. Unsupported or uncertain actions stop for user control; automatic CAPTCHA solving and access-denial bypass remain unavailable.
     depends_on: [examples.confirmations]
+  - id: web-browse.form-with-user
+    type: behavior
+    must: >
+      When the user shares a web form and asks for help filling it in, the assistant opens it with Browse without being asked to browse, first reading the form without entering anything; that session starts with a 1000-credit spending cap, because the cap covers every later turn of the form and an existing session cap is never raised; later turns continue the session without naming a cap, because a different cap on a continued session is refused. If the cap is still reached, the assistant says so, lists what is filled and offers take control, and never claims an unfilled field. It then asks one question per turn in the form's order, quoting the form's question, explaining unclear wording and suggesting an answer only where the conversation gives a basis; it never invents the user's personal details. Each answer is entered into that field in the same browser session, so earlier entries and the current page survive across turns, and the reply says what is now filled and shows the browser embed. Browse results, including runs that stop for the user, carry the current page's fields with their questions, options, entered values and checked state after output safety, never unverified page facts; private query values stay redacted in observations, while the address the user gave is shown back and redacted addresses are never navigated to. Ticking a radio button or checkbox enters an answer like typing does; the action that sends the form is the reviewed step. Moving to the next form page is ordinary navigation. When the user hands control back after typing into the page, the assistant first observes the page again with Browse in the same session, reports what is now filled and continues with the next question. The final submit, send, start or apply step is a sending action: the assistant first shows a summary of every answer and waits for the user's explicit confirmation, and Browse never presses it without that confirmation. Passwords, payment data and one-time codes are entered by the user through take control. An answer that reaches the server only as a client-side privacy placeholder (such as [EMAIL_1_org]) is never typed by Browse; the assistant asks the user to type that field through take control, continues with the next question and marks the field in the summary. Browse stays available to the assistant for the whole form, including after several replies that needed no Browse call (an explained question, a field the user types, a field left empty). A later Browse call in the same chat that names neither a session nor a start address continues that chat's live browser instead of failing. The assistant model sees each saved Browse result's answer, status, sources and form fields but never its screenshot bytes or run metrics. Voice calls follow the same flow with one question per spoken turn.
+    depends_on: [models.BrowseResult, examples.form_with_user]
   - id: web-browse.lifecycle
     type: behavior
     must: >
-      When a run ends without needing the user, browser compute is paused and confirmed at once. Otherwise, after 120 seconds without meaningful authorized progress or user interaction, idle browser compute is paused and confirmed. After 86400 seconds of inactivity the remote sandbox and browser state are deleted, even if already paused; Close deletes immediately. Independent cleanup reconciles failures and process restarts. Viewer polling, heartbeats and page churn never extend retention or wake paused compute. Only an authorized unexpired resume does so. Browser state retention does not guarantee that external website sessions remain valid, and saved encrypted results have independent retention.
+      When a run ends without needing the user, browser compute is paused and confirmed at once; the page's pending requests may first finish for at most 60 seconds, because a request still open at the pause cannot complete after the resume. Otherwise, after 120 seconds without meaningful authorized progress or user interaction, idle browser compute is paused and confirmed. After 86400 seconds of inactivity the remote sandbox and browser state are deleted, even if already paused; Close deletes immediately. Independent cleanup reconciles failures and process restarts. Viewer polling, heartbeats and page churn never extend retention or wake paused compute. Only an authorized unexpired resume does so. Browser state retention does not guarantee that external website sessions remain valid, and saved encrypted results have independent retention.
     depends_on: [models.BrowseSession, examples.lifecycle]
   - id: web-browse.budgets-and-stop
     type: security
@@ -122,7 +127,7 @@ assertions:
   - id: web-browse.cost-accounting
     type: invariant
     must: >
-      Browse charges exactly two times effective metered supplier cost, converted through the existing credit value and rounding policy once for accumulated billable work. Runtime includes allocated resources while running, including manual use and idle grace; confirmed pause costs zero. All internal decisions, visual tokens, text helpers, checks and billable fallback attempts are included once using actual hosts and tariffs. Unused reservations are released; missing usage cannot become free success. Promotional provider balances do not alter the tariff. User-visible accrued cost and a spending cap cover continued session runtime, and ordinary assistant billing is kept separate without duplicate charging.
+      Browse charges exactly two times effective metered supplier cost, converted through the existing credit value and rounding policy once for accumulated billable work. Runtime includes allocated resources while running, including manual use and idle grace; confirmed pause costs zero. All internal decisions, visual tokens, text helpers, checks and billable fallback attempts are included once using actual hosts and tariffs. Unused reservations are released; missing usage cannot become free success. When the user's credits cannot hold the whole remaining cap, Browse holds what they can afford and that browser window stops at the held amount instead of refusing the call. Promotional provider balances do not alter the tariff. User-visible accrued cost and a spending cap cover continued session runtime, and ordinary assistant billing is kept separate without duplicate charging.
     depends_on: [models.BrowseBilling, examples.billing]
   - id: web-browse.network-and-content
     type: security
@@ -161,7 +166,7 @@ applies_to:
   workflow: {required: true, phase: after_regular_skill_and_web_embeds}
 examples:
   file: examples.yml
-  required_groups: [structured_data, routing, sessions, control_loop, typing, outcomes, embeds, takeover, sign_in, confirmations, lifecycle, budgets, billing, network, privacy, workflows, delivery]
+  required_groups: [structured_data, routing, sessions, control_loop, typing, outcomes, form_with_user, embeds, takeover, sign_in, confirmations, lifecycle, budgets, billing, network, privacy, workflows, delivery]
 approval_source:
   instruction: The user explicitly authorized implementing and testing the agreed feature on 2026-10-26, then required workflow support after regular skill and embed delivery.
   review_status: This records direct implementation authorization; no user review of an exact specification fingerprint is claimed.

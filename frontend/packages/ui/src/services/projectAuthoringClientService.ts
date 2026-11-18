@@ -21,7 +21,7 @@ export interface ProjectAuthoringRecommendation {
   created_at?: number;
 }
 export type ProjectAuthoringReceipt = ProjectAuthoringRecommendation & {
-  event_id: string; created_at: number; type: 'project_authoring_recommendation';
+  event_id: string; created_at: number; type: 'project_authoring_recommendation'; title?: string;
 };
 export interface ProjectAuthoringAvailable {
   chat_id: string; project_id: string; user_message_id: string; assistant_message_id: string;
@@ -32,7 +32,9 @@ export interface ProjectAuthoringJob {
   result_id?: string; result_revision?: string; workflow_version_id?: string;
   project_item_id?: string; expected_item_revision?: string; error_code?: string;
   draft?: { document?: ProjectFocusDocument; markdown?: string; path?: string; question?: string;
-    save_operation_id?: string; expected_embed_revision?: number; remote_binding?: Record<string, unknown> };
+    save_operation_id?: string; expected_embed_revision?: number; remote_binding?: Record<string, unknown>;
+    collisions?: { topic: string; winner: 'focus' | 'project'; touches_project_constraint: boolean }[];
+    collision_check?: 'checked' | 'not_checked' };
 }
 const state = writable<Record<string, ProjectAuthoringJob>>({});
 export const projectAuthoringJobs = { subscribe: state.subscribe };
@@ -122,7 +124,11 @@ export async function assessProjectAuthoring(event: ProjectAuthoringAvailable): 
     if (inspected.recommendation) confirmed.push(inspected.recommendation);
   }
   await workspace(event.chat_id, event.project_id, current.owner);
+  // Update suggestions carry the target Focus title so the Recommendations card can name it.
+  const focusTitles = new Map(focuses.map(({ id, title }) => [id, title]));
   return confirmed.map(proposal => ({ ...proposal, type: 'project_authoring_recommendation',
+    ...(proposal.kind === 'focus' && proposal.target_id && focusTitles.get(proposal.target_id)
+      ? { title: focusTitles.get(proposal.target_id) } : {}),
     event_id: proposal.recommendation_id, created_at: proposal.created_at ?? proposal.expires_at - 1_200 }));
 }
 

@@ -106,6 +106,8 @@ class IsolatedVoxtralVoiceFixture:
             self._mic_started = True
             await self._events.put({"type": "turn.start", "time_s": 0})
             await self._events.put({"type": "transcription.text.delta", "text": "How do I make"})
+            # Eager endpointing hints first, as the realtime provider does.
+            await self._events.put({"type": "turn.eager_end", "time_s": 0.05})
             await self._events.put({"type": "turn.end", "time_s": 0.1, "end_reason": "threshold"})
         # The continuation requires later voiced microphone input. A short
         # initial clip followed by silence therefore holds indefinitely, while
@@ -114,6 +116,7 @@ class IsolatedVoxtralVoiceFixture:
             self._mic_answered = True
             await self._events.put({"type": "turn.start", "time_s": 1})
             await self._events.put({"type": "transcription.text.delta", "text": "ramen?"})
+            await self._events.put({"type": "turn.eager_end", "time_s": 1.05})
             await self._events.put({"type": "turn.end", "time_s": 1.1, "end_reason": "threshold"})
 
     async def receive(self) -> dict[str, Any]:

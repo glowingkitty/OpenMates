@@ -254,6 +254,45 @@ def apply_patch_fuzzy(content: str, diff: ParsedDiff, max_offset: int = 3) -> Pa
     )
 
 
+def apply_patch_unique_context(content: str, diff: ParsedDiff) -> PatchResult:
+    """
+    Tier 2a: Apply each hunk where its context and removed lines occur exactly once.
+
+    Models often get hunk line numbers wrong by more than the fuzzy window
+    (a long template or deck shifts every later slide) while copying the
+    lines themselves exactly. A hunk whose old lines match one place in the
+    content is applied there; a hunk that matches nowhere or more than once
+    fails, so an ambiguous edit is never guessed.
+    """
+    content_lines = content.split('\n')
+    sorted_hunks = sorted(diff.hunks, key=lambda h: h.old_start, reverse=True)
+
+    for hunk in sorted_hunks:
+        old_lines = [line[1:] for line in hunk.lines if line.startswith((' ', '-'))]
+        new_lines = [line[1:] for line in hunk.lines if line.startswith((' ', '+'))]
+        if not old_lines:
+            return PatchResult(
+                success=False, new_content=None, tier=2,
+                error="Unique-context fallback needs context or removed lines",
+            )
+        match_len = len(old_lines)
+        matches = [
+            idx for idx in range(0, len(content_lines) - match_len + 1)
+            if content_lines[idx:idx + match_len] == old_lines
+        ]
+        if len(matches) != 1:
+            return PatchResult(
+                success=False, new_content=None, tier=2,
+                error=(
+                    f"Unique-context fallback expected one match for hunk "
+                    f"@@ -{hunk.old_start},{hunk.old_count}, found {len(matches)}"
+                ),
+            )
+        content_lines[matches[0]:matches[0] + match_len] = new_lines
+
+    return PatchResult(success=True, new_content='\n'.join(content_lines), tier=2, error=None)
+
+
 def apply_patch_unique_removals(content: str, diff: ParsedDiff) -> PatchResult:
     """
     Tier 2b: Apply hunks by uniquely matching removed line runs.
@@ -387,9 +426,40 @@ def apply_patch_json_key_replacements(content: str, diff: ParsedDiff) -> PatchRe
     )
 
 
+ESCAPED_QUOTE = '\\"'
+
+
+def unescape_quoted_hunks(content: str, diff: ParsedDiff) -> Optional[ParsedDiff]:
+    """Return the diff with ``\\"`` read as ``"`` when only the diff carries that escape.
+
+    Stored embeds reach the model as TOON strings, where every quote inside
+    markup or code appears as ``\\"``. Models sometimes copy those escapes into
+    diff lines; the stored text never had them, so no line can match. The
+    rewrite applies only when the stored content holds no ``\\"`` at all, so a
+    real escaped quote in the content is never changed.
+    """
+    if ESCAPED_QUOTE in content:
+        return None
+    if not any(ESCAPED_QUOTE in line for hunk in diff.hunks for line in hunk.lines):
+        return None
+    hunks = [
+        DiffHunk(
+            old_start=hunk.old_start, old_count=hunk.old_count,
+            new_start=hunk.new_start, new_count=hunk.new_count,
+            lines=[line.replace(ESCAPED_QUOTE, '"') for line in hunk.lines],
+        )
+        for hunk in diff.hunks
+    ]
+    return ParsedDiff(embed_ref=diff.embed_ref, hunks=hunks, raw_diff=diff.raw_diff)
+
+
 def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
     """
     Apply a parsed diff to content using 3-tier fallback strategy.
+
+    When every tier fails and the diff carries quote escapes the content never
+    had (copied from the TOON form of the embed), the tiers run once more on
+    the unescaped hunks.
 
     Returns PatchResult with:
     - tier=1/2 + success=True: patch applied, new_content has result
@@ -401,6 +471,25 @@ def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
             error="No hunks found in diff"
         )
 
+    result = _apply_patch_tiers(content, diff)
+    if result.success:
+        return result
+    unescaped = unescape_quoted_hunks(content, diff)
+    if unescaped is not None:
+        retry = _apply_patch_tiers(content, unescaped)
+        if retry.success:
+            logger.info(f"Patch applied after reading escaped quotes as plain quotes for {diff.embed_ref}")
+            return retry
+        result = PatchResult(
+            success=False, new_content=None, tier=3,
+            error=f"{result.error}. Unescaped quotes: {retry.error}",
+        )
+    logger.warning(f"Patch application failed for {diff.embed_ref}; showing a visual diff card. {result.error}")
+    return result
+
+
+def _apply_patch_tiers(content: str, diff: ParsedDiff) -> PatchResult:
+    """Run the exact, fuzzy, unique-context, unique-removal and JSON-key tiers in order."""
     # Tier 1: Exact match
     result = apply_patch_exact(content, diff)
     if result.success:
@@ -418,6 +507,13 @@ def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
 
     tier2_error = result.error
 
+    result = apply_patch_unique_context(content, diff)
+    if result.success:
+        logger.info(f"Patch applied successfully (tier 2, unique context) for {diff.embed_ref}")
+        return result
+
+    tier2a_error = result.error
+
     result = apply_patch_unique_removals(content, diff)
     if result.success:
         logger.info(f"Patch applied successfully (tier 2, unique removals) for {diff.embed_ref}")
@@ -431,18 +527,18 @@ def apply_patch(content: str, diff: ParsedDiff) -> PatchResult:
         return result
 
     tier2c_error = result.error
-    logger.warning(
-        f"Patch application failed for {diff.embed_ref}. "
-        f"Tier 1: {tier1_error}. Tier 2: {tier2_error}. "
+    logger.debug(
+        f"Patch tiers failed for {diff.embed_ref}. "
+        f"Tier 1: {tier1_error}. Tier 2: {tier2_error}. Tier 2a: {tier2a_error}. "
         f"Tier 2b: {tier2b_error}. Tier 2c: {tier2c_error}. "
-        f"Falling back to visual diff card (tier 3)."
+        f"Trying the remaining fallbacks."
     )
 
     # Tier 3: Visual fallback — return failure so caller renders diff as card
     return PatchResult(
         success=False, new_content=None, tier=3,
         error=(
-            f"Exact: {tier1_error}. Fuzzy: {tier2_error}. "
+            f"Exact: {tier1_error}. Fuzzy: {tier2_error}. Unique context: {tier2a_error}. "
             f"Unique removals: {tier2b_error}. JSON keys: {tier2c_error}"
         )
     )

@@ -113,6 +113,7 @@ class LoginResponse(BaseModel):
     tfa_required: bool = Field(False, description="Indicates if 2FA verification is required")
     ws_token: Optional[str] = None  # Short-lived HMAC WebSocket token (NOT the refresh token). Safari iOS compatibility.
     pair_expires_at: Optional[int] = None  # Absolute server-enforced deadline for numeric pair auto-logout.
+    account_suspension: Optional[dict] = Field(None, description="Set when the account is suspended for safety strikes: code, state, until, localized message")
     
     class Config:
         json_schema_extra = {

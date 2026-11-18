@@ -96,4 +96,8 @@ __all__ = [
     'bank_transfer_reminder_email_task',
     'bank_transfer_amount_notice_email_task',
     'bank_transfer_duplicate_reference_email_task',
+    'safety_account_restored_email_task',
+    'safety_review_email_task',
 ]
+from . import safety_account_restored_email_task  # Import safety restore apology task
+from . import safety_review_email_task  # Import safety suspension and more-information tasks

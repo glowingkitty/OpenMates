@@ -20,6 +20,9 @@ for (const change of ['edit', 'restore', 'switch'] as const) {
     const fixture = page.getByTestId('composer-focus-fixture');
     await expect(fixture).toHaveAttribute('data-ready', 'true');
     const editor = page.getByTestId('message-editor').locator('.ProseMirror');
+    // The blurred image draft is minimized to its one-line summary; focus expands it first.
+    await page.getByTestId('message-field').click({ position: { x: 8, y: 8 } });
+    await expect(page.getByTestId('message-field')).toHaveAttribute('data-focused', 'true');
     await editor.fill(`${url} `);
     await expect.poll(() => requests).toBe(1);
 

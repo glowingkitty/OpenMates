@@ -450,7 +450,7 @@ struct ChatBannerView: View {
     private func loadedContent(title: String, appId: String, iconName: String?, summary: String?) -> some View {
         Group {
             if isIntroChat {
-                introTeaserContent(appId: appId)
+                introTeaserContent(appId: appId, title: title, summary: summary)
             } else {
                 standardLoadedContent(title: title, appId: appId, iconName: iconName, summary: summary)
             }
@@ -462,12 +462,12 @@ struct ChatBannerView: View {
     // Compact (iPhone): text and video crossfade in a loop (mobileTeaserTextCycle / mobileTeaserVideoCycle)
     // Regular (iPad/Mac): text left + video right side-by-side
 
-    private func introTeaserContent(appId: String) -> some View {
+    private func introTeaserContent(appId: String, title: String, summary: String?) -> some View {
         Group {
             if useCompactTeaser {
-                mobileIntroTeaser(appId: appId)
+                mobileIntroTeaser(appId: appId, title: title, summary: summary)
             } else {
-                desktopIntroTeaser(appId: appId)
+                desktopIntroTeaser(appId: appId, title: title, summary: summary)
             }
         }
         .modifier(FullVideoPresentation(url: fullVideoURL, isPresented: $showFullVideo))
@@ -477,10 +477,10 @@ struct ChatBannerView: View {
     // Web: mobileTeaserTextCycle 7s / mobileTeaserVideoCycle 7s
     // Text visible → crossfade → video visible → crossfade → text visible → ...
 
-    private func mobileIntroTeaser(appId: String) -> some View {
+    private func mobileIntroTeaser(appId: String, title: String, summary: String?) -> some View {
         ZStack {
             // Text phase
-            teaserTextColumn(appId: appId)
+            teaserTextColumn(appId: appId, title: title, summary: summary)
                 .frame(maxWidth: 280, alignment: .leading)
                 .opacity(showVideoPhase ? 0 : 1)
                 .offset(y: showVideoPhase ? -8 : 0)
@@ -515,9 +515,9 @@ struct ChatBannerView: View {
 
     // MARK: Desktop/iPad — side-by-side split
 
-    private func desktopIntroTeaser(appId: String) -> some View {
+    private func desktopIntroTeaser(appId: String, title: String, summary: String?) -> some View {
         HStack(alignment: .center, spacing: 36) {
-            teaserTextColumn(appId: appId)
+            teaserTextColumn(appId: appId, title: title, summary: summary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if teaserVideoURL != nil {
@@ -530,26 +530,28 @@ struct ChatBannerView: View {
         .padding(.vertical, .spacing8)
     }
 
-    /// AI icon + teaser copy lines
-    private func teaserTextColumn(appId: String) -> some View {
+    /// Icon, chat title and summary, start-aligned like the web teaser's
+    /// embedded WorkspaceDetailHeader (`.teaser-copy`, description clamped to 3 lines).
+    private func teaserTextColumn(appId: String, title: String, summary: String?) -> some View {
         VStack(alignment: .leading, spacing: .spacing4) {
             bannerIcon(appId: appId, iconName: nil, size: isMobileHeader ? 32 : 38)
 
-            VStack(alignment: .leading, spacing: .spacing1) {
-                Text(AppStrings.teaserLine1)
-                    .font(isMobileHeader ? .omLg : .omH3)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.white)
+            Text(title)
+                .font(isMobileHeader ? .omLg : .omH3)
+                .fontWeight(.bold)
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.leading)
+                .accessibilityIdentifier("chat-header-title")
 
-                Text(AppStrings.teaserLine2)
-                    .font(isMobileHeader ? .omLg : .omH3)
-                    .fontWeight(.bold)
+            if let summary, !summary.isEmpty {
+                Text(summary)
+                    .font(.omSmall)
+                    .fontWeight(.medium)
                     .foregroundStyle(.white)
-
-                Text(AppStrings.teaserLine3)
-                    .font(isMobileHeader ? .omLg : .omH3)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(loadedSummaryLineSpacing)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 3)
+                    .accessibilityIdentifier("chat-header-summary")
             }
         }
     }

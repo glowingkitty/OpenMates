@@ -30,6 +30,10 @@ from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
 # Import backup code verification and hashing utilities
 # Use sha_hash for cache, hash_backup_code (Argon2) for storage, verify_backup_code (Argon2) for verification
+from backend.shared.python_utils.image_safety.account_suspension import (
+    AccountSuspendedError,
+    raise_if_suspended,
+)
 from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code
 from backend.core.api.app.services.session_security_state import register_session_state
 # Import Celery app instance and specific task
@@ -1459,6 +1463,8 @@ async def login(
                 logger.warning(f"Invalid code_type '{login_data.code_type}' received for user {user_id}")
                 return LoginResponse(success=False, message="Invalid request type.", tfa_required=True)
 
+        except AccountSuspendedError as suspended:
+            return LoginResponse(success=False, message=suspended.message, account_suspension=suspended.detail())
         except Exception as e:
             logger.error(f"Error during 2FA verification (type: {login_data.code_type}) for user {user_id}: {str(e)}", exc_info=True)
             return LoginResponse(
@@ -1467,6 +1473,8 @@ async def login(
                 tfa_required=True # Keep user on 2FA screen
             )
 
+    except AccountSuspendedError as suspended:
+        return LoginResponse(success=False, message=suspended.message, account_suspension=suspended.detail())
     except Exception as e:
         logger.error(f"Generic login error: {str(e)}", exc_info=True)
         return LoginResponse(success=False, message="An error occurred during login")
@@ -1501,6 +1509,7 @@ async def finalize_login_session(
     - stay_logged_in=False: 24 hours (SESSION_TTL)
     - stay_logged_in=True: 30 days (for Safari iOS and mobile compatibility)
     """
+    raise_if_suspended(user)
     logger.info(f"Finalizing login session for user {user.get('id')[:6]}... (stay_logged_in={login_data.stay_logged_in})")
     refresh_token = None
     

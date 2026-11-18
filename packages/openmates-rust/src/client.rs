@@ -17,6 +17,7 @@ mod travel_booking;
 pub mod learning_mode;
 pub mod new_chat_suggestions;
 pub mod recommendations;
+pub mod recommendation_actions;
 pub use apps::DirectAppSkillAdmission;
 mod auth;
 mod session_response;
@@ -60,7 +61,8 @@ mod send_project_binding;
 mod direct;
 mod docs;
 mod browser_draft;
-pub use browser_draft::{BrowserDraftAdmission, BrowserDraftControl, BrowserDraftPublication, BrowserDraftWrite};
+mod browser_draft_offline;
+pub use browser_draft::{BrowserDraftAdmission, BrowserDraftControl, BrowserDraftOptions, BrowserDraftPublication, BrowserDraftWrite};
 mod draft_clear;
 pub mod draft_preview;
 mod chat_read;
@@ -79,15 +81,24 @@ pub mod embed_write;
 pub mod embed_user_revision;
 /// The `embed_updated` chat system event: codec, writer, reconcile, grouping.
 pub mod embed_updated_event;
+/// Chat orchestration jobs, events and read bounds (`feature.chat-orchestration`).
+pub mod chat_orchestration;
 /// Image Enhance: start, wait and save the result as the next embed version.
 pub mod image_enhance;
 /// Version history with provenance and the edit head of a native shell's edit.
 pub mod embed_version_history;
+/// Repair a partially streamed SVG into a renderable document.
+pub mod progressive_svg;
+pub mod video_timeline;
 pub mod saved_embed;
 #[doc(hidden)]
 pub mod shared_items;
 mod saved_embed_selector;
 mod focus;
+mod answer_withdrawal;
+mod wellbeing;
+#[cfg(test)]
+mod wellbeing_tests;
 mod incognito;
 // Private owned-driver foundation; entrypoints are wired by the distinct driver successor.
 #[allow(dead_code)]
@@ -131,6 +142,7 @@ pub(crate) use completion_recovery::{OriginalRecoveryCheckpointIoTicket,BrowserR
 pub use crate::platform::browser_recovery_port::{CapturedBrowserRecoveryPort,OriginalBrowserRecoveryPort,NativeRecoveryPortPending,NativeRecoveryPortDelivery};
 
 mod recovery;
+mod rate_limited_read;
 pub use completion_recovery::{
     CompletionRecoveryAdmission, CompletionRecoveryCheckpoint, CompletionRecoveryDurableReceipt,
     CompletionRecoveryJob, CompletionRecoveryKind, CompletionRecoveryReceipt,
@@ -141,12 +153,18 @@ pub use project_task_watch::{
     ProjectTaskWatchPoll, ProjectTaskWatchRead, ProjectTaskWatchReconnect, ProjectTaskWatchStart,
 };
 mod credentials;
+// Work-layer request gate and master-wrapped key unwrap on every shell.
+mod work_authority;
 mod cache_policy;
 mod chat_details_cache;
 pub use cache_policy::CachedContentLoader;
 pub mod snapshot_sections;
 mod chat_list_freshness;
 mod chat_arrival_order;
+pub mod frame_ingest;
+#[cfg(test)]
+mod frame_ingest_tests;
+pub use frame_ingest::{AdmitChatError, ChangedChat, ChatAdmission, FrameIngestSummary};
 mod chat_tombstones;
 // architecture.sync@2 overview order and incremental chat sync feed.
 pub mod overview;
@@ -160,6 +178,8 @@ pub(crate) use send::refusal_trace::note_caller as note_protocol_caller;
 mod send_attachments;
 mod send_observations;
 mod send_options;
+mod voice_turn_public;
+pub use voice_turn_public::{VoiceTurnCommit, VoiceTurnFrame, VoiceTurnPrepared};
 // Caller-reserved chat and message ids of a turn (Apple and web shells).
 mod send_reserved_ids;
 mod sync;
@@ -185,18 +205,28 @@ mod project_create_request;
 use project_create_request::PROJECT_CREATE_CAPABILITY;
 pub use project_create_request::MachineProjectDecision;
 pub mod memory_document_fields;
+pub mod memory_draft_diff;
+#[cfg(test)]
+mod memory_draft_diff_tests;
 mod memory_frontmatter;
 pub mod memory_documents;
 mod memory_catalog;
 pub mod memory_privacy;
 pub mod memory_write_jobs;
+pub mod system_event_line;
 pub mod server_region;
 pub mod memory_write_job_bridge;
 mod project_file_jobs;
+mod remote_command_jobs;
 use memory_write_jobs::MEMORY_WRITE_JOBS_CAPABILITY;
 use project_file_jobs::{PROJECT_FILE_JOBS_AVAILABLE, PROJECT_FILE_JOBS_CAPABILITY};
 #[cfg(all(feature = "workflow-yaml", unix))]
 mod hosted_file_io;
+mod project_commit_restore;
+pub use project_commit_restore::{
+    ProjectCommitFileOutcome, ProjectCommitFileRestore, ProjectCommitUserRestore,
+};
+mod project_embed_source;
 #[cfg(all(feature = "workflow-yaml", unix))]
 mod project_embed_adoption;
 pub(crate) mod project_item_error;
@@ -205,9 +235,13 @@ mod task_jobs;
 mod team;
 // View-model row and message metadata projection (plan apple-client-core-migration a4).
 mod view_projection;
+pub mod voice_call_activity;
+pub mod voice_call_lifecycle;
+pub mod voice_call_media;
 mod toon;
 pub(crate) mod transport;
 #[cfg(not(target_arch = "wasm32"))] pub mod upload;
+#[cfg(not(target_arch = "wasm32"))] pub mod call_source_frame;
 #[cfg(not(target_arch = "wasm32"))] pub mod profile_upload;
 // Temporary shell passthrough for un-migrated Apple code (plan step A6 removes it).
 #[cfg(not(target_arch = "wasm32"))] mod shell_http;
@@ -635,6 +669,8 @@ pub struct Client {
     chats: BTreeMap<String, Value>,
     original_physical_draft_bounds:BTreeMap<String,browser::original_draft_bounds::OriginalPhysicalDraftBounds>,
     chat_arrival_order: Option<Vec<String>>,
+    /// Frames applied by `ingest_socket_frames`; monotonic ordering barrier.
+    frame_applied_seq: u64,
     /// Account chat count the server reported with the last recent-chats phase.
     chat_total_count: Option<u64>,
     chat_list_freshness: chat_list_freshness::ChatListFreshness,
@@ -783,6 +819,7 @@ impl Client {
             chats: BTreeMap::new(),
             original_physical_draft_bounds:BTreeMap::new(),
             chat_arrival_order: None,
+        frame_applied_seq: 0,
             chat_total_count: None,
             chat_list_freshness: Default::default(),
             cache_clock: None,
@@ -843,9 +880,23 @@ impl Client {
         let cancel = self.operation_cancel.clone();
         crate::work::Projects::cookie(self, team, cancel)
     }
+    pub fn specifications(&mut self) -> crate::work::Specifications<'_> {
+        let team = self
+            .require_credentials()
+            .ok()
+            .and_then(|s| s.active_team_id.clone());
+        crate::work::Specifications::cookie(self, team)
+    }
     pub fn plans(&mut self) -> crate::work::Plans<'_> {
         let team = self.require_credentials().ok().and_then(|s| s.active_team_id.clone());
         crate::work::Plans::cookie(self, team)
+    }
+    pub fn checks(&mut self) -> crate::work::Checks<'_> {
+        let team = self
+            .require_credentials()
+            .ok()
+            .and_then(|s| s.active_team_id.clone());
+        crate::work::Checks::cookie(self, team)
     }
     pub(crate) async fn work_chat_key(&mut self, id: &str) -> Result<Key> {
         self.open_chat(id).await?;

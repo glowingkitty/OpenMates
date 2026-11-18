@@ -203,11 +203,10 @@
         {#if screenshotUrl}
           <img src={screenshotUrl} alt="" class="screenshot" data-testid="application-preview-screenshot-image" />
         {:else}
-          <div class="placeholder" aria-hidden="true">
-            <span class="app-window-dot"></span>
-            <span class="app-window-line wide"></span>
-            <span class="app-window-line"></span>
-            <span class="app-window-card"></span>
+          <!-- No stored screenshot (always the case for apps built from private
+               Project files): a call to start the preview, not a loading skeleton. -->
+          <div class="placeholder" data-testid="application-preview-placeholder">
+            <span class="placeholder-label" data-testid="application-preview-start-label">{$text('embeds.application_start_preview')}</span>
           </div>
         {/if}
         <div class="play-overlay" data-testid="application-preview-play-overlay" aria-hidden="true">▶</div>
@@ -249,41 +248,20 @@
   }
 
   .placeholder {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--spacing-2);
-    padding: var(--spacing-3);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
     height: 100%;
-    align-content: start;
+    /* Padding inside the frame height, so the bottom label is never clipped. */
+    box-sizing: border-box;
+    padding: var(--spacing-3);
+    background: color-mix(in srgb, var(--color-app-code) 10%, var(--color-grey-10));
   }
 
-  .app-window-dot,
-  .app-window-line,
-  .app-window-card {
-    display: block;
-    border-radius: var(--radius-full);
-    background: var(--color-grey-30);
-  }
-
-  .app-window-dot {
-    width: 34px;
-    height: 8px;
-  }
-
-  .app-window-line {
-    width: 55%;
-    height: 10px;
-  }
-
-  .app-window-line.wide {
-    width: 80%;
-  }
-
-  .app-window-card {
-    width: 100%;
-    height: 54px;
-    border-radius: var(--radius-3);
-    opacity: 0.7;
+  .placeholder-label {
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
   }
 
   .play-overlay {

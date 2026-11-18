@@ -234,6 +234,7 @@ struct EmbedFullscreenContainer: View {
             || filename.hasSuffix(".htm")
             || filename.hasSuffix(".md")
             || filename.hasSuffix(".markdown")
+            || SvgEmbedDocument.isSvg(language: language, filename: filename, code: payload.code)
     }
 
     private var childEmbeds: [EmbedRecord] {
@@ -2056,11 +2057,15 @@ private struct EmbedHeaderAnimatedDecorations: View {
     let narrow: Bool
     @State private var startedAt = Date()
     @State private var visible = true
+    // A fullscreen hosted inside an outer scroll view (inline previews) is not
+    // seen by the geometry check above, so scrolled-away headers kept drawing
+    // blurred frames every display tick and starved the main thread.
+    @State private var scrollVisible = true
     @Environment(\.accessibilityReduceMotion) private var reduced
     @Environment(\.workspacePaneIsVisible) private var paneVisible
     @Environment(\.scenePhase) private var scenePhase
     var body: some View {
-        TimelineView(.animation(paused: !WorkspaceMotionPolicy.shouldAnimate(paneVisible: paneVisible, scrollVisible: visible, sceneActive: scenePhase == .active, reduced: reduced))) { timeline in
+        TimelineView(.animation(paused: !WorkspaceMotionPolicy.shouldAnimate(paneVisible: paneVisible, scrollVisible: visible && scrollVisible, sceneActive: scenePhase == .active, reduced: reduced))) { timeline in
             let elapsed = timeline.date.timeIntervalSince(startedAt)
             Canvas { context, size in
                 let palette = AppGradientPalette.colors(for: appID)
@@ -2102,5 +2107,6 @@ private struct EmbedHeaderAnimatedDecorations: View {
         }
         .clipped().allowsHitTesting(false).accessibilityHidden(true)
         .onGeometryChange(for: Bool.self) { $0.frame(in: .named("embed-fullscreen-coordinate")).maxY > 0 } action: { visible = $0 }
+        .onScrollVisibilityChange(threshold: 0.01) { scrollVisible = $0 }
     }
 }

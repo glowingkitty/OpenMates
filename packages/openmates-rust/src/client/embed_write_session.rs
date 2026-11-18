@@ -35,8 +35,21 @@ const CHAT_KEY_UNAVAILABLE: Error = Error::Unavailable {
     reason: "CHAT_KEY_REQUIRED_FOR_EMBED_WRITE",
 };
 
+const MASTER_UNAVAILABLE: Error = Error::Unavailable {
+    code: "embed_master_unavailable",
+    reason: "LOCAL_ONLY_SESSION_HAS_NO_MASTER_KEY",
+};
+const LOCAL_ONLY_REQUIRED: Error = Error::Unavailable {
+    code: "embed_local_only_required",
+    reason: "SESSION_WITHOUT_MASTER_KEY_WRITES_LOCAL_ONLY",
+};
+
+/// Per-session embed key store and write planner. A session either holds the
+/// account master capability or is local-only (signed-out guest): a local-only
+/// session can adopt chat-wrapped keys and write local-only embeds, and can
+/// never produce a master wrapper or a server payload.
 pub struct EmbedWriteSession {
-    master: MasterCapability,
+    master: Option<MasterCapability>,
     chat_keys: HashMap<String, Key>,
     /// embed id -> (key, owning chat id).
     embed_keys: HashMap<String, (Key, String)>,
@@ -105,8 +118,17 @@ impl PlannedEmbedWrite {
 }
 
 impl EmbedWriteSession {
+    /// Session bound to the account master capability (server-synced writes).
     pub fn new(master: MasterCapability) -> Self {
-        Self { master, chat_keys: HashMap::new(), embed_keys: HashMap::new() }
+        Self { master: Some(master), chat_keys: HashMap::new(), embed_keys: HashMap::new() }
+    }
+    /// Signed-out guest session without a master key: embeds are encrypted
+    /// with the guest chat key and stay on the device (`local_only`).
+    pub fn local_only() -> Self {
+        Self { master: None, chat_keys: HashMap::new(), embed_keys: HashMap::new() }
+    }
+    fn master(&self) -> Result<MasterCapability> {
+        self.master.clone().ok_or(MASTER_UNAVAILABLE)
     }
     /// Adopt a chat key from its master-wrapped `encrypted_chat_key`. The
     /// adapter only offers keys its chat-key manager already marks write-safe.
@@ -117,7 +139,7 @@ impl EmbedWriteSession {
         Ok(KeyAdoption {
             target: Target::Chat(chat_id.to_owned()),
             wrapped: encrypted_chat_key.to_owned(),
-            wrapping: Wrapping::Master(self.master.clone()),
+            wrapping: Wrapping::Master(self.master()?),
         })
     }
     /// Adopt an embed key from an `embed_keys` row (master or chat wrapper).
@@ -128,7 +150,7 @@ impl EmbedWriteSession {
         }
         let wrapped = field("encrypted_embed_key").filter(|w| !w.is_empty()).ok_or(Error::Protocol)?;
         let wrapping = match field("key_type") {
-            Some("master") => Wrapping::Master(self.master.clone()),
+            Some("master") => Wrapping::Master(self.master()?),
             Some("chat") => {
                 if field("hashed_chat_id") != Some(hash_id(chat_id).as_str()) {
                     return Err(Error::Protocol);
@@ -190,6 +212,10 @@ impl EmbedWriteSession {
     /// go through [`Self::plan_child_revision`]); `Error::Protocol` for a
     /// malformed `revision`; key availability errors as above.
     pub fn plan_stream_completion(&mut self, data: StreamedEmbedData) -> Result<PlannedEmbedWrite> {
+        // A guest session must never yield a master wrapper or server payload.
+        if self.master.is_none() && !data.local_only() {
+            return Err(LOCAL_ONLY_REQUIRED);
+        }
         if data.child_revision()?.is_some() {
             return Err(REVISION_HEAD_REQUIRED);
         }
@@ -206,7 +232,7 @@ impl EmbedWriteSession {
             None => derive_embed_key(&chat_key, data.embed_id())?,
         };
         self.cache(data.key_cache_targets(), &key, &chat_id);
-        let master = (!data.local_only()).then(|| self.master.clone());
+        let master = if data.local_only() { None } else { Some(self.master()?) };
         Ok(PlannedEmbedWrite { kind: PlannedKind::Completion(data), embed_key: key, chat_key: Some(chat_key), master })
     }
     /// Version N+1 of a generated child (`payload.revision`): keeps the parent's
@@ -228,6 +254,9 @@ impl EmbedWriteSession {
         stored_head: Option<&Value>,
         existing_rows: Vec<EncryptedDiffRow>,
     ) -> Result<PlannedEmbedWrite> {
+        if self.master.is_none() {
+            return Err(LOCAL_ONLY_REQUIRED);
+        }
         let revision = data.child_revision()?.ok_or(Error::Invalid("Payload is not a child revision."))?;
         if data.local_only() {
             return Err(Error::Invalid("A child revision is never local-only."));
@@ -323,6 +352,9 @@ impl EmbedWriteSession {
     /// random key; children without an inherited key are refused (never a
     /// random key that would make the child undecryptable).
     pub fn plan_processing_update(&mut self, update: ProcessingEmbedUpdate) -> Result<PlannedEmbedWrite> {
+        if self.master.is_none() {
+            return Err(LOCAL_ONLY_REQUIRED);
+        }
         let embed_id = update.embed_id().to_owned();
         let cached = self.embed_keys.get(&embed_id).map(|(key, _)| key.clone());
         if update.is_child() {
@@ -333,7 +365,7 @@ impl EmbedWriteSession {
         let key = cached.unwrap_or_else(generate_embed_key);
         let chat_id = update.chat_id.clone();
         self.cache(update.key_cache_targets(), &key, &chat_id);
-        let master = Some(self.master.clone());
+        let master = Some(self.master()?);
         Ok(PlannedEmbedWrite { kind: PlannedKind::Update(update), embed_key: key, chat_key: Some(chat_key), master })
     }
     /// Drop a chat's keys (chat deleted/hidden or key rotated).

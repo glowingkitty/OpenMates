@@ -1820,6 +1820,25 @@ test('prepare_preflight completes a key-only empty shell but rejects conflicting
   );
 });
 
+// TASK-6166: a call's own "started" system message must not make the key shell look like a real chat.
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('prepare_preflight completes a voice-call shell whose only message is the call-started lifecycle message', async () => {
+  const metadata = prepareBody().encrypted_chat_metadata;
+  const lifecycleId = `00000000-voice-call-${'a'.repeat(32)}-started`;
+  const shell = {
+    id: CHAT_ID, hashed_user_id: OWNER, encrypted_chat_key: metadata.encrypted_chat_key,
+    created_at: metadata.created_at, updated_at: metadata.updated_at,
+    messages_v: 1, title_v: 0, metadata_v: 0, last_message_timestamp: 100,
+  };
+  const lifecycle = { ...userMessage(lifecycleId), client_message_id: lifecycleId, role: 'system', chat_id: CHAT_ID };
+  const database = fakeDatabase({ chats: [shell], messages: [lifecycle], chat_turn_preflights: [] });
+  const result = await executeOperation(database, 'prepare_preflight', prepareBody({ expected_messages_v: 1 }),
+    new Date('2029-01-01T00:00:00Z'));
+  assert.equal(result.state, 'PREPARED');
+  assert.equal(database.rows.chats[0].encrypted_title, metadata.encrypted_title);
+  assert.equal(database.rows.chats[0].messages_v, 2);
+});
+
 // contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 test('prepare_preflight rejects metadata for an existing non-empty chat', async () => {
   const metadata = prepareBody().encrypted_chat_metadata;
@@ -5930,6 +5949,24 @@ test('discovery exposes an owner live lease as pending without making it claimab
   }, new Date(start.getTime() + 60_001));
   assert.equal(expired.jobs[0].job_id, JOB_ID);
   assert.equal(expired.pending_jobs.length, 0);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+test('discovery names the device that started each turn so the API can keep it the persister', async () => {
+  const seed = leasedSeed();
+  seed.chat_turn_preflights[0].device_hash = 'cli-origin';
+  const database = fakeDatabase(seed);
+  const listed = await executeOperation(database, 'list_available_jobs', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'watching-tab',
+  }, new Date('2029-01-01T00:00:01Z'));
+  assert.equal(listed.jobs[0].job_id, JOB_ID);
+  assert.equal(listed.jobs[0].origin_device_hash, 'cli-origin');
+  assert.equal('preflight_id' in listed.jobs[0], false);
+  seed.chat_turn_preflights[0].hashed_user_id = 'e'.repeat(64);
+  const foreignPreflight = await executeOperation(fakeDatabase(seed), 'list_available_jobs', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'watching-tab',
+  }, new Date('2029-01-01T00:00:01Z'));
+  assert.equal(foreignPreflight.jobs[0].origin_device_hash, null);
 });
 
 const CLEANUP_ATTEMPT = '018fabcd-abcd-7abc-8abc-abcdefabcdef';

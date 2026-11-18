@@ -197,10 +197,8 @@ test('completes password signup, login with password, and delete account via ema
 	await expect(loginTabs).toBeVisible();
 	await loginTabs.getByRole('button', { name: /sign up/i }).click();
 	await captureTestThumbnail(page, testInfo, SIGNUP_THUMBNAIL);
-	await takeStepScreenshot(page, 'signup-alpha');
+	await takeStepScreenshot(page, 'signup-first-step');
 	await assertNoMissingTranslations(page);
-
-	await page.getByRole('button', { name: /continue/i }).click();
 	await takeStepScreenshot(page, 'basics-step');
 
 	await validateSignupInviteIfRequired(page, logSignupCheckpoint);

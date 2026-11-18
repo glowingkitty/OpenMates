@@ -4,6 +4,7 @@
 
 import pytest
 
+from backend.apps.ai.utils import internal_decisions
 from backend.apps.videos import routing
 from backend.shared.providers.typesafe import client as typesafe_client
 from backend.shared.providers.typesafe.models import ChoiceAnswer
@@ -28,6 +29,7 @@ def _stub_client(monkeypatch, *, answer=None, error=None):
             return _Response({"route": answer})
 
     monkeypatch.setattr(typesafe_client, "JevDecisionClient", _Client)
+    monkeypatch.setattr(internal_decisions, "JevDecisionClient", _Client)
     return seen
 
 

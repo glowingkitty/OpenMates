@@ -28,12 +28,19 @@ import { websocketStatus } from "../../../stores/websocketStatusStore"; // Impor
 import { chatListCache } from "../../../services/chatListCache";
 import { AnonymousFreeUsageExhaustedError, anonymousChatStorage } from "../../../services/anonymousChatStorage";
 import { markAnonymousFreeUsageExhausted, refreshAnonymousFreeUsageStatus } from "../../../stores/serverStatusStore";
+import {
+  createGuestSendDeadline,
+  GUEST_FAILED_SEND_CLEANUP_MS,
+  GuestSendPreparationTimeoutError,
+  settleWithin,
+} from "../guestComposerState";
 import { text } from "../../../i18n/translations";
 import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import URL-to-embed creation
 import { authStore } from "../../../stores/authStore"; // Import authStore for authentication check
 import { userProfile } from "../../../stores/userProfile";
 import { teamChatTitleFromMessage } from "../../../utils/teamChatTitle";
 import { computeSHA256 } from "../../../message_parsing/utils";
+import type { TipTapDoc } from "../../../message_parsing/types";
 import { appSettingsMemoriesPermissionStore } from "../../../stores/appSettingsMemoriesPermissionStore"; // For auto-dismissing permission dialog
 import { forcedLogoutInProgress } from "../../../stores/signupState";
 import { editMessageStore, cancelEdit } from "../../../stores/editMessageStore";
@@ -497,7 +504,7 @@ function captureSendPrivacy(exclusions: ReadonlySet<string>, mappings = getActiv
         let placeholder = match.placeholder;
         if (supported && placeholderOwners.has(placeholder) && placeholderOwners.get(placeholder) !== match.match) {
           do {
-            placeholder = `${match.placeholder.slice(0, -1)}_${++placeholderSequence}_${crypto.randomUUID().replaceAll("-", "")}]`;
+            placeholder = `${match.placeholder.slice(0, -1)}_${++placeholderSequence}_${crypto.randomUUID().replace(/-/g, "")}]`;
           } while (placeholderOwners.has(placeholder) && placeholderOwners.get(placeholder) !== match.match);
         }
         placeholderOwners.set(placeholder, match.match);
@@ -696,7 +703,8 @@ export async function prepareQueuedMessageRevision(
   const ignoredEmbedUrlsAtClick = new Set(ignoredEmbedUrls);
   const document = structuredClone(editorContent) as JSONContent;
   const recordingMappings = await redactRecordingFieldsForSend(document, privacy);
-  let markdown = tipTapToCanonicalMarkdown(document).replace(/^\n+/, "");
+  // The same editor JSON the other call sites pass; JSONContent's optional node type is wider than TipTapNode's.
+  let markdown = tipTapToCanonicalMarkdown(document as TipTapDoc).replace(/^\n+/, "");
   if (!markdown.trim()) throw new Error("Queued message cannot be empty");
   markdown = await processUrlsBeforeSend(markdown, ignoredEmbedUrlsAtClick);
   privacy.assertCurrent();
@@ -807,6 +815,9 @@ export async function handleSend(
   const sendContext = getActiveTeamContextSnapshot();
   const senderProfile = get(userProfile);
   const authenticatedAtClick = get(authStore).isAuthenticated;
+  // Signed out, every wait before the request leaves is bounded: a slow core,
+  // model or storage load fails the send visibly instead of greying Send forever.
+  const guestDeadline = createGuestSendDeadline(authenticatedAtClick);
   const contextChangeReason = (): string | null => {
     if (!isActiveTeamContext(sendContext.teamId, sendContext.epoch)) return "workspace";
     if (get(userProfile).user_id !== senderProfile.user_id) return "account";
@@ -903,7 +914,7 @@ export async function handleSend(
   // only authoritative once the encrypted account sync lands. Capturing earlier
   // makes assertCurrent() abort the send silently, so wait for that signal first
   // (the click's editor snapshot is already immutable).
-  if (!get(personalDataStore.enhancementReady)) await personalDataStore.waitForEnhancementReady();
+  if (!get(personalDataStore.enhancementReady)) await guestDeadline.bound(personalDataStore.waitForEnhancementReady(), "privacy_ready");
   const privacyAtClick = captureSendPrivacy(activePIIExclusions);
   const submittedEmbeds = submittedEmbedNodes(submittedEditorContent);
   for (const node of submittedEmbeds) {
@@ -1022,7 +1033,7 @@ export async function handleSend(
   // click before building any durable payload or inference request.
   let selectedChatModel = 'auto';
   if (options.resolveModelSelection) {
-    selectedChatModel = await options.resolveModelSelection();
+    selectedChatModel = await guestDeadline.bound(options.resolveModelSelection(), "model_selection");
     recordSendDebugStep("model_selection_resolved");
     if (!contextIsCurrent()) return false;
   }
@@ -1034,9 +1045,10 @@ export async function handleSend(
     teamAuthorHash = sendContext.teamId && senderProfile.user_id
       ? await computeSHA256(senderProfile.user_id)
       : undefined;
-    await chatDB.ensureReadyForSend();
+    await guestDeadline.bound(chatDB.ensureReadyForSend(), "local_db_ready");
     recordSendDebugStep("local_db_ready_for_send");
   } catch (error) {
+    if (error instanceof GuestSendPreparationTimeoutError) throw error;
     console.error("[handleSend] Local send preparation failed:", error);
     return false;
   }
@@ -1385,7 +1397,7 @@ export async function handleSend(
     return true; // Durable deferred queue accepted the message; upload completion sends it.
   }
 
-  const recordingPIIMappings = await redactRecordingFieldsForSend(submittedEditorContent, privacyAtClick);
+  const recordingPIIMappings = await guestDeadline.bound(redactRecordingFieldsForSend(submittedEditorContent, privacyAtClick), "recording_privacy_scan");
   privacyAtClick.assertCurrent();
 
   // OTel: embed registration span (image + audio embeds, includes dynamic imports)
@@ -1693,12 +1705,13 @@ export async function handleSend(
   try {
     // Supported web hosts retain one immutable policy through the send.
     const scanPrivacy = privacyAtClick.supported ? privacyAtClick : captureSendPrivacy(privacyAtClick.options.excludedIds ?? new Set());
-    const redacted = await redactTextForSend(markdown, scanPrivacy);
+    const redacted = await guestDeadline.bound(redactTextForSend(markdown, scanPrivacy), "privacy_scan");
     markdown = redacted.markdown;
     piiMappingsForStorage = mergePIIMappingsForStorage(recordingPIIMappings, redacted.mappings);
     privacyExcludedOriginals = redacted.excludedOriginals;
   } catch (error) {
-    if (privacyAtClick.supported || error instanceof PrivacySendContextChangedError) throw error;
+    if (privacyAtClick.supported || error instanceof PrivacySendContextChangedError ||
+        error instanceof GuestSendPreparationTimeoutError) throw error;
     console.error("[handleSend] Error in PII anonymization:", error);
     recordSendDebugStep("pii_detection_failed", { currentChatId });
   } finally {
@@ -1712,7 +1725,7 @@ export async function handleSend(
   // Check if a new chat suggestion was clicked - if so, track it for deletion
   recordSendDebugStep("suggestion_tracker_import_started", { currentChatId });
   const { consumeClickedSuggestion } =
-    await import("../../../stores/suggestionTracker");
+    await guestDeadline.bound(import("../../../stores/suggestionTracker"), "suggestion_tracker_import");
   recordSendDebugStep("suggestion_tracker_import_complete", { currentChatId });
   const encryptedSuggestionToDelete = consumeClickedSuggestion();
   recordSendDebugStep("suggestion_consumed", {
@@ -1725,7 +1738,7 @@ export async function handleSend(
     try {
       const { chatDB } = await import("../../../services/db");
 
-      const allSuggestions = await chatDB.getAllNewChatSuggestions();
+      const allSuggestions = await guestDeadline.bound(chatDB.getAllNewChatSuggestions(), "suggestion_cleanup");
 
       const suggestionToDelete = allSuggestions.find(
         (s) => s.encrypted_suggestion === encryptedSuggestionToDelete,
@@ -1770,8 +1783,14 @@ export async function handleSend(
   try {
     if (!isAuthenticatedForSend) {
       recordSendDebugStep("anonymous_send_path_started", { currentChatId });
-      const anonymousStatus = await refreshAnonymousFreeUsageStatus();
-      if (anonymousStatus?.active !== true || anonymousStatus.can_send_text === false) {
+      const anonymousStatus = await guestDeadline.bound(refreshAnonymousFreeUsageStatus(), "guest_access_status");
+      if (!anonymousStatus) {
+        // Unknown access is not an exhausted allowance: say what happened, keep the draft.
+        notificationStore.error(get(text)("enter_message.guest_access_status_unavailable"));
+        vibrateMessageField();
+        return false;
+      }
+      if (anonymousStatus.active !== true || anonymousStatus.can_send_text === false) {
         showAnonymousDailyCreditsExhaustedNotification();
         vibrateMessageField();
         return;
@@ -2665,6 +2684,8 @@ export async function handleSend(
       console.error('[handleSend] Message accepted but draft cleanup failed:', error);
       return true;
     }
+    // Reported once by the outer handler, after this turn's rollback.
+    if (error instanceof GuestSendPreparationTimeoutError) throw error;
     const failedAfterStep = (window as Window & {
       __openmatesLastSendDebug?: { step?: unknown };
     }).__openmatesLastSendDebug?.step;
@@ -2701,6 +2722,13 @@ export async function handleSend(
   } catch (error) {
     if (error instanceof PrivacyScanFailedError || error instanceof PrivacySendContextChangedError) {
       console.warn("[handleSend] Send stopped before dispatch:", error.name);
+      return false;
+    }
+    if (error instanceof GuestSendPreparationTimeoutError) {
+      recordSendDebugStep("guest_send_preparation_timeout", { currentChatId, step: error.step });
+      console.warn("[handleSend] Guest send did not start in time:", error.step);
+      notificationStore.error(get(text)("enter_message.guest_send_timeout"));
+      vibrateMessageField();
       return false;
     }
     throw error;
@@ -2752,7 +2780,7 @@ export async function handleSend(
         });
       }
       // Cleanup skipped while this send held its claim is retried now that it failed.
-      await discardEmptyClaimedChatsAfterFailedSend(sendChatClaims.claimedChatIds(),
+      const failedSendCleanup = discardEmptyClaimedChatsAfterFailedSend(sendChatClaims.claimedChatIds(),
         (id) => get(draftEditorUIState).currentChatId === id && !editor.isDestroyed && !editor.isEmpty,
         { getChat: (id) => chatDB.getChat(id), getMessagesForChat: (id) => chatDB.getMessagesForChat(id),
           deleteDraftOnlyChat: (id) => chatDB.deleteDraftOnlyChat(id),
@@ -2760,6 +2788,14 @@ export async function handleSend(
             chatSyncService.dispatchEvent(new CustomEvent("chatDeleted", { detail: { chat_id: id } }));
             await chatSyncService.sendDeleteChat(id, embedIds);
           } });
+      if (authenticatedAtClick) {
+        await failedSendCleanup;
+      } else if (!(await settleWithin(failedSendCleanup, GUEST_FAILED_SEND_CLEANUP_MS))) {
+        // Signed out, Send stays hidden until this returns; a hung local store must not keep it hidden.
+        console.warn("[handleSend] Guest failed-send cleanup still pending; returning Send to the composer first.");
+        recordSendDebugStep("guest_failed_send_cleanup_pending", { currentChatId });
+        failedSendCleanup.catch((cleanupError) => console.error("[handleSend] Guest failed-send cleanup failed:", cleanupError));
+      }
     }
     // The sender reserves the read on dispatch; any read still pending here is
     // unowned (failure, cancellation or a non-sending exit) and must be dropped.

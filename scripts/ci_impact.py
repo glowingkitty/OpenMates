@@ -18,6 +18,7 @@ from typing import Iterable
 CLI_PATH_PATTERNS = (
     ".github/workflows/publish-cli.yml",
     "backend/apps/**/app.yml",
+    "config/sdk-capabilities.json",
     "frontend/packages/openmates-cli/**",
     "frontend/packages/ui/src/demo_chats/**",
     "frontend/packages/ui/src/i18n/locales/en.json",
@@ -35,6 +36,7 @@ CLI_PATH_PATTERNS = (
 PYTHON_PATH_PATTERNS = (
     ".github/workflows/publish-python-sdk.yml",
     "backend/apps/**/app.yml",
+    "config/sdk-capabilities.json",
     "packages/openmates-python/**",
     "scripts/ci_impact.py",
     "scripts/generate_sdk_app_skills.py",

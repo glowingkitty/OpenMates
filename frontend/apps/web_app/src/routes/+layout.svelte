@@ -19,6 +19,7 @@
 	import { initializeUiFont } from '@repo/ui/stores/uiFont';
 	import { notificationStore } from '@repo/ui/stores/notificationStore';
 	import { onDestroy, onMount, type Component } from 'svelte';
+	import { installAccountSuspensionObserver } from '@repo/ui/stores/accountSuspension';
 	import { browser } from '$app/environment';
 	import { setupI18n } from '@repo/ui/i18n/setup';
 	import { page, updated } from '$app/state';
@@ -131,6 +132,7 @@
 	}
 
 	onMount(async () => {
+		installAccountSuspensionObserver();
 		// Preserve the pre-paint theme until the persisted preference is ready.
 		// Async metadata startup must never expose the theme store's light default.
 		initializeTheme();
@@ -138,8 +140,8 @@
 		initializeUiFont();
 		// Shared Rust core Worker (flag-on builds only; folded away and unbundled otherwise).
 		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && browser) void import('$lib/rustCore/shared/sharedWorkerStart').then((shared) => shared.startSharedRustCore());
-		// chatState unit: open it now so the first sidebar sort does not wait for the Worker (measurement opt-out keeps the TS arm clean).
-		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && browser && localStorage.getItem('openmates_rust_core_chatstate') !== 'ts') void import('@openmates/ui/src/services/rustCore/chatState/chatListUnitClient').then((client) => client.prepareChatStateUnit()).catch((error) => console.error('[chatState] prepare failed', error));
+		// chatState unit: open it now so the first sidebar sort does not wait for the Worker.
+		if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && browser) void import('@openmates/ui/src/services/rustCore/chatState/chatListUnitClient').then((client) => client.prepareChatStateUnit()).catch((error) => console.error('[chatState] prepare failed', error));
 		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 		// Only dictionary/local preference readiness gates app text. Auth and sync start afterwards.
 		await setupI18n();

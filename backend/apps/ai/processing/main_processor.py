@@ -33,7 +33,13 @@ from backend.apps.ai.processing.preprocessor import (
     PreprocessingResult, _history_has_loaded_image_blocks,
     _image_reference_consumer_skills, _request_has_image_upload_embed,
 )
-from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS
+from backend.apps.ai.processing.wellbeing_support import (
+    assess as wellbeing_assess, instruction_for as wellbeing_instruction_for,
+)
+from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, has_active_app_focus
+from backend.apps.ai.processing.focus_layering import (
+    build_layer_precedence_section, deactivate_focus_tool, deactivation_result, resolve_focus_layers,
+)
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
@@ -125,7 +131,11 @@ from backend.apps.ai.utils.embeds_map_view import (
     should_include_embeds_results_view_instruction,
     should_include_embeds_map_view_hint,
 )
-from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
+from backend.apps.ai.utils.tool_protocol_guard import (
+    TOON_RESULT_RETRY_PROMPT,
+    ToolProtocolGuard,
+    toon_result_retry_applies,
+)
 from backend.apps.ai.utils.pseudo_tool_call import (
     PSEUDO_TOOL_CALL_RETRY_PROMPT,
     PseudoToolCallRecovery,
@@ -149,6 +159,10 @@ from backend.apps.ai.processing.wikipedia_context import (
 )
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.config_manager import config_manager
+from backend.shared.python_utils.internal_llm_policy import (
+    POLICY_ARGUMENT as INTERNAL_LLM_POLICY_ARGUMENT,
+    InternalLlmPolicy,
+)
 from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
 
 # Import services for type hinting
@@ -166,6 +180,7 @@ from backend.apps.ai.processing.project_file_tools import (
     build_project_file_tools,
     build_project_focus_prompt,
     build_project_source_routing_context,
+    default_operation_source_id,
     requests_project_file_work,
     uniquely_named_project_focus_id,
     without_unscoped_project_search,
@@ -207,6 +222,10 @@ from backend.apps.ai.processing.audio_recording_guard import (
 from backend.apps.ai.processing.connected_account_receipts import (
     attach_connected_account_action_metadata,
 )
+from backend.apps.ai.processing.chat_orchestration_hooks import (
+    orchestration_blocked_skills,
+    orchestration_skill_additions,
+)
 from backend.apps.ai.processing.focus_mode_routing import (
     brand_naming_research_skill_scope,
     DelegatedPrimaryReadState,
@@ -223,6 +242,11 @@ from backend.apps.workflows.skills.chat_authoring_context import (
     WORKFLOW_AUTHORING_TOOL_INSTRUCTION,
     is_natural_language_authoring_call,
     with_trusted_timezone,
+)
+from backend.apps.ai.processing.orchestration_skill_gate import (
+    BLOCKED_IN_ORCHESTRATION_MESSAGE,
+    is_root_turn_code_run,
+    settle_blocked_placeholders,
 )
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
@@ -443,7 +467,7 @@ def _omit_fact_question_format_guidance(
         "historical_artifact_context", "embed_file_path_index", "has_image_upload_embed",
         "custom_rule_documents", "memory_catalog", "project_focus_documents", "project_context_documents",
         "project_routing_focus_id",
-        "mentioned_settings_memories_cleartext", "focus_phase_state",
+        "mentioned_settings_memories_cleartext", "focus_phase_state", "wellbeing_scores",
         "connected_account_directory", "connected_account_token_refs",
         "connected_account_permission_state",
     )):
@@ -538,7 +562,7 @@ def _pending_focus_authority_root(request_data: Any, task_id: str) -> str:
 
 
 def _forward_agentic_context(request: AskSkillRequest) -> dict:
-    """JSON-safe agentic context for a pending Focus continuation (stored in Redis).
+    """JSON-safe agentic context and client capabilities for a pending Focus continuation (Redis).
 
     `memory_catalog` holds pydantic entries; it is forwarded as the body-free
     metadata snapshot, otherwise storing the pending Focus context fails and the
@@ -549,6 +573,13 @@ def _forward_agentic_context(request: AskSkillRequest) -> dict:
         "project_context_documents", "related_task_candidates",
     )}
     context["memory_catalog"] = memory_catalog_snapshot(request_memory_catalog(request))
+    # Server-derived socket capabilities (Project file jobs, remote commands). The continuation
+    # answers the same turn, so it keeps the tools that turn was allowed; without them a Project
+    # chat lost its file tools whenever a focus mode activated.
+    context["client_capabilities"] = list(getattr(request, "client_capabilities", None) or [])
+    from backend.shared.testing.mock_context import signed_focus_continuation_marker
+    if marker := signed_focus_continuation_marker(getattr(request, "user_id", None)):
+        context["live_mock_marker"] = marker  # isolated CI replay only; see the helper
     return context
 
 
@@ -792,6 +823,8 @@ _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
     "docs-doc",
     "deck",
     "slides-deck",
+    "template",
+    "slides-template",
     "email",
     "mail",
     "mail-email",
@@ -1207,6 +1240,11 @@ def _resolve_app_skill_model_override(
     return model_ref
 
 
+def _internal_llm_policy_payload(request_data: Any) -> Optional[Dict[str, Any]]:
+    """The user's model and server settings for LLM steps inside skills; None when unset."""
+    return InternalLlmPolicy.from_user_preferences(getattr(request_data, "user_preferences", None)).to_payload()
+
+
 # Four tool-enabled passes followed by one answer-only pass. Recovery first
 # retries the same model with clean evidence, then permits one configured alternate.
 # Neither recovery attempt can execute a skill.
@@ -1351,7 +1389,9 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("music", "generate"),
     ("videos", "generate"),
 }
-VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read")}
+VARIABLE_RESULT_BILLING_SKILLS = {
+    ("code", "image_to_html"), ("audio", "generate"), ("audio", "speak"), ("web", "read"), ("events", "search"),
+}
 
 
 def _ordered_async_task_ids(async_result: Dict[str, Any]) -> List[str]:
@@ -2421,6 +2461,9 @@ def _get_variable_preflight_reserved_credits(
         validated = ReadRequest.model_validate(parsed_args)
         return [20] * len(validated.requests)
     requests = parsed_args.get("requests")
+    if (app_id, skill_id) == ("events", "search"):
+        from backend.shared.python_utils.web_source_billing import RESERVED_CREDITS_PER_REQUEST
+        return [RESERVED_CREDITS_PER_REQUEST] * max(1, len(requests) if isinstance(requests, list) else 1)
     items = requests if isinstance(requests, list) else [parsed_args]
     if app_id == "audio" and skill_id == "generate":
         from backend.apps.audio.pricing import DEFAULT_SOUND_EFFECT_DURATION_SECONDS, calculate_sound_effect_credits
@@ -3345,6 +3388,10 @@ def _get_result_declared_charge_items(
                     for page in group["results"])
         ]
 
+    if (app_id, skill_id) == ("events", "search"):
+        from backend.shared.python_utils.web_source_billing import usage_charge_items
+        return usage_charge_items(app_id, skill_id, results)
+
     charge_items: List[Tuple[int, int, Dict[str, Any]]] = []
     found_result_declared_billing = False
     for result_index, result in enumerate(results):
@@ -3378,6 +3425,10 @@ def _get_result_declared_usage_details(
         return {"web_read_credits_charged": 20} if _get_result_declared_charge_items(
             app_id, skill_id, [result]
         ) else {}
+
+    if (app_id, skill_id) == ("events", "search"):
+        from backend.shared.python_utils.web_source_billing import usage_details
+        return usage_details(result)
 
     details: Dict[str, Any] = {}
     if app_id == "audio":
@@ -3538,7 +3589,8 @@ async def _charge_skill_credits(
         else:
             result_declared_charge_items = _get_result_declared_charge_items(
                 app_id, skill_id,
-                (grouped_results or []) if (app_id, skill_id) == ("web", "read") else results,
+                # These skills declare usage per request group, not per flattened result.
+                (grouped_results or []) if (app_id, skill_id) in {("web", "read"), ("events", "search")} else results,
             )
         if result_declared_charge_items is not None:
             if not result_declared_charge_items:
@@ -3865,7 +3917,8 @@ async def handle_main_processing(
 
     user_requested_focus_only = getattr(preprocessing_results, "user_requested_focus_only", False)
     relevant_focus_modes = preprocessing_results.relevant_focus_modes or []
-    has_active_focus_mode = bool(request_data.active_focus_id or getattr(request_data, "active_project_focus", None))
+    # The Project base focus is not an app focus: an explicit mention layers over it.
+    has_active_focus_mode = has_active_app_focus(request_data)
     project_candidates = {f"project-{row['project_id']}": row for row in getattr(request_data, "project_focus_candidates", [])}
     # --- User-requested focus mode: bypass LLM + countdown ---
     # When the user explicitly mentioned a focus mode via @focus:app_id:focus_id in their message,
@@ -4383,7 +4436,7 @@ async def handle_main_processing(
 
     # Convert current time to user's local timezone so the LLM works in local time directly
     now_local = now_utc.astimezone(user_tz)
-    date_time_str = now_local.strftime("%Y-%m-%d %H:%M:%S %Z")
+    date_time_str = now_local.strftime("%Y-%m-%d %H:%M %Z")
 
     if user_timezone:
         # Include both local time and timezone name so the LLM never needs to convert
@@ -4393,15 +4446,17 @@ async def handle_main_processing(
         )
     else:
         # No timezone info — fall back to UTC and note it
-        date_time_str_utc = now_utc.strftime("%Y-%m-%d %H:%M:%S %Z")
+        date_time_str_utc = now_utc.strftime("%Y-%m-%d %H:%M %Z")
         clock_instruction = f"Current date and time: {date_time_str_utc} (user timezone unknown)"
-    prompt_parts.append(clock_instruction)
+    # The clock and heard-context change every turn; they are appended last
+    # (see the volatile tail below) so the prompt prefix stays cache-identical.
+    volatile_prompt_tail: list[str] = [clock_instruction]
     if getattr(request_data, "voice_mode", False):
         from backend.apps.ai.assistant_speech.voice_context import build_voice_heard_context
 
         heard_context = build_voice_heard_context(getattr(request_data, "voice_heard_boundary", None), request_data.message_history)
         if heard_context:
-            prompt_parts.append(heard_context)
+            volatile_prompt_tail.append(heard_context)
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
@@ -4628,6 +4683,22 @@ async def handle_main_processing(
         # The search verb describes the future workflow, not a request to use
         # an Events/News search tool in the clarification chat now.
         user_requested_skills_only = False
+    orchestration_skills, orchestration_instruction = await orchestration_skill_additions(
+        cache_service=cache_service, encryption_service=encryption_service, request_data=request_data,
+    )
+    if orchestration_skills:
+        preselected_skills = (preselected_skills or set()) | orchestration_skills
+        if selected_app_ids is not None:
+            selected_app_ids.add("openmates")
+    if orchestration_instruction:
+        prompt_parts.append(orchestration_instruction)
+    blocked_write_skills, blocked_write_note = await orchestration_blocked_skills(
+        cache_service=cache_service, request_data=request_data,
+    )
+    if blocked_write_skills and preselected_skills:
+        preselected_skills = preselected_skills - blocked_write_skills
+    if blocked_write_note and (orchestration_skills or orchestration_instruction):
+        prompt_parts.append(blocked_write_note)
     if preselected_skills and "workflows-create-or-modify" in preselected_skills:
         prompt_parts.append(WORKFLOW_AUTHORING_TOOL_INSTRUCTION)
 
@@ -4937,6 +5008,13 @@ async def handle_main_processing(
                     if (app_metadata.skills and not app_has_preselected_skill
                             and (selected_app_ids is not None or preselected_skills)):
                         continue
+                    for_skills = getattr(instruction_def, "for_skills", None)
+                    if for_skills and not any(
+                        f"{app_id}-{skill_id}" in (preselected_skills or ())
+                        for skill_id in for_skills
+                    ):
+                        # Skill-specific operating guidance loads only with that skill.
+                        continue
 
                 # Check if instruction has category filtering
                 if instruction_def.categories:
@@ -5221,6 +5299,7 @@ async def handle_main_processing(
     active_focus_definition = None
     active_focus_prompt_text: Optional[str] = None
     active_focus_prompt_section: Optional[str] = None
+    layer_precedence_section: Optional[str] = None
     translation_service = TranslationService()
     # The chat's active focus can be the bound Project's own focus (a bare id,
     # e.g. the default focus of an assistant-created Project). Its instruction
@@ -5289,6 +5368,19 @@ async def handle_main_processing(
             active_focus_prompt_text += DELEGATED_DEEP_RESEARCH_INSTRUCTION
         active_focus_prompt_section = f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---"
         prompt_parts.insert(0, active_focus_prompt_section)
+        # feature.focus-modes@3 layer-precedence / override-note: a focus layered
+        # over the Project base states who wins a collision on every request.
+        layer_precedence_section = build_layer_precedence_section(
+            resolve_focus_layers(request_data.active_focus_id, active_project_focus),
+            first_answer_after_layering=bool(getattr(request_data, "is_focus_mode_continuation", False)),
+            layered_name=_resolve_focus_mode_display_name(
+                translation_service, active_focus_definition.name_translation_key,
+                fallback=None, user_language=getattr(preprocessing_results, "output_language", None) or "en",
+            ) if getattr(active_focus_definition, "name_translation_key", None) else None,
+        )
+        if layer_precedence_section:
+            # A separate part, so a phase change that rebuilds the focus section keeps it.
+            prompt_parts.insert(1, layer_precedence_section)
     mark_project_reference_setup("catalog_focus")
 
     follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
@@ -5326,6 +5418,12 @@ async def handle_main_processing(
             f"Do not switch to any other language under any circumstances."
         )
         logger.debug(f"{log_prefix} Added language enforcement instruction for '{output_language_code}' ({language_name}).")
+
+    wellbeing_instruction = wellbeing_instruction_for(
+        wellbeing_assess(request_data, preprocessing_results))
+    if wellbeing_instruction:
+        prompt_parts.append(wellbeing_instruction)
+        logger.info(f"{log_prefix} Added wellbeing instruction")
 
     prompt_parts.append(INTERACTIVE_QUESTIONS_INSTRUCTION)
 
@@ -5397,6 +5495,7 @@ async def handle_main_processing(
     )
     if voice_main_instruction:
         prompt_parts.append(voice_main_instruction)
+    prompt_parts.extend(volatile_prompt_tail)
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
     answer_recovery_system_prompt = "\n\n".join(
         part for part in prompt_parts if part and part not in research_only_prompt_parts
@@ -5507,7 +5606,11 @@ async def handle_main_processing(
     # deactivate_focus_mode: only when a focus mode is currently active
     
     relevant_focus_modes = preprocessing_results.relevant_focus_modes if hasattr(preprocessing_results, 'relevant_focus_modes') else []
-    has_active_focus_mode = bool(request_data.active_focus_id or active_project_focus)
+    # feature.focus-modes@3 project-layering: the Project base alone does not
+    # block proposing a more specific focus; it is layered over the base.
+    focus_layers = resolve_focus_layers(request_data.active_focus_id, active_project_focus)
+    has_active_focus_mode = bool(focus_layers.layered_focus_id) or (
+        bool(request_data.active_focus_id) and not active_project_focus)
     project_candidates = {
         f"project-{candidate['project_id']}": candidate
         for candidate in (getattr(request_data, "project_focus_candidates", None) or [])
@@ -5601,7 +5704,16 @@ async def handle_main_processing(
                                 f"The focus mode to activate. Must be one of: {_valid_ids_list}. "
                                 "Format: app_id-focus_id."
                             ),
-                        }
+                        },
+                        "named_by_user": {
+                            "type": "boolean",
+                            "description": (
+                                "true only when the user's latest message itself names this focus mode or "
+                                "directly asks to switch it on (for example 'turn on Deep research'); it then "
+                                "activates immediately. false when you chose it because it fits the request; "
+                                "the user then gets a short countdown to cancel."
+                            ),
+                        },
                     },
                     "required": ["focus_id"]
                 }
@@ -5610,23 +5722,14 @@ async def handle_main_processing(
         available_tools_for_llm.append(activate_tool)
         logger.info(f"{log_prefix} Added activate_focus_mode tool with {len(relevant_focus_modes)} available focus mode(s): {relevant_focus_modes}")
     
-    if request_data.active_focus_id and not user_requested_skills_only:
-        # Add deactivate tool when a focus mode is active
-        deactivate_tool = {
-            "type": "function",
-            "function": {
-                # Snake_case for Gemini compatibility — see activate_focus_mode comment above.
-                "name": "deactivate_focus_mode",
-                "description": f"Deactivate the current focus mode ({request_data.active_focus_id}) and return to normal assistant behavior. Use this when the user no longer needs the specialized focus mode or asks to exit it.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            }
-        }
+    # feature.focus-modes@3 layer-end: a layered focus ends on its own and the
+    # Project base stays; the base goes off only when the user leaves the Project.
+    deactivate_tool = None if user_requested_skills_only else deactivate_focus_tool(
+        focus_layers, request_data.active_focus_id)
+    if deactivate_tool:
         available_tools_for_llm.append(deactivate_tool)
-        logger.info(f"{log_prefix} Added deactivate_focus_mode tool (current focus: {request_data.active_focus_id})")
+        logger.info(f"{log_prefix} Added deactivate_focus_mode tool (current focus: {request_data.active_focus_id}, "
+                    f"layered={focus_layers.layered}, project_base_only={focus_layers.base_only})")
 
     # --- Add sub-chat orchestration tools ---
     start_sub_chats_tool = {
@@ -5798,7 +5901,11 @@ async def handle_main_processing(
             for app_id, metadata in discovered_apps_metadata.items()
             for focus in (getattr(metadata, "focuses", None) or [])
             if getattr(focus, "auto_activate_when_relevant", False)
-        },
+        } | (
+            # project-layering: a Focus stored in the bound Project that uniquely
+            # matches is proposed over the Project base with the normal countdown.
+            set(private_candidates) if focus_layers.base_only else set()
+        ),
         has_active_focus=has_active_focus_mode,
         chat_depth=chat_depth,
         is_continuation=any(getattr(request_data, name, False) for name in (
@@ -6083,8 +6190,13 @@ async def handle_main_processing(
             log_prefix=log_prefix,
         )
 
-    async def request_app_focus(focus_id: str):
-        """Use the same cancellable transition for model and natural matches."""
+    async def request_app_focus(focus_id: str, *, named_by_user: bool = False):
+        """Use the same transition for model and natural matches.
+
+        A suggested focus activates after a short cancellable countdown. A focus
+        the user named directly activates at once with no countdown, like an
+        @focus mention (feature.focus-modes, focus-modes.explicit-activation).
+        """
         if focus_id not in relevant_focus_modes:
             raise PermissionError("Focus activation was not offered for this turn")
         private_definition = None
@@ -6210,6 +6322,8 @@ async def handle_main_processing(
                 pending_context = {
                     "focus_id": focus_id,
                     "focus_prompt": focus_prompt_text,
+                    # A directly named focus has no rejection window (activate_at = now).
+                    **({"user_override": True} if named_by_user else {}),
                     **_forward_agentic_context(request_data),
                     "embed_id": fm_embed_id,
                     "chat_id": request_data.chat_id,
@@ -6272,11 +6386,12 @@ async def handle_main_processing(
                     "request_id": fm_embed_id,
                 },
                 queue='app_ai',
-                countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
+                countdown=0 if named_by_user else FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
             )
             # Positive live eligibility is a transient event, never embed metadata.
             # Expiry is display-only; auto-confirm remains the state authority.
-            if cache_service and pending_context_stored:
+            # A directly named focus never shows a countdown, so no pending event.
+            if cache_service and pending_context_stored and not named_by_user:
                 redis_client = await cache_service.client
                 if redis_client:
                     await redis_client.publish(
@@ -6290,7 +6405,8 @@ async def handle_main_processing(
                     )
             logger.info(
                 f"{log_prefix} [FOCUS_MODE] Scheduled auto-confirm task with "
-                f"countdown={FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN}s"
+                f"countdown={0 if named_by_user else FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN}s"
+                f" (named_by_user={named_by_user})"
             )
         except Exception as e:
             logger.error(f"{log_prefix} [FOCUS_MODE] Failed to schedule auto-confirm task: {e}", exc_info=True)
@@ -6472,6 +6588,7 @@ async def handle_main_processing(
     answer_recovery = AnswerRecoveryState()
     protocol_guard_recovery_started = False
     pseudo_tool_call_recovery = PseudoToolCallRecovery()
+    toon_result_retry_used = False
     continue_published_answer = False
     published_answer_text: List[str] = []
     omitted_budget_requests = 0
@@ -8342,6 +8459,23 @@ async def handle_main_processing(
                 answer_recovery.attempts,
                 protocol_guard.diagnostics,
             )
+            if (
+                not tool_calls_for_this_turn
+                and not toon_result_retry_used
+                and not force_no_tools
+                and toon_result_retry_applies(protocol_guard, iteration_tools)
+                # The retry turn itself must still offer tools.
+                and iteration + 1 < MAX_TOOL_CALL_ITERATIONS - 1
+            ):
+                # An imitated app result may stand for a real skill call the step
+                # still needs (e.g. Browse filling the user's answer): one retry
+                # with tools on. The suppressed block never enters history.
+                toon_result_retry_used = True
+                if final_buffered_text_for_turn.strip():
+                    current_message_history.append({"role": "assistant", "content": final_buffered_text_for_turn})
+                current_message_history.append({"role": "user", "content": TOON_RESULT_RETRY_PROMPT})
+                logger.warning("%s [TOOL_PROTOCOL_GUARD] retrying once with tools after an imitated app result", log_prefix)
+                continue
             if not tool_calls_for_this_turn:
                 # Disabling tools alone retains the prompt that elicited the
                 # fabricated protocol. Rebuild clean answer-only context instead.
@@ -8860,6 +8994,10 @@ async def handle_main_processing(
                         if parallel_model_override:
                             parallel_arguments = parallel_arguments.copy()
                             parallel_arguments["_full_model_reference_override"] = parallel_model_override
+                        parallel_llm_policy = _internal_llm_policy_payload(request_data)
+                        if parallel_llm_policy:
+                            parallel_arguments = parallel_arguments.copy()
+                            parallel_arguments[INTERNAL_LLM_POLICY_ARGUMENT] = parallel_llm_policy
 
                         parallel_reservation_ids: list[str] = []
                         if directus_service or getattr(request_data, "is_anonymous", False):
@@ -9424,6 +9562,9 @@ async def handle_main_processing(
                 # --- Hosted-Project code-run: the Project snapshot comes from the client ---
                 if app_id == "code" and skill_id == "run" and isinstance(parsed_args, dict):
                     from backend.apps.ai.processing import project_test_snapshot as _pts
+                    if active_project_focus:
+                        parsed_args = _pts.route_machine_test_run(parsed_args, active_project_sources)
+                    parsed_args = _pts.without_forged_snapshot(parsed_args)
                     if _pts.needs_snapshot(parsed_args) and active_project_focus and cache_service:
                         _snapshot = await _pts.take_snapshot(
                             cache_service,
@@ -9444,13 +9585,14 @@ async def handle_main_processing(
                                     task_id=task_id,
                                     preprocessing_results=preprocessing_results,
                                     prefix=_pts.snapshot_prefix(parsed_args),
+                                    repeat_call=_pts.repeatable_call(parsed_args),
                                 )
                                 request_data.awaiting_async_skill_continuation = True
                                 _snapshot_tool_result = {
                                     "status": "processing",
                                     "message": (
                                         "Collecting the Project snapshot from the authorized client; "
-                                        "the test run continues when it is ready."
+                                        "the code run continues when it is ready."
                                     ),
                                 }
                             except (PermissionError, RuntimeError, KeyError, ValueError) as snapshot_error:
@@ -9551,6 +9693,14 @@ async def handle_main_processing(
                                         "files" if skill_id == "project_search_files" else "content"
                                     )
                                 dispatch_focus = dict(current_focus)
+                                if requested_source_id is None:
+                                    # Omitted source: the Project's only remote source, else hosted.
+                                    requested_source_id = default_operation_source_id(
+                                        active_project_sources,
+                                        "write_request"
+                                        if operation in PROJECT_FILE_MUTATIONS
+                                        else "search" if operation == "search" else "read",
+                                    )
                                 if requested_source_id is not None:
                                     source = await directus_service.project.get_source(
                                         str(current_focus["project_id"]),
@@ -9669,13 +9819,38 @@ async def handle_main_processing(
                             yield f"```json\n{embed_reference}\n```\n\n"
                             yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
                             return
-                        async for focus_chunk in request_app_focus(focus_id):
+                        async for focus_chunk in request_app_focus(
+                            focus_id, named_by_user=parsed_args.get("named_by_user") is True,
+                        ):
                             yield focus_chunk
                         return
                         
                     elif skill_id == "deactivate_focus_mode":
                         previous_focus_id = request_data.active_focus_id
-                        logger.info(f"{log_prefix} [FOCUS_MODE] Deactivating focus mode: {previous_focus_id}")
+                        deactivated_layers = resolve_focus_layers(previous_focus_id, active_project_focus)
+                        logger.info(f"{log_prefix} [FOCUS_MODE] Deactivating focus mode: {previous_focus_id} "
+                                    f"(layered={deactivated_layers.layered}, project_base_only={deactivated_layers.base_only})")
+                        if deactivated_layers.base_only:
+                            # layer-end: the user explicitly left the Project; the shared
+                            # off path removes its binding, so later writes are denied.
+                            from backend.core.api.app.services.project_write_authorization_service import (
+                                ProjectWriteAuthorizationService,
+                            )
+                            await ProjectWriteAuthorizationService(directus_service, cache_service).deactivate_focus(
+                                user_id=request_data.user_id, chat_id=request_data.chat_id)
+                            if project_phase_prompt_section in prompt_parts:
+                                prompt_parts.remove(project_phase_prompt_section)
+                            active_project_focus = None
+                            request_data.active_project_focus = None
+                            request_data.current_project = None
+                        elif deactivated_layers.layered and cache_service:
+                            # layer-end: only the layered focus ends; the Project base and
+                            # its write authority stay as they are.
+                            from backend.core.api.app.services.project_write_authorization_service import (
+                                ProjectWriteAuthorizationService,
+                            )
+                            await cache_service.delete(ProjectWriteAuthorizationService._specialist_key(
+                                request_data.user_id, request_data.chat_id))
                         
                         # Clear active_focus_id
                         await invalidate_phase_runtime(phase_redis, owner_id=request_data.user_id,
@@ -9707,7 +9882,7 @@ async def handle_main_processing(
                             except Exception as cache_error:
                                 logger.error(f"{log_prefix} [FOCUS_MODE] Error clearing cache: {cache_error}", exc_info=True)
                         
-                        tool_result_content_str = json.dumps({
+                        tool_result_content_str = json.dumps(deactivation_result(deactivated_layers) or {
                             "status": "deactivated",
                             "previous_focus_id": previous_focus_id,
                             "message": f"Focus mode '{previous_focus_id}' has been deactivated. Returning to normal assistant behavior."
@@ -9734,6 +9909,8 @@ async def handle_main_processing(
                         # iteration, while retaining the transition in message history.
                         if active_focus_prompt_section in prompt_parts:
                             prompt_parts.remove(active_focus_prompt_section)
+                        if layer_precedence_section and layer_precedence_section in prompt_parts:
+                            prompt_parts.remove(layer_precedence_section)
                         full_system_prompt = "\n\n".join(filter(None, prompt_parts))
                         if agentic_section:
                             full_system_prompt += "\n\n" + agentic_section
@@ -10390,6 +10567,11 @@ async def handle_main_processing(
                             f"{log_prefix} Applying app skill model override for "
                             f"{app_id}.{skill_id}: {model_override}"
                         )
+                    internal_llm_policy = _internal_llm_policy_payload(request_data)
+                    if internal_llm_policy and not parallel_execution:
+                        # The skill's own LLM steps follow the user's model and server settings.
+                        skill_arguments = skill_arguments.copy()
+                        skill_arguments[INTERNAL_LLM_POLICY_ARGUMENT] = internal_llm_policy
 
                     connected_account_token_artifacts: list[dict[str, str]] = []
                     from backend.apps.ai.processing.connected_account_execution import is_connected_account_skill
@@ -10401,6 +10583,10 @@ async def handle_main_processing(
                             cleanup_connected_account_token_artifacts,
                             connected_account_action_for_skill,
                             prepare_connected_account_skill_execution,
+                        )
+                        from backend.shared.python_utils.connected_account_errors import (
+                            ConnectedAccountTokenExchangeError,
+                            connected_account_exchange_failure_payload,
                         )
 
                         try:
@@ -10474,19 +10660,49 @@ async def handle_main_processing(
                                 }),
                             })
                             continue
+                        except ConnectedAccountTokenExchangeError as exchange_error:
+                            # A revoked/expired grant must become "reconnect", never a failed turn
+                            # or another permission prompt the user cannot satisfy.
+                            logger.warning(
+                                f"{log_prefix} Connected-account token exchange failed for "
+                                f"{app_id}.{skill_id}: {exchange_error}"
+                            )
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps(connected_account_exchange_failure_payload(
+                                    exchange_error, app_id=app_id, skill_id=skill_id,
+                                )),
+                            })
+                            continue
 
-                    if _is_async_skill_blocked_in_orchestration(request_data, app_id, skill_id):
+                    if _is_async_skill_blocked_in_orchestration(
+                        request_data, app_id, skill_id,
+                    ) and not is_root_turn_code_run(request_data, app_id, skill_id):
                         current_message_history.append({
                             "tool_call_id": tool_call_id,
                             "role": "tool",
                             "name": tool_name,
                             "content": json.dumps({
                                 "status": "blocked_in_orchestration",
-                                "reason": "Long-running background skills are unavailable inside bounded sub-chat trees.",
+                                "reason": BLOCKED_IN_ORCHESTRATION_MESSAGE,
                                 "app_id": app_id,
                                 "skill_id": skill_id,
                             }),
                         })
+                        if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
+                            from backend.core.api.app.services.embed_service import EmbedService
+                            failed_embed_ids.update(await settle_blocked_placeholders(
+                                placeholder_embed_data,
+                                embed_service=EmbedService(
+                                    cache_service=cache_service,
+                                    directus_service=directus_service,
+                                    encryption_service=encryption_service,
+                                ),
+                                app_id=app_id, skill_id=skill_id, request_data=request_data,
+                                user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                            ))
                         logger.warning(
                             "%s Rejected async skill %s.%s inside orchestration %s before dispatch",
                             log_prefix,
@@ -11234,69 +11450,25 @@ async def handle_main_processing(
                 ):
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService as _AnonymousEmbedSvc
+                        from backend.apps.ai.processing.anonymous_skill_embeds import build_anonymous_skill_embeds
 
-                        child_type = await _AnonymousEmbedSvc.get_child_embed_type(
+                        # None for non-composite skills (e.g. math.calculate): they get one
+                        # embed with inline results, like the authenticated embed path.
+                        child_type = await _AnonymousEmbedSvc.get_composite_child_embed_type(
                             app_id,
                             skill_id,
                             cache_service=cache_service,
                         )
-                        parent_embed_id = str(uuid.uuid4())
-                        child_embed_ids = [str(uuid.uuid4()) for _ in results_with_refs]
-                        now = int(time.time())
-                        parent_content = {
-                            "app_id": app_id,
-                            "skill_id": skill_id,
-                            "result_count": len(results_with_refs),
-                            "embed_ids": child_embed_ids,
-                            "status": "finished",
-                            **{key: value for key, value in preview_data.items() if key != "results_toon"},
-                            **_AnonymousEmbedSvc._build_parent_preview_metadata(app_id, skill_id, results_with_refs),
-                        }
-                        parent_content["embed_ref"] = _AnonymousEmbedSvc._generate_direct_embed_ref(
-                            f"{app_id}-{skill_id}", parent_embed_id,
+                        anonymous_embeds = build_anonymous_skill_embeds(
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            results=results_with_refs,
+                            preview_data=preview_data,
+                            child_type=child_type,
+                            flatten=_flatten_for_toon_tabular,
                         )
-                        parent_content = _AnonymousEmbedSvc._sanitize_final_app_skill_content(
-                            app_id,
-                            skill_id,
-                            parent_content,
-                        )
-                        anonymous_embed_payloads.append({
-                            "embed_id": parent_embed_id,
-                            "embed_ref": parent_content["embed_ref"],
-                            "type": "app_skill_use",
-                            "content": encode(_flatten_for_toon_tabular(parent_content)),
-                            "status": "finished",
-                            "embed_ids": child_embed_ids,
-                            "app_id": app_id,
-                            "skill_id": skill_id,
-                            "created_at": now,
-                            "updated_at": now,
-                        })
-                        for child_embed_id, result in zip(child_embed_ids, results_with_refs):
-                            child_content = {
-                                **_flatten_for_toon_tabular(result),
-                                "type": child_type,
-                                "app_id": app_id,
-                                "skill_id": child_type,
-                                "status": "finished",
-                            }
-                            anonymous_embed_payloads.append({
-                                "embed_id": child_embed_id,
-                                "type": child_type,
-                                "content": encode(child_content),
-                                "status": "finished",
-                                "parent_embed_id": parent_embed_id,
-                                "app_id": app_id,
-                                "skill_id": child_type,
-                                "created_at": now,
-                                "updated_at": now,
-                            })
-                        anonymous_embed_reference = json.dumps({
-                            "type": "app_skill_use",
-                            "embed_id": parent_embed_id,
-                            "app_id": app_id,
-                            "skill_id": skill_id,
-                        })
+                        anonymous_embed_payloads = anonymous_embeds.payloads
+                        anonymous_embed_reference = anonymous_embeds.reference
                         yield f"```json\n{anonymous_embed_reference}\n```\n\n"
                     except Exception as anonymous_embed_error:
                         logger.error(

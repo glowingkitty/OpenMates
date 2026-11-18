@@ -303,6 +303,29 @@ final class NativeVoiceCallTests: XCTestCase {
         XCTAssertEqual(refused.error, .invalidResponse)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.fixed-binding
+    func testUnknownWellFormedFrameTypeIsIgnoredButTypelessFrameFails() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let live = expectation(description: "Ready")
+        let controller = makeController(transport: transport, audio: audio, event: { event in
+            if case .state(let state) = event, state.status == .live { live.fulfill() }
+        })
+        live.assertForOverFulfill = false
+        try await controller.start(scope: scope)
+        try await transport.push(ready())
+        await fulfillment(of: [live], timeout: 2)
+        try await transport.push(["type": .string("turn.likely_end")])
+        try await Task.sleep(for: .milliseconds(200))
+        let afterUnknown = await controller.snapshot()
+        XCTAssertEqual(afterUnknown.status, .live)
+        XCTAssertNil(afterUnknown.error)
+        try await transport.push(["call_id": .string("x")])
+        try await Task.sleep(for: .milliseconds(200))
+        let afterMalformed = await controller.snapshot()
+        XCTAssertEqual(afterMalformed.status, .failed)
+        XCTAssertEqual(afterMalformed.error, .invalidResponse)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=video-call.chat.transcripts,video-call.audio.complete-turn-admission
     func testPartialTranscriptShowsLiveLineHeldByPendingAndClearedAfterAdmission() async throws {
         let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
@@ -589,6 +612,50 @@ final class NativeVoiceCallTests: XCTestCase {
         XCTAssertEqual(newer.activeOffsetMilliseconds, 0)
     }
 
+    // contract-test: direct surface=gui.apple assertions=video-call.chat.activity-status
+    func testCallClockCountsBeforeFirstActivityAndIgnoresAssistantPlayback() async throws {
+        let transport = VoiceCallTransportFixture(), audio = VoiceCallAudioFixture()
+        let time = VoiceCallTestClock(100)
+        let live = expectation(description: "Ready")
+        live.assertForOverFulfill = false
+        let controller = makeController(transport: transport, audio: audio, now: { time.now }, event: { event in
+            if case .state(let state) = event, state.status == .live { live.fulfill() }
+        })
+        try await controller.start(scope: scope); try await transport.push(ready())
+        await fulfillment(of: [live], timeout: 2)
+        time.set(103)
+        var state = await controller.snapshot()
+        XCTAssertEqual(state.activeSeconds, 3, "Unknown activity counts like web before the first report")
+        XCTAssertFalse(state.activityDimmed)
+        try await transport.push(["type": .string("billing_activity"), "call_id": .string("fixture-call"),
+            "input_listening": .bool(false), "processing": .bool(false)])
+        state = try await waitForSnapshot(controller) { $0.activityDimmed }
+        time.set(110)
+        await controller.updateAssistantState(speaking: true, messageID: "fixture-message", text: "Hello")
+        time.set(115)
+        state = await controller.snapshot()
+        XCTAssertEqual(state.activeSeconds, 3, "Assistant playback alone does not advance the clock")
+        XCTAssertTrue(state.activityDimmed, "Playback does not undim a server-confirmed idle call")
+        try await transport.push(["type": .string("billing_activity"), "call_id": .string("fixture-call"),
+            "input_listening": .bool(true), "processing": .bool(false)])
+        state = try await waitForSnapshot(controller) { !$0.activityDimmed }
+        time.set(117)
+        state = await controller.snapshot()
+        XCTAssertEqual(state.activeSeconds, 5)
+        await controller.hangup()
+    }
+
+    private func waitForSnapshot(_ controller: NativeVoiceCallController,
+                                 _ condition: (NativeVoiceCallSnapshot) -> Bool) async throws -> NativeVoiceCallSnapshot {
+        for _ in 0..<100 {
+            let state = await controller.snapshot()
+            if condition(state) { return state }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTFail("Snapshot condition not reached")
+        return await controller.snapshot()
+    }
+
     private func ready() -> NativeVoiceCallFrame {
         ["type": .string("ready"), "call_id": .string("fixture-call"),
          "provider": .string("mistral"), "model": .string("voxtral-mini-transcribe-realtime-3-0"), "mate_category": .string("general"),
@@ -641,6 +708,7 @@ final class NativeVoiceCallTests: XCTestCase {
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         submit: @escaping @Sendable (NativeVoiceCallScope, NativeVoiceCallTranscript) async throws -> Void = { _, _ in },
         interrupt: @escaping @Sendable (NativeVoiceCallScope, String?, String?) async throws -> Void = { _, _, _ in },
+        now: @escaping @Sendable () -> Date = { Date(timeIntervalSince1970: 100) },
         event: @escaping NativeVoiceCallController.Handler = { _ in }
     ) -> NativeVoiceCallController {
         NativeVoiceCallController(environment: .init(isCurrent: { _ in true }, ensureConsent: { _ in try await consent() },
@@ -648,7 +716,7 @@ final class NativeVoiceCallTests: XCTestCase {
                 webOrigin: "https://example.invalid", sessionID: "fixture-session", webSocketToken: "fixture-token", nativeHeaders: [:]) },
             context: { _ in try .init(messages: [], mateCategory: "general", canonicalRangeComplete: true) },
             submitTurn: submit, interruptAssistant: interrupt,
-            now: { Date(timeIntervalSince1970: 100) }, sleep: sleep),
+            now: now, sleep: sleep),
             audio: audio, persistence: persistence, transportFactory: { transport }, eventHandler: event)
     }
 }
@@ -745,3 +813,82 @@ private actor VoiceCallSubmittedFixture {
     private(set) var values: [NativeVoiceCallTranscript] = []
     func append(_ value: NativeVoiceCallTranscript) { values.append(value) }
 }
+
+/// Settable wall clock for the core call-clock tests.
+private final class VoiceCallTestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var seconds: TimeInterval
+    init(_ seconds: TimeInterval) { self.seconds = seconds }
+    var now: Date { lock.lock(); defer { lock.unlock() }; return Date(timeIntervalSince1970: seconds) }
+    func set(_ value: TimeInterval) { lock.lock(); seconds = value; lock.unlock() }
+}
+
+/// The call media stage runs real EmbedRecords through the core policy; only the encrypted fetch is faked.
+@MainActor
+final class NativeVoiceCallMediaStageTests: XCTestCase {
+    private func record(_ id: String, raw: [String: Any]) -> EmbedRecord {
+        EmbedRecord(id: id, type: "app:images:generate", status: .finished,
+                    data: .raw(raw.mapValues(AnyCodable.init)), parentEmbedId: nil,
+                    appId: "images", skillId: "generate", embedIds: nil, createdAt: nil)
+    }
+    private func child(_ id: String, status: String = "finished") -> EmbedRecord {
+        record(id, raw: ["type": "generated_image", "app_id": "images", "skill_id": "generate", "status": status,
+                         "s3_base_url": "https://example.org/media", "aes_key": "00", "aes_nonce": "00",
+                         "files": ["original": ["s3_key": "fixture/\(id).png"]]])
+    }
+    private func group(_ id: String, _ children: [String]) -> EmbedRecord {
+        record(id, raw: ["app_id": "images", "skill_id": "generate", "status": "finished", "embed_ids": children])
+    }
+    private func pixel() -> CGImage {
+        let context = CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        return context.makeImage()!
+    }
+    private func settle(_ model: NativeVoiceCallMediaModel, until: () -> Bool) async {
+        for _ in 0..<100 where !until() { try? await Task.sleep(for: .milliseconds(10)) }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.video.generated-media-stage
+    func testFinishedGenerationExpandsStageAndNewResultReplacesTheShownOne() async {
+        let fetched = MediaFetchRecorder()
+        let image = pixel()
+        let model = NativeVoiceCallMediaModel(loader: { media, _ in
+            fetched.ids.append(media.embedID)
+            return .init(id: media.embedID, kind: .image, image: image, videoURL: nil)
+        })
+        var expansions = 0
+        model.expand = { expansions += 1 }
+        var embeds = ["gen-1": group("gen-1", ["img-1", "img-2"]),
+                      "img-1": child("img-1"), "img-2": child("img-2", status: "processing")]
+        model.update(candidates: ["gen-1"], embeds: embeds)
+        await settle(model) { model.displayed != nil }
+        XCTAssertEqual(model.items.map(\.id), ["img-1"], "Only finished outputs reach the stage")
+        XCTAssertEqual(model.displayed?.id, "img-1")
+        XCTAssertEqual(expansions, 1, "A completed result expands the call stage")
+
+        // The second output finishes: it is fresh, so it becomes the displayed one; img-1 is not fetched again.
+        embeds["img-2"] = child("img-2")
+        model.update(candidates: ["gen-1"], embeds: embeds)
+        await settle(model) { model.items.count == 2 }
+        XCTAssertEqual(model.items.map(\.id), ["img-1", "img-2"])
+        XCTAssertEqual(model.displayed?.id, "img-2")
+        XCTAssertEqual(fetched.ids, ["img-1", "img-2"])
+
+        model.select(0)
+        XCTAssertEqual(model.displayed?.id, "img-1", "Previous/next paging selects other outputs")
+        model.showCamera()
+        XCTAssertNil(model.displayed, "Returning to the camera hides the generated result")
+
+        // Re-reporting the same results does not re-open the stage over the camera.
+        model.update(candidates: ["gen-1"], embeds: embeds)
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertNil(model.displayed)
+        XCTAssertEqual(expansions, 3)
+
+        model.reset()
+        XCTAssertTrue(model.items.isEmpty)
+        XCTAssertNil(model.displayed)
+    }
+}
+
+@MainActor private final class MediaFetchRecorder { var ids: [String] = [] }

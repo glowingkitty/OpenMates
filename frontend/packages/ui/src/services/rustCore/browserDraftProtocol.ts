@@ -8,10 +8,12 @@ export const DRAFT_WRITES=/* @__PURE__ */ Object.freeze(['encrypted_draft_md','e
 export type DraftProjection=Record<typeof DRAFT_PREDICATES[number],{present:boolean;value:unknown}>;
 export interface BrowserDraftScope{lifecycleGeneration:number;workspaceEpoch:number}
 export interface BrowserDraftPlan{
- version:1;kind:'capture_draft'|'store_draft'|'readback_draft'|'ack_draft';operationId:string;
+ version:1;kind:'capture_draft'|'store_draft'|'create_draft_chat'|'readback_draft'|'ack_draft';operationId:string;
  owner:string;chatId:string;scope:BrowserDraftScope;expected:DraftProjection|null;
  queueMaximum:number|null;patch:Record<typeof DRAFT_WRITES[number],string|number>|null;
- change:{change_id:string;chat_id:string;type:'draft';value:string;encrypted_draft_preview:string;version_before_edit:number;queue_order:number;queue_token:string}|null;
+ change:{change_id:string;chat_id:string;type:'draft';value:string;encrypted_draft_preview:string;version_before_edit:number;queue_order:number;queue_token:string;team_id?:string}|null;
+ /** Only `create_draft_chat`: the complete chats row Rust asks the platform to add (absent row required). */
+ row?:Record<string,unknown>;
 }
 export interface BrowserDraftResult{source:'browser_rust_draft';chatId:string;version:number;localSaved:true;remoteSynced:boolean;pending:boolean;credentialAcknowledged:false}
 export interface BrowserDraftRestore{source:'browser_rust_draft';chatId:string;version:number;present:boolean;markdown:string;preview:string|null;localOnly:boolean;credentialAcknowledged:false}
@@ -20,7 +22,9 @@ const record=(v:unknown):v is Record<string,unknown>=>!!v&&typeof v==='object'&&
 const exact=(v:Record<string,unknown>,keys:readonly string[])=>Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));
 const uuid=(v:unknown):v is string=>typeof v==='string'&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(v);
 const integer=(v:unknown):v is number=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0;
-const PLAN_KINDS:readonly unknown[]=['capture_draft','store_draft','readback_draft','ack_draft'];
+const PLAN_KEYS=['version','kind','operationId','owner','chatId','scope','expected','queueMaximum','patch','change'] as const;
+const CHANGE_KEYS=['change_id','chat_id','type','value','encrypted_draft_preview','version_before_edit','queue_order','queue_token'] as const;
+const PLAN_KINDS:readonly unknown[]=['capture_draft','store_draft','create_draft_chat','readback_draft','ack_draft'];
 const RESOURCE_OPERATIONS:readonly unknown[]=['sync_draft','cancel_draft','close_draft'];
 /** JSON projection of a chats_db row. IndexedDB keeps `undefined` field values
  * (the TS draft clear writes them) but JSON cannot: such a field is absent. */
@@ -29,11 +33,12 @@ function projection(v:unknown):v is DraftProjection{return record(v)&&exact(v,DR
 export function parseBrowserDraftPlan(encoded:string):BrowserDraftPlan{
  if(typeof encoded!=='string'||new TextEncoder().encode(encoded).length>MAX_DRAFT_PACKET_BYTES)throw Error('invalid_draft_plan');
  const v:unknown=JSON.parse(encoded);
- if(!record(v)||!exact(v,['version','kind','operationId','owner','chatId','scope','expected','queueMaximum','patch','change'])||v.version!==1||!PLAN_KINDS.includes(v.kind)||!uuid(v.operationId)||!uuid(v.owner)||!uuid(v.chatId)||!record(v.scope)||!exact(v.scope,['lifecycleGeneration','workspaceEpoch'])||!integer(v.scope.lifecycleGeneration)||v.scope.lifecycleGeneration===0||!integer(v.scope.workspaceEpoch))throw Error('invalid_draft_plan');
+ if(!record(v)||!exact(v,v.kind==='create_draft_chat'?[...PLAN_KEYS,'row']:PLAN_KEYS)||v.version!==1||!PLAN_KINDS.includes(v.kind)||!uuid(v.operationId)||!uuid(v.owner)||!uuid(v.chatId)||!record(v.scope)||!exact(v.scope,['lifecycleGeneration','workspaceEpoch'])||!integer(v.scope.lifecycleGeneration)||v.scope.lifecycleGeneration===0||!integer(v.scope.workspaceEpoch))throw Error('invalid_draft_plan');
  if(v.kind==='capture_draft'){if(v.expected!==null||v.queueMaximum!==null||v.patch!==null||v.change!==null)throw Error('invalid_draft_plan');}
  else{
   if(!projection(v.expected)||!integer(v.queueMaximum)||!record(v.patch)||!exact(v.patch,DRAFT_WRITES)||typeof v.patch.encrypted_draft_md!=='string'||typeof v.patch.encrypted_draft_preview!=='string'||!integer(v.patch.draft_v)||!integer(v.patch.updated_at))throw Error('invalid_draft_plan');
-  const c=v.change;if(!record(c)||!exact(c,['change_id','chat_id','type','value','encrypted_draft_preview','version_before_edit','queue_order','queue_token'])||!uuid(c.change_id)||!uuid(c.queue_token)||c.chat_id!==v.chatId||c.type!=='draft'||typeof c.value!=='string'||typeof c.encrypted_draft_preview!=='string'||!integer(c.version_before_edit)||!integer(c.queue_order)||c.queue_order===0)throw Error('invalid_draft_plan');
+  const c=v.change;if(!record(c)||!exact(c,Object.hasOwn(c,'team_id')?[...CHANGE_KEYS,'team_id']:CHANGE_KEYS)||(Object.hasOwn(c,'team_id')&&(typeof c.team_id!=='string'||c.team_id===''))||!uuid(c.change_id)||!uuid(c.queue_token)||c.chat_id!==v.chatId||c.type!=='draft'||typeof c.value!=='string'||typeof c.encrypted_draft_preview!=='string'||!integer(c.version_before_edit)||!integer(c.queue_order)||c.queue_order===0)throw Error('invalid_draft_plan');
+ if(v.kind==='create_draft_chat'&&(!record(v.row)||v.row.chat_id!==v.chatId))throw Error('invalid_draft_plan');
  }
  // Every field of BrowserDraftPlan was validated above; the record type cannot express that.
  return v as unknown as BrowserDraftPlan;

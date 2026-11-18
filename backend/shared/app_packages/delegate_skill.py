@@ -11,9 +11,16 @@ keeps the original path in ``delegated_class_path``. This class:
    the item selects by id or name in ``provider`` / ``providers`` /
    ``provider_platform``;
 3. merges each item's results round-robin across providers (stable registry
-   order, no server-side caps or sorting) and returns the standard grouped
-   response, built on the original skill's
-   response model defaults when one can be resolved.
+   order) and returns the standard grouped response, built on the original
+   skill's response model defaults when one can be resolved. Skills in
+   ``price_comparison.PRICE_COMPARED_SKILLS`` turn the merged offers into a
+   comparison (exact product, condition, shipping-inclusive totals, cheapest
+   first for ``sort: price_asc``; see ``price_comparison``);
+4. lets the original skill class refine each group when it defines
+   ``refine_installed_group(group, contract_input, search, secrets_manager)``
+   (e.g. compose and rank results); ``search`` runs further request items on the
+   installed providers covering their regions. Skipped when the item names its
+   providers.
 
 Provider failures become short safe per-group messages. Billing never reads
 this output: the registry decides (``billing.served_only_by_installed_providers``).
@@ -41,8 +48,12 @@ from backend.shared.app_packages.generic_contract import (
     filter_providers_by_region,
 )
 from backend.shared.app_packages.loader import InstalledProvider, get_installed_providers
+from backend.shared.app_packages.price_comparison import (
+    PROVIDER_SECONDS, compare_offers, compares_prices, wants_price_order,
+)
 from backend.shared.app_packages.provider_dispatch import InstalledProviderOutcome, run_installed_providers
 from backend.shared.app_packages.web_source import delegate_web_kind, run_web_source
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
 from backend.shared.app_packages.result_photo_relevance import (
     CRITERIA_FIELD,
     rank_results_by_photos,
@@ -58,6 +69,7 @@ MAX_REQUESTS_PER_CALL = 10
 MAX_VALIDATION_ERRORS_SHOWN = 3
 UNAVAILABLE_ERROR = "No installed provider is available for this capability."
 TOO_MANY_REQUESTS_ERROR = f"At most {MAX_REQUESTS_PER_CALL} requests are served per call."
+GROUP_REFINER_ATTRIBUTE = "refine_installed_group"
 
 
 class DelegateConfigurationError(RuntimeError):
@@ -72,6 +84,8 @@ class OriginalSkillModels:
     response_defaults: Dict[str, Any]
     # True when the original response lists providers as {"id", "name"} objects.
     provider_objects: bool = False
+    # Optional ``refine_installed_group`` of the original skill class.
+    group_refiner: Optional[Callable[..., Awaitable[None]]] = None
 
 
 # --------------------------------------------------------------------------
@@ -188,8 +202,10 @@ def resolve_original_skill_models(class_path: str) -> OriginalSkillModels:
     if item_model is None:
         logger.info("[AppPackages] No request item model found for %s; items are passed as JSON objects", class_path)
     response_defaults, provider_objects = _resolve_response_shape(module)
+    refiner = getattr(skill_class, GROUP_REFINER_ATTRIBUTE, None)
     return OriginalSkillModels(item_model=item_model, response_defaults=response_defaults,
-                               provider_objects=provider_objects)
+                               provider_objects=provider_objects,
+                               group_refiner=refiner if callable(refiner) else None)
 
 
 # --------------------------------------------------------------------------
@@ -358,20 +374,22 @@ class InstalledProviderSkill(BaseSkill):
 
     async def _serve_covered(self, index: int, raw: Any, models: OriginalSkillModels,
                              providers: Sequence[InstalledProvider], secrets_manager: Any,
-                             progress: Optional[SkillProgress] = None) -> Dict[str, Any]:
+                             progress: Optional[SkillProgress] = None,
+                             policy: Optional[InternalLlmPolicy] = None) -> Dict[str, Any]:
         """Serve one item with only the providers covering its regions; skipped ones become warnings."""
         if index >= MAX_REQUESTS_PER_CALL or not providers or not isinstance(raw, dict):
-            return await self._serve_item(index, raw, models, providers, secrets_manager, progress)
+            return await self._serve_item(index, raw, models, providers, secrets_manager, progress, policy)
         # Selectors and regions are read from the raw item: the item model may not declare them.
         covered, skipped, coverage_error = covered_providers(raw, providers)
         if coverage_error:
             return error_group(raw.get("id") if raw.get("id") is not None else index + 1, coverage_error)
         return with_warnings(
-            await self._serve_item(index, raw, models, covered, secrets_manager, progress), skipped)
+            await self._serve_item(index, raw, models, covered, secrets_manager, progress, policy), skipped)
 
     async def _serve_item(self, index: int, raw: Any, models: OriginalSkillModels,
                           providers: Sequence[InstalledProvider], secrets_manager: Any,
-                          progress: Optional[SkillProgress] = None) -> Dict[str, Any]:
+                          progress: Optional[SkillProgress] = None,
+                          policy: Optional[InternalLlmPolicy] = None) -> Dict[str, Any]:
         """Serve one request item. ``progress`` counts this item's sources across the whole call."""
         request_id = raw.get("id") if isinstance(raw, dict) and raw.get("id") is not None else index + 1
         if index >= MAX_REQUESTS_PER_CALL:
@@ -382,6 +400,9 @@ class InstalledProviderSkill(BaseSkill):
         if contract_input is None:
             return error_group(request_id, error or "Invalid request.")
         ranked = wants_photo_ranking(self.app_id, self.skill_id, contract_input)
+        compared = compares_prices(self.app_id, self.skill_id)
+        # A price order needs more candidates per provider than the final list shows.
+        widened = ranked or (compared and wants_price_order(contract_input))
         provider_input = keep_selectors(contract_input, raw)
         # Selectors are read from the raw item: the item model may not declare them.
         provider_ids = select_provider_ids(raw, providers)
@@ -391,17 +412,40 @@ class InstalledProviderSkill(BaseSkill):
             await progress.add_sources(len(provider_ids) + int(web_kind is not None))
         searches: List[Awaitable[Any]] = [run_installed_providers(
             self.app_id, self.skill_id, provider_ids,
-            widen_candidate_pool(provider_input) if ranked else provider_input, secrets_manager,
+            widen_candidate_pool(provider_input) if widened else provider_input, secrets_manager,
             on_provider_done=report_provider(progress),
+            timeout_seconds=PROVIDER_SECONDS if compared else None,
         )]
         if web_kind is not None:
             searches.append(self._search_web(web_kind, contract_input, secrets_manager, progress))
         outcomes, *web_outcomes = await asyncio.gather(*searches)
         outcomes = [*outcomes, *web_outcomes]
         group = build_group(request_id, outcomes)
+        if models.group_refiner is not None and not names_providers(raw) and not group.get("error"):
+            await models.group_refiner(group, contract_input, self._search_more(secrets_manager), secrets_manager)
+        if compared:
+            group["results"], group["price_comparison"] = compare_offers(group["results"], contract_input)
         if ranked and group["results"]:
-            await self._rank_group(group, contract_input, secrets_manager)
+            await self._rank_group(group, contract_input, secrets_manager, policy,
+                                   apply_limit=not (compared and wants_price_order(contract_input)))
+        if compared and wants_price_order(contract_input):
+            # Photo ranking orders by fit; the comparison shows the matching offers cheapest first.
+            ordered, _summary = compare_offers(group["results"], {"sort": "price_asc"})
+            limit = requested_limit(contract_input)
+            group["results"] = ordered[:limit] if limit else ordered
+            group["providers"] = list(dict.fromkeys(result["provider_id"] for result in group["results"]))
         return group
+
+    def _search_more(self, secrets_manager: Any) -> Callable[[Dict[str, Any]], Awaitable[List[Dict[str, Any]]]]:
+        """Search callback for a group refiner: one more item on the providers covering its regions."""
+        async def search(item: Dict[str, Any]) -> List[Dict[str, Any]]:
+            covered, _, coverage_error = covered_providers(item, self._providers())
+            if coverage_error or not covered:
+                return []
+            outcomes = await run_installed_providers(
+                self.app_id, self.skill_id, [provider.provider_id for provider in covered], item, secrets_manager)
+            return interleave_results([outcome.results for outcome in outcomes])
+        return search
 
     async def _search_web(self, kind: str, contract_input: Dict[str, Any], secrets_manager: Any,
                           progress: Optional[SkillProgress]) -> InstalledProviderOutcome:
@@ -410,14 +454,15 @@ class InstalledProviderSkill(BaseSkill):
             await progress.source_done(len(outcome.results))
         return outcome
 
-    async def _rank_group(self, group: Dict[str, Any], contract_input: Dict[str, Any], secrets_manager: Any) -> None:
+    async def _rank_group(self, group: Dict[str, Any], contract_input: Dict[str, Any], secrets_manager: Any,
+                          policy: Optional[InternalLlmPolicy] = None, apply_limit: bool = True) -> None:
         """Order the group by criteria fit judged on result photos; then apply the requested limit."""
         ranking = await rank_results_by_photos(
             group["results"], relevance_criteria=contract_input[CRITERIA_FIELD],
-            searched=request_projection(contract_input), secrets_manager=secrets_manager,
+            searched=request_projection(contract_input), secrets_manager=secrets_manager, policy=policy,
         )
         limit = requested_limit(contract_input)
-        group["results"] = ranking.results[:limit] if limit else ranking.results
+        group["results"] = ranking.results[:limit] if limit and apply_limit else ranking.results
         group["providers"] = list(dict.fromkeys(result["provider_id"] for result in group["results"]))
         group["relevance_ranking"] = "photos_and_facts" if ranking.applied else "unavailable"
 
@@ -427,8 +472,9 @@ class InstalledProviderSkill(BaseSkill):
         providers = self._providers()
         items = [requests] if isinstance(requests, dict) else list(requests or [])
         progress = SkillProgress(self)
+        policy = policy_from_skill_kwargs(kwargs)
         groups = list(await asyncio.gather(*(
-            self._serve_covered(index, item, models, providers, secrets_manager, progress)
+            self._serve_covered(index, item, models, providers, secrets_manager, progress, policy)
             for index, item in enumerate(items)
         )))
         return build_response(groups, providers, models.response_defaults, models.provider_objects)

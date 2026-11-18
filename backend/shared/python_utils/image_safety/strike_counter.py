@@ -1,6 +1,6 @@
 # backend/shared/python_utils/image_safety/strike_counter.py
 #
-# Severity-weighted strike counter with single-response debounce.
+# Strike counter (one strike per violation, ban at the third) with single-response debounce.
 #
 # Architecture: docs/architecture/image-safety-pipeline.md §5
 #
@@ -14,11 +14,12 @@
 # counter is debounced.
 #
 # Redis schema:
-#   chat_image_rejects:<user_id>       24h TTL  — severity-weighted counter
+#   chat_image_rejects:<user_id>       24h TTL  — strike counter
 #   safety_response_strike:<user_id>:<assistant_response_id>  24h TTL  — debounce flag
 #
-# "chat_image_rejects" is the SAME key used by the upload-content-safety-reject
-# endpoint so uploads + generations share a single 24h counter.
+# This class is the only owner of the counter. The upload-content-safety-reject
+# endpoint and the generation/edit/video tasks all call record_strike, so uploads
+# and generations share one 24h counter and nothing increments it a second time.
 
 import logging
 from typing import Optional
@@ -26,24 +27,18 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-# Severity → weight (must match policy §Strike severity mapping)
-SEVERITY_WEIGHTS = {
-    "critical": 4,  # instant ban at 4
-    "adversarial": 2,
-    "severe": 2,
-    "moderate": 1,
-}
-
-# Ban threshold — matches the existing upload content-safety-reject logic
-BAN_THRESHOLD = 4
+# Every violation, whatever its category or severity, is exactly one strike.
+# Only the third strike deletes the account; a single request never can.
+BAN_THRESHOLD = 3
 # 24h TTL in seconds, matching the existing upload counter
-COUNTER_TTL_SECONDS = 86400
+# Strikes expire 90 days after the first strike of a window.
+COUNTER_TTL_SECONDS = 90 * 86400
 
 
 class StrikeCounter:
     """
-    Async wrapper over Redis that implements severity-weighted strike counting
-    with a single-response debounce.
+    Async wrapper over Redis that implements strike counting
+    (one strike per violation) with a single-response debounce.
 
     Depends on an injected cache client with `.get()`, `.set()` (with optional
     ttl=), `.incrby()`, and `.expire()` support. The OpenMates CacheService
@@ -77,7 +72,7 @@ class StrikeCounter:
         self,
         *,
         user_id: str,
-        severity: str,
+        severity: str = "",
         assistant_response_id: Optional[str],
     ) -> "StrikeResult":
         """
@@ -90,8 +85,6 @@ class StrikeCounter:
         Returns a StrikeResult with the new count and whether the ban threshold
         was reached.
         """
-        weight = SEVERITY_WEIGHTS.get(severity, SEVERITY_WEIGHTS["moderate"])
-
         try:
             client = await self._raw()
         except Exception as e:
@@ -130,12 +123,13 @@ class StrikeCounter:
                     ban_triggered=False,
                 )
 
-        # 2) Increment the shared 24h counter.
+        # 2) Increment the shared 90-day counter.
         key = self._counter_key(user_id)
         try:
-            new_count_raw = await client.incrby(key, weight)
-            await client.expire(key, COUNTER_TTL_SECONDS)
+            new_count_raw = await client.incrby(key, 1)
             new_count = int(new_count_raw or 0)
+            if new_count == 1:
+                await client.expire(key, COUNTER_TTL_SECONDS)
         except Exception as e:
             logger.error(
                 f"[StrikeCounter] incrby failed: {e}", exc_info=True
@@ -151,7 +145,7 @@ class StrikeCounter:
         ban_triggered = new_count >= BAN_THRESHOLD
         logger.warning(
             f"[StrikeCounter] user={user_id[:8]} severity={severity} "
-            f"weight={weight} count={new_count} ban={ban_triggered}"
+            f"count={new_count} ban={ban_triggered}"
         )
         return StrikeResult(
             recorded=True,
@@ -169,12 +163,9 @@ class StrikeCounter:
             return 0
 
     async def reset(self, user_id: str) -> None:
-        """Test/admin helper — clears the counter for a user."""
-        try:
-            client = await self._raw()
-            await client.delete(self._counter_key(user_id))
-        except Exception as e:
-            logger.error(f"[StrikeCounter] reset failed: {e}")
+        """Clear a user's strikes (admin restore). Raises when Redis fails, so a restore never silently keeps strikes."""
+        client = await self._raw()
+        await client.delete(self._counter_key(user_id))
 
 
 class StrikeResult:

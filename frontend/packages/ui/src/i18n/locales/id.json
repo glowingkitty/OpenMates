@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Jawaban ini dihapus karena tidak memenuhi aturan keamanan kami."
+    },
+    "wellbeing": {
+      "text": "Aku menghapus jawaban terakhirku karena bisa berbahaya bagimu. Kamu tidak sendirian. Jika kamu berpikir untuk menyakiti diri sendiri, hubungi orang yang kamu percaya, layanan krisis atau layanan darurat setempat. Aku masih di sini untuk berbincang."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -134,6 +142,12 @@
         "text": "Rencanakan putaran pendanaan",
         "description": {
           "text": "Hitung berapa dana yang dihimpun, instrumen yang cocok, dilusi, dan jadwal, lengkap dengan lembar cap table yang bisa diedit."
+        }
+      },
+      "write_press_release": {
+        "text": "Tulis siaran pers",
+        "description": {
+          "text": "Tulis siaran pers yang bisa langsung dipakai jurnalis, dengan gaya pers perusahaan Anda sendiri, sebagai dokumen Word atau format lain yang Anda minta."
         }
       }
     },
@@ -221,6 +235,12 @@
         "description": {
           "text": "Audit file konfigurasi untuk kerentanan keamanan dan paparan."
         }
+      },
+      "write_specification": {
+        "text": "Tulis spesifikasi",
+        "description": {
+          "text": "Ubah ide menjadi spesifikasi yang disetujui langkah demi langkah - lingkup, persyaratan, desain, dan pemeriksaan penerimaan - lalu mulai rencana dengan tugas."
+        }
       }
     },
     "events": {
@@ -303,6 +323,12 @@
         "description": {
           "text": "Teknik bimbingan hidup yang kuat."
         }
+      },
+      "life_compass": {
+        "text": "Kompas hidup",
+        "description": {
+          "text": "Temukan arahmu menuju hidup yang lebih bahagia, selangkah kecil demi selangkah."
+        }
       }
     },
     "news": {
@@ -358,6 +384,20 @@
           "3": {
             "text": "Teliti fakta dan argumen tandingan sebelum saya membahas **kebijakan iklim** ini dengan teman yang skeptis"
           }
+        }
+      }
+    },
+    "slides": {
+      "design_template": {
+        "text": "Desain templat",
+        "description": {
+          "text": "Desain templat slide yang dapat dipakai ulang langkah demi langkah - tiga desain untuk dipilih, disempurnakan bersama Anda, lalu disimpan ke pustaka Anda."
+        }
+      },
+      "plan_presentation": {
+        "text": "Rencanakan presentasi",
+        "description": {
+          "text": "Rencanakan presentasi langkah demi langkah - tujuan, cerita, satu pesan per slide, desain - lalu buat slide dengan catatan pembicara dan tinjau."
         }
       }
     },
@@ -910,6 +950,12 @@
         "description": {
           "text": "Ubah grafik vektor menjadi file mesin bordir dengan pratinjau jahitan."
         }
+      },
+      "get_design": {
+        "text": "Ambil desain",
+        "description": {
+          "text": "Baca desain Figma dan dapatkan struktur, gaya, dan serah terima kode."
+        }
       }
     },
     "electronics": {
@@ -947,6 +993,9 @@
           "3": {
             "text": "Acara teknologi apa yang berlangsung di London bulan Januari?"
           }
+        },
+        "pricing_note": {
+          "text": "Pencarian acara biasa memakan sekitar 15–25 kredit: 10 kredit untuk pencarian web ditambah token yang dipakai Mercury 3 untuk membaca hingga lima halaman publik. Pencarian yang hanya dijawab oleh jadwal konferensi resmi memakan 1 kredit. Pencarian yang gagal atau tidak menemukan apa pun gratis."
         }
       }
     },
@@ -2885,6 +2934,21 @@
       "structured": {
         "text": "Konten"
       },
+      "player_label": {
+        "text": "Pemutar respons suara"
+      },
+      "pause": {
+        "text": "Jeda respons suara"
+      },
+      "play": {
+        "text": "Putar respons suara"
+      },
+      "previous_chapter": {
+        "text": "Bab sebelumnya: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Bab berikutnya: {chapter}"
+      },
       "speak_response": {
         "text": "Bacakan respons"
       },
@@ -3353,6 +3417,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3852,6 +3917,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "Admin"
@@ -3941,6 +4007,12 @@
     },
     "download": {
       "text": "Unduh"
+    },
+    "download_pdf": {
+      "text": "Unduh PDF"
+    },
+    "download_word": {
+      "text": "Unduh Word"
     },
     "loading": {
       "text": "Memuat..."
@@ -5926,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Akun OpenMates-mu ditangguhkan"
+      },
+      "headline": {
+        "text": "Akunmu ditangguhkan"
+      },
+      "body": {
+        "text": "Pemeriksaan keamanan kami menolak permintaan dari akunmu."
+      },
+      "appeal": {
+        "text": "Kamu punya 14 hari untuk mengajukan banding. Kamu juga bisa mengunduh datamu."
+      },
+      "button": {
+        "text": "Ajukan banding atau unduh data saya"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Kami butuh informasi lebih lanjut tentang akunmu"
+      },
+      "headline": {
+        "text": "Kami butuh sedikit informasi lagi"
+      },
+      "body": {
+        "text": "Kami sedang meninjau penangguhan akunmu dan punya satu pertanyaan:"
+      },
+      "button": {
+        "text": "Jawab di aplikasi"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Akun OpenMates-mu aktif kembali"
+      },
+      "headline": {
+        "text": "Akunmu aktif kembali"
+      },
+      "body": {
+        "text": "Kami telah meninjau penangguhan akunmu dan mencabutnya. Pelanggaranmu telah dihapus dan kamu bisa memakai OpenMates seperti biasa."
+      },
+      "apology": {
+        "text": "Kami minta maaf atas gangguannya."
+      }
     }
   },
   "embed_user_edits": {},
@@ -7622,7 +7739,7 @@
         "text": "{used} / {limit} kredit"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "Anda masuk melalui browser cloud. Saat mengizinkan AI melanjutkan, AI dapat mengakses informasi akun ini. Konten halaman yang relevan dapat dikirim ke penyedia AI kami. Masuk hanya ke akun yang Anda izinkan untuk diakses AI."
@@ -7823,6 +7940,42 @@
     },
     "slides_count_plural": {
       "text": "slide"
+    },
+    "slides_template_default_title": {
+      "text": "Templat"
+    },
+    "slides_template_label": {
+      "text": "Templat"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} tata letak"
+    },
+    "slides_template_use": {
+      "text": "Gunakan desain ini"
+    },
+    "slides_template_use_message": {
+      "text": "Gunakan desain \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Judul"
+    },
+    "slides_layout_section": {
+      "text": "Bagian"
+    },
+    "slides_layout_content": {
+      "text": "Konten"
+    },
+    "slides_layout_two_column": {
+      "text": "Dua kolom"
+    },
+    "slides_layout_image": {
+      "text": "Gambar"
+    },
+    "slides_layout_quote": {
+      "text": "Kutipan"
+    },
+    "slides_layout_closing": {
+      "text": "Penutup"
     },
     "slides_prev": {
       "text": "Slide sebelumnya"
@@ -8460,6 +8613,54 @@
     },
     "progress_result_one": {
       "text": "1 hasil"
+    },
+    "slides_template_pick": {
+      "text": "Templat"
+    },
+    "slides_template_picker_title": {
+      "text": "Pilih templat"
+    },
+    "slides_template_builtin": {
+      "text": "Bawaan"
+    },
+    "slides_template_library_personal": {
+      "text": "Pustaka Anda"
+    },
+    "slides_template_library_team": {
+      "text": "Pustaka tim"
+    },
+    "slides_template_updated": {
+      "text": "Diperbarui"
+    },
+    "slides_template_apply": {
+      "text": "Terapkan templat"
+    },
+    "slides_template_apply_failed": {
+      "text": "Templat tidak dapat diterapkan"
+    },
+    "slides_template_library_empty": {
+      "text": "Belum ada templat tersimpan"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -8491,55 +8692,6 @@
       },
       "remove_pending_file": {
         "text": "Hapus file"
-      }
-    },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} lampiran {type}"
-      },
-      "embed_many": {
-        "text": "{count} lampiran {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "gambar"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "situs web"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "peta"
-        },
-        "code": {
-          "text": "kode"
-        },
-        "document": {
-          "text": "dokumen"
-        },
-        "sheet": {
-          "text": "spreadsheet"
-        },
-        "file": {
-          "text": "file"
-        },
-        "app": {
-          "text": "aplikasi"
-        },
-        "embed": {
-          "text": "tersemat"
-        }
       }
     },
     "file_size_limits": {
@@ -8800,6 +8952,27 @@
     },
     "xlsx_feature_sheet_limit": {
       "text": "sheet setelah 10 sheet pertama"
+    },
+    "guest_access_checking": {
+      "text": "Memeriksa apakah Anda bisa mengobrol tanpa akun…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Anda pernah masuk di perangkat ini. Masuk untuk terus mengobrol."
+    },
+    "guest_access_usage_limit": {
+      "text": "Pesan gratis tanpa akun habis untuk saat ini. Daftar untuk terus mengobrol."
+    },
+    "guest_access_unavailable": {
+      "text": "Mengobrol tanpa akun sedang tidak tersedia. Daftar untuk mengobrol."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Kami tidak bisa memeriksa apakah Anda bisa mengobrol tanpa akun. Periksa koneksi Anda, atau daftar untuk mengobrol."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Mengirim file memerlukan akun. Daftar untuk mengirimnya, atau hapus file untuk mengobrol gratis."
+    },
+    "guest_send_timeout": {
+      "text": "Pengiriman terlalu lama, jadi pesan Anda tidak terkirim. Periksa koneksi Anda dan coba lagi."
     },
     "mention_dropdown": {
       "header": {
@@ -10735,6 +10908,21 @@
         "text": "Susun email singkat untuk satu investor, pengantar yang bisa diteruskan untuk kenalan bersama, dan dua tindak lanjut."
       }
     },
+    "business_write_press_release": {
+      "text": "Tulis siaran pers",
+      "description": {
+        "text": "Tulis siaran pers yang bisa langsung dipakai jurnalis, dengan gaya pers perusahaan Anda sendiri, sebagai dokumen Word atau format lain yang Anda minta."
+      },
+      "process": {
+        "text": "- Memakai gaya pers yang sudah Anda simpan (nama, profil perusahaan, juru bicara, kontak, nada) atau lebih dulu membuatnya dari siaran pers sebelumnya, beberapa pertanyaan, atau nilai bawaan netral\n\n- Menawarkan untuk menyimpan gaya itu di proyek Anda, supaya setiap siaran pers berikutnya terdengar sama\n\n- Hanya menanyakan yang kurang tentang beritanya, satu pertanyaan sekali waktu, dan jujur memberi tahu jika nilai beritanya lemah\n\n- Menampilkan pilihan judul, paragraf pembuka, dan fakta yang akan dipakai, agar Anda bisa mengoreksinya sebelum apa pun ditulis\n\n- Menulis siaran pers dengan judul, baris tempat dan tanggal, paragraf pembuka, kutipan, profil perusahaan, dan kontak media, secara bawaan sebagai dokumen Word, atau PDF, HTML, atau React jika diminta\n\n- Hanya memakai fakta yang sudah Anda konfirmasi, tidak pernah mengarang kutipan, dan menandai setiap kutipan untuk disetujui\n\n- Memeriksa hasilnya dan menawarkan email pitch untuk jurnalis, unggahan media sosial, atau terjemahan"
+      },
+      "how_to_use": {
+        "text": "- Tulis **siaran pers** tentang peluncuran aplikasi kami pada 18 November. Ini dua siaran pers terakhir kami\n\n- Buat **gaya pers** kami dari situs web kami dan simpan ke proyek ini\n\n- Ubah pengumuman ini menjadi **siaran pers dalam PDF** dan email pitch singkat untuk jurnalis"
+      },
+      "systemprompt": {
+        "text": "Anda membantu pengguna menulis siaran pers yang bisa dipakai jurnalis apa adanya: berita nyata lebih dulu, fakta yang bisa diperiksa, suara yang disebut namanya, dan kontak yang membalas. Gaya pers perusahaan dan permintaan eksplisit pengguna lebih diutamakan daripada konvensi umum.\n\nIkuti hanya instruksi fase saat ini. Ajukan satu pertanyaan per putaran dengan contoh konkret dan rekomendasi, lalu tunggu balasan. Penuhi permintaan untuk melewati pertanyaan, menjawab semuanya sekaligus, atau langsung membuat draf.\n\nPedoman penting:\n\n- Jangan pernah menanyakan informasi yang sudah ada di memori yang dimuat, unggahan, atau chat. Mulailah dari situ dan minta konfirmasi.\n\n- Fakta pengguna adalah satu-satunya sumber. Perbaiki kata-kata, urutan, dan penekanan; jangan pernah mengarang atau menggelembungkan angka, tanggal, pelanggan, mitra, penghargaan, hasil, atau nama. Jika pengguna memintamu mengarang sesuatu, tolak dan tawarkan alternatif yang jujur.\n\n- Jangan pernah menyajikan kutipan sebagai final. Tulis kutipan sebagai draf untuk disetujui orang yang disebut, dan jangan pernah mengaitkan ucapan dengan orang nyata di luar organisasi pengguna tanpa sumber.\n\n- Tulis dengan lugas dan spesifik. Hapus superlatif kosong dan kata-kata tren, atau ganti dengan fakta.\n\n- Simpan informasi embargo atau yang belum dirilis di chat ini dan proyek pengguna; jangan pernah memublikasikan, mengirim, atau membagikannya, dan jangan pernah menghubungi jurnalis atau siapa pun. Anda menulis draf; pengguna yang mengirimnya.\n\n- Word adalah keluaran bawaan. Buat PDF, HTML, atau React hanya jika diminta, mengikuti aturan format fase draf.\n\n- Gaya pers milik satu perusahaan. Sarankan menyimpannya di Memori proyek yang aktif; tanpa proyek aktif, tawarkan memori pribadi yang hanya dimuat saat disebut. Simpan hanya setelah pengguna setuju.\n\n- Katakan memori sudah disimpan atau diperbarui hanya setelah panggilan alat penyimpanan berhasil. Jika alat yang tersedia tidak bisa menyimpan ke proyek, katakan itu, tawarkan memori pribadi, atau beri tahu bahwa pengguna bisa menempelkan gaya itu di tab Memori proyek.\n\n- Jangan memberi nasihat hukum soal kewajiban keterbukaan, aturan pasar saham, atau merek dagang; katakan kapan pengguna sebaiknya bertanya ke pengacara atau tim hubungan investor.\n\n- Jaga jawaban chat tetap singkat. Dokumenlah yang memuat isinya.\n\n- Nilai seperti [EMAIL_1_org] atau [PHONE_1_000] adalah penampung privasi. Aplikasi menampilkan data asli pengguna di tempatnya, di layar dan di dokumen. Gunakan apa adanya sebagai nilai asli; jangan pernah menyebutnya penampung, hilang, atau tidak valid, dan jangan minta pengguna menggantinya."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analisis log",
       "description": {
@@ -10852,6 +11040,21 @@
         "text": "- jika belum disediakan, minta pengguna untuk URL repo github/gitlab\n- jika belum disediakan, tanya pengguna apa yang ingin mereka uji / apa kasus penggunaan mereka\n- gunakan keahlian untuk memeriksa issues apakah ada masalah kritis yang baru-baru ini dilaporkan\n- jika proyek dilaporkan rusak, tanya pengguna apakah ingin melanjutkan pengujian\n- tanya pengguna di mana mengkloning dan menguji repo: mengatur mesin baru? menggunakan github codespaces? mesin lokal? dll.\n- kloning repo ke lokasi yang ditentukan\n- baca struktur folder dan file proyek serta readme.md untuk mendapatkan gambaran umum\n- cari tahu cara menguji proyek dan mulai mengujinya"
       }
     },
+    "code_write_specification": {
+      "text": "Tulis spesifikasi",
+      "description": {
+        "text": "Ubah ide menjadi spesifikasi yang disetujui langkah demi langkah - lingkup, persyaratan, desain, dan pemeriksaan penerimaan - lalu mulai rencana dengan tugas."
+      },
+      "process": {
+        "text": "- Dimulai dari ide Anda: untuk siapa, seperti apa keberhasilan itu, dan apa yang termasuk serta tidak termasuk dalam lingkup\n\n- Mengajukan satu sampai tiga pertanyaan singkat sekaligus, masing-masing dengan rekomendasi, dan melewati hal yang sudah Anda sampaikan\n\n- Merangkum setiap langkah dan menunggu konfirmasi Anda sebelum lanjut\n\n- Menjaga daftar asumsi terbuka yang terlihat, sehingga tidak ada yang diputuskan diam-diam untuk Anda\n\n- Secara default menulis satu spesifikasi, dan hanya mengusulkan spesifikasi terkait untuk produk, desain, dan teknis pada proyek yang kompleks, jika Anda setuju\n\n- Menambahkan pemeriksaan penerimaan yang membuktikan setiap persyaratan, dengan tes, pertanyaan AI, atau konfirmasi Anda sendiri\n\n- Memulai rencana dengan tugas hanya setelah Anda menyetujui spesifikasi"
+      },
+      "how_to_use": {
+        "text": "- Bantu saya **menulis spesifikasi** untuk pemesanan roti sourdough online di toko roti saya\n\n- Saya punya ide aplikasi untuk memesan kelas panjat tebing. Mari **matangkan spesifikasinya** sebelum kita membangunnya\n\n- **Spesifikasikan** fitur kalender tim untuk alat proyek kami, lengkap dengan pemeriksaan penerimaan"
+      },
+      "systemprompt": {
+        "text": "Anda adalah insinyur produk yang tenang dan berpengalaman yang membantu pengguna mengubah ide menjadi spesifikasi yang mereka setujui sebelum apa pun dibangun. Kata-kata pengguna sendiri yang menentukan; Anda menyusun, bertanya, dan mengusulkan.\n\nIkuti hanya instruksi fase saat ini. Ajukan satu sampai tiga pertanyaan singkat per giliran, masing-masing dengan rekomendasi dan contoh konkret, lalu tunggu jawaban. Jangan pernah menanyakan hal yang sudah dijawab oleh obrolan, unggahan, atau Proyek. Hormati permintaan untuk menjawab semuanya sekaligus, melewati pertanyaan, atau lanjut dengan asumsi yang disebutkan.\n\nPanduan penting:\n- Akhiri setiap fase dengan ringkasan singkat dan minta pengguna mengonfirmasi atau mengoreksinya sebelum lanjut.\n- Pertahankan daftar berjudul \"Asumsi terbuka\" di setiap ringkasan. Semua yang Anda asumsikan tetapi belum dikonfirmasi pengguna masuk ke sana; jangan pernah menyajikan asumsi sebagai keputusan.\n- Satu spesifikasi adalah default. Usulkan spesifikasi terkait untuk produk, desain, dan teknis hanya untuk proyek yang jelas kompleks, jelaskan alasannya dalam satu baris, dan pisahkan hanya jika pengguna setuju.\n- Persyaratan adalah pernyataan yang dapat diuji tentang perilaku yang dapat diamati dengan ID yang stabil. Tanpa detail implementasi dalam persyaratan; keputusan desain masuk ke daftar desain.\n- Gunakan skill spesifikasi plans untuk spesifikasi dan skill pemeriksaan plans untuk pemeriksaan penerimaan. Area sensitif (keamanan, privasi, enkripsi, izin, pembayaran, migrasi, perilaku API yang tepat) selalu mendapat sumber deterministik yang wajib.\n- Jangan merencanakan, menulis kode, atau memulai implementasi sebelum pengguna menyetujui spesifikasi. Setelah persetujuan, buat rencana dan tugasnya lalu jelaskan apa yang terjadi selanjutnya.\n- Jaga jawaban obrolan tetap singkat dan sederhana. Embed spesifikasi dan pemeriksaan membawa detailnya.\n- Jangan pernah mengarang fakta tentang bisnis, pengguna, atau sistem pengguna; tanyakan, atau catat sebagai asumsi terbuka.\n- Nilai seperti [EMAIL_1_org] atau [PHONE_1_000] adalah placeholder privasi. Aplikasi menampilkan data asli pengguna sebagai gantinya. Gunakan apa adanya sebagai nilai sebenarnya; jangan pernah menyebutnya placeholder, hilang, atau tidak valid, dan jangan pernah meminta pengguna menggantinya."
+      }
+    },
     "code_write_test_debug_document": {
       "text": "Tulis, uji, debug & dokumentasikan",
       "description": {
@@ -10910,6 +11113,12 @@
       "text": "Berbicara masa depan",
       "description": {
         "text": "Teknik bimbingan hidup yang kuat."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "Kompas hidup",
+      "description": {
+        "text": "Temukan arahmu menuju hidup yang lebih bahagia, selangkah kecil demi selangkah."
       }
     },
     "health_prepare_doctor_report": {
@@ -10973,6 +11182,24 @@
       },
       "systemprompt": {
         "text": "Anda adalah pelatih diskusi kewarganegaraan dan asisten riset yang netral. Tujuan Anda adalah membantu pengguna bersiap untuk percakapan politik, kewarganegaraan, kebijakan, pemilihan umum, geopolitik, dan kepentingan publik lainnya dengan akurasi, kerendahhatian, dan itikad baik.\n\nMulailah dengan memahami situasinya. Pada respons asisten pertama setelah fokus ini diaktifkan, tanggapi permintaan asli pengguna dengan asupan kontekstual singkat, meskipun pengguna tidak secara eksplisit meminta pertanyaan. Ajukan satu hingga tiga pertanyaan spesifik mengenai detail yang kurang seperti yurisdiksi, hasil yang diinginkan pengguna, dan posisi atau hubungan orang lain tersebut. Gunakan topik dan fakta lain yang sudah diberikan pengguna; jangan meminta mereka mengulangi detail tersebut atau menyatakan kembali permintaan mereka. Jika pengguna meminta Anda untuk memulai dengan pertanyaan, patuhi urutan tersebut meskipun topiknya sudah diketahui. Jika semua konteks penting sudah diberikan, ajukan satu pertanyaan tentang prioritas utama pengguna atau konfirmasikan pembingkaian spesifik secara singkat sebelum melanjutkan. Tunggu jawaban pengguna sebelum melakukan riset faktual, memberikan penjelasan kebijakan, atau lembar persiapan lengkap, kecuali jika pengguna secara eksplisit meminta jawaban hasil riset segera. Jangan berhenti hanya pada mengakui aktivasi, dan jangan mengubah asupan tersebut menjadi kuesioner yang panjang.\n\nGunakan alur kerja ini:\n- Nyatakan kembali topik dan hasil yang diinginkan pengguna dalam bahasa yang netral.\n- Identifikasi klaim utama yang kemungkinan besar akan muncul. Pisahkan klaim faktual, penilaian nilai, asumsi, prediksi, dan pengalaman pribadi.\n- Untuk klaim faktual atau terkini, gunakan web-search, pencarian berita, dan web-read ketika akurasi bergantung pada informasi yang baru atau diperdebatkan. Utamakan sumber primer, data resmi, materi pemilihan, perundang-undangan, laporan regulator, dokumen pengadilan, jurnalisme bereputasi, dan lembaga ahli daripada ringkasan media sosial.\n- Evaluasi sumber berdasarkan kebaruan, relevansi, otoritas, akurasi, dan tujuan. Catat ketika sebuah sumber memiliki kepentingan advokasi, partai, pemerintah, komersial, atau kampanye.\n- Petakan versi terkuat dari setiap posisi utama sebelum mengkritiknya. Sertakan poin-poin kesepakatan, pertukaran (trade-offs), ketidakpastian, dan nilai-nilai yang sah di setiap sisi.\n- Siapkan pertanyaan yang mengundang penjelasan, mendefinisikan istilah, menguji asumsi, dan memunculkan bukti. Hindari pertanyaan jebakan kecuali pengguna secara eksplisit membutuhkan persiapan debat formal.\n- Bantu pengguna memilih kata-kata yang tenang, batasan, dan kalimat untuk mengakhiri percakapan (exit lines) untuk percakapan yang sensitif.\n\nStruktur output default:\n\n## Discussion Goal\nRingkas apa yang sedang dipersiapkan oleh pengguna dan seperti apa percakapan yang sukses itu.\n\n## Key Facts To Check\nDaftar klaim faktual yang penting, bukti terbaik yang tersedia, dan ketidakpastian apa pun. Sebutkan kapan penelitian lebih lanjut diperlukan.\n\n## Likely Perspectives\nJelaskan argumen dan kekhawatiran dengan itikad baik yang paling kuat dari sisi-sisi utama. Jangan mengkarikaturkan pandangan yang berlawanan.\n\n## Questions To Ask\nBerikan pertanyaan terbuka yang bijaksana yang memperjelas definisi, bukti, pertukaran (trade-offs), nilai-nilai, dan konsekuensi praktis.\n\n## Claims To Avoid Overstating\nPeringatkan tentang klaim yang lemah, fakta yang kedaluwarsa, klaim dari sumber tunggal, pembingkaian yang menyesatkan, atau poin-poin yang membutuhkan nuansa.\n\n## Suggested Conversation Plan\nBerikan rencana singkat untuk membuka diskusi, menjaganya tetap konstruktif, menangani ketegangan, dan menindaklanjuti.\n\nBatasan penting:\n- Jangan menulis propaganda manipulatif, pelecehan, doxxing, intimidasi, atau retorika yang merendahkan martabat manusia.\n- Jangan memberikan strategi persuasi politik yang ditargetkan berdasarkan profil demografis, psikologis, identitas, atau kerentanan.\n- Jangan mengoptimalkan pesan kampanye, penargetan pemilih, penekanan partisipasi pemilih, atau logistik aktivis. Jika permintaan pengguna menjadi advokasi atau pengorganisasian, berikan bantuan pada tingkat tinggi, sah secara hukum, dan tidak manipulatif, atau rekomendasikan Activism mate untuk strategi pengorganisasian yang etis.\n- Jangan menyajikan klaim yang tidak pasti atau diperdebatkan sebagai fakta yang sudah pasti. Bedakan dengan jelas antara bukti, inferensi, interpretasi, dan opini.\n- Jangan mengasumsikan itikad buruk, korupsi, ekstremisme, atau niat jahat kecuali ada bukti andal yang mendukung pembingkaian tersebut.\n- Hormati privasi. Jangan meminta data pribadi yang tidak perlu tentang pengguna atau orang lain yang terlibat."
+      }
+    },
+    "slides_design_template": {
+      "text": "Desain templat",
+      "description": {
+        "text": "Desain templat slide yang dapat dipakai ulang langkah demi langkah - tiga desain untuk dipilih, disempurnakan bersama Anda, lalu disimpan ke pustaka Anda."
+      },
+      "process": {
+        "text": "- Menanyakan untuk apa templat itu dan warna merek, font, atau logo apa yang harus dicocokkan\n- Menampilkan tiga desain yang jelas berbeda sebagai kartu templat dengan pratinjau enam tata letak slide\n- Anda memilih satu dengan \"Gunakan desain ini\" atau dengan menyebut namanya\n- Menyempurnakan warna, font, dan tata letak bersama Anda, memperbarui kartu setelah setiap perubahan\n- Memberi tahu Anda untuk menekan Simpan pada kartu akhir agar masuk ke pustaka Anda\n- Menawarkan untuk membuat presentasi pertama dengan templat baru Anda"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Rencanakan presentasi",
+      "description": {
+        "text": "Rencanakan presentasi langkah demi langkah - tujuan, cerita, satu pesan per slide, desain - lalu buat slide dengan catatan pembicara dan tinjau."
+      },
+      "process": {
+        "text": "- Menanyakan tujuan, audiens, durasi, dan situasi Anda, dengan contoh sederhana dan rekomendasi\n- Mengusulkan cerita yang sesuai, misalnya masalah, solusi, demo, dampak, dan permintaan untuk pitch\n- Mencantumkan satu pesan per slide dan menunggu konfirmasi Anda sebelum membuat apa pun\n- Menampilkan desain bawaan yang cocok sebagai kartu, memakai templat tersimpan Anda, atau mendesain yang baru bersama Anda\n- Membuat slide dengan catatan pembicara di setiap slide, sesuai durasi presentasi Anda\n- Meninjau hasil dan memperbaiki yang Anda setujui, seperti terlalu banyak teks pada satu slide"
       }
     },
     "social_media_content_calendar_strategist": {
@@ -11200,22 +11427,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "Tim AI kamu"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "untuk menyelesaikan banyak hal"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Tulis dokumen"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "Cari acara"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "Buat aplikasi web"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "Jelaskan berita"
     },
     "landing_actionable_line1": {
       "text": "Dapat ditindaklanjuti."
@@ -11229,35 +11456,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Tentu, ini dia:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Acara event website di Berlin tentang komputasi terdesentralisasi dan riset DePIN."
+      "text": "Presentasi singkat dan demo tentang alat AI sumber terbuka, lalu ada waktu untuk bertemu orang-orang."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Buka di event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Buka halaman acara"
     },
     "landing_actionable_event_city": {
       "text": "Berlin"
     },
     "landing_actionable_event_country": {
       "text": "Jerman"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Online"
@@ -11268,62 +11480,44 @@
     "landing_actionable_event_rsvps": {
       "text": "peserta"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "Obrolanmu dienkripsi di perangkatmu sebelum disimpan."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "Data pribadi diganti sebelum dilihat oleh AI."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "Siapkan email untuk"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "Oke, menyiapkan email untuk"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "Rekomendasikan tempat untuk perjalanan berikutnya."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "Jawaban yang dipersonalisasi, tapi hanya saat kamu mau."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "Hanya kamu yang bisa melihat aslinya."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "Perjalanan sebelumnya"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "Tempat favorit"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "Para pakar AI-mu, yang masing-masing mengkhususkan diri pada topik berbeda."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "Instruksi yang dioptimalkan, dipilih saat dibutuhkan."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Model AI terkemuka, di satu tempat."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "Akses obrolan OpenMates-mu dengan cara yang kamu suka."
     }
   },
   "header": {
@@ -11344,6 +11538,26 @@
     },
     "report_issue": {
       "text": "Laporkan masalah"
+    }
+  },
+  "helplines": {
+    "title": {
+      "text": "Kamu tidak harus melewati ini sendirian"
+    },
+    "call": {
+      "text": "Telepon"
+    },
+    "send_text": {
+      "text": "Kirim SMS"
+    },
+    "chat": {
+      "text": "Obrolan daring"
+    },
+    "emergency": {
+      "text": "Dalam keadaan darurat, hubungi {emergency_number}"
+    },
+    "find_more": {
+      "text": "Temukan layanan bantuan lainnya"
     }
   },
   "highlight": {
@@ -11429,6 +11643,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Permintaan ini ditolak. Gambar seksual atau sugestif yang melibatkan anak di bawah umur tidak pernah dibuat."
+    },
+    "reason_intimate_real_person": {
+      "text": "Permintaan ini ditolak. Gambar seksual atau intim dari orang nyata tidak pernah dibuat."
+    },
+    "reason_bypass": {
+      "text": "Permintaan ini ditolak karena mencoba menghindari aturan keamanan."
+    },
+    "reason_minor": {
+      "text": "Gambar realistis anak di bawah umur tidak dibuat, dan foto anak di bawah umur hanya bisa diedit pada latar belakang, pencahayaan, atau warna, karena gambar semacam itu bisa disalahgunakan, misalnya untuk profil palsu yang berpura-pura sebagai anak di bawah umur."
+    },
+    "alternative_minor": {
+      "text": "Versi yang jelas bergaya artistik dimungkinkan, misalnya render 3D, ilustrasi, atau kartun, selama adegannya tidak bersifat seksual."
+    },
+    "reason_sexual": {
+      "text": "Gambar seksual atau eksplisit tidak dibuat."
+    },
+    "alternative_sexual": {
+      "text": "Versi adegan yang tidak eksplisit dimungkinkan."
+    },
+    "reason_violent": {
+      "text": "Gambar yang menunjukkan orang nyata terluka, diserang, atau berada di tempat kejadian kejahatan tidak dibuat, karena bisa digunakan untuk merugikan atau mencemarkan nama mereka."
+    },
+    "alternative_violent": {
+      "text": "Adegan dengan tokoh fiksi sebagai pengganti orang nyata dimungkinkan."
+    },
+    "reason_public_figure": {
+      "text": "Saat ini gambar tokoh publik nyata tidak dibuat, karena bisa digunakan sebagai deepfake atau untuk klaim palsu."
+    },
+    "alternative_public_figure": {
+      "text": "Tokoh fiksi orisinal dalam adegan yang sama dimungkinkan."
+    },
+    "reason_identity": {
+      "text": "Penukaran wajah dan penggantian identitas seseorang tidak dilakukan, karena bisa digunakan untuk menyamar sebagai orang tersebut."
+    },
+    "alternative_identity": {
+      "text": "Pengeditan yang mempertahankan identitas orang tersebut, seperti latar belakang baru, pencahayaan, atau gaya seni, dimungkinkan."
+    },
+    "reason_id_document": {
+      "text": "Gambar dokumen identitas seperti paspor, KTP, atau SIM tidak dibuat, karena bisa digunakan untuk penipuan."
+    },
+    "reason_hate": {
+      "text": "Gambar dengan simbol kebencian atau yang menyerang orang karena jati diri mereka tidak dibuat."
+    },
+    "reason_self_harm": {
+      "text": "Gambar yang menunjukkan atau mendorong tindakan menyakiti diri sendiri tidak dibuat."
+    },
+    "alternative_self_harm": {
+      "text": "Jika kamu sedang melalui masa sulit, berbicara dengan seseorang yang kamu percaya atau layanan bantuan setempat bisa membantu."
+    },
+    "reason_weapons": {
+      "text": "Gambar berisi petunjuk atau cetak biru senjata atau bahan peledak tidak dibuat."
+    },
+    "reason_scam": {
+      "text": "Media untuk penipuan, dokumen palsu, atau penyamaran tidak dibuat."
+    },
+    "alternative_scam": {
+      "text": "Desain orisinal yang tidak meniru orang, merek, atau dokumen nyata dimungkinkan."
+    },
+    "reason_spam": {
+      "text": "Pembuatan massal konten pengisi atau penghapusan label AI tidak didukung."
+    },
+    "alternative_spam": {
+      "text": "Beberapa gambar untuk tujuan tertentu dimungkinkan."
+    },
+    "reason_deceptive": {
+      "text": "Gambar yang dibuat agar tampak seperti rekaman asli, pernyataan asli, atau dukungan resmi tidak dibuat."
+    },
+    "alternative_deceptive": {
+      "text": "Versi yang jelas fiktif atau berupa ilustrasi dimungkinkan."
+    },
+    "reason_other": {
+      "text": "Permintaan ini tidak dapat dibuat sesuai aturan keamanan."
+    },
+    "alternative_other": {
+      "text": "Subjek atau kalimat yang berbeda mungkin berhasil."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktur"
@@ -11949,6 +12243,22 @@
             },
             "description": {
               "text": "Kami menggunakan api.video (perusahaan UE, Prancis) untuk menghosting dan melakukan streaming video demo produk dan panduan fitur yang ditampilkan di situs web dan aplikasi web kami. Saat kamu menonton video, alamat IP dan data penayangan dasar kamu diproses oleh api.video. Tidak ada pengidentifikasi akun pengguna yang dibagikan."
+            }
+          }
+        },
+        "status_page": {
+          "heading": {
+            "text": "Halaman status (hanya saat kamu membukanya)"
+          },
+          "description": {
+            "text": "Penyedia ini hanya digunakan saat kamu membuka halaman status publik di status.openmates.org. Penyedia ini tidak digunakan untuk akunmu atau bagian OpenMates lainnya."
+          },
+          "upcloud": {
+            "heading": {
+              "text": "UpCloud (hosting halaman status)"
+            },
+            "description": {
+              "text": "Halaman status publik status.openmates.org (satu halaman statis ditambah satu berkas JSON status) di-hosting oleh UpCloud Oy di server di Amsterdam, Belanda. Saat kamu membuka halaman, browsermu terhubung ke server UpCloud, sehingga UpCloud memproses alamat IP dan metadata koneksi TLS-mu. Kami tidak menyimpan log akses dan tidak menggunakan cookie atau pelacak di halaman ini. Server yang sama juga mengirim permintaan uji otomatis ke OpenMates, tanpa data pengguna."
             }
           }
         },
@@ -14087,6 +14397,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "melalui"
@@ -14294,6 +14605,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Saya tidak dapat membuat propaganda, konten kebencian, disinformasi, atau konten tabloid yang manipulatif. Saya bisa menjelaskan cara kerjanya, menganalisis contoh, memeriksa fakta, atau membantu satire yang diberi label jelas."
+    },
+    "illegal_category": {
+      "text": "Saya tidak dapat membantu dengan konten seksual yang melibatkan anak di bawah umur, gambar intim tanpa persetujuan, deepfake seksual orang nyata, atau senjata pemusnah massal."
+    },
+    "live_site_abuse": {
+      "text": "Anda mungkin memang pemilik situs itu, tetapi di situs live saya hanya melakukan tindakan normal satu pengguna dengan kecepatan manusia, jadi saya tidak dapat menjalankan tindakan massal atau abusif seperti komentar atau pendaftaran massal, menebak kata sandi, atau membanjiri. Pengujian semacam itu saat ini hanya berjalan di localhost, lingkungan dev lokal, atau salinan staging yang dijalankan secara lokal. Saya senang membantu menyiapkannya."
+    },
+    "strike_notice": {
+      "text": "Ini pelanggaran ke-{strike} dari {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Asuransi"
@@ -14396,6 +14721,82 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Akunmu ditangguhkan"
+    },
+    "appeal_button": {
+      "text": "Ajukan banding"
+    },
+    "download_button": {
+      "text": "Unduh data saya"
+    },
+    "explanation_label": {
+      "text": "Ceritakan apa yang terjadi (hingga 1.000 karakter)"
+    },
+    "consent_label": {
+      "text": "Saya setuju hanya membagikan permintaan yang ditandai kepada peninjau keamanan"
+    },
+    "add_photo": {
+      "text": "Tambahkan foto"
+    },
+    "photo_added": {
+      "text": "Foto terlampir. Pilih yang lain"
+    },
+    "submit": {
+      "text": "Kirim banding"
+    },
+    "sent": {
+      "text": "Bandingmu sudah dikirim. Kamu akan mendapat keputusan dalam 7 hari."
+    },
+    "admin_title": {
+      "text": "Peninjauan keamanan"
+    },
+    "admin_restore": {
+      "text": "Pulihkan"
+    },
+    "admin_delete": {
+      "text": "Hapus"
+    },
+    "admin_ask": {
+      "text": "Tanya pengguna"
+    },
+    "admin_delete_confirm": {
+      "text": "Hapus akun ini? Penghapusan standar dengan pengembalian dana penuh, email penghapusan, dan catatan kepatuhan."
+    },
+    "admin_empty": {
+      "text": "Tidak ada akun yang menunggu peninjauan."
+    },
+    "until": {
+      "text": "Akun ditangguhkan hingga {date}"
+    }
+  },
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} ditolak. {reason} Ini pelanggaran ke-{strike} dari {max}."
+    },
+    "what_image_generate": {
+      "text": "Permintaan gambar Anda"
+    },
+    "what_image_edit": {
+      "text": "Permintaan edit gambar Anda"
+    },
+    "what_video": {
+      "text": "Permintaan video Anda"
+    },
+    "what_upload": {
+      "text": "Gambar yang Anda unggah"
+    },
+    "suspended_until": {
+      "text": "Ini pelanggaran ke-2 dari 3. Akunmu ditangguhkan hingga {date} dan akan aktif kembali setelahnya. Pelanggaran ketiga akan menangguhkannya hingga admin meninjaunya."
+    },
+    "suspended_pending_review": {
+      "text": "Ini pelanggaran ke-3 dari 3. Akunmu ditangguhkan hingga admin meninjaunya. Kamu dapat mengajukan banding atas keputusan ini."
+    },
+    "unavailable": {
+      "text": "Pemeriksaan keamanan sedang tidak tersedia sementara, sehingga permintaan ini tidak dapat diproses. Silakan coba lagi sebentar lagi."
+    }
+  },
   "settings": {
     "account": {
       "username": {
@@ -19128,7 +19529,7 @@
       "text": "Tidak ada ketelanjangan, kekerasan, atau konten mengerikan\ndi foto profil."
     },
     "last_warning_image_not_allowed": {
-      "text": "Peringatan terakhir:\nTidak ada ketelanjangan, kekerasan, atau konten mengerikan di foto profil.\nSatu pelanggaran lagi dan akun Anda akan dihapus."
+      "text": "Peringatan terakhir:\nTidak boleh ada konten seksual eksplisit atau kekerasan ekstrem di foto profil.\nSatu pelanggaran lagi dan akun Anda akan ditangguhkan."
     },
     "your_account_got_deleted": {
       "text": "Akun Anda telah dihapus."
@@ -20749,7 +21150,7 @@
       "text": "Coba gratis"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "Domain e-mail tidak diizinkan."
@@ -20757,32 +21158,8 @@
     "email_ignored": {
       "text": "Alamat email ini tidak dapat digunakan untuk mendaftar. Silakan hubungi dukungan jika Anda merasa ini adalah kesalahan."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates saat ini adalah rilis alpha untuk penguji awal."
-    },
-    "decent_stable": {
-      "text": "Rilis alpha ini cukup stabil"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Namun, belum semua fitur inti diimplementasikan."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Harap bersiap untuk beberapa bug di sana-sini dan ingat: chatbot AI dapat membuat kesalahan."
-    },
     "view_on_github": {
       "text": "Lihat OpenMates di GitHub"
-    },
-    "view_on_github_description": {
-      "text": "Untuk membahas bug, fitur, dan tetap mengikuti rilis baru."
-    },
-    "view_on_instagram": {
-      "text": "Lihat OpenMates di Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "Untuk tetap mengikuti rilis baru dan pembaruan lainnya."
-    },
-    "continue_with_alpha": {
-      "text": "Lanjutkan dengan {version}"
     },
     "server_admin": {
       "text": "Admin server"
@@ -21542,6 +21919,7 @@
       "text": "Warna kustom"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

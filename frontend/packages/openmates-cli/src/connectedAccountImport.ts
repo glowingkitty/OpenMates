@@ -226,15 +226,18 @@ function runtimeModesForActions(actions: string[]): Record<string, string> {
 }
 
 function normalizeAppId(appId: string): string {
-  return appId === "google_calendar" ? "calendar" : appId;
+  if (appId === "google_calendar") return "calendar";
+  return appId === "figma" ? "design" : appId;
 }
 
 function appIdForProvider(providerId: string): string {
-  return providerId === "google_calendar" ? "calendar" : providerId;
+  if (providerId === "google_calendar") return "calendar";
+  return providerId === "figma" ? "design" : providerId;
 }
 
 function defaultProviderLabel(providerId: string): string {
-  return providerId === "google_calendar" ? "Google Calendar" : "Connected account";
+  if (providerId === "google_calendar") return "Google Calendar";
+  return providerId === "figma" ? "Figma" : "Connected account";
 }
 
 function sha256Hex(value: string): string {

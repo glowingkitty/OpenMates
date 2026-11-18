@@ -12,7 +12,7 @@
   import { untrack } from 'svelte';
   import { text } from '@repo/ui';
   import SlideCanvas from './SlideCanvas.svelte';
-  import { getTemplate, placeElements, templateStyleVars } from './slidesTemplates';
+  import { resolveTemplate, placeElements, templateStyleVars } from './slidesTemplates';
   import { fillEditable, editableToMarkup } from './slidesEditorText';
   import {
     dragBox,
@@ -25,13 +25,14 @@
     type ResizeHandle
   } from './slidesEditorView';
   import type { DeckSlideModel } from '../../../services/rustCore/deckDocument/deckDocumentTypes';
-  import { parseInlineMarkup, type InlineNode } from './slidesMarkup';
+  import { parseInlineMarkup, type DeckTheme, type InlineNode } from './slidesMarkup';
 
   interface Props {
     slide: DeckSlideModel;
     width: number;
     height: number;
     template: string;
+    theme?: DeckTheme;
     selectedId: string | null;
     typingId: string | null;
     onSelect: (elementId: string | null) => void;
@@ -41,7 +42,7 @@
     onCommitText: (elementId: string, markup: string) => void;
   }
 
-  let { slide, width, height, template: templateId, selectedId, typingId, onSelect, onGeometry, onStartTyping, onCommitText }: Props =
+  let { slide, width, height, template: templateId, theme, selectedId, typingId, onSelect, onGeometry, onStartTyping, onCommitText }: Props =
     $props();
 
   /** Pointer travel (screen px) below which a press is a click, not a drag. */
@@ -49,7 +50,7 @@
 
   let stageWidth = $state(0);
   let scale = $derived(stageWidth > 0 ? stageWidth / width : 0);
-  let template = $derived(getTemplate(templateId));
+  let template = $derived(resolveTemplate(templateId, theme));
   let drag = $state<{ elementId: string; box: CanvasBox } | null>(null);
   let renderSlide = $derived(toRenderSlide(slide, { drag, typingId }));
   let placed = $derived(placeElements(renderSlide, template, height));
@@ -205,7 +206,7 @@
 
 <div class="slides-editor-stage" bind:clientWidth={stageWidth} data-testid="slides-editor-canvas" data-slide-id={slide.id}>
   {#key slide.id}
-    <SlideCanvas slide={renderSlide} {width} {height} template={templateId} />
+    <SlideCanvas motion={true} slide={renderSlide} {width} {height} template={templateId} {theme} />
   {/key}
   <!-- Pointer surface; every element below is reachable by keyboard. -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->

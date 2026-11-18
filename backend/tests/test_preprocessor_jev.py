@@ -58,6 +58,23 @@ def test_stage_one_shows_every_focus_hint_and_leads_with_the_request_match():
     ]) == "Write a press release"
 
 
+def test_stage_one_describes_the_skill_that_matches_the_request_first():
+    import yaml
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/plans/app.yml").read_text())
+    skills = [preprocessor._skill_routing_candidate("plans", SimpleNamespace(**{**row, "providers": []}))
+              for row in app["skills"]]
+    assert [row["id"] for row in app["skills"]].index("check") >= 2
+    (plain,) = jev_preprocessing._app_catalogue(["plans"], skills)
+    assert "Draft a Check" not in plain
+    (ranked,) = jev_preprocessing._app_catalogue(
+        ["plans"], skills, request_text="Please draft a Check for our bakery website with an e2e test source.")
+    assert "Draft a Check (verification gate) grouping tests" in ranked
+    (spec,) = jev_preprocessing._app_catalogue(
+        ["plans"], skills, request_text="Draft a short Specification for online sourdough ordering.")
+    assert "Draft or update a Specification" in spec
+
+
 def test_provider_correction_keeps_preceding_activity_and_provider_brand():
     history = [
         {"role": "user", "content": "Show me capoeira classes on OpenSports in Berlin."},
@@ -73,6 +90,95 @@ def test_provider_correction_keeps_preceding_activity_and_provider_brand():
     assert "Activity Network" in candidate
     assert "Find dated fitness classes" in candidate
     assert "Activity Network" in jev_preprocessing._app_catalogue(["fitness"], [candidate])[0]
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.answer.identify-then-compare
+def test_routing_view_shows_upload_marker_instead_of_upload_metadata():
+    upload = ("```toon\napp_id: images\nskill_id: upload\ntype: image\nstatus: finished\n"
+              "filename: desk_item.jpg\nembed_ref: desk_item.jpg\ncontent_hash: 3b1f0c5a\n"
+              "s3_base_url: https://files.example.org\nfiles:\n  original:\n    s3_key: uploads/u1/original.bin\n"
+              "    width: 1500\nai_detection: null\n```\nWhere is this cheapest?")
+    search = "```toon\napp_id: web\nskill_id: search\nquery: desk\n```\n"
+    messages = jev_preprocessing._messages([
+        {"role": "user", "content": search + upload},
+        {"role": "user", "content": "```toon\napp_id: pdf\nskill_id: upload\nfilename: \"Offer.pdf\"\n```\nSummarize"},
+    ])
+    assert messages[0]["content"] == search + "[Attached image: desk_item.jpg]\nWhere is this cheapest?"
+    assert messages[1]["content"] == "[Attached pdf: Offer.pdf]\nSummarize"
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.answer.identify-then-compare
+@pytest.mark.asyncio
+async def test_upload_turn_keeps_near_threshold_app_the_text_only_router_cannot_confirm(monkeypatch):
+    async def evaluate(**kwargs):
+        scores = {"shopping": .55, "web": .3}
+        return DecisionResponse(model="jev", answers={
+            question: {"type": "noul", "noul": scores[question_row["instructions"]["candidate_id"]]}
+            for question, question_row in kwargs["questions"].items()})
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    upload = "```toon\napp_id: images\nskill_id: upload\ntype: image\nfilename: desk_item.jpg\n```\n"
+    async def route(content, **flag):
+        return (await jev_preprocessing.decide_app_and_project_routing_with_jev(
+            model_id="jev", secrets_manager=None, message_history=[{"role": "user", "content": content}],
+            available_apps=["shopping", "web"], available_skills=[], available_focus_modes=[], **flag,
+        ))["selected_app_ids"]
+    reference = '```json\n{"type": "image", "embed_id": "e1"}\n```\n'
+    assert await route(upload + "Where is this cheapest?") == ["shopping"]
+    assert await route(reference + "Where is this cheapest?") == ["shopping"]
+    # The preprocessor's current-turn flag wins over the message text.
+    assert await route("Where is this cheapest?", latest_request_has_upload=True) == ["shopping"]
+    assert await route("Where is this cheapest?") == []
+    assert await route('```json\n{"type": "app_skill_use", "embed_id": "e2"}\n```\nWhere is this cheapest?') == []
+    assert jev_preprocessing._messages([{"role": "user", "content": reference + "Where?"}])[0]["content"] == (
+        "[Attached image]\nWhere?")
+    request = SimpleNamespace(current_user_content="Where is this cheapest?", message_history=[],
+                              has_image_upload_embed=True)
+    assert preprocessor._current_turn_has_image_upload(request)
+    assert not preprocessor._current_turn_has_image_upload(SimpleNamespace(
+        current_user_content="Where is this cheapest?", message_history=[], has_image_upload_embed=False))
+
+
+# contract-test: supporting surface=rest_api assertions=shopping-search.answer.identify-then-compare
+@pytest.mark.asyncio
+async def test_upload_turn_keeps_near_threshold_skill_and_logs_only_the_request_shape(monkeypatch, caplog):
+    skill_scores = {"shopping-search_products": .6, "web-search": .8}
+
+    async def evaluate(**kwargs):
+        response = _routing_answer(kwargs["questions"])
+        for key, question in kwargs["questions"].items():
+            if key.startswith("app_"):
+                response.answers[key].noul = .95
+            elif key.startswith("skill_"):
+                response.answers[key].noul = skill_scores[question["instructions"]["candidate_id"]]
+        return response
+
+    monkeypatch.setattr(jev_preprocessing, "_evaluate_preprocessing_questions", evaluate)
+    reference = '```json\n{"type": "image", "embed_id": "e1"}\n```\n'
+
+    async def skills(content, **flag):
+        return (await jev_preprocessing.decide_preprocessing_with_jev(
+            model_id="jev", secrets_manager=None, message_history=[{"role": "user", "content": content}],
+            topic_areas=["general_misc: General"], available_apps=["shopping", "web"],
+            available_skills=["shopping-search_products: Find offers", "web-search: Search"],
+            available_focus_modes=[], available_settings_and_memories={}, recent_skill_activity=[],
+            conversation_summary=None, previous_category=None, is_first_message=True,
+            candidate_discovery_complete=True, telemetry_task_id="shape-task", **flag,
+        ))["relevant_app_skills"]
+
+    caplog.set_level("INFO", logger=jev_preprocessing.logger.name)
+    assert await skills(reference + "Wo bekomme ich das am günstigsten?") == ["shopping-search_products", "web-search"]
+    assert await skills("Wo bekomme ich das am günstigsten?", latest_request_has_upload=True) == [
+        "shopping-search_products", "web-search"]
+    assert await skills("Wo bekomme ich das am günstigsten?") == ["web-search"]
+    logged = "\n".join(record.getMessage() for record in caplog.records if "Stage-two skill scores" in record.getMessage())
+    assert "upload=True threshold=0.50" in logged and "upload=False threshold=0.70" in logged
+    assert "günstigsten" not in logged and "markers=1" in logged
+
+    shape = jev_preprocessing._routing_view_shape([{"role": "user", "content": (
+        '[Attached image: a.jpg]\n```json\n{"embed_id": "secret-value", "type": "website"}\n```\n'
+        "```toon\nurl: https://example.org/private\ntitle: Private\n```\nPrivate question")}])
+    assert shape == "markers=1 blocks=[\"json['embed_id', 'type']\", \"toon['url', 'title']\"] text_chars=42"
+    assert "secret-value" not in shape and "example.org" not in shape and "Private" not in shape
 
 
 # contract-test: direct surface=rest_api assertions=ai-model-routing.tiers.conservative-three-way,ai-model-routing.defaults.google-tier-profiles
@@ -1035,3 +1141,13 @@ async def test_empty_use_case_registry_asks_no_question_and_uses_tier_routing(mo
     )
     assert selected["selected_llm_for_main_id"] == "inception/mercury-3"
     assert selected["use_case_val"] is None
+
+
+def test_ask_first_memory_is_offered_at_a_lower_relevance_than_auto_include():
+    # Ask first Memories load only after approval; a near miss costs one question.
+    near_miss = 0.71
+    ask_first = {"id": "press-style", "source": "project", "load_mode": "ask_first"}
+    auto_include = {"id": "press-style", "source": "project", "load_mode": "auto_include"}
+    assert near_miss >= jev_preprocessing.rule_selection_threshold(ask_first)
+    assert near_miss < jev_preprocessing.rule_selection_threshold(auto_include)
+    assert jev_preprocessing.rule_selection_threshold({"id": "app-guide", "source": "app"}) == 0.75

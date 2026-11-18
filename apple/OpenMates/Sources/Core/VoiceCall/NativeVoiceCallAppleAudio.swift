@@ -3,7 +3,7 @@
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.audio.single-owner, video-call.audio.startup-buffer,
 // video-call.audio.automatic-idle, video-call.lifecycle.recovery-and-billing,
-// video-call.audio.background-resume
+// video-call.audio.background-resume, video-call.chat.activity-status
 
 #if !os(watchOS)
 import AVFoundation
@@ -32,6 +32,10 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
     private var consumer: Task<Void, Never>?
     private var capture: NativeVoiceCallAVCaptureConverter?
     private var tapInstalled = false
+    private var playbackTapInstalled = false
+    private var meter: NativeVoiceCallLevelMeter?
+    /// Receives throttled real mic/assistant levels on the main actor (call-strip bars).
+    var levelSink: (@MainActor @Sendable ([Float]) -> Void)?
     private var configured = false
     private var onFailure: (@Sendable (NativeVoiceCallError) async -> Void)?
     #if os(iOS)
@@ -65,7 +69,7 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
         guard await permission() else {
             if let reservation { runtime.releaseLiveCall(reservation) }
             reservation = nil
-            throw NativeVoiceCallError.audioUnavailable
+            throw NativeVoiceCallError.microphoneDenied
         }
     }
 
@@ -100,7 +104,13 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
                 await input(data)
             }
         }
+        let meter = NativeVoiceCallLevelMeter { [weak self] levels in
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.levelSink?(levels) } }
+        }
+        self.meter = meter
         engine.inputNode.installTap(onBus: 0, bufferSize: 1_024, format: source) { buffer, _ in
+            // Muted or stopped microphone contributes no level.
+            meter.submit(.microphone, level: converter.isEnabled ? Self.level(of: buffer) : 0)
             do {
                 guard let data = try converter.convert(buffer) else { return }
                 if case .dropped = continuation.yield(data) {
@@ -121,10 +131,20 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
             speechOutput.attach(to: engine)
             configured = true
         }
+        // Read-only tap on the existing mixer: playback level of assistant speech and cues.
+        engine.mainMixerNode.installTap(onBus: 0, bufferSize: 1_024, format: nil) { buffer, _ in
+            meter.submit(.playback, level: Self.level(of: buffer))
+        }
+        playbackTapInstalled = true
         engine.prepare()
         try engine.start()
         player.play()
         runtime.attachLiveCallSpeechOutput(speechOutput)
+    }
+
+    nonisolated private static func level(of buffer: AVAudioPCMBuffer) -> Float {
+        guard let channel = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
+        return NativeVoiceCallLevelMeter.level(of: UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
     }
 
     func setMicrophoneEnabled(_ enabled: Bool) { capture?.setEnabled(enabled) }
@@ -168,6 +188,8 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
         // callback drains without exposing AVAudioPCMBuffer across actors.
         capture?.stop(); capture = nil
         if tapInstalled { engine.inputNode.removeTap(onBus: 0); tapInstalled = false }
+        if playbackTapInstalled { engine.mainMixerNode.removeTap(onBus: 0); playbackTapInstalled = false }
+        meter?.reset(); meter = nil
         continuation?.finish(); continuation = nil
         consumer = nil // finished bounded stream drains; controller generation rejects late callbacks
         playbackGeneration = UUID(); queuedPlaybackFrames = 0
@@ -381,6 +403,7 @@ private final class NativeVoiceCallAVCaptureConverter: @unchecked Sendable {
     }
     func setEnabled(_ value: Bool) { lock.lock(); defer { lock.unlock() }; enabled = value }
     func stop() { lock.lock(); defer { lock.unlock() }; stopped = true; enabled = false }
+    var isEnabled: Bool { lock.lock(); defer { lock.unlock() }; return enabled && !stopped }
     func convert(_ source: AVAudioPCMBuffer) throws -> Data? {
         lock.lock(); defer { lock.unlock() }
         guard !stopped, enabled else { return nil }

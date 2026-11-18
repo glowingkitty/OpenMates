@@ -377,3 +377,63 @@ async def test_unoffered_project_operation_releases_its_pause_for_the_next_opera
     )
     assert lifecycle.step == f"async:{second}"
     assert original._pending_async_recovery_handoff == second
+
+
+FOCUS_CHILD = "018f4444-4444-7444-8444-444444444444"
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-specialist-composition,app-skills.assistant.idempotent-resume
+async def test_focus_continuation_offers_project_work_under_its_admitted_root(subject):
+    """A named focus in a Project chat: the continuation C runs while the root R owns the chat."""
+    module, lifecycle, queued, _timers, _failure = subject
+    cache = Cache()
+    await cache.set(cache._get_active_task_key("chat"), SOURCE)
+    await cache.set(module.async_skill_latest_user_turn_key("owner", "chat"), "user-message")
+    continuation = AskSkillRequest(
+        user_id="owner", user_id_hash="hash", chat_id="chat", message_id="user-message",
+        message_history=[], recovery_inference_task_id=SOURCE, recovery_preflight_id="preflight",
+        recovery_turn_id="recovery-turn", recovery_public_key="public-key", chat_key_version=1,
+        is_focus_mode_continuation=True,
+    )
+    await module.cache_async_skill_continuation_context(
+        cache_service=cache, async_task_id=PRODUCER, request_data=continuation,
+        app_id="system", skill_id="project_files", tool_name="project_files",
+        tool_arguments={}, skill_config_dict={"default_llms": {"preprocessing_model": "configured"}},
+        requires_current_turn=True, defer_until_initial_response_complete=True,
+        ttl_seconds=300, source_delivery_task_id=FOCUS_CHILD, directus_service=object(),
+    )
+    pause = [data for operation, data in lifecycle.calls if operation == "pause_inference_for_skill"]
+    assert pause and pause[0]["delivery_task_id"] == SOURCE
+    authority = await cache.get(f"{module.ASYNC_RECOVERY_HANDOFF_PREFIX}:{PRODUCER}")
+    assert authority["source_delivery_id"] == SOURCE
+    assert authority["logical_message_id"] == FOCUS_CHILD
+    assert await cache.get(f"{module.ASYNC_RECOVERY_HANDOFF_PREFIX}:source:{SOURCE}") == PRODUCER
+    await module.dispatch_async_skill_continuation(
+        cache_service=cache, async_task_id=PRODUCER, completed_results=[{"files": []}],
+    )
+    # The continuation's answer ends and releases the root's marker; the result then resumes.
+    await cache.clear_active_ai_task_if_matches("chat", SOURCE)
+    ids = await module.dispatch_deferred_async_skill_continuations(cache_service=cache, user_id="owner", chat_id="chat")
+    assert ids == [queued[0]["task_id"]]
+    successor = AskSkillRequest.model_validate(queued[0]["request_data_dict"])
+    assert successor.continuation_message_id == FOCUS_CHILD
+    assert await module.claim_async_recovery_handoff(cache=cache, directus=object(), request=successor, delivery_id=ids[0])
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-specialist-composition
+def test_waiting_focus_continuation_releases_the_root_marker():
+    import inspect
+    from backend.apps.ai.tasks import ask_skill_task
+    source = inspect.getsource(ask_skill_task._async_process_ai_skill_ask_task)
+    assert "request_data, skill_config_dict, focus_authority_root(request_data, task_id)," in source
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-specialist-composition,app-skills.assistant.same-turn-completion
+def test_same_turn_batch_in_a_focus_continuation_pauses_the_admitted_root():
+    import inspect
+    from backend.apps.ai.tasks import stream_consumer
+    source = inspect.getsource(stream_consumer)
+    assert "authority_delivery_id = focus_authority_root(request_data, task_id)" in source
+    assert "source_delivery_task_id=authority_delivery_id," in source
+    assert '"delivery_task_id": authority_delivery_id, "step_id": batch_id,' in source

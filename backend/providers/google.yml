@@ -732,6 +732,46 @@ models:
       tool_use: true
       streaming: true
 
+  - id: "gemini-decision-1"
+    name: "Gemini Decision 1"
+    description: "Typed decisions (yes/no, choice, score) with calibrated probabilities over text and images; no generated text. Used per purpose for internal decisions with Jev as the automatic fallback."
+    country_origin: "US"
+    for_app_skill: "ai.decide" # Internal typed decisions only, never chat generation or model selection
+    release_date: "2026-11-11" # Gemini Decisions API launch
+    allow_auto_select: false
+    reasoning: false
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "google_ai_studio"
+    servers:
+      - id: "google_ai_studio"
+        name: "Google AI Studio"
+        model_id: "gemini-decision-1"
+        region: "US"
+        country: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 6670
+        output:
+          per_credit_unit: 0
+    costs:
+      # https://aistudio.google.com/docs/pricing (verified 2026-11-17): input only, paid tier not used for training.
+      input_per_million_token:
+        price: 0.10
+        currency: USD
+        max_context: 262144
+      output_per_million_token:
+        price: 0
+        currency: USD
+    features:
+      max_output_tokens: 0
+      streaming: false
+      tool_use: false
+
   - id: "gemini-3-pro-image-preview"
     name: "Gemini 3 Pro"
     description: "High-end native image generation and editing from Google. Supports text-to-image and image-to-image editing with up to 14 reference images."

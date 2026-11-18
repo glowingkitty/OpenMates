@@ -124,8 +124,9 @@ class TestRunSpec(BaseModel):
             raise ValueError("duplicate revision path")
         if self.kind == "unit" and self.server is not None:
             raise ValueError("unit tests do not start a server")
-        if self.target == "remote_source" and not (self.project_id and self.source_id):
-            raise ValueError("remote_source requires project_id and source_id")
+        # remote_source ids are not required here: resolve_test_run_target fills
+        # them from the chat's active Project focus, and the remote executor
+        # refuses a run whose ids are still missing after that resolution.
         return self
 
 

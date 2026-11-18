@@ -43,6 +43,8 @@ try:
         PROACTIVE_INTERVAL,
         PROACTIVE_PRESSURE_INTERVAL,
         PROACTIVE_PERCENT,
+        PARKED_READY_REASON,
+        PARKED_WAIT_EXPIRY,
     )
 except ModuleNotFoundError:
     import resource_budget as budget
@@ -64,6 +66,8 @@ except ModuleNotFoundError:
         PROACTIVE_INTERVAL,
         PROACTIVE_PRESSURE_INTERVAL,
         PROACTIVE_PERCENT,
+        PARKED_READY_REASON,
+        PARKED_WAIT_EXPIRY,
     )
 
 
@@ -433,9 +437,21 @@ class Coordinator(CoordinatorState):
                 (now,),
             ).fetchall()
             by_fs = {}
+            parked = set()
             for row in waiting:
-                if row["repository"] in enabled and not self.owner_dead(row):
-                    by_fs.setdefault(row["filesystem"], []).append(row)
+                if row["repository"] not in enabled:
+                    continue
+                if self.owner_dead(row):
+                    # Only threaded rows survive _reconcile with a dead owner.
+                    if now - row["created_at"] > PARKED_WAIT_EXPIRY:
+                        db.execute(
+                            "UPDATE requests SET state='cancelled',outstanding=0,updated_at=?,reason=? WHERE id=?",
+                            (now, "Stalled: the owning chat never retried within 24 hours", row["id"]),
+                        )
+                        self._event(db, "parked_expired", {"request_id": row["id"], "thread": row["thread"]})
+                        continue
+                    parked.add(row["id"])
+                by_fs.setdefault(row["filesystem"], []).append(row)
             for fs, rows in by_fs.items():
                 db.execute(
                     "INSERT OR IGNORE INTO pressure(filesystem) VALUES (?)", (fs,)
@@ -459,10 +475,19 @@ class Coordinator(CoordinatorState):
                         usage=usage,
                         reserved=committed + protected,
                     )
-                    if (
+                    admitted = (
                         decision["allowed"]
                         and self.inodes(row["repository"]) >= row["min_inodes"]
-                    ):
+                    )
+                    if admitted and row["id"] in parked:
+                        # Nobody would claim a grant now: mark it ready for its chat.
+                        if row["reason"] != PARKED_READY_REASON:
+                            db.execute(
+                                "UPDATE requests SET reason=? WHERE id=?",
+                                (PARKED_READY_REASON, row["id"]),
+                            )
+                            self._event(db, "parked_ready", {"request_id": row["id"], "thread": row["thread"]})
+                    elif admitted:
                         db.execute(
                             "UPDATE requests SET state='granted',grant_id=?,expires_at=?,updated_at=?,reason='',attempts=0 WHERE id=?",
                             (uuid.uuid4().hex, now + GRANT_SECONDS, now, row["id"]),
@@ -496,7 +521,7 @@ class Coordinator(CoordinatorState):
                         # A stricter workspace ceiling must not freeze every CI
                         # operation on this filesystem. Later grants still pass
                         # their own guards and leave this peak uncommitted.
-                        if not protected and now - row["created_at"] >= 60:
+                        if not protected and now - row["created_at"] >= 60 and row["id"] not in parked:
                             protected = row["outstanding"]
                 db.execute(
                     "UPDATE pressure SET active=?,last_free=?,next_cleanup=? WHERE filesystem=?",

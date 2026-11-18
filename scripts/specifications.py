@@ -55,6 +55,8 @@ REQUIRED_SURFACES = ("rest_api", "cli", "sdks", "gui")
 SPECIFICATION_GENERATED_PATHS = {
     "specifications/generated/assertion-index.yml",
     "specifications/generated/coverage.yml",
+    "specifications/generated/features.md",
+    "specifications/generated/features.yml",
     "specifications/generated/registry.yml",
 }
 SPECIFICATION_EVIDENCE_TOOLING_PATHS = {
@@ -986,7 +988,19 @@ def check_generated_integrity(repo_root: Path, *, specifications_root: Path | No
     for name, value in expected.items():
         if actual[name] != value:
             errors.append(f"specifications/generated/{name} is stale; regenerate Specification artifacts")
+    if specifications_root is None:
+        errors.extend(_feature_overview().drift(root))
     return errors
+
+
+def _feature_overview():
+    """Import scripts/feature_overview.py, whose generated view joins the assertion index."""
+    scripts_dir = str(Path(__file__).resolve().parent)
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    import feature_overview
+
+    return feature_overview
 
 
 def generate_specification_artifacts(repo_root: Path, *, specifications_root: Path | None = None) -> None:
@@ -1010,6 +1024,10 @@ def generate_specification_artifacts(repo_root: Path, *, specifications_root: Pa
     _write_output(registry, generated / "registry.yml", False)
     _write_output(test_index, generated / "assertion-index.yml", False)
     _write_output(build_coverage(registry, test_index), generated / "coverage.yml", False)
+    if specifications_root is None:
+        # The feature overview reads the index just written; repo-level runs only.
+        _feature_overview().spec_tests.cache_clear()
+        _feature_overview().write_outputs(root)
 
 
 def _standing_prompt_waiver(repo_root: Path, session_id: str, specification_id: str) -> bool:

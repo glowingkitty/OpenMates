@@ -8,7 +8,7 @@ import XCTest
     // contract-test: supporting surface=gui.apple assertions=auth.signup.current-flow
     func testSignupStepsMatchWebShortFlowWithoutLegacySecurityOrPaymentSteps() {
         XCTAssertEqual(SignupViewModel.SignupStep.allCases,
-                       [.alphaDisclaimer, .basics, .confirmEmail, .secureAccount, .password, .passkeyPRFError, .complete])
+                       [.basics, .confirmEmail, .secureAccount, .password, .passkeyPRFError, .complete])
     }
 
     // contract-test: supporting surface=gui.apple assertions=auth.surface.first-party-boundary
@@ -144,7 +144,7 @@ import XCTest
         .init(runtime: runtime, configuration: .init(inviteCode: nil, language: "de", darkmode: true), login: login)
     }
     private func prepareBasics(_ model: SignupViewModel) async {
-        await model.loadRequirements(); model.continueFromDisclaimer()
+        await model.loadRequirements()
         model.basicsModel.form = .init(email: "fixture@example.test", username: "Fixture", stayLoggedIn: true, termsAccepted: true, privacyAccepted: true)
         guard let submitted = await model.basicsModel.submit() else { XCTFail("Basics did not submit"); return }
         model.acceptRequestedEmailCode(submitted)

@@ -233,3 +233,54 @@ fn editing_refuses_assistant_and_unknown_messages() {
         Err(Error::Invalid(_))
     ));
 }
+
+fn withdrawn(message: &str) -> Value {
+    json!({"chat_id":ID,"task_id":"t","message_id":message,"reason":"wellbeing","notice_text":"Withdrawn."})
+}
+
+#[tokio::test]
+async fn replaced_broadcast_overwrites_the_cached_row_of_an_already_persisted_message() {
+    let mut client = client("http://127.0.0.1:1", false, false);
+    client.history.insert(
+        ID.into(),
+        vec![json!({"message_id":"m1","encrypted_content":"old"})],
+    );
+    let frame = json!({"type":"assistant_message_replaced","payload":{"chat_id":ID,"message_id":"m1","encrypted_content":"sealed-notice"}});
+    let summary = client.ingest_socket_frames(&[frame]).await.unwrap();
+    assert_eq!(summary.changed_chats.len(), 1);
+    assert_eq!(client.history[ID][0]["encrypted_content"], "sealed-notice");
+    let unknown = json!({"type":"assistant_message_replaced","payload":{"chat_id":ID,"message_id":"nope","encrypted_content":"x"}});
+    assert!(
+        client
+            .ingest_socket_frames(&[unknown])
+            .await
+            .unwrap()
+            .changed_chats
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn withdrawal_event_for_an_unloaded_chat_is_left_to_another_device_and_bad_ones_are_refused()
+{
+    let mut client = client("http://127.0.0.1:1", false, false);
+    client.chats.remove(ID);
+    let frame = json!({"type":"assistant_answer_withdrawn","payload":withdrawn("m1")});
+    assert!(
+        client
+            .ingest_socket_frames(&[frame])
+            .await
+            .unwrap()
+            .changed_chats
+            .is_empty()
+    );
+    let mut loaded = self::client("http://127.0.0.1:1", false, false);
+    let mut bad = withdrawn("m1");
+    bad["notice_text"] = json!("");
+    let frame = json!({"type":"assistant_answer_withdrawn","payload":bad});
+    assert!(loaded.ingest_socket_frames(&[frame]).await.is_err());
+    assert!(matches!(
+        loaded.replace_withdrawn_message(ID, "", "n").await,
+        Err(Error::Protocol)
+    ));
+}

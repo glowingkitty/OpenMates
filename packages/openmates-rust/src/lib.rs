@@ -18,6 +18,7 @@ mod platform;
 pub mod privacy;
 pub mod project_task_sync;
 pub mod remote_access_crypto;
+pub mod remote_command_review;
 #[cfg(all(feature = "workflow-yaml", not(target_arch = "wasm32")))]
 pub mod remote_command;
 #[cfg(all(feature = "workflow-yaml", unix))]

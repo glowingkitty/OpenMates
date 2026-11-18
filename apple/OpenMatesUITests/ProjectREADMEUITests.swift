@@ -246,32 +246,22 @@ final class ProjectREADMEUITests: XCTestCase {
         XCTAssertGreaterThan(mic.frame.midX, composer.frame.midX)
         let backdrop = app.buttons["project-home-prompt-backdrop"]
         XCTAssertTrue(backdrop.waitForExistence(timeout: 5))
-        XCTAssertEqual(backdrop.value as? String, "background-opacity=0;background-interactive=false")
+        XCTAssertEqual(backdrop.value as? String, "background-opacity=1;background-interactive=false")
         XCTAssertTrue(!card.exists || !card.isEnabled, "Background project cards are disabled while composing")
         let cancel = app.buttons["project-input-composer-cancel"]
         let field = composer.descendants(matching: .any)["message-field"].firstMatch
         XCTAssertEqual(cancel.frame.width, field.frame.width, accuracy: 1)
         XCTAssertEqual(cancel.frame.minX, field.frame.minX, accuracy: 1)
         let expand = app.buttons["project-input-composer-expand"]
-        XCTAssertFalse(expand.exists, "An empty focused editor has no overflow action")
-        let shortDraft = "Synthetic Project draft\nSecond line\nThird line"
-        editor.typeText(shortDraft)
-        XCTAssertFalse(expand.exists, "Three short native lines fit without Expand")
-        let continuation = "\nFourth line\nFifth line"
-        let draft = shortDraft + continuation
-        editor.typeText(continuation)
+        XCTAssertFalse(expand.exists, "Projects are not collapsible and have no Expand control")
+        XCTAssertFalse(composer.descendants(matching: .any)["project-input-composer-cancel"].exists,
+                       "Cancel sits outside the composer element")
+        let draft = "Synthetic Project draft\nSecond line\nThird line\nFourth line\nFifth line"
+        editor.typeText(draft)
         XCTAssertEqual(editor.value as? String, draft)
-        XCTAssertTrue(expand.waitForExistence(timeout: 5)); XCTAssertTrue(expand.isHittable)
-        NativeComposerRenderedLayoutAssertions.assertBeside(expand, field: field, editor: editor)
-        NativeComposerRenderedLayoutAssertions.assertSelectedCaretClears(expand, field: field, editor: editor)
-        let collapsedEditorHeight = editor.frame.height
-        expand.tap()
-        XCTAssertEqual(expand.label, "Exit fullscreen")
-        expectation(for: NSPredicate { _, _ in editor.frame.height > collapsedEditorHeight }, evaluatedWith: editor)
-        waitForExpectations(timeout: 3)
-        NativeComposerRenderedLayoutAssertions.assertSelectedCaretClears(expand, field: field, editor: editor, requiresScroll: false)
-        XCTAssertEqual(cancel.frame.width, field.frame.width, accuracy: 1)
-        XCTAssertEqual(cancel.frame.minX, field.frame.minX, accuracy: 1)
+        XCTAssertFalse(expand.exists, "Projects never show Expand, however long the draft")
+        XCTAssertLessThanOrEqual(composer.frame.height, 160, "Project composer stays one bounded row")
+        XCTAssertGreaterThan(mic.frame.midX, editor.frame.midX)
         cancel.tap()
         XCTAssertTrue(backdrop.waitForNonExistence(timeout: 5))
         XCTAssertTrue(card.isHittable)

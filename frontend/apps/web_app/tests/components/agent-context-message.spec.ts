@@ -68,6 +68,21 @@ test('starts authoring only after a click and prevents repeated submissions', as
 });
 
 // contract-test: supporting surface=gui.web assertions=focus-modes.project-authoring-click
+test('leaves Project focus suggestions to the Recommendations card and keeps their job progress here', async ({ page }, testInfo) => {
+  await page.goto(`${PREVIEW}&variant=focus_in_card&width=350`);
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('project-authoring-action')).toHaveCount(1);
+  await expect(page.getByTestId('project-authoring-action')).toHaveText('Update Workflow');
+  await testInfo.attach('workflow-suggestion-only', { body: await page.getByTestId('agent-context-message').screenshot(), contentType: 'image/png' });
+  await page.goto(`${PREVIEW}&variant=focus_job_only&width=350`);
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('project-authoring-action')).toHaveCount(0);
+  await expect(page.getByText('Suggested Project improvements')).toHaveCount(0);
+  await expect(page.getByTestId('project-authoring-job')).toHaveAttribute('data-job-status', 'running');
+  await testInfo.attach('focus-job-progress-only', { body: await page.getByTestId('agent-context-message').screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=focus-modes.project-authoring-click
 test('keeps failed authoring actionable and reports failure without claiming a job started', async ({ page }) => {
   await page.goto(`${PREVIEW}&variant=error&width=350`);
   await waitForComponentPreview(page);
@@ -113,4 +128,29 @@ test('renders historical Rule receipts as Memories without rewriting their conte
   await expect(details.locator('summary')).toHaveText('Loaded 2 memories.');
   await details.locator('summary').click();
   await expect(page.getByTestId('applied-rule-body').first()).toHaveText('- Preserve task cancellation.\n- Release resources with context managers.');
+});
+
+// contract-test: supporting surface=gui.web assertions=focus-modes.conflict-detection
+test('lists Focus collisions with the Project focus before Save and says when they were not checked', async ({ page }, testInfo) => {
+  for (const width of [350, 700]) {
+    await page.goto(`${PREVIEW}&variant=collisions&width=${width}`);
+    await waitForComponentPreview(page);
+    const list = page.getByTestId('project-authoring-collisions');
+    await expect(list).toBeVisible();
+    await expect(page.getByTestId('project-authoring-collisions-heading')).toHaveText('Conflicts with the Project focus');
+    const rows = page.getByTestId('project-authoring-collision');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.first()).toHaveAttribute('data-touches-constraint', 'true');
+    await expect(rows.first()).toContainText('Adding dependencies without asking');
+    await expect(rows.nth(1)).toContainText('Answer format');
+    await expect(page.getByTestId('project-authoring-save')).toBeEnabled();
+    await expect(page.getByTestId('agent-context-message')).not.toContainText('[T:');
+    await testInfo.attach(`focus-collisions-${width}`, { body: await page.getByTestId('agent-context-message').screenshot(), contentType: 'image/png' });
+  }
+  await page.goto(`${PREVIEW}&variant=collisions_not_checked&width=350`);
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('project-authoring-collisions-unchecked')).toBeVisible();
+  await expect(page.getByTestId('project-authoring-collisions')).toHaveCount(0);
+  await expect(page.getByTestId('project-authoring-save')).toBeEnabled();
+  await testInfo.attach('focus-collisions-not-checked', { body: await page.getByTestId('agent-context-message').screenshot(), contentType: 'image/png' });
 });

@@ -7,6 +7,7 @@ use super::deck_handles::{DeckDocuments, DeckHandleError};
 use super::deck_markup::{ElementContent, TodoItem};
 use super::deck_markup_tests::FULL_DECK;
 use super::deck_operations::{DeckOperation, DeckOutcome, ElementSpec, TextStyle};
+use super::deck_theme::DeckTheme;
 use super::deck_values::ElementKind;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -243,6 +244,15 @@ fn operations() -> Vec<DeckOperation> {
             hidden: true,
         },
         DeckOperation::SetAllInteractiveHidden { hidden: false },
+        DeckOperation::SetTheme {
+            template: "library:club".into(),
+            theme: Some(DeckTheme {
+                heading: Some("Georgia".into()),
+                accent: Some("#1f9d55".into()),
+                accent_2: Some("#f2c94c".into()),
+                ..DeckTheme::default()
+            }),
+        },
     ]
 }
 
@@ -269,6 +279,7 @@ fn operation_name(operation: &DeckOperation) -> &'static str {
         DeckOperation::ClearAllInteractive => "clear_all_interactive",
         DeckOperation::SetInteractiveHidden { .. } => "set_interactive_hidden",
         DeckOperation::SetAllInteractiveHidden { .. } => "set_all_interactive_hidden",
+        DeckOperation::SetTheme { .. } => "set_theme",
     }
 }
 

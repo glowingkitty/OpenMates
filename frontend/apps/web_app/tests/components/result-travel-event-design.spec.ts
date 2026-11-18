@@ -230,6 +230,25 @@ test('connection previews retain both journey legs and rail realtime provenance'
   await expect(page.getByTestId('result-map-preview')).toBeHidden();
 });
 
+// contract-test: supporting surface=gui.web assertions=travel-search.mixed-routes.per-ticket-display
+test('mixed route card shows the amount paid, the ticket count and the saving', async ({ page }, testInfo) => {
+  for (const width of [390, 900]) {
+    await page.setViewportSize({ width: Math.max(width, 390), height: 900 });
+    await page.goto(preview('travel/TravelConnectionEmbedPreview', width, 'mixedRoute'));
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('connection-price')).toHaveText('EUR 8.98');
+    await expect(page.getByTestId('connection-tickets-badge')).toHaveText('+ Deutschland-Ticket · 2 tickets · Saves EUR 10');
+    // Nothing on the card is cut off at the sides.
+    const card = (await page.getByTestId('embed-preview').boundingBox())!;
+    for (const testId of ['connection-price', 'connection-tickets-badge']) {
+      const box = (await page.getByTestId(testId).boundingBox())!;
+      expect(box.x, `${testId} starts inside the card`).toBeGreaterThanOrEqual(card.x);
+      expect(box.x + box.width, `${testId} ends inside the card`).toBeLessThanOrEqual(card.x + card.width);
+    }
+    await testInfo.attach(`mixed-route-card-${width}`, { body: await page.getByTestId('embed-preview').screenshot(), contentType: 'image/png' });
+  }
+});
+
 // contract-test: supporting surface=gui.web assertions=travel-search.surface-parity
 test('bus and rail cards name places, not the stop codes in brackets', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1100, height: 900 });
@@ -511,4 +530,59 @@ test('narrow mobile connection keeps both journey pills and carrier clear of the
   }
   await expect(card.locator('.journey-arrival').first()).toBeHidden();
   await testInfo.attach('travel-mobile-itinerary', { body: await card.screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=travel-search.mixed-routes.per-ticket-display
+test('mixed route lists each ticket, the pass part, the saving and the separate-ticket transfer', async ({ page }, testInfo) => {
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(preview('travel/TravelConnectionEmbedFullscreen', width, 'mixedRoute'));
+    await waitForComponentPreview(page);
+    await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
+    const tickets = page.getByTestId('route-tickets');
+    await expect(tickets).toContainText('2 separate tickets');
+    await expect(page.getByTestId('route-savings')).toHaveText('Saves EUR 10');
+    const rows = page.getByTestId('route-ticket');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0)).toContainText('München Hbf → Lindau (Bodensee) Insel');
+    await expect(rows.nth(0).getByTestId('route-ticket-price')).toHaveText('Covered by Deutschland-Ticket');
+    await expect(rows.nth(1)).toContainText('Lindau (Blaukreuzstrasse) → Zürich HB');
+    await expect(rows.nth(1).getByTestId('route-ticket-price')).toHaveText('EUR 8.98');
+    await expect(rows.nth(1).getByTestId('route-ticket-booking')).toHaveAttribute('href', 'https://www.example.org/book/coach-lindau-zurich');
+    await expect(rows.nth(0).getByTestId('route-ticket-booking')).toHaveCount(0);
+    // The route keeps a readable width: it never wraps one word per line next to the price.
+    const routeBox = (await rows.nth(0).locator('.route-ticket-route').boundingBox())!;
+    expect(routeBox.width).toBeGreaterThan(150);
+    await expect(tickets).toContainText('Change at Lindau (Bodensee) with 64 min to transfer');
+    await expect(page.getByTestId('layover-transfer-status')).toContainText('separate tickets');
+    await expect(page.getByTestId('layover-transfer-status')).toContainText('change stop to Lindau (Blaukreuzstrasse)');
+    await expect(page.getByTestId('segment-fare-coverage').first()).toHaveText('Covered by Deutschland-Ticket');
+    const box = (await tickets.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    await testInfo.attach(`mixed-route-tickets-${width}`, { body: await tickets.screenshot(), contentType: 'image/png' });
+    await testInfo.attach(`mixed-route-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
+  }
+});
+
+test.describe('authored travel times in another viewer zone', () => {
+  // The viewer is in New York; the station board time in Europe must not shift.
+  test.use({ timezoneId: 'America/New_York' });
+
+  // contract-test: supporting surface=gui.web assertions=authored-results.content.typed-and-useful,authored-results.actions.truthful-and-explicit
+  test('authored train shows station-local readable times and names the site its link opens', async ({ page }, testInfo) => {
+    for (const width of [390, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(preview('travel/TravelConnectionEmbedFullscreen', width, 'authoredResearchedTrain'));
+      await waitForComponentPreview(page);
+      await waitForComponentMotion(page.getByTestId('embed-fullscreen-overlay'));
+      const overlay = page.getByTestId('embed-fullscreen-overlay');
+      await expect(overlay).toContainText('06:43');
+      await expect(overlay).toContainText(/03:00\sPM|15:00/);
+      await expect(overlay).not.toContainText('00:43');
+      await expect(overlay).not.toContainText('2026-11-16T');
+      await expect(page.getByTestId('booking-cta')).toContainText('Open on example.org');
+      await testInfo.attach(`authored-train-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
+    }
+  });
 });

@@ -1,4 +1,9 @@
-"""TypeSafe Jev decisions with direct inference and an OpenRouter outage fallback."""
+"""Typed decisions: Jev through TypeSafe with an OpenRouter outage fallback.
+
+A purpose routed to Gemini Decision 1 in app.yml ``decision_routing`` asks
+Google first; any Gemini error, timeout or provider block falls back to the
+Jev chain below (see routing.py). Every decision logs which model decided.
+"""
 
 from __future__ import annotations
 
@@ -38,6 +43,8 @@ PROVIDER_SETTINGS = {
 MAX_SERIALIZED_STATE_CHARS = 80_000
 MAX_SERIALIZED_REQUEST_CHARS = 120_000
 MAX_QUESTIONS = 160
+# Gemini gets a short budget so a slow answer still leaves Jev time to decide.
+GEMINI_TIMEOUT_SECONDS = 2.5
 RETRYABLE_STATUS_CODES = {408, 425, 429, 500, 502, 503, 504, 529}
 # Mirror backend/providers/typesafe.yml. The focused contract test fails if the
 # configured supplier tariff changes; review this rate with that catalog entry.
@@ -104,8 +111,10 @@ class JevDecisionClient:
         telemetry_task_id: Optional[str] = None,
         telemetry_purpose: Optional[str] = None,
         accounting: Optional[list[dict[str, Any]]] = None,
+        allow_gemini: bool = True,
     ) -> None:
         self._secrets_manager = secrets_manager
+        self._allow_gemini = allow_gemini
         self._model = model
         self._http_client = http_client
         self._timeout_seconds = timeout_seconds
@@ -252,6 +261,18 @@ class JevDecisionClient:
                 raise DecisionProviderUnavailable("Mercury routing replay has no decision fixture for this request")
             record_cache_hit()
             return fixture
+        from backend.apps.ai.testing.slides_focus_fixture import active as slides_focus_fixture_active
+
+        if slides_focus_fixture_active():
+            from backend.apps.ai.testing.slides_focus_fixture import jev_response as slides_focus_jev_response
+            from backend.shared.testing.mock_context import record_blocked_provider_call, record_cache_hit
+
+            fixture = slides_focus_jev_response(state, questions, self._model)
+            if fixture is None:
+                record_blocked_provider_call()
+                raise DecisionProviderUnavailable("Slides focus replay has no decision fixture for this request")
+            record_cache_hit()
+            return fixture
         from backend.apps.ai.testing.diagram_html_fixture import active as diagram_fixture_active
 
         if diagram_fixture_active():
@@ -267,6 +288,9 @@ class JevDecisionClient:
         owns_client = self._http_client is None
         client = self._http_client or httpx.AsyncClient(timeout=self._timeout_seconds)
         try:
+            gemini = await self._try_gemini(client, state, questions, validated_assets, None)
+            if gemini is not None:
+                return gemini
             last_error: Optional[DecisionProviderUnavailable] = None
             for provider in providers:
                 try:
@@ -277,6 +301,7 @@ class JevDecisionClient:
                     continue
                 logger.info("Jev decision completed: provider=%s estimated_input_tokens=%d input_tokens=%d questions=%d",
                             provider, estimated_tokens, result.usage.input_tokens, len(questions))
+                self._log_decided(result, provider)
                 return result
             raise last_error or DecisionProviderUnavailable("No Jev provider is configured")
         finally:
@@ -327,12 +352,51 @@ class JevDecisionClient:
         owns_client = self._http_client is None
         client = self._http_client or httpx.AsyncClient(timeout=self._timeout_seconds)
         try:
+            gemini = await self._try_gemini(client, state, questions, None,
+                                            {reference: (content, "jpg") for reference, content in images.items()})
+            if gemini is not None:
+                return gemini
             # The provider's experimental image schema is not documented by the
             # OpenRouter fallback; do not disclose private images to it on error.
-            return await self._evaluate_provider(client, "typesafe", state, questions, assets=assets)
+            result = await self._evaluate_provider(client, "typesafe", state, questions, assets=assets)
+            self._log_decided(result, "typesafe")
+            return result
         finally:
             if owns_client:
                 await client.aclose()
+
+    def _gemini_routed(self) -> bool:
+        """Gemini answers first only for a routed purpose and an unpinned default-Jev client."""
+        from backend.shared.providers.typesafe.routing import gemini_first
+
+        return (self._allow_gemini and self._endpoint is None and self._providers == ("typesafe", "openrouter")
+                and self._model == DEFAULT_JEV_MODEL and gemini_first(self._telemetry_purpose))
+
+    async def _try_gemini(self, client: httpx.AsyncClient, state: Any, questions: Mapping[str, Mapping[str, Any]],
+                          assets: Optional[Mapping[str, Mapping[str, Any]]],
+                          images: Optional[Mapping[str, tuple[bytes, str]]]) -> Optional[DecisionResponse]:
+        """Gemini's answer, or None so Jev decides (logged with the reason)."""
+        if not self._gemini_routed():
+            return None
+        from backend.shared.providers.google.decisions import (
+            GeminiDecisionClient, GeminiDecisionError, images_from_assets)
+
+        gemini = GeminiDecisionClient(secrets_manager=self._secrets_manager,
+                                      timeout_seconds=min(self._timeout_seconds, GEMINI_TIMEOUT_SECONDS),
+                                      telemetry_task_id=self._telemetry_task_id,
+                                      telemetry_purpose=self._telemetry_purpose)
+        try:
+            result = await gemini.evaluate(client, state=state, questions=questions,
+                                           images=images if images is not None else images_from_assets(assets))
+        except GeminiDecisionError as exc:
+            logger.warning("Decision fallback to Jev: purpose=%s reason=%s", self._telemetry_purpose, exc.reason)
+            return None
+        self._log_decided(result, result.provider or "google_ai_studio")
+        return result
+
+    def _log_decided(self, result: DecisionResponse, provider: str) -> None:
+        logger.info("Decision decided: purpose=%s model=%s provider=%s task=%s",
+                    self._telemetry_purpose, result.model, provider, self._telemetry_task_id)
 
     async def _evaluate_provider(
         self, client: httpx.AsyncClient, provider: str, state: Any,

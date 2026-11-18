@@ -135,26 +135,56 @@ def test_release_config_disables_unreleased_surfaces_while_dev_enables_them() ->
     assert UNRELEASED_AI_APPS.isdisjoint(dev_overrides["disabled"])
 
 
+PREPARED_FEATURES = (
+    "skill:openmates:start-chat",
+    "skill:openmates:list-spawned-chats",
+    "skill:openmates:read-spawned-chat",
+    "skill:openmates:send-to-spawned-chat",
+    "skill:openmates:report-to-creator",
+    "embed:slides:template",
+    "focus:slides:design_template",
+    "focus:slides:plan_presentation",
+    "skill:design:get_design",
+)
+
+
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
+def test_prepared_features_are_off_in_release_config_and_on_in_dev() -> None:
+    """Features prepared for a later release stay unreachable on production and self-hosted."""
+    apps_dir = Path(__file__).resolve().parents[1] / "apps"
+    definitions = _definitions_from_raw_manifests(str(apps_dir))
+    known = {definition.id for definition in definitions}
+    assert set(PREPARED_FEATURES) <= known
+
+    release = FeatureAvailabilityService(
+        definitions, yaml.safe_load((BACKEND_CONFIG_DIR / "backend_config.yml").read_text(encoding="utf-8"))
+    )
+    dev = FeatureAvailabilityService(
+        definitions, yaml.safe_load((BACKEND_CONFIG_DIR / "backend_config.dev.yml").read_text(encoding="utf-8"))
+    )
+    for feature_id in PREPARED_FEATURES:
+        assert release.is_enabled(feature_id) is False, feature_id
+        assert dev.is_enabled(feature_id) is True, feature_id
+
+
 # contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
-def test_browse_is_release_disabled_while_existing_web_tools_and_dev_remain_enabled() -> None:
+def test_browse_and_existing_web_tools_are_enabled_in_production_and_dev() -> None:
     from backend.core.api.app.services.skill_registry import filter_app_components_by_availability
 
     apps_dir = Path(__file__).resolve().parents[1] / "apps"
     definitions = _definitions_from_raw_manifests(str(apps_dir))
     web_config = yaml.safe_load((apps_dir / "web" / "app.yml").read_text(encoding="utf-8"))
 
-    for config_name, browse_enabled in (("backend_config.yml", False), ("backend_config.dev.yml", True)):
+    for config_name in ("backend_config.yml", "backend_config.dev.yml"):
         config = yaml.safe_load((BACKEND_CONFIG_DIR / config_name).read_text(encoding="utf-8"))
         service = FeatureAvailabilityService(definitions, config)
-        assert service.is_enabled("skill:web:browse") is browse_enabled
-        assert service.is_enabled("embed:web:browse") is browse_enabled
-        for feature_id in ("app:web", "skill:web:search", "skill:web:read", "embed:web:search", "embed:web:read"):
+        for feature_id in ("skill:web:browse", "embed:web:browse", "app:web", "skill:web:search", "skill:web:read", "embed:web:search", "embed:web:read"):
             assert service.is_enabled(feature_id) is True
 
         filtered = filter_app_components_by_availability("web", web_config, service)
         assert filtered is not None
-        assert ("browse" in {skill["id"] for skill in filtered["skills"]}) is browse_enabled
-        assert ("browse" in {embed["id"] for embed in filtered["embed_types"]}) is browse_enabled
+        assert "browse" in {skill["id"] for skill in filtered["skills"]}
+        assert "browse" in {embed["id"] for embed in filtered["embed_types"]}
         assert {"search", "read"} <= {skill["id"] for skill in filtered["skills"]}
 
 

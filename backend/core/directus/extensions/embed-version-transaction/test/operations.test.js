@@ -538,6 +538,42 @@ test('sealed v3 advances only an ACKed v2 with intact v2 patch and exact next ou
   }
 });
 
+function sealedNextApplicationParentFixture() {
+  const fixture = sealedNextRootFixture();
+  Object.assign(fixture.seed.embeds[0], { app_id: 'code', skill_id: 'application' });
+  Object.assign(fixture.advance.payload, { app_id: 'code', skill_id: 'application' });
+  // An application parent has no history kind: its v1 never has a history row.
+  fixture.seed.embed_diffs = [];
+  return fixture;
+}
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('an ACKed application parent advances to its sealed next manifest without a history row', async () => {
+  const { seed, advance } = sealedNextApplicationParentFixture();
+  const database = fakeDatabase(seed);
+  assert.equal((await writeLegacyEmbed(database, advance)).status, 'updated');
+  assert.equal(database.rows.embeds[0].version_number, 2);
+  assert.equal(database.rows.embeds[0].encrypted_content, 'sealed-v2-cipher');
+  assert.deepEqual(database.rows.embed_diffs, []);
+  assert.deepEqual(database.rows.embed_keys, seed.embed_keys);
+  for (const mutation of [
+    ({ seed }) => { seed.chat_recovery_outputs.pop(); },
+    ({ seed }) => { seed.chat_recovery_outputs[1].state = 'PREPARING'; },
+    ({ seed }) => { seed.embed_keys.pop(); },
+    ({ advance }) => { advance.payload.version_number = 3; },
+    ({ advance }) => { advance.payload.encrypted_type = 'changed-type'; },
+    ({ seed, advance }) => { seed.embeds[0].skill_id = 'search'; advance.payload.skill_id = 'search'; },
+  ]) {
+    const fixture = sealedNextApplicationParentFixture();
+    mutation(fixture);
+    const denied = fakeDatabase(fixture.seed);
+    await assert.rejects(writeLegacyEmbed(denied, fixture.advance),
+      (error) => error instanceof ProtocolError
+        && ['acknowledged_embed_revision_immutable', 'invalid_catalog_context'].includes(error.code));
+    assert.deepEqual(denied.rows, fixture.seed);
+  }
+});
+
 // contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
 test('sealed next root revision denies unregistered, foreign, stale, or unarchived advances', async () => {
   for (const mutation of [

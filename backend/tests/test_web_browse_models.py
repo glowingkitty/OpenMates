@@ -453,6 +453,36 @@ async def test_choosing_values_then_clicking_search_asks_only_about_the_button(m
     assert models.decision.await_count == 2
 
 
+FORM_PAGE = {
+    "url": "https://example.org/form",
+    "title": "Matching form",
+    "text": "Your goal. I agree to my data being processed.",
+    "controls": [
+        {"id": "0", "kind": "click", "role": "input", "label": "Join an idea", "checked": False},
+        {"id": "1", "kind": "click", "role": "checkbox", "label": "I agree to my data being processed", "checked": False},
+        {"id": "2", "kind": "click", "role": "button", "label": "Start"},
+        {"id": "3", "kind": "click", "role": "input", "label": "Start"},
+    ],
+}
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.form-with-user
+@pytest.mark.asyncio
+@pytest.mark.parametrize("button", ["2", "3"])
+# contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.form-with-user
+async def test_ticking_form_choices_is_field_preparation_but_the_form_button_is_reviewed(models, button):
+    # Low scores like the real run: a tick would stop if it were asked about.
+    models.decision = gate_decisions(Start=0.13)
+    ticks = [{"kind": "click", "target": "0"}, {"kind": "click", "target": "1"}]
+    assert await models.gate("Fill the form", FORM_PAGE, ticks) is None
+    assert [set(c.args[1]) for c in models.decision.await_args_list] == [{"injection"}]
+    models.decision.reset_mock()
+    reason = await models.gate("Fill the form", FORM_PAGE, [*ticks, {"kind": "click", "target": button}])
+    assert reason == "The next action needs your review."
+    safe = [c.args[0]["target"]["label"] for c in models.decision.await_args_list if "safe" in c.args[1]]
+    assert safe == ["Start"]
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.cost-accounting
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=web-browse.control-loop,web-browse.cost-accounting
@@ -899,6 +929,32 @@ async def test_nonfinite_generated_numbers_fail_after_accounting_without_retry(
     assert models.attempts[0]["complete"] is True and models.cost > 0
 
 
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.cost-accounting,web-browse.text-helper
+@pytest.mark.asyncio
+@pytest.mark.parametrize("replies,calls", [(["{\"data\": {\"q\": 1} trailing", '{"data":{"q":1}}'], 2),
+                                           (["{\"data\": oops", "{\"data\": oops"], 2)])
+# contract-test: supporting surface=rest_api assertions=web-browse.structured-data,web-browse.cost-accounting,web-browse.text-helper
+async def test_one_unparsable_extraction_gets_a_single_metered_repair_attempt(
+    models, monkeypatch, replies, calls
+):
+    monkeypatch.delenv("WEB_BROWSE_TOGETHER_ZDR_VERIFIED", raising=False)
+    fallback = google_fallback(monkeypatch)
+    fallback.side_effect = [
+        SimpleNamespace(**{**vars(fallback.return_value), "direct_message_content": reply})
+        for reply in replies
+    ]
+    context = {"purpose": "extract", "goal": "Read the first form question"}
+    if replies[-1].endswith("}"):
+        assert await models.generate(context) == {"data": {"q": 1}}
+    else:
+        with pytest.raises(BrowserModelError, match="invalid JSON"):
+            await models.generate(context)
+    assert fallback.await_count == calls and len(models.attempts) == calls
+    assert all(attempt["complete"] for attempt in models.attempts)
+    repaired = fallback.await_args.kwargs["messages"][1]["content"]
+    assert "previous_reply_rejected" in repaired and "trailing" not in repaired
+
+
 # contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=web-browse.budgets-and-stop,web-browse.cost-accounting
@@ -1025,3 +1081,17 @@ def test_planner_closes_covering_overlays_and_recovers_from_not_found_pages():
     assert "region or language chooser" in PLANNER_INSTRUCTIONS
     assert "not-found page" in PLANNER_INSTRUCTIONS
     assert "instead of guessing further URLs" in PLANNER_INSTRUCTIONS
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user
+def test_planner_control_view_passes_form_state_only_when_present():
+    from backend.shared.providers.browser_planner import _control_view
+
+    base = {"id": 1, "role": "radio", "label": "Yes", "kind": "click"}
+    view = _control_view(
+        {**base, "checked": False, "group": "g" * 200, "required": True}
+    )
+    assert view["checked"] is False and view["required"] is True
+    assert view["group"] == "g" * 120
+    plain = _control_view({**base, "required": None})
+    assert not {"checked", "group", "required"} & plain.keys()

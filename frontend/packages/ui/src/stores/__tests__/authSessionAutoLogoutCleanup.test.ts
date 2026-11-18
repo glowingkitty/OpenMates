@@ -16,6 +16,11 @@ import { beginAuthBootstrapReadiness, settleAuthBootstrapReadiness, failAuthBoot
 
 // Session cleanup/refresh checks must not enroll a fixture messaging identity
 // through an unrelated API request while counting the session POSTs.
+// The Rust auth path needs a Worker; these suites pin the page-side lifecycle on a fake Rust auth client.
+import { setRustAuthClientForTesting } from "../../services/rustCore/authOperation";
+import { createFakeRustAuthClient, fetchReply } from "./fakeRustAuthClient";
+setRustAuthClientForTesting(createFakeRustAuthClient());
+
 vi.mock("../../services/directChatService", () => ({ startDirectChatIdentityEnrollment: vi.fn() }));
 
 const cleanupCalls: string[] = [];
@@ -84,9 +89,10 @@ vi.mock("../userProfile", async () => {
   };
 });
 
-vi.mock("svelte-i18n", async () => {
+vi.mock("svelte-i18n", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("svelte-i18n")>();
   const { writable } = await import("svelte/store");
-  return { locale: writable("en") };
+  return { ...actual, locale: writable("en") };
 });
 
 vi.mock("../../services/cryptoService", () => ({
@@ -156,7 +162,8 @@ vi.mock("../signupState", async () => {
     currentSignupStep: { set: vi.fn(() => cleanupCalls.push("currentSignupStep.set")) },
     isInSignupProcess: writable(false),
     getStepFromPath: vi.fn(),
-    STEP_ALPHA_DISCLAIMER: "alpha-disclaimer",
+    primeSignupLocation: vi.fn(async () => undefined),
+    STEP_BASICS: "basics",
     isSignupPath: vi.fn(() => false),
     isResettingTFA: { set: vi.fn(() => cleanupCalls.push("isResettingTFA.set")) },
     isLoggingOut: writable(false),
@@ -393,10 +400,7 @@ describe("checkAuth auto logout cleanup", () => {
     authStore.set({ isAuthenticated: true, isInitialized: false });
     loginInterfaceOpen.set(false);
     loginStayLoggedInRequested.set(false);
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({ success: false, message: "not authenticated" }),
-    });
+    mockFetch.mockResolvedValue(fetchReply(200, { success: false, message: "not authenticated" }));
   });
 
   afterEach(() => {
@@ -407,25 +411,25 @@ describe("checkAuth auto logout cleanup", () => {
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.sync.key-gated-recovery
   it("releases failed Personal read scheduling only after an actual successful session check", async () => {
     const token = beginAuthBootstrapReadiness(); failAuthBootstrapReadiness(token);
-    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, user: {
+    mockFetch.mockResolvedValue(fetchReply(200, { success: true, user: {
       id: "user-1", username: "fixture-owner", language: "en", console_log_forwarding_opted_out: true,
-    } }) });
+    } }));
     expect(await checkAuth(undefined, true)).toBe(true);
     expect(isAuthBootstrapSettled()).toBe(true);
   });
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.sync.key-gated-recovery
   it.each([401, 503])("does not release failed Personal read scheduling after session HTTP %s", async status => {
     const token = beginAuthBootstrapReadiness(); failAuthBootstrapReadiness(token);
-    mockFetch.mockResolvedValue({ ok: false, status, statusText: "fixture-status" });
+    mockFetch.mockResolvedValue(fetchReply(status));
     expect(await checkAuth(undefined, true)).toBe(status !== 401);
     expect(isAuthBootstrapSettled()).toBe(false);
   });
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.sync.key-gated-recovery
   it("does not let a successful session check bypass a newer page's pending auth and crypto bootstrap", async () => {
     const token = beginAuthBootstrapReadiness();
-    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, user: {
+    mockFetch.mockResolvedValue(fetchReply(200, { success: true, user: {
       id: "user-1", username: "fixture-owner", language: "en", console_log_forwarding_opted_out: true,
-    } }) });
+    } }));
     expect(await checkAuth(undefined, true)).toBe(true);
     expect(isAuthBootstrapSettled()).toBe(false);
     settleAuthBootstrapReadiness(token); expect(isAuthBootstrapSettled()).toBe(true);
@@ -433,7 +437,7 @@ describe("checkAuth auto logout cleanup", () => {
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
   it("treats a session 401 as expiry and stops diagnostics without a final upload", async () => {
     authStore.set({ isAuthenticated: true, isInitialized: true });
-    mockFetch.mockResolvedValue({ ok: false, status: 401, statusText: "Unauthorized" });
+    mockFetch.mockResolvedValue(fetchReply(401));
 
     expect(await checkAuth(undefined, true)).toBe(false);
     expect(get(authStore).isAuthenticated).toBe(false);
@@ -444,7 +448,7 @@ describe("checkAuth auto logout cleanup", () => {
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
   it("treats a session 401 as expiry and stops diagnostics without a final upload", async () => {
     authStore.set({ isAuthenticated: true, isInitialized: true });
-    mockFetch.mockResolvedValue({ ok: false, status: 401, statusText: "Unauthorized" });
+    mockFetch.mockResolvedValue(fetchReply(401));
 
     expect(await checkAuth(undefined, true)).toBe(false);
     expect(get(authStore).isAuthenticated).toBe(false);
@@ -459,7 +463,7 @@ describe("checkAuth auto logout cleanup", () => {
       { source: "public-daily" },
     );
     authStore.set({ isAuthenticated: true, isInitialized: true });
-    mockFetch.mockResolvedValue({ ok: false, status: 503, statusText: "Service Unavailable" });
+    mockFetch.mockResolvedValue(fetchReply(503));
 
     expect(await checkAuth(undefined, true)).toBe(true);
     expect(await checkAuth(undefined, true)).toBe(true);
@@ -474,7 +478,7 @@ describe("checkAuth auto logout cleanup", () => {
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
   it("restores inspirations once when offline auth has an empty store", async () => {
     authStore.set({ isAuthenticated: true, isInitialized: true });
-    mockFetch.mockResolvedValue({ ok: false, status: 503, statusText: "Service Unavailable" });
+    mockFetch.mockResolvedValue(fetchReply(503));
 
     expect(await checkAuth(undefined, true)).toBe(true);
     await vi.waitFor(() => expect(loadDefaultInspirations).toHaveBeenCalledTimes(1));
@@ -530,7 +534,7 @@ describe("checkAuth auto logout cleanup", () => {
     expect(second).toBe(first);
     await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
     expect(get(isCheckingAuth)).toBe(true);
-    respond({ ok: true, json: async () => ({ success: false, message: "Session expired" }) });
+    respond(fetchReply(200, { success: false, message: "Session expired" }));
     expect(await first).toBe(false);
     expect(await second).toBe(false);
     expect(get(isCheckingAuth)).toBe(false);
@@ -545,7 +549,7 @@ describe("checkAuth auto logout cleanup", () => {
     await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
     bumpLoginSessionGeneration();
     authStore.set({ isAuthenticated: true, isInitialized: true });
-    respond({ ok: true, json: async () => ({ success: false, message: "Session expired" }) });
+    respond(fetchReply(200, { success: false, message: "Session expired" }));
     expect(await pending).toBe(true);
     expect(cleanupCalls).not.toContain("clearKeyFromStorage");
     expect(cleanupCalls).not.toContain("phasedSyncState.reset");
@@ -559,7 +563,7 @@ describe("checkAuth auto logout cleanup", () => {
     const pending = checkAuth(undefined, true);
     await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
     await logout({ skipServerLogout: true });
-    respond({ ok: true, json: async () => ({ success: true, user: { id: "user-1" }, ws_token: "old-session-token" }) });
+    respond(fetchReply(200, { success: true, user: { id: "user-1" }, ws_token: "old-session-token" }));
     expect(await pending).toBe(false);
     expect(get(authStore).isAuthenticated).toBe(false);
     expect(setWebSocketToken).not.toHaveBeenCalled();

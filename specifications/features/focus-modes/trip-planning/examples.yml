@@ -1,0 +1,184 @@
+schema_version: 1
+specification: feature.focus-modes.trip-planning@1
+activation:
+- id: natural-request-countdown
+  given: Lea writes "We want a long weekend in early March, maybe Vienna, Prague or Budapest, leaving from Munich."
+  when: The message is sent.
+  then: Trip planning is proposed with the countdown and, once active, the first reply asks one question (here how
+    many people are travelling) before searching.
+  assertion_ids:
+  - trip-planning.activation
+- id: single-lookup-no-focus
+  given: Lea asks "Train from Munich to Vienna on 6 March, morning?"
+  when: The message is sent.
+  then: The connection search answers directly with connection cards and no Trip planning proposal.
+  assertion_ids:
+  - trip-planning.activation
+pacing:
+- id: one-question-with-known-facts
+  given: Trip planning is active, an approved Memory says Lea travels from Munich and owns a regional travel pass, and
+    Lea wrote "two of us, 6 to 9 March, Vienna, Prague or Budapest".
+  when: The assistant replies.
+  then: It does not ask for origin, pass, dates or travellers again; it asks only "Roughly what budget per person, or
+    should I just show the best value?" and offers to skip.
+  assertion_ids:
+  - trip-planning.pacing
+- id: vibe-only-shortlist
+  given: Tom writes "Somewhere warm by the sea in late October, one week, under 900 euros, from Berlin, no flights
+    longer than four hours."
+  when: The assistant proposes destinations.
+  then: It shows three candidates with a one-line reason each and asks which to compare in detail, instead of a long
+    list of places.
+  assertion_ids:
+  - trip-planning.pacing
+destination_comparison:
+- id: three-city-table
+  given: Lea (two adults, Munich, 6 to 9 March) compares Vienna, Prague and Budapest; searches return trains of 4 h,
+    5 h 50 and 7 h 10 and stays from 312, 248 and 205 euros for three nights.
+  when: The comparison is shown.
+  then: One table lists each city with transport, stay and an estimated daily spend marked as estimate, total, travel
+    time, typical early-March weather and fit; Prague is recommended first as the best balance with one sentence why,
+    and Lea is asked which one to plan.
+  assertion_ids:
+  - trip-planning.destination-comparison
+- id: unknown-price-stays-unknown
+  given: No stay provider covers one candidate town.
+  when: The comparison is shown.
+  then: That town's stay cost reads "unknown, no stay results" and its total is marked incomplete rather than
+    estimated from another city.
+  assertion_ids:
+  - trip-planning.destination-comparison
+connections:
+- id: multi-city-legs-with-pass
+  given: Lea plans Munich, Salzburg, Vienna, back to Munich, 6 to 12 March, and says she owns a regional travel pass
+    valid in Germany.
+  when: Connections are searched.
+  then: Three legs are searched in travel order; the Munich to Salzburg leg shows a mixed route whose German part is
+    marked covered by the pass and whose remaining part shows its own fare, and each leg shows at most three options.
+  assertion_ids:
+  - trip-planning.connections
+- id: uncovered-leg
+  given: No installed connection provider covers a ferry leg the user asked for.
+  when: Connections are searched.
+  then: The leg says that no connection provider covers it and suggests checking the operator directly, with no
+    invented times or fare.
+  assertion_ids:
+  - trip-planning.connections
+stays_duplicates:
+- id: same-property-two-providers
+  given: Provider A returns "Hotel Example Mitte" at Beispielstrasse 4, 1070 Wien, and provider B returns "Example
+    Hotel Mitte Vienna" at coordinates 40 meters away.
+  when: The stay results are shown.
+  then: One property card appears with two offers, each labelled with its provider and link.
+  assertion_ids:
+  - trip-planning.stays-duplicates
+- id: similar-name-not-merged
+  given: Provider A returns "Example Hostel Central" at one address and provider B returns "Example Hostel Central
+    Station" 1.2 km away.
+  when: The stay results are shown.
+  then: Two separate property cards appear.
+  assertion_ids:
+  - trip-planning.stays-duplicates
+stays_price_comparison:
+- id: full-total-beats-base-rate
+  given: For three nights, provider A offers 279 euros including taxes and fees with free cancellation until 4 March
+    18:00; provider B offers 259 euros "plus taxes and fees", non-refundable.
+  when: The property card and its details are shown.
+  then: The card shows "from 279 euros total, 2 offers"; the details list A first with its free-cancellation deadline
+    and B as "259 euros plus taxes and fees, non-refundable", not as cheaper.
+  assertion_ids:
+  - trip-planning.stays-price-comparison
+- id: hostel-bed-type
+  given: A hostel has offers for a bed in a six-bed dorm at 32 euros a night and a private double at 89 euros a night.
+  when: The details are shown.
+  then: Each price names its bed or room type and the total for the stay and travellers.
+  assertion_ids:
+  - trip-planning.stays-price-comparison
+weather_sources:
+- id: near-trip-forecast
+  given: Today is 2 March and the trip is 6 to 9 March.
+  when: Weather is added.
+  then: Each day shows the forecast with its source; no typical-weather card is shown.
+  assertion_ids:
+  - trip-planning.weather-sources
+- id: far-trip-typical
+  given: Today is 16 November and the trip is in mid-May.
+  when: Weather is added.
+  then: Each city shows typical mid-May weather (usual highs and lows, share of rainy days) labelled "typical for this
+    time of year, not a forecast" with the years it is based on.
+  assertion_ids:
+  - trip-planning.weather-sources
+weather_adjustments:
+- id: rainy-day-indoor-alternative
+  given: The forecast for Vienna on 7 March shows heavy rain all afternoon and the plan has a walk in a park.
+  when: The itinerary is shown.
+  then: The walk moves to the morning or gets a named indoor alternative such as a museum, with the reason.
+  assertion_ids:
+  - trip-planning.weather-adjustments
+- id: storm-on-travel-day
+  given: The forecast for 9 March shows gusts above 90 km/h along the return route and the source issues a storm
+    warning.
+  when: The itinerary is shown.
+  then: The return leg is flagged with the warning, possible delays or cancellations and a suggestion to take an
+    earlier connection or keep flexible tickets; a trip months away gets no such day-specific warning.
+  assertion_ids:
+  - trip-planning.weather-adjustments
+itinerary:
+- id: full-itinerary
+  given: Lea chose Prague, the 08:12 train out, the 16:46 train back and Hotel Example Mitte.
+  when: The itinerary is shown.
+  then: Days 1 to 4 each list place, legs with times, stay, two or three activities and weather; a map card shows the
+    stops, the chosen connection and stay cards are embedded, and a cost summary ends with the total and the items
+    still unknown.
+  assertion_ids:
+  - trip-planning.itinerary
+- id: change-redraws
+  given: Lea swaps the return train for an evening one.
+  when: The assistant answers.
+  then: The whole itinerary is shown again with the new leg, times and total.
+  assertion_ids:
+  - trip-planning.itinerary
+booking_todos:
+- id: todos-with-source-deadlines
+  given: The plan has two train legs and a hotel with free cancellation until 4 March 18:00, and Lea says "yes, add
+    the todos".
+  when: Todos are created.
+  then: Three Tasks assigned to Lea appear (book outbound train, book return train, book hotel) with links; the hotel
+    task is due 4 March 18:00 and the train tasks are due on the dates Lea chose; the reply confirms them only after
+    creation succeeded.
+  assertion_ids:
+  - trip-planning.booking-todos
+- id: no-todos-on-no
+  given: Lea answers "no, I'll book myself".
+  when: The assistant replies.
+  then: No Task or reminder is created.
+  assertion_ids:
+  - trip-planning.booking-todos
+memory_consent:
+- id: list-then-save
+  given: During planning Lea said she prefers hostels with private rooms, avoids flights and owns a regional travel
+    pass.
+  when: The trip is planned.
+  then: The assistant asks "Shall I remember for future trips - private hostel rooms, no flights, you own a regional
+    travel pass?" and saves exactly that after "yes"; after "no" nothing is saved.
+  assertion_ids:
+  - trip-planning.memory-consent
+- id: no-trip-details
+  given: Lea agrees to save preferences.
+  when: The Memory is written.
+  then: It contains the preferences only, not the March dates, Prague or her friend's name.
+  assertion_ids:
+  - trip-planning.memory-consent
+bounded_and_neutral:
+- id: ask-before-many-searches
+  given: Tom names six candidate cities.
+  when: The assistant replies.
+  then: It proposes the three best-fitting ones from his criteria and asks before searching the other three.
+  assertion_ids:
+  - trip-planning.bounded-and-neutral
+- id: no-booking-actions
+  given: Lea says "just book the hotel for me".
+  when: The assistant replies.
+  then: It explains it cannot book, gives the offer link and offers a booking todo.
+  assertion_ids:
+  - trip-planning.bounded-and-neutral

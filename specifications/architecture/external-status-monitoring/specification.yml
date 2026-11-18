@@ -1,0 +1,114 @@
+schema_version: 1
+id: architecture.external-status-monitoring
+version: 1
+status: draft
+title: External Status Monitoring And Public Status Page
+summary: >
+  One small European VPS outside our own infrastructure checks OpenMates
+  production from the outside, publishes a public status page at
+  status.openmates.org and sends escalating Discord and email alerts when a
+  confirmed failure starts, continues and ends. The dev server cross-checks the
+  status page itself.
+
+scope:
+  includes:
+    - Free one-minute HTTP checks of the web app, API, AI-worker liveness, uploads and link previews.
+    - Five-minute real AI chats (Gemini Flash Lite) with and without an account, and a 30-minute real web-search skill.
+    - Five-minute checks of external providers through their free official status pages.
+    - A public page with components, external providers, 90-day daily uptime bars and incident history.
+    - Escalating alerts after two consecutive failures, reminders at 15 minutes, 1 hour and then every 3 hours, and one resolved message.
+    - Production integration states from the existing health endpoint as alert-only checks, replacing the backend's own transition alerts when delegated.
+    - Monitor probe traffic excluded from billing, free-usage allowances, usage entries and growth statistics.
+    - A dev-server cross-check that alerts when the status page is unreachable or stale.
+    - Code in the public OpenMates repository, packaged as one small Docker image that CI builds and publishes.
+    - A setup script plus a compose file - one command on the status server pulls the image, writes the config from Vault and starts it; updating is the same command (pull and restart).
+  excludes:
+    - Any write to production beyond the synthetic probe requests themselves.
+    - Internal hostnames, error text, secrets, user data or check configuration on the public page.
+    - The Gatus web UI on the public internet.
+    - Additional servers beyond the one status VPS and the existing dev server.
+    - Running the status server on or next to production or on the dev server (only short dev tests).
+    - Secrets, tokens or server addresses in the repository or the image.
+    - An OpenMates CLI command for the status server.
+
+models:
+  CheckResult:
+    timestamp: {type: timestamp, required: true}
+    success: {type: boolean, required: true}
+  OpenAlert:
+    down_since: {type: timestamp, required: true}
+    notified_at: {type: timestamp, required: true}
+    reminders_sent: {type: integer, required: true}
+  PublicStatus:
+    generated_at: {type: timestamp, required: true}
+    overall: {type: enum, values: [operational, degraded, outage, unknown], required: true}
+    components: {type: array, required: true, constraints: {fields: [id, name, description, status, uptime_percent, days]}}
+    providers: {type: array, required: true, constraints: {fields: [id, name, category, status_page, status]}}
+    incidents: {type: array, required: true, constraints: {fields: [id, component, component_name, title, started_at, resolved_at]}}
+
+assertions:
+  - id: external-status-monitoring.alerts.confirmed-failures
+    type: behavior
+    must: A check alerts only after two consecutive failed results; a single failure, or a failure followed by a success, sends nothing. A check whose newest result is older than three intervals plus two minutes counts as failed, so a stopped checker cannot look healthy.
+    depends_on: [examples.alerts]
+  - id: external-status-monitoring.alerts.escalation
+    type: behavior
+    must: While a confirmed failure lasts, reminders say how long it has been down and are sent 15 minutes and 1 hour after the first notice, then every 3 hours; checks failing at the same time are grouped into one message per channel.
+    depends_on: [examples.alerts]
+  - id: external-status-monitoring.alerts.resolved
+    type: behavior
+    must: The first successful result after a notified failure sends exactly one resolved message with the total down time and closes the alert.
+    depends_on: [examples.alerts]
+  - id: external-status-monitoring.alerts.restart-safe
+    type: invariant
+    must: Alert state is persisted after each evaluation, so restarting the checker neither repeats a sent notice nor loses an open alert.
+    depends_on: [examples.alerts]
+  - id: external-status-monitoring.page.public-safe
+    type: privacy
+    must: The public status data contains only component and provider names, status words, daily uptime counts and incident times; no hostnames, URLs of internal checks, error text, tokens or user data. Visitor IPs are not logged.
+    depends_on: [examples.public_page]
+  - id: external-status-monitoring.page.overall-honest
+    type: behavior
+    must: The page says all systems are operational only when every component has current data and is up; any confirmed outage or partial failure is shown as such, and a component without data makes the overall status unknown.
+    depends_on: [examples.public_page]
+  - id: external-status-monitoring.probes.no-billing
+    type: invariant
+    must: Requests carrying the monitor probe token and requests from configured monitoring accounts are never charged, never consume the free anonymous allowance, never create usage entries and are excluded from growth statistics; requests without them are unaffected.
+    depends_on: [examples.probe_traffic]
+  - id: external-status-monitoring.liveness.public-route
+    type: behavior
+    must: GET /v1/health/liveness answers without authentication with only status, api, ai_worker and checked_at; the AI worker is reported ok only when a real no-spend task on the AI queue completed within 8 seconds; results are cached for 30 seconds and at most one probe runs per window.
+    depends_on: [examples.liveness]
+  - id: external-status-monitoring.deploy.config-from-vault
+    type: privacy
+    must: The status server's tokens, webhook, alert address and domain come only from Vault at setup time and are written to one root-only env file on the server; only allowlisted keys are written, and missing required values or values with line breaks stop the setup without starting the server with a partial config.
+    depends_on: [examples.deploy]
+  - id: external-status-monitoring.deploy.one-image-one-command
+    type: behavior
+    must: The status server runs one CI-published image (Gatus, Caddy and the agent) as a non-root process with the Gatus UI bound to loopback; one setup command pulls the image, installs the compose file shipped in that image, applies new config when given and restarts, and the same command without new config keeps the existing config.
+    depends_on: [examples.deploy]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Public liveness route and monitor-traffic exemption on the existing chat and skill routes.
+  cli:
+    required: false
+    role: No OpenMates CLI command. The server is operated with its setup script; scripts/status_server.py on the dev server handles Vault config, the deploy SSH key, the setup over SSH and the cross-check; the owner creates the UpCloud server by hand.
+  sdks:
+    required: false
+    role: Not an SDK surface.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: false
+    role: The status page is a static operator-owned page outside the web app.
+    implementations:
+      web: {required: false}
+      apple: {required: false}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [alerts, public_page, probe_traffic, liveness, deploy]

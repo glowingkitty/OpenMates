@@ -214,19 +214,31 @@ export async function initializeServerStatus(force: boolean = false): Promise<Se
         return currentState.status;
     }
     
-    // Skip if already loading
-    if (currentState.loading) {
-        console.debug('[ServerStatusStore] Already loading, skipping duplicate fetch');
-        return null;
+    // Join a fetch already in flight: a caller that continues with a null status
+    // (the guest composer's allowance refresh) would otherwise drop its result.
+    if (currentState.loading && serverStatusRequest) {
+        console.debug('[ServerStatusStore] Already loading, joining the in-flight fetch');
+        return serverStatusRequest;
     }
-    
+
     // Set loading state
     serverStatusStore.update(state => ({
         ...state,
         loading: true,
         error: null
     }));
-    
+
+    serverStatusRequest = fetchServerStatus();
+    try {
+        return await serverStatusRequest;
+    } finally {
+        serverStatusRequest = null;
+    }
+}
+
+let serverStatusRequest: Promise<ServerStatus | null> | null = null;
+
+async function fetchServerStatus(): Promise<ServerStatus | null> {
     try {
         console.debug('[ServerStatusStore] Fetching server status...');
         const response = await fetch(getApiEndpoint('/v1/settings/server-status'));

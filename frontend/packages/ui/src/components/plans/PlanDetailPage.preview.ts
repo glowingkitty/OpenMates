@@ -2,6 +2,7 @@
  * Sanitized Plan detail fixture matching the Apple Tasks workspace preview.
  * The component uses these explicit props without account/API reads or writes.
  */
+import type { PlanLinkedTask } from '../embeds/plans/planEmbedModel';
 import type {
   UserPlanDetailState,
   UserPlanViewModel,
@@ -83,4 +84,9 @@ const previewDetailState = {
   referencePatterns: [],
 } satisfies UserPlanDetailState;
 
-export default { planId, previewPlan, previewDetailState };
+const tasks = [
+  { taskId: 'preview-task-1', title: 'Review the release checklist', status: 'todo' },
+  { taskId: 'preview-task-2', title: 'Write the release notes', status: 'done' },
+] satisfies PlanLinkedTask[];
+
+export default { planId, previewPlan, previewDetailState, tasks, revisionId: 'preview-revision', revisionNumber: 1 };

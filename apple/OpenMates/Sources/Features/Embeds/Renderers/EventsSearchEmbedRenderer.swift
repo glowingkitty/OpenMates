@@ -103,8 +103,10 @@ private struct EventsSearchPreview: View {
                 Text(LocalizationManager.shared.text("embeds.via"))
                     .font(.omXs.weight(.medium))
                     .foregroundStyle(Color.grey70)
-                ForEach(providers, id: \.self) { provider in
-                    Text(provider).font(.omXs).foregroundStyle(Color.grey70)
+                HStack(spacing: -6) {
+                    ForEach(providers, id: \.self) { provider in
+                        EventProviderBadge(slug: provider)
+                    }
                 }
             }
 
@@ -178,5 +180,46 @@ extension EventResultSummary {
             return value.map { $0.mapValues(\.value) }
         }
         return nil
+    }
+}
+
+
+/// Display rules for the "via" provider badges: web gets the globe icon, every
+/// other provider its initial, never an empty circle (web f18e14bd63).
+enum EventProviderBadgeModel {
+    static func label(for slug: String) -> String {
+        switch slug {
+        case "google_events": return "Google"
+        case "web": return "Web"
+        default: return slug.replacingOccurrences(of: "_", with: " ")
+        }
+    }
+
+    static func hasIcon(_ slug: String) -> Bool { slug == "web" }
+
+    static func initial(for slug: String) -> String {
+        String(label(for: slug).trimmingCharacters(in: .whitespaces).prefix(1)).uppercased()
+    }
+}
+
+private struct EventProviderBadge: View {
+    let slug: String
+
+    var body: some View {
+        ZStack {
+            Circle().fill(Color.grey0)
+            if EventProviderBadgeModel.hasIcon(slug) {
+                Image(systemName: "globe")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.grey70)
+            } else {
+                Text(EventProviderBadgeModel.initial(for: slug))
+                    .font(.omTiny.weight(.bold))
+                    .foregroundStyle(Color.grey70)
+            }
+        }
+        .frame(width: 19, height: 19)
+        .accessibilityLabel(EventProviderBadgeModel.label(for: slug))
+        .accessibilityIdentifier("events-search-provider-badge")
     }
 }

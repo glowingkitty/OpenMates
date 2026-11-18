@@ -88,9 +88,13 @@ def install_example(root: Path, manifest_data: Optional[Dict[str, Any]] = None) 
 
 
 def enable(monkeypatch: Any, root: Path) -> None:
-    """Point the process-wide loader at ``root`` with app packages enabled."""
+    """Point the process-wide loader at ``root`` with app packages enabled.
+
+    The shared provider result cache stays off: tests run fake providers directly.
+    """
     monkeypatch.setenv(loader.ENABLED_ENV, "true")
     monkeypatch.setenv(loader.MOUNT_ENV, str(root))
+    monkeypatch.setenv("OPENMATES_APP_PACKAGES_RESULT_CACHE_SECONDS", "0")
     loader.reset_installed_packages_cache()
 
 

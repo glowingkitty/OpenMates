@@ -390,6 +390,10 @@ private struct DevComponentPreviewCanvas: View {
             DevAuthFormFixture(configuration: configuration)
         case .composer where configuration.variant == "native-voice-call":
             NativeVoiceCallControlsFixture()
+        case .composer where configuration.variant == "native-voice-call-chat":
+            NativeVoiceCallControlsFixture(chatLayout: true)
+        case .composer where configuration.variant == "native-voice-call-header-pill":
+            NativeVoiceCallControlsFixture(headerPill: true)
         case .composer where configuration.variant == "native-voice-call-consent":
             NativeVoiceCallControlsFixture(consent: true)
         case .composer where configuration.variant == "assistant-speech":
@@ -507,7 +511,8 @@ private struct DevComponentPreviewCanvas: View {
                     previewInitialTab: ["folders", "connectedSource", "localFolderSource",
                         "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource", "offlineCachedSource"]
                         .contains(configuration.variant) ? .files
-                        : configuration.variant == "tasks" ? .tasks : .overview,
+                        : configuration.variant == "tasks" ? .tasks
+                        : configuration.variant == "timeline" ? .timeline : .overview,
                     onOpenChat: { lastAction = "opened-chat-\($0)" },
                     onOpenWorkflow: { lastAction = "opened-workflow-\($0)" },
                     onOpenPlan: { lastAction = "opened-plan-\($0)" },
@@ -642,6 +647,14 @@ private struct DevComponentPreviewCanvas: View {
                 DevAssistantActivityFixture(variant: configuration.variant)
             } else if configuration.variant == "project-focus-commit" {
                 DevProjectFocusCommitFixture()
+            } else if configuration.variant.hasPrefix("voice-call-media-") {
+                DevVoiceCallMediaStageFixture(variant: configuration.variant).padding(.spacing6)
+            } else if configuration.variant.hasPrefix("voice-call-") {
+                // Same fixed instants as the web /dev/preview fixture (12:31 / 12:33 UTC).
+                let ended = configuration.variant == "voice-call-ended"
+                VoiceCallEventNoticeView(model: .init(action: ended ? .ended : .started,
+                    createdAt: Date(timeIntervalSince1970: ended ? 1_792_067_580 : 1_792_067_460),
+                    activeElapsedSeconds: ended ? 120 : 0)).padding(.spacing5)
             } else if configuration.variant.hasPrefix("agent-context-") {
                 AgentContextNoticeView(event: DevAgentContextFixture.event(configuration.variant), onAuthoring: { recommendation in
                     lastAction = "authoring-click-" + recommendation.id

@@ -238,6 +238,15 @@
       saving = false;
     }
   }
+  /**
+   * The header Edit button: starts editing; while editing it is the check mark
+   * that saves the edited diagram (or just leaves edit mode when nothing changed).
+   */
+  function toggleDiagramEdit() {
+    if (!editing) { startEdit(); return; }
+    if (!dirty || fixtureEditable) { cancelEdit(); return; }
+    void save();
+  }
   /** A core refusal carries a stable `code` (Rust core builds); the earlier path an English message. */
   function saveErrorText(caught: unknown): string {
     const code = EMBED_EDITS_ENABLED ? (caught as { code?: unknown } | null)?.code : undefined;
@@ -317,7 +326,8 @@
   {owningChatId}
   contentBackgroundColor={render.backgroundColor || undefined}
   embedHeaderTitle={diagram.title} embedHeaderSubtitle={diagram.diagramKind}
-  onEdit={editable && versionView.canEdit && diagram.status === 'finished' ? startEdit : undefined} editActive={editing}
+  onEdit={editable && versionView.canEdit && diagram.status === 'finished' ? toggleDiagramEdit : undefined} editActive={editing}
+  editBusy={saving || (editing && !editorReady)}
   currentEmbedId={embedId} {hasPreviousEmbed} {hasNextEmbed} {onNavigatePrevious} {onNavigateNext}
   {navigateDirection} {showChatButton} {onShowChat} onEmbedDataUpdated={onUpdate}>
   {#snippet content()}
@@ -357,9 +367,7 @@
           disabled={versionView.pending || versionView.unavailable || (editing && !editorReady)}>{$text('diagrams.export')}</button>
         {#if editing}
           <button type="button" data-testid="diagram-html-undo" onclick={() => command('undo')} disabled={!editorReady || !canUndo}>{$text('diagrams.undo')}</button>
-          <button type="button" data-testid="diagram-html-cancel" onclick={cancelEdit}>{$text('diagrams.cancel')}</button>
-          <button type="button" data-testid="diagram-html-save" onclick={() => void save()}
-            disabled={!editorReady || !dirty || saving || fixtureEditable}>{saving ? $text('diagrams.saving') : $text('diagrams.save')}</button>
+          <button type="button" data-testid="diagram-html-cancel" onclick={cancelEdit} disabled={saving}>{$text('diagrams.cancel')}</button>
         {/if}
       </div>
       {#if versionView.historical}

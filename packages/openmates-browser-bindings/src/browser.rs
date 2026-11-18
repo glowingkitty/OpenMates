@@ -685,6 +685,9 @@ mod tests {
 mod cache_operations;
 pub use cache_operations::{BrowserCachedReadPublication,BrowserCacheMonitor,BrowserIncomingPublication};
 
+#[path="browser_chat_frames.rs"]
+mod chat_frames;
+
 #[path="browser_owned_message_read.rs"]
 mod owned_message_read;
 pub use owned_message_read::{BrowserOwnedMessageReadHandle,BrowserOwnedMessageReadControl,BrowserOwnedMessageReadStepHandle,BrowserOwnedMetadataContinuationHandle,BrowserOwnedReadTerminalHandle};
@@ -704,4 +707,13 @@ pub use initial_sync::{BrowserInitialSyncStoreBootstrap,BrowserInitialSyncStoreD
 
 #[path="browser_embed_user_edit.rs"]
 mod embed_user_edit;
+// Submodule so the present-remote exports reach the private core client.
+#[path="browser_present_remote.rs"]
+mod present_remote;
+// Submodule so the timeline exports reach the private core client.
+#[path="browser_project_timeline.rs"]
+mod project_timeline;
 pub use embed_user_edit::BrowserImageEnhanceWaker;
+// Submodule so the voice-turn exports reach the private core client.
+#[path="browser_voice_turn.rs"]
+mod voice_turn;

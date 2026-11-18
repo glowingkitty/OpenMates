@@ -62,6 +62,25 @@ export async function startGoogleCalendarOAuth(params: {
 	return response.json() as Promise<{ authorization_url: string; state_expires_at: number; scopes: string[] }>;
 }
 
+export async function startFigmaOAuth(params: {
+	capabilities: string[];
+	returnPath?: string;
+}): Promise<{ authorization_url: string; state_expires_at: number; scopes: string[] }> {
+	const response = await fetch(getApiEndpoint('/v1/provider-oauth/figma/start'), {
+		method: 'POST',
+		credentials: 'include',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			capabilities: params.capabilities,
+			return_path: params.returnPath ?? '/#settings/apps/design'
+		})
+	});
+	if (!response.ok) {
+		throw new Error(`Failed to start Figma OAuth (HTTP ${response.status})`);
+	}
+	return response.json() as Promise<{ authorization_url: string; state_expires_at: number; scopes: string[] }>;
+}
+
 export async function claimOAuthHandoff(handoffId: string): Promise<OAuthHandoffClaimResponse> {
 	const response = await fetch(
 		getApiEndpoint(`/v1/connected-account-oauth/handoffs/${encodeURIComponent(handoffId)}/claim`),
@@ -196,10 +215,12 @@ function runtimeModesForCapabilities(capabilities: string[]): Record<string, str
 
 function appIdForProvider(providerId: string): string {
 	if (providerId === 'google_calendar') return 'calendar';
+	if (providerId === 'figma') return 'design';
 	return providerId;
 }
 
 function defaultProviderLabel(providerId: string): string {
 	if (providerId === 'google_calendar') return 'Google Calendar';
+	if (providerId === 'figma') return 'Figma';
 	return 'Connected account';
 }

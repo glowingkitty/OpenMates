@@ -12,6 +12,10 @@ struct Fake {
     outcome: HostedResult<Value>,
     executed: Vec<(String, bool)>,
     files: Vec<(String, Option<String>)>,
+    /// Answer of a job relayed to a remote source.
+    remote: std::result::Result<Value, ProjectRequesterError>,
+    /// `(source, operation_id, mutation path)` of each relayed job.
+    relayed: Vec<(String, String, Option<String>)>,
 }
 
 impl Fake {
@@ -25,6 +29,8 @@ impl Fake {
             outcome: Ok(json!({"path": "index.html", "revision": 1, "created": true})),
             executed: Vec::new(),
             files: Vec::new(),
+            remote: Ok(json!({"path": "index.html", "created": true})),
+            relayed: Vec::new(),
         }
     }
 }
@@ -72,6 +78,35 @@ impl JobRunner for Fake {
         self.executed.push((format!("snapshot:{prefix:?}"), false));
         let mut source = Files(self.files.clone());
         super::super::snapshot::build_snapshot(&mut source, prefix.as_deref()).await
+    }
+    async fn execute_remote(
+        &mut self,
+        _: &Focus,
+        source_id: &str,
+        job: &HostedFileJob,
+        mutation: Option<HostedFileMutation>,
+    ) -> std::result::Result<Value, ProjectRequesterError> {
+        self.relayed.push((
+            source_id.to_owned(),
+            job.operation_id.clone(),
+            mutation.map(|m| m.path),
+        ));
+        self.remote.clone()
+    }
+    async fn commit_remote(
+        &mut self,
+        _: &Focus,
+        source_id: &str,
+        _: &str,
+        operation_id: &str,
+        message: &str,
+    ) -> std::result::Result<Value, ProjectRequesterError> {
+        self.relayed.push((
+            source_id.to_owned(),
+            operation_id.to_owned(),
+            Some(format!("commit:{message}")),
+        ));
+        self.remote.clone()
     }
 }
 
@@ -149,14 +184,16 @@ async fn available_is_claimed_with_the_scope_and_a_request_completes_with_the_co
         vec!["Project file created: index.html".to_owned()]
     );
     // A repeated frame for a finished operation does nothing.
-    assert!(run(
-        &mut fake,
-        REQUEST,
-        &request("create_file", NOW + 90),
-        &mut state
-    )
-    .await
-    .is_empty());
+    assert!(
+        run(
+            &mut fake,
+            REQUEST,
+            &request("create_file", NOW + 90),
+            &mut state
+        )
+        .await
+        .is_empty()
+    );
     assert_eq!(fake.executed.len(), 1);
 }
 
@@ -245,6 +282,25 @@ async fn a_lease_that_runs_out_during_execution_is_failed() {
         async fn snapshot(&mut self, _: &Focus, _: Option<String>) -> HostedResult<Value> {
             Ok(json!({}))
         }
+        async fn execute_remote(
+            &mut self,
+            _: &Focus,
+            _: &str,
+            _: &HostedFileJob,
+            _: Option<HostedFileMutation>,
+        ) -> std::result::Result<Value, ProjectRequesterError> {
+            Ok(json!({}))
+        }
+        async fn commit_remote(
+            &mut self,
+            _: &Focus,
+            _: &str,
+            _: &str,
+            _: &str,
+            _: &str,
+        ) -> std::result::Result<Value, ProjectRequesterError> {
+            Ok(json!({}))
+        }
     }
     let sent = job_frames(
         &mut Slow,
@@ -314,20 +370,133 @@ async fn a_missing_or_other_focus_is_refused() {
     assert!(fake.executed.is_empty());
 }
 
-#[tokio::test]
-async fn a_remote_source_job_waits_for_its_executor() {
-    let mut fake = Fake::new(false);
-    let mut event = request("read_text", NOW + 90);
+fn remote_request(operation: &str) -> Value {
+    let mut event = request(operation, NOW + 90);
     event["source_id"] = json!("source-1");
-    let sent = run(&mut fake, REQUEST, &event, &mut FileJobState::default()).await;
-    assert_eq!(
-        (
-            sent[0].1["status"].as_str(),
-            sent[0].1["result"]["reason"].as_str()
-        ),
-        (Some("waiting_for_executor"), Some("source_offline"))
+    event
+}
+
+#[tokio::test]
+async fn a_remote_source_read_is_relayed_and_completes_with_the_source() {
+    let mut fake = Fake::new(false);
+    fake.remote = Ok(json!({"path": "README.md", "content": "# Garden"}));
+    let sent = run(
+        &mut fake,
+        REQUEST,
+        &remote_request("read_text"),
+        &mut FileJobState::default(),
+    )
+    .await;
+    assert_eq!(sent[0].1["status"], "completed");
+    assert_eq!(sent[0].1["result"]["source_id"], "source-1");
+    assert!(sent[0].1["result"].get("proposal_commitment").is_none());
+    assert_eq!(fake.relayed, vec![("source-1".into(), "op-1".into(), None)]);
+    assert!(fake.executed.is_empty(), "never runs as a hosted file job");
+}
+
+#[tokio::test]
+async fn a_remote_source_create_sends_the_proposal_and_reports_its_commitment() {
+    let (mut fake, mut state) = (Fake::new(false), FileJobState::default());
+    let sent = run(
+        &mut fake,
+        REQUEST,
+        &remote_request("create_file"),
+        &mut state,
+    )
+    .await;
+    assert_eq!(sent[0].1["status"], "completed");
+    assert_eq!(sent[0].1["result"]["proposal_commitment"], "d".repeat(64));
+    assert_eq!(fake.relayed[0].2.as_deref(), Some("index.html"));
+    assert_eq!(state.notices.len(), 1);
+    // Finished: a duplicate offer of the same operation is ignored.
+    assert!(
+        run(
+            &mut fake,
+            REQUEST,
+            &remote_request("create_file"),
+            &mut state
+        )
+        .await
+        .is_empty()
     );
-    assert!(fake.executed.is_empty());
+}
+
+#[tokio::test]
+async fn an_unreachable_source_keeps_the_job_waiting_and_a_host_refusal_fails_it() {
+    for (code, status, key) in [
+        ("source_offline", "waiting_for_executor", "reason"),
+        ("protocol_timeout", "waiting_for_executor", "reason"),
+        ("stale_base", "failed", "code"),
+        ("not a code!", "failed", "code"),
+    ] {
+        let (mut fake, mut state) = (Fake::new(false), FileJobState::default());
+        fake.remote = Err(ProjectRequesterError::Remote {
+            code: code.into(),
+            message: "m".into(),
+        });
+        let sent = run(
+            &mut fake,
+            REQUEST,
+            &remote_request("update_file"),
+            &mut state,
+        )
+        .await;
+        assert_eq!(sent[0].1["status"], status, "{code}");
+        let expected = if code.contains(' ') {
+            "remote_operation_failed"
+        } else {
+            code
+        };
+        assert_eq!(sent[0].1["result"][key], expected);
+        // A waiting job may be re-offered and run again; a failed one may not.
+        let again = run(
+            &mut fake,
+            REQUEST,
+            &remote_request("update_file"),
+            &mut state,
+        )
+        .await;
+        assert_eq!(again.is_empty(), status == "failed", "{code}");
+    }
+}
+
+#[tokio::test]
+async fn an_always_ask_remote_write_is_declined_without_relaying_when_not_approved() {
+    let (mut fake, mut state) = (Fake::new(true), FileJobState::default());
+    let sent = run(
+        &mut fake,
+        REQUEST,
+        &remote_request("create_file"),
+        &mut state,
+    )
+    .await;
+    assert_eq!(sent[0].1["status"], "awaiting_approval");
+    assert_eq!(sent[1].0, "project_file_operation_reject");
+    assert!(fake.relayed.is_empty());
+}
+
+#[tokio::test]
+async fn a_remote_source_commit_is_relayed_to_the_machine_and_snapshots_wait() {
+    let (mut fake, mut state) = (Fake::new(false), FileJobState::default());
+    fake.remote = Ok(json!({"commit_id": "abc123", "message": "Add beds", "ahead": 1}));
+    let mut event = remote_request("commit");
+    event["arguments"] = json!({"message": "Add beds"});
+    let sent = run(&mut fake, REQUEST, &event, &mut state).await;
+    assert_eq!(sent[0].1["status"], "completed");
+    assert_eq!(sent[0].1["result"]["commit_id"], "abc123");
+    assert_eq!(sent[0].1["result"]["source_id"], "source-1");
+    assert_eq!(fake.relayed[0].2.as_deref(), Some("commit:Add beds"));
+    assert_eq!(
+        state.notices,
+        vec!["Project commit recorded on the machine: Add beds".to_owned()]
+    );
+    assert!(fake.executed.is_empty(), "never a hosted commit");
+
+    let mut snapshot = remote_request("snapshot");
+    snapshot["operation_id"] = json!("op-2");
+    let sent = run(&mut fake, REQUEST, &snapshot, &mut state).await;
+    assert_eq!(sent[0].1["status"], "waiting_for_executor");
+    assert_eq!(fake.relayed.len(), 1);
 }
 
 #[tokio::test]
@@ -481,4 +650,42 @@ async fn a_snapshot_with_invalid_arguments_is_refused_without_reading() {
         assert_eq!(sent[0].1["result"]["code"], "invalid_snapshot_arguments");
         assert!(fake.executed.is_empty());
     }
+}
+
+const PII_TOKEN: &str = "[OM_PII_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]";
+
+fn write_job(operation: HostedFileOperation, path: &str) -> HostedFileJob {
+    HostedFileJob {
+        operation_id: "op".into(),
+        chat_id: CHAT.into(),
+        operation,
+        arguments: json!({"path": path, "content": format!("Media contact: {PII_TOKEN}")}),
+    }
+}
+
+#[test]
+fn project_file_writes_store_real_details_like_the_web() {
+    let mappings = vec![json!({"placeholder": PII_TOKEN, "original": "press@example.org"})];
+    let memory = ".openmates/memories/press-style-ab2bd.md";
+    for operation in [
+        HostedFileOperation::CreateFile,
+        HostedFileOperation::UpdateFile,
+    ] {
+        let restored = restore_write(write_job(operation, memory), &mappings).unwrap();
+        assert_eq!(
+            restored.arguments["content"],
+            "Media contact: press@example.org"
+        );
+        assert_eq!(restored.arguments["path"], memory);
+    }
+    let read = restore_write(write_job(HostedFileOperation::ReadText, memory), &mappings).unwrap();
+    assert_eq!(
+        read.arguments["content"],
+        format!("Media contact: {PII_TOKEN}")
+    );
+    let unmapped = restore_write(write_job(HostedFileOperation::CreateFile, memory), &[]).unwrap();
+    assert_eq!(
+        unmapped.arguments["content"],
+        format!("Media contact: {PII_TOKEN}")
+    );
 }

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@12
+specification: feature.message-input@13
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -79,6 +79,20 @@ drafts:
     draft_saved_for_chat_id: draft-chat-1
     draft_preview_summary_contains: Remember to compare flights
     editor_can_collapse_to_preview: true
+- id: embed-draft-preview-after-blur
+  given:
+    currentChatId: draft-chat-1
+    text: Describe this photo
+    embeds:
+    - image
+  actions:
+  - save_draft
+  - blur_message_editor
+  - focus_message_editor
+  expect:
+    draft_preview_summary_contains: '[Image] Describe this photo'
+    editor_can_collapse_to_preview: true
+    focus_restores_rendered_embeds: true
 - id: long-inactive-draft-preview-shortens-with-ellipsis
   given:
     currentChatId: draft-chat-1
@@ -393,3 +407,12 @@ quick_attachments:
   then: The file picker opens directly and permits images or other supported files. Cancelling leaves the draft unchanged; selecting a file uses the existing attachment and signup rules.
   assertion_ids:
   - message-input.attachments.quick-access
+signed_out_states:
+- id: guest-composer-resolves-to-send-or-account
+  given: A signed-out visitor opens the web app in a fresh browser and types "Capital of France?" while guest access is still being checked; the check then answers open, answers slowly, fails or hangs, or this browser has logged in before.
+  when: The composer decides which control to show.
+  then: A short loading state shows while access is unknown and resolves within eight seconds. Open guest chat gives an active Send that sends the message. A failed or hanging check gives Sign up with the reason "status unavailable"; a browser that logged in before gives Log in with that reason. A disabled or greyed Send never appears at any moment.
+- id: guest-send-preparation-hangs
+  given: A signed-out visitor with guest chat open types "Capital of France?" and clicks Send, but the on-device privacy runtime never finishes loading.
+  when: Fifteen seconds pass without the send reaching the server.
+  then: A notification says the send is taking too long, the draft text stays in the composer, an active Send comes back, and the message is never sent twice.

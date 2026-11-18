@@ -96,6 +96,11 @@ test('photo draft keeps its preview after dismissal and reload, then sends once'
   await page.reload({ waitUntil: 'domcontentloaded' });
   await waitForChatReady(page);
   await expect(editor).toContainText(caption, { timeout: 30_000 });
+  // The unfocused restored draft is minimized to one line with its photo as a token (4L9S5);
+  // focusing the composer brings the rendered photo back.
+  await expect(page.getByTestId('message-draft-summary-text')).toHaveText(`[Image] ${caption}`);
+  await page.getByTestId('message-field').click({ position: { x: 8, y: 8 } });
+  await expect(page.getByTestId('message-field')).toHaveAttribute('data-focused', 'true');
   await expect(image).toBeVisible();
   await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBeGreaterThan(0);
   const marker = withMockMarker('', 'chat_flow_capital').trim();

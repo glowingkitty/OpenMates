@@ -149,3 +149,13 @@ export function formatElapsed(totalSeconds: number): string {
   const two = (n: number) => String(n).padStart(2, '0');
   return h > 0 ? `${h}:${two(m)}:${two(s)}` : `${two(m)}:${two(s)}`;
 }
+
+/**
+ * Svelte action: moves the node to document.body for the lifetime of the element, so a
+ * transformed ancestor (the fullscreen slide-in) cannot trap its fixed positioning and the
+ * fullscreen top bar cannot paint over it (audience view, phone remote).
+ */
+export function portalToBody(node: HTMLElement): { destroy: () => void } {
+	document.body.appendChild(node);
+	return { destroy: () => node.remove() };
+}

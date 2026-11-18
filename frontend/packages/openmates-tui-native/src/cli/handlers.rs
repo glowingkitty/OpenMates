@@ -39,6 +39,8 @@ fn supported(invocation: &Invocation) -> bool {
         || super::global_history::supported(invocation)
         || super::tasks::supported(invocation)
         || super::plans::supported(invocation)
+        || super::checks::supported(invocation)
+        || super::specifications::supported(invocation)
         || super::projects::supported(invocation)
         || super::workflows::supported(invocation)
         || super::account::supported(invocation)
@@ -1113,8 +1115,14 @@ async fn execute_context_with_inventory(
     if super::tasks::supported(invocation) {
         return Box::pin(super::tasks::execute(invocation, client, cancel, store)).await;
     }
+    if super::specifications::supported(invocation) {
+        return Box::pin(super::specifications::execute(invocation, client, cancel, store)).await;
+    }
     if super::plans::supported(invocation) {
         return Box::pin(super::plans::execute(invocation, client, cancel, store)).await;
+    }
+    if super::checks::supported(invocation) {
+        return Box::pin(super::checks::execute(invocation, client, cancel, store)).await;
     }
     if super::projects::supported(invocation) {
         return Box::pin(super::projects::execute(invocation, client, cancel, store)).await;

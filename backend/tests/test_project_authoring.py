@@ -159,7 +159,7 @@ def _focus_author_fake_provider(monkeypatch, result=None, *, raw=None):
             schema = json["generationConfig"]["responseJsonSchema"]
             check_schema(schema)
             assert "$defs" not in schema and "$ref" not in schema
-            assert set(schema["properties"]) == {"status", "document_json", "question"}
+            assert set(schema["properties"]) == {"status", "document_json", "question", "collisions"}
             assert schema["properties"]["document_json"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
             prompt = json["systemInstruction"]["parts"][0]["text"]
             local_schema = module.json.loads(prompt.split("The decoded document must satisfy this schema: ")[1])
@@ -292,6 +292,7 @@ class Access:
             get_embed_by_id=AsyncMock(return_value={"encrypted_content": "ciphertext", "version_number": 1}),
             get_embeds_by_hashed_embed_ids=AsyncMock(return_value=[{"version_number": 1}])), get_items=AsyncMock())
         self.item = {"target_id_hash": hashlib.sha256(b"embed-1").hexdigest()}
+        self.authorization = SimpleNamespace(get_active_focus=AsyncMock(return_value=None))
         self.detail = SimpleNamespace(id="workflow-1", version=2, current_version_id="wf-version-2",
             model_dump=lambda **_: {"id": "workflow-1", "graph": {"nodes": [{"type": "ai_check"}]}, "version": 2})
 
@@ -350,6 +351,29 @@ async def test_catalog_then_selected_focus_inspection_never_authors_or_activates
                                            history=HISTORY, document=DOCUMENT)
     assert repeated == update and len(jev.calls) == 2
     assert "Sensitive conversation" not in json.dumps(cache.values)
+
+
+# contract-test: direct surface=rest_api assertions=focus-modes.project-recommendation-catalog
+@pytest.mark.asyncio
+async def test_create_focus_question_sees_builtin_focus_modes():
+    from types import SimpleNamespace
+    from backend.core.api.app.services.project_recommendation_service import builtin_focus_catalog
+    def focus(fid, **extra):
+        return SimpleNamespace(id=fid, name_translation_key=f"{fid}.name",
+                               description_translation_key=f"{fid}.description", **extra)
+    apps = {"business": SimpleNamespace(focuses=[focus("write_press_release"), focus("paused", default_enabled=False)])}
+    builtin = builtin_focus_catalog(apps, {"focus_modes": {"business_write_press_release": {
+        "text": "Write press release", "description": {"text": "Write a press release journalists can use."}}}})
+    assert builtin == [{"id": "business.write_press_release", "name": "Write press release",
+                        "description": "Write a press release journalists can use."}]
+    cache, access = Cache(), Access()
+    jev = Jev([{"create_focus": 0}])
+    service = ProjectRecommendationService(access=access, cache=cache, jev=jev)
+    await permit(cache, service)
+    assert await service.assess(user_id="owner", chat_id="chat", project_id="project", catalog=[],
+                                history=HISTORY, message_id="turn-1", builtin_focuses=builtin) == []
+    assert jev.calls[0]["state"]["builtin_focus_modes"] == builtin
+    assert "builtin_focus_modes" in jev.calls[0]["questions"]["create_focus"]["instructions"]
 
 
 # contract-test: direct surface=rest_api assertions=focus-modes.project-recommendation-catalog,workflows.project.update-recommendation

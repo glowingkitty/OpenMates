@@ -10,8 +10,19 @@
 import type { UnitProtocol } from '../host/unitPort';
 import type { ConnectedAccountsUnitProtocol } from '../connectedAccounts/connectedAccountsProtocol';
 import type { RequestCategory } from '../../appSettingsRequestPolicy';
-import type { PrivacyEntryPlan } from '../../privacyEntryPolicy';
-import type { ConfirmOutcome, ResponseCategory, ResponseKeyPlan } from '../../appSettingsResponsePolicy';
+
+export type ResponseKeyRoute = 'memory' | 'personal_memories' | 'entries';
+export interface ResponseKeyPlan { key: string; appId: string; itemType: string; route: ResponseKeyRoute }
+export interface ResponseCategory { appId: string; itemType: string; entryCount: number }
+export type ConfirmOutcome = { kind: 'send' } | { kind: 'empty'; sendEmpty: boolean; saveRejected: boolean };
+
+/** Hydration plan of one decrypted privacy entry (personalDataStore); defaults are applied by the Rust unit. */
+export type PrivacyEntryPlan =
+  | { kind: 'pii'; masterEnabled: unknown; enhancedEnabled: unknown; categories: Record<string, unknown> }
+  | { kind: 'location'; impreciseByDefault: unknown }
+  | { kind: 'personal'; type: unknown; title: unknown; textToHide: unknown; replaceWith: unknown; enabled: unknown; addressLines?: unknown }
+  | { kind: 'other' };
+
 
 export interface SettingsCategoryPlan { categories: RequestCategory[]; validKeys: string[] }
 export type SettingsRequestMessageOutcome =

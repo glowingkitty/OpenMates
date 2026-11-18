@@ -722,3 +722,68 @@ check_security.description:
   verified_by_human:
     - en
     - de
+write_specification:
+  context: Focus mode name
+  en: Write specification
+  de: Spezifikation schreiben
+  zh: 撰写规格说明
+  es: Redactar especificación
+  fr: Rédiger une spécification
+  pt: Redigir especificação
+  ru: Написать спецификацию
+  ja: 仕様書を作成
+  ko: 명세서 작성
+  it: Scrivi una specifica
+  tr: Spesifikasyon yaz
+  vi: Viết đặc tả
+  id: Tulis spesifikasi
+  pl: Napisz specyfikację
+  nl: Specificatie schrijven
+  ar: كتابة مواصفة
+  hi: विनिर्देश लिखें
+  th: เขียนข้อกำหนด
+  cs: Napsat specifikaci
+  sv: Skriv specifikation
+  he: כתיבת מפרט
+  verified_by_human: []
+write_specification.description:
+  context: Focus mode description
+  en: Turn an idea into an approved Specification step by step - scope, requirements, design and acceptance
+    Checks - then start a Plan with Tasks.
+  de: Mach aus einer Idee Schritt für Schritt eine freigegebene Spezifikation - Umfang, Anforderungen,
+    Design und Abnahmeprüfungen - und starte dann einen Plan mit Aufgaben.
+  zh: 一步步把想法变成获批的规格说明——范围、需求、设计和验收检查——然后启动带任务的计划。
+  es: Convierte una idea en una especificación aprobada paso a paso (alcance, requisitos, diseño y comprobaciones
+    de aceptación) y empieza después un plan con tareas.
+  fr: Transformez une idée en spécification approuvée, étape par étape (périmètre, exigences, conception
+    et vérifications d'acceptation), puis lancez un plan avec des tâches.
+  pt: Transforme uma ideia numa especificação aprovada, passo a passo (âmbito, requisitos, design e verificações
+    de aceitação), e depois inicie um plano com tarefas.
+  ru: Превратите идею в утверждённую спецификацию шаг за шагом - границы, требования, дизайн и приёмочные
+    проверки - и затем запустите план с задачами.
+  ja: アイデアを、範囲・要件・設計・受け入れチェックまで一歩ずつ進めて承認済みの仕様書にし、その後タスク付きのプランを始めます。
+  ko: 아이디어를 범위, 요구 사항, 디자인, 인수 검사까지 단계별로 승인된 명세서로 만들고, 이어서 작업이 포함된 계획을 시작하세요.
+  it: Trasforma un'idea in una specifica approvata passo dopo passo (ambito, requisiti, design e verifiche
+    di accettazione), poi avvia un piano con attività.
+  tr: Bir fikri adım adım onaylı bir spesifikasyona dönüştür - kapsam, gereksinimler, tasarım ve kabul
+    kontrolleri - ardından görevleri olan bir plan başlat.
+  vi: Biến một ý tưởng thành đặc tả đã được duyệt từng bước - phạm vi, yêu cầu, thiết kế và các kiểm tra
+    nghiệm thu - rồi bắt đầu một kế hoạch với các tác vụ.
+  id: Ubah ide menjadi spesifikasi yang disetujui langkah demi langkah - lingkup, persyaratan, desain,
+    dan pemeriksaan penerimaan - lalu mulai rencana dengan tugas.
+  pl: Zamień pomysł w zatwierdzoną specyfikację krok po kroku - zakres, wymagania, projekt i testy akceptacyjne
+    - a potem rozpocznij plan z zadaniami.
+  nl: Maak van een idee stap voor stap een goedgekeurde specificatie - reikwijdte, vereisten, ontwerp
+    en acceptatiecontroles - en start daarna een plan met taken.
+  ar: حوّل فكرة إلى مواصفة معتمدة خطوة بخطوة - النطاق والمتطلبات والتصميم وفحوصات القبول - ثم ابدأ خطة
+    بمهام.
+  hi: किसी विचार को चरण दर चरण स्वीकृत विनिर्देश में बदलें - दायरा, आवश्यकताएँ, डिज़ाइन और स्वीकृति जाँचें
+    - फिर कार्यों के साथ एक योजना शुरू करें।
+  th: เปลี่ยนไอเดียให้เป็นข้อกำหนดที่ได้รับอนุมัติทีละขั้น - ขอบเขต ข้อกำหนดความต้องการ การออกแบบ และการตรวจสอบเพื่อยอมรับ
+    - แล้วเริ่มแผนพร้อมงาน
+  cs: Proměňte nápad krok za krokem ve schválenou specifikaci - rozsah, požadavky, návrh a akceptační
+    kontroly - a poté zahajte plán s úkoly.
+  sv: Gör en idé till en godkänd specifikation steg för steg - omfattning, krav, design och acceptanskontroller
+    - och starta sedan en plan med uppgifter.
+  he: הפכו רעיון למפרט מאושר צעד אחר צעד - היקף, דרישות, עיצוב ובדיקות קבלה - ואז התחילו תוכנית עם משימות.
+  verified_by_human: []

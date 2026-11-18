@@ -114,6 +114,51 @@ def page_text(observation: dict[str, Any]) -> str:
     return observation.get("document_text") or observation.get("text") or ""
 
 
+# Bounds of the form view returned with a Browse result.
+FORM_VIEW_MAX_FIELDS = 60
+_FORM_ACTION_WORDS = ("next", "continue", "back", "previous", "submit", "send", "start", "apply", "finish", "confirm")
+
+
+def form_view(observation: dict[str, Any]) -> list[dict[str, Any]]:
+    """Fillable fields of the current page, in page order, for the assistant.
+
+    Lets the assistant ask the user one question at a time and report what is
+    filled (feature.app-skill.web-browse form-with-user). Holds input, select,
+    checkbox, radio and option controls plus form navigation buttons; links and
+    other clicks are left out. Values come from the runtime snapshot, which
+    never reports values of secret fields. Callers pass it through output
+    safety before any model sees it.
+    """
+    fields: list[dict[str, Any]] = []
+    for control in observation.get("controls") or []:
+        if not isinstance(control, dict) or len(fields) >= FORM_VIEW_MAX_FIELDS:
+            continue
+        label = str(control.get("label") or "").strip()[:160]
+        kind = control.get("kind")
+        role = str(control.get("role") or "")
+        choice = isinstance(control.get("checked"), bool)
+        if kind in ("type", "select") or choice:
+            field: dict[str, Any] = {"label": label, "kind": "choice" if choice else kind}
+            if control.get("group"):
+                field["question"] = str(control["group"])[:160]
+            if choice:
+                field["checked"] = control["checked"]
+            elif control.get("value"):
+                field["value"] = str(control["value"])[:200]
+            if control.get("required") is True:
+                field["required"] = True
+            if control.get("options"):
+                field["options"] = [
+                    str(o.get("label", ""))[:80] for o in control["options"][:30] if isinstance(o, dict)
+                ]
+            fields.append(field)
+        elif role in ("button", "input") and label and any(
+            word in label.casefold() for word in _FORM_ACTION_WORDS
+        ):
+            fields.append({"label": label, "kind": "button"})
+    return fields
+
+
 def observed_urls(observation: dict[str, Any]) -> set[str]:
     urls = {observation.get("url", "")}
     for item in [*observation.get("links", []), *observation.get("controls", [])]:

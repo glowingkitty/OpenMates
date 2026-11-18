@@ -206,11 +206,13 @@ function runtimeModesForActions(actions: string[]): Record<string, string> {
 
 function normalizeAppId(appId: string): string {
 	if (appId === 'google_calendar') return 'calendar';
+	if (appId === 'figma') return 'design';
 	return appId;
 }
 
 function appIdForProvider(providerId: string): string {
 	if (providerId === 'google_calendar') return 'calendar';
+	if (providerId === 'figma') return 'design';
 	return providerId;
 }
 

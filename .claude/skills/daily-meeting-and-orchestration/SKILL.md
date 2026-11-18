@@ -20,7 +20,7 @@ Reminder changes:      (table: Action | Reminder (exact title) | List | New due 
 Task changes:          (table: Action | Task (exact title) | New title | Priority | Status | Label | Due | Description)
 Goals:                 (table: Level | Item | Action | Done when | By)
 Chats:
-- <chat title> -> reply: <text> | park | archive | done | keep
+- <chat title> [<Task id>] -> answer now: <text> | park until YYYY-MM-DD HH:MM: <state> | reschedule to YYYY-MM-DD | archive | resume now: <step>   (one line per chat, exactly one outcome)
 Cleanup:
 - <plain title> (<GitHub #123 | Linear ABC-1 | TASK-123>) -> close | delete | merge <other id> | delay | keep
 Parking lot:
@@ -110,17 +110,40 @@ briefing line shows a bare ID, say what it is before using it.
    `logs/daily-meetings/meeting-changelog.md` (`- <date> <plain change> (trial until <date>)`). `revert`
    removes the change from the settings file and logs it; `none` does nothing. Every change is a
    one-week trial; never two at once.
-4b. **Chats** (the `Chats:` lines, from the briefing's "Chats waiting on you"): `reply: <text>`
-   → send the reply yourself to that chat (`send_message` to its Remote session, matched by title/last prompt; the user never pastes into chats you can answer), then report each result; if a chat cannot be reached, say so and print the reply; a reply that would need a production or other user-only action (e.g. 3FA SSH) is not carried out: report it to the user instead; `park` →
-   parking-lot line; `archive`/`done` → archive the chat via `archive_session` when it has a
-   session id, otherwise just record it; `keep` → nothing. Record every non-reply decision in
-   `logs/daily-meetings/waiting-reviewed.json` (`{"<full session id>": "YYYY-MM-DD"}`, private)
-   so the chat is not offered again for 14 days. Never message or stop the Rust chat.
+4d. **Marketing** (`Marketing pick:`, `Wins:`, `Marketing finished:`, `Marketing ideas:`, `Style feedback:`): the lines
+   are read back by the next briefing from the saved decisions note, nothing to apply except: `park` ideas →
+   Task labelled `idea` (create row, one sentence, status backlog); `Marketing finished:` items are what
+   unlocks business angels. **Style feedback** is applied at once, in the private marketing repository
+   (`/home/superdev/projects/openmates-marketing`, never this repo, never staged through `sessions.py`):
+   read `marketing-style.md` and `press/press-style.md` first, add ONE rule per feedback line (press text →
+   `press/press-style.md` "Words and tone"; otherwise `marketing-style.md` "Feedback rules from the daily
+   meeting"; format `- YYYY-MM-DD: <rule> (was: "..."; instead: "...")`), merge with an existing rule instead of
+   duplicating, and report the file and rule. Menu edits go to `daily-meeting/marketing-menu.md` there.
+4e. **Dropped** (`Dropped:` lines): `python3 scripts/daily_meeting_apply.py apply` writes them to the decision log
+   (`scripts/decision_log.py`; reason required, nothing deleted). Execute the drop itself (archive the chat,
+   close the Task/issue/reminder) and for every `revive:` line create the Task or restore the chat. LATER chats:
+   write the PAUSED block into the Task (label `paused`, resume date) and archive the chat; the briefing brings
+   it back on the date. Never delete.
+4a. **Triage** (the `Triage:` lines and `Side notes:`): the briefing's last section "Side notes" holds every
+   LATER and DROP proposal. `Side notes: proposals confirmed` executes them: LATER chat → park until the
+   date (pause convention below), DROP chat → archive, DROP Task/issue → close (`openmates tasks done` /
+   `delete` per the proposal text, GitHub/Linear close), LATER Task → set the due date. Each `Triage:` line
+   overrides one proposal first (`-> NOW` means: raise it in a work chat or the next meeting, nothing is
+   closed). The priorities come from `FOCUS.md` section `## Current priorities`; keep that section when
+   rewriting FOCUS.md and change its words when the founder changes the priorities.
+4b. **Chats** (the `Chats:` lines, one per chat of the briefing's "Chats waiting on you" and "Paused chats"; each has exactly one outcome, `keep` is not valid, ask for the missing outcome in your report):
+   `answer now: <text>` → send the reply yourself to that chat (`send_message` to its Remote session, matched by title/last prompt; the user never pastes into chats you can answer), then report each result; if a chat cannot be reached, say so and print the reply; a reply that would need a production or other user-only action (e.g. 3FA SSH) is not carried out: report it to the user instead;
+   `park until <date>` / `reschedule to <date>` → write the pause convention into the chat's Task
+   (`openmates tasks edit <task> --add-label paused --description "PAUSED <today> until <date> — <reason>\nDone: …\nNot done: …\nNext step: …\nOpen decisions: …"`; create the Task first when the chat has none)
+   and add a parking-lot line; `resume now: <step>` → `--remove-label paused`, then `send_message` with the step;
+   `archive` → archive the chat via `archive_session` when it has a session id and record it in
+   `logs/daily-meetings/waiting-reviewed.json` (`{"<full session id>": "YYYY-MM-DD"}`, private; the chat returns
+   only if it speaks again). Never message or stop the Rust chat. Convention: `docs/contributing/guides/daily-meeting.md`.
 5. **Work chats** (optional, ask once with a recommendation): one Claude chat per
    agent task — `create_session` with the `dev-server:OpenMates…` bridge
    environment and a handoff naming the Task ID, goal, done-criterion and "read
    FOCUS.md and run `sessions.py start` first"; resume an existing chat with
-   `send_message`. Respect the current phase in FOCUS.md.
+   `send_message`.
 
 Close with ≤6 lines: focus, tasks with Task IDs, reminders changed, items cleaned up,
 parking-lot changes, chats started.

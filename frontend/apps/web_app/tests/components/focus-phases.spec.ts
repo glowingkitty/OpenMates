@@ -16,6 +16,17 @@ test.describe('Phased focus details and chat history', () => {
       await page.screenshot({ path: test.info().outputPath(`focus-phases-${width}.png`) });
     }
   });
+  // contract-test: direct surface=gui.web assertions=focus-modes.phases
+  test('hard-wrapped instructions read as paragraphs, not broken lines', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 850 });
+    await page.goto('/dev/preview/settings/FocusModePhases?chrome=0&variant=wrapped');
+    await waitForComponentPreview(page);
+    const paragraphs = page.getByTestId('focus-phase-instructions').locator('p');
+    await expect(paragraphs).toHaveCount(2);
+    await expect(paragraphs.first()).toHaveText('Understand the idea before anything is written. Find out who it is for and what is in scope now.');
+    await expect(paragraphs.last()).toHaveText('Decide the size. One Specification is the default.');
+    await page.screenshot({ path: test.info().outputPath('focus-phases-wrapped-390.png') });
+  });
   // contract-test: direct surface=gui.web assertions=focus-modes.phases,focus-modes.history-side-effects,focus-modes.history-events
   test('actual system message shows a phase link, survives reload, and has no active-phase controls', async ({ page }) => {
     await page.goto('/dev/preview/ChatMessage?chrome=0&variant=focusPhase');

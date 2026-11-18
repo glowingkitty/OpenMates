@@ -163,12 +163,20 @@ async def test_create_correction_and_stale_replay_keep_one_encrypted_message(rig
     assert manager.sent[-1]["payload"]["messages_v"] == 43
     assert manager.broadcasts[-1]["payload"]["messages_v"] == 43
     assert manager.sent[-1]["payload"]["revision"] == 2
+    # The sender's receipt carries the stored ciphertext row for its client
+    # core history, exactly the row other devices receive.
+    assert manager.sent[-1]["payload"]["encrypted_content"] == CIPHER_B
+    assert manager.sent[-1]["payload"]["role"] == directus.message["role"]
+    assert manager.sent[-1]["payload"]["created_at"] == directus.message["created_at"]
+    assert manager.broadcasts[-1]["payload"]["encrypted_content"] == CIPHER_B
     # A replay after subsequent ordinary text reads the current canonical version
     # without creating a new version or rebroadcasting the old ciphertext.
     directus.metadata["messages_v"] = 50
     await receive(payload(CIPHER_B, 2))
     assert manager.sent[-1]["payload"]["outcome"] == "replayed"
     assert manager.sent[-1]["payload"]["messages_v"] == 50
+    # A replay settles nothing new, so the sender's receipt carries no row.
+    assert "encrypted_content" not in manager.sent[-1]["payload"]
     assert directus.metadata["messages_v"] == 50
     await receive(payload(CIPHER_OLD, 1))
     assert directus.message["encrypted_content"] == CIPHER_B

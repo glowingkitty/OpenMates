@@ -1,33 +1,37 @@
 <!-- frontend/packages/ui/src/components/RecommendationEmbedPreview.svelte
      One chat recommendation rendered as an embed preview card (UnifiedEmbedPreview,
      presentation only: no embed record, sync or context menu). Memory items use the
-     insight icon of saved memories; workflow items use the Workflows app identity.
+     insight icon of saved memories; workflow items use the Workflows app identity; Project focus items the Projects app identity.
      Clicking the card opens the same draft as the Create/Update button below it.
      Spec: app-memories.suggestions.post-processor
 -->
 <script lang="ts">
   import UnifiedEmbedPreview from './embeds/UnifiedEmbedPreview.svelte';
   import { text } from '../i18n/translations';
-  import type { ChatRecommendation } from '../types/recommendations';
+  import type { RecommendationCardItem } from '../types/recommendations';
 
   interface Props {
-    item: ChatRecommendation;
+    item: RecommendationCardItem;
     onOpen: () => void;
   }
   let { item, onOpen }: Props = $props();
 
-  let typeLabel = $derived(
-    item.kind === 'memory' ? $text('recommendations.type_memory') : $text('recommendations.type_workflow'),
-  );
+  const IDENTITY = {
+    memory: { appId: 'openmates', icon: 'insight', label: 'recommendations.type_memory' },
+    workflow: { appId: 'workflows', icon: 'workflow', label: 'recommendations.type_workflow' },
+    focus: { appId: 'projects', icon: 'project', label: 'recommendations.type_focus' },
+  } as const;
+  let identity = $derived(IDENTITY[item.kind]);
+  let typeLabel = $derived($text(identity.label));
 </script>
 
 <UnifiedEmbedPreview
   id={`recommendation-${item.id}`}
   presentationOnly
-  appId={item.kind === 'memory' ? 'openmates' : 'workflows'}
-  appIconName={item.kind === 'memory' ? 'insight' : 'workflow'}
+  appId={identity.appId}
+  appIconName={identity.icon}
   skillId={item.kind}
-  skillIconName={item.kind === 'memory' ? 'insight' : 'workflow'}
+  skillIconName={identity.icon}
   status="finished"
   skillName={typeLabel}
   showStatus={false}

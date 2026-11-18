@@ -421,6 +421,11 @@ async def run_generated_media_batch(
                 )
             finally:
                 active_media_batch_child.reset(token)
+            if isinstance(result, dict) and result.get("status") == "rejected":
+                # A safety refusal: the explained reason, the allowed alternative
+                # and the no-retry instruction reach the assistant unchanged.
+                failures.append(safety_rejection_failure(index, result))
+                continue
             if isinstance(result, dict) and result.get("status") == "failed" and result.get("child_published") is True:
                 failed_children.append({
                     "request_index": index,
@@ -486,11 +491,7 @@ async def run_generated_media_batch(
                 }
                 for row in children
             ] + [
-                {
-                    "parent_embed_id": parent_id,
-                    "request_index": row["request_index"], "status": "error", "error": row["error"],
-                    **({"error_code": row["error_code"]} if row.get("error_code") else {}),
-                }
+                {**row, "parent_embed_id": parent_id, "status": "error"}
                 for row in failures
             ]
             completed_results.sort(key=lambda row: row["request_index"])
@@ -575,6 +576,27 @@ async def send_generated_media_child(
     return child_ref
 
 
+SAFETY_REJECTION_CODE = "safety_rejected"
+# Fields of the localized rejection payload (image_safety/explanations.py) the
+# assistant needs to explain a refusal; detector names and scores are never in it.
+_SAFETY_REJECTION_FIELDS = (
+    "category", "reason", "alternative", "hard_limit", "instructions_to_llm", "do_not_retry",
+)
+
+
+def safety_rejection_failure(index: int, result: dict[str, Any]) -> dict[str, Any]:
+    """One failed request slot for a producer result with ``status: "rejected"``."""
+    message = result.get("user_facing_message")
+    if not isinstance(message, str) or not message:
+        raise ValueError("Safety rejection has no user-facing message")
+    return {
+        "request_index": index,
+        "error": message,
+        "error_code": SAFETY_REJECTION_CODE,
+        **{key: result[key] for key in _SAFETY_REJECTION_FIELDS if key in result},
+    }
+
+
 async def finalize_generated_media_parent(
     embed_service: Any,
     *,
@@ -619,7 +641,12 @@ async def finalize_generated_media_parent(
     }
     if failures:
         content["partial_failure"] = any(not row.get("failed") for row in ordered)
-        content["error"] = f"{len(failures)} output(s) could not be generated"
+        refusals = [row for row in failures if row.get("error_code") == SAFETY_REJECTION_CODE]
+        # A refused request shows its explained reason on the card, not a count.
+        content["error"] = (
+            str(refusals[0]["error"]) if refusals and len(refusals) == len(failures)
+            else f"{len(failures)} output(s) could not be generated"
+        )
     await embed_service.send_embed_data_to_client(
         embed_id=parent_embed_id,
         embed_type="app_skill_use",

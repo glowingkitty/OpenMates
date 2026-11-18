@@ -23,6 +23,7 @@
 import type { Chat } from "../../types/chat";
 import type { MessageWindowResult } from "../db/messageOperations";
 import { RustHistoryRefusal } from "./savedChatMessageRows";
+import type { SavedPageSelector } from "./protocol";
 
 /** One Rust-owned history page and how it was obtained. */
 export interface RustHistoryRead {
@@ -36,6 +37,8 @@ export interface RustHistoryRead {
 export interface RustChatHistorySource {
   /** Rust read of one saved chat page (latest, or around an anchor). */
   readWindow(input: { chatId: string; anchorMessageId: string | null }): Promise<RustHistoryRead>;
+  /** Rust canonical server page for a chained selector (older/newer via an opaque cursor, or around an anchor). */
+  readPage(input: { chatId: string; selector: SavedPageSelector }): Promise<MessageWindowResult>;
 }
 
 let installed: RustChatHistorySource | null = null;
@@ -67,6 +70,50 @@ export function rustFailureCode(error: unknown): string {
 
 function mark(state: string): void {
   if (typeof document !== "undefined") document.documentElement.dataset.rustCoreHistory = state;
+}
+
+function refuseUnownedChat(chat: Chat, activeTeamId: string | null): void {
+  if (chat.team_id || activeTeamId) throw new RustHistoryRefusal("team_chat");
+  if (chat.is_shared_by_others) throw new RustHistoryRefusal("shared_chat");
+  if (!(Number(chat.messages_v ?? 0) > 0)) throw new RustHistoryRefusal("unsynced_chat");
+  if (!CORE_CHAT_ID.test(chat.chat_id)) throw new RustHistoryRefusal("local_fixture_chat");
+}
+
+/**
+ * Rust-owned follow-up page (older paging, anchor/around reads). Null when no
+ * source is installed or Rust refused this chat shape; the caller then keeps
+ * its TypeScript fetch ONLY for that refusal. Any other failure is rethrown.
+ */
+export async function readRustChatHistoryPage(chat: Chat, input: {
+  selector: SavedPageSelector; activeTeamId: string | null;
+}): Promise<MessageWindowResult | null> {
+  if (!installed && declared) await declared;
+  const source = installed;
+  if (!source) return null;
+  try {
+    refuseUnownedChat(chat, input.activeTeamId);
+    const window = await source.readPage({ chatId: chat.chat_id, selector: input.selector });
+    mark(`rust-page:${window.messages.length}`);
+    if (typeof document !== "undefined") document.documentElement.dataset.rustCoreHistoryPage = String(window.messages.length);
+    return window;
+  } catch (error) {
+    if (error instanceof RustHistoryRefusal) {
+      mark(`refused:${error.code}`);
+      console.info("[RustCore] saved chat page refused:", error.code);
+      return null;
+    }
+    const code = rustFailureCode(error);
+    // Server unreachable (offline boot or server-check backoff): older pages come from
+    // the encrypted local cache instead, as before this read moved to Rust.
+    if (code === "unavailable" || code === "deadline") {
+      mark(`offline:${code}`);
+      console.warn("[RustCore] saved chat page needs the server; reading the local cache:", code);
+      return null;
+    }
+    mark(`error:${code}`);
+    console.error("[RustCore] saved chat page failed:", code);
+    throw error;
+  }
 }
 
 /**

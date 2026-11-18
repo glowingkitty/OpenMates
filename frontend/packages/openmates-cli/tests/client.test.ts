@@ -70,6 +70,7 @@ const {
   canonicalSavedChatMessageId,
   buildTaskEventSystemMessage,
   buildTaskUpdateJobPersistPayload,
+  withoutTransientTaskAiFields,
   messageExplicitlyRequestsTasksAppSkill,
   taskUpdateJobBelongsToActiveTurn,
   buildConnectedAccountDirectoryPayload,
@@ -2984,6 +2985,42 @@ describe("task update job helpers", () => {
       encrypted_description: "cipher-description",
       version: 1,
     });
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  it("persists an OpenMates-assigned task created by a task update job without plaintext fields", async () => {
+    const { buildCreateUserTaskInput } = await import("../src/tasksCli.ts");
+    const input = await buildCreateUserTaskInput(new Uint8Array(32).fill(7), {
+      title: "Build the pre-order page",
+      description: "Customers reserve loaves before the cut-off",
+      assign: "openmates",
+      chatId: "chat-1",
+    });
+    assert.equal(input.plaintext_title, "Build the pre-order page");
+    assert.throws(
+      () => buildTaskUpdateJobPersistPayload({
+        jobId: "task-update-job-3",
+        leaseToken: "lease-token",
+        leaseGeneration: 1,
+        expectedTaskVersion: 0,
+        encryptedTaskPayload: { ...input, task_id: "task-2" },
+      }),
+      /plaintext|unsupported/,
+    );
+
+    const payload = buildTaskUpdateJobPersistPayload({
+      jobId: "task-update-job-3",
+      leaseToken: "lease-token",
+      leaseGeneration: 1,
+      expectedTaskVersion: 0,
+      encryptedTaskPayload: { ...withoutTransientTaskAiFields(input), task_id: "task-2" },
+    });
+    const serialized = JSON.stringify(payload.encrypted_task_payload);
+    assert.equal("plaintext_title" in payload.encrypted_task_payload, false);
+    assert.equal("plaintext_description" in payload.encrypted_task_payload, false);
+    assert.equal(serialized.includes("Build the pre-order page"), false);
+    assert.equal(serialized.includes("Customers reserve loaves"), false);
+    assert.equal(payload.encrypted_task_payload.assignee_type, "openmates");
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity

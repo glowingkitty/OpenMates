@@ -40,33 +40,6 @@ impl Client {
         result
     }
 
-    /// The raw key of one owned chat, resolved from its server metadata row
-    /// with the current Personal/Team wrapping key.
-    ///
-    /// The returned key is zeroized on drop and never leaves the core.
-    ///
-    /// # Errors
-    /// `Invalid` for a non-UUID id, `Forbidden` when the chat is not visible in
-    /// the active context, and the key-unwrap errors of [`Client::chat_key`].
-    pub(crate) async fn hosted_file_chat_key(&mut self, chat_id: &str) -> Result<Key> {
-        crate::work::uuid(chat_id)?;
-        self.require_session()?;
-        let path = self.scoped("/v1/chats/metadata/batch")?;
-        let data = self
-            .request(Method::POST, &path, Some(json!({"chat_ids": [chat_id]})))
-            .await?;
-        let row = data["chats"]
-            .as_array()
-            .ok_or(Error::Protocol)?
-            .iter()
-            .find(|row| text(row, "id") == chat_id)
-            .ok_or(Error::Forbidden)?
-            .clone();
-        let wrapping = self.wrapping_key().await?;
-        self.verify_private_operation()?;
-        self.chat_key(&row, &wrapping)
-    }
-
     /// GET whose 404 is absence (`None`) and every other failure keeps the
     /// generic mapping. Used for the exact-operation revision receipt.
     ///

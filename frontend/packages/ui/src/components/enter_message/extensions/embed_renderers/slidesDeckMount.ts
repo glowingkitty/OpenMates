@@ -6,6 +6,7 @@
 
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import { mount, unmount, disposeEmbedTree } from "./mountedEmbedLifecycle";
+import SlidesTemplateEmbedPreview from "../../../embeds/slides/SlidesTemplateEmbedPreview.svelte";
 import SlidesDeckEmbedPreview from "../../../embeds/slides/SlidesDeckEmbedPreview.svelte";
 
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -16,6 +17,17 @@ export async function mountSlidesDeckPreview(
   decodedContent: Record<string, unknown> | null,
   content: HTMLElement,
   onFullscreen: () => void,
+  template = false,
+): Promise<void> {
+  await mountSlidesPreview(item, decodedContent, content, onFullscreen, template);
+}
+
+async function mountSlidesPreview(
+  item: EmbedNodeAttributes,
+  decodedContent: Record<string, unknown> | null,
+  content: HTMLElement,
+  onFullscreen: () => void,
+  template: boolean,
 ): Promise<void> {
   const slidesMarkup =
     typeof decodedContent?.slides_markup === "string" ? decodedContent.slides_markup : "";
@@ -34,7 +46,7 @@ export async function mountSlidesDeckPreview(
   disposeEmbedTree(content, false);
   content.innerHTML = "";
 
-  const component = mount(SlidesDeckEmbedPreview, {
+  const component = mount(template ? SlidesTemplateEmbedPreview : SlidesDeckEmbedPreview, {
     target: content,
     props: {
       id: embedId,

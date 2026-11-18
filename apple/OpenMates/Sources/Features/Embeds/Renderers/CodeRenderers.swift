@@ -360,13 +360,16 @@ private final class CodeEmbedOwnerOutputs: ObservableObject {
     private var store: CodeRunOutputStore?
     private var observation: AnyCancellable?
 
+    func attach() {
+        guard store == nil else { return }
+        let ownerStore = CodeRunOutputStore.shared
+        store = ownerStore
+        observation = ownerStore.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        objectWillChange.send()
+    }
+
     func hydrate(chatId: String, embedId: String, embed: EmbedRecord?) async {
-        if store == nil {
-            let ownerStore = CodeRunOutputStore.shared
-            store = ownerStore
-            observation = ownerStore.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
-            objectWillChange.send()
-        }
+        attach()
         await store?.hydrate(chatId: chatId, embedId: embedId, embed: embed)
     }
 
@@ -417,6 +420,10 @@ struct CodeEmbedRenderer: View {
                         .background(Color.grey100)
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
                         .accessibilityIdentifier("code-run-output-preview")
+                } else if isSvgVisual, !code.isEmpty || embed?.status == .processing {
+                    SvgEmbedRenderer(code: code, title: filename ?? language, status: embed?.status ?? .finished)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                        .accessibilityIdentifier("svg-embed-preview")
                 } else if previewState == .processing {
                     VStack(spacing: .spacing4) {
                         Circle()
@@ -450,7 +457,7 @@ struct CodeEmbedRenderer: View {
             .task(id: embedId) {
                 guard recipientMediaContext == nil, let chatId, !chatId.isEmpty else { return }
                 #if DEBUG
-                if chatId == "dev-embed-preview-chat" { return }
+                if chatId == "dev-embed-preview-chat" { savedOutputs.attach(); return }
                 #endif
                 await savedOutputs.hydrate(chatId: chatId, embedId: embedId, embed: embed)
             }
@@ -500,9 +507,17 @@ struct CodeEmbedRenderer: View {
             .background(Color.grey10)
             .task(id: embedId) {
                 guard recipientMediaContext == nil, let chatId, !chatId.isEmpty else { return }
+                #if DEBUG
+                if chatId == "dev-embed-preview-chat" { savedOutputs.attach(); return }
+                #endif
                 await savedOutputs.hydrate(chatId: chatId, embedId: embedId, embed: embed)
             }
         }
+    }
+
+    /// `resolveCodePreviewKind(...) === 'svg'` (web CodeEmbedPreview showSvgImage).
+    private var isSvgVisual: Bool {
+        SvgEmbedDocument.isSvg(language: language, filename: filename, code: code)
     }
 
     private var outputPaneActive: Bool {
@@ -534,7 +549,11 @@ struct CodeEmbedRenderer: View {
 
     @ViewBuilder
     private var outputPanel: some View {
-        if previewActive, isPreviewable {
+        if previewActive, isSvgVisual {
+            SvgEmbedRenderer(code: code, title: filename ?? language, status: embed?.status ?? .finished)
+                .frame(minHeight: 420)
+                .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        } else if previewActive, isPreviewable {
             CodePreviewPane(code: displayCode, language: language, filename: filename)
                 .frame(minHeight: 420)
                 .clipShape(RoundedRectangle(cornerRadius: .radius4))

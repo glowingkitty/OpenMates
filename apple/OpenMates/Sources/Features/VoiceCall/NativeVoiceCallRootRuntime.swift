@@ -55,6 +55,11 @@ final class NativeVoiceCallSendAdmission: ObservableObject {
 final class NativeVoiceCallRootPresentation: ObservableObject {
     @Published var creditsCharged: Double?
     @Published var toolWorking = false
+    /// Chat whose view currently renders the call strip itself.
+    @Published var stripHostedChatID: String?
+    /// Chat whose call the global header pill currently represents; web renders
+    /// no floating bar while the pill is shown (`showGlobalVoiceCall`).
+    @Published var headerPillChatID: String?
 }
 
 @MainActor
@@ -303,16 +308,15 @@ private struct NativeVoiceCallRootOverlayContent: View {
     var body: some View {
         ZStack {
             if let coordinator = runtime.coordinator {
-                NativeVoiceCallOverlay(coordinator: coordinator, returnToChat: returnToChat)
-                if presentation.toolWorking || presentation.creditsCharged != nil {
+                NativeVoiceCallOverlay(coordinator: coordinator, returnToChat: returnToChat,
+                    stripHostedInChat: coordinator.boundChatID.map {
+                        presentation.stripHostedChatID == $0 || presentation.headerPillChatID == $0
+                    } ?? false)
+                if presentation.toolWorking {
                     VStack {
                         Spacer()
                         HStack(spacing: .spacing4) {
                             if presentation.toolWorking { Text(AppStrings.nativeCall("working")) }
-                            if let credits = presentation.creditsCharged {
-                                Text(credits, format: .number.precision(.fractionLength(0...3)))
-                                Text(AppStrings.nativeCall("credits"))
-                            }
                         }.font(.omSmall).padding(.spacing4).background(Color.grey10)
                             .clipShape(RoundedRectangle(cornerRadius: .radius4))
                             .padding(.bottom, 84)

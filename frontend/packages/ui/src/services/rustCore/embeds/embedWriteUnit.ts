@@ -38,7 +38,7 @@ import type { ChildRevisionFunctions, ChildRevisionWriterPort } from './childRev
 
 type WriterSession = EmbedWriterPort & EmbedKeyResolverPort & ChildRevisionWriterPort & { free?: () => void };
 export interface EmbedWriteBinding extends EmbedWriteFunctions, ChildRevisionFunctions {
-	BrowserEmbedWriter: new (master: CryptoKey) => WriterSession;
+	BrowserEmbedWriter: (new (master: CryptoKey) => WriterSession) & { newLocalOnly(): WriterSession };
 }
 
 const CODE = /^[a-z][a-z0-9_]{0,63}$/;
@@ -82,7 +82,7 @@ function withoutLocalWrappers(prepared: PreparedEmbedWrite): PersistedEmbedWrite
 }
 
 /** The `embedWrite` handlers over one binding and Worker DB (exported for in-process tests). */
-export function createEmbedWriteHandlers(binding: EmbedWriteBinding, openDb: ChatsDbOpener): {
+export function createEmbedWriteHandlers(binding: EmbedWriteBinding, openDb: ChatsDbOpener, guest = false): {
 	handlers: UnitHandlers<EmbedWriteProtocol>; dispose(): void;
 } {
 	let writer: WriterSession | null = null;
@@ -102,9 +102,17 @@ export function createEmbedWriteHandlers(binding: EmbedWriteBinding, openDb: Cha
 	};
 	const handlers: UnitHandlers<EmbedWriteProtocol> = {
 		async init(payload) {
-			const masterKey = record(payload, 'request').masterKey;
-			if (!isCryptoKey(masterKey) || masterKey.extractable) throw new UnitRefusal('embed_write_bad_master_key');
+			const request = record(payload, 'request');
+			// A unit opened without a principal is guest-only; an account unit never goes local-only.
+			if ((request.localOnly === true) !== guest) throw new UnitRefusal('embed_write_bad_init_mode');
 			if (disposed || writer) throw new UnitRefusal('embed_write_already_initialized');
+			if (request.localOnly === true) {
+				// Guest session: Rust holds no master key and refuses every server payload.
+				writer = await rust(() => binding.BrowserEmbedWriter.newLocalOnly());
+				return null;
+			}
+			const masterKey = request.masterKey;
+			if (!isCryptoKey(masterKey) || masterKey.extractable) throw new UnitRefusal('embed_write_bad_master_key');
 			writer = await rust(() => new binding.BrowserEmbedWriter(masterKey));
 			return null;
 		},
@@ -225,12 +233,19 @@ export function createEmbedWriteHandlers(binding: EmbedWriteBinding, openDb: Cha
 	};
 }
 
-export function createEmbedWriteUnitInstaller(openDatabase: () => { open: ChatsDbOpener; close(): void } = () => createWorkerChatsDb()) {
+/**
+ * `embedWrite` (account) needs a bound principal; `embedWriteGuest` (the
+ * signed-out guest's local-only writer) is a separate pre-bind namespace that
+ * only ever opens without one, so an unbound page can never open the account unit.
+ */
+export function createEmbedWriteUnitInstaller(openDatabase: () => { open: ChatsDbOpener; close(): void } = () => createWorkerChatsDb(),
+	guest = false) {
 	return (context: UnitInstallContext): (() => void) => {
-		if (context.ports.length !== 1 || context.principal === null || !isEmbedWriteBinding(context.binding)) throw new Error('unavailable');
+		if (context.ports.length !== 1 || !isEmbedWriteBinding(context.binding)) throw new Error('unavailable');
+		if ((context.principal === null) !== guest) throw new Error('unavailable');
 		const port = context.ports[0];
 		const database = openDatabase();
-		const { handlers, dispose: disposeSession } = createEmbedWriteHandlers(context.binding, database.open);
+		const { handlers, dispose: disposeSession } = createEmbedWriteHandlers(context.binding, database.open, guest);
 		const stopServing = serveUnitPort<EmbedWriteProtocol>(port, handlers);
 		let disposed = false;
 		const dispose = () => {
@@ -252,3 +267,4 @@ export function createEmbedWriteUnitInstaller(openDatabase: () => { open: ChatsD
 }
 
 export const installEmbedWriteUnit = createEmbedWriteUnitInstaller();
+export const installEmbedWriteGuestUnit = createEmbedWriteUnitInstaller(undefined, true);

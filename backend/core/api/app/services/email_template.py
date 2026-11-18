@@ -495,6 +495,7 @@ class EmailTemplateService:
                 'bank-transfer-duplicate-reference',
                 'inactive-account-deletion-reminder', 'inactive-account-deleted',
                 'account-deletion-warning-correction',
+                'safety-account-restored', 'safety-account-suspended', 'safety-more-information',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
                 'storage-billing-failed-3', 'storage-billing-failed-4',
                 'team-storage-billing-failed',

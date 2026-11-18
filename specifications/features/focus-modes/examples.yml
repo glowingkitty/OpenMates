@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.focus-modes@2
+specification: feature.focus-modes@3
 project_write_gate:
 - id: model-cannot-mint-write-access
   given: The preprocessor recommends Work on OpenMates but its activation has not been accepted in this chat.
@@ -22,14 +22,16 @@ project_off_read:
   expect: The focus remains off and the write is denied.
 activation:
 - id: career-proposal
-  given: Career insights is suggested for a retail career-change question; activation is still pending.
-  action: Render the proposal before confirmation.
-  expect: State remains pending and the Career insights instruction is absent from ordinary inference.
+  given: Career insights is suggested for a retail career-change question; its countdown is still running.
+  action: Render the activation card before the countdown ends, and reload an old chat whose history shows that card.
+  expect: State remains pending and the Career insights instruction is absent from ordinary inference; the old card does not
+    make the focus active.
 - id: accept-or-reject
-  given: A live Deep research activation awaits the existing confirmation window.
-  action: Allow confirmation, or reject before confirmation.
-  expect: Confirmation continues with Deep research active; rejection continues without its instruction and cannot later auto-activate
-    the same consumed request.
+  given: A live Deep research activation shows its short countdown.
+  action: Let the countdown finish without any user action, or cancel before it ends.
+  expect: When the countdown finishes, Deep research becomes active and the answer continues with it; cancelling continues
+    without its instruction and cannot later auto-activate the same consumed request.
+activation_authority:
 - id: accepted-and-rejected-internal-answer-authority
   given: A current user turn owns the chat authority and its live Focus activation pauses before an answer.
   action: Accept or reject the activation and start its internal answer execution.
@@ -41,6 +43,16 @@ activation:
   action: Execute cancellation or pending-expiry cleanup, including a repeated Focus pause in the same user turn.
   expect: Cleanup preserves accepted queued work and cannot clear a newer owner. An old pause expiry cannot expire a running
     answer or a newer pause; cached transport decoding does not change authority validation.
+explicit_activation:
+- id: focus-mention-immediate
+  given: A user writes "@focus:jobs:career_insights how do I move from retail into UX research?".
+  action: Send the message.
+  expect: Career insights is active for this answer at once; no countdown or cancel control is shown.
+- id: direct-request-immediate
+  given: A user writes "Turn on Deep research and compare supply, margins and regulation behind US egg prices." without an
+    @focus mention.
+  action: Send the message.
+  expect: Deep research activates immediately with no countdown; the answer continues with its instructions.
 full_instruction:
 - id: career-follow-ups
   given: Career insights is active with full instruction P configured in the app for these requests.
@@ -109,14 +121,14 @@ restoration:
   expect: The private chat stays off; reading the shared record did not persist or inject Deep research state.
 banner_placement:
 - id: phone-banner
-  given: Career insights is active at phone width.
+  given: Any focus mode, for example Career insights or Deep research, is active at phone width.
   action: Render the composer.
-  expect: Its active banner is approximately 10 CSS pixels higher than the pre-fix baseline; label and off control remain
-    visible and unobstructed.
+  expect: The active banner sits above the composer without overlapping it; label and off control remain visible and unobstructed.
 - id: laptop-banner
-  given: Career insights is active at laptop width; unrelated composer pills are also available.
-  action: Compare focus and unrelated pill layouts with the pre-fix baseline.
-  expect: Only the active focus banner receives the requested lift; controls remain usable without overlap.
+  given: Any focus mode is active at laptop width; unrelated incognito or IdeaBucket pills are also available.
+  action: Render the composer with both kinds of pills.
+  expect: The active focus banner sits above the composer without overlap; unrelated pills keep their position and controls
+    remain usable.
 specializations:
 - id: career-contract
   given: The Career insights specification guarantees useful career guidance with concrete examples and references feature.focus-modes@1.
@@ -152,6 +164,28 @@ phases:
   expect: The requested earlier phase is current, a clickable system message records the return, and encrypted state restores
     it. Current instructions and requirements are full while other phases have IDs/titles only. Unmet or uncertain requirements
     retain the phase; stale decisions and the same rewind turn cannot bounce forward.
+guided_spec_authoring:
+- id: idea-to-approved-specification
+  given: A bakery owner activates Write specification with "Help me write a spec for online sourdough ordering".
+  when: The owner answers the scope, requirement and design questions and confirms each phase summary.
+  then: Every turn asks at most three questions with a recommendation; every summary lists Open assumptions; the drafted
+    Specification embed carries the requirements, design decisions and the still-open assumptions, followed by acceptance
+    Checks; the Plan and Tasks are created only after the owner wrote that they approve the Specification.
+  assertion_ids:
+  - focus-modes.guided-spec-authoring
+- id: split-only-after-agreement
+  given: A user describes a marketplace with buyers, sellers, a brand redesign and a reusable payments platform.
+  when: The scope phase ends.
+  then: The assistant proposes linked product, design and technical Specifications with a one-line reason and keeps one
+    Specification when the user declines; linked Specifications name each other only after the user agreed.
+  assertion_ids:
+  - focus-modes.guided-spec-authoring
+- id: no-plan-before-approval
+  given: The Specification and Checks are drafted and the user asks a follow-up question without approving.
+  when: The assistant answers.
+  then: The focus stays in the Specification and Checks phase and no Plan or Task is created.
+  assertion_ids:
+  - focus-modes.guided-spec-authoring
 learning_progress:
 - id: fraction-practice-no-answer-leak
   given: Learning mode asks the learner to try 1/5 + 1/2 and waits for an answer.
@@ -174,6 +208,71 @@ project_specialist:
   when: The assistant investigates a retry bug on a narrow screen and then switches to Release preparation.
   then: Project base instructions stay effective, one shortened Project-qualified specialist indicator is shown, and the switch
     retains the authorized SocialHub binding.
+- id: explicit-specialist-over-project-base
+  assertion_ids:
+  - focus-modes.project-specialist-composition
+  given: Garden Planner's Project focus is active in a chat and no specialist is active.
+  when: The user sends "@focus:code:write_specification Write the spec for bed management".
+  then: The Write specification focus activates at once with its activation embed, its instructions apply together with
+    the Project base, and Project file writes stay authorized; the mention is never ignored.
+project_layering:
+- id: automatic-spec-over-project
+  assertion_ids:
+  - focus-modes.project-layering
+  given: Garden Planner's Project focus is active in a chat and no other focus is active.
+  when: The user writes "I want a new feature that reminds me when to water each bed", naming no focus mode.
+  then: Write specification is proposed with the normal countdown and, once active, runs over the Project base; Project
+    instructions and file-write authority stay in force.
+- id: project-focus-over-project
+  assertion_ids:
+  - focus-modes.project-layering
+  given: The OpenMates Project has a stored Focus Add a new provider describing that process, and only the Project base
+    is active.
+  when: The user asks to add a weather data provider.
+  then: Add a new provider is proposed and, once active, its process applies together with the Project base.
+layer_end:
+- id: layered-focus-done
+  assertion_ids:
+  - focus-modes.layer-end
+  given: Write specification runs over Garden Planner's Project focus and the user approved the Specification and its Plan.
+  when: The assistant ends the layered focus, and later the user asks about another Garden Planner file.
+  then: Only the Project base remains active, its write authority is unchanged and the assistant does not switch it off.
+- id: user-leaves-project
+  assertion_ids:
+  - focus-modes.layer-end
+  given: Only Garden Planner's Project focus is active.
+  when: The user writes "Forget the garden project, let's talk about holiday plans".
+  then: The Project focus is switched off with the shared off rules; an unrelated question that merely mentions holidays
+    without leaving the Project keeps it on.
+layer_precedence:
+- id: format-wins-constraint-holds
+  assertion_ids:
+  - focus-modes.layer-precedence
+  given: The Project base says "answer in short bullet lists" and "never push to main"; the layered Write specification
+    focus asks for full requirement prose.
+  when: The user drafts requirements and then asks the assistant to push the result to main.
+  then: The requirements use the focus's prose format, while pushing to main is refused under the Project constraint.
+conflict_detection:
+- id: authoring-shows-collisions
+  assertion_ids:
+  - focus-modes.conflict-detection
+  given: The Project base says "always ask before adding dependencies".
+  when: The Update authoring job drafts a provider Focus that says "install the provider SDK right away".
+  then: The authoring result lists that collision as touching a Project constraint before Save, and Save stays possible.
+- id: detection-unavailable
+  assertion_ids:
+  - focus-modes.conflict-detection
+  given: The Project base instruction is unavailable to the authoring job.
+  when: The Create authoring job drafts a new Project Focus.
+  then: The result says collisions with the Project focus were not checked, never that there are none.
+override_note:
+- id: note-on-first-answer
+  assertion_ids:
+  - focus-modes.override-note
+  given: Write specification is layered over a Project base whose format rule it overrides.
+  when: The first answer after activation and the next answer are shown.
+  then: The first answer begins with one short note naming Write specification and the overridden format rule; the next
+    answer has no note.
 context_reselection:
 - id: focus-and-phase-refresh
   assertion_ids:

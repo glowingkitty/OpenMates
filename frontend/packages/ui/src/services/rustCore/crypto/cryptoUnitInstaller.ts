@@ -25,6 +25,7 @@ import { GUEST_ASYNC_EXPORTS } from './guestOps';
 import { SHARE_STATE_ASYNC_EXPORTS } from './shareStateOps';
 import { WORK_ASYNC_EXPORTS } from './workOps';
 import { MEMORY_ASYNC_EXPORTS } from './memoryOps';
+import { ORCHESTRATION_ASYNC_EXPORTS } from './orchestrationOps';
 import type { UnitInstaller } from '../host/sharedWorkerProtocol';
 
 type Fn = (...args: unknown[]) => unknown;
@@ -49,6 +50,7 @@ const ASYNC_EXPORTS: Partial<Record<WebCryptoOp, string>> = {
   ...SHARE_STATE_ASYNC_EXPORTS,
   ...WORK_ASYNC_EXPORTS,
   ...MEMORY_ASYNC_EXPORTS,
+  ...ORCHESTRATION_ASYNC_EXPORTS,
 };
 
 const REQUIRED = [

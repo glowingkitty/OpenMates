@@ -30,9 +30,7 @@ const { rustCoreInstances } = require('./helpers/rust-core-instances');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 /** Measurement-only opt-out of the Rust history source (rustChatHistoryBootstrap.ts). */
 const HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
-/** Measurement-only opt-out of the Rust crypto unit (webCryptoRegistration.ts). */
-const CRYPTO_OPT_OUT_KEY = 'openmates_rust_core_crypto';
-const OPT_OUT_KEYS = [HISTORY_OPT_OUT_KEY, CRYPTO_OPT_OUT_KEY];
+const OPT_OUT_KEYS = [HISTORY_OPT_OUT_KEY];
 
 /**
  * Gross-regression rule (.claude/rules/cli-sdk.md, user decision 2026-11-07): the perf budget is
@@ -88,15 +86,14 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 	await closeFullscreen(page, overlay);
 	await expect(preview, 'chat returns after fullscreen closes').toBeVisible({ timeout: 15000 });
 
-	// Alternate pure-TS (both measurement opt-outs) and Rust reloads of the same saved
+	// Alternate TS-history and Rust reloads of the same saved
 	// chat in this build, so the medians share one runner and page. The recorded
-	// `history` arm (Rust history, TS crypto) attributes the crypto unit's own share.
+	// `history` arm repeats the Rust path.
 	const samples: Record<'ts' | 'rust' | 'history', Record<string, any>[]> = { ts: [], rust: [], history: [] };
 	for (const path of ['ts', 'rust', 'history', 'ts', 'rust', 'history', 'ts', 'rust', 'history'] as const) {
-		await page.evaluate(([path, history, crypto]: [string, string, string]) => {
+		await page.evaluate(([path, history]: [string, string]) => {
 			if (path === 'ts') localStorage.setItem(history, 'ts'); else localStorage.removeItem(history);
-			if (path === 'rust') localStorage.removeItem(crypto); else localStorage.setItem(crypto, 'ts');
-		}, [path, HISTORY_OPT_OUT_KEY, CRYPTO_OPT_OUT_KEY]);
+		}, [path, HISTORY_OPT_OUT_KEY]);
 		const sample = (await measureEmbedReady(page, chatId, '[data-testid="message-assistant"]', 1) as any).samples[0];
 		expect('rust:history-request' in sample.rustStages, `${path} reload ${path === 'ts' ? 'did not use' : 'used'} Rust history`).toBe(path !== 'ts');
 		// Shared-Worker bench counters for this reload.
@@ -110,14 +107,11 @@ test('Rust core decrypts saved embeds; preview renders and fullscreen opens', as
 		expect(workers.filter((worker) => worker.name === 'production.worker').length, 'no dedicated history Worker').toBe(0);
 		expect(workers.filter((worker) => worker.name === 'shared.worker').length, `${path}: one shared Rust core Worker`).toBe(1);
 		const embedStats = () => page.evaluate(() => (window as any).__openmatesRustEmbedStats?.() ?? null);
-		if (path === 'rust') {
-			await expect.poll(async () => (await embedStats())?.rows ?? 0, { message: 'rust: embed fields opened by the embedData unit' }).toBeGreaterThan(0);
-			expect((await embedStats()).failures, 'rust: no embedData failures').toBe(0);
-			expect((await embedStats()).toonDecodes, 'rust: TOON content decoded by the Rust parser').toBeGreaterThan(0);
-		} else {
-			expect((await embedStats())?.rows ?? 0, `${path}: embedData unused with TS crypto`).toBe(0);
-			expect((await embedStats())?.toonDecodes ?? 0, `${path}: Rust TOON unused with TS crypto`).toBe(0);
-		}
+		// Embed crypto is Rust-only (no crypto opt-out): every arm, including the TS-history one,
+		// opens the embed fields in the embedData unit and decodes TOON with the Rust parser.
+		await expect.poll(async () => (await embedStats())?.rows ?? 0, { message: `${path}: embed fields opened by the embedData unit` }).toBeGreaterThan(0);
+		expect((await embedStats()).failures, `${path}: no embedData failures`).toBe(0);
+		expect((await embedStats()).toonDecodes, `${path}: TOON content decoded by the Rust parser`).toBeGreaterThan(0);
 		sample.rustEmbedData = await embedStats();
 		samples[path].push(sample);
 	}

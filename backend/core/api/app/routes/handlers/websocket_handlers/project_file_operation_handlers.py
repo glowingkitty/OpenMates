@@ -247,7 +247,7 @@ async def handle_project_file_operation_result(
             # Snapshot files go to a short-lived cache for the repeated code-run
             # call; the model only sees a compact result, never file contents.
             from backend.apps.ai.processing.project_test_snapshot import (
-                compact_snapshot_result, store_snapshot,
+                compact_snapshot_result, store_snapshot, take_repeat_call,
             )
             snapshot_files = validated_result.get("files")
             snapshot_files = snapshot_files if isinstance(snapshot_files, list) else []
@@ -257,25 +257,38 @@ async def handle_project_file_operation_result(
                 project_id=submitted.project_id, files=snapshot_files, truncated=truncated,
             )
             validated_result = compact_snapshot_result(
-                submitted.operation_id, snapshot_files, truncated
+                submitted.operation_id, snapshot_files, truncated,
+                await take_repeat_call(cache_service, submitted.operation_id),
             )
-        await dispatch_async_skill_continuation(
-            cache_service=cache_service,
-            async_task_id=continuation_id,
-            completed_results=[
-                {
-                    **validated_result,
-                    "operation_id": submitted.operation_id,
-                    "operation": outcome["job"].get("operation"),
-                    "status": submitted.status,
-                }
-            ],
-            result_status=submitted.status,
-            request_metadata={
-                "project_id": submitted.project_id,
-                "chat_id": submitted.chat_id,
-            },
-        )
+        parked = None
+        if outcome["job"].get("operation") == "apply_changes":
+            # A cloud command's file changes: its code-run result continues now.
+            from backend.apps.code.tasks.cloud_command_execution import take_parked_completion
+            parked = await take_parked_completion(
+                cache_service, submitted.operation_id, submitted.status, validated_result,
+            )
+        if parked is not None:
+            await dispatch_async_skill_continuation(
+                cache_service=cache_service, async_task_id=continuation_id, **parked,
+            )
+        else:
+            await dispatch_async_skill_continuation(
+                cache_service=cache_service,
+                async_task_id=continuation_id,
+                completed_results=[
+                    {
+                        **validated_result,
+                        "operation_id": submitted.operation_id,
+                        "operation": outcome["job"].get("operation"),
+                        "status": submitted.status,
+                    }
+                ],
+                result_status=submitted.status,
+                request_metadata={
+                    "project_id": submitted.project_id,
+                    "chat_id": submitted.chat_id,
+                },
+            )
         await websocket.send_json(
             {
                 "type": "project_file_operation_completed",
@@ -324,7 +337,17 @@ async def handle_project_file_operation_reject(
             authoring_job = await get_authoring(websocket).settle_file_operation(user_id=user_id, operation_id=rejected.operation_id)
             await websocket.send_json({"type": "project_authoring_job", "payload": authoring_job})
             return
-        if not outcome.get("replayed"):
+        parked = None
+        if not outcome.get("replayed") and job.get("operation") == "apply_changes":
+            from backend.apps.code.tasks.cloud_command_execution import take_parked_completion
+            parked = await take_parked_completion(
+                cache_service, rejected.operation_id, "user_declined", {"reason": "user_declined"},
+            )
+        if parked is not None:
+            await dispatch_async_skill_continuation(
+                cache_service=cache_service, async_task_id=str(job.get("continuation_task_id") or ""), **parked,
+            )
+        elif not outcome.get("replayed"):
             await dispatch_async_skill_continuation(
                 cache_service=cache_service,
                 async_task_id=str(job.get("continuation_task_id") or ""),

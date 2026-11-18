@@ -1,8 +1,10 @@
 ---
 status: active
-last_verified: 2026-10-14
+last_verified: 2026-11-17
 key_files:
 - backend/apps/ai/app.yml
+- backend/shared/providers/typesafe/routing.py
+- backend/shared/providers/google/decisions.py
 - backend/apps/ai/utils/model_selector.py
 - backend/apps/ai/processing/preprocessor.py
 - backend/apps/ai/processing/main_processor.py
@@ -274,6 +276,27 @@ Only a failed retry advances to the next permitted model in order; provider
 diversity cannot reorder this list. Two answer-only attempts bound recovery.
 
 Foreground decision processing has a separate availability boundary: Jev runs primarily through TypeSafeAI, with OpenRouter as a transport fallback, while Gemini preprocessing remains an independently hosted fallback. Request safety similarly falls back to Mistral, and ambiguous prompt-injection decisions fall back to GPT-OSS Safeguard for exact-span redaction.
+
+#### Typed decisions per purpose (Gemini Decision 1 or Jev)
+
+Each typed decision names a `telemetry_purpose`. `decision_routing` in `backend/apps/ai/app.yml`
+([`routing.py`](../../backend/shared/providers/typesafe/routing.py)) lists, per purpose, which decision
+model answers first; unlisted purposes use Jev. Every route ends with Jev. When a purpose starts with
+Gemini Decision 1 (`google/gemini-decision-1`, Google AI Studio Decisions API,
+[`decisions.py`](../../backend/shared/providers/google/decisions.py)), `JevDecisionClient` asks Google once
+with a 2.5 s budget and falls back to Jev, inside the same call, on any error, timeout, rate limit,
+refusal, missing answer or documented size limit (for example more than 255 choice options). Gemini is
+skipped when the caller pins a Jev provider, endpoint or version, or when the user's AI settings turn off
+Gemini Decision 1 or its server (`decision_client_for_policy` sets `allow_gemini=False`). Each decision logs
+`Decision decided: purpose=… model=… provider=…`, and a fallback logs `Decision fallback to Jev: purpose=… reason=…`.
+
+Only `search_relevance`, `shopping_visual_relevance` and `result_photo_relevance` start with Gemini today.
+The comparison script in `backend/scripts/` (suites in `backend/scripts/decision_bench/`, TASK-1809) runs
+both models on every decision task. Gemini's median latency was 0.3–2.8 s and its p95 1.6–9 s, against
+about 0.2 s and 0.25 s for Jev. It refused some safety prompts (`prohibited_content`), and on image safety,
+browse control and the postprocessing harm score it missed more unsafe cases. Safety, prompt-injection,
+preprocessing, postprocessing, voice-turn and browse decisions therefore stay on Jev. PDF upload checks also
+stay on Jev because they do not follow the user's AI settings.
 
 ## Server Region Policy
 

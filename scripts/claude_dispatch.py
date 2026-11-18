@@ -38,6 +38,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -48,6 +49,8 @@ QUEUE_DIR = STATE_ROOT / "queue"
 PROCESSED_DIR = STATE_ROOT / "processed"
 PROD_STATE_FILE = STATE_ROOT / "prod-errors-state.json"
 LAUNCH_LOG = STATE_ROOT / "launches.jsonl"
+PENDING_DIR = STATE_ROOT / "pending"  # chats waiting for a free slot (claude_idle_chats.py cap)
+ADMIT_TIMEOUT_SECONDS = 300
 DEFAULT_CHAT_MODEL = "claude-opus-5-5"
 CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_MODEL", DEFAULT_CHAT_MODEL)
 CLAUDE_EFFORT = os.getenv("CLAUDE_DISPATCH_EFFORT", "high")
@@ -70,6 +73,9 @@ def resolve_claude_bin() -> str:
 CLAUDE_BIN = resolve_claude_bin()
 ZELLIJ_BIN = os.getenv("ZELLIJ_BIN") or shutil.which("zellij") or "/usr/local/bin/zellij"
 ZELLIJ_SESSION = os.getenv("CLAUDE_DISPATCH_ZELLIJ_SESSION", "claude")
+# One terminal pane per tab, no bar plugins (TASK-6763: with ~20 tabs the per-tab
+# compact-bar plugins drove the server to 14 cores and 10 GiB). New tabs inherit it.
+ZELLIJ_CHAT_LAYOUT = Path(__file__).resolve().parent / "zellij" / "chat-session.kdl"
 
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 SHORT_ID_RE = re.compile(r"^[A-HJ-NP-Z2-9]{5}$")
@@ -85,6 +91,10 @@ Launcher = Callable[[str, str], str]
 
 class DispatchError(RuntimeError):
     pass
+
+
+class ChatQueued(DispatchError):
+    """The running-chat cap is full: the chat waits in PENDING_DIR and starts by itself later."""
 
 
 def _now() -> datetime:
@@ -130,6 +140,34 @@ def _session_state(listing: str, name: str) -> str:
     return "missing"
 
 
+def zellij_scope_unit(session: str, started: float) -> str:
+    """systemd user scope that owns the zellij server of `session` and every pane in it
+    (unique per start, so a scope still held by a leftover pane never blocks a new server)."""
+    return f"openmates-zellij-{session}-{int(started)}.scope"
+
+
+def _start_zellij_server(session: str) -> None:
+    """Start the session's zellij server in its own systemd user scope.
+
+    The broker (a systemd user service) and the timers call this. A server started
+    as their child stays in their cgroup, and `systemctl --user restart` of that
+    unit then kills the server and every chat pane in it (TASK-2369: two restarts of
+    the dev connector broker took down ~15 chats). A transient scope of its own keeps
+    the server and its panes alive across those restarts. The chat layout keeps
+    bar plugins out of the session and out of every tab created in it later.
+    """
+    env = _zellij_env()
+    result = subprocess.run(
+        ["systemd-run", "--user", "--scope", "--collect", f"--unit={zellij_scope_unit(session, time.time())}",
+         f"--description=zellij session {session} (Claude pane chats)",
+         ZELLIJ_BIN, "--layout", str(ZELLIJ_CHAT_LAYOUT), "attach", "--create-background", session],
+        cwd=REPO_ROOT, env=env, capture_output=True, text=True, timeout=60,
+    )
+    if result.returncode != 0:
+        raise DispatchError(f"systemd-run zellij attach exited {result.returncode}: "
+                            f"{(result.stderr or result.stdout)[-500:]}")
+
+
 def ensure_zellij_session() -> None:
     """Make sure the persistent `claude` zellij session exists and hosts the
     `claude remote-control` bridge (for new chats started from the app)."""
@@ -139,7 +177,7 @@ def ensure_zellij_session() -> None:
         return
     if state == "exited":
         _zellij("delete-session", ZELLIJ_SESSION, "--force", check=False)
-    _zellij("attach", "--create-background", ZELLIJ_SESSION)
+    _start_zellij_server(ZELLIJ_SESSION)
     _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", "remote-control",
             "--cwd", str(REPO_ROOT), "--", *_chat_command("remote-control"))
 
@@ -159,6 +197,47 @@ def check_chat_model(model: str, explicit_model: bool = False) -> str:
     return model
 
 
+def admit_new_chat() -> str | None:
+    """None when one more chat may start now; else why not. Suspends the longest-idle chat
+    when the cap of running chats is reached (scripts/claude_idle_chats.py admit)."""
+    result = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "claude_idle_chats.py"), "admit"],
+        capture_output=True, text=True, timeout=ADMIT_TIMEOUT_SECONDS, check=False,
+    )
+    if result.returncode == 0:
+        return None
+    if result.returncode == 3:
+        return (result.stdout.strip().splitlines() or ["the running-chat cap is reached"])[-1]
+    raise DispatchError(f"chat admission check failed (exit {result.returncode}): {result.stderr.strip()[-300:]}")
+
+
+def queue_launch(title: str, prompt: str, model: str, effort: str, explicit_model: bool, why: str) -> Path:
+    PENDING_DIR.mkdir(parents=True, exist_ok=True)
+    path = PENDING_DIR / f"{_now():%Y%m%dT%H%M%S%f}.json"
+    path.write_text(json.dumps({"title": title, "prompt": prompt, "model": model, "effort": effort,
+                                "explicit_model": explicit_model, "queued_at": _now().isoformat(), "why": why}),
+                    encoding="utf-8")
+    _record_launch({"kind": "queued", "title": title, "model": model, "why": why, "file": path.name})
+    return path
+
+
+def start_pending(limit: int = MAX_ISSUE_LAUNCHES_PER_RUN) -> list[dict[str, Any]]:
+    """Start queued chats, oldest first, while the cap has room."""
+    results: list[dict[str, Any]] = []
+    for path in sorted(PENDING_DIR.glob("*.json"))[:limit] if PENDING_DIR.is_dir() else []:
+        entry = json.loads(path.read_text(encoding="utf-8"))
+        why = admit_new_chat()
+        if why:
+            results.append({"file": path.name, "status": "still queued", "why": why})
+            break
+        where = _open_chat_tab(entry["title"], entry["prompt"], entry["model"], entry["effort"])
+        path.unlink()
+        outcome = {"file": path.name, "status": "launched", "session": where, "title": entry["title"]}
+        _record_launch({"kind": "pending", "model": entry["model"], **outcome})
+        results.append(outcome)
+    return results
+
+
 def launch_claude_chat(
     title: str, prompt: str, model: str = CLAUDE_MODEL, effort: str = CLAUDE_EFFORT, explicit_model: bool = False,
 ) -> str:
@@ -171,8 +250,66 @@ def launch_claude_chat(
     Not `claude --bg`: background jobs are retired after ~8h idle at a prompt, which
     takes chats that are waiting for the admin's answer offline in the Claude app.
     Interactive sessions stay connected until the tab is closed.
+
+    When the cap of running chats is reached and no idle chat may be suspended, the
+    chat is queued (PENDING_DIR) and ChatQueued says so; the `issues` cron run starts
+    it once a slot frees. A chat is never dropped.
     """
     check_chat_model(model, explicit_model)
+    why = admit_new_chat()
+    if why:
+        path = queue_launch(title, prompt, model, effort, explicit_model, why)
+        raise ChatQueued(f"queued, not started yet ({why}); it starts by itself within minutes of a slot "
+                         f"freeing up (queue entry {path.name})")
+    return _open_chat_tab(title, prompt, model, effort)
+
+
+def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, title: str = "",
+                admitted: bool = False) -> str:
+    """Reopen a stopped chat in a new tab with `prompt` as its next message; 'ok' or why not.
+
+    Used by scripts/worktree_wip.py to wake the owner of unfinished worktree work and by
+    the chat lifecycle when a chat's wait is over (scripts/claude_chat_waiters.py). The
+    chat keeps its history (`--resume`) and its model, except Fable, which reopens on the
+    default. It is never queued: with no free slot the caller retries on its next run.
+    `admitted`: the caller (the lifecycle itself) already checked the cap of running
+    chats; `admit` would start a second lifecycle cycle inside the first.
+    """
+    if not UUID_RE.match(chat_id):
+        raise DispatchError(f"not a chat id: {chat_id!r}")
+    projects = (claude_home or Path.home() / ".claude") / "projects"
+    transcripts = sorted(projects.glob(f"*/{chat_id}.jsonl"))
+    if not transcripts:
+        return "no transcript on this host"
+    cwd, model = "", ""
+    with transcripts[0].open(encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            cwd = cwd or str(record.get("cwd") or "")
+            message = record.get("message") if isinstance(record.get("message"), dict) else {}
+            model = str(message.get("model") or model)
+    if not cwd or not Path(cwd).is_dir():
+        return f"its folder is gone ({cwd or 'unknown'})"
+    model = model if model.startswith("claude-") and not is_fable(model) else CLAUDE_MODEL
+    why = None if admitted else admit_new_chat()
+    if why:
+        return f"no free chat slot ({why})"
+    title = title or f"finish {chat_id[:8]}"
+    ensure_zellij_session()
+    _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", cwd, "--",
+            *_chat_command("--resume", chat_id, "--remote-control", title, "--model", model,
+                           "--effort", CLAUDE_EFFORT, "--permission-mode", "auto", prompt))
+    _record_launch({"kind": "waiter-resume" if admitted else "worktree-wip-resume", "title": title, "model": model,
+                    "chat": chat_id})
+    subprocess.run([sys.executable, str(REPO_ROOT / "scripts" / "claude_idle_chats.py"), "mark",
+                    "--session", chat_id, "--state", "resumed"], capture_output=True, timeout=60, check=False)
+    return "ok"
+
+
+def _open_chat_tab(title: str, prompt: str, model: str, effort: str) -> str:
     command = _chat_command(
         "--remote-control", title, "--model", model, "--effort", effort, "--permission-mode", "auto", prompt,
     )
@@ -238,9 +375,11 @@ def dispatch_issues(launcher: Launcher = launch_issue_chat, dry_run: bool = Fals
                 continue
             outcome["session"] = launcher(f"Issue {short_id}: investigate & fix", issue_prompt(issue_id, short_id))
             outcome["status"] = "launched"
+        except ChatQueued as exc:
+            outcome.update(status="queued", note=str(exc))  # moved to PENDING_DIR; starts from there
         except (DispatchError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
             outcome.update(status="failed", error=str(exc))
-        target = PROCESSED_DIR / ("ok" if outcome["status"] == "launched" else "failed")
+        target = PROCESSED_DIR / ("ok" if outcome["status"] in ("launched", "queued") else "failed")
         target.mkdir(parents=True, exist_ok=True)
         path.replace(target / f"{_now():%Y%m%dT%H%M%S}-{path.name}")
         _record_launch({"kind": "issue", "model": ISSUE_CLAUDE_MODEL, **outcome})
@@ -363,7 +502,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "issues":
-        results = dispatch_issues(dry_run=args.dry_run)
+        results = [] if args.dry_run else start_pending()
+        results += dispatch_issues(dry_run=args.dry_run)
         if results:
             print(json.dumps(results))
         return 1 if any(r["status"] == "failed" for r in results) else 0

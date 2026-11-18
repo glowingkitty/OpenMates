@@ -115,6 +115,60 @@ units:
     - Streamed embed write ordering and key resolution (master/chat wrapper, legacy child inheritance) have no assertion.
     rust_paths:
     - packages/openmates-browser-bindings/src/browser_embed_write.rs
+  embedWriteGuest:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No web-rust-core spec yet; anonymous-child-embeds.spec.ts (guest result card survives reload) covers the flow outside the web-rust-core set.
+    - Guest result cards are not carried over to the account on signup (no master wrapper, never uploaded).
+    spec_assertions: [billing.anonymous.local-only-content]
+    spec_gaps:
+    - Signup promotion of local-only guest embeds has no assertion.
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_embed_write.rs
+    - packages/openmates-rust/src/client/embed_write_session.rs
+  presentRemote:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No flag-on web-rust-core spec yet; slides-present-remote.spec.ts covers the remote flow once the web UI lane lands.
+    spec_assertions:
+    - slides.present.remote-relay-private
+    - slides.present.remote-one-core
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_present_remote.rs
+    - packages/openmates-rust/src/client/shared_items/present_remote.rs
+  voiceTurn:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No web-rust-core spec; voice-call.spec.ts (e2e jobs build with the core on) covers call turns, the likely-end hint, its withdrawal and the early-prep reuse.
+    - Only voice-call turns use the unit; text-chat send still runs through the TypeScript sender (sendersChatMessages.ts), whose voice branch stays until text send moves to the core.
+    - The flag-off TypeScript voice path (chatSyncService.sendNewMessage) remains until the web flip.
+    spec_assertions:
+    - video-call.audio.complete-turn-admission
+    - chats.send.immediate-admission
+    spec_gaps: []
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_voice_turn.rs
+    - packages/openmates-rust/src/client/voice_turn.rs
+    - packages/openmates-rust/src/client/voice_turn_public.rs
+    - packages/openmates-rust/src/client/send_turn_stages.rs
+  projectTimeline:
+    specs: []
+    vectors: []
+    open_gaps:
+    - No flag-on web-rust-core spec yet for the Project Timeline tab.
+    - Commit restore is not served by the unit; the core restore needs the native hosted-file writer (workflow-yaml + unix) which has no wasm32 build.
+    - Timeline file rows open the file's folder in the Files tab, not the file viewer.
+    spec_assertions: []
+    spec_gaps:
+    - The Timeline tab load, load-more and file-open behavior has no assertion.
+    rust_paths:
+    - packages/openmates-browser-bindings/src/browser_project_timeline.rs
+    - packages/openmates-rust/src/work/projects/timeline.rs
+    - packages/openmates-rust/src/work/projects/timeline_presentation.rs
   embedEdit:
     specs: []
     vectors: []

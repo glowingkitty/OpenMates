@@ -8,6 +8,7 @@ import pytest
 import scripts.claude_dispatch as dispatch
 
 ISSUE_ID = "0b6f5c1e-8a3b-4b8e-9d55-2f1f0c1d2e3f"
+REAL_ADMIT = dispatch.admit_new_chat  # the autouse fixture stubs it
 
 
 @pytest.fixture(autouse=True)
@@ -17,6 +18,8 @@ def isolated_state(tmp_path, monkeypatch):
     monkeypatch.setattr(dispatch, "PROCESSED_DIR", tmp_path / "processed")
     monkeypatch.setattr(dispatch, "PROD_STATE_FILE", tmp_path / "prod-state.json")
     monkeypatch.setattr(dispatch, "LAUNCH_LOG", tmp_path / "launches.jsonl")
+    monkeypatch.setattr(dispatch, "PENDING_DIR", tmp_path / "pending")
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: None)  # room for a new chat
     (tmp_path / "queue").mkdir()
     return tmp_path
 
@@ -221,7 +224,104 @@ def test_launch_recreates_missing_or_exited_session_with_bridge(monkeypatch):
         calls = _fake_zellij(monkeypatch, listing)
         dispatch.launch_claude_chat("title", "prompt")
         assert any("delete-session" in call for call in calls) is expect_delete
-        assert any(call[1:3] == ["attach", "--create-background"] for call in calls)
+        # the new server starts in its own systemd scope, never as a child of the caller
+        assert any(call[0] == "systemd-run" and call[-3:-1] == ["attach", "--create-background"] for call in calls)
         bridge = next(call for call in calls if "remote-control" in call and "--name" in call
                       and call[call.index("--name") + 1] == "remote-control")
         assert bridge[-1] == "remote-control"
+
+
+FULL = "no room: 20 chats run (max 20) and none may be suspended now"
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_full_chat_cap_queues_the_chat_instead_of_dropping_it(isolated_state, monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: FULL)
+    with pytest.raises(dispatch.ChatQueued, match="queued, not started yet"):
+        dispatch.launch_claude_chat("Queued title", "the prompt")
+    assert not calls, "no tab may open while the cap is full"
+    [pending] = list((isolated_state / "pending").iterdir())
+    entry = json.loads(pending.read_text())
+    assert (entry["title"], entry["prompt"], entry["why"]) == ("Queued title", "the prompt", FULL)
+    assert '"kind": "queued"' in (isolated_state / "launches.jsonl").read_text()
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_queued_chats_start_oldest_first_once_a_slot_frees(isolated_state, monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    room = iter([FULL, FULL])
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: next(room))
+    for title in ("First", "Second"):
+        with pytest.raises(dispatch.ChatQueued):
+            dispatch.launch_claude_chat(title, "prompt")
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: FULL)
+    assert dispatch.start_pending()[0]["status"] == "still queued"
+    assert len(list((isolated_state / "pending").iterdir())) == 2
+    answers = iter([None, FULL])
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: next(answers))
+    results = dispatch.start_pending()
+    assert [r["status"] for r in results] == ["launched", "still queued"]
+    assert results[0]["title"] == "First"
+    assert calls[-1][calls[-1].index("--name") + 1] == "First"
+    assert len(list((isolated_state / "pending").iterdir())) == 1
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_issue_request_is_queued_not_failed_when_the_cap_is_full(isolated_state, monkeypatch):
+    _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: FULL)
+    _queue(isolated_state, "issue-ABCDE.json",
+           {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"})
+    results = dispatch.dispatch_issues()
+    assert results[0]["status"] == "queued"
+    assert len(list((isolated_state / "pending").iterdir())) == 1
+    assert not (isolated_state / "processed" / "failed").exists()
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_admission_check_errors_fail_loudly(monkeypatch):
+    result = type("Result", (), {"returncode": 2, "stdout": "", "stderr": "Traceback: boom"})()
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda *a, **k: result)
+    with pytest.raises(dispatch.DispatchError, match="admission check failed"):
+        REAL_ADMIT()
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_new_zellij_server_starts_in_its_own_systemd_scope(monkeypatch):
+    """A server started by the broker or a timer must not live in their cgroup: restarting that
+    unit would kill the server and every chat pane in it (TASK-2369)."""
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+    monkeypatch.setattr(dispatch.subprocess, "run", fake_run)
+    monkeypatch.setattr(dispatch, "_zellij", lambda *args, check=True: (
+        calls.append(["zellij", *args]) or type("R", (), {"stdout": "", "returncode": 0})()))
+    dispatch.ensure_zellij_session()
+    start = next(cmd for cmd in calls if cmd[0] == "systemd-run")
+    assert start[:4] == ["systemd-run", "--user", "--scope", "--collect"]
+    assert any(arg.startswith("--unit=openmates-zellij-claude-") for arg in start)
+    assert start[-3:] == ["attach", "--create-background", "claude"]
+    assert not any(cmd[:3] == ["zellij", "attach", "--create-background"] for cmd in calls)
+    # TASK-6763: the server (and every later tab) uses the bar-less chat layout
+    layout = start[start.index("--layout") + 1]
+    assert layout == str(dispatch.ZELLIJ_CHAT_LAYOUT)
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_chat_layout_has_one_terminal_pane_and_no_plugins():
+    """The per-tab compact-bar plugins drove zellij to 1,400% CPU and 10 GiB (TASK-6763)."""
+    text = dispatch.ZELLIJ_CHAT_LAYOUT.read_text()
+    code = "\n".join(line.split("//", 1)[0] for line in text.splitlines())
+    assert "plugin" not in code and "children" in code and "pane" in code
+
+
+# contract-test: supporting surface=tooling assertions=issue-reporting.automation.admin-dev-claude-chat
+def test_zellij_scope_start_failure_is_an_error(monkeypatch):
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda cmd, **kw: type(
+        "Result", (), {"returncode": 1, "stdout": "", "stderr": "Failed to connect to bus"})())
+    with pytest.raises(dispatch.DispatchError, match="Failed to connect to bus"):
+        dispatch._start_zellij_server("claude")

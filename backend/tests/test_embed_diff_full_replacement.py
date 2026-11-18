@@ -416,5 +416,9 @@ async def test_applies_bare_diff_fence_to_existing_code_embed() -> None:
     assert "def calculate_average" not in embed_service.updated_code
     assert "@@" not in embed_service.updated_code
     assert embed_service.version_number == 2
-    assert isinstance(cache_service.embeds["embed-1"], dict)
-    assert cache_service.embeds["embed-1"]["version_number"] == 2
+    # update_code_embed_content caches v2 with the new content; the consumer must not
+    # re-cache the pre-patch dict (old content under the new version) after it.
+    assert cache_service.embeds["embed-1"] == {
+        "embed_id": "embed-1", "type": "code", "status": "finished",
+        "version_number": 1, "encrypted_content": "encrypted",
+    }

@@ -1240,6 +1240,19 @@ private final class RecoveryRecordingTransport: ChatWebSocketTransport {
         return try await waitForMessage(responseType, timeout: timeout, matching: predicate)
     }
 
+    // Saved-chat preflight sends through the fenced overload; the protocol's
+    // default refuses it, so the fake validates at its own send boundary.
+    func sendAndWait(
+        _ message: WSOutboundMessage,
+        responseType: String,
+        timeout: Duration,
+        matching predicate: @escaping ([String: Any]) -> Bool,
+        beforeSend: @escaping @MainActor () throws -> Void
+    ) async throws -> WebSocketResponse {
+        try await MainActor.run { try beforeSend() }
+        return try await sendAndWait(message, responseType: responseType, timeout: timeout, matching: predicate)
+    }
+
     func waitForMessage(
         _ type: String,
         timeout: Duration,

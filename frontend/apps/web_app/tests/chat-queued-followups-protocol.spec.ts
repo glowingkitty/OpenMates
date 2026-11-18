@@ -15,6 +15,7 @@ const { randomUUID } = require('node:crypto');
 const { runCli } = require('./helpers/cli-test-helpers');
 const { installRecorderDeps } = require('./cli-tui-proof-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { ensureIsolatedRecoveryEpoch } = require('./helpers/recovery-epoch');
 const { getE2EDebugUrl, getTestAccount, withMockMarker } = require('./signup-flow-helpers');
 const {
   loginToTestAccount, waitForChatReady, sendMessage, waitForAssistantMessage,
@@ -182,23 +183,32 @@ async def main():
     try:
         client=await cache.client
         found=False
-        for embed_id in await cache.get_chat_embed_ids(chat_id):
+        seen=[]
+        embed_ids=await cache.get_chat_embed_ids(chat_id)
+        for embed_id in embed_ids:
             data=await cache.get_embed_from_cache(embed_id)
+            seen.append('missing' if not data else 'cached')
             if not data: continue
             # The accepted queue member provides the authenticated owner identity.
             members=await client.lrange(f'chat:{chat_id}:message_queue',0,19)
             owner=json.loads(members[0])['user_id']
             key=await cache.get_user_vault_key_id(owner)
             kind=await encryption.decrypt_with_user_key(data['encrypted_type'],key)
-            if kind != 'code': continue
+            seen[-1]=kind
+            # Web sends the UI type code-code; the AI context treats both spellings as code.
+            if kind not in ('code', 'code-code'): continue
             content=await encryption.decrypt_with_user_key(data['encrypted_content'],key)
-            if 'queued_cache_sentinel' not in content: continue
+            if 'queued_cache_sentinel' not in content:
+                seen[-1]='code-without-sentinel'
+                continue
             assert data['encrypted_content'].startswith('vault:v')
             assert 'queued_cache_sentinel' not in json.dumps(data)
             assert await client.ttl(cache._get_embed_cache_key(embed_id)) > 23*3600
             assert await client.ttl(cache._get_chat_embed_ids_key(chat_id)) > 23*3600
             found=True
-        assert found, 'Submitted code must remain encrypted, indexed and readable for AI context'
+        queue_len=await client.llen(f'chat:{chat_id}:message_queue')
+        assert found, ('Submitted code must remain encrypted, indexed and readable for AI context; '
+                       f'indexed={len(embed_ids)} seen={seen} queue_len={queue_len}')
         print('code context cache validated')
     finally:
         await cache.close()
@@ -217,6 +227,8 @@ test.describe('Queued follow-up authenticated protocol', () => {
     || process.env.CI_TEST_MODE !== 'e2e' || !process.env.E2E_USE_MOCKS,
   'Requires isolated GitHub product stack and deterministic mock inference');
   skipWithoutCredentials(test, email, password, otpKey);
+  // Dev and production run recovery epoch one; a fresh isolated stack starts at zero.
+  test.beforeAll(() => ensureIsolatedRecoveryEpoch('chat-queued-followups-protocol.spec.ts'));
 
   // contract-test: direct surface=gui.web assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision,chat-queued-followups.steering.safe-boundary,chat-queued-followups.access.scoped,chats.message.identity-idempotent
   // contract-test: supporting surface=rest_api assertions=chat-queued-followups.admission.synced,chat-queued-followups.editing.stable-revision,chat-queued-followups.steering.safe-boundary,chat-queued-followups.access.scoped,chats.message.identity-idempotent
@@ -240,8 +252,12 @@ test.describe('Queued follow-up authenticated protocol', () => {
           if (typeof data === 'string') {
             try {
               const frame = JSON.parse(data);
-              const id = frame.payload?.message?.message_id;
-              if (frame.type === 'chat_message_added' && typeof id === 'string') {
+              // Personal chats admit a turn with chat_turn_admit (message_id at the
+              // top level); chat_message_added carries the message for other paths.
+              const id = frame.type === 'chat_turn_admit'
+                ? frame.payload?.message_id
+                : frame.payload?.message?.message_id;
+              if ((frame.type === 'chat_message_added' || frame.type === 'chat_turn_admit') && typeof id === 'string') {
                 sent.set(id, { socket: this, data });
               }
             } catch { /* Control frames need no replay. */ }
@@ -619,10 +635,18 @@ test.describe('Queued follow-up authenticated protocol', () => {
 
       const acknowledgementsBeforeCode = frames.filter((frame) => frame.direction === 'received'
         && frame.type === 'message_queued').length;
-      await sendMessage(page, "Review this code while it waits.\n\n```python\nprint('queued_cache_sentinel')\n```");
-      await expect.poll(() => frames.filter((frame) => frame.direction === 'received'
-        && frame.type === 'message_queued').length, { timeout: 30_000 })
-        .toBe(acknowledgementsBeforeCode + 1);
+      await sendMessage(page, "Review this code while it waits.\n\n```python\nprint('queued_cache_sentinel')\n```",
+        undefined, undefined, 'code', { embedsFencedCode: true });
+      try {
+        await expect.poll(() => frames.filter((frame) => frame.direction === 'received'
+          && frame.type === 'message_queued').length, { timeout: 30_000 })
+          .toBe(acknowledgementsBeforeCode + 1);
+      } catch (error) {
+        const tail = frames.slice(-25).map((frame) => `${frame.direction}:${frame.type}`
+          + (frame.payload?.code ? `(${frame.payload.code})` : '')
+          + (frame.payload?.error ? `(${String(frame.payload.error).slice(0, 80)})` : ''));
+        throw new Error(`code follow-up was not queued; last frames: ${JSON.stringify(tail)}\n${(error as Error).message}`);
+      }
       validateCodeContextCache(chatId!);
     } finally {
       // Retain this witness for every outcome, including failures after the

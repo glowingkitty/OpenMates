@@ -2,7 +2,8 @@
 // Specification: specifications/features/video-call/specification.yml
 // Assertions: video-call.chat.fixed-binding, video-call.chat.transcripts,
 // video-call.chat.compressed-context, video-call.privacy.first-call-warning,
-// video-call.audio.spoken-rich-response, video-call.audio.complete-turn-admission, video-call.audio.intentional-interruption
+// video-call.audio.spoken-rich-response, video-call.audio.complete-turn-admission, video-call.audio.intentional-interruption,
+// video-call.video.input-and-output, video-call.video.source-frame-provenance
 #if !os(watchOS)
 import Foundation
 import CryptoKit
@@ -21,10 +22,20 @@ protocol NativeVoiceCallAppDriving: AnyObject {
     func start(_ destination: NativeVoiceCallAppDestination) async throws
     func sendText(_ text: String) async throws -> String
     func setMuted(_ muted: Bool) async
+    func sendCameraState(_ enabled: Bool) async
+    func sendCameraFrame(_ frame: NativeVoiceCallCameraFrame) async
     func hangup() async
     func invalidate() async
     func snapshot() async -> NativeVoiceCallSnapshot
     func respondToTool(_ frame: NativeVoiceCallFrame) async throws
+    /// Real audio level bars (mic while live and unmuted, assistant playback); default: none.
+    func bindMeter(_ sink: @escaping @MainActor @Sendable ([Float]) -> Void)
+}
+
+extension NativeVoiceCallAppDriving {
+    func bindMeter(_ sink: @escaping @MainActor @Sendable ([Float]) -> Void) {}
+    func sendCameraState(_ enabled: Bool) async {}
+    func sendCameraFrame(_ frame: NativeVoiceCallCameraFrame) async {}
 }
 
 /// Retain once per authenticated app root, outside navigation destinations.
@@ -58,6 +69,7 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
               event: @escaping @MainActor @Sendable (NativeVoiceCallEvent) async -> Void) {
         self.consent = consent; downstream = event
     }
+    func bindMeter(_ sink: @escaping @MainActor @Sendable ([Float]) -> Void) { audio.levelSink = sink }
     private func check(_ scope: NativeVoiceCallScope) throws {
         guard !Task.isCancelled, let binding, binding.scope == scope,
               auth.state == .authenticated, auth.currentUser?.id == scope.accountID,
@@ -115,8 +127,12 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
                 try await self.interruptAssistant(scope: scope, messageID: id, taskID: taskID)
             }, now: base.now, sleep: base.sleep)
     }()
+    private let sourceFrames = NativeVoiceCallSourceFrames.live()
     private lazy var controller: NativeVoiceCallController = NativeVoiceCallController(environment: environment, audio: audio, persistence: outbox,
         transportFactory: { NativeVoiceCallURLSessionTransport(cookieStorage: OpenMatesSharedEnvironment.cookieStorage) },
+        sourceFrameAnswer: { [sourceFrames] frame, callID, chatID in
+            await sourceFrames.answer(frame: frame, callID: callID, chatID: chatID)
+        },
         eventHandler: { [weak self] event in await self?.receive(event) })
 
     private func audioInvalidated() async { await controller.invalidateScope() }
@@ -338,10 +354,19 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
             })
         try check(scope)
         guard socket.transportGeneration == generation else { throw NativeVoiceCallError.connectionLost }
+        Self.advanceMessagesVersion(store, chatID: scope.chatID, receipt: response, fields: answer.fields)
         let result = try JSONSerialization.data(withJSONObject: answer.fields)
         guard result.count <= 2 * 1_024 * 1_024 else { throw NativeVoiceCallError.invalidResponse }
         var decoded = try JSONDecoder().decode(NativeVoiceCallFrame.self, from: result)
         decoded["type"] = .string(response); return decoded
+    }
+    /// Call/system message receipts carry the chat's authoritative `messages_v`
+    /// (as in the core's VERSION_RECEIPT_FRAMES); apply it monotonically so the
+    /// next typed or voice send is not built on a stale version.
+    static func advanceMessagesVersion(_ store: ChatStore, chatID: String, receipt: String, fields: [String: Any]) {
+        guard ["call_message_confirmed", "call_message_changed", "system_message_confirmed"].contains(receipt),
+              let version = (fields["messages_v"] as? NSNumber)?.intValue else { return }
+        store.advanceMessagesVersion(chatId: chatID, to: version)
     }
     private func submitTurn(scope: NativeVoiceCallScope, transcript: NativeVoiceCallTranscript) async throws {
         try check(scope)
@@ -442,6 +467,8 @@ final class NativeVoiceCallAppFactory: NativeVoiceCallAppDriving {
     }
     func sendText(_ text: String) async throws -> String { try await controller.sendText(text) }
     func setMuted(_ muted: Bool) async { await controller.setMuted(muted) }
+    func sendCameraState(_ enabled: Bool) async { await controller.sendCameraState(enabled: enabled) }
+    func sendCameraFrame(_ frame: NativeVoiceCallCameraFrame) async { await controller.sendCameraFrame(frame) }
     func hangup() async { await controller.hangup() }
     func snapshot() async -> NativeVoiceCallSnapshot { await controller.snapshot() }
     func respondToTool(_ frame: NativeVoiceCallFrame) async throws { try await controller.sendToolResponse(frame) }

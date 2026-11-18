@@ -219,7 +219,7 @@ def _compat_discovery_functions():
     namespace["ChatRecoveryProtocolError"] = ProtocolError
     for path, names in [
         (root / "core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py",
-         {"_OriginBoundRecoveryManager", "_bound_recovery_inventory_manager", "send_available_recovery_jobs", "send_available_recovery_outputs"}),
+         {"_OriginBoundRecoveryManager", "_bound_recovery_inventory_manager", "_held_by_connected_origin", "_without_origin", "send_available_recovery_jobs", "send_available_recovery_outputs"}),
         (root / "core/api/app/routes/websockets.py",
          {"_discover_foreground_recovery", "_validated_inventory_request_id"}),
     ]:

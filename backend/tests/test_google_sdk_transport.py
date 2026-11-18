@@ -27,12 +27,18 @@ def test_stream_usage_keeps_numeric_attribution_private_and_missing_thoughts_unk
     counters = json.loads(caplog.records[-1].getMessage().split("counters=", 1)[1])
     assert counters == {"prompt_token_count": 3818, "candidates_token_count": 64,
                         "total_token_count": 3900, "thoughts_token_count": None,
+                        "cached_content_token_count": None,
                         "system_prompt_tokens": 3800, "user_input_tokens": 18}
     assert "private-request" not in caplog.text and "private-answer" not in caplog.text
     usage.thoughts_token_count = 18
     with caplog.at_level(logging.INFO, logger=google_client.__name__):
         google_client._log_google_stream_usage(timing, usage)
     assert '"thoughts_token_count": 18' in caplog.records[-1].getMessage()
+    # The parsed usage model stores the SDK cache counter as cache_read_input_tokens.
+    parsed = google_client.GoogleUsageMetadata(prompt_token_count=3818, cache_read_input_tokens=1200)
+    with caplog.at_level(logging.INFO, logger=google_client.__name__):
+        google_client._log_google_stream_usage(timing, parsed)
+    assert '"cached_content_token_count": 1200' in caplog.records[-1].getMessage()
     monkeypatch.setattr(google_client.logger, "info", lambda *_args: (_ for _ in ()).throw(RuntimeError()))
     google_client._log_google_stream_usage(timing, usage)
 

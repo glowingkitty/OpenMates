@@ -51,7 +51,8 @@ def storage_modules(monkeypatch):
     # is a hard failure. Core initialization and cleanup remain real methods.
     secrets = SimpleNamespace(initialize=AsyncMock(), aclose=AsyncMock(),
                               get_secret=AsyncMock(return_value=None))
-    cache = SimpleNamespace(get_active_ai_task=AsyncMock(return_value=None), close=AsyncMock())
+    cache = SimpleNamespace(get_active_ai_task=AsyncMock(return_value=None), close=AsyncMock(),
+                            set=AsyncMock(return_value=True))
     directus = SimpleNamespace(close=AsyncMock())
     encryption = SimpleNamespace(initialize=AsyncMock())
     s3 = SimpleNamespace(initialize=AsyncMock())
@@ -146,3 +147,70 @@ def test_storage_initialization_failure_propagates_and_cleans_up(storage_modules
     fixture.directus.close.assert_awaited_once()
     fixture.cache.close.assert_awaited_once()
     fixture.finance_initializer.assert_not_awaited()
+
+
+def _dispatch_cache(*, claims, backoff=None):
+    client = SimpleNamespace(set=AsyncMock(side_effect=claims))
+    async def get(key):
+        return backoff if key.startswith("storage:warm-backoff:") else None
+    return _FakeCache(get=AsyncMock(side_effect=get), delete=AsyncMock(), _client=client), client
+
+
+async def _awaitable(value):
+    return value
+
+
+class _FakeCache(SimpleNamespace):
+    @property
+    def client(self):
+        return _awaitable(self._client)
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable
+def test_warm_dispatch_claims_once_per_bucket_and_honors_backoff(storage_modules, monkeypatch):
+    from backend.core.api.app.services import chat_message_archive_service as archive
+    storage = storage_modules.storage
+    service = SimpleNamespace(transaction=AsyncMock(return_value={"chat_ids": ["a", "b"], "next_cursor": None}))
+    monkeypatch.setattr(archive, "ChatMessageArchiveService", Mock(return_value=service))
+    cache, client = _dispatch_cache(claims=[True, False])
+    dispatch = Mock()
+    count = asyncio.run(storage.dispatch_due_warm_chat_archives(
+        directus_service=None, cache_service=cache, dispatch=dispatch, now_timestamp=3000))
+    assert count == 1
+    dispatch.assert_called_once_with("a")
+    assert client.set.await_args_list[0].kwargs == {"ex": 300, "nx": True}
+    assert client.set.await_args_list[0].args[0].endswith(":10")
+
+    cache, client = _dispatch_cache(claims=[True], backoff="unstable_message_order")
+    dispatch = Mock()
+    assert asyncio.run(storage.dispatch_due_warm_chat_archives(
+        directus_service=None, cache_service=cache, dispatch=dispatch, now_timestamp=3000)) == 0
+    dispatch.assert_not_called()
+    client.set.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable
+def test_warm_dispatch_without_redis_keeps_dispatching(storage_modules, monkeypatch):
+    from backend.core.api.app.services import chat_message_archive_service as archive
+    storage = storage_modules.storage
+    service = SimpleNamespace(transaction=AsyncMock(return_value={"chat_ids": ["a"], "next_cursor": None}))
+    monkeypatch.setattr(archive, "ChatMessageArchiveService", Mock(return_value=service))
+    cache = _FakeCache(get=AsyncMock(return_value=None), delete=AsyncMock(), _client=None)
+    dispatch = Mock()
+    assert asyncio.run(storage.dispatch_due_warm_chat_archives(
+        directus_service=None, cache_service=cache, dispatch=dispatch, now_timestamp=3000)) == 1
+    dispatch.assert_called_once_with("a")
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable
+def test_deterministic_archive_failure_backs_off_chat(storage_modules, monkeypatch):
+    from backend.core.api.app.services import chat_message_archive_service as archive
+    fixture = storage_modules
+    copy = AsyncMock(side_effect=archive.ArchiveIntegrityError("unstable_message_order"))
+    monkeypatch.setattr(archive, "ChatMessageArchiveService",
+                        Mock(return_value=SimpleNamespace(copy_segment=copy)))
+    with pytest.raises(archive.ArchiveIntegrityError):
+        fixture.storage.archive_cold_chat(fixture.task, chat_id="fixture-chat")
+    key, reason = fixture.cache.set.await_args.args
+    assert key.startswith("storage:warm-backoff:") and reason == "unstable_message_order"
+    assert fixture.cache.set.await_args.kwargs == {"ttl": 6 * 3600}

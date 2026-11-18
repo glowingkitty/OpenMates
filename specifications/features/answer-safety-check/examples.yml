@@ -1,0 +1,31 @@
+schema_version: 1
+specification: feature.answer-safety-check@1
+
+checks:
+  - id: ordinary-chat-no-live-check
+    assertion_ids: [answer-safety-check.live-checks-risky-only, answer-safety-check.every-answer-checked]
+    given: "Jonas asks for a long packing list for a hiking trip in an ordinary chat."
+    when: "The answer streams and finishes."
+    then: "No check runs while it streams; the finished answer is checked once with the existing postprocessing call and stays."
+  - id: risky-chat-live-check
+    assertion_ids: [answer-safety-check.live-checks-risky-only]
+    given: "A chat has a raised wellbeing level and the answer is long."
+    when: "The answer streams."
+    then: "It is checked at each interval up to the cap, and a withdrawal stops the stream at once."
+
+withdrawals:
+  - id: wellbeing-risk-withdrawn
+    assertion_ids: [answer-safety-check.withdraw-only-illegal-or-wellbeing, answer-safety-check.no-strike]
+    given: "A finished answer would put a user at risk who said they are not eating."
+    when: "The answer check scores a high wellbeing risk."
+    then: "The answer is replaced by a calm notice in the user's language on every device; no strike is recorded."
+  - id: dark-but-legal-stays
+    assertion_ids: [answer-safety-check.withdraw-only-illegal-or-wellbeing]
+    given: "An answer explains the history of a war crime for a school essay."
+    when: "The answer check runs."
+    then: "The answer stays; uncomfortable but legal content is not withdrawn."
+  - id: arbitrary-overwrite-refused
+    assertion_ids: [answer-safety-check.replace-only-withdrawn]
+    given: "A client asks the server to overwrite an assistant message the server never withdrew."
+    when: "The replace request arrives."
+    then: "The server refuses it and the stored message stays unchanged."

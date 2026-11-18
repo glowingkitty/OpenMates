@@ -1,0 +1,28 @@
+schema_version: 2
+profile: concise
+id: travel-mixed-routes
+title: Travel - mixed routes with owned passes
+status: implementing
+goal: "Optimize connection search for mixed routes: user-stated passes (e.g. a regional travel pass) in the request; candidate transfer hubs near borders or the end of the regional network; combine legs with realistic transfer buffers; rank by total price (covered legs free), duration and changes; show per leg which ticket applies and where to book. Generic routing and ranking stay provider-neutral in the public repo; provider-specific code stays in the operator-installed package. Prove with real queries (Munich-Zurich, Berlin-Prague, Berlin-Copenhagen) on phone and laptop with videos, regression tests, a dev deploy and a savings report against the single-provider route."
+specifications:
+  - feature.app-skill.travel-search@1
+scope:
+  - "Delegate hook: the original skill class may refine an installed-provider group (compose and rank) with a bounded search callback; generic, no provider names (backend/shared/app_packages/delegate_skill.py)."
+  - "Travel routing module (backend/apps/travel/routing/): pass catalog, public geographic hub data, hub selection by detour, conservative pass coverage, transfer buffers, composition, effective-price ranking, savings, ticket parts, 15-minute search cache."
+  - "Web: connection card and fullscreen show composed routes' ticket parts, separate-ticket note and saving; CLI/TUI keep the generic embed rendering (ticket and composition fields are part of the result)."
+  - "Operator-installed package (outside the repo): segment product classes and the rail product filter for the timetable provider."
+  - "Out: a stored travel-pass setting, Apple ticket display and translated fare/ticket labels (follow-up Tasks), discount cards."
+checks:
+  - "Backend pytest for the routing module (coverage, buffers, composition, ranking, savings, bounds) and the delegate hook."
+  - "Web component preview spec for a composed connection card and fullscreen with ticket parts."
+  - "Real-inference web runs on dev with videos (dev-only, personal test account): Munich-Zurich on phone and laptop, Berlin-Prague and Berlin-Copenhagen on laptop (tests/travel-mixed-routes-real.spec.ts)."
+  - "Private-name grep of the staged diff and commit message before deploy."
+decisions:
+  - "Owner request 2026-11-16 (receipts ac1e402ecf87dcba, 4e26ca7cd9b17c83): start now; generic logic public and provider-neutral, provider code private."
+  - "Composition runs in the installed-provider delegate path because connection search has no built-in provider; the travel skill class owns the domain logic through a generic hook so shared code stays app-neutral."
+  - "Pass coverage is computed from segment product class and endpoint countries against a small public pass catalog; unknown means not covered."
+  - "Hubs are public geographic data (stations near borders and long-distance hubs), selected by detour from geocoded origin and destination; at most three hubs, two searches each."
+  - "Hub searches run after the providers answered, so a connection search naming an owned pass gets a 60 s skill envelope and the hub searches a 30 s budget; past it the ranked single-provider results are delivered (found in real runs on a cold cache, deploy ae4f552)."
+evidence:
+  - "Deploys 5c86344 (feature) and ae4f552 (hub-search time budget); pytest 03fe1d98 and 4950e97a green; component spec f7e3d4ca green."
+  - "Real-inference web runs on ae4f552, all four passed: Munich-Zurich phone (via Konstanz, saves EUR 12.50) and laptop (via Lindau, saves EUR 10); Berlin-Copenhagen laptop (via Rostock, saves EUR 12); Berlin-Prague laptop (via Cottbus, second part has no fare yet, ranked after priced routes). Videos shared in the owner's chat."

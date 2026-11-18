@@ -98,12 +98,29 @@ extension ChatViewModel {
         switch end.outcome {
         case .completed:
             if !end.isQueued { isStreaming = false }
+            // A queued follow-up shows its Queued row and controls from the send
+            // result; the later `queued_message_updated` broadcast is idempotent.
+            if let receipt = end.receipt, end.isQueued,
+               let fields = Self.queuedFollowupFields(
+                   chatId: receipt.chatId, messageId: receipt.userMessageId,
+                   revision: receipt.queueRevision, mode: receipt.queueMode) {
+                Task { @MainActor in await self.applyQueuedFollowupEvent(type: "queued_message_updated", fields: fields) }
+            }
         case .failed(let failure):
             isStreaming = false
             if let message = CoreChatActions.userMessage(for: failure) { error = message }
         case .cancelled:
             isStreaming = false
         }
+    }
+
+    /// Event fields for a queued core receipt; `nil` when the receipt lacks the
+    /// message id or a valid revision (the broadcast or history fetch then fills it).
+    static func queuedFollowupFields(chatId: String, messageId: String?, revision: UInt64?,
+                                     mode: SendQueueModeRecord?) -> [String: Any]? {
+        guard let messageId, !messageId.isEmpty, let revision, revision >= 1 else { return nil }
+        return ["chat_id": chatId, "message_id": messageId, "queue_revision": Int(revision),
+                "queue_mode": mode == .steer ? ChatQueuedSendMode.steer.rawValue : ChatQueuedSendMode.followUp.rawValue]
     }
 
     /// Cancels the running turn or reply through the core; the caller resets

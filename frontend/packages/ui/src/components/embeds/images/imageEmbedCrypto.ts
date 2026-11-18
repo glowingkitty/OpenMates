@@ -160,6 +160,7 @@ export async function fetchAndDecryptImage(
   aesKeyBase64: string,
   nonceBase64: string,
   variant: unknown = {},
+  format?: string,
 ): Promise<Blob> {
   const cached = imageCache.get(s3Key);
   if (cached) {
@@ -181,7 +182,7 @@ export async function fetchAndDecryptImage(
     if (generation !== cacheGeneration) {
       throw new DOMException("Image context changed", "AbortError");
     }
-    const mimeType = s3Key.endsWith(".svg")
+    const mimeType = format === "svg" || s3Key.endsWith(".svg")
       ? "image/svg+xml"
       : s3Key.endsWith(".png")
         ? "image/png"

@@ -1,0 +1,140 @@
+schema_version: 2
+profile: concise
+id: web-crypto-rust-only
+title: Web crypto-keys to rust-only (delete the TypeScript crypto paths)
+status: approved
+
+goal: >
+  (TASK-5974, owner: no approval round needed.) Move the web crypto-keys
+  capability from rust-default to rust-only: the Worker crypto unit (Rust) is the
+  only implementation; cryptoService.ts, authKeyDerivation.ts and
+  services/encryption/ are deleted or reduced to thin adapters. Existing messages,
+  share links and media written by the pre-change build must still decrypt.
+
+contract: specifications/architecture/client-core/specification.yml (client-core.* rules; keys and crypto live only in the core)
+
+scope:
+  in:
+    - Web crypto-keys deletion order, core gaps, and the old-data proof.
+  out:
+    - Apple/TUI crypto (already Rust on TUI, Apple has its own plan step).
+    - Changing any ciphertext format.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Flip rule. TypeScript for a (sub)capability and its VITE_OPENMATES_RUST_CORE / opt-out branch are deleted only in the deploy that makes it rust-only. Before that deploy only code that runs solely with the flag on (flag-on TS fallbacks, twins, the openmates_rust_core_crypto opt-out, the runTypeScriptCryptoBaseline harness) may go; flag-off behaviour stays byte-identical.
+  - id: D-2
+    status: active
+    decision: Proof of old-data compatibility uses ciphertext produced by the pre-change build, never ciphertext freshly produced by the new code.
+  - id: D-3
+    status: active
+    decision: No ciphertext format changes. Every wire format (IV length, tag, base64 encoding, version prefix, key wrapping) stays as the deployed TS writes it; Rust must match it.
+
+# Inventory (checked against code at base commit e492935f83).
+# Rust ops exist and are covered by packages/openmates-rust/tests/web_crypto_corpus.rs
+# (vectors from ts_web_formats/generate.cjs and ts_web_policy/generate.cjs, run in
+# Rust and in the browser WASM binding) for: MessageEncryptor, MetadataEncryptor,
+# shareEncryption (share.rs), mediaEncryption (media.rs), chatKeyWriteGuard
+# (chat_key_policy.rs), legacy OM IV framing (aead.rs, crypto_legacy_om.rs),
+# browser legacy password (browser_legacy.rs), web formats (web_formats.rs).
+# Worker side: services/rustCore/crypto/{keyOps,workOps,guestOps,memoryOps,
+# orchestrationOps,shareStateOps,webCryptoFacades,webCryptoClient}.ts.
+gaps:
+  - id: G-1
+    gap: cryptoService.ts (856 lines; deriveKeyFromPassword, deriveKeyFromApiKey, hashKey, hkdf, PRF key derivation, generateSecureRecoveryKey, wrap/unwrap) and authKeyDerivation.ts (452 lines) have no Rust Worker op. Rust has the primitives (master.rs, password_master.rs, signup.rs, browser_legacy.rs, aead.rs); the Worker surface and the passkey PRF/WebAuthn glue (platform API, stays shell) must be split.
+  - id: G-2
+    gap: Embed-key export/import used by embedShareEncryption.ts (generateEmbedShareKeyBlob, decryptEmbedShareKeyBlob, getEmbedKeyForSharing) and shortUrlEncryption.ts (encryptShareUrl, decryptShareUrl, parse/build helpers) are not exported by the browser WASM binding (src/browser_web_crypto*). share.rs covers chat share blobs only.
+  - id: G-3
+    gap: ChatKeyManager.ts (54.7K), db/chatKeyManagement, chatKeyHandles.ts and chatKeyStateMirror.ts still hold key state in TS; chatKeyWriteGuard policy is Rust but the TS guard wrapper remains. ChatKeyManager becomes a thin adapter over the Worker (calls only, no key logic, no Map of keys).
+  - id: G-4
+    gap: anonymousChatKeyWrapping.ts, chatKeyConsistency.ts, cryptoKeyStorage.ts, projectRemoteAccessCrypto.ts, sharedChatKeyStorage.ts were not audited for Rust ops; each lane must list op or add one before deleting.
+
+tasks:
+  - id: D1
+    title: Delete flag-on-only TypeScript fallbacks and the opt-out (no behaviour change for flag-off); the TS-vs-Rust baseline harness stays as parity proof until D3
+    delete:
+      - RUST_CRYPTO_OPT_OUT_KEY ('openmates_rust_core_crypto') and its branch in frontend/apps/web_app/src/lib/rustCore/webCryptoRegistration.ts
+      - TS twins that run only when the Rust unit is installed (flag on)
+    verify: vitest for rustCore/crypto, python3 scripts/ci_web_flag_off_guard.py, E2E web-rust-core-chat and web-rust-core-embeds with --web-rust-core
+    done: no reference to the opt-out key and no flag-on TS fallback remains; flag-off bundle unchanged.
+  - id: D2
+    title: Fill core gaps G-1, G-2, G-4 in Rust with tests (additive, TS still live)
+    create:
+      - Rust ops for key derivation/hkdf/hashKey/recovery-key/wrapping from cryptoService.ts and authKeyDerivation.ts (PRF input stays a platform call); embed-key and short-URL exports in the browser binding; Worker ops and facades
+      - new generate.cjs cases in packages/openmates-rust/tests/crypto_fixtures/ for every added op, generated from the TS at the base commit
+    verify: rust-check CI (web_crypto_corpus plus new vectors, native and wasm), vitest
+    done: every TS crypto export has a named Rust op and a corpus vector; capabilities.yml gap list empty.
+  - id: D3
+    title: Flip crypto-keys to rust-only and delete TypeScript
+    delete:
+      - frontend/packages/ui/src/services/cryptoService.ts, authKeyDerivation.ts, encryption/{MessageEncryptor,MetadataEncryptor,mediaEncryption}.ts, shareEncryption.ts, embedShareEncryption.ts, shortUrlEncryption.ts crypto bodies, chatKeyWriteGuard.ts, the VITE_OPENMATES_RUST_CORE branch for crypto
+      - ChatKeyManager key logic (kept as thin adapter), db/chatKeyManagement logic
+      - (parity proof no longer needed once TS is gone) runTypeScriptCryptoBaseline harness and its uses in frontend/apps/web_app/src/lib/rustCore/testing/webCryptoProof.ts, tests/helpers/web-rust-core-*.ts, web-rust-core-chat/embeds specs, embedDataClient.ts, webCryptoClient.ts
+    update: docs/migration/rust/capabilities.yml (crypto-keys web rust-only, then python3 scripts/rust_migration_yaml.py and --check), specifications/features.yml
+    verify: V-OLD-DATA, V-WEB, V-DELETE
+    done: git grep for every deleted path returns nothing; capabilities.yml says rust-only with the deploy commit.
+
+acceptance_criteria:
+  - id: AC-1
+    text: In the flip deploy the TypeScript implementation and its flag branch are deleted; no fallback remains.
+    required: true
+  - id: AC-2
+    text: Messages, metadata, share links (chat, embed, short URL, password) and media created before the change decrypt after it, proven with real pre-change data (V-OLD-DATA).
+    required: true
+  - id: AC-3
+    text: Every deleted TS crypto export maps to a named Rust op with a byte-compatible vector (IV length, tag, base64 encoding, version prefix, key wrapping).
+    required: true
+  - id: AC-4
+    text: The web Playwright suite is green flag on (default) for the exact deployed commit.
+    required: true
+
+verifications:
+  - id: V-OLD-DATA
+    kind: command
+    covers: [AC-2, AC-3]
+    command: >
+      Step 1 (before any deletion, at the base commit): extend
+      packages/openmates-rust/tests/crypto_fixtures/ts_web_formats/generate.cjs to
+      record vectors from the deployed TS encryptors for every format, including old
+      versions (legacy OM IV framing in legacy_layouts.json, six-character legacy
+      short links, nonce-less legacy media, legacy chat-key wrappers), and commit the
+      JSON; never regenerate it after the change. Step 2 (real data): on the dev
+      test account that already holds chats, run the pre-change build to export a
+      sample of real ciphertext (messages, titles, wrapped chat keys, a share blob,
+      an encrypted media file) via the debug tooling in .claude/rules/debugging.md,
+      store it as a fixture with placeholder keys only if the account key can be
+      replaced, otherwise keep it as the account's live data and read it with the
+      post-change build. Step 3: after the change run cargo web_crypto_corpus,
+      the WASM binding tests under services/rustCore/crypto/__tests__, and the E2Es
+      chat-key-wrapper-migration, media-encryption-compatibility, share-chat-flow,
+      share-embed-flow, share-password-flow, shared-chat-open, shared-chat-embed-assets,
+      multi-session-encryption, multi-tab-encryption, recovery-key-login-flow via
+      ci_coordinator.py submit --mode e2e --spec <name>. The existing-chat specs
+      (chat-key-wrapper-migration with OPENMATES_CHAT_WRAPPER_SEEDED_CHAT_ID, the frozen
+      /s/zuygP79v#BUw56h link) read data written by earlier builds, which is the real-data proof.
+  - id: V-WEB
+    kind: command
+    covers: [AC-4]
+    command: ci_coordinator.py submit --mode e2e (full set, flag on)
+  - id: V-DELETE
+    kind: command
+    covers: [AC-1]
+    command: git grep each deleted path, openmates_rust_core_crypto and runTypeScriptCryptoBaseline returns nothing
+
+strangler_order:
+  web: D1 delete flag-on-only TS, then D2 core gaps with Rust tests, then D3 flip and delete
+
+risks:
+  - id: R-1
+    risk: A Rust op subtly differs from TS for a rare legacy layout and old data stops decrypting.
+    mitigation: Vectors come from the base-commit TS (D-2); D3 is blocked until V-OLD-DATA passes; D2 stays additive so it can be rolled back.
+  - id: R-2
+    risk: Passkey PRF and WebAuthn calls are platform APIs and must stay in the shell.
+    mitigation: Only derivation after the PRF output moves to Rust; the browser call stays TypeScript.
+
+resolved_decisions:
+  - id: OD-1
+    resolution: Keep decrypt support for every legacy ciphertext version (six-character legacy short links, nonce-less media, OM-prefixed legacy IVs, legacy chat-key wrappers). No format is dropped (D-3), so no owner decision is needed.
+  - id: OD-2
+    resolution: The real-data proof reads existing old chats, share links and media on the dev test accounts read-only with the post-change build (keys never leave the account), plus the frozen pre-change share link and seeded wrapper-migration chat used by the existing E2Es; only frozen vectors from the TS base build are committed.

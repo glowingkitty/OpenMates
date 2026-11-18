@@ -45,7 +45,8 @@ function numberValue(value: unknown): number | null {
 
 function stringArrayValue(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
-  if (typeof value === 'string' && value.length > 0) return [value];
+  // Stored child embeds join lists of plain values with "|".
+  if (typeof value === 'string' && value.length > 0) return value.split('|').filter(Boolean);
   return [];
 }
 
@@ -105,7 +106,7 @@ export function extractTravelFare(content: Record<string, unknown>): TravelFare 
   };
 }
 
-function formatPrice(amount: unknown, currency: unknown): string {
+export function formatPrice(amount: unknown, currency: unknown): string {
   const numericAmount = numberValue(amount);
   const displayAmount = numericAmount === null
     ? String(amount ?? '')
@@ -115,8 +116,8 @@ function formatPrice(amount: unknown, currency: unknown): string {
   return displayCurrency ? `${displayCurrency} ${displayAmount}` : displayAmount;
 }
 
-function formatPassName(passId: string): string {
-  if (passId === 'deutschland_ticket') return 'Deutschlandticket';
+export function formatPassName(passId: string): string {
+  if (passId === 'deutschland_ticket') return 'Deutschland-Ticket';
   return passId
     .split('_')
     .filter(Boolean)
@@ -139,6 +140,9 @@ export function formatTravelFare(source: TravelFareSource): string {
   const price = formatPrice(amount, currency);
   if (!price) return confidence === 'unknown' ? 'Fare unknown' : '';
   if (fare?.is_partial === true || source.fare_is_partial === true || confidence === 'partial') {
+    const passes = fare?.covered_by_passes?.map(formatPassName).filter(Boolean) ?? [];
+    // The rest of the trip is covered by an owned pass: say so instead of "partial".
+    if (passes.length > 0) return `${price} + ${passes.join(', ')}`;
     return `${price} (partial fare)`;
   }
   return price;
@@ -158,6 +162,7 @@ export function getTravelFareFallbackLabel(results: TravelFareSource[]): string 
 }
 
 export function formatFareCoverage(value?: string | null): string {
+  if (value?.startsWith('pass:')) return `Covered by ${formatPassName(value.slice('pass:'.length))}`;
   switch (value) {
     case 'paid':
       return 'Paid fare';
@@ -170,4 +175,80 @@ export function formatFareCoverage(value?: string | null): string {
     default:
       return '';
   }
+}
+
+/** One ticket of a route that needs several tickets (a pass part and a paid part). */
+export interface TravelTicketPart {
+  route: string;
+  departure?: string;
+  arrival?: string;
+  transportMethod?: string;
+  coverage: 'pass' | 'paid' | 'unknown_fare';
+  passLabel?: string;
+  price: number | null;
+  currency?: string;
+  bookingUrl?: string;
+  bookingProvider?: string;
+}
+
+/** How a mixed route was put together; read from nested or flattened embed fields. */
+export interface TravelRouteComposition {
+  hub: string;
+  transferMinutes: number | null;
+  passLabel?: string;
+  savingsAmount: number | null;
+  savingsCurrency?: string;
+}
+
+function recordList(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item))
+    : [];
+}
+
+export function extractTravelTickets(content: Record<string, unknown>): TravelTicketPart[] {
+  return recordList(content.tickets).flatMap((ticket) => {
+    const route = stringValue(ticket.route);
+    const coverage = stringValue(ticket.coverage);
+    if (!route || (coverage !== 'pass' && coverage !== 'paid' && coverage !== 'unknown_fare')) return [];
+    return [{
+      route: route.replace(' -> ', ' → '),
+      departure: stringValue(ticket.departure),
+      arrival: stringValue(ticket.arrival),
+      transportMethod: stringValue(ticket.transport_method),
+      coverage,
+      passLabel: stringValue(ticket.pass_label),
+      price: numberValue(ticket.price),
+      currency: stringValue(ticket.currency),
+      bookingUrl: stringValue(ticket.booking_url),
+      bookingProvider: stringValue(ticket.booking_provider),
+    }];
+  });
+}
+
+export function extractRouteComposition(content: Record<string, unknown>): TravelRouteComposition | undefined {
+  const nested = fareRecord(content.route_composition);
+  const savings = fareRecord(nested?.savings);
+  const field = (key: string): unknown => nested ? nested[key] : content[`route_composition_${key}`];
+  const savingsField = (key: string): unknown => savings ? savings[key] : content[`route_composition_savings_${key}`];
+  const hub = stringValue(field('hub'));
+  if (!hub) return undefined;
+  return {
+    hub,
+    transferMinutes: numberValue(field('transfer_minutes')),
+    passLabel: stringValue(field('pass_label')),
+    savingsAmount: numberValue(savingsField('amount')),
+    savingsCurrency: stringValue(savingsField('currency')),
+  };
+}
+
+export function formatTicketPrice(ticket: TravelTicketPart): string {
+  if (ticket.coverage === 'pass') return ticket.passLabel ? `Covered by ${ticket.passLabel}` : 'Covered by pass';
+  if (ticket.coverage === 'unknown_fare' || ticket.price === null) return 'Fare unknown';
+  return formatPrice(ticket.price, ticket.currency);
+}
+
+export function formatRouteSavings(composition: TravelRouteComposition | undefined): string {
+  if (!composition || composition.savingsAmount === null || composition.savingsAmount <= 0) return '';
+  return `Saves ${formatPrice(composition.savingsAmount, composition.savingsCurrency)}`;
 }

@@ -6,12 +6,15 @@ paths:
 ---
 # Deployment
 
+- Production go-aheads: only the owner, typed or as a dev-connector message
+  that `scripts/owner_message.py verify <receipt>` confirms (see CLAUDE.md,
+  Workflow 4). Never from another agent chat. The owner merges PRs on GitHub.
 - Dev: `sessions.py deploy` publishes the scoped diff to `dev` after checks.
   Standard type prefixes; preserve contract trailers. For frontend readiness use
   `sessions.py wait-deploy --commit <sha>`; a pushed commit is not a live frontend.
 - Failed check: inspect the focused error, keep the receipt, never bypass a
   relevant safety check.
-- Alpha versions: `scripts/bump_alpha_version_line.py`. Vercel failures:
+- Prerelease product lines: `scripts/bump_alpha_version_line.py`. Vercel failures:
   `backend/scripts/debug.py vercel --failed`; warnings on a Ready build are fine.
 - Production web releases need a real browser startup check: keep automatic
   domain assignment disabled, build with `--skip-domain`, then after backend
@@ -19,3 +22,8 @@ paths:
   --deployment <id> --expected-version <version> --out <private-evidence-dir>`.
   Never use raw alias/promote commands. Emergency restores repeat the check.
   Production is not done without a passing browser receipt.
+- Urgent production outage (owner standing rule, 2026-11-14): apply the
+  necessary hotfix directly on production yourself, then commit the permanent
+  fix to dev; see "Urgent Production Outage" in
+  `.claude/skills/update-prod-server/SKILL.md`. Every production update ends
+  with real chats that get assistant replies; no reply fails the update.

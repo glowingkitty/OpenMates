@@ -14,6 +14,8 @@ installUnitFetchGuard(globalThis);
 
 // IndexedDB cache decisions run in the Worker persist unit; unit suites answer them with the test-only reference policy.
 vi.mock("./services/rustCore/persist/persistUnitClient", () => import("./services/rustCore/__tests__/persistReferenceClient"));
+// Settings/memory request decisions run in the Worker settings unit; unit suites answer them with the test-only reference policy.
+vi.mock("./services/rustCore/settings/settingsClient", () => import("./services/rustCore/__tests__/settingsReferenceClient"));
 
 const VITE_FS_PREFIX = "/@fs";
 const UI_SRC_PREFIX = "/src/";

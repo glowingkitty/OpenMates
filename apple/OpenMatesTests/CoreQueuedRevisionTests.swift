@@ -56,6 +56,21 @@ final class CoreQueuedRevisionTests: XCTestCase {
         return (actions, client)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chat-queued-followups.admission.synced
+    @MainActor
+    func testQueuedCoreReceiptYieldsStateAtOnceAndIdenticalBroadcastIsIdempotent() throws {
+        let fields = try XCTUnwrap(ChatViewModel.queuedFollowupFields(
+            chatId: "chat", messageId: "queued", revision: 2, mode: .steer))
+        let fromReceipt = try XCTUnwrap(ChatQueuedFollowupState.parse(fields))
+        XCTAssertEqual(fromReceipt, ChatQueuedFollowupState(
+            chatID: "chat", messageID: "queued", revision: 2, mode: .steer, phase: .queued))
+        let broadcast = try XCTUnwrap(ChatQueuedFollowupState.parse(
+            ["chat_id": "chat", "message_id": "queued", "queue_revision": 2, "queue_mode": "steer"]))
+        XCTAssertEqual(broadcast, fromReceipt)
+        XCTAssertNil(ChatViewModel.queuedFollowupFields(chatId: "chat", messageId: nil, revision: 2, mode: .steer))
+        XCTAssertNil(ChatViewModel.queuedFollowupFields(chatId: "chat", messageId: "queued", revision: 0, mode: nil))
+    }
+
     // contract-test: direct surface=gui.apple assertions=chat-queued-followups.editing.stable-revision
     @MainActor
     func testEditSendsTextAtTheExpectedRevisionAndKeepsTheMode() async throws {

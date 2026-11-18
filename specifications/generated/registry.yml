@@ -46,6 +46,13 @@ specifications:
     fingerprint: 9b9ddbe244ff9f3c57e625f8fae89effbb2d59ee5b5e8ad2b6fc850219c11743
     required_applies_to:
     - cli
+  architecture.dev-run-routing:
+    version: 1
+    status: approved
+    path: architecture/dev-run-routing
+    fingerprint: 5f989645bdd578a9afd818ec76ba17c928b14ffc348d57acb97ba865219f77f9
+    required_applies_to:
+    - cli
   architecture.drafts:
     version: 1
     status: approved
@@ -54,6 +61,13 @@ specifications:
     required_applies_to:
     - gui.web
     - gui.apple
+  architecture.external-status-monitoring:
+    version: 1
+    status: draft
+    path: architecture/external-status-monitoring
+    fingerprint: ec3217de61d74dfed68e353e8ec6cb410b63b46cbf90c5ed8d9f29e3426fc764
+    required_applies_to:
+    - rest_api
   architecture.operational-monitoring:
     version: 3
     status: draft
@@ -142,10 +156,22 @@ specifications:
     - gui.web
     - gui.apple
   feature.ai-model-routing:
-    version: 10
+    version: 13
     status: draft
     path: features/ai-model-routing
-    fingerprint: e466d3e0bbda39af7314ad22a105a66bc369865ffdf05667fdfb3b04d7727a2d
+    fingerprint: 1e653622c188ea20b5f04953add3ae5f20238d4b9f1d8fadc65949f5f10faa5e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  feature.answer-safety-check:
+    version: 1
+    status: draft
+    path: features/answer-safety-check
+    fingerprint: f4688750f56a90123cfa07cd53245d58df11d68395c2f459c42f5fe9230b9e3f
     required_applies_to:
     - rest_api
     - cli
@@ -154,10 +180,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.app-memories:
-    version: 5
+    version: 6
     status: draft
     path: features/app-memories
-    fingerprint: f42fd31a2a63749cabe02820a30469b9893aa8e32e2891ab9d9cd625c08c54c8
+    fingerprint: c04a45a41614288b96f4ea8a64d7b23e159d03f4f37a383c744f18aa2a0c4ee1
     required_applies_to:
     - rest_api
     - cli
@@ -214,7 +240,7 @@ specifications:
     version: 2
     status: draft
     path: features/app-skills/code-run
-    fingerprint: 014a1f95a9f8294530aaa78d5bb68dd3180b02da673d9f47093bcbf4e6cf340b
+    fingerprint: 7ac3a6d1fea5ebf03c2f9312b6cceba6202975069f30cf95d98e1ec3165979ea
     required_applies_to:
     - rest_api
     - cli
@@ -244,11 +270,22 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skills.design-figma:
+    version: 2
+    status: draft
+    path: features/app-skills/design-figma
+    fingerprint: 65301f7df4b86abd58a8e63480bd192add7d5edd90d8289e8fb69fbdd743ab81
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.app-skill.events-search:
     version: 1
     status: draft
     path: features/app-skills/events-search
-    fingerprint: eca78ee2a94e1246796cb43141a417eb4c99c86d2e2934d126ea6116aa03ff47
+    fingerprint: b57416149a54801547bd2570cdb71243a51276d10fa5a032d9ad0096f256df26
     required_applies_to:
     - rest_api
     - cli
@@ -293,9 +330,9 @@ specifications:
     - gui.apple
   feature.app-skill.images-generate:
     version: 1
-    status: draft
+    status: approved
     path: features/app-skills/images-generate
-    fingerprint: 7635f718d3655daacea0458c77cfa2513fa505337d8b3fdaa1895b54e82fa793
+    fingerprint: 3670a8f8f3854f080dd458258842947d3f547614f05d16b3438b88cee08f3b40
     required_applies_to:
     - rest_api
     - cli
@@ -361,10 +398,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.app-skill.shopping-search:
-    version: 2
+    version: 3
     status: draft
     path: features/app-skills/shopping-search
-    fingerprint: b1d4343840d5ed5f82d142ee3b7611127a1471e39bc8d5ac051bf1bda49b051d
+    fingerprint: 7d1d977195040eb98c00b25e99a5d199d18d5a1e3cc439e1ce80afd8eb6b43c2
     required_applies_to:
     - rest_api
     - cli
@@ -387,7 +424,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/travel-search
-    fingerprint: 4530a4633c317e6d546a1683487899e46552b96b4decd31fba7a53558333d442
+    fingerprint: 804bf479a56a11778283c67c084113bc9e75ccfbea8b15574677147bd36629ca
     required_applies_to:
     - rest_api
     - cli
@@ -420,10 +457,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.app-skill.web-browse:
-    version: 1
+    version: 2
     status: draft
     path: features/app-skills/web-browse
-    fingerprint: 32b87cfba1d633bdf2b07e59951274aea37fe97fbb16e12ab97862e9a5c56ebc
+    fingerprint: 71f63ad59f917592cff18984c42c9588e752bc821676d0cd0495b6762e839ddd
     required_applies_to:
     - rest_api
     - cli
@@ -550,9 +587,9 @@ specifications:
     - gui.apple
   feature.assistant-authored-result-embeds:
     version: 1
-    status: draft
+    status: approved
     path: features/assistant-authored-result-embeds
-    fingerprint: 754168cd00ff6005210575c09cea58ae480c9c30e7f301ba835e0bcc4eaf9e2a
+    fingerprint: 1dbf4cb46ceca5388f4cf45b5f91e5b5baf3155581db0f09ed24c2c08621b68d
     required_applies_to:
     - rest_api
     - cli
@@ -574,7 +611,7 @@ specifications:
     version: 1
     status: draft
     path: features/auth
-    fingerprint: 8eb3eb886bf162ae93953f8e147cb3f2c58e30d9efffb39c8777ecd9cba815e5
+    fingerprint: 529fd541df1274cd5a1d5dc9b6f394e77e68d6791a3793f62e87c39678ffbb62
     required_applies_to:
     - rest_api
     - cli
@@ -628,6 +665,15 @@ specifications:
     - cli
     - gui.web
     - gui.apple
+  feature.chat-orchestration:
+    version: 2
+    status: draft
+    path: features/chat-orchestration
+    fingerprint: f4a2f417f4fee280da59da625cfc0128c8498bda0cf6770d019c3cf105baff48
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
   feature.chat-processing-feedback:
     version: 5
     status: draft
@@ -648,9 +694,9 @@ specifications:
     - gui.apple
   feature.chat-request-safety:
     version: 1
-    status: draft
+    status: approved
     path: features/chat-request-safety
-    fingerprint: 85dd229ec73af237476cf4ed66d43a65b7dae525fe770123ad9546afdf2316b0
+    fingerprint: 5c85d755aa631c985e3834568328d347208c949df0677ee7c6fb94f8dd09fe1a
     required_applies_to:
     - rest_api
     - cli
@@ -687,7 +733,7 @@ specifications:
     version: 1
     status: draft
     path: features/checks
-    fingerprint: 7f97ea1c5b00c08615a7412bc068d700fbeeb5318e54555776e106152dd7727d
+    fingerprint: e1274368b58e386a48239ee3f212c7fb1a851710a2f28ad3005b2ed427c3f2aa
     required_applies_to:
     - rest_api
     - cli
@@ -722,7 +768,7 @@ specifications:
     version: 1
     status: draft
     path: features/embed-user-edits
-    fingerprint: e5537ab162aeb692cecf9297d73ec5d9af1cbe0fee2f58a12940d3401083a4ec
+    fingerprint: 3c3d452db90a39a2e61dc8256bc560cb5a7dd44d895481c9b3d2b3268157bb37
     required_applies_to:
     - rest_api
     - cli
@@ -730,11 +776,19 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.focus-modes.life-compass:
+    version: 1
+    status: draft
+    path: features/focus-modes/life-compass
+    fingerprint: da8e101f7b22068a44442f0de9d4cccd3bfce69046069a369b61f1bbf25f41c7
+    required_applies_to:
+    - cli
+    - gui.web
   feature.focus-modes:
-    version: 2
+    version: 3
     status: draft
     path: features/focus-modes
-    fingerprint: 43b4e5dbd76cd66395ee8f65ee9729ce3223596b31c681b4752603a7446013a4
+    fingerprint: ee5ecebc410797b0d6f6f9cd805979f8efb7e37733607f3f02c333ddb6782a81
     required_applies_to:
     - rest_api
     - cli
@@ -742,11 +796,20 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.focus-modes.trip-planning:
+    version: 1
+    status: draft
+    path: features/focus-modes/trip-planning
+    fingerprint: 1bc175b6b6233b30d4bea3a36701961238ec3159384746017655c0e07f63a9bf
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
   feature.instance-app-packages:
     version: 1
     status: draft
     path: features/instance-app-packages
-    fingerprint: e8f12debcec97ff5a9925d4e9f95cf3e1596963ac82f80955f3a17d0b1384ca0
+    fingerprint: 8653281b091e3340e99e7fd8022b2c8aeb7b6ca2865501cd7a9338b86b6011ca
     required_applies_to:
     - rest_api
     - cli
@@ -777,9 +840,9 @@ specifications:
     - gui.apple
   feature.language-preferences:
     version: 1
-    status: draft
+    status: approved
     path: features/language-preferences
-    fingerprint: 7640ce49edc61f6f526bf11444a352269a880c69eeb323db1ecf1e45e8939b83
+    fingerprint: 976a7c1ce3e71fe0539d01a51362b6e05c759f2ebd5d79e77e3fbe43d838aebe
     required_applies_to:
     - rest_api
     - gui.web
@@ -807,14 +870,14 @@ specifications:
     version: 12
     status: draft
     path: features/marketing-landing
-    fingerprint: de4eab1391dfd4e072f86b81c4f5297b9e6a2c916a1dfd72a183b158dda17dea
+    fingerprint: a22110dc61eb151c3f14c9daee6d3131f8bc5f5ecc0f3fb48e0abc21dce32166
     required_applies_to:
     - gui.web
   feature.message-input:
-    version: 12
+    version: 13
     status: draft
     path: features/message-input
-    fingerprint: 97700c674a80d730eba068d9b1cb8f2545110e5909d5a9a52c788a90e6dbd4ee
+    fingerprint: 27fe85c4561352327991e804ef1ae18830b748af0a214650fe8d3d11a1f24b88
     required_applies_to:
     - gui.web
     - gui.apple
@@ -871,7 +934,7 @@ specifications:
     version: 1
     status: draft
     path: features/plans
-    fingerprint: 26ccd3aaf467a006cd7553ba5f5a424055130ef841941f70c2a06fce9b59fa9f
+    fingerprint: 778c5455e9e48e63cfd259eb3c352049dd0fbe7dd2884fc5cfd2377ebe944988
     required_applies_to:
     - rest_api
     - cli
@@ -882,7 +945,7 @@ specifications:
     version: 2
     status: draft
     path: features/projects
-    fingerprint: e746093cc37b1a9d1bed755ad3c4a4d8b4ac4617e71909c112452706c5b70dc1
+    fingerprint: cf67579909d6140aea061e14bb8ec55b5ff897113a935626001e0a60c889eaee
     required_applies_to:
     - rest_api
     - cli
@@ -916,6 +979,16 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.safety-strikes:
+    version: 1
+    status: draft
+    path: features/safety-strikes
+    fingerprint: f7d19050c2312b31bc4bffa02ccde5b6ad8d556d0fa43cd5d7f1cc806a5ecf12
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
   feature.settings-ui:
     version: 1
     status: draft
@@ -925,10 +998,10 @@ specifications:
     - gui.web
     - gui.apple
   feature.slides:
-    version: 1
+    version: 2
     status: draft
     path: features/slides
-    fingerprint: 8405dbfd5d620ddcf3b86cf0a7bdc9a508f9d0e56882718071f249ab7703eac7
+    fingerprint: 3f8ed75ce0b7522072ba1d41c864d0b9a3be71d16733183674d82e6ca39b7fcc
     required_applies_to:
     - rest_api
     - cli
@@ -936,9 +1009,9 @@ specifications:
     - gui.web
   feature.specifications:
     version: 1
-    status: draft
+    status: approved
     path: features/specifications
-    fingerprint: 94e759734d3d78ae40ceb9752a418e6ce5b9d1b893e25075a03396e10a36c931
+    fingerprint: 980f759f36acfd0ede679d93838069bde12b20521119b3d09311b4e33f384cda
     required_applies_to:
     - rest_api
     - cli
@@ -995,10 +1068,10 @@ specifications:
     - sdks.pip
     - gui.web
   feature.video-call:
-    version: 16
+    version: 17
     status: approved
     path: features/video-call
-    fingerprint: 13552a32bc41928aa297e307676b211c3a4c07747e8c1c376149aaa1161edb48
+    fingerprint: 660ff9a06d24f815a1eea177d3c0a92776fb5d017eb640a4ee32d6b624e99525
     required_applies_to:
     - gui.web
     - gui.apple
@@ -1010,6 +1083,25 @@ specifications:
     required_applies_to:
     - gui.web
     superseded_by: feature.video-call@11
+  feature.vscode-extension:
+    version: 1
+    status: draft
+    path: features/vscode-extension
+    fingerprint: b0265474eccc794e8733e648ced136263e3bdc79ae2d7191375e0b206810f0f7
+    required_applies_to:
+    - cli
+  feature.wellbeing-support:
+    version: 1
+    status: draft
+    path: features/wellbeing-support
+    fingerprint: 5775d4f23cc35952698f65b2bf73078f25e311e8c0abdc2bbe0525b69a138db4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.wikipedia-mentions:
     version: 1
     status: draft
@@ -1744,6 +1836,13 @@ assertions:
     fingerprint: a7440f8ae2669cc996ebed7cde5cc1ceb242196bab51e8967bbfa4f6318631f5
     required_applies_to:
     - cli
+  dev-run-routing.e2b-first-logged-host-fallback:
+    specification: architecture.dev-run-routing@1
+    specification_id: architecture.dev-run-routing
+    type: behavior
+    fingerprint: 004bbf4515736a66c6c1db6d1d97e559e258efba4d75a10e577a5145ba9ba5ef
+    required_applies_to:
+    - cli
   drafts.access.first-party-encrypted:
     specification: architecture.drafts@1
     specification_id: architecture.drafts
@@ -1808,6 +1907,76 @@ assertions:
     required_applies_to:
     - gui.web
     - gui.apple
+  external-status-monitoring.alerts.confirmed-failures:
+    specification: architecture.external-status-monitoring@1
+    specification_id: architecture.external-status-monitoring
+    type: behavior
+    fingerprint: 3269d919e160d78fbc237ea7ccae1c969eb79821152b7ac90bf021fd7d0b314d
+    required_applies_to:
+    - rest_api
+  external-status-monitoring.alerts.escalation:
+    specification: architecture.external-status-monitoring@1
+    specification_id: architecture.external-status-monitoring
+    type: behavior
+    fingerprint: 180832b300cf8967fa58a2f61111b62fbeb317986157113cfabe0e463a7c2f62
+    required_applies_to:
+    - rest_api
+  external-status-monitoring.alerts.resolved:
+    specification: architecture.external-status-monitoring@1
+    specification_id: architecture.external-status-monitoring
+    type: behavior
+    fingerprint: ebb8b8fc5da47c7c18af498b80127a22f49d6dbde532e4fde2899b4dd1aaf941
+    required_applies_to:
+    - rest_api
+  external-status-monitoring.alerts.restart-safe:
+    specification: architecture.external-status-monitoring@1
+    specification_id: architecture.external-status-monitoring
+    type: invariant
+    fingerprint: 2a5fa7e15d1ead9cde58d304ae0598778ec9cb53aec61f6afdb0728a8bba0b36
+    required_applies_to:
+    - rest_api
+  external-status-monitoring.page.public-safe:
+    specification: architecture.external-status-monitoring@1
+    specification_id: architecture.external-status-monitoring
+    type: privacy
+    fingerprint: 3cb827409c3d11f02ce143db788688efa3108282318f5050874a8dab175c0e5e
+    required_applies_to:
+    - rest_api
+  external-status-monitoring.page.overall-honest:
+    specification: architecture.external-status-monitoring@1
+    specification_id: architecture.external-status-monitoring
+    type: behavior
+    fingerprint: 820bb9a87cb11fe7899e4036d59bce6a60e7fd42138b2e1b2a67f8a08bd0b7c8
+    required_applies_to:
+    - rest_api
+  external-status-monitoring.probes.no-billing:
+    specification: architecture.external-status-monitoring@1
+    specification_id: architecture.external-status-monitoring
+    type: invariant
+    fingerprint: da65778bbecb1887543002b0bf923ee7af6cd2a67cba17713d1d1db2b8bc9410
+    required_applies_to:
+    - rest_api
+  external-status-monitoring.liveness.public-route:
+    specification: architecture.external-status-monitoring@1
+    specification_id: architecture.external-status-monitoring
+    type: behavior
+    fingerprint: 8046fea0c547d145ed08889a64511661b1ab5306c6ada7d71ef6ac00c6549125
+    required_applies_to:
+    - rest_api
+  external-status-monitoring.deploy.config-from-vault:
+    specification: architecture.external-status-monitoring@1
+    specification_id: architecture.external-status-monitoring
+    type: privacy
+    fingerprint: fb20aa626c86fa22724186c1df97099002db2687d1f3a7c3683e54a524657393
+    required_applies_to:
+    - rest_api
+  external-status-monitoring.deploy.one-image-one-command:
+    specification: architecture.external-status-monitoring@1
+    specification_id: architecture.external-status-monitoring
+    type: behavior
+    fingerprint: ea7a81136f4934fe7e11983f2d5d8931b438c6ad0416eda00d97a67646c1ef30
+    required_applies_to:
+    - rest_api
   operational-monitoring.chat-failures.email-trigger:
     specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
@@ -2902,7 +3071,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.instructions.required-safety:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: invariant
     fingerprint: b9f6163cb727928e259e68b61424395b95f599717ea69c7c3e7bbf856a236215
@@ -2914,7 +3083,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.prepared-privacy:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: privacy
     fingerprint: df68d6f13323f4b9bdab6101698e48727d365485d9cd3e13772a8a0eab1773a9
@@ -2926,7 +3095,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.contextual-compact-assembly:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 396276dc02450a44fab6b5bc613d5f05daf74a01883a3f8139c7ef3ad04a4075
@@ -2938,7 +3107,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.conditional-context:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: aebbfd1af1c881cfc5d6304f0b8e600fbe210bc79761d93c52d3145145219896
@@ -2950,7 +3119,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.warm-catalogues:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: privacy
     fingerprint: dd83186962106d9e4f1924732d510e15dfa5b3a5c3fcb8def5f7ef387a101f5c
@@ -2962,10 +3131,10 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.early-resolution:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
-    fingerprint: b9c16461e21e635606d701222d7475ec3e66cf9d9c9fee3765b145c880b2f637
+    fingerprint: a3d01d93e5f8c804ee7eca2a0bbd4a529d2819a0c78da0c0a2ffc5d2c5193eeb
     required_applies_to:
     - rest_api
     - cli
@@ -2974,10 +3143,10 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.tiers.conservative-three-way:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
-    fingerprint: 34bf6b8f5b909832a6dae1eb2f51ab1829c6ceda0c08ed34a88053769217d1dd
+    fingerprint: 1aa2c3fd0a8177b5215f96d1c8d14bd3ed8ef1b6d0e4c951774f9fda2388ad3b
     required_applies_to:
     - rest_api
     - cli
@@ -2986,7 +3155,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preferences.exclusive-tier-defaults:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: invariant
     fingerprint: e07eeb26ac71b52221645812c2a05ff710d7ecc204638263f8b171fdf65bef84
@@ -2998,7 +3167,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.catalog.capability-recommendation-variants:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 0bfe00d161d7e136da0c1879d4ecd463aab85455c4f9b7d3f803526ce56ae14e
@@ -3010,7 +3179,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.catalog.public-read-only:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: security
     fingerprint: e24760c42b3a337bd66156e59ac6b93d298d5aa243fb4c25117f98b4398d7499
@@ -3022,7 +3191,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.defaults.google-tier-profiles:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 52ed250160ad748254a86745f85844c4178d36b0da8e2b653bec13b4c9888a9f
@@ -3034,7 +3203,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.recovery.affordable-current-models:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: failure
     fingerprint: b4b8664853a7f9e87b5277a889e861246a1dcf92ff582a9c87166c2c0355770d
@@ -3046,7 +3215,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.use-case.specialised-automatic-models:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: d870a1c1572978ad3ddff86eb79796d31bff3e31f97cc1b1c5dac7c695459501
@@ -3057,8 +3226,32 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  ai-model-routing.skills.internal-llm-follows-settings:
+    specification: feature.ai-model-routing@13
+    specification_id: feature.ai-model-routing
+    type: privacy
+    fingerprint: 098f40ff52e275473f1bc56fc5f460bbbf284628abd40867f11c57b53b7b0f89
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.decisions.per-purpose-model-with-jev-fallback:
+    specification: feature.ai-model-routing@13
+    specification_id: feature.ai-model-routing
+    type: behavior
+    fingerprint: 129a565c28f71b4944236b47bf658dcbd069ca9254d4c19176654b0fe721ad75
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   ai-model-routing.reasoning.preprocessor-recommendation:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 41193c742edfb33ef7aab93ae98deeaed6adb8a11e1620d16f332a2b650f2308
@@ -3070,7 +3263,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.chat-selection.encrypted-user-chat-scope:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: privacy
     fingerprint: 3b1fe8326b1e4fe38b2dd71db60adeb9cbbaadadaaedd92b1522fc1bc961098a
@@ -3082,7 +3275,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.precedence.chat-over-tier-over-auto:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: invariant
     fingerprint: 7c9e430c1a07e63420d3bec1e6c18d5f64ad73faa68654895d9a82325eb83144
@@ -3094,7 +3287,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.preprocessing.missing-output-recovery:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: failure
     fingerprint: b56a22db2a9119afdebc4dee7cf040fb1e722482c13df6e6a0dc518bc7a316c2
@@ -3106,7 +3299,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.composer.mention-to-exact-selection:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 1588ae8feecbfe893795d7b358c3a58f30c824fde2baa790a137f770891ad24c
@@ -3118,7 +3311,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.unavailable.notify-reset-auto:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: failure
     fingerprint: e5884209155afd87aa5d33e3d413d6164018ecce677676b5d9effbbcab90647f
@@ -3130,7 +3323,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.settings.hierarchy-canonical:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: behavior
     fingerprint: 9eef3e7b733a196ce48bcb005bdf34a5d41ffba3daf26e01e3c9a6921ab32c5a
@@ -3142,7 +3335,7 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.composer.responsive-actions:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: parity
     fingerprint: cde79da48264deaf3f06d90a3d15e897b3f0aac4a69b42a91fe93b4cf23a84a6
@@ -3154,10 +3347,70 @@ assertions:
     - gui.web
     - gui.apple
   ai-model-routing.surface.semantic-parity:
-    specification: feature.ai-model-routing@10
+    specification: feature.ai-model-routing@13
     specification_id: feature.ai-model-routing
     type: parity
-    fingerprint: ea4f64d124aa326fbb989f67134ea65b74af0a9c62218e85f59b02e9ea27a7a3
+    fingerprint: 39c32a1e1e31bce3633b72e954b44c34fa160d15cdb122d43742c3cf0bb1eb43
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-safety-check.every-answer-checked:
+    specification: feature.answer-safety-check@1
+    specification_id: feature.answer-safety-check
+    type: behavior
+    fingerprint: 0203ada666365634a7af34cf8fa16cc915624dfbb5499de13348a519f1ece7bf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-safety-check.withdraw-only-illegal-or-wellbeing:
+    specification: feature.answer-safety-check@1
+    specification_id: feature.answer-safety-check
+    type: behavior
+    fingerprint: 8a05ac264e6d6a423975e87741a44b2f05e75bdb12c64f8ce9399785b80e5e5d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-safety-check.no-strike:
+    specification: feature.answer-safety-check@1
+    specification_id: feature.answer-safety-check
+    type: invariant
+    fingerprint: b3f531a723082bfd8a41fc63f06f25b80c05e1ce2fb4a6d2477f4f98a5af0f35
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-safety-check.replace-only-withdrawn:
+    specification: feature.answer-safety-check@1
+    specification_id: feature.answer-safety-check
+    type: invariant
+    fingerprint: aab5d0e08fcbcf455386943d4c6708e432d59adb75b42f3d46e3e07ebd461943
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  answer-safety-check.live-checks-risky-only:
+    specification: feature.answer-safety-check@1
+    specification_id: feature.answer-safety-check
+    type: behavior
+    fingerprint: 61afd29f7ab6b72e5b9f0c365f4c9aa6659da9f4a45eb8496dc8f689d619c8c9
     required_applies_to:
     - rest_api
     - cli
@@ -3166,7 +3419,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.catalog.no-typed-types:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: invariant
     fingerprint: 382daf0e407facbed4c9c81689b1f0b59b45394bf52855f6cf8a8f99cf8a0f40
@@ -3178,7 +3431,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.lifecycle.encrypted-crud:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: behavior
     fingerprint: 62c90a60c5f691c5f1bdef95234f1627656cd991817604f913b39e2834f1d9ec
@@ -3190,7 +3443,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.privacy.client-encrypted:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: privacy
     fingerprint: e5363472640d552d498e6f47d74839f8c34a07e31c8c97ac6ba1007dc40b7fd5
@@ -3202,7 +3455,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.access.owner-scoped:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: security
     fingerprint: 58c84cbdd836e95d2f0ba03a110fe9ad7ee0fc8601be002d00583f362fe9f9b4
@@ -3214,7 +3467,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.sync.versioned-convergence:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: invariant
     fingerprint: 642f2e547ac9d253d06ab0709b34155fc6c6b9b142bf1b75146998a11723fc8a
@@ -3226,7 +3479,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.conversation.explicit-approval:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: behavior
     fingerprint: 9869a0cafde0b9993a1ce57e2e410141660d55aaac7b17aa0e315a002f9d705a
@@ -3238,7 +3491,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.conversation.request-convergence:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: invariant
     fingerprint: 7fe452a0a9e8f5a99a6d36ae9ac2e74c8d332aca478edaa2d5db96e0681ff2ff
@@ -3250,7 +3503,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.surface.semantic-parity:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: parity
     fingerprint: edccba84ca9d87ff0981cb3f053fce51fdb26e92ebd3ae58203706b24c6a9db6
@@ -3262,7 +3515,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.definition.context-documents:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: validation
     fingerprint: c7df86fc1031186b638bcd665b868807af35f69f34e3cf7960d3bbf2d68bb292
@@ -3274,7 +3527,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.selection.source-scoped:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: security
     fingerprint: e6eaf2ec87f4333574df3cbdaa0113b6591df3d6ecafe2fa18b95bca40d2b69e
@@ -3286,7 +3539,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.precedence.obligations:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: invariant
     fingerprint: 942965d1bd938ddf0eb433af125d68a919810564b783773bdebddd297c14e229
@@ -3298,7 +3551,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.transparency.loaded-set:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: parity
     fingerprint: 99022fd17da305c4a3680839f611b530278a1d805c6f309cee049b9885520b39
@@ -3310,7 +3563,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.discovery.visibility-cards:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: parity
     fingerprint: 46843babb29523084e2981a43c2486b150c989e97a4d310f0deab4aea2b5c879
@@ -3322,7 +3575,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.compatibility.legacy-documents:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: invariant
     fingerprint: cb390b8189c317dfc7f150b6c0011dae4c19b2835e380e1978e59b39619524ee
@@ -3334,7 +3587,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.document.canonical-shape:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: behavior
     fingerprint: 7ec287df4d28b3df7daf056bdb14fed11c2bd6529434b895e1b196d03fdc8f81
@@ -3346,10 +3599,10 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.load-modes:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: privacy
-    fingerprint: fbee1b7a6c75cc7182a01517d7ff167423af05a38042193f29244c2bec9dc74f
+    fingerprint: 1800759794365348e2a4b84a04add851e4d625ada9e25df407c8acc24f4b7ed6
     required_applies_to:
     - rest_api
     - cli
@@ -3358,7 +3611,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.expiry.client-enforced:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: invariant
     fingerprint: 49305420f9974c58940c1d2595d824bbb4a25cdc7f9b2f7783e788599de0d9f9
@@ -3370,7 +3623,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.references.embeds:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: privacy
     fingerprint: 160ab548ae63da9a2783058490490a66bbd4468c52905bbf4fd24f1a7a21b844
@@ -3382,10 +3635,34 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.suggestions.post-processor:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: behavior
-    fingerprint: 0ba38da762928da1887186f03dabc0bdef97884f7b8a416d741ec519bda2ab61
+    fingerprint: ab1d4bfb4e5fa6200db205d138f9ae64a65f6ae35542fde61d5c6994dd9326a3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-memories.assistant.direct-write:
+    specification: feature.app-memories@6
+    specification_id: feature.app-memories
+    type: privacy
+    fingerprint: d2b55e1251f215d5ce3290a380678542661a362c58055e49bd881e75112ad745
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-memories.privacy.anonymized-on-send:
+    specification: feature.app-memories@6
+    specification_id: feature.app-memories
+    type: privacy
+    fingerprint: 270f142ff1cc45159a3b76f22c3b6b1a1ba2df51af8a677d0266650760e6adde
     required_applies_to:
     - rest_api
     - cli
@@ -3394,10 +3671,10 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.suggestions.no-duplicates:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: privacy
-    fingerprint: f928aaeec68bbbd432fc264ff0249ec78d3fb0b71346ad7343108e5c0d375bc6
+    fingerprint: 9217295a722971a8261b0fabfbc6d0661c793c4b6e2bae64b173b9b63a9a2d27
     required_applies_to:
     - rest_api
     - cli
@@ -3406,7 +3683,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.suggestions.billing:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: behavior
     fingerprint: c2573ea9d10027f88faeef859815c6ed5dadda3c7cd2223cf42dc26e18f77f7a
@@ -3418,7 +3695,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.workflows.explicit-snapshots:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: privacy
     fingerprint: 50c4199cca1d9f8419e6d2d85d393b028b304e5b499a5c308a3a2e57ecaea9c8
@@ -3430,7 +3707,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.typed.removed:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: invariant
     fingerprint: eb091c56e0eb80f7b4da8891630feeee79fa4f77fcc74f77d5744349ab2accc4
@@ -3442,7 +3719,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.migration.client-auto:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: behavior
     fingerprint: 8a17f806faad16a9619c836433e9f3fbd81b91be65a2f946703ebf98575d0fbc
@@ -3454,7 +3731,7 @@ assertions:
     - gui.web
     - gui.apple
   app-memories.saved-items.not-memories:
-    specification: feature.app-memories@5
+    specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: behavior
     fingerprint: 7ea9b1a28d4ac13d3e8c40a0dbcc22624ed98339265b6eee9bfcf0311bbfe522
@@ -3985,6 +4262,54 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  code-run.commands.files-through-file-tools:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 3764486ef96c6a109dc74dec19e6ba7b0c840510b673809cb005ac0c6604b6bb
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.cloud.commands:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 87ff876e3e3debd37a6f99b77ae94f223836098bc4bc00e7c0aac906682d0caf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.cloud.workspace:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 2770e74a51638a8f9738b4418117bd2445ac5e68572dd32f5e31f2c5160c18c2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.cloud.command-changes-sync-back:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: 40c0f1542b3ff0bb66fc44d05db26ca21fecf4de27a79202d45f39fca621ad67
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   code-run.remote.confinement:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
@@ -4013,7 +4338,7 @@ assertions:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: f39afa4a89ba43f5732dd16e80c280976b63da7016e2f4ac70c533ac35b8c319
+    fingerprint: 1389785880c5da28dbf9b1a5d7998f4fc20194e01352a4e26faca2e33e06c50b
     required_applies_to:
     - rest_api
     - cli
@@ -4025,7 +4350,7 @@ assertions:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: 181aa38371c67f35b0f9845245f6af5004ea6d67dbb5a13fac4232403600f468
+    fingerprint: f4660e0936b01eb602a3137350599fc8f1bcefb987a0f3ce6e2ea116fb5abf3f
     required_applies_to:
     - rest_api
     - cli
@@ -4037,7 +4362,55 @@ assertions:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: c9c0ddee6ce2cf3c32aa257d857fbdc3c36dc72a8fbc954bf7c5e9681ac8de8a
+    fingerprint: f5e613b61675d5dce7dbd5373a69e6f9f098228eb552ac4faee2563db329a681
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.remote.sandbox-tiers:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: security
+    fingerprint: 677e13eef0c7f4052095e89c17d0dba93c45391f9abb1bbd4452f3d84219e71a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.remote.sandbox-setup:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: security
+    fingerprint: 91e36a58946f177065c9ab890f12e8d0c5ca6cdf9fe59fe60bebbee604665596
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.remote.sandbox-boundary:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: security
+    fingerprint: fb0195569b5eddede161474a1f6bf2e582466d0fe9b9f44425cb12d73139ec56
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.remote.run-limits:
+    specification: feature.app-skill.code-run@2
+    specification_id: feature.app-skill.code-run
+    type: security
+    fingerprint: f78950f6c85b0549a8564e030b8d2595fe0e9e4ba23f03c434ce3f9cd6564cf2
     required_applies_to:
     - rest_api
     - cli
@@ -4049,7 +4422,7 @@ assertions:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: 7eab0a417ad9550c7fac6fcab608624a055562227304b020fdf1ea127d3533a6
+    fingerprint: 932d85df80081dd741ae2a552c1d263f7b8cb7a699383c2b7536db72d63b4b60
     required_applies_to:
     - rest_api
     - cli
@@ -4061,7 +4434,7 @@ assertions:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: d62525e5177fd81d4ef2c2303833d234b86d1859719dee93eff1f498332638b2
+    fingerprint: a9a7f58cbc7e18c1130f098cb5e423f880da54a8b034c9a910045fa2bc6ef662
     required_applies_to:
     - rest_api
     - cli
@@ -4073,7 +4446,7 @@ assertions:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: f343d6248e5f8a391a8b7122c6e38080b7f8a0abbd9196cd915e740fd2c4984c
+    fingerprint: 15dc1a6a108f5153c22f2644f58376072974d766a3c7843712c8266134be246f
     required_applies_to:
     - rest_api
     - cli
@@ -4097,7 +4470,7 @@ assertions:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: b47700c8bd50a28aa971c0b698c4c472a1281413f9e63bef21d1afb6abc5e118
+    fingerprint: 4150b1f2c2443d9f0e4be54e9ee6744c3ccd231a515721321a50033060fa47cd
     required_applies_to:
     - rest_api
     - cli
@@ -4109,7 +4482,7 @@ assertions:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: 9a4e719b1e75ac5fa7707bd5a76f99f896381efee167c5473852f269343c4b76
+    fingerprint: 70b63837614658a14b172971edf4a4b70159caffcac0cad2c58234cfe9bbd9de
     required_applies_to:
     - rest_api
     - cli
@@ -4121,7 +4494,7 @@ assertions:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
     type: invariant
-    fingerprint: ef22a08f657db2c965b6c24cc0faac5d1c8e578a8208313bd73d93149c8f32d4
+    fingerprint: e12510a383418c2262e5632c412d0e7388770a85471111883f625a51e594933d
     required_applies_to:
     - rest_api
     - cli
@@ -4265,7 +4638,7 @@ assertions:
     specification: feature.app-skill.code-run@2
     specification_id: feature.app-skill.code-run
     type: parity
-    fingerprint: 1d075cbb2c16fd1c58a259019015839ff7dcc396890ee5cea7db4ce59cb1c956
+    fingerprint: bdcf8cdc2b38b958b59c0ecf8f7eedfc01314aa567b1eece515fd7e1d5f1b986
     required_applies_to:
     - rest_api
     - cli
@@ -4505,11 +4878,165 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  design-figma.connection.oauth:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: security
+    fingerprint: 35f6b0c652d8329c36f6909a4eefa0ba50ed088c3cd09ee9be018efb33e19047
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.connection.minimal-scopes:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: security
+    fingerprint: 8fda71d291acb5c0ff4b2de3e4d29d94f2561af743615fcc7f0adfbf50357f73
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.connection.penpot-token:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: security
+    fingerprint: 2d9c142165ec961708b645855fe6d9f206a4756bb9df4823df4d23232c4fff2d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.execution.token-lifecycle:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: security
+    fingerprint: ada771fd271af6cd2c1304e75e21991bfb97a75c36de8de07f821edcb7079dd4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.read.outline:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: c454e9af41bea1c2cfd5905c227de62742fce2171efaca1a30ce24005d5bcce8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.read.file-content:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: 33e9be784b9715c213c84652eb2c57b055473d28344abfc61b0a3a5f5bd10fbd
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.read.context-budget:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: 4b9bdf8bb35a2d12ed96729cf46b3bcb5d73305598ca35ba43394bbd8a18d798
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.read.selection:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: 7ebc3fd13ce70bded65e0f8ac467a34f38f2fa5850a1f05e816942aaa2ce8baf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.read.variables-images:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: 6ba50345de6673edf29dab6b48626f60610c58e4c159087743dc91f99d82fcf7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.assets.export:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: b12fe221f01076ecdc42312cc5969263d30cc94a6b4b641266135f2a8252544b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.limits.rate-aware:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: 04e59bca5887394891472303e1cc73f77fb67435525537a6fd411392ee42f4a5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.handoff.design-to-code:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: 51f03f29bc899d246d01d6e277c8e09478d77af6a8096399e99f7a7e97299e48
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.model.provider-neutral:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: behavior
+    fingerprint: 89d49187229e3975c393b4b8436009df1d2e34f97bd91942ebd1ffff5973b0e5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  design-figma.surface.parity:
+    specification: feature.app-skills.design-figma@2
+    specification_id: feature.app-skills.design-figma
+    type: parity
+    fingerprint: 8e2880f04bb700cc7271e5a7b319a6d35b1c543574901ba964c64eaaa9ed9431
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   events-search.request.validated:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: validation
-    fingerprint: 83eaafec6d3f5e1f9da60947a786e91be0accb99f4c1a178ff13bde5945f71be
+    fingerprint: 2c1258f34449cae91039a9f9f5464af644e8beaf1004c08914160da9a25e6274
     required_applies_to:
     - rest_api
     - cli
@@ -4521,7 +5048,31 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: 2dd6d2d71929b178f5f4a9d63618f498bf587a84699e4da91d9d14bac4af7ab9
+    fingerprint: 9bca48cbe5b0a9423261a77f39d4753d3941b80b2cc5fa79eb234b02e9d2a6c4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.discovery.web-pages:
+    specification: feature.app-skill.events-search@1
+    specification_id: feature.app-skill.events-search
+    type: behavior
+    fingerprint: 72e99bd38d15cd176aba2450ea8111627f86598a66e7f89c71d454e1e20c742b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  events-search.billing.usage:
+    specification: feature.app-skill.events-search@1
+    specification_id: feature.app-skill.events-search
+    type: invariant
+    fingerprint: 5f406c88bf8f45768a860a6b2445c400b8b95701f4e895fb344e98f320233d4a
     required_applies_to:
     - rest_api
     - cli
@@ -4533,7 +5084,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: invariant
-    fingerprint: c181a27d5d2f6683243313c0e8121d5ad071aa9e8b17c3d0480d35f4655ecc5e
+    fingerprint: c93afe944a6fa25735c363d6b3be99cbec71e0bb5d068b042449e923fb151883
     required_applies_to:
     - rest_api
     - cli
@@ -4545,7 +5096,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: dd791b3897e8445140b2a4d93352bdb2187eccd7e823ee7c0e5e42433ee1c7a2
+    fingerprint: 02ab33ff24bc82a91cd173da084df9f490fd0d798503e1c5cd8a7c297e0dd455
     required_applies_to:
     - rest_api
     - cli
@@ -4557,7 +5108,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: invariant
-    fingerprint: 9b72f26a0c14f86b8079d5381fe7d1db6dae7c1bd93f27ab179cf1c56b856bcc
+    fingerprint: c066cd27ca44ef2dcd010089f934c20b291c116742fef31844fbedd97c690f71
     required_applies_to:
     - rest_api
     - cli
@@ -4569,7 +5120,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: d9ffeae0ce35b1bdcbcab78daa940ab3295617374e6fc4a0645cd702921f87a1
+    fingerprint: c4b33cdb887e33d360ed1c5457684286528c86af3489d230947c57e7a5ef7923
     required_applies_to:
     - rest_api
     - cli
@@ -4581,7 +5132,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: failure
-    fingerprint: 1ed29b9df78e3a07467f8f6135d18707d84403dd47b1c1948283e64540d72da6
+    fingerprint: b3fffc94c763cf4db50b8b115eb324ca86a8b85b57f29e75342ee6eb75feffdc
     required_applies_to:
     - rest_api
     - cli
@@ -4593,7 +5144,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: behavior
-    fingerprint: d11cd220932d82984299086ab6f9ffb3ccc121db2a5984c91f9ea7d36afda1d1
+    fingerprint: bb79a754115a6c8fe0af1d3396f60b7c17d44fc937bed9eb83371ca9b103064a
     required_applies_to:
     - rest_api
     - cli
@@ -4605,7 +5156,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: security
-    fingerprint: a12528dba16c25f3c8c4e0b60847983aafb08922697c789205290bb803b4647d
+    fingerprint: 5a51a4c72fe167811f6355dbdd295ed149c55ce333316ae2c0f73730c2f939a9
     required_applies_to:
     - rest_api
     - cli
@@ -4617,7 +5168,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: parity
-    fingerprint: cf1f50bb63fa3aa4ba980cbd7aa068375ae44335e03ea9ee5d3d4fc3770714ec
+    fingerprint: 29e3ba36342298bde3c01279cb1f2f4a15769b695407df58130aab98190fc4b9
     required_applies_to:
     - rest_api
     - cli
@@ -4984,6 +5535,18 @@ assertions:
     specification_id: feature.app-skill.images-generate
     type: behavior
     fingerprint: 0cad1ee41954fef2c3299eae118ee4fc509683c6a80c7516b680f8cf3de42874
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  images-generate.raster.cheap-default:
+    specification: feature.app-skill.images-generate@1
+    specification_id: feature.app-skill.images-generate
+    type: behavior
+    fingerprint: e9935499da9bef3c737b338f6f1a388fe066ebe397b9de89b15175820f5c4ec6
     required_applies_to:
     - rest_api
     - cli
@@ -5403,7 +5966,7 @@ assertions:
     - gui.web
     - gui.apple
   shopping-search.products.supplied-gallery:
-    specification: feature.app-skill.shopping-search@2
+    specification: feature.app-skill.shopping-search@3
     specification_id: feature.app-skill.shopping-search
     type: invariant
     fingerprint: d72ac56d9756ce09da521f91ee274cd332ca4fc7d3071ae40bb191a590ef2e6a
@@ -5415,7 +5978,7 @@ assertions:
     - gui.web
     - gui.apple
   shopping-search.relevance.truthful-fallback:
-    specification: feature.app-skill.shopping-search@2
+    specification: feature.app-skill.shopping-search@3
     specification_id: feature.app-skill.shopping-search
     type: behavior
     fingerprint: 61508a03ccf6809ddbd8f639b4d2fe02b53577c4204f897c6186454ad7b716d9
@@ -5426,8 +5989,80 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  shopping-search.compare.exact-product:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: 43e63ede5550b680142bc824176c5761c20e7cd3d4e0d86907e3d8fc215d9f60
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.compare.total-price:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: ff91380483a30a8bc265ae920547ed83ddf687425b6dde3452d63f14503230ba
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.compare.condition:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: 3cce090a1e62ab8c36871e55ffea531aa173b7f28bb659fdcd1f820098f54e5c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.answer.identify-then-compare:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: 6e3dc81a6ffc56c85823592942ba59fb5d550cb4462630337565989e4245408d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.providers.repeat-cached:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: a47c444efdf2a0b8d2ff38c9c92038c19f447f15a12608531033c16c369a0c79
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  shopping-search.providers.slow-provider-alone:
+    specification: feature.app-skill.shopping-search@3
+    specification_id: feature.app-skill.shopping-search
+    type: behavior
+    fingerprint: 3dde1bc5cb0c16433b3db9a7afb8c64cf115bfddf98fe75c28c5c83b1943fd48
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   shopping-search.privacy.minimized:
-    specification: feature.app-skill.shopping-search@2
+    specification: feature.app-skill.shopping-search@3
     specification_id: feature.app-skill.shopping-search
     type: privacy
     fingerprint: ccc26584f119473aa57388b13f5bcea89eb9d5971ffb5277f2cc60a6ceae7790
@@ -5533,6 +6168,78 @@ assertions:
     specification_id: feature.app-skill.travel-search
     type: failure
     fingerprint: eeed38b493d908d7cd7eed03142cfe4aa84a8c3e8d87ff73ad86837e3e197521
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.pass-hub-composition:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: behavior
+    fingerprint: ba29efbc81fbed1372bc6b1ee5829a65d8af41f9f08d8db69b9d4ac708988e0f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.pass-coverage-conservative:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: invariant
+    fingerprint: 9810a4d09ee92166165f95ea0223135e818f122bf199f6d2312a1f8b8698590e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.transfer-buffer:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: invariant
+    fingerprint: c84653094b5242695efb69b7902e01f797dd2199b5420ebc61c5c65d4829ba91
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.total-price-ranking:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: behavior
+    fingerprint: f177d6fdc81dc03290be6c63751afe088aa4b7366551dac8f3ca20d873f3ec99
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.per-ticket-display:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: behavior
+    fingerprint: 7ad551e6188571397ee6b630c4ea60bec31ee7cb65b4e26eef67708d529a1ed3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  travel-search.mixed-routes.provider-neutral-and-bounded:
+    specification: feature.app-skill.travel-search@1
+    specification_id: feature.app-skill.travel-search
+    type: security
+    fingerprint: ac37ae623489bc70e2c45419de6a6fd261b6e23278db9e62f689a83cb8302603
     required_applies_to:
     - rest_api
     - cli
@@ -5877,7 +6584,7 @@ assertions:
     - gui.web
     - gui.apple
   web-browse.structured-data:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: behavior
     fingerprint: 638ff49e87fea052b81d95442f033e20e01ca0237bc4a7c89391eca0243b3264
@@ -5889,7 +6596,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.dispatch-and-routing:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: behavior
     fingerprint: 6c71e373ffc486684f5dff0651e6f21502d0bffbba119b84b0d81e212b113a36
@@ -5901,7 +6608,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.session-and-run:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: security
     fingerprint: a34006fbc1d439b17028992074c070c8b7237b1d40ec9712729d451f44c8c71d
@@ -5913,7 +6620,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.control-loop:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: behavior
     fingerprint: f3aabef5d67f5e384107412e9cac2c60f036279b0336e741cd1df9351b1ebab8
@@ -5925,7 +6632,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.text-helper:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: privacy
     fingerprint: 5313767371a1a1995494beceef708f208422253d5912c8dacfdf600e2d0c0a67
@@ -5937,7 +6644,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.truthful-completion:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: behavior
     fingerprint: 0df07d78e6c3d3fcf4b9bee11a19c2f490e3874c1f9239bca990dc828aed2156
@@ -5949,7 +6656,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.embed-and-observation:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: parity
     fingerprint: 653b4efd8491645453f7af362669c86195a7474c6e85391fa6765c9ce82ee83c
@@ -5961,7 +6668,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.exclusive-takeover:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: security
     fingerprint: 116607b63411879e45895fbbdb3ccbcf38e89024a5bf7a9fe141092793145dc5
@@ -5973,7 +6680,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.sign-in:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: privacy
     fingerprint: 15ee5f260c84639068d9879f4db501888201cfae4e6bacb7abbb5b441728348b
@@ -5985,7 +6692,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.consequential-actions:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: security
     fingerprint: 87352faf563245f2b837b9299eeee423fb9f858375a556a6e3e6491aebe30977
@@ -5996,11 +6703,23 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
-  web-browse.lifecycle:
-    specification: feature.app-skill.web-browse@1
+  web-browse.form-with-user:
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: behavior
-    fingerprint: 6b29ff3c73c22e03da9e9b13bfe0ae1f4980aa90cd67e7c1b1063cb99bafefeb
+    fingerprint: 342e22472de585fd721a8c2571b5fd0e1c9b3e6391bde5fe92ea785030a0c2da
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  web-browse.lifecycle:
+    specification: feature.app-skill.web-browse@2
+    specification_id: feature.app-skill.web-browse
+    type: behavior
+    fingerprint: e232b02b68be008a53e57d7c5df0b2f0762121883200a2f083ae7bb6e26d68df
     required_applies_to:
     - rest_api
     - cli
@@ -6009,7 +6728,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.budgets-and-stop:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: security
     fingerprint: aaae0325f45803fdaf2e8b601483d0d40ef46e6bd4fecc55c568e06ff788f064
@@ -6021,10 +6740,10 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.cost-accounting:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: invariant
-    fingerprint: 9d33be5d883cde2be30e580cfa7b268f009dc455f489a3c1c19bda5bad924a45
+    fingerprint: a3833a96fe4f5028d698ba4c8ecb4635cf5d79b62c5d130e09918dd5721ad0a8
     required_applies_to:
     - rest_api
     - cli
@@ -6033,7 +6752,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.network-and-content:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: security
     fingerprint: fe538b5ec5411cc602752805048769536580914ede0fe208a62d9f976726cd7b
@@ -6045,7 +6764,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.private-storage-and-api:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: privacy
     fingerprint: 2af67a914a7c8507823619603186a6375a0da6f7b8f09756253dc12ed625d7b5
@@ -6057,7 +6776,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.workflow-parity:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: parity
     fingerprint: 36bcc1e3ce2793d001cb840a36bca4168b16b6e567bfd0e859505f930d031823
@@ -6069,7 +6788,7 @@ assertions:
     - sdks.pip
     - gui.web
   web-browse.delivery-and-evidence:
-    specification: feature.app-skill.web-browse@1
+    specification: feature.app-skill.web-browse@2
     specification_id: feature.app-skill.web-browse
     type: parity
     fingerprint: 7bf08c9d88f846d8bf79c32671e331eb8b622aab36bf56ec4d56c7aba5b21bee
@@ -7010,7 +7729,7 @@ assertions:
     specification: feature.assistant-authored-result-embeds@1
     specification_id: feature.assistant-authored-result-embeds
     type: validation
-    fingerprint: 094e2d423440b9e83f4ef85b147968fd678594fb9d39dff50e4a500a50aabfbc
+    fingerprint: c4bcf6fa0ddcfa99672d61a5716c126f45ab306d33235196c78c5ef50bc0fb81
     required_applies_to:
     - rest_api
     - cli
@@ -7046,7 +7765,7 @@ assertions:
     specification: feature.assistant-authored-result-embeds@1
     specification_id: feature.assistant-authored-result-embeds
     type: behavior
-    fingerprint: c2a2c57313ab1628aa951a1772aabddca01c44754330af9fb5074969a599b389
+    fingerprint: 5cc5f2dd6677ace34effd845a51a0b38fde7fa80f9ae3642e0422d9be3c298bd
     required_applies_to:
     - rest_api
     - cli
@@ -7070,7 +7789,7 @@ assertions:
     specification: feature.assistant-authored-result-embeds@1
     specification_id: feature.assistant-authored-result-embeds
     type: behavior
-    fingerprint: cf54520bf7729a2a314c354cfe6bab6d59eed5c50c902950b67f2d2c96957ef5
+    fingerprint: e59eb1f5c800e8dec8771692643f4ef173c22ddbdf0170aa5ce9716a94980a0a
     required_applies_to:
     - rest_api
     - cli
@@ -7454,7 +8173,7 @@ assertions:
     specification: feature.auth@1
     specification_id: feature.auth
     type: behavior
-    fingerprint: d5de6f21f7025413e14600b09f5b544c94f870b7dc236cd310ebed4bd60fbc1b
+    fingerprint: f69b262a2edc4f482407614906e55781bd5df345f0442a5fe28085fbbeb04ee4
     required_applies_to:
     - rest_api
     - cli
@@ -8465,6 +9184,168 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  chat-orchestration.spawn.unified-kind:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: invariant
+    fingerprint: 59905e328d0f61492060925b6c53fbc51dd89e721f9b542c3e407ada5ed9a1d4
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.spawn.main-chat-is-normal:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: ccfa99fec2b280fc1ce30c1430b4d7354cf8b9e1f348a9c70c8d99b10c1f4248
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.spawn.brief-not-answered-here:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: 9da99e863298208491c3dd46d58b8ba9ca9f1444aa38c7f6a3bcca11cf8ee80a
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.spawn.eligibility-and-limits:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: security
+    fingerprint: 14e1b734e09e3cc89dd0cc1a14b4cc2def9f377b8d679eed1ae78770de7d4135
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.events.creator-system-events:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: bb96af1e6e7312622ad134801e11d9cc64d46fca36a1e00bb6ce0871b4d8c302
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.events.context-for-creator:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: cbee0660f1856b33518fc03fc8d9e8048a9b9a0dc6c86c8b61d47c77b85baa68
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.events.automatic-interpretation:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: f0e499593f91041baa8e020ecee12edc9571a7c5cef77f8f8f5857e705d3c021
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.report.creator-skill:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: 3b51e6c79fcb8b731f96132604f919138977769674deb89889b5ae9e7b88faf9
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.status.automatic:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: 395ae6bb4f523956295a81a2b2621ba7b67deba9678e83b9de36f2394cf05346
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.skills.list-read-send:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: aca853273abd27ba7f5b35759c65674d9bc247d72b1a0ac801dbee5c9ee77cbe
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.skills.answer-own-questions-here:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: ba881031f95ad914cb73cfff3f7abff4b0ce5ac533f613efcbe985235e8719e5
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.privacy.device-executed:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: privacy
+    fingerprint: cf552476907fd685ff14b963ccb88ce8ac401fc27b0d836202eda1ef7e677583
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.billing.separate-main-chats:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: invariant
+    fingerprint: 15f80d08c0fb252e8cf069a243720237ad60cbc3daaef9352c672ed9a46991d2
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.user-awareness.no-talking-over:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: b40fda9f3b7c37e9fd0f1c10db880886401ce500b5f4a61b03cace3fc466e950
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.safety.user-requested-writes-only:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: security
+    fingerprint: 4a1122fd1734353bf51e2dffb3885a788bf5e153f43d599d9aad5d3cfb2010be
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.safety.linked-chats-only:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: security
+    fingerprint: 3867c2d00b796781855cbb4b041376b5c950a910d88853cfc44686a63cddb008
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.safety.loop-limits:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: security
+    fingerprint: 3ab0d20eb7a2594974ffc6851efc3879c69e6837df05f9ee255f8a29902e5633
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  chat-orchestration.safety.visible-both-sides:
+    specification: feature.chat-orchestration@2
+    specification_id: feature.chat-orchestration
+    type: behavior
+    fingerprint: 00da24543ad2b2b74367239372dadbc3e9ea8bdfebd8eed0324efe1f3bddd84e
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
   chat-processing-feedback.selection-after-acceptance:
     specification: feature.chat-processing-feedback@5
     specification_id: feature.chat-processing-feedback
@@ -8968,7 +9849,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: invariant
-    fingerprint: dc91e2f0f6e333df9fea437cd9f421bc04ddec3254e5138f631e5a747ce67afa
+    fingerprint: afe08ca97aa40647a9041fa624846b21f0b71d0b7a7164f3a12744ada608fae3
     required_applies_to:
     - rest_api
     - cli
@@ -8979,7 +9860,51 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: behavior
-    fingerprint: 877a0187b524b9cebc5c364857f5700929b564b49a76618ba8943d425ed4055a
+    fingerprint: 41df2e03b029a83a0232ae7b2d020bff8ef15d3c5c3619f188ab4d9dd83cdff2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.sources.mixed-types:
+    specification: feature.checks@1
+    specification_id: feature.checks
+    type: behavior
+    fingerprint: c64bc824843ff4a3d61a02a0fa788b1b9e32371f682bf1fc9d00da8b3571e626
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.aggregation.required-sources-gate:
+    specification: feature.checks@1
+    specification_id: feature.checks
+    type: invariant
+    fingerprint: 265b569523d2d3be154e1f507c553fb5fa523748918597fb4b518085bb70b27b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.sources.deterministic-for-sensitive-claims:
+    specification: feature.checks@1
+    specification_id: feature.checks
+    type: invariant
+    fingerprint: 3d5634620f50af5fe35b705356caadfea56f8302ca42474f810abd5072744d6e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.human.waiting-for-confirmation:
+    specification: feature.checks@1
+    specification_id: feature.checks
+    type: behavior
+    fingerprint: 78681271adb27348fedf6728da0712525f64d8ef60c14393b8a19828ee065759
     required_applies_to:
     - rest_api
     - cli
@@ -9001,7 +9926,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: invariant
-    fingerprint: a8b081252165e05a7015f03a66dae28b5867cf6047b2693b969c30a64fb2a26f
+    fingerprint: 4a1d457c516eb6929dd442cd58a9643ae1a02ae3d29a6c7497e226d5377e6516
     required_applies_to:
     - rest_api
     - cli
@@ -9012,7 +9937,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: behavior
-    fingerprint: a057eb943635ca6b12b21ac0f60507ab55a7b51f52372d82db78f239fb54d8d3
+    fingerprint: 9e802546fccfe93950e85a808f69e375276b9ce8946916f42fb908ea876a454f
     required_applies_to:
     - rest_api
     - cli
@@ -9023,7 +9948,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: invariant
-    fingerprint: 31312fad21ca02460e468d72ad317792934cceb2000937144a4b679140201ea3
+    fingerprint: 7985c068d7d4ac0fd79a6df875fd923046bc407dcc4fe07fd52db4d703647247
     required_applies_to:
     - rest_api
     - cli
@@ -9034,7 +9959,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: behavior
-    fingerprint: ad5cf3bc5c9de4603a63bea986cd9b690ffc3595635d7e39f6615c191f428fbb
+    fingerprint: c18c0886146a4684783f192fc7577865da0172ed8f2f65ab3674269f7c5a07b7
     required_applies_to:
     - rest_api
     - cli
@@ -9045,7 +9970,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: privacy
-    fingerprint: b689a05ab255431db48bb574be73722b18540c72c3a1ac30cc07fd23967690d9
+    fingerprint: 7fee7bb33232193fb3934f84df1cd47e627be0c9bca08741a016184e9677ee96
     required_applies_to:
     - rest_api
     - cli
@@ -9056,7 +9981,18 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: behavior
-    fingerprint: b2b7e12fcfbf748319b42bacd391fbd7391e7f4ae8df718dd0881eece64a5efa
+    fingerprint: 86cfb1b411d0069b9be0110a119393932e6be91244d61ce873ca789f7296b443
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.continuation.required-checks-open:
+    specification: feature.checks@1
+    specification_id: feature.checks
+    type: behavior
+    fingerprint: afeaae655564991951f1e293d6309938941f09d5d2de47acb7ca993d7f468cf4
     required_applies_to:
     - rest_api
     - cli
@@ -9067,7 +10003,7 @@ assertions:
     specification: feature.checks@1
     specification_id: feature.checks
     type: parity
-    fingerprint: d2eeda1d7c5977cf70bea11a2816e9bfd0cc719e1680e50792a376ad00d3c3ef
+    fingerprint: f111b8e74ba9b038e8c781441b61d853046de54bd9a1195427ba59c652419de4
     required_applies_to:
     - rest_api
     - cli
@@ -9250,6 +10186,18 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  embed-user-edits.header.edit-save-button:
+    specification: feature.embed-user-edits@1
+    specification_id: feature.embed-user-edits
+    type: behavior
+    fingerprint: 03436021fa454297eece7ea1f847072d45a4776e3ea0b61ecc8729f4dd25f790
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   embed-user-edits.assistant.knows-current-version:
     specification: feature.embed-user-edits@1
     specification_id: feature.embed-user-edits
@@ -9334,8 +10282,64 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  life-compass.activation:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: behavior
+    fingerprint: 2dc34c07ee57c6ebf1b1456b46c3267888b547b559f02c387c372268f7082f5e
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.tone:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: behavior
+    fingerprint: b364789a6e48840186555ebdfc4a88c504d5066d8342419b7707aaba7297a5b3
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.flow:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: behavior
+    fingerprint: 1193849b04a24009aca349eb1a0238876934a31a11ca3d2de4a5a434ffc0532f
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.memory-consent:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: privacy
+    fingerprint: b7246d0776f84bb58ff97953e58301b68ee02007f64566915fd17bfd40731d07
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.next-steps:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: behavior
+    fingerprint: cf52b771f6d64e2b265e2c9f9752979ec90402a640603544e91b7a489bc852dd
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.follow-up:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: behavior
+    fingerprint: 6e8a8d470a3e3ee950fd50cf7d4902030acf4bcd7b6e6cfc411dd8fe6c9e52c6
+    required_applies_to:
+    - cli
+    - gui.web
+  life-compass.wellbeing:
+    specification: feature.focus-modes.life-compass@1
+    specification_id: feature.focus-modes.life-compass
+    type: security
+    fingerprint: 6c509bc83785b6f9eaa5a2f37659a46ac9b7325fbc43b9e9869d2b68f06ec42d
+    required_applies_to:
+    - cli
+    - gui.web
   focus-modes.project-write-gate:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: security
     fingerprint: 3a66ad4a904d5b973936da85e3611ca415111903ecd34cfc91d941ee7f178bbf
@@ -9347,7 +10351,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-off-read-preserved:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 0871c8b12e76cb530b9fc70cb058a319aaff6911d95151dc1ff4271880c33f05
@@ -9359,10 +10363,34 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.activation:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: e414223347bafb2fbd505065b6353233d385f7372a9f1839cc9c5ccc7897a742
+    fingerprint: 672448b3048de53c7b6874f0e68914e92f63129bae2d18f4aedb2adf6644b0a0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.activation-authority:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: invariant
+    fingerprint: 4222a82e0901a80118e5bf1ae4678f4d5af2e4f6b75d73a8d2efd6faef919170
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.explicit-activation:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: ee1387884a9247f427bea613f9ee10253ab2b671f2132906d0d1b20d3cc87875
     required_applies_to:
     - rest_api
     - cli
@@ -9371,7 +10399,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.full-instruction:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 298f00bca04aad56830197bfeb8a8e12b58a1e84a5a3f17cf25cbd2006d9db7a
@@ -9383,7 +10411,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.off-instruction:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 35f5d7f15f010554c79aaa2accda28a84f7355b8134157ea4415396ec5ee36ca
@@ -9395,7 +10423,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.history-events:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 083edbb182e4d37747aa1aecfe15efa3e4fa215afd177bb030de189975f84a71
@@ -9407,7 +10435,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.countdown:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: d1a0bd5e54f8917e8819520c7ae45d76ca6835bf99dbe66affd0a2e34a47620e
@@ -9419,7 +10447,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.history-side-effects:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 202b979f050194447028cf0442893f1c739559628aeebc1ddcc30a8a51dd92e2
@@ -9431,7 +10459,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.controls:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: f7e7cf9b7674082515e255c986b2b7cb5500da3be086e575dbfdef65c76a45ee
@@ -9443,7 +10471,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.restoration:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: privacy
     fingerprint: f90d6ba1e65c5beb9bf73b245b086df57910a0104831801c812a0c604c163891
@@ -9455,10 +10483,10 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.banner-placement:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: bacf0d80f5b1c7bc946b32f2823c39c4acae2ff555c4316c6303bd28ed2325f9
+    fingerprint: 8fa1155c9c1c96f260bb90b5604960c8aa28185cd0d079da934c51ed64a95196
     required_applies_to:
     - rest_api
     - cli
@@ -9467,7 +10495,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.specializations:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 9e020f8fd50696ad94d5a341b38d87b7249f29c7cf2e49b8a19b02eaaf9698b1
@@ -9479,7 +10507,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.retired-welcome-and-suki:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: feda32f769a80f027243bb14f1f08baf296dbe949dcbf78a9fcbcb97e11911cf
@@ -9491,7 +10519,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.phases:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 6c1c62e1bea646e3fa019909809120551973da2b4574b037f8986059c41276d3
@@ -9502,8 +10530,20 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  focus-modes.guided-spec-authoring:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: a955baa33f63be466e8923776966160e6331d71b166823f635e7e92c6ac2b1b2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   focus-modes.learning.progress-and-suggestions:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 8c37e8b54271a8175a7c457a149ec7763a4ffa76fcde401e28b8dc1b01e8a5dc
@@ -9515,10 +10555,70 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-specialist-composition:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: a5aa247a89702a870abe2d79d4abcc9f118f8a32d7b9c28bb3ef64d5fe2e47f9
+    fingerprint: d9c2eeca5392dcc027433ed817e733ee6f5530c34336454cb8b8d02d498959a8
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.project-layering:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: 2cc25c274ba689a35fa3668005cf569ead4d267513489796bae72b47720184a7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.layer-end:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: 15208049551aa2dd45b846f8aeab9edc5feb70c0e13de623ad315981e71a14ae
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.layer-precedence:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: invariant
+    fingerprint: 0e267d483d54cf293e04d180c3c91a95d53d8034f35dbe521de57c275f1efa34
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.conflict-detection:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: f439888d85b90fa1e7e63f1e3c80120560fa5e1e8e6e028491ce46f260b556bf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.override-note:
+    specification: feature.focus-modes@3
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: 07746091cc9ea2ab4c0b1ab95fd4704d818a93a66113078eb00df6ce2d7f4976
     required_applies_to:
     - rest_api
     - cli
@@ -9527,7 +10627,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.context-reselection:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: e7fae5940a3803626e90b530760e833eaa441fe68abbc951d6bef6ee96b2347c
@@ -9539,10 +10639,10 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-recommendation-catalog:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: 805a068bad0a69dc3586d2c4da6774b120eb265893a25efc77a0416bf776ccbc
+    fingerprint: 54381da13804a17a72dbc01dcc50608299372cb68f9aef622b64f39bd3f725f8
     required_applies_to:
     - rest_api
     - cli
@@ -9551,7 +10651,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-recommendation-full-assessment:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 3c1dbcde314a60ccb15a4983857d3b84d2858be334a3eaf06ed130dff1164ee4
@@ -9563,7 +10663,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-authoring-click:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
     fingerprint: 0d9930932b6be079207957fe1e14bd58cc347d06b2ef60f857edd60c0cd4931b
@@ -9575,7 +10675,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.project-authoring-persistence:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: privacy
     fingerprint: 09e7725c13ceb3139c9c5a6958139a37914d644322516340d134a9e99f010749
@@ -9587,7 +10687,7 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.updated-followup-revision:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: invariant
     fingerprint: 70c70754d56e7195cfd608e3132cf112167e3fd7de86ab5f2b1bc451dd0c8815
@@ -9599,10 +10699,10 @@ assertions:
     - gui.web
     - gui.apple
   focus-modes.natural-request:
-    specification: feature.focus-modes@2
+    specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: 046f4ad2cfdd437bcb84898c2345cbd0dd2e103c28b638ba32b51deabe84976e
+    fingerprint: 98db6fdf67ca1bec20a959f19b7e2649e77c5abc9e1e84dda956386908884d2b
     required_applies_to:
     - rest_api
     - cli
@@ -9610,6 +10710,114 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  trip-planning.activation:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 1c95ed0c4c881777a6ab19ddfc59411538efabac47291e8151083e509106d3df
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.pacing:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 477e3eac4abd373127f390f651c31bfd5b9474586f6eaf406036984105242a8a
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.destination-comparison:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 1144d475bf4c8a00cac0aa06fc694af9ea17223650fd01368d87518b8dd1037d
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.connections:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 987cc77830a2d519f8e71eb945976f34ae1e7656034a881000ea13f8c705747b
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.stays-duplicates:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 0fa4072a4157c6598e1d826609219961bbd7ff9bf177ebd52409666591d407c0
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.stays-price-comparison:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 92c0e88edc2976a0b9580fdcb87ba7125f19356d18aec84463c1793c164ab432
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.weather-sources:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 0770cb3467e0174b772719ff74b101effee8c86756a3a0a8accafe6b6f6ff098
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.weather-adjustments:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 7ff78689cd498582c42afa1641a06f79683e88763a86f994b65fdb6ec4289664
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.itinerary:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 925f079bd08d54e308fc1db5d4326d9dd8fc2c00ddf48faf29f10e4ec4c57083
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.booking-todos:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: behavior
+    fingerprint: 7d1a8eb6832b2831f39775a7c8b4726de17ef4a4b33f13eedabd21b36387bb82
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.memory-consent:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: privacy
+    fingerprint: 96fdd67b585951bb75380fcdc425e195c3186e369f84bb79b03a33d0599d83fa
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+  trip-planning.bounded-and-neutral:
+    specification: feature.focus-modes.trip-planning@1
+    specification_id: feature.focus-modes.trip-planning
+    type: invariant
+    fingerprint: d90f6d3206cbd5ad7a98fc9ed63862080d355b78dfc0036c153067d5af4549fe
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
   instance-app-packages.manifest-validation:
     specification: feature.instance-app-packages@1
     specification_id: feature.instance-app-packages
@@ -9650,7 +10858,7 @@ assertions:
     specification: feature.instance-app-packages@1
     specification_id: feature.instance-app-packages
     type: behavior
-    fingerprint: d265b7410a4ab1ff4dff111c6b092618e621b55474a24853fed383b35aca7b4e
+    fingerprint: 2219301977a4316af4d596932a4f848f103cb87b427d66f2716c50e0ec388369
     required_applies_to:
     - rest_api
     - cli
@@ -9910,6 +11118,14 @@ assertions:
     required_applies_to:
     - rest_api
     - gui.web
+  language-preferences.chat-metadata-language:
+    specification: feature.language-preferences@1
+    specification_id: feature.language-preferences
+    type: behavior
+    fingerprint: 67adad6ecea7bc02d1c4c9f5aeb21a1e3b4f483d3533328c6480eb2f2ddf7d92
+    required_applies_to:
+    - rest_api
+    - gui.web
   learning-mode.age-rubric:
     specification: feature.learning-mode@1
     specification_id: feature.learning-mode
@@ -10087,7 +11303,7 @@ assertions:
     specification: feature.marketing-landing@12
     specification_id: feature.marketing-landing
     type: behavior
-    fingerprint: a81fd81194218b78f53bb4f23d028d73c974d36845d38dbe1541279ccba4e273
+    fingerprint: 2d95fc03daf58020ce9644235b0fc9bfa0ad5b07dec5ff170318610970bc14be
     required_applies_to:
     - gui.web
   marketing-landing.hero-app-rail:
@@ -10109,6 +11325,13 @@ assertions:
     specification_id: feature.marketing-landing
     type: behavior
     fingerprint: 70c783205225a03e9b382fd71a978d7d71333b9f4cc1a34e7a1f36c855cfd07f
+    required_applies_to:
+    - gui.web
+  marketing-landing.honest-claims:
+    specification: feature.marketing-landing@12
+    specification_id: feature.marketing-landing
+    type: invariant
+    fingerprint: c8fca38c524e7c9886384173f04e648294559cd49ef96683d28fb064f2e84a89
     required_applies_to:
     - gui.web
   marketing-landing.capability-rail-and-prompts:
@@ -10154,7 +11377,7 @@ assertions:
     required_applies_to:
     - gui.web
   message-input.focus.parent-state:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: c9cd7e910c210b6e430cc4fe09f4a85755a5473346cc017e97991f63af76886b
@@ -10162,7 +11385,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.focus.guest-welcome-suppression:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: c933fbea8f93821c45a3a877c156d7d6b06d85ae4f4091f423d967748a818df3
@@ -10170,7 +11393,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.focus.workspace-suppression:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: c7a2ea4163b551346229632a481846960f46511195a333b32d02edf473ddeec0
@@ -10178,7 +11401,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.actions.visibility:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 5c8d4b857988f7d4ea4b2d12b52a224fa96539dba11fcf7344322a1a525af091
@@ -10186,7 +11409,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.attachments.quick-access:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: ec56a430a0eaf37c7d71c61f4f7468329cf038888c2227110368e2104fc58943
@@ -10194,15 +11417,15 @@ assertions:
     - gui.web
     - gui.apple
   message-input.drafts.preview-persistence:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
-    fingerprint: a3f26a82f400ea4d23e90bb8676f9f2e8790f48705ab90b1c55c553df301f193
+    fingerprint: e1df43ad52aab2282b904c86b19914144543b21ec4ad30fe8dc2be787cb82bcc
     required_applies_to:
     - gui.web
     - gui.apple
   message-input.embeds.gated-send:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: invariant
     fingerprint: 3ca30e8ebdfb1985406c4a9d74b477e80ebfc5f1685de5ab69ae224b295643a8
@@ -10210,7 +11433,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.recording.lifecycle:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 57b9517de2eb6c4d7e8e89975c97bdc94035c92240bba5f0e463e39a97e06c98
@@ -10218,7 +11441,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestions.contextual:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6b709d86954867371423b3d9bcffa3109e43e87a23f926e6d46e5cbfefec812a
@@ -10226,7 +11449,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.send.ownership:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 0cdd07a0825a9fb6e20341f6ff15595b61d95c56f3e86cda879453e569d4e00a
@@ -10234,7 +11457,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.privacy-context:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: privacy
     fingerprint: 6b26620a7d7a2eecf45ff9b5a4e4e404f73838448e431b5c9db8c8433166e5e1
@@ -10242,7 +11465,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.layout.responsive-parity:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: parity
     fingerprint: ae4b23f1ed3345bae9cdd0f1021af7d30ec0f359fab64707a860472438ccc562
@@ -10250,7 +11473,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.audio.editable-transcript:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 914a30e07c07a98584463f94466408a1dbafb4777de5de057373f2a2ad76404b
@@ -10258,7 +11481,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.editable-acceptance:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6d9b131cf10f3eade559e3dc78557e5c7312793796661c81072f45999df37028
@@ -10266,7 +11489,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.keyboard-ownership:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 5ba10c97b4bf3796634e80c21584fc3e9b3f8c41b7d3e4cd8ca9244321107249
@@ -10274,7 +11497,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.dismissal:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 2ff79519a5de3f85c64b88c777ef871115b196d61ee0d4be231b4c70644a91ce
@@ -10282,7 +11505,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.draft-priority:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 13a8c2b349bbc566be559a348bf09719a8a4bb1fd6d9d887c6a87318bedf312f
@@ -10290,7 +11513,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.suggestion.touch-acceptance:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 22eff2e48adf2c7e7c8b90598c9e977918672097d84e43d4f23ccbc562c53ab2
@@ -10298,7 +11521,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.audio.realtime-voxtral3:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 25efdfb2514c7087d87c647caf81c0b30535f211f5b05270d1a3307a959ab11f
@@ -10306,7 +11529,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.audio.guest-admission:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: security
     fingerprint: 4e90d45262ee9a99290190eedd78914dba667875b581570613fbb930cbcc75ac
@@ -10314,7 +11537,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.audio.live-editor-transcript:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 6a1ce4b45c464303836f66c099708f1a4d99f02c042d266510aa723309bd9c85
@@ -10322,7 +11545,7 @@ assertions:
     - gui.web
     - gui.apple
   message-input.audio.workspace-dictation:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 76f3c5966f78a291963c7f291818159b5b428d4f08b6335b69abbe1123525e99
@@ -10330,10 +11553,18 @@ assertions:
     - gui.web
     - gui.apple
   message-input.workspace.controls-parity:
-    specification: feature.message-input@12
+    specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
     fingerprint: 1b2813f1a30432a0a3761e2b472a5affa76881f15fde75f72c5f776f28d4dcee
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  message-input.signed-out-two-states:
+    specification: feature.message-input@13
+    specification_id: feature.message-input
+    type: behavior
+    fingerprint: 0a2cc91d3cdd8631147e960ce3ca2f80655495e84367bfbbe30e0d1a180d441a
     required_applies_to:
     - gui.web
     - gui.apple
@@ -11227,6 +12458,28 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  plans.chat-settings.active-plan:
+    specification: feature.plans@1
+    specification_id: feature.plans
+    type: behavior
+    fingerprint: 2a4178bca5893b1ca1b54d3b0658515dff6a372d36909403bf38fee79315a1bf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.embed.preview-fullscreen:
+    specification: feature.plans@1
+    specification_id: feature.plans
+    type: behavior
+    fingerprint: a7d099221e06834ebe955c8c48b44306d000eb130610fb975647288110c362a5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   plans.surface.semantic-parity:
     specification: feature.plans@1
     specification_id: feature.plans
@@ -11253,7 +12506,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: security
-    fingerprint: c09c89a54d73c1ef30982f3dd76fa0732dce8e1c809f3e4ccf0d4dae534b4837
+    fingerprint: b3f578bd60b75cc6d6a2ead7624de80d325adf072232bd7f2988f53464391a44
     required_applies_to:
     - rest_api
     - cli
@@ -11265,7 +12518,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: f28e47286e86edfd04e6ef1319b596b724185aa62bc6c4637783268da6626f88
+    fingerprint: 455cd6cb6f109ee79670a89f7c44860a22184fd2504267b41020978c38b1a01d
     required_applies_to:
     - rest_api
     - cli
@@ -11301,7 +12554,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 643bac1a614a90e2d8bf27b66c8bef77d037f36d8af81ceb350d299909eeef72
+    fingerprint: 03d211f2989ad84555c90adb63bd1c5d9a33c3ed93169b56d4f60b943b7dbb3a
     required_applies_to:
     - rest_api
     - cli
@@ -11313,7 +12566,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: c2ab023e51dfafbdc918ae8839e10eb592eb90de8c59bec16e429c7c34a07758
+    fingerprint: 31134959399ff41a3b3e558cc07831e1779b17a04e49662e9d718d3dd446f22b
     required_applies_to:
     - rest_api
     - cli
@@ -11325,7 +12578,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: privacy
-    fingerprint: 215a59e73d6914a8b3c87afbfed101cf5287705c4047cba53518e5dc53a3d89b
+    fingerprint: 0139fd4e1a26efb085ad56af77c993b3e2cae38974613ac742a86dce7a21700e
     required_applies_to:
     - rest_api
     - cli
@@ -11337,7 +12590,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 0dbf2296f192f79db24a9da81b2f099664e45dc86bbea0f261de3b157322b43d
+    fingerprint: eb43bf7f4d113d276432ee3cec373350f6f9f28d1f6edca246c3a9316e2c8251
     required_applies_to:
     - rest_api
     - cli
@@ -11349,7 +12602,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: 62ba07aaee5ef8df72fcf0d492bed205bf706d1d0fdb918d9f9b5f32ee042f25
+    fingerprint: b45628d4987116906ee9995ac3512f4406260ef76c49b429ca9774eb27a890ed
     required_applies_to:
     - rest_api
     - cli
@@ -11361,7 +12614,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: efe044d9abbf1b87bca65813e41c2c99b01bc9ef97cbe5040ca4c71033595a79
+    fingerprint: 78ac4fac3790635122b4d0f832c84fa163ea848b9e9f3342fa42d45ee208a4e5
     required_applies_to:
     - rest_api
     - cli
@@ -11373,7 +12626,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: 537a20c5b7c3072e2f90ae1ac19c921364e5da422708984eae267597a1057fdf
+    fingerprint: cc81f1ad14d277a4e0f651ac9314662a6d3b35b1445780ade4a82ce93a5a2358
     required_applies_to:
     - rest_api
     - cli
@@ -11385,7 +12638,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: privacy
-    fingerprint: 13784afa595f23c77604d4104978db56a4f8d1f988aa540d76855bfb16c910f6
+    fingerprint: 1c217e530d94b3fd5111f5a265be216f5a2fb56ae83add6c32ba4dc70ddf3268
     required_applies_to:
     - rest_api
     - cli
@@ -11397,7 +12650,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: fd46bf4d82cb134a20b59b8fd97ce1eff4394bcd1a8b3941df94b39ff542e72c
+    fingerprint: 16003401001cb8cf4732c6bef90a739d99ef0de9b0f8b7dc1e822928e15ca06b
     required_applies_to:
     - rest_api
     - cli
@@ -11409,7 +12662,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: d798b935d14fff97210484ee2379b899bfd8dec5eb32d02b10550563e72a68e6
+    fingerprint: 21fd45777083fc7925d9403996f6fa847bdcca98f96a4720fcb11732400b0dbb
     required_applies_to:
     - rest_api
     - cli
@@ -11421,7 +12674,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: 0b8d1ab574ecb86e452899deff4cb6e6779362728539b3bef440d6a7093f8393
+    fingerprint: 4b8a89a8354913da09aa0ef9d8303774bd79d7590afdf72c89279c8a89ae9391
     required_applies_to:
     - rest_api
     - cli
@@ -11433,7 +12686,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 2b13dbf48af7b46e107bda888eeb08f57d3603978fc0da103668bc0d32260def
+    fingerprint: 29f8d8f53a0771ee546d76144b66e02a1ab842e576db657dd8577047ffb7043d
     required_applies_to:
     - rest_api
     - cli
@@ -11445,7 +12698,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: failure
-    fingerprint: ad735cee42c24dbcfb513096d94453b5f7dab85fd859d09125bf218dad23e84b
+    fingerprint: 359ad16f6fa808749573c0e2cd3673eb49ec61ceaa815169588108ae2ef08ee6
     required_applies_to:
     - rest_api
     - cli
@@ -11457,7 +12710,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: security
-    fingerprint: d20f2589ba8e29d70ead76a3b4eda584e43b37f034f6a32576020e5ea94e7ef2
+    fingerprint: f637adc3ad4f61d4891f085cd998ed992695cb16fc1a65e2c9c7e3ef661d3360
     required_applies_to:
     - rest_api
     - cli
@@ -11469,7 +12722,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: a65484677f0930d7b5dc3a1a82649e7156bd92c4c0c82de266f5c283640a07bf
+    fingerprint: cd044bcae8bd9825b0d183c9e03d2eb88fe750c42360e45550262a8a35403650
     required_applies_to:
     - rest_api
     - cli
@@ -11481,7 +12734,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 77816ab293d88d5b1dc844d06e4f328e19103eec546ad84192212913c74e9539
+    fingerprint: 7caa9014d8ad171362fb2f2c2965acfc7211b50107b4030c266358db9600e2f7
     required_applies_to:
     - rest_api
     - cli
@@ -11493,7 +12746,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: security
-    fingerprint: 964c8689c7c26381a48a6fe8a6627570d08585a2416976f63fb24e55cf2d6767
+    fingerprint: 657eb12a904321a0e19d7b0fe25b6665654adfb8fd1857c1b0e2803c6a863ac8
     required_applies_to:
     - rest_api
     - cli
@@ -11517,7 +12770,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: bf1da9ac70fdc517b243d0e2dd5ea82a9239369300ebae8bce8533e59065f35b
+    fingerprint: 85e9f4cc89880e0f6ede905e54e810e7f76336fdad8bd713a9d8345d0b2fe366
     required_applies_to:
     - rest_api
     - cli
@@ -11529,7 +12782,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: bb8d0b8dd2b6c85edaf23f0c965d2257a9ae7e851658bc78aff55bc744897880
+    fingerprint: 6645b8bb3802d9e121bf6e2c21704d7e57d77478848d4e1d0b559dd84c0bac47
     required_applies_to:
     - rest_api
     - cli
@@ -11541,7 +12794,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: b367097fa9561ca0eca3abf31ad804f6da69e8056c1220e621452c4004f9a1bb
+    fingerprint: a33816c213009a4e8b8b502c5a343b46c2483a2835951250ef03d7aea3c0a09b
     required_applies_to:
     - rest_api
     - cli
@@ -11553,7 +12806,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: security
-    fingerprint: db1874d8c96db38da4d11db3fc6015f8206153a9d2c7f78fc79906e72173c6b3
+    fingerprint: 9392fe006d14a1aa91e8eff4b9bcf4d2ef087017f4bf5ec93fb02fdd0abcb99d
     required_applies_to:
     - rest_api
     - cli
@@ -11565,7 +12818,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 5fe1d5e89244a77211bf4aa6caac246043c9d9c013ab2080a69df1fe2dca2d4b
+    fingerprint: 3a00ff0bda43b22a4dbc82ae45e14aee1e3af7703be3f40cafcbdf0e1e7f0e23
     required_applies_to:
     - rest_api
     - cli
@@ -11577,7 +12830,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: security
-    fingerprint: 61e3c2a42f2e2c230bf4530a9c0d611bcef75ae7c433445afb96e46449388105
+    fingerprint: 8a7f42e294cbb76bf45ccaaa0c147880b312016231f78f227a43ea4ecc88c448
     required_applies_to:
     - rest_api
     - cli
@@ -11721,7 +12974,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: bff198cf7bfc79cff3eb5c66fd186f0cf6134840e782b7af8ec1f2b863728e7d
+    fingerprint: 320b7a5fab1b5a830cf35373b48a49c7c28a917e325f676d594b38f9de940969
     required_applies_to:
     - rest_api
     - cli
@@ -11733,7 +12986,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: parity
-    fingerprint: 2ea85db422e789d3770424f3f1974850453c6f53c2006268cf638a3b838f4e7c
+    fingerprint: 1388a8ec1246e7eef548ee9c93178f8f7610c2629be202b95a41ba94dc1a93c1
     required_applies_to:
     - rest_api
     - cli
@@ -11793,7 +13046,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: privacy
-    fingerprint: bcc8ec9610746f691255295665f857e48a1457413984f84eae9fcd53425efc3e
+    fingerprint: bb6016038c61ec8ed10df5cde793b2a19e30a1e833ebcf40af8066c50dad2801
     required_applies_to:
     - rest_api
     - cli
@@ -11817,7 +13070,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 1152baf30badf6826126903fbf65336f6b15a1023e795542589a03b92013b555
+    fingerprint: dccce76cccf38f9161b1981341e02fc23bd93c2fd0d82c485e25108b58abbee5
     required_applies_to:
     - rest_api
     - cli
@@ -11829,7 +13082,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: b3d978b1e6b183633fd40ffaf69de160d8a47fadb7b672c99cf8a3159c5ef8ac
+    fingerprint: b6c3614d7393e0988a9e77b63e35c282e7c9d151d46c00775655080cca698d8c
     required_applies_to:
     - rest_api
     - cli
@@ -11841,7 +13094,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 041b8da039746669b8648f918ca1b5d9a3f634ee447e90f8f4ec26af5391ff05
+    fingerprint: 6c12a1436334580eb9b5c2224624adc040c55aaf622e3b6cc7f3580f0dab56be
     required_applies_to:
     - rest_api
     - cli
@@ -11853,7 +13106,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: af360c53bec333bda82fdbc42ee1e0932465e82d41db46913ccb8e2c17091cfd
+    fingerprint: 7671ca0335f34eeff50bd051db6df1b281faa2e4c6caa3705f918d603d4cbe61
     required_applies_to:
     - rest_api
     - cli
@@ -11865,7 +13118,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: ee048989e16307cff644c74fa94965f88d0b24997d5d98715c38772344f281c2
+    fingerprint: a2d9645cc4ac4f3639b2262a9169cb7450a3a14021a55bfd0b878be42cfb2f1a
     required_applies_to:
     - rest_api
     - cli
@@ -11877,7 +13130,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: d65267a4faa353b10274f0b70984212d4fa95ed5c27bcd29131e527b79a49d10
+    fingerprint: 8c1056c0cbcdb5d6dca1770da3cbe6ae1717c9cfdd63ad9331b12a463366f33c
     required_applies_to:
     - rest_api
     - cli
@@ -11889,7 +13142,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 8c2ecf1c79742c33233b7ef33cecdaf94c5da259e6c2f4dfc03f90d60378c8ca
+    fingerprint: 5c5c9ef1625a91600216b4d9f7138e47623608c09219b0df98e8e1736f7aea87
     required_applies_to:
     - rest_api
     - cli
@@ -11901,7 +13154,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: 67e7b5d8e51b9c6726536ce055b827e3887fb62a838d96b651c4a3cb67c60189
+    fingerprint: 9bda06b67efba773cccab1093ebd4e73ace835990000e18d18386e8139d171fa
     required_applies_to:
     - rest_api
     - cli
@@ -11913,7 +13166,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: invariant
-    fingerprint: 64e6992d1df2de4d6ac99e9325470cde759255eb67d001c02a231b63289ef3c2
+    fingerprint: 55d2746f3965a61f175c4866435011bff869fc94ad6349e0402502f2df703478
     required_applies_to:
     - rest_api
     - cli
@@ -12071,6 +13324,226 @@ assertions:
     fingerprint: 8889d50aee981e8bfa40f0ab68a8acda6f21e5ea0f2484c621b3451a31d86522
     required_applies_to:
     - gui.web
+  safety-strikes.screening-rejects:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 0fa9bbfa9080b1447f745edc3979607dffaa1a00b76ef87a36b532e0298edf49
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.one-strike-per-violation:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: d9b90a51a9dc9b6aebb2fc6c66c2a83ab75e63a746c5f40f8e969c1466a76bce
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.technical-failure-no-strike:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: 185c116a75f5b371ad91053831f4d5eea5b3d7e7f8398071f1bfc991b0455f21
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.suggestive-upload-no-strike:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: 68953fb7aff882e85a6185133f40e73f050d7c671c1787fd86eed898f0dbf8c5
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.warning-localized:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 3023b41ea8d8ddda8af9d6bd7f6bfad39019cf06baf06970c4c4c29bcce033d2
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.second-strike-suspends-7-days:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 8d2164e0b5c36f78440600b62d318145edefd414f72fab7a7e03f8093512ec4b
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.third-strike-pending-review:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 90ed20a8b0b3c5b9e6377d931712f6986ec1eb645749d338163ee0cc76d2d8f9
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.never-auto-delete:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: dc82781b0f30eaa37aca6b4308c502dab77c4e16141197b93d3ae85c0fd81c2d
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.strikes-expire-90-days:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: 9c4070b347af9eeb516b89689c7ce50d70e0d056b75a1726e6a421eba724e4a5
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.appeal-consented-review:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: 6af51ce83d1c7c3a7fb5ebc02aece0bd662c4b12fa7eb66611c778711b23c1ff
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.review-deadlines-retention:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: abf96e8f6fb0baa3a6f3a52417dcc60db96e3584f0c0de913d910be9bc081843
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.admin-deletion-refunds:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 3dd31c5930dae58eb42a09289605681faf7746ba036d4096552340c890a5782c
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.legal-retention:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: 192b9ce810f394db6477778882023e2a521acdbf4be60aaefcc761fb0cd73805
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.deletion-email:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 422169cf8df58e110b5fd6c85deab18628b49bfbac15ddf60f699c87a1a2301b
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.deletion-marker-login-message:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: f524c2d10b67095fa6df1ec95bc0339b7e9c4eea4e781f442f1b3d0c4fd0e11a
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.never-wrong-login-data:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: 1d005ecd7822a3fc8e3447efaca9cd04ed90f8f452fb72b68473f36957c0d2ab
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.rejection-explained:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 2db351bf8381cb7a7afb8e6c0eaa23f812f5ea958f383b8151462510e1ba961e
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.hard-limits-firm:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: invariant
+    fingerprint: efe9139a581e292f62fb8118bc9c2d49a87a3e99f3029f5e321d4ea8fb8bbcd4
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.minors-stylized-only:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 698b7ca2741be710c796bc3c50b45606e727c1e3d280fa2bedf44291b6d449ca
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.upload-agreed-lines:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 220297fbf4209065a296dc88fcd3d317eb8bf0d47c8415ce1140930fd351c26d
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.harmful-purpose-strikes:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 3a195f99f40fdad1e8aa1b07b345c02ccf4801942f391ecc0c181f427fd7368f
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  safety-strikes.live-site-line:
+    specification: feature.safety-strikes@1
+    specification_id: feature.safety-strikes
+    type: behavior
+    fingerprint: 3c041a8d20a2f7c03d9543988f8ba1e28c1a02b67baf490916b61022e255afbc
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
   settings-ui.shell.lifecycle-and-routing:
     specification: feature.settings-ui@1
     specification_id: feature.settings-ui
@@ -12144,7 +13617,7 @@ assertions:
     - gui.web
     - gui.apple
   slides.format.positioned-elements:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: f473d93950da6f1b131108acbfe20ea74529ce255a41aeb30063b449a4770299
@@ -12154,7 +13627,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.render.preview-and-fullscreen:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: f400e221d3ce57250939d67945f73c3828c19a596d7d7aa547e78622a2ee813e
@@ -12164,7 +13637,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.security.host-rendered-and-isolated:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: security
     fingerprint: 31c46b889e8e4465e1b8ff0a739ee0fbab1de2d8c75fbfd9f1f35b883219f3c3
@@ -12174,17 +13647,27 @@ assertions:
     - sdks.rust
     - gui.web
   slides.media.images-from-files-and-embeds:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
-    fingerprint: b3455b5c6108d80435fc0a415ddbde69f61143e54154d3732b73d5c38d320cfc
+    fingerprint: c3c23a4c3a1ab2a9d3a650487216448a04d7b21012fe5323f54dbc4b54a649c3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.media.svg-declarative-animation:
+    specification: feature.slides@2
+    specification_id: feature.slides
+    type: security
+    fingerprint: 67471a4ab4dc859feb8cf8b344aaa60eeb85ad3a822a8114569c22362c16e21a
     required_applies_to:
     - rest_api
     - cli
     - sdks.rust
     - gui.web
   slides.media.video-platform-allowlist:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: privacy
     fingerprint: 6ee14ff2de380f61ebb350501c87b07b9ca867c8f19d497e79ad81ff3d23561b
@@ -12194,7 +13677,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.interactive.notepad-and-todo:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: bb3024f669067b1d5272ff87e75bac11e007a0ef2bfe1a856be6075c92634f70
@@ -12204,7 +13687,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.animations.preset-set:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: d64c668d556032c4964a6626a2d456d22648f8523fadce530645030f646bfc23
@@ -12213,38 +13696,68 @@ assertions:
     - cli
     - sdks.rust
     - gui.web
-  slides.templates.library-and-project:
-    specification: feature.slides@1
+  slides.templates.library:
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
-    fingerprint: 1d4f9f1601487d3954b09f1b020dacf64c05845c41f9b803bf09bb2e5fed4d61
+    fingerprint: e952ba1d90cfe14217a5a0c2c8970e0d9204128dcb2d66da884be749548e8dce
     required_applies_to:
     - rest_api
     - cli
     - sdks.rust
     - gui.web
-  slides.templates.first-deck-focus-mode:
-    specification: feature.slides@1
+  slides.templates.built-in-set:
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
-    fingerprint: d1474231d300e19dd592f2e9685a12628ba79afdab6d2407d38a157db9bda13c
+    fingerprint: af4a15f6cb1f11c635e34f92678f23528cd8d6f938f3012447fec19802f850dc
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.templates.apply-to-deck:
+    specification: feature.slides@2
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: 0477f6fc5f713dbebcf879f09dfcc07523b983060d43118a19b2309bd3288812
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.focus.template-designer:
+    specification: feature.slides@2
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: 4c59f9a7002392c1c3ecfc493dd1c34267b837879069aa79f7c51cc4c79d3f28
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.focus.presentation-planner:
+    specification: feature.slides@2
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: e2696ddc4ed83ffe3cf66042956edc03499af3e391755081849d0fa6921b4843
     required_applies_to:
     - rest_api
     - cli
     - sdks.rust
     - gui.web
   slides.assistant.create-and-diff-edit:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
-    fingerprint: ed90a0ad7a4a603e5f78fde6c1ca0a6e137aab764fbffda1c3a33dfd5fe90277
+    fingerprint: b008b23436142632264270606d87ac798348cdc4742b128ea392882b6ff43b42
     required_applies_to:
     - rest_api
     - cli
     - sdks.rust
     - gui.web
   slides.editor.direct-manipulation:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: dd87a86578311027ccfb611e7f0238ccd806771b3b8d757083f8599fe199bef8
@@ -12254,7 +13767,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.editor.save-checked-version:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: 99ec8b82407ce9dbc4ffed73a78f36439de29cf366216bf3f544df7926fe2610
@@ -12264,7 +13777,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.present.presenter-view:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: 59a5c1131f0b799bcde52d3999b42296d22ab820be560e4017b500ab6e7c21a6
@@ -12274,7 +13787,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.present.follow-live:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: privacy
     fingerprint: 4876c6ac49e492b5e50178bce6e70271e9e018060d8382b12871692f48cd4ea0
@@ -12283,8 +13796,38 @@ assertions:
     - cli
     - sdks.rust
     - gui.web
+  slides.present.remote-control:
+    specification: feature.slides@2
+    specification_id: feature.slides
+    type: behavior
+    fingerprint: d14dc4e2f21aa99016da2f62c510b95be2ff0758924aae239d49a6ed47027900
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.present.remote-relay-private:
+    specification: feature.slides@2
+    specification_id: feature.slides
+    type: privacy
+    fingerprint: a92cef15141721ea72462bce172c162a7579034bff1001a0ae24c6b0746dd898
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
+  slides.present.remote-one-core:
+    specification: feature.slides@2
+    specification_id: feature.slides
+    type: invariant
+    fingerprint: f19436ca9333e15956a11770052eb6d3d904fd819453823cf7e8d4606d54737f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.rust
+    - gui.web
   slides.import.powerpoint:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: 3f0101066c347e0b300f2adea2c0a7f76d3358d16bafd810d97a67923566923f
@@ -12294,7 +13837,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.export.pdf-and-powerpoint-with-loss-notice:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: behavior
     fingerprint: ae83322e25308fbdad1a00ba45258fd0c6cd00b6b25b75d9b372215d202696d1
@@ -12304,7 +13847,7 @@ assertions:
     - sdks.rust
     - gui.web
   slides.surface.text-rendering:
-    specification: feature.slides@1
+    specification: feature.slides@2
     specification_id: feature.slides
     type: parity
     fingerprint: 1d53f99969434b778b3a7e8685918837b8f01fd0a87e3f09aa7afa94c55bc220
@@ -12478,11 +14021,33 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  contracts.guided.assumptions-explicit:
+    specification: feature.specifications@1
+    specification_id: feature.specifications
+    type: behavior
+    fingerprint: 89507289246942f44ca251d8bd107b308bc219f3c2e91716b6fcba8c8f01cf52
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.guided.linked-split:
+    specification: feature.specifications@1
+    specification_id: feature.specifications
+    type: behavior
+    fingerprint: 1f0c92f36d8adc5573e00c35809fb333ca7075fc77a8af6b7c0907e0877aa3a6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   contracts.surface.semantic-parity:
     specification: feature.specifications@1
     specification_id: feature.specifications
     type: parity
-    fingerprint: 272dcbe3c07bc49223ea60bfe77e88dd7cd8592e3fbec1ba7b7545fb35a3d406
+    fingerprint: 5d2c12534a26e69cf83afa6a3e7944078b03773cbe2068e9ea213653bebce18c
     required_applies_to:
     - rest_api
     - cli
@@ -13186,7 +14751,7 @@ assertions:
     - sdks.pip
     - gui.web
   video-call.chat.launch-and-provider:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 50c6ed042c1005e1153ae5839f1681e4fa62f53fcb487eedee0e919c019edda2
@@ -13194,7 +14759,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.fixed-binding:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: a88b39e937685ef3b36835355fd55bb2526c57433c337b351f5a0c1358b7eab8
@@ -13202,7 +14767,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.call-strip-layout:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: d4cc228c575f7816241edda909314f508ea116181508af9a1a233ec891de2745
@@ -13210,7 +14775,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.call-events:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: d05b5385d0b2f6da4062711d02eb4829a5fe8ac56de817c28108c5db6c7eea0c
@@ -13218,7 +14783,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.skill-integration:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 87bd1bb769fe20c5f83431830aeb5ec18c5df05b2be102746d2e98cf3fcf3dce
@@ -13226,7 +14791,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.ethics:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: f95c17203d14b5d982d403d9a6c4557bb231a5cb120f16d1e58cd4b4f3978983
@@ -13234,7 +14799,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.compressed-context:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 8337b9518698747ccacd1dc520ba7b8fe33734f5ed2c8c88929d3d962c01197c
@@ -13242,7 +14807,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.project-context:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: 4e05d8875d1384b76cead35562d58f87f5553bc1069c0f077ceda2f0b40da9bc
@@ -13250,7 +14815,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.memories-and-focus:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: fe89014c7bf245c67124c41d8eb3e38dda2932be45301470e20bb93d98e9f48a
@@ -13258,7 +14823,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.assistant-identity:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 89ca56d4b52f7077a8461ff1df8d5fe9d517a2b8463b7bc4b5d3298488723428
@@ -13266,7 +14831,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.recording.encrypted-whole-call:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: a05e2e359a6f28e8cf73abf60f287237b3a7ea1d5e13ff0ce8157472140da9de
@@ -13274,7 +14839,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.recording.open-and-download:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: e7954782b4dd8ee486f604ca93359bcdd054a7f79d659e328f4b1d325f9907e3
@@ -13282,7 +14847,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.privacy:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: a11a6a144ceb4af34d46468299928e190af5c062ee8e2bb9849b5f65ed426438
@@ -13290,7 +14855,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.privacy.first-call-warning:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 09a81c2884af33a70e76ae06f84d5c156ad68138d45518a96e78903868f01143
@@ -13298,7 +14863,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.transcripts:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 6857057b99b814b9d1c464424e5d5665d2320bc8d826ebc6d1e45f1422b5863d
@@ -13306,7 +14871,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.typed-input:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 8bc1ba5a1e96cbf6c8db1be7e96b6642677932747997e7a79d2fc9df532cc041
@@ -13314,7 +14879,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.single-owner:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: 13ae8e2701ab21bb98bd490a3298aafa3540b31819cdc3de1764cb192a5046ab
@@ -13322,7 +14887,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.confirmation-sounds:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 813b771f6a10584e4f7d1c8310c0d3e8a4ed804ed8f7db401c9233032dae608a
@@ -13330,7 +14895,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.background-detection:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: a8d5b889819e9af1138983c190cc6ca7dc53a3467abd79343d6b55d43e28e262
@@ -13338,7 +14903,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.automatic-idle:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: a7582df85ad8228d03e6b6ab0659833bdc4f41e5cdd71db3398ef4c3e738aa0f
@@ -13346,7 +14911,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.startup-buffer:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 97cee3f17d0bdd6488f28c0d357ae25f55c06fd788b410fc3b33c873023bc240
@@ -13354,7 +14919,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.activity-status:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 182c7a34784f39a775c47c067d14c4105f3b8973689df7ba4a840073843b415e
@@ -13362,7 +14927,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.lifecycle.recovery-and-billing:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: 2819f6d0402831e796c447c64d39198271725200172ff605b3d761d82015bba7
@@ -13370,7 +14935,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.usage.provider-metering:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: 7e34fa121d3ea087f22281852c51feffbb4087fd51660044b03afee6c41051b8
@@ -13378,15 +14943,23 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.input-and-output:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
-    fingerprint: 6f3c61adda30a31d7ac6aee1998f0eb60e4c736a9c86a41f5724c9b37fb53a2d
+    fingerprint: 8bceb9f4a5bfa70578567c15a28e9b03a15010c6d3a2b0ae49ec04874fbe8e22
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  video-call.video.apple-screen-share:
+    specification: feature.video-call@17
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: c9b37c5ef6126f724ba6fd8b23e16bb97ab9bb830d73451ca75f16460ca236ee
     required_applies_to:
     - gui.web
     - gui.apple
   video-call.video.source-frame-provenance:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: 8b19e09bf137104bd406014f06a8f64377454b616e6a4d64da2218aeac49f145
@@ -13394,7 +14967,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.generated-media-stage:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 18cfb11b77eed89f9c7774115dbd2ed8c529fe6dfebb3e7f1d6110ed6df69fdc
@@ -13402,7 +14975,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.video.fast-generation-default:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 786130fa12035a635377f3c863941733d3f9aafdbc9c6d56cb5452432e15e5ba
@@ -13410,7 +14983,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.provider.boundary:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: 0b94c57dc2deca6665c46d0721b0e31ea61339064422e3c6ff0bd68cd97b85f1
@@ -13418,7 +14991,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.metadata-generation:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: be764e43be17ec965c2433ae55ae275fdcf0807da5c84499687e6f16fdb433d4
@@ -13426,7 +14999,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.chat.metadata-lifecycle:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: 11e39fd9b7187d801fd48400ae50308ef0614e2188300e627f51bc558f564043
@@ -13434,7 +15007,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.intentional-interruption:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: bd2c652598849a75a7dc29933d54163dce66b3ade0597a87d4c512b95f013857
@@ -13442,7 +15015,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.spoken-rich-response:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 89d3187ac4efceb6499bd573f66a2dbb14620922c25a4e1014b69fa35979cf0e
@@ -13450,7 +15023,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.localized-waiting:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 88a64b922eed5967128a0d58bdacb3ab4f84c64fbc8a214d192d79c7b3d361ef
@@ -13458,7 +15031,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.waiting-language:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: fb2fa33489768aff966c0006f59065540cfbecb2d67013842f954a82cfe31f97
@@ -13466,7 +15039,7 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.skills-announcement:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: b17de30383c2ce675b4226934f904a7810325ea0bcd30a97eed8ac9d7341598f
@@ -13474,19 +15047,171 @@ assertions:
     - gui.web
     - gui.apple
   video-call.audio.background-resume:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: behavior
     fingerprint: 18902a58fdaa011b1a58d31c19de63e38fc76529a76a32d7f6c3e73e14c5776f
     required_applies_to:
     - gui.web
     - gui.apple
+  video-call.apple.live-activity:
+    specification: feature.video-call@17
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: 7f9f18a504ea21bc1583f47d1b13005a9e9c7d1f1de2051ae56345b8b6a42832
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  video-call.chat.orchestration-continuity:
+    specification: feature.video-call@17
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: cc9302e53f19e1a89e0e3d17730dfece8b81613ce045f0008a5954a2f25f2ca3
+    required_applies_to:
+    - gui.web
+    - gui.apple
   video-call.audio.complete-turn-admission:
-    specification: feature.video-call@16
+    specification: feature.video-call@17
     specification_id: feature.video-call
     type: invariant
     fingerprint: ec5e651b5d3f477adddc00c177f18208f6590f3dd9e6b2fe972fc6ec013ce994
     required_applies_to:
+    - gui.web
+    - gui.apple
+  vscode-extension.pair-login:
+    specification: feature.vscode-extension@1
+    specification_id: feature.vscode-extension
+    type: security
+    fingerprint: ee74ecdd7eb6b025107d9da8937ea4c5d92a171b9161465a4f981cb57d7edd15
+    required_applies_to:
+    - cli
+  vscode-extension.connect-folder:
+    specification: feature.vscode-extension@1
+    specification_id: feature.vscode-extension
+    type: behavior
+    fingerprint: b12f80f29d22783110a3e0e7911fb83bdc098d985f9fa93778274607eefd3790
+    required_applies_to:
+    - cli
+  vscode-extension.review-changes:
+    specification: feature.vscode-extension@1
+    specification_id: feature.vscode-extension
+    type: behavior
+    fingerprint: 245c7ae7559cb486120b142ab06e48f36a1119cc5ca3d55757b68c52b9a1c1c4
+    required_applies_to:
+    - cli
+  vscode-extension.privacy:
+    specification: feature.vscode-extension@1
+    specification_id: feature.vscode-extension
+    type: privacy
+    fingerprint: 741804fbfc431ee95b8291125ba35e590f019e611d83b406471f92f65daa0aa6
+    required_applies_to:
+    - cli
+  wellbeing-support.no-extra-call:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: invariant
+    fingerprint: 6b98ae502eb72fc0cf7c2ecf6fd951480d12631e5518ffc0bc6c92921f5bb4fe
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.rolling-level:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: behavior
+    fingerprint: f00896ff608142cfe59972e1c4c465c7243947c213fb3c3c0f5aad1ca51cd71d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.gentle-check-in:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: behavior
+    fingerprint: 752cb6423f4d7566eb1b98f1dde4b56f6b4ca9a7d9b0c2ee463a0d2971818def
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.helpline-card:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: behavior
+    fingerprint: 558f56453bd8bad738be75f45dd8c0bd8f69971282df99a406f3d4d8a076cf79
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.reality-grounding:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: behavior
+    fingerprint: 03457a35772a0610d2d976811499db36f00c61fbd43ac59529bfc1665112627f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.hard-negatives:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: invariant
+    fingerprint: ad888e5b393d8b10fad0a90d9f22091eceb35d9ef88b4d3cba1fa145aa3c4ad7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.never-block-or-strike:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: invariant
+    fingerprint: 17a7668ff1f8f0b4973114699748661169edc5e90bd91b18210740271dce12ef
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.client-only-storage:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: invariant
+    fingerprint: 7d86d852ce092baf28512f6790d33396dda1b2f15b2cb446bba16d9676aad604
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  wellbeing-support.focus-modes-yield:
+    specification: feature.wellbeing-support@1
+    specification_id: feature.wellbeing-support
+    type: invariant
+    fingerprint: acaf8882c547dd1ec9676e6df593e82872f6808d3e45ca825fda6158169a57a1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
     - gui.web
     - gui.apple
   wikipedia-mentions.syntax.explicit-trigger:

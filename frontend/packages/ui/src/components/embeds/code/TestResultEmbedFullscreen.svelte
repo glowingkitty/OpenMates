@@ -19,6 +19,7 @@
     formatDuration,
     parseTestResult,
     resolveArtifactEvidenceUrl,
+    testResultTitle,
     rowStatus,
     type EvidenceUrlResolver,
     type TestResultEvidence,
@@ -53,7 +54,7 @@
   }: Props = $props();
 
   let view = $derived(parseTestResult(data.decodedContent));
-  let title = $derived(view.target || $text('embeds.code.test_result.title'));
+  let title = $derived(testResultTitle(view, $text('embeds.code.test_result.title')));
   let statusLabel = $derived($text(`embeds.code.test_result.status_${view.runStatus}`));
   let subtitle = $derived([statusLabel, formatDuration(view.durationMs)].filter(Boolean).join(' · '));
 
@@ -70,7 +71,11 @@
     let cancelled = false;
     const load = (evidence: TestResultEvidence | undefined, assign: (url: string | null) => void) => {
       if (!evidence?.assetId) return;
-      resolveEvidenceUrl(evidence).then((url) => { if (!cancelled) assign(url); }).catch(() => { if (!cancelled) assign(null); });
+      resolveEvidenceUrl(evidence).then((url) => { if (!cancelled) assign(url); }).catch((error) => {
+        // Never silent: otherwise this reads as "no video recorded".
+        console.warn(`[TestResultEmbedFullscreen] ${evidence.kind} evidence unavailable:`, error instanceof Error ? error.message : error);
+        if (!cancelled) assign(null);
+      });
     };
     load(video, (url) => { videoUrl = url; });
     load(frame, (url) => { frameUrl = url; });
@@ -209,8 +214,11 @@
   .tr-video { display: block; width: 100%; max-height: 70vh; object-fit: contain; }
   .tr-video-missing { display: flex; align-items: center; justify-content: center; min-height: 12rem; color: var(--color-font-secondary); background: var(--color-grey-10); }
   .tr-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--spacing-2); }
-  .tr-step { display: flex; align-items: flex-start; gap: var(--spacing-6); width: 100%; text-align: left; padding: var(--spacing-5) var(--spacing-6); border: 1px solid transparent; border-radius: var(--radius-3); background: var(--color-grey-10); color: inherit; font: inherit; cursor: pointer; }
-  .tr-step:hover { background: var(--color-grey-20); }
+  /* Global `button` styles (buttons.css: fixed 41px height, centred content, drop
+     shadow, hover scale) would clip multi-line steps; each is reset here. */
+  .tr-step { display: flex; align-items: flex-start; justify-content: flex-start; gap: var(--spacing-6); width: 100%; height: auto; min-width: 0; margin: 0; text-align: left; padding: var(--spacing-5) var(--spacing-6); border: 1px solid transparent; border-radius: var(--radius-3); background: var(--color-grey-10); color: inherit; font: inherit; filter: none; cursor: pointer; }
+  .tr-step:hover { background: var(--color-grey-20); scale: none; }
+  .tr-step:active { scale: none; }
   .tr-step-active { border-color: var(--color-app-code-start); background: var(--color-grey-20); }
   .tr-step-dot { flex: 0 0 auto; width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: var(--color-app-code-start); }
   .tr-step-failed .tr-step-dot, .tr-step-error .tr-step-dot { background: var(--color-error); }

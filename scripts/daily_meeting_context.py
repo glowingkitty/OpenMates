@@ -194,6 +194,7 @@ def task_snapshot(gaps: list[str], status: dict | None = None) -> list[dict] | N
     `status` (source, fetched_at, age_hours, fresh) says how old it is."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import daily_meeting_tasks_cache  # noqa: E402 - sibling script, path set just above
+    import daily_meeting_paused as paused_mod  # noqa: E402
 
     data, info = daily_meeting_tasks_cache.load()
     if status is not None:
@@ -213,6 +214,7 @@ def task_snapshot(gaps: list[str], status: dict | None = None) -> list[dict] | N
         "assignee": t.get("assignee_type") or "",
         "chat": _chat_ref(t.get("external_chat")),
         "labels": [str(label) for label in t.get("labels") or []],
+        **({"pause": paused_mod.parse_pause(t.get("description"))} if "paused" in (t.get("labels") or []) else {}),
     } for t in data.get("tasks", [])]
 
 
@@ -267,6 +269,7 @@ def task_summary(tasks: list[dict] | None, previous: list[dict] | None,
             "backlog_top": [_compact(t) for t in _by_priority(by_status.get("backlog", []))[:15]],
             "more": "full lists: openmates tasks list --status <status> --json",
         },
+        "idea_inbox": [_compact(t) for t in tasks if "idea" in (t.get("labels") or []) and t["status"] != "done"],
         "changed_since_last_meeting": [c for c in changes if c["to"] != "done"],
         "baseline": "previous snapshot" if previous else "none (first run; no change diff)",
     }
@@ -399,16 +402,47 @@ def growth(root: Path, out: Path, since: datetime, day: str, gaps: list[str]) ->
     return daily_meeting_growth.collect(root, out, since, day, gaps)
 
 
-def waiting(tasks: list[dict] | None, out: Path, now: datetime) -> dict:
+def drop_log(gaps: list[str]) -> list[dict]:
+    """The persistent decision log of dropped things (scripts/decision_log.py), for the re-check."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import decision_log  # noqa: E402 - sibling script, path set just above
+
+    try:
+        return decision_log.entries()
+    except (OSError, ValueError) as error:
+        gaps.append(f"decision log unreadable ({clean(str(error), 120)}); dropped items are not re-checked today")
+        return []
+
+
+def marketing_block(out: Path, growth_data: dict | None, day: date) -> dict:
+    """Menu proposals, ideas, win counter and style rules (scripts/daily_meeting_marketing.py).
+
+    The menu and the style guides live in the private marketing repository, never in this repo."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import daily_meeting_marketing  # noqa: E402 - sibling script, path set just above
+
+    def read(relative: str) -> str:
+        path = MARKETING_REPO / relative
+        return path.read_text(errors="replace") if path.is_file() else ""
+
+    sources = {"menu": read("daily-meeting/marketing-menu.md"), "ideas": read("ideas.md"),
+               "style": read("marketing-style.md"), "press": read("press/press-style.md")}
+    return daily_meeting_marketing.collect(out, sources, growth_data, day)
+
+
+def waiting(tasks: list[dict] | None, out: Path, now: datetime, focus_text: str = "") -> dict:
     """Dev-server Claude chats whose last message came from the assistant (scripts/daily_meeting_waiting.py)."""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import daily_meeting_issues  # noqa: E402 - sibling scripts, path set just above
     import daily_meeting_waiting  # noqa: E402
 
     reviewed = daily_meeting_issues.load_reviewed(out / "waiting-reviewed.json")
+    import daily_meeting_triage  # noqa: E402
+
+    topics = daily_meeting_triage.read_priorities(focus_text)[0]
     chats = daily_meeting_waiting.waiting_chats(TRANSCRIPTS, now, tasks, reviewed,
-                                                os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
-    return daily_meeting_waiting.waiting_summary(chats)
+                                                os.environ.get("CLAUDE_CODE_SESSION_ID", ""), topics)
+    return daily_meeting_waiting.waiting_summary(chats, tasks, now)
 
 
 def reminders(gaps: list[str]) -> dict | None:
@@ -562,9 +596,11 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "tasks": task_summary(tasks, previous, {c["session"] for c in chats}),
         "nightly": nightly(root, since),
         "tasks_status": tasks_status,
-        "waiting_chats": waiting(tasks, out, now),
+        "waiting_chats": waiting(tasks, out, now, focus(root)),
         "alerts": alerts(gaps),
-        "growth": growth(root, out, since, today, gaps),
+        "growth": (growth_data := growth(root, out, since, today, gaps)),
+        "drop_log": drop_log(gaps),
+        "marketing_block": marketing_block(out, growth_data, now.astimezone(TZ).date()),
         "goals": goals(root, out, tasks, now.astimezone(TZ).date()),
         "issues": issues,
         "cleanup": cleanup,

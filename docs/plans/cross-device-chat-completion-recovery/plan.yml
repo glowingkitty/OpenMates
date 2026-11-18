@@ -229,6 +229,11 @@ decisions:
     decision: Already-admitted epoch-zero turns use a bounded metadata-only completion lifecycle across cutover; no new epoch-zero send is admitted after activation.
     reason: Running inference must block activation, while a successful pre-cutover inference waiting for client encryption must remain authorized without blocking the global epoch transition. Running records expire after 15 minutes and awaiting/persisted completion records expire after 24 hours.
     decided_at: "2026-07-13T11:20:00Z"
+  - id: D-19
+    status: active
+    decision: Production servers activate epoch one automatically on API start through the reviewed cutover controller once no legacy turn is running; sends pause only around the activation, development and CI stacks keep explicit activation, and scripts/verify_prod_early_title.py checks the release.
+    reason: Production stayed at epoch zero after the release, so it had no recovery enqueue and no early chat title (issue PT38B); the owner directed that the next dev-to-main release completes the cutover without a manual production step.
+    decided_at: "2026-11-15T00:10:00Z"
 
 performance_baseline:
   captured_at: "2026-07-11T23:53:29Z"

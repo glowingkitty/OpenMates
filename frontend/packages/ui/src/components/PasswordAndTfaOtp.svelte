@@ -10,10 +10,10 @@
     import InputWarning from './common/InputWarning.svelte';
     import { tfaAppIcons } from '../config/tfa';
     import * as cryptoService from '../services/cryptoService';
-    import { loginWithPasswordVersions, requirePasswordCredentialVersion, derivePasswordV2, migrateUnlockedLegacyPassword } from '../services/passwordV2';
+    import { requirePasswordCredentialVersion, derivePasswordV2, migrateUnlockedLegacyPassword } from '../services/passwordV2';
     import { updateProfile } from '../stores/userProfile';
     import { getSessionId } from '../utils/sessionId';
-    import { rustAuthEnabled, rustPasswordLogin, prewarmRustAuth, type RustPasswordLoginOutcome } from '../services/rustCore/authOperation';
+    import { rustPasswordLogin, prewarmRustAuth, type RustPasswordLoginOutcome } from '../services/rustCore/authOperation';
     import {
         notificationStore,
         SECURITY_REMINDER_NOTIFICATION_DURATION_MS,
@@ -195,38 +195,20 @@
         tfaErrorMessage = null;
 
         try {
-            // Generate hashed email and lookup hash
-            const hashed_email = await cryptoService.hashEmail(email);
-            
             const userEmailSalt = cryptoService.getEmailSalt();
             if (!userEmailSalt) {
                 errorMessage = 'Authentication data not found. Please try logging in again.';
                 return;
             }
-            const fields: Record<string, unknown> = {
-                stay_logged_in: stayLoggedIn,
-            };
-            if (tfaRequiredState && tfaCode) {
-                fields.tfa_code = tfaCode;
-                fields.code_type = isBackupMode ? 'backup' : 'otp';
-            }
             const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
-            if (emailEncryptionKey) fields.email_encryption_key = emailEncryptionKey;
-            let rustUnlock: RustPasswordLoginOutcome | null = null;
-            const { response, data } = rustAuthEnabled()
-                ? await (async () => {
-                    rustUnlock = await rustPasswordLogin({
-                        email, password, sessionId: getSessionId(),
-                        userEmailSalt: cryptoService.uint8ArrayToBase64(userEmailSalt),
-                        emailEncryptionKey: emailEncryptionKey ?? null, stayLoggedIn,
-                        tfa: tfaRequiredState && tfaCode ? { code: tfaCode, type: isBackupMode ? 'backup' : 'otp' } : null,
-                    });
-                    return { response: { status: rustUnlock.status, ok: rustUnlock.ok }, data: rustUnlock.data };
-                })()
-                : await loginWithPasswordVersions({
-                    password, hashedEmail: hashed_email, userEmailSalt,
-                    sessionId: getSessionId(), fields,
-                });
+            const rustUnlock: RustPasswordLoginOutcome = await rustPasswordLogin({
+                email, password, sessionId: getSessionId(),
+                userEmailSalt: cryptoService.uint8ArrayToBase64(userEmailSalt),
+                emailEncryptionKey: emailEncryptionKey ?? null, stayLoggedIn,
+                tfa: tfaRequiredState && tfaCode ? { code: tfaCode, type: isBackupMode ? 'backup' : 'otp' } : null,
+            });
+            const response = { status: rustUnlock.status, ok: rustUnlock.ok };
+            const data = rustUnlock.data;
             if (response.status === 429) {
                 isRateLimited = true;
                 localStorage.setItem('passwordTfaRateLimit', Date.now().toString());
@@ -257,7 +239,7 @@
                     const isTfaConfigured = data.user?.tfa_enabled === true;
                     // Import isSignupPath helper for checking signup paths
                     const { isSignupPath, primeSignupLocation } = await import('../stores/signupState');
-                    if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(data.user?.last_opened);
+                    await primeSignupLocation(data.user?.last_opened);
                     const isInSignupFlow = isSignupPath(data.user?.last_opened) || false;
 
                     // If account exists but 2FA is not configured (user hasn't finished signup),
@@ -343,7 +325,7 @@
                     const isTfaConfigured = data.user?.tfa_enabled === true;
                     // Import isSignupPath helper for checking signup paths
                     const { isSignupPath, primeSignupLocation } = await import('../stores/signupState');
-                    if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(data.user?.last_opened);
+                    await primeSignupLocation(data.user?.last_opened);
                     const isInSignupFlow = isSignupPath(data.user?.last_opened) || false;
                     
                     // If 2FA is required but not actually configured (tfa_enabled is false) AND user is in signup flow,
@@ -586,7 +568,7 @@
         let inSignupFlow = false;
         try {
             const { isSignupPath, primeSignupLocation } = await import('../stores/signupState');
-            if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(data.user?.last_opened);
+            await primeSignupLocation(data.user?.last_opened);
             inSignupFlow = isSignupPath(data.user?.last_opened) || false;
         } catch (importErr) {
             console.error('[PasswordAndTfaOtp] Failed to import signupState:', importErr);

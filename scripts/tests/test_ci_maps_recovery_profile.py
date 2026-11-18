@@ -345,6 +345,8 @@ def _runner_profile(tmp_path, monkeypatch, **options):
     "rust-core-browser-session.spec.ts",
     "rust-core-browser-password-entry.spec.ts",
     "maps-discovery-chat.spec.ts",
+    "slides-focus-template-designer.spec.ts",
+    "slides-focus-presentation-planner.spec.ts",
     "audio-recording-deferred-send.spec.ts",
     "workflow-metadata-warmup.spec.ts",
     "connection-resilience.spec.ts",

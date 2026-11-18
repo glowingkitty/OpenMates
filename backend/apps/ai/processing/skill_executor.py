@@ -44,6 +44,14 @@ def _names_relevance_criteria(arguments: Any) -> bool:
     )
 
 
+def _names_owned_passes(arguments: Dict[str, Any]) -> bool:
+    requests = arguments.get("requests", [arguments]) if isinstance(arguments, dict) else []
+    return isinstance(requests, list) and any(
+        isinstance(request, dict) and isinstance(request.get("owned_passes"), list) and request["owned_passes"]
+        for request in requests
+    )
+
+
 def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> float:
     """Select the assistant's default envelope without overriding explicit timeouts.
 
@@ -85,6 +93,9 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     # General event discovery also reads public web pages and extracts events from them.
     if (app_id, skill_id) == ("events", "search"):
         return 40.0
+    if (app_id, skill_id) == ("travel", "search_connections"):
+        # An owned pass adds bounded hub searches (mixed routes) after the providers answered.
+        return 60.0 if _names_owned_passes(arguments) else DEFAULT_SKILL_TIMEOUT
     if (app_id, skill_id) == ("travel", "search_stays"):
         # Ranking stays by their photos adds bounded image loading and decision time.
         return 45.0 if _names_relevance_criteria(arguments) else DEFAULT_SKILL_TIMEOUT
@@ -106,6 +117,15 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
 # Default number of retry attempts for skill execution
 # 1 retry = 2 total attempts (initial + 1 retry)
 DEFAULT_SKILL_MAX_RETRIES = 1
+# Skills that must run exactly once per call (own fallback or non-idempotent side effects).
+NO_RETRY_SKILLS = frozenset({
+    ("ai", "decide"),
+    ("web", "browse"),
+    ("openmates", "start-chat"),
+    ("openmates", "read-spawned-chat"),
+    ("openmates", "send-to-spawned-chat"),
+    ("openmates", "report-to-creator"),
+})
 
 # Delay between retry attempts (in seconds)
 # Bound the delay between retryable execution failures.
@@ -366,7 +386,9 @@ async def execute_skill(
     last_exception: Optional[Exception] = None
     # The public decision quote includes exactly one attempt per provider.
     # Jev already owns its bounded outage fallback; never retry the whole skill.
-    total_attempts = 1 if (app_id, skill_id) in {("ai", "decide"), ("web", "browse")} else max_retries + 1
+    # Chat orchestration skills enqueue device-claimed jobs (start a chat, send a
+    # message); a retry would start or send twice.
+    total_attempts = 1 if (app_id, skill_id) in NO_RETRY_SKILLS else max_retries + 1
     successful_result: Any = None
     skill_succeeded = False
 
@@ -640,6 +662,10 @@ async def execute_skill_with_multiple_requests(
             ("code", "run"),
             ("pdf", "read"),
             ("pdf", "view"),
+            # One Check carries several sources and one Specification several
+            # requirements and flows; splitting those lists breaks the definition.
+            ("plans", "check"),
+            ("plans", "specification"),
         }
     ):
         result = await execute_skill(

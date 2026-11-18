@@ -28,7 +28,6 @@
 
 import { writable, derived, get } from "svelte/store";
 import {
-  authFlowActive,
   FAIL_CLOSED_PAIR_STATE,
   NEUTRAL_PAIR_STATE,
   pairActivate,
@@ -36,8 +35,6 @@ import {
   pushPairView,
 } from "../services/rustCore/auth/flowPush";
 
-/** Flag builds: pair policy runs in the shared Rust core (see flowPush.ts). */
-const RUST_FLOW: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 
 // ---------------------------------------------------------------------------
 // Persistence keys
@@ -76,8 +73,6 @@ export interface PairSessionState {
 // ---------------------------------------------------------------------------
 // Store internals
 // ---------------------------------------------------------------------------
-
-const AUTO_LOGOUT_WARNING_SECONDS = 5 * 60; // 5 minutes before expiry
 
 function _loadFromStorage(): PairSessionData | null {
   if (typeof window === "undefined") return null;
@@ -133,14 +128,10 @@ _pairSessionData.subscribe((data) => {
         _now.set(Date.now());
         // Check if expired — trigger logout
         const d = get(_pairSessionData);
-        if (RUST_FLOW && authFlowActive()) {
-          if (d) {
-            pairAutoLogoutDue(d, Date.now())
-              .then((due) => { if (due) void _handleAutoLogout(); })
-              .catch((e) => console.warn("[PairSession] Rust auto-logout check failed; session stays restricted:", e));
-          }
-        } else if (d?.autoLogoutAt && Date.now() >= d.autoLogoutAt) {
-          _handleAutoLogout();
+        if (d) {
+          pairAutoLogoutDue(d, Date.now())
+            .then((due) => { if (due) void _handleAutoLogout(); })
+            .catch((e) => console.warn("[PairSession] Rust auto-logout check failed; session stays restricted:", e));
         }
       }, 1000);
     }
@@ -197,11 +188,10 @@ async function _handleAutoLogout(): Promise<void> {
 // Exported derived store
 // ---------------------------------------------------------------------------
 
-/** Flag builds: Rust has answered for the current record, so ticks need not reset to restricted. */
+/** Rust has answered for the current record, so ticks need not reset to restricted. */
 let _rustViewKnown = false;
 
-export const pairSessionState = RUST_FLOW && authFlowActive()
-  ? derived(
+export const pairSessionState = derived(
       [_pairSessionData, _now, _activationPending],
       ([$data, $now, $pending], set: (value: PairSessionState) => void) => {
         // Fail closed: a record (or an activation in flight) is restricted until Rust's view arrives.
@@ -217,41 +207,7 @@ export const pairSessionState = RUST_FLOW && authFlowActive()
         pushPairView($data, $now, (view) => { _rustViewKnown = true; set(view); });
       },
       NEUTRAL_PAIR_STATE,
-    )
-  : derived(
-  [_pairSessionData, _now],
-  ([$data, $now]): PairSessionState => {
-    if (!$data?.isPairSession) {
-      return {
-        isPairSession: false,
-        authorizerDeviceName: null,
-        autoLogoutAt: null,
-        autoLogoutWarning: false,
-        remainingSeconds: null,
-      };
-    }
-
-    let remainingSeconds: number | null = null;
-    let autoLogoutWarning = false;
-
-    if ($data.autoLogoutAt) {
-      const remaining = Math.max(
-        0,
-        Math.floor(($data.autoLogoutAt - $now) / 1000),
-      );
-      remainingSeconds = remaining;
-      autoLogoutWarning = remaining <= AUTO_LOGOUT_WARNING_SECONDS;
-    }
-
-    return {
-      isPairSession: true,
-      authorizerDeviceName: $data.authorizerDeviceName,
-      autoLogoutAt: $data.autoLogoutAt,
-      autoLogoutWarning,
-      remainingSeconds,
-    };
-  },
-);
+    );
 
 /** Convenience derived: true when the session is restricted (= isPairSession) */
 export const isRestrictedSession = derived(
@@ -274,33 +230,15 @@ export function activatePairSession(opts: {
   pairExpiresAt?: number | null;
 }): void | Promise<void> {
   const now = Date.now();
-  if (RUST_FLOW && authFlowActive()) {
-    // The record is built in Rust and stored when the answer arrives.
-    _activationPending.set(true);
-    return pairActivate(opts, now).then((data) => {
-      _pairSessionData.set(data);
-      _activationPending.set(false);
-    }).catch((e) => {
-      // Stay restricted: the pending flag is not cleared when Rust cannot answer.
-      console.error("[PairSession] Rust activation failed; session stays restricted:", e);
-    });
-  }
-  const autoLogoutAt =
-    opts.pairExpiresAt != null
-      ? opts.pairExpiresAt * 1000
-      : opts.autoLogoutMinutes != null
-      ? now + opts.autoLogoutMinutes * 60 * 1000
-      : null;
-
-  const data: PairSessionData = {
-    isPairSession: true,
-    establishedAt: now,
-    authorizerDeviceName: opts.authorizerDeviceName ?? null,
-    autoLogoutMinutes: opts.autoLogoutMinutes ?? null,
-    autoLogoutAt,
-  };
-
-  _pairSessionData.set(data);
+  // The record is built in Rust and stored when the answer arrives.
+  _activationPending.set(true);
+  return pairActivate(opts, now).then((data) => {
+    _pairSessionData.set(data);
+    _activationPending.set(false);
+  }).catch((e) => {
+    // Stay restricted: the pending flag is not cleared when Rust cannot answer.
+    console.error("[PairSession] Rust activation failed; session stays restricted:", e);
+  });
 }
 
 /**
@@ -314,16 +252,12 @@ export async function rehydratePairSession(): Promise<void> {
 
   // If auto-logout already expired while the page was reloading → logout immediately
   let due: boolean;
-  if (RUST_FLOW && authFlowActive()) {
-    try {
-      due = await pairAutoLogoutDue(data, Date.now());
-    } catch (e) {
-      // Unknown deadline: keep the stored record, which is restricted; the tick re-checks every second.
-      console.warn("[PairSession] Rust deadline check failed on rehydrate; session stays restricted:", e);
-      due = false;
-    }
-  } else {
-    due = !!data.autoLogoutAt && Date.now() >= data.autoLogoutAt;
+  try {
+    due = await pairAutoLogoutDue(data, Date.now());
+  } catch (e) {
+    // Unknown deadline: keep the stored record, which is restricted; the tick re-checks every second.
+    console.warn("[PairSession] Rust deadline check failed on rehydrate; session stays restricted:", e);
+    due = false;
   }
   if (due) {
     await _handleAutoLogout();

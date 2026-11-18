@@ -42,14 +42,14 @@ Read from `docs/migration/rust/overview.yml` (machine-readable; sub-files hold t
 
 | Priority | Area | Scope | Done | Partial | Missing | Detail file |
 |---|---|---|---|---|---|---|
-| 1 | `web_app` | Web app (portable TS routed to the shared Rust core Worker) | 8440 / 107738 (7.8%) | 0 | 99298 | `web-app.yml` |
+| 1 | `web_app` | Web app (capabilities at rust-only or stays-shell, capabilities.yml) | 10 / 21 (47.6%) | 6 | 5 | `web-app.yml` |
 | 1 | `shared_client` | Shared client-side code (Rust, non-operation SDK capabilities) | 8 / 28 (28.6%) | 20 | 0 | `shared-client.yml` |
-| 2 | `cli` | CLI (native Rust, command catalog) | 487 / 746 (65.3%) | 254 | 5 | `cli.yml` |
+| 2 | `cli` | CLI (native Rust, command catalog) | 487 / 769 (63.3%) | 277 | 5 | `cli.yml` |
 | 3 | `sdk_rust` | Rust SDK (operation capabilities) | 6 / 53 (11.3%) | 47 | 0 | `sdk.yml` |
 | 3 | `sdk_npm` | npm SDK (operation capabilities) | 6 / 53 (11.3%) | 45 | 2 | `sdk.yml` |
 | 3 | `sdk_python` | Python SDK (operation capabilities) | 6 / 53 (11.3%) | 45 | 2 | `sdk.yml` |
 
-**Overall: 26.9%** (overall = round(0.4 * web_app + 0.2 * shared_client + 0.25 * cli + 0.15 * sdk, 1), sdk = mean(sdk_rust, sdk_npm, sdk_python); each term is the area percent; weights decided 2026-11-08). The web_app row counts portable TypeScript code lines that route to the shared Rust core under the flag (`docs/migration/rust/web-port-ledger.yml`), not installed Worker namespaces.
+**Overall: 42.3%** (overall = round(0.4 * web_app + 0.2 * shared_client + 0.25 * cli + 0.15 * sdk, 1), sdk = mean(sdk_rust, sdk_npm, sdk_python); each term is the area percent; weights decided 2026-11-08). The web_app row counts capabilities whose web cell is rust-only or stays-shell (`docs/migration/rust/capabilities.yml`), not installed Worker namespaces.
 
 ## Legend
 
@@ -241,20 +241,20 @@ First recorded gap per capability whose Rust entry is not implemented (full text
 
 ## CLI commands
 
-Source: `config/cli-command-catalog.json` (TypeScript CLI 0.28.0, 745 command records, 624 flags).
+Source: `config/cli-command-catalog.json` (TypeScript CLI 0.28.0, 769 command records, 639 flags).
 
 | Metric | Count |
 |---|---|
-| Commands in the catalog | 745 |
+| Commands in the catalog | 769 |
 | Status `implemented` | 0 |
-| Status `partial` (native handler exists, parity not complete) | 740 |
+| Status `partial` (native handler exists, parity not complete) | 764 |
 | Status `unsupported` (no native handler) | 5 |
-| With a named native handler | 736 / 745 (99%) |
-| Differential-verified against the npm CLI | 487 / 745 (65%) |
-| With recorded real-CI E2E evidence | 9 / 745 (1%) |
-| Linux verified | 9 / 745 (1%) |
-| macOS verified | 0 / 745 (0%) |
-| Windows verified (testing waived) | 0 / 745 (0%) |
+| With a named native handler | 760 / 769 (99%) |
+| Differential-verified against the npm CLI | 487 / 769 (63%) |
+| With recorded real-CI E2E evidence | 9 / 769 (1%) |
+| Linux verified | 9 / 769 (1%) |
+| macOS verified | 0 / 769 (0%) |
+| Windows verified (testing waived) | 0 / 769 (0%) |
 
 ### By command group
 
@@ -266,22 +266,25 @@ Largest groups first. `Top gap` is the most common first gap text in the group.
 | `settings` | 104 | 0 | 104 | 0 | 90 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-settings-extra.spec.ts): e... |
 | `apps` | 71 | 0 | 71 | 0 | 36 | 0 | Formatting, option variants, and complete protocol parity require validation. |
 | `server` | 63 | 0 | 63 | 0 | 22 | 0 | Differential-verified against the npm CLI (cli-native-server.spec.ts): exit code, normalized JSON stdout an... |
-| `projects` | 48 | 0 | 48 | 0 | 31 | 3 | Differential-verified against the npm CLI (cli-native-projects.spec.ts): exit code, normalized JSON stdout... |
+| `projects` | 55 | 0 | 55 | 0 | 31 | 3 | Differential-verified against the npm CLI (cli-native-projects.spec.ts): exit code, normalized JSON stdout... |
 | `teams` | 41 | 0 | 41 | 0 | 34 | 1 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-teams.spec.ts): exit code,... |
 | `workflows` | 34 | 0 | 34 | 0 | 27 | 0 | Differential-verified against the npm CLI (cli-native-workflows-extra.spec.ts): exit code, normalized JSON... |
 | `tasks` | 31 | 0 | 31 | 0 | 25 | 4 | Differential-verified against the npm CLI (cli-native-tasks.spec.ts): exit code, normalized JSON stdout and... |
 | `account` | 29 | 0 | 29 | 0 | 10 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-account.spec.ts): exit cod... |
 | `chats` | 28 | 0 | 28 | 0 | 4 | 0 | Syntax delegates to the existing typed Tasks/Plans handler, retaining its option, output, scope and platfor... |
 | `embeds` | 15 | 0 | 15 | 0 | 1 | 0 | Explicit API-key-only native adapter is authored; Cookie/Team auth parity, actual backend authorization, co... |
+| `checks` | 8 | 0 | 8 | 0 | 0 | 0 | Native-only Check command over the shared Rust core; isolated integration validation remains pending. |
 | `connect-account` | 7 | 0 | 7 | 0 | 7 | 0 | Only --dry-run is native; the RS256 client-assertion token exchange fails explicitly as unsupported. |
 | `drafts` | 7 | 0 | 7 | 0 | 6 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-chats.spec.ts): exit code,... |
 | `ideabucket` | 7 | 0 | 7 | 0 | 7 | 0 | Scheduled processing times are evaluated in UTC (npm uses the host time zone). |
 | `privacy` | 7 | 0 | 4 | 3 | 3 | 0 | Native handler has not been ported; command fails explicitly and does not invoke another runtime. |
 | `docs` | 6 | 0 | 6 | 0 | 5 | 0 | Legacy docs show and download acknowledgements remain raw text under --json. |
+| `specifications` | 6 | 0 | 6 | 0 | 0 | 0 | Native-only Project Specification command over the shared Rust core; isolated integration validation remain... |
 | `learning-mode` | 5 | 0 | 5 | 0 | 4 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-misc.spec.ts): exit code,... |
 | `benchmark` | 4 | 0 | 2 | 2 | 2 | 0 | Native handler has not been ported; command fails explicitly and does not invoke another runtime. |
 | `history` | 4 | 0 | 4 | 0 | 4 | 0 | Differential-verified against the npm CLI (cli-native-projects.spec.ts): exit code, normalized JSON stdout... |
 | `recovery` | 4 | 0 | 4 | 0 | 4 | 0 | Differential-verified against the npm CLI (cli-native-projects.spec.ts): exit code, normalized JSON stdout... |
+| `remote-access` | 4 | 0 | 4 | 0 | 0 | 0 | Rust-first native host setting (no npm CLI counterpart). Stored in the remote-access state directory by pac... |
 | `wiki` | 4 | 0 | 4 | 0 | 4 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit cod... |
 | `finance` | 3 | 0 | 3 | 0 | 3 | 0 | --api-key runs only explicit --csv-only CSV checks; connected-account selection reads GET /v1/connected-acc... |
 | `mentions` | 3 | 0 | 3 | 0 | 3 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-content.spec.ts): exit cod... |
@@ -296,7 +299,6 @@ Largest groups first. `Top gap` is the most common first gap text in the group.
 | `login` | 1 | 0 | 1 | 0 | 0 | 1 | Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not... |
 | `logout` | 1 | 0 | 1 | 0 | 0 | 0 | - |
 | `newchatsuggestions` | 1 | 0 | 1 | 0 | 1 | 0 | Reads the Phase 1 sync frame on its own socket (the only server delivery path) without writing chat caches;... |
-| `remote-access` | 1 | 0 | 1 | 0 | 0 | 0 | Rust filesystem host (packages/openmates-rust/src/source_host): read, search, import and write_request (cre... |
 | `signup` | 1 | 0 | 1 | 0 | 0 | 0 | Real-email signup proof on the dev host is still required (fake-server and npm-vector tests only so far). |
 | `support` | 1 | 0 | 1 | 0 | 1 | 0 | Differential-verified against the npm CLI on the isolated CI backend (cli-native-misc.spec.ts): exit code,... |
 | `tui` | 1 | 0 | 1 | 0 | 0 | 0 | Native handler is present; flag/output/exit-code parity with the npm CLI and platform verification are not... |
@@ -311,36 +313,39 @@ Sources: `frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts` (i
 
 | Metric | Count |
 |---|---|
-| Namespaces in the allowlist | 19 |
-| Units installed (installer registered) | 18 / 19 (95%) |
-| Units planned (namespace reserved, no installer) | 1 / 19 (5%) |
+| Namespaces in the allowlist | 22 |
+| Units installed (installer registered) | 17 / 22 (77%) |
+| Units planned (namespace reserved, no installer) | 5 / 22 (23%) |
 
-Planned: `embedEdit`. A namespace without an installer is refused as `unit_unavailable`.
+Planned: `embedWrite`, `embedWriteGuest`, `embedEdit`, `projectTimeline`, `presentRemote`. A namespace without an installer is refused as `unit_unavailable`.
 
 | Unit | Pre-bind | What moves to Rust (from the unit header) | TypeScript fallback | Installer | Unit tests |
 |---|---|---|---|---|---|
 | `core` | no | One installer call = one Worker-side core dispatcher (its own Rust client) on the unit port, sharing the realm's single WASM binding with every other unit. Handshake on the unit port, unchanged from the dedicated Worker: the page posts the closed transport bootstrap (validProductionBootstrap, expectedPrincipal must equal the... | not declared in unit sources | `frontend/apps/web_app/src/lib/rustCore/shared/coreUnit.ts` | - |
 | `crypto` | yes | Installed by the shared Worker router on the namespace port (pre-bind allowed: share links open logged out). Serves the WebCryptoBatch protocol of webCryptoClient.ts on ports[0] against the realm's single WASM binding. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/crypto/cryptoUnitInstaller.ts` | `chatKeyAdmissionVectors.test.ts`, `chatKeyBulkPlanVectors.test.ts`, `chatKeyHandles.test.ts`, `cryptoResultMemo.test.ts`, `cryptoUnit.test.ts`, `guestPromotionVectors.test.ts`, `shareStateVectors.test.ts`, `workPlanChildVectors.test.ts`, `workPlanVectors.test.ts` |
 | `auth` | yes | Runs login/session/logout policy on the realm's single WASM binding; it performs no Fetch, cookie or storage IO itself (the page executes the requests Rust describes). Pre-bind: the page opens it outside any generation (login runs before a principal exists), so the router never hands it a principal and unbind does not close it. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/auth/authUnit.ts` | `auth.test.ts`, `authSharedUnit.test.ts`, `flowPush.test.ts`, `webAuthFlow.test.ts` |
-| `embedData` | yes | Decrypts stored embed rows next to the realm's single WASM binding: every requested row is one `embed_open_row_fields` call (Rust `embed_write::read`, its three fields in one batched WebCrypto call). The unit holds no account state, so it is a pre-bind namespace like `crypto`: the embed key arrives per request (as the crypto... | none declared (4 files) | `frontend/packages/ui/src/services/rustCore/embeds/embedDataUnit.ts` | `childRevision.test.ts`, `embedEditUnit.test.ts`, `embedKeyResolution.test.ts`, `embedUnits.test.ts`, `messageEmbedVersion.test.ts`, `messageParentIds.test.ts`, `readOps.test.ts`, `rustRecoveredChildRevision.test.ts` |
-| `embedWrite` | no | One installer call = one Rust embed write session (`BrowserEmbedWriter`) under the bound generation, next to the Worker-side `chats_db` rows it writes. Rust owns key choice, every ciphertext, row/payload shapes and the revision-history decisions (embedWriteAdapter.ts sequences them); this unit persists the prepared rows (embe... | none declared (4 files) | `frontend/packages/ui/src/services/rustCore/embeds/embedWriteUnit.ts` | `childRevision.test.ts`, `embedEditUnit.test.ts`, `embedKeyResolution.test.ts`, `embedUnits.test.ts`, `messageEmbedVersion.test.ts`, `messageParentIds.test.ts`, `readOps.test.ts`, `rustRecoveredChildRevision.test.ts` |
+| `embedData` | yes | Decrypts stored embed rows next to the realm's single WASM binding: every requested row is one `embed_open_row_fields` call (Rust `embed_write::read`, its three fields in one batched WebCrypto call). The unit holds no account state, so it is a pre-bind namespace like `crypto`: the embed key arrives per request (as the crypto... | none declared (4 files) | `frontend/packages/ui/src/services/rustCore/embeds/embedDataUnit.ts` | `embedTransientWorker.test.ts`, `childRevision.test.ts`, `embedContentEdit.test.ts`, `embedEditSession.test.ts`, `embedEditUnit.test.ts`, `embedKeyResolution.test.ts`, `embedUnits.test.ts`, `embedWriteBinding.test.ts`, `messageEmbedVersion.test.ts`, `messageParentIds.test.ts`, `readOps.test.ts`, `rustRecoveredChildRevision.test.ts`, `rustStreamedEmbedWriteGuest.test.ts` |
 | `chatState` | yes | Serves the chat-list ordering and grouping policy (chatListProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (9 files) | `frontend/packages/ui/src/services/rustCore/chatState/chatListUnit.ts` | `bookmarkHighlightOps.test.ts`, `chatStateAdapter.test.ts`, `chatStateHiddenForkOps.test.ts`, `chatStateSharedUnit.test.ts`, `continueCarouselVectors.test.ts`, `projectStateVectors.test.ts`, `transitionVectors.test.ts` |
 | `ws` | yes | Serves the WebSocket lifecycle policy (wsProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/ws/wsUnit.ts` | `wsSharedUnit.test.ts` |
 | `apps` | yes | Serves the Apps skill execution policy (appsProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace: guests run app skills before any principal exists. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/apps/appsUnit.ts` | `appsPolicyVectors.test.ts`, `appsRequestUnit.test.ts`, `appsSharedUnit.test.ts` |
 | `search` | yes | Owns the chat message search index in the realm's single WASM binding (`ChatSearchIndex`: packages/openmates-rust/src/web_search_chats.rs and web_search_query.rs). The page transfers each chat's entries once when it (re)indexes the chat from its source (decrypted IndexedDB rows) and keeps no copy; a query runs titles, snippet... | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/search/searchUnit.ts` | `chatSearchVectors.test.ts`, `rustChatSearchPipeline.test.ts`, `searchPiiVectors.test.ts` |
-| `transfer` | yes | Serves chat import routing/parsing (transferProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state and does no IO, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/transfer/transferUnit.ts` | `transferExportVectors.test.ts`, `transferSharedUnit.test.ts`, `transferZipVectors.test.ts` |
+| `transfer` | yes | Serves chat import routing/parsing (transferProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state and does no IO, so it is a pre-bind namespace. | none declared (2 files) | `frontend/packages/ui/src/services/rustCore/transfer/transferUnit.ts` | `transferSharedUnit.test.ts`, `transferZipVectors.test.ts` |
 | `sync` | yes | Serves the chat-sync decision policy (syncProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO, so it is a pre-bind namespace. | none declared (5 files) | `frontend/packages/ui/src/services/rustCore/sync/syncUnit.ts` | `syncSharedUnit.test.ts` |
-| `drafts` | no | Draft policy (encryption, versioning, closed IndexedDB predicates, durable encrypted sync intent, readback) is shared Rust (`prepare_local_draft_with_preview`, `remote_payload`, `acknowledge_transport`). This unit only marshals: it runs the Rust calls on the ADMITTED client of the bound history `core` lease (borrowed via core... | not declared in unit sources | `frontend/packages/ui/src/services/rustCore/drafts/draftsUnit.ts` | `rustDraftsUnit.test.ts` |
+| `drafts` | no | Draft policy (encryption, versioning, closed IndexedDB predicates, durable encrypted sync intent, readback) is shared Rust (`prepare_local_draft_with_options`, `remote_payload`, `acknowledge_transport`). This unit only marshals: it runs the Rust calls on the ADMITTED client of the bound history `core` lease (borrowed via core... | not declared in unit sources | `frontend/packages/ui/src/services/rustCore/drafts/draftsUnit.ts` | `rustDraftsUnit.test.ts` |
 | `parse` | yes | Serves the render-plan block model (parseProtocol.ts) on the unit port from the realm's single WASM binding. Stateless and IO-free, hence pre-bind. | none declared (4 files) | `frontend/packages/ui/src/services/rustCore/parse/parseUnit.ts` | - |
 | `sendPrep` | yes | Serves the offline-outbox decisions (sendPrepProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state, so it is a pre-bind namespace. | none declared (4 files) | `frontend/packages/ui/src/services/rustCore/send/sendPrepUnit.ts` | `sendPrepOutboxVectors.test.ts` |
 | `persist` | yes | Serves the IndexedDB row policy (persistProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state and does no IO (rows are passed in, decisions come back), so it is a pre-bind namespace. | none declared (4 files) | `frontend/packages/ui/src/services/rustCore/persist/persistUnit.ts` | `persistSharedUnit.test.ts` |
 | `settings` | yes | Serves the app settings/memories request policy (settingsProtocol.ts) on the unit port from the realm's single WASM binding. It holds no per-account state and does no IO (the page owns IndexedDB and the decrypted entries), so it is a pre-bind namespace. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/settings/settingsUnit.ts` | `connectedAccountsSharedUnit.test.ts`, `settingsSharedUnit.test.ts` |
 | `composer` | yes | Serves the composer operations (composerProtocol.ts) on the unit port from the realm's single WASM binding. It holds no account state, so it is a pre-bind namespace. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/composer/composerUnit.ts` | `composerVectors.test.ts`, `languageUrlVectors.test.ts`, `suggestionVectors.test.ts` |
 | `deckDocument` | yes | Each install owns one Rust `DeckDocumentTable` (the open deck replicas of that unit port) and frees it when the port is disposed (unbind, crash recovery or Worker teardown), so replicas never outlive their page connection. Marshalling only: the handlers forward to the table and parse its JSON; every decision is Rust's. | none declared (1 file) | `frontend/packages/ui/src/services/rustCore/deckDocument/deckDocumentUnit.ts` | `deckDocumentSharedUnit.test.ts`, `deckDocumentWire.test.ts` |
+| `embedWrite` | no | Planned; no installer yet. | - | - | - |
+| `embedWriteGuest` | yes | Planned; no installer yet. | - | - | - |
 | `embedEdit` | no | Planned; no installer yet. | - | - | - |
+| `projectTimeline` | no | Planned; no installer yet. | - | - | - |
+| `presentRemote` | no | Planned; no installer yet. | - | - | - |
 
 All units run only in builds with `VITE_OPENMATES_RUST_CORE=1`; with the flag off the original TypeScript path is unchanged.
-Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat-recommendations-flow.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-chatstate-fork-conversation.spec.ts`, `web-rust-core-chatstate-hidden-chats-flow.spec.ts`, `web-rust-core-chatstate-message-highlights.spec.ts`, `web-rust-core-chatstate.spec.ts`, `web-rust-core-composer.spec.ts`, `web-rust-core-continue-carousel.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-drafts.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-persist.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-projects-flow.spec.ts`, `web-rust-core-projects-remote-sources.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-send-bench.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`, `web-rust-core-workflow-side-panel.spec.ts`, `web-rust-core-ws.spec.ts`.
+Web Rust core E2E specs in `frontend/apps/web_app/tests`: `web-rust-core-apps.spec.ts`, `web-rust-core-auth.spec.ts`, `web-rust-core-bench.spec.ts`, `web-rust-core-chat-recommendations-flow.spec.ts`, `web-rust-core-chat.spec.ts`, `web-rust-core-chatstate-fork-conversation.spec.ts`, `web-rust-core-chatstate-hidden-chats-flow.spec.ts`, `web-rust-core-chatstate-message-highlights.spec.ts`, `web-rust-core-chatstate.spec.ts`, `web-rust-core-composer.spec.ts`, `web-rust-core-continue-carousel.spec.ts`, `web-rust-core-crypto.spec.ts`, `web-rust-core-drafts.spec.ts`, `web-rust-core-embeds.spec.ts`, `web-rust-core-memory-level.spec.ts`, `web-rust-core-persist.spec.ts`, `web-rust-core-profile.spec.ts`, `web-rust-core-projects-flow.spec.ts`, `web-rust-core-projects-remote-sources.spec.ts`, `web-rust-core-reload-memory.spec.ts`, `web-rust-core-search.spec.ts`, `web-rust-core-send-bench.spec.ts`, `web-rust-core-send-prep.spec.ts`, `web-rust-core-sync.spec.ts`, `web-rust-core-transfer.spec.ts`, `web-rust-core-workflow-side-panel.spec.ts`, `web-rust-core-ws.spec.ts`.
 
 ## Performance verdicts
 

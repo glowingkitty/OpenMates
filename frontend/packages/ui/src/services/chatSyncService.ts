@@ -3,12 +3,12 @@ import { OutboundMessageSends } from "./outboundMessageSends";
 // frontend/packages/ui/src/services/chatSyncService.ts
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from "./db";
-import { clearPersonalChatTurnBarriers, failPersonalChatMessage, failPersonalChatTurn, reservePersonalChatTurn } from "./personalChatTurnBarrier";
+import { clearPersonalChatTurnBarriers, failPersonalChatMessage, failPersonalChatTurn, markPersonalChatReplyEnded, markPersonalChatReplyRunning, reservePersonalChatTurn } from "./personalChatTurnBarrier";
 import { getApiEndpoint } from '../config/api';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { getCachedChatVersionMap } from "./db/chatKeyManagement";
-import { webSocketService } from "./websocketService";
+import { isWebSocketConnectionChanged, webSocketService } from "./websocketService";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
 import { aiTypingStore } from "../stores/aiTypingStore";
@@ -111,9 +111,8 @@ import {
 
 // All payload interface definitions are now expected to be in types/chat.ts
 
-/** Rust core build: the sync unit decides the reconnect stale-draft probe (same opt-out as the Phase 2 handlers). */
-const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
-  && !(typeof localStorage !== "undefined" && localStorage.getItem("openmates_rust_core_sync") === "ts");
+/** Rust core build: the sync unit decides the reconnect stale-draft probe. */
+const RUST_SYNC_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
 
 const CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS = 8_000;
 
@@ -596,11 +595,20 @@ export class ChatSynchronizationService extends EventTarget {
     });
     this.addEventListener('aiTaskEnded', (event) => {
       const detail = (event as CustomEvent<{ chatId?: string; userMessageId?: string; status?: string }>).detail;
+      // The server stops queueing followers behind an ended run; they wait for
+      // this turn's encrypted reply row instead (personalChatTurnBarrier).
+      if ((detail?.status === 'completed' || detail?.status === 'cancelled') && detail.chatId && detail.userMessageId) {
+        markPersonalChatReplyEnded(detail.chatId, detail.userMessageId);
+      }
       // Cancellation ends inference and playback, not encrypted persistence.
       // A partial reply can still be sealing or awaiting its canonical ACK;
       // keep successors fenced until that exact storage/recovery proof arrives.
       if (detail?.status === 'completed' || detail?.status === 'cancelled' || !detail?.chatId || !detail?.userMessageId) return;
       failPersonalChatMessage(detail.chatId, detail.userMessageId, new Error('The prior AI task ended before encrypted reply persistence.'));
+    });
+    this.addEventListener('aiTaskInitiated', (event) => {
+      const chatId = (event as CustomEvent<{ chat_id?: string }>).detail?.chat_id;
+      if (chatId) markPersonalChatReplyRunning(chatId);
     });
     this.registerWebSocketHandlers();
     // The connection event can precede chat-key hydration. Retry again after
@@ -1137,8 +1145,12 @@ export class ChatSynchronizationService extends EventTarget {
       return;
     try {
       await this.remoteCommandClient[kind](payload);
-    } catch {
-      console.warn(`[ChatSyncService] Remote command ${kind} event failed`);
+    } catch (error) {
+      // The reason is a fixed validation/state code (never command text), so a
+      // review that cannot be shown is diagnosable instead of silently lost.
+      console.warn(
+        `[ChatSyncService] Remote command ${kind} event failed: ${error instanceof Error ? error.message : "unknown"}`,
+      );
     }
   }
 
@@ -2904,6 +2916,11 @@ export class ChatSynchronizationService extends EventTarget {
         {} as RequestCacheStatusPayload,
       );
     } catch (error) {
+      if (isWebSocketConnectionChanged(error)) {
+        // The replacement socket's connect handler requests cache status again.
+        console.warn("[ChatSyncService] 'request_cache_status' superseded by a reconnect:", error);
+        return;
+      }
       console.error(
         "[ChatSyncService] Error sending 'request_cache_status':",
         error,

@@ -1,0 +1,10 @@
+// Layout of the headless zellij sessions that hold Claude pane chats (claude_dispatch).
+// One terminal pane per tab and no bar plugins: nobody watches these tabs, and with ~20
+// tabs the per-tab compact-bar plugins fell behind on events until zellij used 14 cores
+// and grew to 10 GiB (docs/architecture/infrastructure/dev-host-resources.md).
+layout {
+    default_tab_template {
+        children
+    }
+    pane
+}

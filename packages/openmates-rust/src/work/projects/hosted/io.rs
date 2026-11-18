@@ -31,46 +31,6 @@ pub(super) trait HostedIo {
     async fn delete_link(&mut self, item_id: &str, body: Value) -> HostedResult<Value>;
 }
 
-impl Projects<'_> {
-    /// One Project item-link request (adopt, rename, delete). A refusal whose
-    /// body names a stable link code (`path_conflict`, `embed_already_linked`,
-    /// …) becomes [`HostedFileError::Rejected`] with that code; other failures
-    /// keep the core error.
-    ///
-    /// # Errors
-    /// As described; cookie sessions only.
-    pub(super) async fn item_link_request(
-        &mut self,
-        method: Method,
-        route: &str,
-        body: Value,
-    ) -> HostedResult<Value> {
-        let client = self.hosted_client()?;
-        client.clear_project_item_error();
-        match client
-            .request_task_headers(method, route, Some(body), None, None, None)
-            .await
-        {
-            Ok(value) => Ok(value),
-            Err(error) => match client.take_project_item_error() {
-                Some(code) => Err(HostedFileError::Rejected(code.to_owned())),
-                None => Err(HostedFileError::Core(error)),
-            },
-        }
-    }
-
-    /// The session client; hosted files are first-party session data only.
-    pub(super) fn hosted_client(&mut self) -> Result<&mut Client> {
-        match &mut self.backend {
-            Backend::Cookie(client) => Ok(client),
-            Backend::ApiKey(_) => Err(Error::Unavailable {
-                code: "hosted_project_files_unavailable",
-                reason: "HOSTED_PROJECT_FILES_REQUIRE_COOKIE_SESSION",
-            }),
-        }
-    }
-}
-
 /// Session-backed effects for one resolved Project.
 pub(super) struct ProjectIo<'p, 'a> {
     pub(super) projects: &'p mut Projects<'a>,
@@ -141,7 +101,10 @@ pub(super) fn linked_files(items: &Value, key: &[u8; 32]) -> HostedResult<Vec<Ho
             .is_some_and(|kind| kind != "file")
             || matches!(
                 metadata["source"].as_str(),
-                Some(super::adopt_plan::APPLICATION_SOURCE | super::adopt_plan::TEST_RESULT_SOURCE)
+                Some(
+                    super::super::adoption::APPLICATION_SOURCE
+                        | super::super::adoption::TEST_RESULT_SOURCE
+                )
             );
         if !path.is_string() || non_file_link {
             continue;
@@ -203,21 +166,8 @@ pub(super) fn decode_head(
     );
     // npm `toonEncodeContent` falls back to JSON text when TOON cannot encode
     // a value; readers (`parseEmbedContentObject`) accept both.
-    let content: Vec<(String, Value)> =
-        if let Ok(Value::Object(map)) = serde_json::from_str::<Value>(&plain) {
-            map.into_iter().collect()
-        } else {
-            let decoded = crate::toon_decode::decode(&plain)
-                .map_err(|_| HostedFileError::Refused("unsupported_file_content"))?;
-            let crate::toon_decode::ToonValue::Object(object) = decoded else {
-                return refused("unsupported_file_content");
-            };
-            object
-                .entries()
-                .iter()
-                .map(|(key, value)| (key.clone(), value.to_json_value()))
-                .collect()
-        };
+    let content = crate::work::decode_content_fields(&plain)
+        .ok_or(HostedFileError::Refused("unsupported_file_content"))?;
     let revision = match &embed["version_number"] {
         Value::Null => 1,
         value => value

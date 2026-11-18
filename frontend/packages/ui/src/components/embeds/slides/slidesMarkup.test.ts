@@ -185,3 +185,19 @@ end </notepad>
     expect('hidden' in shape).toBe(false);
   });
 });
+
+describe('deck kind and theme', () => {
+  // contract-test: supporting surface=gui.web assertions=slides.templates.library
+  it('reads kind and a theme with validated tokens', () => {
+    const deck = deckOf(`<deck title="Club" kind="template"><theme heading="trebuchet ms" body="Comic Sans" background="#F4FAF5" accent="red" muted="#abc" surface="#12345"/><slide><text>x</text></slide></deck>`);
+    expect(deck.kind).toBe('template');
+    expect(deck.theme).toEqual({ heading: 'Trebuchet MS', colors: { background: '#f4faf5', muted: '#abc' } });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=slides.templates.library
+  it('defaults to a deck without theme and drops a theme with no valid attribute', () => {
+    const deck = deckOf(`<deck kind="bogus"><theme heading="heading" accent="url(x)"/><slide/></deck>`);
+    expect(deck.kind).toBe('deck');
+    expect(deck.theme).toBeUndefined();
+  });
+});

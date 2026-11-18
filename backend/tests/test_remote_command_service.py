@@ -9,11 +9,12 @@ from pydantic import ValidationError
 
 from backend.apps.code import terminal_command_risk
 from backend.core.api.app.routes.handlers.websocket_handlers import remote_command_handlers
-from backend.core.api.app.schemas.remote_command_schemas import RemoteCommandPolicy
+from backend.core.api.app.schemas.remote_command_schemas import RemoteCommandPolicy, RemoteCommandPrepare
 from backend.core.api.app.services.remote_command_service import (
     RemoteCommandError,
     RemoteCommandService,
     explain_remote_command,
+    normalize_remote_command_explanation,
 )
 from backend.shared.providers.typesafe.models import DecisionResponse
 
@@ -412,9 +413,74 @@ async def test_explanation_call_is_isolated_and_fixed_to_flash_lite() -> None:
         caller=caller,
     )
     assert result["summary"] == "Runs tests"
+    # Every client validates uncertainty as a list; a single string becomes one item.
+    assert result["uncertainty"] == ["Indirect scripts may change."]
+    schema = captured["tool_definition"]["function"]["parameters"]["properties"]["uncertainty"]
+    assert schema["type"] == "array"
     assert captured["model_id"] == "google/gemini-3.5-flash-lite"
     assert captured["fallback_models"] == []
     assert len(captured["message_history"]) == 1
     serialized = repr(captured["message_history"])
     assert "test script body" in serialized
     assert "Project focus" not in serialized
+
+
+# contract-test: supporting surface=gui.web assertions=code-run.remote.explanation,code-run.remote.explicit-approval
+def test_explanation_is_normalized_to_the_review_contract_shape() -> None:
+    explanation = normalize_remote_command_explanation(
+        {"summary": "Runs tests", "effects": "Writes coverage files", "risks": None, "uncertainty": ["a", "b"]}
+    )
+    assert explanation == {
+        "summary": "Runs tests", "effects": ["Writes coverage files"], "risks": [], "uncertainty": ["a", "b"],
+    }
+
+
+# contract-test: supporting surface=gui.web assertions=code-run.remote.explanation,code-run.remote.explicit-approval
+@pytest.mark.parametrize("arguments", [
+    {"summary": "", "effects": [], "risks": [], "uncertainty": []},
+    {"summary": "Runs tests", "effects": [1], "risks": [], "uncertainty": []},
+    {"summary": "Runs tests", "effects": [], "risks": {"a": 1}, "uncertainty": []},
+])
+def test_explanation_no_client_can_show_is_refused(arguments) -> None:
+    with pytest.raises(RemoteCommandError) as error:
+        normalize_remote_command_explanation(arguments)
+    assert error.value.code == "command_explanation_unavailable"
+
+
+def _web_prepare_payload(**extra) -> dict:
+    return {
+        "protocol_version": 1, "execution_id": "execution-1", "chat_id": "chat-1", "project_id": "project-1",
+        "source_id": "source-1", "review_token": "t" * 43, "encrypted_request": "sealed",
+        "request_digest": "d" * 43, "approval": {"kind": "one_run"}, **extra,
+    }
+
+
+# contract-test: supporting surface=gui.web assertions=code-run.remote.explicit-approval
+def test_web_trace_context_is_not_part_of_the_strict_command_contract() -> None:
+    # The web WebSocket client adds `_traceparent` to every payload; an approval must still validate.
+    traced = RemoteCommandPrepare.model_validate(
+        _web_prepare_payload(_traceparent="00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01")
+    )
+    assert traced.execution_id == "execution-1"
+    with pytest.raises(ValidationError):
+        RemoteCommandPrepare.model_validate(_web_prepare_payload(unexpected="value"))
+
+
+# contract-test: supporting surface=gui.web assertions=code-run.remote.explicit-approval
+@pytest.mark.anyio
+async def test_traced_web_approval_reaches_the_prepare_authority_checks() -> None:
+    sent = []
+
+    class Socket:
+        async def send_json(self, message):
+            sent.append(message)
+
+    manager = SimpleNamespace(can_execute_remote_command_job=lambda *args: False)
+    await remote_command_handlers.handle_remote_command_prepare(
+        websocket=Socket(), manager=manager, cache_service=None, directus_service=None,
+        user_id="user-1", device_fingerprint_hash="device-1",
+        payload=_web_prepare_payload(_traceparent="00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),
+    )
+    # Past schema validation: refused by the origin check, not as an invalid message.
+    assert sent == [{"type": "remote_command_error",
+                     "payload": {"execution_id": "execution-1", "code": "origin_review_client_not_current"}}]

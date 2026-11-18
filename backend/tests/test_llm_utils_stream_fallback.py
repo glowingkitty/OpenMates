@@ -56,8 +56,8 @@ def test_main_stream_forwards_profile_only_to_matching_native_google_server(
 
     monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _provider: provider)
     monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config",
-                        lambda _model: (server_id.split("/", 1)[0], server_id))
-    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _model: [])
+                        lambda _model, _region="eu": (server_id.split("/", 1)[0], server_id))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _model, _region="eu": [])
     monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
     monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model: False)
 
@@ -113,14 +113,14 @@ def test_call_main_llm_stream_falls_back_after_empty_provider_stream(monkeypatch
     monkeypatch.setattr(
         llm_utils,
         "resolve_default_server_from_provider_config",
-        lambda model_id: (
+        lambda model_id, _region="eu": (
             ("primary", "primary/model-a") if model_id == "google/model-a" else (None, None)
         ),
     )
     monkeypatch.setattr(
         llm_utils,
         "resolve_fallback_servers_from_provider_config",
-        lambda model_id: ["fallback/model-a"] if model_id == "google/model-a" else [],
+        lambda model_id, _region="eu": ["fallback/model-a"] if model_id == "google/model-a" else [],
     )
     monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda message_history: message_history)
     monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model_id: False)
@@ -177,9 +177,9 @@ def test_failed_server_is_not_retried_in_same_turn(monkeypatch):
         "primary": primary_provider, "fallback": fallback_provider,
     }[provider])
     monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config",
-                        lambda _model: ("primary", "primary/model-a"))
+                        lambda _model, _region="eu": ("primary", "primary/model-a"))
     monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config",
-                        lambda _model: ["fallback/model-a"])
+                        lambda _model, _region="eu": ["fallback/model-a"])
     monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
     monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model: False)
 
@@ -220,11 +220,11 @@ def test_call_main_llm_stream_falls_back_after_provider_error_marker(monkeypatch
         raise AssertionError(f"Unexpected provider prefix: {provider_prefix}")
 
     monkeypatch.setattr(llm_utils, "_get_provider_client", fake_get_provider_client)
-    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _model_id: (None, None))
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _model_id, _region="eu": (None, None))
     monkeypatch.setattr(
         llm_utils,
         "resolve_fallback_servers_from_provider_config",
-        lambda model_id: ["fallback/gpt-5.4"] if model_id == "openai/gpt-5.4" else [],
+        lambda model_id, _region="eu": ["fallback/gpt-5.4"] if model_id == "openai/gpt-5.4" else [],
     )
     monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda message_history: message_history)
     monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model_id: False)
@@ -277,7 +277,7 @@ def test_call_main_llm_stream_falls_back_after_bedrock_image_validation_error(mo
     monkeypatch.setattr(
         llm_utils,
         "resolve_default_server_from_provider_config",
-        lambda model_id: (
+        lambda model_id, _region="eu": (
             ("aws_bedrock", "aws_bedrock/eu.anthropic.claude-haiku-4-5-20251001-v1:0")
             if model_id == "anthropic/claude-haiku-4-5-20251001"
             else (None, None)
@@ -286,7 +286,7 @@ def test_call_main_llm_stream_falls_back_after_bedrock_image_validation_error(mo
     monkeypatch.setattr(
         llm_utils,
         "resolve_fallback_servers_from_provider_config",
-        lambda model_id: ["anthropic/claude-haiku-4-5-20251001"]
+        lambda model_id, _region="eu": ["anthropic/claude-haiku-4-5-20251001"]
         if model_id == "anthropic/claude-haiku-4-5-20251001"
         else [],
     )
@@ -345,7 +345,7 @@ def test_call_main_llm_stream_falls_back_after_gemini_malformed_function_call(mo
     monkeypatch.setattr(
         llm_utils,
         "resolve_default_server_from_provider_config",
-        lambda model_id: (
+        lambda model_id, _region="eu": (
             ("google_ai_studio", "google_ai_studio/gemini-3-flash-preview")
             if model_id == "google/gemini-3-flash-preview"
             else (None, None)
@@ -354,7 +354,7 @@ def test_call_main_llm_stream_falls_back_after_gemini_malformed_function_call(mo
     monkeypatch.setattr(
         llm_utils,
         "resolve_fallback_servers_from_provider_config",
-        lambda model_id: ["google/gemini-3-flash-preview"]
+        lambda model_id, _region="eu": ["google/gemini-3-flash-preview"]
         if model_id == "google/gemini-3-flash-preview"
         else [],
     )
@@ -410,7 +410,7 @@ def test_call_main_llm_stream_skips_stripped_signature_retry_on_google_only_serv
     monkeypatch.setattr(
         llm_utils,
         "resolve_default_server_from_provider_config",
-        lambda model_id: (
+        lambda model_id, _region="eu": (
             ("google_ai_studio", "google_ai_studio/gemini-3-flash-preview")
             if model_id == "google/gemini-3-flash-preview"
             else (None, None)
@@ -419,7 +419,7 @@ def test_call_main_llm_stream_skips_stripped_signature_retry_on_google_only_serv
     monkeypatch.setattr(
         llm_utils,
         "resolve_fallback_servers_from_provider_config",
-        lambda model_id: ["google/gemini-3-flash-preview"]
+        lambda model_id, _region="eu": ["google/gemini-3-flash-preview"]
         if model_id == "google/gemini-3-flash-preview"
         else [],
     )
@@ -500,7 +500,7 @@ def test_call_main_llm_stream_routes_signed_tool_continuation_to_origin_server(m
     monkeypatch.setattr(
         llm_utils,
         "resolve_default_server_from_provider_config",
-        lambda model_id: (
+        lambda model_id, _region="eu": (
             ("google_ai_studio", "google_ai_studio/gemini-3-flash-preview")
             if model_id == "google/gemini-3-flash-preview"
             else (None, None)
@@ -509,7 +509,7 @@ def test_call_main_llm_stream_routes_signed_tool_continuation_to_origin_server(m
     monkeypatch.setattr(
         llm_utils,
         "resolve_fallback_servers_from_provider_config",
-        lambda model_id: ["google/gemini-3-flash-preview"]
+        lambda model_id, _region="eu": ["google/gemini-3-flash-preview"]
         if model_id == "google/gemini-3-flash-preview"
         else [],
     )
@@ -608,7 +608,7 @@ def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fa
     monkeypatch.setattr(
         llm_utils,
         "resolve_default_server_from_provider_config",
-        lambda model_id: (
+        lambda model_id, _region="eu": (
             ("google_ai_studio", "google_ai_studio/gemini-3-flash-preview")
             if model_id == "google/gemini-3-flash-preview"
             else (None, None)
@@ -617,7 +617,7 @@ def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fa
     monkeypatch.setattr(
         llm_utils,
         "resolve_fallback_servers_from_provider_config",
-        lambda model_id: ["fallback/neutral-model"] if model_id == "google/gemini-3-flash-preview" else [],
+        lambda model_id, _region="eu": ["fallback/neutral-model"] if model_id == "google/gemini-3-flash-preview" else [],
     )
     monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda message_history: message_history)
     monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model_id: True)
@@ -687,8 +687,8 @@ def test_mistral_thinking_replay_is_removed_for_foreign_fallback(monkeypatch, fa
         return stream()
 
     monkeypatch.setattr(llm_utils, "_get_provider_client", lambda provider: primary if provider == "mistral" else recovered)
-    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("mistral", "mistral/mistral-large-4"))
-    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [f"{fallback}/model"])
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _, _region="eu": ("mistral", "mistral/mistral-large-4"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _, _region="eu": [f"{fallback}/model"])
     monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _: True)
 
     state = {"mistral_thinking": [{"type": "thinking", "thinking": [{"type": "text", "text": "Reasoning"}]}]}
@@ -771,9 +771,9 @@ def test_stream_fallback_freezes_actual_host_tariff_before_each_dispatch(monkeyp
     monkeypatch.setattr(llm_utils, "_configured_server_region", lambda *_args: "global")
     monkeypatch.setattr(llm_utils, "_get_provider_client", provider)
     monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config",
-                        lambda _: ("google_ai_studio", "google_ai_studio/gemini-4-argon"))
+                        lambda _, _region="eu": ("google_ai_studio", "google_ai_studio/gemini-4-argon"))
     monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config",
-                        lambda _: ["google/gemini-4-argon"])
+                        lambda _, _region="eu": ["google/gemini-4-argon"])
     monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
     monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _: True)
 
@@ -895,8 +895,8 @@ def test_mercury_timeout_preserves_usage_and_enables_gemini_low_fallback(monkeyp
                 closed.append(True)
         return stream()
     monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: provider)
-    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("inception", "inception/mercury-3"))
-    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _, _region="eu": ("inception", "inception/mercury-3"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _, _region="eu": [])
     monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
     async def run():
         with pytest.raises(AllServersFailedError):
@@ -923,8 +923,8 @@ def test_mercury_failure_after_text_does_not_trigger_clean_model_restart(monkeyp
             raise IOError("transport failure")
         return stream()
     monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: provider)
-    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("inception", "inception/mercury-3"))
-    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _, _region="eu": ("inception", "inception/mercury-3"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _, _region="eu": [])
     monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
     async def run():
         return [chunk async for chunk in llm_utils.call_main_llm_stream(
@@ -950,8 +950,8 @@ def test_automatic_low_dispatch_never_uses_disabled_google_server(monkeypatch):
             return await provider(**arguments)
         return selected
     monkeypatch.setattr(llm_utils, "_get_provider_client", get_provider)
-    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("google_ai_studio", "google_ai_studio/gemini-3.8-flash"))
-    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: ["google/gemini-3.8-flash"])
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _, _region="eu": ("google_ai_studio", "google_ai_studio/gemini-3.8-flash"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _, _region="eu": ["google/gemini-3.8-flash"])
     monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
     async def run(allowed):
         return [chunk async for chunk in llm_utils.call_main_llm_stream(
@@ -977,8 +977,8 @@ def test_automatic_mercury_missing_key_returns_clean_model_fallback_signal(monke
             return None
     monkeypatch.setattr(llm_utils, "CacheService", NoHealthCache)
     monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: invoke_inception_chat_completions)
-    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("inception", "inception/mercury-3"))
-    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _, _region="eu": ("inception", "inception/mercury-3"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _, _region="eu": [])
     monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
     secrets = SimpleNamespace(get_secret=AsyncMock(return_value=None))
     async def run():
@@ -1008,8 +1008,8 @@ def test_main_reasoning_recommendation_is_resolved_per_actual_server(monkeypatch
             yield "Answer"
         return stream()
     monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: provider)
-    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: (server.split("/", 1)[0], server))
-    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _, _region="eu": (server.split("/", 1)[0], server))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _, _region="eu": [])
     monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
     async def run():
         return [chunk async for chunk in llm_utils.call_main_llm_stream(
@@ -1031,8 +1031,8 @@ def test_mercury_high_deadline_is_not_shortened_by_generic_watchdogs(monkeypatch
         async for chunk in stream:
             yield chunk
     monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: provider)
-    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("inception", "inception/mercury-3"))
-    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [])
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _, _region="eu": ("inception", "inception/mercury-3"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _, _region="eu": [])
     monkeypatch.setattr(llm_utils, "get_first_chunk_timeout_seconds", lambda **_: 15.)
     monkeypatch.setattr(llm_utils, "get_inter_chunk_timeout_seconds", lambda **_: 45.)
     monkeypatch.setattr(llm_utils, "stream_with_first_chunk_timeout", watchdog)

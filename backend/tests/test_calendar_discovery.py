@@ -9,7 +9,7 @@ import pytest
 
 # contract-test: supporting surface=rest_api assertions=calendar.discovery.target
 @pytest.mark.anyio
-async def test_provider_calendar_discovery_preserves_pagination_and_roles(monkeypatch):
+async def test_provider_calendar_discovery_preserves_pagination_and_roles():
     from backend.shared.providers.google_calendar.client import GoogleCalendarClient
 
     def handle(request):
@@ -23,11 +23,8 @@ async def test_provider_calendar_discovery_preserves_pagination_and_roles(monkey
             "irrelevant_field": "excluded",
         }], "nextPageToken": "synthetic-more"})
 
-    original_client = httpx.AsyncClient
-    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: original_client(
-        **kwargs, transport=httpx.MockTransport(handle),
-    ))
-    result = await GoogleCalendarClient(access_token="synthetic-token").list_calendars(
+    client = GoogleCalendarClient(access_token="synthetic-token", transport=httpx.MockTransport(handle))
+    result = await client.list_calendars(
         page_token="synthetic-next", show_hidden=True, max_results=25,
     )
     assert result == {"calendars": [{
@@ -41,16 +38,16 @@ async def test_provider_calendar_discovery_preserves_pagination_and_roles(monkey
 async def test_calendar_discovery_requires_broker_context_and_returns_safe_scope_errors():
     from backend.apps.calendar.skills.list_calendars_skill import ListCalendarsSkill
 
-    class Client:
-        def __init__(self, *, access_token):
-            assert access_token == "synthetic-token"
+    from backend.shared.providers.google_calendar.client import GoogleCalendarClient
 
-        async def list_calendars(self, **kwargs):
-            request = httpx.Request("GET", "https://www.googleapis.com/calendar/v3/users/me/calendarList")
-            response = httpx.Response(403, request=request, json={
-                "error": {"errors": [{"reason": "insufficientPermissions"}], "message": "private provider text"},
-            })
-            response.raise_for_status()
+    def handle(request):
+        assert request.headers["authorization"] == "Bearer synthetic-token"
+        return httpx.Response(403, json={
+            "error": {"errors": [{"reason": "insufficientPermissions"}], "message": "private provider text"},
+        })
+
+    def Client(*, access_token):
+        return GoogleCalendarClient(access_token=access_token, transport=httpx.MockTransport(handle))
 
     skill = object.__new__(ListCalendarsSkill)
     with pytest.raises(PermissionError):

@@ -113,6 +113,7 @@ const mocks = vi.hoisted(() => {
     encryptWithMasterKey: vi.fn().mockResolvedValue("encrypted-data"),
     tipTapToCanonicalMarkdown: vi.fn().mockReturnValue(""),
     deferDebounce: false,
+    lastRustChatId: "",
   };
 });
 
@@ -131,6 +132,42 @@ vi.mock("../../chatSyncService", () => ({
 // cryptoService
 vi.mock("../../cryptoService", () => ({
   encryptWithMasterKey: mocks.encryptWithMasterKey,
+}));
+
+// The shared Rust core route. The shell hands Rust the chat id, markdown, team and
+// createChat flag; this fake core stands in for it (pausable encryption step, row
+// write through chatDB, ciphertext returned for the shell's socket send) so the
+// shell's own behavior (save lock, follow-up saves, stale-lifecycle discard, state
+// updates) is what these tests exercise. The real route is covered by
+// rustCore/__tests__/rustDraftsUnit.test.ts.
+async function fakeRustSave(input: {
+  chatId: string; markdown: string; preview: string; teamId: string | null; createChat: boolean;
+  send: (payload: { chat_id: string; encrypted_draft_md: string; encrypted_draft_preview: string; draft_v: number }) => Promise<void>;
+}) {
+  mocks.lastRustChatId = input.chatId;
+  try {
+    const md = await mocks.encryptWithMasterKey(input.markdown);
+    const preview = await mocks.encryptWithMasterKey(input.preview);
+    let version = 1;
+    if (input.createChat) {
+      await mocks.chatDB.createNewChatWithCurrentUserDraft(md, preview, input.teamId);
+    } else {
+      const existing = await mocks.chatDB.getRawChat(input.chatId);
+      version = Math.max(existing?.draft_v ?? 0, existing?.cleared_draft_v ?? 0) + 1;
+      const saved = await mocks.chatDB.saveChatDraftFields(input.chatId, {
+        encrypted_draft_md: md, encrypted_draft_preview: preview, draft_v: version,
+      });
+      if (!saved || saved.encrypted_draft_md !== md) return { kind: "failed" as const, code: "draft_effect_readback_draft" };
+    }
+    const synced = input.send({ chat_id: input.chatId, encrypted_draft_md: md, encrypted_draft_preview: preview, draft_v: version });
+    synced.catch(() => undefined);
+    return { kind: "saved" as const, version, synced, localOnly: false };
+  } catch {
+    return { kind: "failed" as const, code: "unavailable" };
+  }
+}
+vi.mock("../../rustCore/drafts/rustDraftRoute", () => ({
+  saveDraftWithRustCore: fakeRustSave,
 }));
 
 // authStore
@@ -799,8 +836,9 @@ describe("draftSave", () => {
       await saveDraftDebounced(undefined, editor as never);
 
       expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1);
-      expect(mocks.draftState.currentChatId).toBe("created-chat-id");
-      expect(mocks.draftState.newlyCreatedChatIdToSelect).toBe("created-chat-id");
+      expect(mocks.lastRustChatId).toMatch(/^[0-9a-f-]{36}$/);
+      expect(mocks.draftState.currentChatId).toBe(mocks.lastRustChatId);
+      expect(mocks.draftState.newlyCreatedChatIdToSelect).toBe(mocks.lastRustChatId);
     });
 
     // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
@@ -835,7 +873,7 @@ describe("draftSave", () => {
       finishEncryption("encrypted-data");
       await savePromise;
 
-      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).not.toHaveBeenCalled();
+      expect(mocks.draftState.newlyCreatedChatIdToSelect).toBeNull();
       expect(mocks.draftState.isSaveInProgress).toBe(false);
     });
 
@@ -845,8 +883,10 @@ describe("draftSave", () => {
       mocks.getEditorInstance.mockReturnValue(editor);
       mocks.tipTapToCanonicalMarkdown.mockReturnValue("Local edit still needs saving");
       mocks.resetDraftState({ currentChatId: "draft-race", lastSavedContentMarkdown: "old", hasUnsavedChanges: true });
-      mocks.chatDB.getRawChat.mockResolvedValueOnce({ chat_id: "draft-race", draft_v: 1,
-        encrypted_draft_md: "old-cipher", encrypted_draft_preview: "old-preview" });
+      const oldRow = { chat_id: "draft-race", draft_v: 1,
+        encrypted_draft_md: "old-cipher", encrypted_draft_preview: "old-preview" };
+      // The shell's existence lookup and the fake core's own read each take one value.
+      mocks.chatDB.getRawChat.mockResolvedValueOnce(oldRow).mockResolvedValueOnce(oldRow);
       const winner = { chat_id: "draft-race", draft_v: cleared ? 0 : 3,
         cleared_draft_v: cleared ? 3 : 0,
         encrypted_draft_md: cleared ? null : "winning-cipher",
@@ -856,7 +896,7 @@ describe("draftSave", () => {
       expect(mocks.draftState.hasUnsavedChanges).toBe(true);
       expect(mocks.draftState.lastSavedContentMarkdown).toBe("old");
       expect(mocks.chatSyncService.sendUpdateDraft).not.toHaveBeenCalled();
-      mocks.chatDB.getRawChat.mockResolvedValueOnce(winner);
+      mocks.chatDB.getRawChat.mockResolvedValueOnce(winner).mockResolvedValueOnce(winner);
       await saveDraftDebounced("draft-race", editor as never);
       expect(mocks.chatDB.saveChatDraftFields).toHaveBeenLastCalledWith("draft-race",
         expect.objectContaining({ draft_v: 4, encrypted_draft_md: "encrypted-data" }));
@@ -888,19 +928,19 @@ describe("draftSave", () => {
       });
       await clearCurrentDraft();
       mocks.chatDB.getRawChat.mockResolvedValueOnce({
-        chat_id: "late-created-chat-id", messages_v: 0, draft_v: 1,
+        chat_id: mocks.lastRustChatId, messages_v: 0, draft_v: 1,
         encrypted_title: null, encrypted_draft_md: "encrypted-data",
         encrypted_draft_preview: "encrypted-data",
       });
       finishPersistence({
-        chat_id: "late-created-chat-id",
+        chat_id: mocks.lastRustChatId,
         draft_v: 1,
         encrypted_draft_md: "encrypted-data",
         encrypted_draft_preview: "encrypted-data",
       });
       await savePromise;
 
-      expect(mocks.chatDB.deleteDraftOnlyChat).toHaveBeenCalledWith("late-created-chat-id");
+      expect(mocks.chatDB.deleteDraftOnlyChat).toHaveBeenCalledWith(mocks.lastRustChatId);
       expect(mocks.draftState.newlyCreatedChatIdToSelect).toBeNull();
       expect(mocks.draftState.isSaveInProgress).toBe(false);
     });
@@ -918,7 +958,7 @@ describe("draftSave", () => {
       await vi.waitFor(() => expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1));
       activeTeamContext.set({ team: null, teamId: "team-1", epoch: 1 });
       mocks.chatDB.getRawChat.mockResolvedValueOnce({
-        chat_id: "committed-team-chat", team_id: "team-1", messages_v: 2,
+        chat_id: mocks.lastRustChatId, team_id: "team-1", messages_v: 2,
         draft_v: 1, encrypted_draft_md: "encrypted-data", encrypted_draft_preview: null,
       });
       mocks.chatDB.getMessagesForChat.mockResolvedValue([]);
@@ -926,7 +966,7 @@ describe("draftSave", () => {
         draft_v: 1, encrypted_draft_md: "encrypted-data", encrypted_draft_preview: null });
       await saving;
       expect(mocks.chatDB.deleteDraftOnlyChat).not.toHaveBeenCalled();
-      expect(mocks.chatDB.saveChatDraftFields).toHaveBeenCalledWith("committed-team-chat", expect.objectContaining({
+      expect(mocks.chatDB.saveChatDraftFields).toHaveBeenCalledWith(mocks.lastRustChatId, expect.objectContaining({
         encrypted_draft_md: null,
       }));
     });
@@ -1109,8 +1149,11 @@ describe("draftSave", () => {
         releaseTransport();
         await activeSave;
         await vi.advanceTimersByTimeAsync(1_500);
+        // One Rust save encrypts the markdown and its preview. The matching resave
+        // finds the content unchanged and skips before encrypting; the later queued
+        // text is never encrypted or written.
         expect(mocks.encryptWithMasterKey.mock.calls.map((call) => call[0])).toEqual([
-          "draft", "draft", "draft", "draft",
+          "draft", "draft",
         ]);
         expect(mocks.chatDB.saveChatDraftFields).toHaveBeenCalledTimes(1);
       } finally {

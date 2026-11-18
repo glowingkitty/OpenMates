@@ -285,6 +285,8 @@ export class BrowserCoreWorkerHost {
         ...(message.operation === 'check_first_session' ? {firstSession:{principal:message.profile.principal}} : message.operation==='check_first_session_data'?{firstSession:{principal:this.expectedPrincipal!,dataOnly:true as const}}:{}),
         ...(message.operation==="rotate_credentials"?{credentialCas:{handle:message.handle,generation:message.generation,scope:message.scope,signal,effectId:0,inFlight:false}}:{}),
         ...((message.operation==="prepare_credentials"||message.operation==="validate_credentials")?{expectedSnapshot:{handle:message.handle,generation:message.generation,...(message.operation==="validate_credentials"?{exact:JSON.stringify(message.snapshot)}:{})}}:{}),
+        ...(message.operation === "ingest_socket_frames" ? { expectedFrames: { handle: message.handle, generation: message.generation, kind: "socketIngest" as const } }
+          : message.operation === "admit_chat" ? { expectedFrames: { handle: message.handle, generation: message.generation, kind: "chatAdmission" as const, chatId: message.chatId } } : {}),
         ...((message.operation === "open_chat" || message.operation === "reconnect_chat" || message.operation === "read_saved_chat" || message.operation === "read_saved_chat_page")
           ? { expectedChat: { handle: message.handle, generation: message.generation, chatId: message.chatId,
             kind: message.operation === "read_saved_chat" || message.operation === "read_saved_chat_page" ? "savedRead" as const : "chat" as const } } : {}) });
@@ -785,6 +787,12 @@ export class BrowserCoreWorkerHost {
       if (reply.kind === "started") this.sends.set(reply.operationId, { handle: expected.handle, generation: expected.generation, chatId: expected.chatId });
       if (reply.kind === "closed" || reply.kind === "event" && (reply.event === null || reply.event.type !== "update")) this.sends.delete(reply.operationId);
     } else {
+    if (data.ok && pending.expectedFrames) {
+      const frames = pending.expectedFrames;
+      const reply = frames.kind === "socketIngest" ? data.socketIngest : data.chatAdmission;
+      if (!reply || !data.status || data.status.handle !== frames.handle || data.status.generation !== frames.generation
+        || frames.kind === "chatAdmission" && data.chatAdmission?.chatId !== frames.chatId) { this.close("unavailable"); return; }
+    } else if (data.ok && ("socketIngest" in data || "chatAdmission" in data)) { this.close("unavailable"); return; }
     const resultId = data.ok && (pending.expectedChat?.kind === "savedRead" ? data.savedRead?.chat.id : data.chat?.id);
     if (data.ok && (pending.expectedChat ? !(resultId && data.status
       && resultId === pending.expectedChat.chatId && data.status.handle === pending.expectedChat.handle

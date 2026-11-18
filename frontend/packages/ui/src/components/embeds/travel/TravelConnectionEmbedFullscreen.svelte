@@ -18,6 +18,7 @@
 -->
 
 <script lang="ts">
+  import { formatStationDate, formatStationDateTime, formatStationTime } from './travelTime';
   import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from "../../../types/authoredResult";
   import transportIconUrl from '../../../../static/icons/travel.svg';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
@@ -40,7 +41,16 @@
   import { authStore } from '../../../stores/authStore';
   import { loginInterfaceOpen } from '../../../stores/uiStateStore';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
-  import { extractTravelFare, formatFareCoverage, formatTravelFare, type TravelFare } from './fareDisplay';
+  import {
+    extractRouteComposition,
+    extractTravelFare,
+    extractTravelTickets,
+    formatFareCoverage,
+    formatRouteSavings,
+    formatTicketPrice,
+    formatTravelFare,
+    type TravelFare,
+  } from './fareDisplay';
 
   /** Segment data within a leg */
   interface SegmentData {
@@ -114,6 +124,10 @@
     longitude?: number;
     meets_min_transfer?: boolean;
     amenities?: TransferAmenities;
+    /** Mixed routes: the next part needs its own ticket. */
+    separate_tickets?: boolean;
+    station_change?: { from?: string; to?: string };
+    station_change_to?: string;
   }
 
   /** Leg data */
@@ -285,6 +299,12 @@
   // The decodedContent fields map directly to ConnectionData since ActiveChat
   // previously passed the whole decodedContent as-is to construct the connection prop
   let dc = $derived(authoredContext?.presentationContent ?? authoredContext?.content ?? data.decodedContent);
+  // An authored card names the site its link opens; it never claims a booking.
+  let authoredLinkLabel = $derived.by(() => {
+    const url = typeof dc?.booking_url === 'string' ? dc.booking_url : '';
+    const domain = url && URL.canParse(url) ? new URL(url).hostname.replace(/^www\./, '') : '';
+    return domain ? $text('embeds.authoring.open_domain').replace('{domain}', domain) : $text('embeds.authoring.open_source');
+  });
   let authoredTitle = $derived(isAuthored && typeof dc?.title === "string" ? dc.title.trim() : "");
 
   // Store example flag — set by SkillExamplesSection when browsing app-store examples.
@@ -331,6 +351,11 @@
   // Defensive: connection may be undefined during async component loading in dev preview
   type MaybeConnection = ConnectionData | undefined;
   
+  // Mixed routes: one ticket per part, and the saving against the cheapest single ticket
+  let ticketParts = $derived(extractTravelTickets(dc as Record<string, unknown>));
+  let routeComposition = $derived(extractRouteComposition(dc as Record<string, unknown>));
+  let routeSavings = $derived(formatRouteSavings(routeComposition));
+
   // Format price/fare state
   let formattedPrice = $derived.by(() => {
     const conn = connection as MaybeConnection;
@@ -377,13 +402,7 @@
   
   // Format time from ISO string
   function formatTime(isoString: string): string {
-    if (!isoString) return '';
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return isoString;
-    }
+    return formatStationTime(isoString);
   }
 
   function displayTime(scheduledTime: string, actualTime?: string): string {
@@ -410,13 +429,7 @@
   
   // Format date from ISO string
   function formatDate(isoString: string): string {
-    if (!isoString) return '';
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-    } catch {
-      return isoString;
-    }
+    return formatStationDate(isoString);
   }
   
   // Stops label
@@ -528,6 +541,9 @@
     }
     if (layover.meets_min_transfer === true) parts.push('meets minimum');
     if (layover.meets_min_transfer === false) parts.push('below minimum');
+    if (layover.separate_tickets === true) parts.push('separate tickets');
+    const changeTo = layover.station_change?.to ?? layover.station_change_to;
+    if (changeTo) parts.push(`change stop to ${changeTo}`);
     return parts.join(' · ');
   }
 
@@ -1570,7 +1586,7 @@
         <EmbedHeaderCtaButton testId="save-embed-cta" label={$text(isSaved ? 'embeds.saved_item' : 'embeds.save_item')} variant="secondary" iconName="heart" iconOnly pressed={isSaved} onclick={handleToggleSaved} />
       {/if}
       {#if (isAuthored && connection.booking_url) || (!isAuthored && bookingState === 'loaded' && resolvedBookingUrl)}
-        <EmbedHeaderCtaButton testId="booking-cta" label={isAuthored ? $text('embeds.authoring.open_source') : $text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
+        <EmbedHeaderCtaButton testId="booking-cta" label={isAuthored ? authoredLinkLabel : $text('embeds.book_on').replace('{provider}', resolvedBookingProvider || primaryCarrier)} onclick={handleOpenBookingUrl} />
       {:else if !isAuthored && bookingState === 'loading'}
         <EmbedHeaderCtaButton testId="booking-cta" label="" variant="loading" />
       {:else if !isAuthored && bookingState === 'error'}
@@ -1583,8 +1599,8 @@
 
   {#snippet summary()}
     {#if formattedPrice}<ResultEmbedInfo icon="euro" label="Fare" value={formattedPrice}>{fareSummary || formattedPrice}</ResultEmbedInfo>{/if}
-    {#if isAuthored && connection.departure}<ResultEmbedInfo icon="clock" label="Departure" value={connection.departure}>{formatTime(connection.departure)}</ResultEmbedInfo>{/if}
-    {#if isAuthored && connection.arrival}<ResultEmbedInfo icon="clock" label="Arrival" value={connection.arrival}>{formatTime(connection.arrival)}</ResultEmbedInfo>{/if}
+    {#if isAuthored && connection.departure}<ResultEmbedInfo icon="clock" label="Departure" value={formatStationDateTime(connection.departure)}>{formatTime(connection.departure)}</ResultEmbedInfo>{/if}
+    {#if isAuthored && connection.arrival}<ResultEmbedInfo icon="clock" label="Arrival" value={formatStationDateTime(connection.arrival)}>{formatTime(connection.arrival)}</ResultEmbedInfo>{/if}
     {#if connection.duration}<ResultEmbedInfo icon="clock" label="Journey duration" value={connection.duration}>{connection.duration}</ResultEmbedInfo>{/if}
     {#if travelClassLabel}<ResultEmbedInfo icon="armchair" label="Travel class" value={travelClassLabel}>{travelClassLabel}</ResultEmbedInfo>{/if}
   {/snippet}
@@ -1604,6 +1620,40 @@
           <span class="fare-summary-label">{formattedPrice}</span>
           {#if fareSummary}
             <span class="fare-summary-detail">{fareSummary}</span>
+          {/if}
+        </div>
+      {/if}
+
+      {#if ticketParts.length > 1}
+        <div class="route-tickets" data-testid="route-tickets">
+          <div class="route-tickets-header">
+            <span class="route-tickets-title">{ticketParts.length} separate tickets</span>
+            {#if routeSavings}
+              <span class="route-savings" data-testid="route-savings">{routeSavings}</span>
+            {/if}
+          </div>
+          {#each ticketParts as ticket, ticketIdx}
+            <div class="route-ticket" data-testid="route-ticket">
+              <span class="route-ticket-index">{ticketIdx + 1}</span>
+              <div class="route-ticket-body">
+                <span class="route-ticket-route">{ticket.route}</span>
+                {#if ticket.departure && ticket.arrival}
+                  <span class="route-ticket-time">{formatTime(ticket.departure)} – {formatTime(ticket.arrival)}</span>
+                {/if}
+              </div>
+              <span class="route-ticket-price" class:covered={ticket.coverage === 'pass'} data-testid="route-ticket-price">
+                {formatTicketPrice(ticket)}
+              </span>
+              {#if ticket.bookingUrl}
+                <a class="route-ticket-book" href={ticket.bookingUrl} target="_blank" rel="noopener noreferrer"
+                  data-testid="route-ticket-booking">Book{ticket.bookingProvider ? ` on ${ticket.bookingProvider}` : ''}</a>
+              {/if}
+            </div>
+          {/each}
+          {#if routeComposition}
+            <span class="route-tickets-note">
+              Change at {routeComposition.hub}{routeComposition.transferMinutes != null ? ` with ${routeComposition.transferMinutes} min to transfer` : ''}. Each ticket is booked on its own, so a delay on the first part does not protect the second.
+            </span>
           {/if}
         </div>
       {/if}
@@ -1635,8 +1685,8 @@
           {#if leg.segments.length === 0}
             <div class="summary-fallback" data-testid="connection-partial-leg">
               {#if leg.origin || leg.destination}<span>{[leg.origin, leg.destination].filter(Boolean).join(' → ')}</span>{/if}
-              {#if leg.departure}<ResultEmbedInfo icon="clock" label="Departure" value={leg.departure}>{formatTime(leg.departure)}</ResultEmbedInfo>{/if}
-              {#if leg.arrival}<ResultEmbedInfo icon="clock" label="Arrival" value={leg.arrival}>{formatTime(leg.arrival)}</ResultEmbedInfo>{/if}
+              {#if leg.departure}<ResultEmbedInfo icon="clock" label="Departure" value={formatStationDateTime(leg.departure)}>{formatTime(leg.departure)}</ResultEmbedInfo>{/if}
+              {#if leg.arrival}<ResultEmbedInfo icon="clock" label="Arrival" value={formatStationDateTime(leg.arrival)}>{formatTime(leg.arrival)}</ResultEmbedInfo>{/if}
               {#if leg.duration}<span>{leg.duration}</span>{/if}
             </div>
           {/if}
@@ -1801,6 +1851,19 @@
   .fare-summary { display: flex; flex-direction: column; gap: var(--spacing-1); padding: 10px 14px; border-radius: 11px; background: rgba(var(--color-primary-rgb), 0.08); color: var(--color-font-primary); text-align: center; }
   .fare-summary-label { font-size: 0.938rem; font-weight: 800; color: var(--color-primary); }
   .fare-summary-detail { font-size: 0.75rem; font-weight: 600; color: var(--color-grey-60); line-height: 1.35; }
+  .route-tickets { display: flex; flex-direction: column; gap: var(--spacing-3); padding: 12px 14px; border-radius: 11px; background: var(--color-grey-10); }
+  .route-tickets-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--spacing-2); }
+  .route-tickets-title { font-size: 0.938rem; font-weight: 800; color: var(--color-font-primary); }
+  .route-savings { padding: 2px 10px; border-radius: 58px; background: rgba(var(--color-primary-rgb), 0.12); color: var(--color-primary); font-size: 0.813rem; font-weight: 800; }
+  .route-ticket { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-1) var(--spacing-3); }
+  .route-ticket-index { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--color-grey-20); color: var(--color-font-primary); font-size: 0.75rem; font-weight: 800; }
+  .route-ticket-body { display: flex; flex-direction: column; min-width: 0; flex: 1 1 180px; }
+  .route-ticket-route { font-size: 0.875rem; font-weight: 700; color: var(--color-font-primary); overflow-wrap: anywhere; }
+  .route-ticket-time { font-size: 0.75rem; font-weight: 600; color: var(--color-grey-60); }
+  .route-ticket-price { margin-left: auto; padding-left: 34px; font-size: 0.875rem; font-weight: 800; color: var(--color-font-primary); text-align: right; }
+  .route-ticket-price.covered { color: var(--color-primary); }
+  .route-ticket-book { flex-basis: 100%; text-align: right; font-size: 0.75rem; font-weight: 700; color: var(--color-primary); }
+  .route-tickets-note { font-size: 0.75rem; font-weight: 600; color: var(--color-grey-60); line-height: 1.35; }
   .optimization-summary { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-1); padding: 10px 14px; border-radius: 11px; background: rgba(var(--color-primary-rgb), 0.1); text-align: center; }
   .optimization-badge { font-size: 0.75rem; font-weight: 900; color: var(--color-primary); text-transform: uppercase; letter-spacing: 0.03em; }
   .optimization-detail { font-size: 0.75rem; font-weight: 700; color: var(--color-grey-60); line-height: 1.35; }

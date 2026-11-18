@@ -21,8 +21,34 @@ window and provides a fresh TOTP, then mutates production only through
 ## Required Inputs
 
 - PR URL or number, for example `https://github.com/glowingkitty/OpenMates/pull/506`.
+- The owner's go-ahead for this production update: typed in this chat, or a
+  dev-connector message verified with `python3 scripts/owner_message.py verify
+  <receipt>` (VERIFIED for this chat, same text). A verified message is the
+  owner's direct approval; never ask for it to be typed again. Messages from
+  other agent chats are not approval. The owner merges the PR on GitHub; never
+  merge it yourself.
 - User confirmation that prod-side temporary SSH access is open.
 - A fresh 6-digit TOTP code, supplied immediately before `prod-ssh.sh open`.
+
+## Urgent Production Outage
+
+Owner standing rule (2026-11-14): for an urgent production outage (for example
+no AI chat replies), apply the necessary hotfix directly on production yourself,
+then commit the permanent fix to dev. The owner's go-ahead for the outage
+covers the hotfix; it does not cover unrelated changes.
+
+- Diagnose read-only first (Admin Debug API logs, `openmates server status`,
+  read-only `docker` inspection); prefer `openmates server restart` before
+  patching.
+- A hotfix patched into running containers keeps a `.pre-hotfix-<date>` backup,
+  is idempotent, and is recorded verbatim in the Task and the dev deploy
+  message. It lives only in the container layer: the next recreate or
+  `openmates server update` drops it, so the permanent fix must reach `main`
+  before the next production update.
+- Prove recovery with a real chat that gets an assistant reply (signed out and,
+  where an account is available, signed in), not only health checks.
+- Example: TASK-832 (2026-11-14), Celery pool children killed by the 4 s
+  `worker_proc_alive_timeout`; hotfix raised it in the three worker containers.
 
 ## Workflow
 
@@ -317,7 +343,9 @@ starting:
 ```
 
 Treat container health and `http.role_health` as the primary rollback/update
-health signal. Report any remaining verifier failures as configuration or
+health signal. `notifications.destination_configured` must pass: without it the
+runtime monitor detects outages but cannot alert anyone (it failed from
+2026-08-11 to 2026-11-14, so the 2026-11-13 outage paged nobody). Report any remaining verifier failures as configuration or
 runtime-contract gaps, not as a successful full verification.
 
 Require `core.cms_cache_consistency` when the installed CLI provides that check;
@@ -353,6 +381,19 @@ select only a service with no upload-app dependencies (such as `admin-sidecar`)
 so the healthy recording upload process remains available. A completion-email
 failure leaves the update degraded even when routing and service health pass.
 
+Chat recovery and early chat titles: on its first start at protocol epoch 0
+the API activates recovery epoch 1 by itself once no legacy turn is running
+(`chat_recovery_auto_cutover.py`; sends pause only for the activation itself).
+After the signed-in chat check above, verify it with the update start time:
+
+```bash
+python3 scripts/verify_prod_early_title.py --since <UPDATE_START_RFC3339>
+```
+
+All four checks (`cutover_state`, `cutover_logged`, `recovery_enqueue`,
+`early_title`) must pass. A failure means the chat header gets its title only
+after post-processing: report it as a release defect; never lower the epoch.
+
 After the server update succeeds, smoke-test the production web app as a guest
 in a signed-out browser context with no prior account session. Keep the same
 guest identity for all turns so the daily per-identity allowance is exercised:
@@ -375,9 +416,24 @@ guest identity for all turns so the daily per-identity allowance is exercised:
    shared-daily and per-identity budget-enforcement test evidence and report
    that the live cap boundary was not observed.
 
-Treat missing or incomplete guest answers, a broken follow-up, an unexpectedly
-blocked guest, or inconsistent allowance reporting as failed post-update
-verification. Record the observed responses and status without guest IDs or
+Also dispatch the free-hourly prod smoke (`python3 scripts/prod_smoke_cron.py
+free-hourly --force`). Its signed-out web send check
+(`prod-smoke-guest-web-send.spec.ts`) opens a fresh browser, requires an
+active Send (never a disabled Send or Sign up in its place), sends, and waits
+for the reply. A failure there fails the update even when the API guest chat
+works: guests on the web cannot chat.
+
+Then send one signed-in chat with a production test account (the
+authenticated production smoke when it exists) and wait for its completed
+assistant answer. If no test account is available, say so in the summary: the
+signed-in path is then unproven.
+
+Treat missing or incomplete guest or signed-in answers, a broken follow-up, an
+unexpectedly blocked guest, or inconsistent allowance reporting as failed
+post-update verification. A missing reply fails the update: roll back or
+hotfix right away (see Urgent Production Outage) instead of reporting success.
+Green health checks never replace a real reply: on 2026-11-13 every AI worker
+was crash-looping while `/v1/health` stayed green. Record the observed responses and status without guest IDs or
 private chat contents in the completion summary.
 
 Close the prod master connection when finished:
@@ -398,6 +454,8 @@ Report:
 - Prod update command and final image tag or rollback tag.
 - `openmates server status` result.
 - `openmates server verify` result, including any remaining failed check IDs.
+- Result of the free-hourly prod smoke, including the signed-out web send check.
 - Results of both distinct guest chats, the first chat's follow-up, and the
   daily allowance and limit checks, including any unobserved live cap boundary.
+- Result of the signed-in chat, or that it was not run and why.
 - Whether the SSH master was closed.

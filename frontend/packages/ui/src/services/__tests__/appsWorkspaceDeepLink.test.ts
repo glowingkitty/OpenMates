@@ -17,6 +17,21 @@ describe('legacy Apps links', () => {
       .toEqual({ type: 'apps', data: { hash: '#apps/all&filter=settings_memories' } });
   });
   // contract-test: supporting surface=gui.web assertions=apps.navigation.hash-and-forwarding
+  // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding,connected-accounts.connection.private-reusable
+  it('keeps an OAuth return on the app settings view that claims the handoff', () => {
+    window.history.replaceState(null, '', '/?oauth_handoff_id=handoff-test-1');
+    try {
+      expect(parseDeepLink('#settings/apps/calendar'))
+        .toEqual({ type: 'settings', data: { path: 'apps/calendar', fullHash: '#settings/apps/calendar' } });
+      expect(parseDeepLink('#settings/settings_memories'))
+        .toEqual({ type: 'apps', data: { hash: '#apps/all&filter=settings_memories' } });
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+    expect(parseDeepLink('#settings/apps/calendar'))
+      .toEqual({ type: 'apps', data: { hash: '#apps/calendar' } });
+  });
+  // contract-test: direct surface=gui.web assertions=apps.navigation.hash-and-forwarding
   it('navigates the route so the reactive page URL follows a legacy Settings link', async () => {
     await processDeepLink('#settings/apps/health/skill/search_appointments', {});
     expect(goto).toHaveBeenCalledWith('/#apps/health/search-appointments', {

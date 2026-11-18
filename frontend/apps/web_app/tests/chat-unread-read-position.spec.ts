@@ -186,3 +186,64 @@ test('keeps a partially read reply unread in the sidebar and continue card until
 	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
+
+// A reply watched while it streams in: production pushes the server's unread
+// count before the final chunk, so the visible chat receives "1" while the
+// reply is still streaming. Reading it to the last line on a phone must clear
+// the counter on the Continue card, also after a reload (server cleared too).
+// contract-test: direct surface=gui.web assertions=chat-unread.reply.read-at-last-line,chat-unread.surfaces.sidebar-and-continue,chat-unread.persistence.cross-device
+test('clears the unread counter of a reply read on a phone while it streamed in', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(240000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('CHAT_UNREAD_STREAMED_IN_VIEW');
+	const screenshot = createStepScreenshotter(log);
+	await archiveExistingScreenshots(log);
+	page.on('console', (message: any) => {
+		const text = message.text();
+		if (text.includes('[ChatRead]') || text.includes('chat_read_status_updated')) log(text);
+	});
+
+	await page.setViewportSize({ width: 390, height: 844 });
+	await loginToTestAccount(page, log, screenshot);
+	await startNewChat(page, log);
+
+	// Streamed (not instant) so the unread signal lands while the reply renders.
+	await sendMessage(page, withMockMarker('Explain step by step how rainbows form.', LONG_REPLY_FIXTURE, 'medium'), log);
+	await expect(page.getByTestId('message-assistant')).toHaveCount(1, { timeout: 60000 });
+	await expect(page.getByText(LONG_REPLY_LAST_LINE)).toHaveCount(1, { timeout: 90000 });
+	await expect(page.locator('[data-action="stop-generation"]')).toHaveCount(0, { timeout: 60000 });
+	const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
+	if (!chatId) throw new Error('Chat URL is missing chat-id');
+
+	// The reader is at the end of the reply.
+	const lastLine = page.getByText(LONG_REPLY_LAST_LINE).last();
+	await lastLine.scrollIntoViewIfNeeded();
+	await expect(lastLine).toBeInViewport();
+	await page.waitForTimeout(2000);
+	await screenshot(page, 'streamed-reply-read-to-last-line');
+
+	await openChatsStartScreen(page);
+	await expect(page.getByTestId('recent-chats-scroll-container').locator(`[data-chat-id="${chatId}"]`).first())
+		.toBeVisible({ timeout: 20000 });
+	await expect(continueCardBadge(page, chatId)).toHaveCount(0, { timeout: 10000 });
+	await screenshot(page, 'continue-card-without-unread');
+
+	// The server count was cleared too: a reload must not bring the counter back.
+	// The start screen URL has no chat, so the reload lands on it directly.
+	await page.reload();
+	await expect(page.getByTestId('recent-chats-scroll-container').locator(`[data-chat-id="${chatId}"]`).first())
+		.toBeVisible({ timeout: 30000 });
+	await page.waitForTimeout(3000);
+	await expect(continueCardBadge(page, chatId)).toHaveCount(0);
+	await screenshot(page, 'continue-card-after-reload');
+
+	await page.locator(`[data-chat-id="${chatId}"]`).first().click();
+	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
+	await deleteActiveChat(page, log, screenshot, 'cleanup');
+});

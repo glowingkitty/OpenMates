@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+// proof-video: not_required reason=visual_smoke_not_needed (draft storage policy moved into the Rust core; the UI is unchanged, the Playwright video and step screenshots are kept)
 /**
  * Opt-in shared Rust core (WASM) — drafts unit, VITE_OPENMATES_RUST_CORE=1 build.
  *
@@ -60,6 +61,19 @@ function draftRowShape(chatId: string): Promise<Record<string, string> | null> {
 }
 
 /** Committed chats_db draft fields of one chat (ciphertext presence and version only). */
+function chatIds(): Promise<string[]> {
+	return new Promise((resolve) => {
+		const open = indexedDB.open('chats_db');
+		open.onerror = () => resolve([]);
+		open.onsuccess = () => {
+			const db = open.result;
+			const request = db.transaction('chats', 'readonly').objectStore('chats').getAllKeys();
+			request.onsuccess = () => { db.close(); resolve((request.result as IDBValidKey[]).map(String)); };
+			request.onerror = () => { db.close(); resolve([]); };
+		};
+	});
+}
+
 function draftRow(chatId: string): Promise<{ draftV: number; hasCiphertext: boolean } | null> {
 	return new Promise((resolve) => {
 		const open = indexedDB.open('chats_db');
@@ -106,7 +120,7 @@ test('Rust core saves an existing chat draft and the TS restore decrypts it', as
 	await visibleEditor().locator('.ProseMirror').click();
 	await page.keyboard.type(draftText);
 	await expect.poll(() => page.evaluate(() => document.documentElement.dataset.rustCoreDraft ?? null),
-		{ message: 'the draft save was routed', timeout: 30000 }).toMatch(/^(rust-synced|rust-failed-|rust-ack-failed-|ts-)/);
+		{ message: 'the draft save was routed', timeout: 30000 }).toMatch(/^(rust-synced|rust-failed-|rust-ack-failed-)/);
 	// Routing evidence: history session marks (local/server admission, readmits,
 	// server reads) and draft route marks, with times relative to navigation.
 	const evidence = await page.evaluate(() => ({
@@ -182,4 +196,102 @@ test('Rust core saves an existing chat draft and the TS restore decrypts it', as
 	await page.keyboard.press('Backspace');
 	await expect.poll(async () => (await page.evaluate(draftRow, chatId))?.hasCiphertext ?? false,
 		{ message: 'clearing the editor removes the draft', timeout: 30000 }).toBe(false);
+});
+
+/** Number of queued sync intents (pending_sync_changes) for one chat; never reads their content. */
+function queuedIntentCount(chatId: string): Promise<number> {
+	return new Promise((resolve) => {
+		const open = indexedDB.open('chats_db');
+		open.onerror = () => resolve(-1);
+		open.onsuccess = () => {
+			const db = open.result;
+			const request = db.transaction('pending_sync_changes', 'readonly').objectStore('pending_sync_changes').getAll();
+			request.onsuccess = () => {
+				db.close();
+				resolve((request.result as { chat_id?: string }[]).filter((row) => row.chat_id === chatId).length);
+			};
+			request.onerror = () => { db.close(); resolve(-1); };
+		};
+	});
+}
+
+// contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,drafts.sync.version-authoritative
+test('Rust core saves a draft written offline locally and publishes its queued intent after reconnect', async ({ page, context }: { page: any; context: any }, testInfo: any) => {
+	test.slow();
+	test.setTimeout(300000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	const log = createSignupLogger('WEB_RUST_CORE_DRAFTS_OFFLINE');
+	const screenshot = createStepScreenshotter(log);
+	const consoleLines: string[] = [];
+	consoleForFailure = consoleLines;
+	page.on('console', (msg: any) => { consoleLines.push(`[${msg.type()}] ${msg.text()}`.slice(0, 400)); });
+
+	const chatId = await seedCodeEmbedChat(page, log, screenshot);
+	await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`));
+	await expect.poll(() => page.evaluate(() => document.documentElement.dataset.rustCoreHistory ?? null),
+		{ message: 'Rust supplied the chat history while online', timeout: 60000 }).toMatch(/^rust:\d+$/);
+	const onlineVersion = (await page.evaluate(draftRow, chatId))?.draftV ?? 0;
+	const chatsBeforeOffline = new Set(await page.evaluate(chatIds));
+
+	// Cold offline boot: the app shell still loads (as from a cache), but every API
+	// request and WebSocket fails, so the browser restore cannot validate the session
+	// and the core admits a local-read-only client. Context-level routes also cover the
+	// shared Worker's requests, which page routes do not see. (context.setOffline
+	// before a reload would block the shell itself: the page stays blank.)
+	let apiOffline = true;
+	const apiRequest = /\/v1\//;
+	const failApiRequest = async (route: any) => {
+		if (apiOffline) await route.abort('internetdisconnected');
+		else await route.continue();
+	};
+	await context.route(apiRequest, failApiRequest);
+	await context.routeWebSocket(/\/v1\/ws(?:\?|$)/, async (socket: any) => {
+		if (apiOffline) await socket.close({ code: 3001, reason: 'API unreachable in test' });
+		else socket.connectToServer();
+	});
+	// ActiveChat records its draft-restore decisions in this trace when a page opts in.
+	await page.addInitScript(() => { (window as any).__savedComposerInputTrace = []; });
+	await page.reload();
+	// A person types into the chat they see: wait until the deep-linked chat is open
+	// from the local cache and its (empty) draft restore has settled. Text typed
+	// before that lands in the blank new-chat composer the page mounts first.
+	await expect(page.getByTestId('active-chat-container'), 'the deep-linked chat opened offline')
+		.toHaveAttribute('data-current-chat-id', chatId, { timeout: 60000 });
+	await expect.poll(() => page.evaluate((id: string) => ((window as any).__savedComposerInputTrace ?? [])
+		.some((entry: { kind?: string; chat?: string }) => entry.kind === 'noDraftRestoreDecision' && entry.chat === id), chatId),
+		{ message: 'the open chat finished its draft restore', timeout: 30000 }).toBe(true);
+	const visibleEditor = () => page.getByTestId('message-editor').filter({ visible: true }).first();
+	await visibleEditor().locator('.ProseMirror').click({ timeout: 60000 });
+	let offlineSaveState = 'none';
+	const offlineText = 'Offline draft written without a connection';
+	await page.keyboard.type(offlineText);
+	const offlineMarker = async () => `marker=${await page.evaluate(() => document.documentElement.dataset.rustCoreDraft ?? null)}`;
+	try {
+		await expect.poll(async () => {
+			const version = (await page.evaluate(draftRow, chatId))?.draftV ?? 0;
+			if (version <= onlineVersion) offlineSaveState = await offlineMarker();
+			return version;
+		}, { message: 'the offline draft was saved locally by Rust', timeout: 30000 }).toBeGreaterThan(onlineVersion);
+	} catch (error) {
+		const draftLines = consoleLines.filter((line) => /DraftService|RustCore|draft/i.test(line)).slice(-25);
+		throw new Error(`the offline draft was not saved by Rust (route outcome: ${offlineSaveState}); draft console lines:\n${draftLines.join('\n')}\n${error instanceof Error ? error.message : String(error)}`);
+	}
+	expect((await page.evaluate(draftRow, chatId))?.hasCiphertext, 'encrypted draft stored in chats_db').toBe(true);
+	expect(await page.evaluate(() => document.documentElement.dataset.rustCoreDraft ?? null), 'no TS writer fallback').toMatch(/^rust-(local|synced)$/);
+	expect(await page.evaluate(queuedIntentCount, chatId), 'an encrypted update is queued offline').toBeGreaterThan(0);
+	// The offline draft belongs to the open chat: no new draft-only chat was minted for it.
+	expect((await page.evaluate(chatIds)).filter((id: string) => !chatsBeforeOffline.has(id)), 'no extra chat created offline').toEqual([]);
+	await screenshot(page, 'rust-draft-offline-saved');
+
+	// Back online: the next boot validates the session, and the queued encrypted
+	// intent is published from durable storage (it must survive the reload).
+	apiOffline = false;
+	await context.unroute(apiRequest, failApiRequest);
+	await page.reload();
+	await expect.poll(() => page.evaluate(queuedIntentCount, chatId),
+		{ message: 'the queued intent was published and removed after reconnect', timeout: 90000 }).toBe(0);
+	expect((await page.evaluate(draftRow, chatId))?.draftV ?? 0, 'the offline draft version survived publication')
+		.toBeGreaterThan(onlineVersion);
+	await testInfo.attach('offline-draft.json', { body: JSON.stringify({ onlineVersion, final: await page.evaluate(draftRow, chatId) }), contentType: 'application/json' });
+	await screenshot(page, 'rust-draft-offline-published');
 });

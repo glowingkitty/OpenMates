@@ -14,7 +14,7 @@ import { storageArchiveFetch } from "../config/api";
   import ChatMessageTimeline from './ChatMessageTimeline.svelte';
   import { messageBookmarksStore, getMessageBookmarkIds, loadMessageBookmarks, toggleMessageBookmark, clearTransientMessageBookmarks, type BookmarkMode } from '../services/messageBookmarks';
   import { fetchTimelinePage, fetchTimelineSection, type TimelineCursor } from '../services/chatTimeline';
-  import { mergeTimelineEntries, pairTimelineExchange, timelineResponseId, buildTimelineExchangeIndex, type TimelineEntry, type TimelinePreview } from '../utils/chatTimeline';
+  import type { buildTimelineExchangeIndex, TimelineEntry, TimelinePreview } from '../utils/chatTimeline';
   import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
   import AgentContextMessage from './AgentContextMessage.svelte';
   import { parseAgentContextEvent, type ProjectAuthoringRecommendation } from '../utils/agentContextEvents';
@@ -423,6 +423,31 @@ import { storageArchiveFetch } from "../config/api";
   let messages = $state<InternalMessage[]>([]);
   // Image cards show the version valid at their message (core rule; no-op without the Rust core).
   $effect(() => publishChatMessageOrder(currentChatId, messages));
+
+  // Chat orchestration: a chat another chat started links back to its creator.
+  let creatorChatId = $state<string | null>(null);
+  let creatorChatTitle = $state<string | null>(null);
+  $effect(() => {
+    const chatId = currentChatId;
+    // Re-read when messages change: the creator link and its title sync in after the chat opens.
+    void messages.length;
+    let cancelled = false;
+    if (!chatId) { creatorChatId = null; return; }
+    void (async () => {
+      const link = (await chatDB.getChat(chatId))?.creator_chat_id ?? null;
+      const { localChatTitle } = await import('../services/chatOrchestrationNavigation');
+      const title = link ? await localChatTitle(link) : null;
+      if (cancelled) return;
+      creatorChatId = link;
+      creatorChatTitle = title;
+    })().catch(() => { if (!cancelled) creatorChatId = null; });
+    return () => { cancelled = true; };
+  });
+  async function openCreatorChat(): Promise<void> {
+    if (!creatorChatId) return;
+    const { openLinkedChat } = await import('../services/chatOrchestrationNavigation');
+    await openLinkedChat(creatorChatId);
+  }
   type ScheduledAssistantRender = {
     message: GlobalMessage;
     piiMappings: Map<string, PIIMapping>;
@@ -921,12 +946,8 @@ import { storageArchiveFetch } from "../config/api";
           throw error;
         }
         if (generation !== timelineGeneration || signal.aborted) return;
-        if (RUST_CHAT_TRANSITIONS) {
-          unmergedPages.push(page.entries);
-          if ((!page.has_more || unmergedPages.length >= mergeAfterPages) && !(await mergeUnmergedPages())) return;
-        } else {
-          timelineCatalogue = mergeTimelineEntries(page.entries, timelineCatalogue);
-        }
+        unmergedPages.push(page.entries);
+        if ((!page.has_more || unmergedPages.length >= mergeAfterPages) && !(await mergeUnmergedPages())) return;
         timelineCursor = page.before;
         timelineCatalogueIncomplete = page.has_more;
       } while (timelineCatalogueIncomplete);
@@ -943,14 +964,10 @@ import { storageArchiveFetch } from "../config/api";
 
   async function readTimelineSection(entry: TimelineEntry): Promise<GlobalMessage[]> {
     if (!currentChatId) throw new Error('No active timeline');
-    const responseId = RUST_CHAT_TRANSITIONS
-      ? await rustTransitions().then(rust => rust.rustTimelineResponseId(timelineAllEntries, entry.message_id))
-      : timelineResponseId(timelineAllEntries, entry.message_id);
+    const responseId = await rustTransitions().then(rust => rust.rustTimelineResponseId(timelineAllEntries, entry.message_id));
     for (const rows of [sourceMessages, oldCompressedMessages]) {
       if (rows.some(message => message.message_id === entry.message_id)) {
-        const pair = RUST_CHAT_TRANSITIONS
-          ? await rustTransitions().then(rust => rust.rustPairTimelineExchange(rows, entry.message_id, pendingAssistantResponse?.userMessageId))
-          : pairTimelineExchange(rows, entry.message_id, pendingAssistantResponse?.userMessageId);
+        const pair = await rustTransitions().then(rust => rust.rustPairTimelineExchange(rows, entry.message_id, pendingAssistantResponse?.userMessageId));
         if (pair.assistant || (!responseId && entry.message_id === timelineUserEntries[timelineUserEntries.length - 1]?.message_id)) return rows;
       }
     }
@@ -962,9 +979,7 @@ import { storageArchiveFetch } from "../config/api";
     const generation = timelineGeneration;
     const operation = fetchTimelineSection(chatId, entry.message_id, isSharedChat, responseId).then(rows => {
       if (scope !== timelineScopeKey || epoch !== getWorkspaceCacheEpoch() || generation !== timelineGeneration) throw new Error('Timeline scope changed');
-      if (RUST_CHAT_TRANSITIONS) return rustTransitions().then(rust => rust.rustPairTimelineExchange(rows, entry.message_id)).then(() => rows);
-      pairTimelineExchange(rows, entry.message_id);
-      return rows;
+      return rustTransitions().then(rust => rust.rustPairTimelineExchange(rows, entry.message_id)).then(() => rows);
     });
     timelineSections.set(entry.message_id, operation);
     while (timelineSections.size > 6) timelineSections.delete(timelineSections.keys().next().value!);
@@ -974,9 +989,7 @@ import { storageArchiveFetch } from "../config/api";
 
   async function previewTimelineExchange(entry: TimelineEntry): Promise<TimelinePreview> {
     const section = await readTimelineSection(entry);
-    return RUST_CHAT_TRANSITIONS
-      ? (await rustTransitions()).rustPairTimelineExchange(section, entry.message_id, pendingAssistantResponse?.userMessageId)
-      : pairTimelineExchange(section, entry.message_id, pendingAssistantResponse?.userMessageId);
+    return (await rustTransitions()).rustPairTimelineExchange(section, entry.message_id, pendingAssistantResponse?.userMessageId);
   }
 
   function timelineTarget(id: string): HTMLElement | undefined {
@@ -1731,18 +1744,16 @@ import { storageArchiveFetch } from "../config/api";
 
   let timelineScopeKey = $derived(`${currentChatId ?? ''}:${$activeTeamId ?? ''}:${$userProfile.user_id ?? ''}`);
   let timelineRemoteEnabled = $derived(!!currentChatId && !isExampleChat && !isIncognito && (isSharedChat || $authStore.isAuthenticated));
-  // Flag on (VITE_OPENMATES_RUST_CORE): the chatState unit merges and pairs the timeline; no TypeScript fallback.
-  const RUST_CHAT_TRANSITIONS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
-    && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
+  // The chatState unit merges and pairs the timeline.
   const rustTransitions = () => import('../services/rustCore/chatState/rustTransitions');
   let rustTimelineAll = $state<TimelineEntry[]>([]);
-  if (RUST_CHAT_TRANSITIONS) $effect(() => {
+  $effect(() => {
     const pages = [timelineCatalogue, sourceMessages, oldCompressedMessages];
     let stale = false;
     void rustTransitions().then(rust => rust.rustMergeTimelineEntries(...pages)).then(merged => { if (!stale) rustTimelineAll = merged; });
     return () => { stale = true; };
   });
-  let timelineAllEntries = $derived(RUST_CHAT_TRANSITIONS ? rustTimelineAll : mergeTimelineEntries(timelineCatalogue, sourceMessages, oldCompressedMessages));
+  let timelineAllEntries = $derived(rustTimelineAll);
   const bookmarkMode = $derived<BookmarkMode>(isIncognito ? 'transient' : $authStore.isAuthenticated ? 'account' : 'device');
   const bookmarkedIds = $derived.by(() => {
     void $messageBookmarksStore; void $userProfile.encrypted_settings;
@@ -1751,14 +1762,14 @@ import { storageArchiveFetch } from "../config/api";
   let rustTimelineIndex = $state<ReturnType<typeof buildTimelineExchangeIndex>>({
     entries: [], answeredCount: 0, assistantBookmarks: new Set(), legacyAliases: new Map(), assistantUsers: new Map(), bookmarkedExchanges: new Set(),
   });
-  if (RUST_CHAT_TRANSITIONS) $effect(() => {
+  $effect(() => {
     const entries = timelineAllEntries;
     const bookmarks = bookmarkedIds;
     let stale = false;
     void rustTransitions().then(rust => rust.rustTimelineExchangeIndex(entries, bookmarks)).then(index => { if (!stale) rustTimelineIndex = index; });
     return () => { stale = true; };
   });
-  const timelineIndex = $derived(RUST_CHAT_TRANSITIONS ? rustTimelineIndex : buildTimelineExchangeIndex(timelineAllEntries, bookmarkedIds));
+  const timelineIndex = $derived(rustTimelineIndex);
   const timelineUserEntries = $derived(timelineIndex.entries);
   const timelineEnabled = $derived(timelineIndex.answeredCount >= 2);
   $effect(() => {
@@ -2049,6 +2060,26 @@ import { storageArchiveFetch } from "../config/api";
     lastAssistantMessageId !== null &&
     !isCurrentlyStreaming
   );
+
+  // Open Project focus suggestions of this chat, shown in the Recommendations card
+  // (the history keeps only their job progress). Started or expired ones drop out.
+  let projectFocusRecommendations = $derived.by((): ProjectAuthoringRecommendation[] => {
+    if (!ownedRecommendationsView || !currentChatId) return [];
+    const started = new Set(Object.values($projectAuthoringJobs).map((job) => job.recommendation_id));
+    const now = Date.now() / 1000;
+    const open: ProjectAuthoringRecommendation[] = [];
+    for (const msg of candidateDisplayMessages) {
+      if (msg.role !== 'system') continue;
+      const event = parseAgentContextEvent(msg.original_message?.content ?? msg.content);
+      const entries = event?.type === 'project_authoring_recommendation' ? [event]
+        : event?.type === 'project_authoring_recommendations' ? event.recommendations : [];
+      for (const entry of entries) {
+        if (entry.kind === 'focus' && entry.chat_id === currentChatId && !started.has(entry.recommendation_id)
+          && (entry.expires_at === undefined || entry.expires_at > now)) open.push(entry);
+      }
+    }
+    return open;
+  });
 
   let showRecommendationsInHistory = $derived(
     ownedRecommendationsView &&
@@ -3432,6 +3463,12 @@ import { storageArchiveFetch } from "../config/api";
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
 
+            {#if creatorChatId}
+              <button type="button" class="chat-creator-link" data-testid="chat-creator-link" onclick={() => void openCreatorChat()}>
+                {$text('chat_orchestration_events.creator_link', { values: { title: creatorChatTitle ?? '' } })}
+              </button>
+            {/if}
+
             {#if $activeTeamId && !isExampleChat && !isSharedChat}
               <div class="message-wrapper system" data-testid="team-reminder-wrapper">
                 <TeamChatReminder />
@@ -3517,7 +3554,7 @@ import { storageArchiveFetch } from "../config/api";
                       in:fade={{ duration: 0 }}
                       animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
                     {#if agentContext}
-                      <AgentContextMessage event={agentContext} onAuthoring={startContextAuthoring} jobs={Object.values($projectAuthoringJobs)} onSaveJob={saveProjectAuthoring} />
+                      <AgentContextMessage event={agentContext} onAuthoring={startContextAuthoring} jobs={Object.values($projectAuthoringJobs)} onSaveJob={saveProjectAuthoring} focusInRecommendationsCard={ownedRecommendationsView} />
                     {:else if msg.role === 'system' && contextEntryEvents[msg.id]}
                       <div class="context-entry-row">
                         <SystemMessageNotice testId="context-entry-notice">
@@ -3684,7 +3721,8 @@ import { storageArchiveFetch } from "../config/api";
                  Visible without requiring the user to focus the message input first. -->
             {#if showRecommendationsInHistory && currentChatId && !timelineSection}
                 <div class="recommendations-wrapper" in:fade={{ duration: 200 }}>
-                    <ChatRecommendations chatId={currentChatId} category={chatCategory ?? null} />
+                    <ChatRecommendations chatId={currentChatId} category={chatCategory ?? null}
+                      projectFocus={projectFocusRecommendations} onProjectAuthoring={startContextAuthoring} />
                 </div>
             {/if}
 
@@ -3762,6 +3800,11 @@ import { storageArchiveFetch } from "../config/api";
 </div>
 
 <style>
+  .chat-creator-link {
+    display: block; margin: var(--spacing-3, 12px) auto; padding: 0; background: none; border: 0; font: inherit;
+    font-size: var(--font-size-small, 14px); color: var(--color-grey-60); cursor: pointer;
+  }
+  .chat-creator-link:hover { text-decoration: underline; }
   /* Wrapper provides positioning context for the AI processing overlay.
      Takes the same absolute positioning the container previously had. */
   .chat-history-wrapper {

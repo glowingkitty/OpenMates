@@ -38,6 +38,7 @@ from backend.shared.providers.sightengine.client import (
     get_sightengine_safety_client,
 )
 
+from .jev_signals import jev_image_findings, jev_prompt_verdict
 from .messages import build_rejection_payload, category_info
 from .policy import get_policy_markdown
 
@@ -150,10 +151,35 @@ class ImageSafetyPipeline:
         secrets_manager: SecretsManager,
     ) -> PipelineDecision:
         """
-        Text-only intent classification. We still run the safeguard reasoner
-        on the prompt against the policy so named public figures / named
-        minors / explicit requests get caught before the provider is called.
+        Text-only intent classification. Jev decides when it is confident;
+        otherwise the safeguard reasoner applies the policy to the prompt so
+        named public figures / named minors / explicit requests get caught
+        before the provider is called.
         """
+        jev = await jev_prompt_verdict(
+            prompt=prompt,
+            policy_markdown=get_policy_markdown(),
+            secrets_manager=secrets_manager,
+        )
+        if jev is not None:
+            jev_audit = jev.to_audit_dict()
+            if jev.decision == "allow":
+                return PipelineDecision(allowed=True, safeguard_audit=jev_audit)
+            info = category_info(jev.category)
+            return PipelineDecision(
+                allowed=False,
+                safeguard_audit=jev_audit,
+                rejection=SafetyRejection(
+                    category=jev.category,
+                    severity=info["severity"],
+                    reason="jev:block",
+                    user_facing_message=info["message"],
+                    tool_response=build_rejection_payload(jev.category),
+                    stage="input",
+                    safeguard_audit=jev_audit,
+                ),
+            )
+
         safeguard = get_safeguard_client()
         if not safeguard.is_enabled:
             # No reasoner → we cannot do intent classification on text. Allow
@@ -207,15 +233,17 @@ class ImageSafetyPipeline:
         """
         Core dual-classifier flow used for both input and output stages.
 
-        Step 1: Sightengine + Gemini in parallel (VLM fallback chain on error)
+        Step 1: image classifier (Jev, Sightengine on failure) + Gemini in
+                parallel (VLM fallback chain on error)
         Step 2: If ambiguous, run gpt-oss-safeguard reasoner
         """
-        sightengine = get_sightengine_safety_client()
-
         # --- Step 1: parallel classifier calls ---
         se_task = asyncio.create_task(
-            sightengine.analyze(
-                image_bytes, stage=stage, filename=f"image_{image_index}.webp"
+            self._classify_image(
+                image_bytes=image_bytes,
+                stage=stage,
+                image_index=image_index,
+                secrets_manager=secrets_manager,
             )
         )
         vlm_task = asyncio.create_task(
@@ -226,6 +254,21 @@ class ImageSafetyPipeline:
             )
         )
         se_findings, vlm_findings = await asyncio.gather(se_task, vlm_task)
+
+        if self._is_stylized_lookalike(se_findings, vlm_findings, stage=stage):
+            # The face database matched a drawn or rendered face. That is a
+            # resemblance, not a likeness of a real person, so it goes to the
+            # policy review below (which still sees the match) instead of a
+            # hard block. A 3D cartoon of a child matched an actress at 0.92.
+            logger.info(
+                "[ImageSafety] stage=%s celebrity match on a non-photorealistic "
+                "image (confidence %.2f) sent to policy review",
+                stage,
+                se_findings.celebrity_confidence,
+            )
+            se_findings.hard_block = False
+            se_findings.hard_block_reason = None
+            se_findings.category_hint = None
 
         se_audit = se_findings.to_audit_dict()
         vlm_audit = vlm_findings.to_audit_dict()
@@ -241,7 +284,7 @@ class ImageSafetyPipeline:
                 rejection=SafetyRejection(
                     category=category,
                     severity=info["severity"],
-                    reason=f"sightengine:{se_findings.hard_block_reason}",
+                    reason=f"{se_findings.classifier}:{se_findings.hard_block_reason}",
                     user_facing_message=info["message"],
                     tool_response=build_rejection_payload(category),
                     stage=stage,
@@ -337,6 +380,45 @@ class ImageSafetyPipeline:
         # No ambiguity → allow without safeguard call
         return PipelineDecision(
             allowed=True, sightengine_audit=se_audit, vlm_audit=vlm_audit
+        )
+
+    @staticmethod
+    async def _classify_image(
+        *,
+        image_bytes: bytes,
+        stage: str,
+        image_index: int,
+        secrets_manager: SecretsManager,
+    ) -> SightengineFindings:
+        """Jev image labels first; the Sightengine safety models only when Jev fails."""
+        findings = await jev_image_findings(
+            image_bytes=image_bytes, stage=stage, secrets_manager=secrets_manager
+        )
+        if findings is not None:
+            return findings
+        return await get_sightengine_safety_client().analyze(
+            image_bytes, stage=stage, filename=f"image_{image_index}.webp"
+        )
+
+    @staticmethod
+    def _is_stylized_lookalike(
+        se: SightengineFindings, vlm: VisionSafetyFindings, *, stage: str
+    ) -> bool:
+        """
+        True when the only output hard block is a celebrity face match and the
+        vision model explicitly reported a non-photorealistic image that shows
+        no public figure. Any VLM error, block or missing style answer keeps
+        the hard block.
+        """
+        return (
+            stage == "output"
+            and se.hard_block
+            and se.category_hint == "S6_public_figure_blocked"
+            and se.celebrity_match
+            and vlm.error is None
+            and not vlm.hard_block
+            and vlm.raw.get("photorealistic") is False
+            and not vlm.public_figure_detected
         )
 
     @staticmethod

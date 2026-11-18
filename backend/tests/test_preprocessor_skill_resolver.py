@@ -16,6 +16,8 @@ install_code_route_import_stubs()
 import sys
 import types
 
+import pytest
+
 llm_utils_stub = types.ModuleType("backend.apps.ai.utils.llm_utils")
 llm_utils_stub.call_preprocessing_llm = None
 llm_utils_stub.LLMPreprocessingCallResult = object
@@ -23,6 +25,7 @@ sys.modules.setdefault("backend.apps.ai.utils.llm_utils", llm_utils_stub)
 
 from backend.apps.ai.processing.preprocessor import (
     _build_skill_resolver_map,
+    _delegates_to_another_chat,
     _resolve_explicit_natural_search_intent,
     _resolve_explicit_skill_mentions_from_latest_user_text,
 )
@@ -98,6 +101,42 @@ def test_explicit_skill_mention_ignores_assistant_history() -> None:
     assert result == []
 
 
+# contract-test: direct surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Use the Browse skill to open [!](embed:abc123) and read the heading.",
+        "Please open the page with the web browse skill.",
+        "Run the Web Browse skill on that shop page.",
+    ],
+)
+def test_explicit_skill_named_in_words_resolves_a_unique_skill(text: str) -> None:
+    result = _resolve_explicit_skill_mentions_from_latest_user_text(
+        [_user_message(text)],
+        ["web-browse", "web-search", "news-search"],
+    )
+
+    assert result == ["web-browse"]
+
+
+# contract-test: direct surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Use the search skill to find Berlin events.",
+        "What can the Browse skill do?",
+        "Use the browser to check it.",
+    ],
+)
+def test_skill_named_in_words_needs_a_directive_and_a_unique_name(text: str) -> None:
+    result = _resolve_explicit_skill_mentions_from_latest_user_text(
+        [_user_message(text)],
+        ["web-browse", "web-search", "news-search"],
+    )
+
+    assert result == []
+
+
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated,web-search.surface-parity
 def test_explicit_recent_articles_request_resolves_news_search() -> None:
     result = _resolve_explicit_natural_search_intent(
@@ -136,3 +175,15 @@ def test_non_news_articles_request_does_not_force_news_search() -> None:
     )
 
     assert result == []
+
+
+# contract-test: supporting surface=gui.web assertions=chat-orchestration.spawn.brief-not-answered-here
+def test_news_wording_in_a_brief_for_another_chat_keeps_the_delegation() -> None:
+    text = ("Start a new chat titled 'Ocean news' with the brief: search the web for three recent ocean "
+            "conservation news headlines, then report back to me.")
+    assert _resolve_explicit_natural_search_intent([_user_message(text)], ["news-search", "openmates-start-chat"]) == [
+        "news-search"]
+    assert _delegates_to_another_chat(["openmates-start-chat"]) is True
+    assert _delegates_to_another_chat(["openmates-send-to-spawned-chat", "web-search"]) is True
+    assert _delegates_to_another_chat(["web-search", "news-search"]) is False
+    assert _delegates_to_another_chat([]) is False

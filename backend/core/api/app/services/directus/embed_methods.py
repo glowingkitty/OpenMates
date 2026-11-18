@@ -732,9 +732,15 @@ class EmbedMethods:
                     "oversized_key_id": None, "payload_bytes": 0}
         key_filter: Dict[str, Any] = {"hashed_embed_id": {"_in": selected_hashes}}
         chat_scope = {"key_type": {"_eq": "chat"}, "hashed_chat_id": {"_eq": hashed_chat_id}}
-        key_filter.update({"_or": [chat_scope, {
-            "key_type": {"_eq": "master"}, "hashed_user_id": {"_eq": hashed_user_id},
-        }]} if include_master_keys else chat_scope)
+        master_scope = {"key_type": {"_eq": "master"}, "hashed_user_id": {"_eq": hashed_user_id}}
+        if not hashed_chat_id:
+            # A Project-only file has no chat: only its author's master wrappers apply.
+            if not include_master_keys:
+                return {"embed_keys": [], "has_more_after": False, "end_cursor": None,
+                        "oversized_key_id": None, "payload_bytes": 0}
+            key_filter.update(master_scope)
+        else:
+            key_filter.update({"_or": [chat_scope, master_scope]} if include_master_keys else chat_scope)
         if after_key_id:
             key_request: Dict[str, Any] = {
                 "operation": "embed_key_window", "hashed_chat_id": hashed_chat_id,

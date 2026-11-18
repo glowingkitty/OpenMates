@@ -15,7 +15,7 @@ use crate::client::embed_updated_event::{
 use crate::client::embed_write::keys::OsNonces;
 use crate::client::transport::{Socket, send, wait};
 use crate::client::{Client, now_ms, segment, sha256, text};
-use crate::crypto;
+use crate::crypto::{self, Key};
 use crate::error::{Error, Result};
 use reqwest::Method;
 use serde::Serialize;
@@ -236,6 +236,26 @@ impl Client {
             }
             Err(error) => return Err(error.into()),
         };
+        self.commit_embed_user_revision_with_key(request, identity, key)
+            .await
+    }
+
+    /// [`Self::commit_embed_user_revision`] with an embed key the caller
+    /// already opened, e.g. a Project commit restore that unwraps it through
+    /// the file's Project wrapper (a browser session may not have the
+    /// embed's chat cached for the chat wrapper). The key is dropped
+    /// (zeroized) once the revision is sealed.
+    ///
+    /// # Errors
+    /// As [`Self::commit_embed_user_revision`], without `KeyUnavailable`.
+    pub(in crate::client) async fn commit_embed_user_revision_with_key(
+        &mut self,
+        request: UserRevisionRequest,
+        identity: Option<EmbedEventIdentity>,
+        key: Key,
+    ) -> RevisionResult<EmbedRevisionOutcome> {
+        self.require_credentials()?;
+        self.verify_private_operation()?;
         let prepared = prepare_user_revision(&request, &key, now_ms() as i64, &mut OsNonces)?;
         drop(key);
         let commit = commit_prepared(&mut ClientRevisionIo { client: self }, prepared).await?;

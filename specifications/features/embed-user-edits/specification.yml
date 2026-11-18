@@ -44,6 +44,10 @@ assertions:
     type: behavior
     must: Several edits in a row to the same embed with no message in between show as one line with the number of changes, for example "Image updated, 3 changes".
     depends_on: [examples.event]
+  - id: embed-user-edits.header.edit-save-button
+    type: behavior
+    must: Every embed the user can edit (document, sheet, slide deck, code file, diagram) has the same round Edit button with a pencil at the start of its fullscreen top bar, in a chat and in a Project. While editing, that button shows a check mark; pressing it saves the changes and leaves edit mode, and pressing it with no changes just leaves edit mode. While the save runs the button shows that it is saving and cannot be pressed again. The video edit, which is sent as an AI request with its own Apply, keeps a plain on/off pencil.
+    depends_on: [examples.header_button]
   - id: embed-user-edits.assistant.knows-current-version
     type: behavior
     must: The assistant's next turn in that chat knows that the user changed the embed and which version is current.
@@ -95,4 +99,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [history, edit, event, assistant, display, enhance, enhance_billing, client_file]
+  required_groups: [history, edit, header_button, event, assistant, display, enhance, enhance_billing, client_file]

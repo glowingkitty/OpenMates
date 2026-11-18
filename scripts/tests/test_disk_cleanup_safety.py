@@ -168,6 +168,9 @@ def test_pressure_cleanup_reclaims_aged_dangling_images_without_tagged_pruning(t
     commands = [json.loads(line) for line in calls.read_text().splitlines()]
     image_prunes = [command for command in commands if command[:2] == ["image", "prune"]]
     assert image_prunes == [["image", "prune", "-f", "--filter", "until=1h"]]
+    # Under pressure the build cache is capped at 80% of the shared 20 GB budget, never wiped (TASK-7646).
+    builder = [command for command in commands if command[:2] == ["builder", "prune"]]
+    assert builder == [["builder", "prune", "-a", "-f", "--keep-storage", "16000MB"]]
     assert not any(command[0] in {"volume", "container", "network"} for command in commands)
 
 

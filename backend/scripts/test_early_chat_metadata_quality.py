@@ -34,6 +34,9 @@ class Case:
     topic: str | None
     greeting: bool = False
     fallback: bool = False
+    # Language the metadata must use: the language the user writes in (spec
+    # language-preferences.chat-metadata-language); `language` is the interface fallback.
+    expected_language: str | None = None
 
 
 REQUESTS = {
@@ -62,16 +65,21 @@ REQUESTS = {
         ("shopping", "Compare des casques confortables à moins de 80 euros pour les appels vidéo. Exclus les produits d'occasion et ne commande rien.", r"casque"),
     ),
 }
-CASES = [Case(f"{language}_{name}", language, prompt, topic)
+CASES = [Case(f"{language}_{name}", language, prompt, topic, expected_language=language)
          for language, requests in REQUESTS.items() for name, prompt, topic in requests]
-CASES += [Case(f"{language}_ui_language", language, REQUESTS["en"][0][1], requests[0][2])
-          for language, requests in REQUESTS.items()]
+# A chat written in one language keeps that language in another interface language.
+CASES += [Case(f"en_chat_{language}_interface", language, REQUESTS["en"][0][1], REQUESTS["en"][0][2],
+               expected_language="en")
+          for language in REQUESTS if language != "en"]
+CASES += [Case(f"{language}_chat_en_interface", "en", requests[0][1], requests[0][2], expected_language=language)
+          for language, requests in REQUESTS.items() if language != "en"]
 CASES += [Case(f"{language}_greeting", language, prompt, None, greeting=True)
           for language, prompt in (("en", "Hello!"), ("de", "Hallo!"), ("es", "¡Hola!"), ("fr", "Bonjour !"))]
-CASES += [Case(f"{language}_fallback", language, requests[0][1], requests[0][2], fallback=True)
+CASES += [Case(f"{language}_fallback", language, requests[0][1], requests[0][2], fallback=True,
+               expected_language=language)
           for language, requests in REQUESTS.items()]
-CASES += [Case(f"{language}_fallback_ui_language", language, REQUESTS["en"][0][1], requests[0][2], fallback=True)
-          for language, requests in REQUESTS.items()]
+CASES += [Case("de_chat_en_interface_fallback", "en", REQUESTS["de"][0][1], REQUESTS["de"][0][2],
+               fallback=True, expected_language="de")]
 
 
 async def run(output: Path) -> int:
@@ -121,8 +129,13 @@ async def run(output: Path) -> int:
                     issues.append("followed_or_repeated_quoted_instruction")
                 if re.search(r"existing (ingredients|supplies)|pantry|vorhandene[nr]? Zutaten|Vorräten|despensa|ingredientes (existentes|disponibles)|stocks existants|ingrédients existants", fields, re.I):
                     issues.append("invented_existing_supplies")
-                if case.language != "en" and re.search(r"five vegetarian|dinners for|using existing", generated.summary or "", re.I):
-                    issues.append("english_summary_despite_ui_language")
+                # Language check on the meal-planning request, whose English words are distinctive.
+                meals = case.prompt in {requests[0][1] for requests in REQUESTS.values()}
+                english = meals and re.search(r"\b(five|vegetarian|dinners?|for two|meals?)\b", fields, re.I)
+                if case.expected_language and case.expected_language != "en" and english:
+                    issues.append("english_metadata_for_non_english_chat")
+                if meals and case.expected_language == "en" and not english:
+                    issues.append("non_english_metadata_for_english_chat")
                 if case.fallback and generated.model_id != FALLBACK_MODEL:
                     issues.append("fallback_not_observed")
             row = {"case": asdict(case), "metadata": asdict(generated) if generated else None,

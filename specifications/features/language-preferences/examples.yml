@@ -44,3 +44,14 @@ content:
     when: The visitor loads or switches to German inspirations.
     then: German fallback content is shown without English filler, and previously opened chats remain available.
     assertion_ids: [language-preferences.content-language]
+chat-metadata:
+  - id: german-chat-english-interface
+    given: The web app shows English, and the saved account language is English.
+    when: The user starts a new chat in German, "Plane fünf vegetarische Abendessen für zwei."
+    then: The chat title, summary and tags are German, for example the title "Vegetarische Abendessen planen".
+    assertion_ids: [language-preferences.chat-metadata-language]
+  - id: unclear-message-uses-displayed-language
+    given: The saved account language is German, and the web app shows English through Automatic browser language.
+    when: The user starts a new chat with a very short or mixed message such as "ok, pizza?".
+    then: The chat title, summary and tags are English, the displayed interface language.
+    assertion_ids: [language-preferences.chat-metadata-language]

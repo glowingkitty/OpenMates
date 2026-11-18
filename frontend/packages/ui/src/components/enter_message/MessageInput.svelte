@@ -1,5 +1,6 @@
 <!-- frontend/packages/ui/src/components/enter_message/MessageInput.svelte -->
 <script lang="ts">
+    import { queuedEditFlushDisposition } from './queuedEditDraftFlush';
     import { appsWorkspaceComposerHandoff, takeAppsWorkspaceComposerHandoff,
       isAppsWorkspaceHandoffCurrent, appsRequestContextDocument, recordAppsWorkspaceHandoffPhase, submitAppsWorkspaceHandoffDraft, appsWorkspaceContextOnlyUrls,
       rememberAppsWorkspaceDraftUrls, restoredAppsWorkspaceDraftUrls, forgetAppsWorkspaceDraftUrls, captureAppsWorkspaceDraftUrlCleanup } from '../../services/appsWorkspaceChatHandoffService';
@@ -35,7 +36,8 @@
         triggerSaveDraft,
         flushSaveDraft,
         flushSaveDraftAndWaitForIdle,
-        protectEmptyRecordingDraft
+        protectEmptyRecordingDraft,
+        generateDraftPreview
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
     import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
@@ -66,6 +68,8 @@
     import CameraView from './CameraView.svelte';
     import RecordAudio from './RecordAudio.svelte'; // Import type for ref
     import CompactSendButton from './CompactSendButton.svelte';
+    import GuestAccessReason from './GuestAccessReason.svelte';
+    import { loadGuestAccessPhase, resolveGuestComposerState, type GuestAccessPhase } from './guestComposerState';
     import MapsView from './MapsView.svelte';
     import SketchView from './SketchView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
@@ -723,30 +727,49 @@
 
     interface DraftPreviewParts {
         embeds: Array<{ kind: DraftEmbedKind; count: number }>;
-        text: string;
+        /** One-line preview in document order; embeds appear as tokens such as "[Image]" (same as the chat list). */
+        summary: string;
     }
 
-    const EMPTY_DRAFT_PREVIEW_PARTS: DraftPreviewParts = { embeds: [], text: '' };
+    const EMPTY_DRAFT_PREVIEW_PARTS: DraftPreviewParts = { embeds: [], summary: '' };
+    // Long enough to fill the widest composer line; CSS ellipsis shortens the rest.
+    const DRAFT_PREVIEW_MAX_CHARS = 400;
 
     let hasEmbedContent = $state(false);
     let draftPreviewParts = $state<DraftPreviewParts>(EMPTY_DRAFT_PREVIEW_PARTS);
-    let anonymousStatusChecked = $state(false);
-    let anonymousUsageExhausted = $derived(
-        !$authStore.isAuthenticated &&
-        $anonymousFreeUsageStatus?.can_send_text === false &&
-        ['anonymous_usage_limit', 'budget_exhausted', 'per_identity_exhausted',
-         'daily_exhausted', 'weekly_exhausted', 'monthly_exhausted'].includes(
-            $anonymousFreeUsageStatus?.reason ?? ''
-        )
-    );
-    let anonymousTextSendEnabled = $derived(
-        anonymousStatusChecked &&
-        !$authStore.isAuthenticated &&
-        !lastAuthMethod &&
-        $anonymousFreeUsageStatus?.active === true &&
-        $anonymousFreeUsageStatus?.can_send_text !== false &&
-        !anonymousFileAttachmentPending
-    );
+    // Signed out, only two composer states exist: an active Send, or Sign up /
+    // Log in with a reason. 'pending' shows a short loading state (guestComposerState.ts).
+    let guestAccessPhase = $state<GuestAccessPhase>('pending');
+    let guestComposerState = $derived($authStore.isAuthenticated ? null : resolveGuestComposerState({
+        phase: guestAccessPhase,
+        status: $anonymousFreeUsageStatus,
+        lastAuthMethod,
+        fileAttachmentPending: anonymousFileAttachmentPending,
+    }));
+    let anonymousUsageExhausted = $derived(guestComposerState?.kind === 'account' && guestComposerState.reason === 'usage_limit');
+    let anonymousTextSendEnabled = $derived(guestComposerState?.kind === 'send');
+    let guestAccessRequest = 0;
+    let lastGuestAccessRetryAt = 0;
+    /** A retry keeps showing Sign up with its reason until it succeeds; only the first check shows loading. */
+    async function checkGuestAccess(retry = false): Promise<void> {
+        const request = ++guestAccessRequest;
+        lastGuestAccessRetryAt = Date.now();
+        if (!retry) guestAccessPhase = 'pending';
+        const phase = await loadGuestAccessPhase();
+        if (request === guestAccessRequest && !composerDestroyed && (!retry || phase === 'loaded')) guestAccessPhase = phase;
+    }
+    // A failed check retries when the visitor comes back to the field (on focus, not
+    // while focused) or the network returns.
+    let guestRetryFocusHandled = false;
+    $effect(() => {
+        if (!isMessageFieldFocused) { guestRetryFocusHandled = false; return; }
+        if (guestRetryFocusHandled) return;
+        guestRetryFocusHandled = true;
+        untrack(() => {
+            if (guestAccessPhase !== 'failed' || $authStore.isAuthenticated) return;
+            if (Date.now() - lastGuestAccessRetryAt > 5_000) void checkGuestAccess(true);
+        });
+    });
     let showAnonymousTermsReminder = $derived(anonymousTextSendEnabled && hasContent && isMessageFieldFocused);
 
     function editorHasEmbedContent(editor: Editor): boolean {
@@ -831,23 +854,6 @@
         return 'embed';
     }
 
-    function formatDraftEmbedSummaryPart(kind: DraftEmbedKind, count: number): string {
-        const key = count === 1 ? 'enter_message.draft_summary.embed_one' : 'enter_message.draft_summary.embed_many';
-        return $text(key, {
-            values: {
-                count,
-                type: $text(`enter_message.draft_summary.type.${kind}`),
-            },
-        });
-    }
-
-    function formatDraftPreviewSummary(parts: DraftPreviewParts): string {
-        const embedSummary = parts.embeds.map(({ kind, count }) => formatDraftEmbedSummaryPart(kind, count));
-        return [...embedSummary, parts.text]
-            .filter(Boolean)
-            .join($text('enter_message.draft_summary.separator'));
-    }
-
     function buildDraftPreviewState(editor: Editor | null | undefined): {
         parts: DraftPreviewParts;
         hasEmbedContent: boolean;
@@ -894,11 +900,14 @@
             return true;
         });
 
+        const embeds = embedOrder.map((kind) => ({ kind, count: embedCounts.get(kind) ?? 0 }));
+        // Embed drafts reuse the chat-list preview walk so "[Image] describe it"
+        // keeps the composed order; text-only drafts keep their plain text.
+        const summary = hasEmbedContent
+            ? generateDraftPreview('', DRAFT_PREVIEW_MAX_CHARS, editor.getJSON())
+            : textContent;
         return {
-            parts: {
-                embeds: embedOrder.map((kind) => ({ kind, count: embedCounts.get(kind) ?? 0 })),
-                text: textContent,
-            },
+            parts: { embeds, summary },
             hasEmbedContent,
             hasSignupRequiredEmbed,
         };
@@ -916,7 +925,7 @@
         setPendingAnonymousFileAttachment(previewState.hasSignupRequiredEmbed);
     }
 
-    let draftPreviewSummary = $derived(formatDraftPreviewSummary(draftPreviewParts));
+    let draftPreviewSummary = $derived(draftPreviewParts.summary);
     let hasDraftPreviewEmbeds = $derived(draftPreviewParts.embeds.some(({ count }) => count > 0));
     let hasSendableDraft = $derived(hasContent || hasEmbedContent || hasDraftPreviewEmbeds);
     let locallyDismissedGhostKey = $state<string | null>(null);
@@ -940,9 +949,9 @@
         setSuggestionText(acceptedText);
     }
 
-    // Draft preview mode is only for text drafts. Embed-only drafts must keep the
-    // editor visible so audio/file preview controls remain reachable after blur.
-    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !recordingLayoutActive && !forceDraftActionsVisible && !anonymousUsageExhausted);
+    // Every inactive draft, with or without embeds, collapses into the one-line
+    // summary (4L9S5); focusing restores the rendered embeds and their controls.
+    let isDraftPreview = $derived(!!draftPreviewSummary && hasSendableDraft && !isMessageFieldFocused && !isFullscreen && !recordingLayoutActive && !forceDraftActionsVisible && !anonymousUsageExhausted);
     // A live call transcript always opens the full composer so it stays readable (3RZXL).
     let isInlineCompact = $derived(inlineCompact && !isFullscreen && !recordingShowsDraft && !callLiveTranscript && (recordingLayoutActive || (!shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI)));
 
@@ -1145,7 +1154,6 @@
     // --- Credits State ---
     // True when the user is authenticated but has zero or negative credits.
     // Checked client-side against the synced userProfile store — no server request needed.
-    let demoVisualAuthenticated = $derived($authStore.isAuthenticated || $demoMode);
     let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !$demoMode);
 
     // --- AI Task State ---
@@ -2440,13 +2448,14 @@
             if (!composerDestroyed && isWebPIIModelEnabled()) return preloadWebPIIDetector();
         }).catch(() => {});
         lastAuthMethod = getLastAuthMethod();
-        if ($authStore.isAuthenticated || $demoMode) {
-            anonymousStatusChecked = true;
-        } else {
-            void refreshAnonymousFreeUsageStatus().then((status) => {
-                anonymousStatusChecked = !!status;
-            });
-        }
+        if (!$authStore.isAuthenticated) void checkGuestAccess();
+        const retryGuestAccessOnline = () => {
+            if (!get(authStore).isAuthenticated && guestAccessPhase === 'failed') void checkGuestAccess(true);
+        };
+        window.addEventListener('online', retryGuestAccessOnline);
+        const stopGuestAccessRetry = () => window.removeEventListener('online', retryGuestAccessOnline);
+        const previousUnsubscribePIIModelState = unsubscribePIIModelState;
+        unsubscribePIIModelState = () => { previousUnsubscribePIIModelState?.(); stopGuestAccessRetry(); };
 
         if (!editorElement) {
             console.error("Editor element not found on mount.");
@@ -6009,15 +6018,27 @@
             error: null,
         };
         entryEditor.setEditable(false);
+        let flushed = true;
         try {
-            if (draftFlush && !await draftFlush) throw new Error('Queued edit draft context changed');
-        } catch {
-            if (entryGeneration === queuedEditEntryGeneration && queuedEdit?.messageId === message.message_id &&
-                currentChatId === message.chat_id && editor === entryEditor) {
+            if (draftFlush) flushed = await draftFlush;
+        } catch (error) {
+            console.warn('[MessageInput] Queued edit draft flush threw; continuing with the in-memory draft snapshot', { reason: 'draft_flush_threw', error });
+            flushed = false;
+        }
+        const flushDisposition = queuedEditFlushDisposition({
+            flushed,
+            editorStillCurrent: editor === entryEditor && !entryEditor.isDestroyed,
+            chatStillCurrent: currentChatId === message.chat_id,
+        });
+        if (flushDisposition.action === 'abort') {
+            if (entryGeneration === queuedEditEntryGeneration && queuedEdit?.messageId === message.message_id) {
                 finishQueuedEdit();
                 notificationStore.error($text('chats.queued_followup.unavailable'));
             }
             return;
+        }
+        if (flushDisposition.action === 'continue-unpersisted') {
+            console.warn('[MessageInput] Queued edit entered without persisting the composer draft; Cancel restores the in-memory snapshot', { reason: flushDisposition.reason });
         }
         if (entryGeneration !== queuedEditEntryGeneration || editor !== entryEditor || entryEditor.isDestroyed ||
             currentChatId !== message.chat_id || queuedEdit?.messageId !== message.message_id) return;
@@ -6154,8 +6175,10 @@
             return;
         }
 
-        if ($demoMode && !$authStore.isAuthenticated && !anonymousTextSendEnabled) {
-            console.info('[MessageInput] Demo mode: Send button is visual-only for unauthenticated captures');
+        // Signed out without guest access the composer shows Sign up / Log in, never
+        // a Send; a send arriving here anyway (Enter key) opens that same path.
+        if (!$authStore.isAuthenticated && guestComposerState?.kind === 'account') {
+            handleSignUpClick();
             return;
         }
 
@@ -6874,7 +6897,10 @@
         finally { questionEditor?.destroy(); sendClickInProgress = false; }
     }
 
-    export async function sendCurrentMessage(): Promise<void> { await handleSendMessage(); }
+    export async function sendCurrentMessage(testMockMarker?: string): Promise<void> {
+        // The marker only takes effect behind the E2E gate (getE2EServerContentOverride).
+        await handleSendMessage(testMockMarker ? new CustomEvent('custom-send-message', { detail: { testMockMarker } }) : undefined);
+    }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
         console.debug('[MessageInput] editor available:', !!editor);
@@ -7610,6 +7636,10 @@
         </div>
     {/if}
 
+    {#if guestComposerState?.kind === 'account' && (shouldShowActionButtons || hasSendableDraft)}
+        <GuestAccessReason reason={guestComposerState.reason} />
+    {/if}
+
     {#if showAnonymousTermsReminder}
         <div class="anonymous-terms-reminder" data-testid="anonymous-terms-reminder" transition:fade={{ duration: 160 }}>
             {$text('enter_message.anonymous_terms_reminder_prefix')}
@@ -7871,8 +7901,9 @@
                 <ActionButtons
                     showSendButton={hasSendableDraft}
                     sendInProgress={sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy}
-                    isAuthenticated={anonymousFileAttachmentPending ? false : demoVisualAuthenticated}
+                    isAuthenticated={$authStore.isAuthenticated}
                     allowAnonymousTextSend={anonymousTextSendEnabled}
+                    guestStatusLoading={guestComposerState?.kind === 'loading'}
                     {hasNoCredits}
                     {unauthenticatedCtaLabel}
                     forceUnauthenticatedCta={anonymousFileAttachmentPending || anonymousUsageExhausted}
@@ -7909,10 +7940,10 @@
             </div>
         {/if}
 
-        {#if !recordingLayoutActive && hasSendableDraft && !shouldShowActionButtons && !isMessageFieldFocused && !isFullscreen && !startNewChatOnClick && !anonymousFileAttachmentPending && !hasNoCredits && (demoVisualAuthenticated || anonymousTextSendEnabled)}
+        {#if !recordingLayoutActive && hasSendableDraft && !shouldShowActionButtons && !isMessageFieldFocused && !isFullscreen && !startNewChatOnClick && !anonymousFileAttachmentPending && !hasNoCredits && ($authStore.isAuthenticated || anonymousTextSendEnabled)}
             <CompactSendButton
                 floating={true}
-                disabled={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
+                disabled={$authStore.isAuthenticated && isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
                 busy={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
                 onclick={handleSendMessage}
             />

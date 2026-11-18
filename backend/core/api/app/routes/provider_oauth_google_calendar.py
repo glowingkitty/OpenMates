@@ -15,6 +15,7 @@ import time
 from typing import Any
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
@@ -223,7 +224,8 @@ async def google_calendar_oauth_callback(
             code=code,
             redirect_uri=str(state_payload["redirect_uri"]),
         )
-    except Exception as exc:
+    except (RuntimeError, httpx.HTTPError) as exc:
+        # RuntimeError covers GoogleOAuthTokenExchangeError and missing client credentials.
         raise HTTPException(status_code=502, detail="Google OAuth token exchange failed") from exc
 
     refresh_token = token_response.get("refresh_token")

@@ -34,6 +34,33 @@ test.describe('Completed assistant activity disclosure', () => {
   });
 
   // contract-test: direct surface=gui.web assertions=chat-processing-feedback.completed-processing-summary,chat-processing-feedback.accessible-responsive
+  test('keeps a drafted Specification card visible below the collapsed summary on desktop and mobile', async ({ page }, testInfo) => {
+    for (const width of [820, 390]) {
+      await page.goto(preview('specificationAnswerCard', 'light', width));
+      await waitForComponentPreview(page);
+      const group = page.getByTestId('assistant-activity-group');
+      await expect(page.getByTestId('assistant-activity-toggle')).toHaveAttribute('aria-expanded', 'false');
+      await expect(page.getByTestId('assistant-activity-body')).toHaveCount(0);
+      const cards = page.getByTestId('assistant-activity-answer-cards');
+      await expect(cards).toBeVisible();
+      await expect(cards).toContainText('Shared shopping lists');
+      // Only the answer card stays out; the Projects read card remains collapsed.
+      await expect(cards.getByTestId('embed-preview')).toHaveCount(1);
+      await testInfo.attach(`specification-answer-card-${width}`, { body: await group.screenshot(), contentType: 'image/png' });
+      await page.getByTestId('assistant-activity-toggle').click();
+      await expect(page.getByTestId('assistant-activity-body')).toContainText('Shared shopping lists');
+      await expect(cards).toHaveCount(0);
+    }
+    // XUDR8: real answers group the Specification with other skill calls in one node.
+    await page.goto(preview('specificationAnswerCardGrouped', 'light', 390));
+    await waitForComponentPreview(page);
+    const groupedCards = page.getByTestId('assistant-activity-answer-cards');
+    await expect(groupedCards).toContainText('Shared shopping lists');
+    await expect(groupedCards.getByTestId('embed-preview')).toHaveCount(1);
+    await testInfo.attach('specification-answer-card-grouped-390', { body: await page.getByTestId('assistant-activity-group').screenshot(), contentType: 'image/png' });
+  });
+
+  // contract-test: direct surface=gui.web assertions=chat-processing-feedback.completed-processing-summary,chat-processing-feedback.accessible-responsive
   test('uses canonical Code, Events, and thinking circle gradients in both themes', async ({ page }) => {
     for (const theme of ['light', 'dark']) {
       await page.goto(preview('gradients', theme));

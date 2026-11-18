@@ -1,0 +1,190 @@
+schema_version: 2
+id: voice-call-orchestration-continuity
+title: Voice calls stay one continuous conversation while spawned chats and sub-chats work
+status: implementing
+goal: 'A voice call in a creator chat can start main chats and sub-chats and keep talking. Reports and status changes from
+  spawned chats start one automatic interpreting turn in the creator chat: spoken in an active call after the current
+  speech and never over the user, text only outside a call, close events combined, bounded against ping-pong. A sub-chat
+  continuation after hangup continues as a text turn instead of failing.
+
+  '
+specifications:
+- feature.chat-orchestration@2
+- feature.video-call@17
+scope:
+  in:
+  - Sub-chat parent continuation rechecks the call through resumed_voice_delivery.
+  - Server-side interpretation buffer, debounce, streak bound and text-only dispatcher (existing app_ai queue).
+  - Call WebSocket gating that dispatches the interpreting turn with voice delivery when the call is idle.
+  - Web call client accepts the server-issued interpreting turn identity.
+  - Pytest coverage and the real dev voice/orchestration E2E.
+  out:
+  - Apple native call handling of interpreting turns (follows web).
+  - Interpreting started or you-wrote events.
+  - Production deploy.
+decisions:
+- id: D-1
+  status: active
+  decision: The interpreting turn is server-initiated like a fired reminder. History comes from the Vault-encrypted AI cache
+    plus one synthetic, non-persisted "automatic update" user-role message carrying the bounded event context as untrusted
+    data. Its message_id anchor is the newest stored event system message id, so the answer attaches to an existing message.
+  reason: Reuses the reminder and Memory-continuation dispatch paths; no chat key reaches the server; the event messages
+    already exist client-encrypted in the creator chat.
+  decided_at: '2026-11-13T16:30:00Z'
+- id: D-2
+  status: active
+  decision: During an active call the call WebSocket process owns dispatch. Each loop tick (at most 1 s) it checks that
+    the assistant is neither speaking nor generating (client assistant_state), no speech turn is pending and the user has
+    been silent briefly, then claims the buffered events, issues the anchor id in the call registry, tells the client
+    (orchestration_turn) and dispatches with voice delivery. Outside a call a debounced Celery task dispatches text only.
+  reason: Only the call device knows playback state and it already reports it to the call WebSocket; a newer speech track
+    would otherwise supersede the current one and cut it off.
+  decided_at: '2026-11-13T16:30:00Z'
+- id: D-3
+  status: active
+  decision: At most three automatic turns in a row per creator chat without a new user message; later events are only
+    stored. Events arriving within 4 s of each other (at most 15 s window) or while the turn waits are combined.
+  reason: Owner asked for combined events; the bound prevents spawned chats from keeping the creator answering alone.
+  decided_at: '2026-11-13T16:30:00Z'
+acceptance_criteria:
+- id: AC-1
+  text: A sub-chat continuation after hangup continues as an ordinary text turn; during an active call it stays spoken.
+  required: true
+  verification_ids:
+  - T-PYTEST
+  scenario: S-2
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+- id: AC-2
+  text: Report, finished and waiting events start one combined automatic interpreting turn in the creator chat (text only
+    without a call), bounded to three in a row without user input; started and you-wrote events start none.
+  required: true
+  verification_ids:
+  - T-PYTEST
+  - T-E2E
+  scenario: S-1
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+- id: AC-3
+  text: In an active call the interpreting turn is spoken only after the current assistant speech finished and while the
+    user is silent, in the routed Mate's voice.
+  required: true
+  verification_ids:
+  - T-PYTEST
+  - T-E2E
+  scenario: S-1
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+tests:
+- id: T-PYTEST
+  type: pytest
+  file: backend/tests/test_chat_orchestration_interpretation.py
+  execution_environment: isolated_github_ci
+  command: python3 scripts/ci_coordinator.py submit --mode pytest --no-prepared-builds --spec backend/tests/test_chat_orchestration_interpretation.py
+    --spec backend/tests/test_stream_consumer_recovery.py --spec backend/tests/test_chat_orchestration_main_chats_jobs.py
+  covers:
+  - AC-1
+  - AC-2
+  - AC-3
+  target: isolated_github_ci
+  assertions:
+  - Behaviour of AC-1, AC-2 and AC-3 as described in feature.chat-orchestration@2 and feature.video-call@17.
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-E2E
+  type: playwright
+  file: frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
+  execution_environment: dev_server_real_inference
+  command: Real dev voice call in a creator chat that starts a Git-commits chat, keeps talking and hears its report after
+    the current answer (spoken input fixtures, no mocks), run after the dev deploy.
+  covers:
+  - AC-2
+  - AC-3
+  target: app.dev.openmates.org
+  assertions:
+  - Behaviour of AC-2 and AC-3 as described in feature.chat-orchestration@2 and feature.video-call@17.
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass_after_deploy
+    evidence: {}
+scenarios:
+- id: S-1
+  title: Call starts a chat, keeps talking, hears its report
+  given:
+  - Maya is in a voice call in "Weekly planning".
+  when:
+  - She asks it to start a chat that summarizes recent Git commits, then asks another question.
+  then:
+  - Her question is answered and spoken; afterwards the Git chat's report is interpreted in one spoken turn.
+- id: S-2
+  title: Sub-chats finish after hangup
+  given:
+  - A call turn waits for three sub-chats.
+  when:
+  - Maya hangs up before they finish.
+  then:
+  - The parent answer arrives as an ordinary text turn.
+tasks:
+- id: TASK-1
+  title: Implement, test and deploy voice-call orchestration continuity
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+  expected_files:
+  - backend/apps/ai/tasks/stream_consumer.py
+  - backend/shared/python_utils/chat_orchestration_interpretation.py
+  - backend/shared/python_utils/chat_orchestration_jobs.py
+  - backend/core/api/app/routes/voice_call.py
+  - frontend/packages/ui/src/services/voiceCall.ts
+  verification_ids:
+  - T-PYTEST
+  - T-E2E
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - docs/plans/voice-call-orchestration-continuity/plan.yml
+    shared_files: []
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  approach: Backend interpretation module and dispatcher first, then call WebSocket gating and the web client, then real E2E.
+  outcome: planned
+  recorded_at: '2026-11-13T16:30:00Z'
+implementation_state:
+  subject_commit: working-tree
+handoff:
+  current_task_id: TASK-1
+  next_action: Finish lanes, run CI, deploy to dev, run the real voice E2E.
+  command: python3 scripts/plan_verify.py docs/plans/voice-call-orchestration-continuity/plan.yml --json
+  expected_outcome: Plan verification complete.
+  blocker: null
+  last_verified_commit: working-tree
+approvals:
+  plan:
+    status: approved
+    approved_at: '2026-11-13T16:00:31Z'
+  specification:
+    status: pending
+    approved_at: ''

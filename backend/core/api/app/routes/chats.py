@@ -177,6 +177,7 @@ def _watch_chat_payload(chat: dict[str, Any]) -> dict[str, Any]:
         "encrypted_chat_summary": chat.get("encrypted_chat_summary"),
         "encrypted_active_focus_id": chat.get("encrypted_active_focus_id"),
         "encrypted_focus_phase_state": chat.get("encrypted_focus_phase_state"),
+        "encrypted_wellbeing_scores": chat.get("encrypted_wellbeing_scores"),
         "encrypted_auto_speak_response": chat.get("encrypted_auto_speak_response"),
         "encrypted_chat_key": chat.get("encrypted_chat_key"),
         "chat_visibility": chat.get("chat_visibility"),

@@ -10,7 +10,6 @@
     import { getSignupStepSequence } from './signupFlow';
 
     // Step name constants - must match those in Signup.svelte
-    const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
     const STEP_BASICS = 'basics';
     const STEP_CONFIRM_EMAIL = 'confirm_email';
     const STEP_SECURE_ACCOUNT = 'secure_account';
@@ -73,7 +72,7 @@
         
         // Signup mode: handle step-based navigation
         console.log('[SignupNav] handleBackClick called, currentStep:', currentStep);
-        if (currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER) {
+        if (currentStep === STEP_BASICS) {
             console.log('[SignupNav] Calling onback()');
             onback();
         } else if (currentStep === STEP_ONE_TIME_CODES) {
@@ -137,8 +136,7 @@
         }
         
         // Signup mode: show step-specific text
-        // Show "Demo" for first two steps since we now have Login/Signup tabs at the top
-        if (step === STEP_ALPHA_DISCLAIMER) return $text('login.demo');
+        // Show "Demo" for the first step since we now have Login/Signup tabs at the top
         if (step === STEP_BASICS) return $text('login.demo');
         if (step === STEP_CONFIRM_EMAIL) return $text('signup.sign_up');
         if (step === STEP_SECURE_ACCOUNT) return $text('signup.sign_up');

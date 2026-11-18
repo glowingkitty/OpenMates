@@ -27,6 +27,7 @@ from pydantic import BaseModel
 import aiohttp
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.apps.ai.llm_providers import gemini_context_cache
 from backend.shared.python_utils.thought_signature import serialize_thought_signature
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from .openai_shared import calculate_token_breakdown
@@ -115,8 +116,12 @@ def _log_google_stream_usage(timing: _GoogleStreamTiming, usage: Any) -> None:
     try:
         counters = {}
         for field in ("prompt_token_count", "candidates_token_count", "total_token_count",
-                      "thoughts_token_count", "system_prompt_tokens", "user_input_tokens"):
+                      "thoughts_token_count", "cached_content_token_count",
+                      "system_prompt_tokens", "user_input_tokens"):
             value = getattr(usage, field, None)
+            if field == "cached_content_token_count" and value is None:
+                # GoogleUsageMetadata stores the SDK counter as cache_read_input_tokens.
+                value = getattr(usage, "cache_read_input_tokens", None)
             counters[field] = value if type(value) is int and value >= 0 else None
         logger.info(
             "[%s] Google stream usage host=%s model=%s counters=%s",
@@ -125,6 +130,25 @@ def _log_google_stream_usage(timing: _GoogleStreamTiming, usage: Any) -> None:
     except Exception:
         # Observability must never affect inference or billing.
         pass
+
+
+def _prompt_fingerprint(system_prompt: Any, tools: Any) -> str:
+    """Short hashes of the request prefix so implicit-cache misses can be traced.
+
+    Gemini caches by identical prefix; equal hashes across requests mean the
+    prefix was stable. Only digests are logged, never prompt text.
+    """
+    text = system_prompt if isinstance(system_prompt, str) else ""
+    names = sorted(
+        str((tool.get("function") or {}).get("name") or tool.get("name") or "")
+        for tool in (tools or []) if isinstance(tool, dict)
+    )
+
+    def digest(value: str) -> str:
+        return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]
+
+    return (f"prefix8k={digest(text[:8000])} system={digest(text)} "
+            f"system_chars={len(text)} tools={digest(','.join(names))} tool_count={len(names)}")
 
 
 async def _on_google_http_request_start(_session, trace_context, _params) -> None:
@@ -945,6 +969,7 @@ async def invoke_google_ai_studio_chat_completions(
     thinking_level: Optional[str] = None,
     request_attempts: Optional[int] = None,
     request_timeout_seconds: Optional[int] = None,
+    cacheable_system_prefix: Optional[str] = None,
 ) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata, GoogleStreamFinishMetadata]]]:
     """
     Google AI Studio (Gemini API) client using `google-genai` API-key auth.
@@ -1023,6 +1048,21 @@ async def invoke_google_ai_studio_chat_completions(
             tool_config=tool_config_dict if tool_config_dict else None,
             **transport_options,
         )
+        logger.info("%s GEMINI_PROMPT_FINGERPRINT model=%s %s", log_prefix, normalized_model_id,
+                    _prompt_fingerprint(system_prompt, tools))
+        cache_plan = await gemini_context_cache.plan_request(
+            model_id=normalized_model_id, system_prompt=system_prompt,
+            cacheable_system_prefix=cacheable_system_prefix,
+            google_tools=google_tools, tool_config=tool_config_dict or None,
+        )
+        gemini_context_cache.schedule_create(
+            cache_plan, lambda: _get_loop_google_client("google_ai_studio", api_key=api_key),
+            _close_google_client,
+        )
+        request_config, request_contents = generation_config, contents
+        if cache_plan.is_hit:
+            request_config, request_contents = gemini_context_cache.build_hit_request(
+                generation_config, contents, cache_plan)
     except Exception as e:
         err_msg = f"Error during request preparation: {e}"
         logger.error(f"{log_prefix} {err_msg}", exc_info=True)
@@ -1115,11 +1155,17 @@ async def invoke_google_ai_studio_chat_completions(
         try:
             _log_google_stream_request_policy(timing, generation_config)
             _google_stream_phase(timing, "sdk_stream_call_start")
-            stream_iterator = await google_genai_client.aio.models.generate_content_stream(
-                model=normalized_model_id,
-                contents=contents,
-                config=generation_config,
-            )
+            try:
+                stream_iterator = await google_genai_client.aio.models.generate_content_stream(
+                    model=normalized_model_id, contents=request_contents, config=request_config,
+                )
+            except google_errors.APIError as e_cache:
+                if not (cache_plan.is_hit and gemini_context_cache.is_cached_content_missing(e_cache)):
+                    raise
+                await gemini_context_cache.drop_entry(cache_plan)
+                stream_iterator = await google_genai_client.aio.models.generate_content_stream(
+                    model=normalized_model_id, contents=contents, config=generation_config,
+                )
             _google_stream_phase(timing, "sdk_stream_iterator_ready")
 
             first_chunk_seen = False
@@ -1308,11 +1354,17 @@ async def invoke_google_ai_studio_chat_completions(
             # Calculate token breakdown from input messages (estimate)
             token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
 
-            response = await google_genai_client.aio.models.generate_content(
-                model=normalized_model_id,
-                contents=contents,
-                config=generation_config,
-            )
+            try:
+                response = await google_genai_client.aio.models.generate_content(
+                    model=normalized_model_id, contents=request_contents, config=request_config,
+                )
+            except google_errors.APIError as e_cache:
+                if not (cache_plan.is_hit and gemini_context_cache.is_cached_content_missing(e_cache)):
+                    raise
+                await gemini_context_cache.drop_entry(cache_plan)
+                response = await google_genai_client.aio.models.generate_content(
+                    model=normalized_model_id, contents=contents, config=generation_config,
+                )
             return await _process_non_stream_response(response, token_breakdown)
         except google_errors.APIError as e_api:
             err_msg = f"Google API error calling API: {e_api}"

@@ -40,6 +40,7 @@ from backend.apps.videos.composed.prompt import (
     mp4_duration_seconds,
 )
 from backend.apps.videos.composed.source import build_clip_join_source, render_source_directly
+from backend.tests.provider_catalogue_support import repo_provider_catalogue  # noqa: F401 - pytest fixture
 from backend.shared.providers.e2b_remotion_renderer import (
     INSTALLED_FONT_FAMILIES,
     RemotionCheck,
@@ -532,3 +533,55 @@ def test_import_scan_ignores_from_clauses_inside_comments():
     source = GOOD.replace("export const video", "import x /* from 'remotion' */ from 'fs';\nexport const video", 1)
     with pytest.raises(InvalidCompositionError, match="'fs'"):
         validate_source(source, input_names=["input-1.png"], aspect_ratio="16:9", duration_seconds=8)
+
+
+# --- user AI settings ------------------------------------------------------------------------------------------
+
+USER_MODEL = "anthropic/claude-fable-5-2"
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.composed.author-writes-composition
+def test_default_policy_keeps_the_default_model_order_and_adds_no_stream_options():
+    from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
+
+    stream = _stream(GOOD)
+    _compose(_request(), stream, FakeSession(), models=("a/one", "b/two"), policy=InternalLlmPolicy())
+    assert [call["model_id"] for call in stream.calls] == ["a/one"]
+    assert "allowed_server_ids" not in stream.calls[0]
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.composed.author-writes-composition
+@pytest.mark.usefixtures("repo_provider_catalogue")
+def test_users_complex_model_alone_writes_the_composition():
+    from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
+
+    stream = _stream(GOOD)
+    video, _ = _compose(_request(), stream, FakeSession(), models=("a/one", "b/two"),
+                        policy=InternalLlmPolicy(complex_model=USER_MODEL))
+    assert {call["model_id"] for call in stream.calls} == {USER_MODEL}
+    assert video.author_model == USER_MODEL
+    assert [(u.model, u.provider) for u in video.usage] == [(USER_MODEL, "anthropic")]
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.composed.author-writes-composition
+@pytest.mark.usefixtures("repo_provider_catalogue")
+def test_turned_off_default_model_is_skipped():
+    from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
+
+    stream = _stream(GOOD)
+    _compose(_request(), stream, FakeSession(), models=(USER_MODEL, "openai/gpt-6.1-sol"),
+             policy=InternalLlmPolicy(disabled_ai_models=frozenset({USER_MODEL})))
+    assert [call["model_id"] for call in stream.calls] == ["openai/gpt-6.1-sol"]
+
+
+# contract-test: supporting surface=gui.web assertions=videos-generate.composed.author-writes-composition
+@pytest.mark.usefixtures("repo_provider_catalogue")
+def test_every_model_turned_off_fails_before_any_call():
+    from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
+
+    stream = _stream(GOOD)
+    policy = InternalLlmPolicy(disabled_ai_models=frozenset({"a/one", "b/two"}))
+    with pytest.raises(ComposeFailure) as caught:
+        _compose(_request(), stream, FakeSession(), models=("a/one", "b/two"), policy=policy)
+    assert caught.value.code == "author_unavailable" and "turned off" in caught.value.message
+    assert stream.calls == []

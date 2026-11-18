@@ -41,10 +41,6 @@ export interface PruneDecryptedMessageWindowResult<T extends PrunableMessage> {
   prunedCount: number;
 }
 
-export type MessageWindowIdentity = {
-  message_id?: string;
-};
-
 function latestCompressionBoundary(checkpoints: ChatCompressionCheckpoint[] | undefined): number | null {
   if (!checkpoints || checkpoints.length === 0) return null;
   return [...checkpoints].sort((a, b) => b.created_at - a.created_at)[0]?.compressed_up_to_timestamp ?? null;
@@ -107,12 +103,3 @@ export function pruneDecryptedMessageWindow<T extends PrunableMessage>(
   };
 }
 
-export function shouldPreserveExpandedMessageWindow<T extends MessageWindowIdentity>(
-  currentMessages: T[],
-  incomingMessages: T[],
-): boolean {
-  if (incomingMessages.length === 0 || currentMessages.length <= incomingMessages.length) return false;
-
-  const currentIds = new Set(currentMessages.map((message) => message.message_id).filter(Boolean));
-  return incomingMessages.every((message) => !!message.message_id && currentIds.has(message.message_id));
-}

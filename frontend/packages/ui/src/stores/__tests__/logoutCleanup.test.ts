@@ -24,6 +24,11 @@ let currentActiveChatId: string | null = "private-chat-1";
 let userDatabaseDeleteGate: Promise<void> | null = null;
 let downloadPurgeGate: Promise<void> | null = null;
 
+// The Rust auth path needs a Worker; these suites pin the page-side lifecycle on the injected-client seam.
+import { setRustAuthClientForTesting } from "../../services/rustCore/authOperation";
+import { createFakeRustAuthClient, fetchReply } from "./fakeRustAuthClient";
+setRustAuthClientForTesting(createFakeRustAuthClient());
+
 vi.mock("../../services/chatListCache", () => ({
   chatListCache: {
     clear: vi.fn(() => cleanupCalls.push("chatListCache.clear")),
@@ -285,10 +290,7 @@ vi.mock("svelte-i18n", async () => {
 });
 
 // Mock fetch globally
-const mockFetch = vi.fn().mockResolvedValue({
-  ok: true,
-  json: async () => ({ success: true }),
-});
+const mockFetch = vi.fn().mockResolvedValue(fetchReply(200, { success: true }));
 vi.stubGlobal("fetch", mockFetch);
 
 // Mock document.cookie for deleteAllCookies
@@ -352,9 +354,9 @@ describe("logout cleanup completeness", () => {
 
     try {
       await logout();
-      await Promise.resolve();
-
-      expect(cleanupCalls).toContain("userDB.deleteDatabase");
+      // Deletion starts in the background after the Rust cross-tab logout notice;
+      // the chat database delete must start while the user database delete is still held.
+      await vi.waitFor(() => expect(cleanupCalls).toContain("userDB.deleteDatabase"));
       expect(cleanupCalls).toContain("chatDB.deleteDatabase");
     } finally {
       releaseUserDatabaseDelete();

@@ -216,17 +216,17 @@ capabilities:
   has_fixture: true
   rust:
     status: partial
-    api_symbols: 144
+    api_symbols: 151
     conformance: true
     gaps: 4
   npm:
     status: partial
-    api_symbols: 200
+    api_symbols: 214
     conformance: true
     gaps: 3
   python:
     status: partial
-    api_symbols: 101
+    api_symbols: 108
     conformance: true
     gaps: 3
 - id: sdk.benchmark
@@ -558,7 +558,7 @@ capabilities:
   has_fixture: false
   rust:
     status: partial
-    api_symbols: 273
+    api_symbols: 416
     conformance: false
     gaps: 4
   npm:
@@ -576,7 +576,7 @@ capabilities:
   has_fixture: false
   rust:
     status: partial
-    api_symbols: 396
+    api_symbols: 453
     conformance: false
     gaps: 4
   npm:
@@ -918,7 +918,7 @@ capabilities:
   has_fixture: true
   rust:
     status: partial
-    api_symbols: 168
+    api_symbols: 191
     conformance: true
     gaps: 5
   npm:
@@ -954,7 +954,7 @@ capabilities:
   has_fixture: false
   rust:
     status: partial
-    api_symbols: 143
+    api_symbols: 145
     conformance: false
     gaps: 1
   npm:

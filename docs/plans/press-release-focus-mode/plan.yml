@@ -58,7 +58,7 @@ decisions:
   decided_at: '2026-11-12'
 - id: D-6
   status: active
-  decision: save_memory target project is rewritten server-side into one project_create_file operation for .openmates/memories/<id>.md
+  decision: save_memory target project is rewritten server-side into one project_create_file operation for .openmates/memories/<title-slug>-<5-char suffix>.md (readable name; identity is the Project item id)
     with the canonical Memory document. It reuses the authorized Project file job path (client encryption in the Rust core,
     placeholder, exclusivity, continuation, revision history); the personal memory write job, Rust and web shells are unchanged.
     Project Memory updates use project_read_text plus project_update_file.

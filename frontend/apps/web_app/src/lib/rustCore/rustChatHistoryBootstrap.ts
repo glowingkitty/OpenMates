@@ -9,11 +9,14 @@ import { authStore } from '@repo/ui';
 import { installRustChatHistorySource, rustFailureCode } from '@openmates/ui/src/services/rustCore/activeChatRustHistory';
 import type { RustHistoryRead } from '@openmates/ui/src/services/rustCore/activeChatRustHistory';
 import { localReadToMessageWindow, RustHistoryRefusal, savedReadToMessageWindow } from '@openmates/ui/src/services/rustCore/savedChatMessageRows';
+import type { SavedPageSelector } from '@openmates/ui/src/services/rustCore/protocol';
 import type { MessageWindowResult } from '@openmates/ui/src/services/db/messageOperations';
 import type { LocalSavedChatSession, ProductionSavedChatSession } from '@openmates/ui/src/services/rustCore/secondDeviceSavedChatSession';
 import type { SavedChatReadback, LocalChatReadback } from '@openmates/ui/src/services/rustCore/savedReadProtocol';
 import { createRustCoreWorker, createRustLocalSession, createRustSecondDeviceSession, preloadRustAdmissionModules, prewarmRustCoreWorker } from './rustCoreLoader';
 import { registerRustCoreWorkerFactory } from '@openmates/ui/src/services/rustCore/host/workerFactoryRegistry';
+import { backsOffServerCheck, keepsLocalSessionAfterServerCheckFailure, SERVER_CHECK_BACKOFF_MS } from '@openmates/ui/src/services/rustCore/serverCheckFailure';
+import { registerSocketFrameSink } from '@openmates/ui/src/services/rustCore/socketFrameForwarder';
 import { notifyServerCheckedSession, registerServerCheckedSession } from '@openmates/ui/src/services/rustCore/host/serverSessionRegistry';
 
 /** Measurement-only opt-out: lets one flag build record the TS baseline. */
@@ -60,6 +63,8 @@ export function installRustChatHistory(): () => void {
 	let local: LocalSavedChatSession | null = null;
 	let localPending: Promise<LocalSavedChatSession | null> | null = null;
 	let localAttempted = false;
+	// After an unreachable-server failure no new server check starts until then (or `online`).
+	let serverCheckBlockedUntil = 0;
 	let selected = '';
 	let generation = 0;
 	// The admitted session refuses concurrent reads ("busy"); reads are serialized.
@@ -72,6 +77,10 @@ export function installRustChatHistory(): () => void {
 		if (local && !local.signal.aborted) return Promise.resolve(local);
 		if (localAttempted) return localPending?.then((admitted) => admitted && !admitted.signal.aborted ? admitted : null) ?? Promise.resolve(null);
 		if (session || pending) return Promise.resolve(null);
+		return startLocal();
+	};
+
+	const startLocal = (): Promise<LocalSavedChatSession | null> => {
 		localAttempted = true;
 		markRustStage('local-session-start');
 		localPending = createRustLocalSession({ signal: lifetime.signal, currentSelection })
@@ -104,6 +113,7 @@ export function installRustChatHistory(): () => void {
 	/** One live session; re-admitted lazily after a failure closed the previous one. */
 	const ensureSession = (): Promise<ProductionSavedChatSession> => {
 		if (session && !session.signal.aborted) return Promise.resolve(session);
+		if (!pending && Date.now() < serverCheckBlockedUntil) return Promise.reject(new Error('unavailable'));
 		if (!pending) markRustStage('session-start');
 		pending ??= admit()
 			.then((created) => { session = created; markRustStage('session-ready'); notifyServerCheckedSession(); return created; },
@@ -111,6 +121,16 @@ export function installRustChatHistory(): () => void {
 					const code = rustFailureCode(error);
 					markRustStage(`session-failed-${code}`);
 					console.warn('[RustCore] session admission failed:', code);
+					// A failed upgrade closed the local session's Worker. When only the network
+					// failed, restore a fresh local session BEFORE reporting the failure so the
+					// offline-capable units (drafts) never see a window without an admitted client,
+					// and hold further server checks back so a retry cannot tear it down again.
+					// A server rejection (revoked/expired session) keeps nothing local.
+					if (keepsLocalSessionAfterServerCheckFailure(code) && !lifetime.signal.aborted) {
+						if (backsOffServerCheck(code)) serverCheckBlockedUntil = Date.now() + SERVER_CHECK_BACKOFF_MS;
+						local = null; localPending = null;
+						return startLocal().then(() => { throw error; });
+					}
 					throw error;
 				})
 			.finally(() => { pending = null; });
@@ -137,6 +157,25 @@ export function installRustChatHistory(): () => void {
 		if (!published || !isSavedRead(published)) throw new Error('protocol');
 		markRustStage('server-read-end');
 		return savedReadToMessageWindow(published, chatId, anchorMessageId !== null);
+	};
+
+	/** Canonical Rust page for a chained selector (cursor from the previous Rust window). */
+	const pageRead = async (chatId: string, selector: SavedPageSelector): Promise<MessageWindowResult> => {
+		const owner = await ensureSession();
+		selected = chatId;
+		generation++;
+		markRustStage('page-read-start');
+		let page: SavedChatReadback | LocalChatReadback | null = null;
+		try {
+			await owner.publishPage(selector, (published) => { page = published; });
+		} catch (error) {
+			if (rustFailureCode(error) === 'unavailable') throw new RustHistoryRefusal('unsupported_view');
+			throw error;
+		}
+		const published = page as SavedChatReadback | LocalChatReadback | null;
+		if (!published || !isSavedRead(published)) throw new Error('protocol');
+		markRustStage('page-read-end');
+		return savedReadToMessageWindow(published, chatId, selector.direction === 'around');
 	};
 
 	const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
@@ -211,10 +250,26 @@ export function installRustChatHistory(): () => void {
 	// local-only session asks for this same server-checked upgrade, e.g. in a chat
 	// created after login, which never needed a server read. Chat-open work never
 	// asks for it; it waits for `notifyServerCheckedSession`.
+	const onOnline = () => { serverCheckBlockedUntil = 0; };
+	window.addEventListener('online', onOnline);
 	const unregisterServerSession = registerServerCheckedSession(() => ensureSession().then(() => undefined));
 
+	// Server frames go to the core only through a live server-checked session; the
+	// shared queue keeps them ordered behind reads (the Worker serves one request at a time).
+	const unregisterFrameSink = registerSocketFrameSink({
+		hasServerSession: () => !!session && !session.signal.aborted,
+		hasLocalSession: () => !!local && !local.signal.aborted,
+		ensureServerSession: () => ensureSession().then(() => undefined),
+		ingest: (frames) => enqueue(() => session && !session.signal.aborted ? session.ingestSocketFrames(frames) : Promise.reject(new Error('session_expired'))),
+		admit: (chatId, teamId) => enqueue(() => {
+			// Admission stage marker (see socketFrameForwarder.markAdmit): past the page read queue, Worker op in flight.
+			document.documentElement.dataset.rustCoreAdmit = 'worker';
+			return session && !session.signal.aborted ? session.admitChat(chatId, teamId) : Promise.reject(new Error('session_expired'));
+		})
+	});
 	const uninstall = installRustChatHistorySource({
-		readWindow: ({ chatId, anchorMessageId }) => enqueue(() => read(chatId, anchorMessageId))
+		readWindow: ({ chatId, anchorMessageId }) => enqueue(() => read(chatId, anchorMessageId)),
+		readPage: ({ chatId, selector }) => enqueue(() => pageRead(chatId, selector))
 	});
 
 	// Admit as soon as the TS login is ready so the first chat open does not pay
@@ -229,5 +284,5 @@ export function installRustChatHistory(): () => void {
 				.catch(() => undefined);
 		}
 	});
-	return () => { stopAuth(); uninstall(); unregisterServerSession(); lifetime.abort(); local?.close(); session?.close(); unregisterWorker(); };
+	return () => { window.removeEventListener('online', onOnline); stopAuth(); uninstall(); unregisterServerSession(); unregisterFrameSink(); lifetime.abort(); local?.close(); session?.close(); unregisterWorker(); };
 }

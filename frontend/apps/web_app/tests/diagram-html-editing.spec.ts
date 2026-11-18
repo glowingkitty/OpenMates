@@ -133,8 +133,11 @@ test('missed diagram preselection and ASCII output recover through memories and 
     const editedTransform = await node.getAttribute('transform');
     const editedEdge = await edge.getAttribute('d');
     await screenshot(page, 'fullscreen-editing-text-and-layout');
-    await expect(overlay.getByTestId('diagram-html-save')).toBeEnabled();
-    await overlay.getByTestId('diagram-html-save').click();
+    // Save is the header Edit button, which turns into a round check while editing.
+    const headerSave = overlay.getByTestId('embed-edit-button');
+    await expect(headerSave).toHaveAttribute('data-edit-state', 'save');
+    await expect(headerSave).toBeEnabled();
+    await headerSave.click();
     const canvas = overlay.getByTestId('diagram-html-canvas');
     const saveError = overlay.getByTestId('diagram-html-save-error');
     // Settle on whichever comes first, so a refused save fails at once with its visible text.

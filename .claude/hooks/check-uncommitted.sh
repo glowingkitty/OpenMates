@@ -25,5 +25,6 @@ DIRTY=$(git status --porcelain 2>/dev/null | head -10)
 [ -z "$DIRTY" ] && exit 0
 echo "REMINDER: session $SESSION_ID has undeployed changes in $ROOT:"
 echo "$DIRTY"
-echo "Deploy when done: python3 scripts/sessions.py deploy --session $SESSION_ID --title \"type: description\" --message \"why + verification\""
+echo "Done means committed, tested and deployed: python3 scripts/sessions.py deploy --session $SESSION_ID --title \"type: description\" --message \"why + verification\""
+echo "If it must wait, note what remains in the Task and park it: python3 scripts/worktree_wip.py park --session $SESSION_ID --reason \"<why>\""
 exit 0

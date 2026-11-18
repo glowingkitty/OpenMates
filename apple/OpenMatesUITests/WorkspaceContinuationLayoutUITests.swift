@@ -228,12 +228,12 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
         XCTAssertEqual(keyboardResult, .completed,
                        "This case requires a hittable software key inside the real window; an offscreen UIKeyboardLayoutStar Preview does not reduce the continuation viewport. window=\(app.windows.firstMatch.frame), keyboard=\(keyboard.frame), q=\(keyboard.keys["q"].frame)")
         #endif
-        // Focused drafting suppresses the continuation background. Its card
-        // has no accessible geometry until the real editor is dismissed.
+        // Focused drafting keeps the background at full opacity but inert. Its
+        // card has no accessible geometry until the real editor is dismissed.
         let backdrop = app.buttons["project-home-prompt-backdrop"]
         XCTAssertTrue(backdrop.waitForExistence(timeout: 5))
         XCTAssertTrue(backdrop.isHittable)
-        XCTAssertEqual(backdrop.value as? String, "background-opacity=0;background-interactive=false")
+        XCTAssertEqual(backdrop.value as? String, "background-opacity=1;background-interactive=false")
         let backgroundHidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: card)
         XCTAssertEqual(XCTWaiter.wait(for: [backgroundHidden], timeout: 5), .completed,
                        "Focused drafting must suppress the continuation card from accessibility")

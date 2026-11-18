@@ -109,6 +109,7 @@ async fn pair_with_cancel(caller: CancellationToken) -> (Client, SourceHostSessi
             SourceHostOptions {
                 source_session_id: "source-session".into(),
                 confirmed_takeover: false,
+                remote_command_jobs: false,
             },
             caller,
         )
@@ -483,6 +484,7 @@ async fn real_pending_websocket_handshake_observes_caller_cancellation() {
                 SourceHostOptions {
                     source_session_id: "source-session".into(),
                     confirmed_takeover: false,
+                    remote_command_jobs: false,
                 },
                 caller.clone(),
             )

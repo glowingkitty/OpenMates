@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Build (or refresh) the E2B template that heavy_slot runs cargo and vitest in.
+"""Build (or refresh) the E2B template that heavy_slot's remote runs use.
 
 The template holds the public repository at one commit of origin/dev, the Rust
 toolchain pinned by `packages/openmates-rust/Cargo.toml` (`rust-version`), the
-crates `cargo fetch` downloads, and the installed pnpm workspace. It holds no
+crates `cargo fetch` downloads, the installed pnpm workspace and Playwright's
+Chromium with its system libraries. It holds no
 compiled Rust output: measured on 2026-11-12, a day-old compiled baseline saved
 nothing (270 s against 250 s cold) because most of the time is the
 `openmates-sdk` crate itself, which changes daily.
@@ -63,6 +64,12 @@ def template_definition(commit: str, toolchain: str):
         .set_workdir(repo)
         .run_cmd("$HOME/.cargo/bin/cargo fetch --locked")
         .run_cmd("CI=1 PATH=$HOME/.local/bin:$PATH corepack pnpm install --frozen-lockfile")
+        # Chromium for browser runs, at the revision the lockfile's Playwright expects.
+        .run_cmd("cd frontend/apps/web_app && PATH=$HOME/.local/bin:$PATH corepack pnpm exec "
+                 "playwright install chromium")
+        .set_user("root")
+        .run_cmd(f"cd {repo}/frontend/apps/web_app && ./node_modules/.bin/playwright install-deps chromium")
+        .set_user("user")
     )
 
 

@@ -83,6 +83,71 @@ export const variants = {
     }, embedData: { status: "finished" }, attrs: { app_id: "travel" } },
   },
 
+  /** Researched train with station offsets: times stay station-local and readable (TASK-3927). */
+  authoredResearchedTrain: {
+    data: { decodedContent: {
+      type: "connection", status: "finished", title: "Example Rail 279 direct",
+      transport_method: "train", origin: "Example Central", destination: "Sample Main Station",
+      departure: "2026-11-16T06:43:00+01:00", arrival: "2026-11-16T15:00:00+01:00", duration: "8h 17m",
+      booking_url: "https://www.example.org/journeys/279",
+      authoring: { schema_version: 1, kind: "travel.connection", origin: "researched",
+        sources: [{ url: "https://www.example.org/journeys/279", title: "Example Rail timetable" }] },
+    }, embedData: { status: "finished" }, attrs: { app_id: "travel" } },
+  },
+
+  /**
+   * Mixed route: a pass-covered regional train to a border hub plus a paid bus, two tickets.
+   * route_composition is flattened as in a stored child embed.
+   */
+  mixedRoute: {
+    data: { decodedContent: {
+      embed_id: "preview-connection-mixed-route", type: "connection", is_store_example: true,
+      transport_method: "bus", trip_type: "one_way", source_provider: "composed",
+      total_price: "8.98", currency: "EUR", fare_is_partial: true,
+      fare: { amount: 8.98, currency: "EUR", is_partial: true, is_pass_only: false,
+        covered_by_passes: ["deutschland_ticket"], confidence: "partial",
+        summary: "EUR 8.98 to pay; München Hbf → Lindau (Bodensee) Insel is covered by Deutschland-Ticket." },
+      origin: "München Hbf", destination: "Zürich HB",
+      departure: "2026-11-23T07:53:00+01:00", arrival: "2026-11-23T14:10:00+01:00", duration: "6h 17m", stops: 1,
+      carriers: ["Regional train", "Example Coach"],
+      booking_url: "https://www.example.org/book/coach-lindau-zurich", booking_provider: "example.org",
+      route_composition_kind: "pass_then_paid", route_composition_hub: "Lindau (Bodensee)",
+      route_composition_transfer_minutes: 64, route_composition_separate_tickets: true,
+      route_composition_pass_label: "Deutschland-Ticket", route_composition_paid_amount: 8.98,
+      route_composition_currency: "EUR", route_composition_savings_amount: 10,
+      route_composition_savings_currency: "EUR",
+      tickets: [
+        { route: "München Hbf -> Lindau (Bodensee) Insel", departure: "2026-11-23T07:53:00+01:00",
+          arrival: "2026-11-23T10:41:00+01:00", transport_method: "train", coverage: "pass",
+          pass_id: "deutschland_ticket", pass_label: "Deutschland-Ticket", price: null },
+        { route: "Lindau (Blaukreuzstrasse) -> Zürich HB", departure: "2026-11-23T11:45:00+01:00",
+          arrival: "2026-11-23T14:10:00+01:00", transport_method: "bus", coverage: "paid", price: 8.98,
+          currency: "EUR", booking_url: "https://www.example.org/book/coach-lindau-zurich",
+          booking_provider: "example.org" },
+      ],
+      legs: [{
+        leg_index: 0, origin: "München Hbf", destination: "Zürich HB",
+        departure: "2026-11-23T07:53:00+01:00", arrival: "2026-11-23T14:10:00+01:00", duration: "6h 17m", stops: 1,
+        segments: [
+          { carrier: "Regional train", carrier_code: "RE", number: "RE 57502", fare_coverage: "pass:deutschland_ticket",
+            departure_station: "München Hbf", departure_time: "2026-11-23T07:53:00+01:00",
+            departure_latitude: 48.1402, departure_longitude: 11.5586,
+            arrival_station: "Lindau (Bodensee) Insel", arrival_time: "2026-11-23T10:41:00+01:00",
+            arrival_latitude: 47.5446, arrival_longitude: 9.6805, duration: "2h 48m" },
+          { carrier: "Example Coach", number: "Coach 151", fare_coverage: "paid",
+            departure_station: "Lindau (Blaukreuzstrasse)", departure_time: "2026-11-23T11:45:00+01:00",
+            departure_latitude: 47.5527, departure_longitude: 9.7006,
+            arrival_station: "Zürich HB", arrival_time: "2026-11-23T14:10:00+01:00",
+            arrival_latitude: 47.3779, arrival_longitude: 8.5403, duration: "2h 25m" },
+        ],
+        layovers: [{ airport: "Lindau (Bodensee) Insel", duration: "1h 04m", duration_minutes: 64,
+          meets_min_transfer: true, separate_tickets: true,
+          station_change: { from: "Lindau (Bodensee) Insel", to: "Lindau (Blaukreuzstrasse)" } }],
+      }],
+    }, embedData: { status: "finished" }, attrs: { app_id: "travel" } },
+    onClose: () => {},
+  },
+
   /** Multi-leg connection with stopover */
   multiLeg: {
     data: {

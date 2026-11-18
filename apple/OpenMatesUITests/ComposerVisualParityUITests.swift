@@ -18,6 +18,29 @@ final class ComposerVisualParityUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        // A test that fails after rotating (continueAfterFailure = false skips
+        // the rest of its body and its deferred reset can still be in flight)
+        // must not leave the next test in landscape. Only request a change
+        // when one is needed: a repeated request while one is in progress fails.
+        if XCUIDevice.shared.orientation != .portrait {
+            XCUIDevice.shared.orientation = .portrait
+        }
+    }
+
+    /// Taps once the element is hittable and its frame is unchanged across two
+    /// reads, so keyboard or layout animations cannot move it under the tap.
+    private func tapAfterFrameSettles(_ element: XCUIElement, timeout: TimeInterval = 5,
+                                      file: StaticString = #filePath, line: UInt = #line) {
+        var previous = CGRect.null
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard element.exists, element.isHittable else { previous = .null; return false }
+            let frame = element.frame
+            defer { previous = frame }
+            return frame == previous
+        }, object: element)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: timeout), .completed,
+                       "Element frame must settle before tapping", file: file, line: line)
+        element.tap()
     }
 
     // contract-test: direct surface=gui.apple assertions=message-input.actions.visibility,message-input.layout.responsive-parity
@@ -156,7 +179,9 @@ final class ComposerVisualParityUITests: XCTestCase {
             "One real native-editor tap must focus the production composer")
         // Prove the same compact host can be dismissed and focused again by
         // exactly one native editor tap; no coordinate or shell-tap fallback.
-        app.buttons["chat-composer-cancel"].tap()
+        // The keyboard is still lifting the composer when Cancel appears; a
+        // tap synthesized from a mid-animation frame lands beside the button.
+        tapAfterFrameSettles(app.buttons["chat-composer-cancel"])
         XCTAssertTrue(waitForAbsence(app.buttons["chat-composer-cancel"]),
             "Cancel must return the production chat composer to its compact state")
         let reopenedEditor = try NativeUITestElementResolution.requireVisible(
@@ -230,7 +255,9 @@ final class ComposerVisualParityUITests: XCTestCase {
         if expandedLandscapeHeight > collapsedPortraitHeight + 80 {
             XCTAssertLessThan(field.frame.height, expandedLandscapeHeight - 80)
         }
-        editor.tap()
+        // Expansion had already blurred the keyboard, so collapsing leaves an
+        // unfocused draft that shows its summary; enter it the user's way.
+        focusComposerEditorOrDraftSummary(in: app)
         editor.typeText("Synthetic microphone placement")
         let typedMic = element(in: app, identifier: "action-buttons").buttons["record-audio-button"]
         let typedSend = app.buttons["send-button"]
@@ -251,7 +278,12 @@ final class ComposerVisualParityUITests: XCTestCase {
     func testFocusedWelcomeComposerScreenshotShowsActionButtons() throws {
         let app = launchFocusedWelcomeComposer()
 
-        XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
+        // Focus is the trigger for the action row. The empty composer has no Expand
+        // control (message-input.layout.responsive-parity), so wait for the
+        // keyboard instead of the fullscreen button this test used to expect.
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "The welcome editor tap must focus it")
+        XCTAssertFalse(app.buttons["message-input-fullscreen-button"].exists,
+            "An empty focused composer has no Expand control")
         let screenshot = XCUIScreen.main.screenshot()
         for identifier in welcomeComposerButtonIds {
             assertButtonIsVisibleInScreenshot(app.buttons[identifier], identifier: identifier, in: app, screenshot: screenshot)
@@ -578,8 +610,10 @@ final class ComposerVisualParityUITests: XCTestCase {
         let restored = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             header.exists && header.frame.height > 0 && !app.keyboards.firstMatch.exists
         }, object: header)
-        XCTAssertEqual(XCTWaiter.wait(for: [restored], timeout: 5), .completed,
-            "Dismissal restores the existing header and closes the keyboard")
+        let restoredResult = XCTWaiter.wait(for: [restored], timeout: 5)
+        if restoredResult != .completed { attachScreenshot(name: "Welcome landscape after Save did not restore") }
+        XCTAssertEqual(restoredResult, .completed,
+            "Dismissal restores the existing header and closes the keyboard (header exists=\(header.exists) frame=\(header.frame) keyboard=\(app.keyboards.firstMatch.exists) cancel exists=\(cancel.exists))")
         attachScreenshot(name: "Welcome landscape header restored after Save")
     }
 
@@ -662,13 +696,18 @@ final class ComposerVisualParityUITests: XCTestCase {
         // Exercise the production parent composers, including their narrow and
         // wide action rows, without starting capture or submitting a message.
         for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
-            XCUIDevice.shared.orientation = orientation
+            // A repeated request while the previous rotation is in flight is
+            // refused, and loaded CI simulators rotate in more than 5 s.
+            if XCUIDevice.shared.orientation != orientation {
+                XCUIDevice.shared.orientation = orientation
+            }
             let landscape = orientation == .landscapeLeft
             let rotated = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
                 let frame = app.windows.firstMatch.frame
                 return landscape ? frame.width > frame.height : frame.height > frame.width
             }, object: app)
-            XCTAssertEqual(XCTWaiter.wait(for: [rotated], timeout: 5), .completed)
+            XCTAssertEqual(XCTWaiter.wait(for: [rotated], timeout: 10), .completed,
+                           "The window must finish rotating to \(landscape ? "landscape" : "portrait")")
             let editor = try NativeUITestElementResolution.requireVisible(
                 app.textViews.matching(identifier: "message-editor"), in: app)
             XCTAssertEqual(editor.value as? String, "")
@@ -912,10 +951,38 @@ final class ComposerVisualParityUITests: XCTestCase {
             skip.tap()
         }
 
-        let editor = try? NativeUITestElementResolution.requireVisible(
-            app.textViews.matching(identifier: "message-editor"), in: app)
-        editor?.tap()
+        focusComposerEditorOrDraftSummary(in: app)
         return app
+    }
+
+    /// Focuses the composer the way a user would: tap the on-screen editor, or,
+    /// when an unfocused draft shows its compact summary and the retained editor
+    /// is laid out off-screen or hidden, tap that summary.
+    private func focusComposerEditorOrDraftSummary(in app: XCUIApplication,
+                                                   file: StaticString = #filePath, line: UInt = #line) {
+        // A seeded attachment-only draft opens as the compact draft summary while
+        // the retained editor stays laid out off-screen; tapping the summary is
+        // the user's way back into that draft. Otherwise tap the visible editor.
+        let editors = app.textViews.matching(identifier: "message-editor")
+        let summary = app.buttons["message-draft-summary"]
+        let entry = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            summary.exists || NativeUITestElementResolution.visible(editors, in: app) != nil
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [entry], timeout: 10), .completed,
+            "The composer must show its editor or a draft summary", file: file, line: line)
+        // Prefer the on-screen editor: another surface can also expose a draft
+        // summary, and tapping that one focused a different composer.
+        let focused = app.textViews.matching(NSPredicate(
+            format: "identifier == %@ AND hasKeyboardFocus == true", "message-editor")).firstMatch
+        if let editor = NativeUITestElementResolution.visible(editors, in: app) {
+            editor.tap()
+            // A retained editor can still resolve behind a visible summary; the
+            // summary is then the control the user actually sees and taps.
+            if !focused.waitForExistence(timeout: 3), summary.exists, summary.isHittable { summary.tap() }
+        } else if summary.exists {
+            summary.tap()
+        }
+        XCTAssertTrue(focused.waitForExistence(timeout: 5), "The composer must focus its editor", file: file, line: line)
     }
 
     private func assertActualScrolledImageFade(editor: XCUIElement, card: XCUIElement,
@@ -955,47 +1022,73 @@ final class ComposerVisualParityUITests: XCTestCase {
     private func waitForFocusedChatComposer(app: XCUIApplication) -> Bool {
         var previousFrames: [CGRect] = []
         var stableSince: Date?
+        var lastReason = "not polled"
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            func notReady(_ reason: String) -> Bool {
+                lastReason = reason; previousFrames = []; stableSince = nil; return false
+            }
             // Re-resolve every snapshot instead of tapping an animation-era element.
             guard let field = NativeUITestElementResolution.visible(
-                app.descendants(matching: .any).matching(identifier: "message-field"), in: app, actionable: false),
-                  let editor = NativeUITestElementResolution.visible(
-                app.descendants(matching: .any).matching(identifier: "message-editor"), in: app, actionable: false),
-                  let control = NativeUITestElementResolution.visible(
-                app.buttons.matching(identifier: "message-input-fullscreen-button"), in: app, actionable: false),
-                  let cancel = NativeUITestElementResolution.visible(
-                app.buttons.matching(identifier: "chat-composer-cancel"), in: app, actionable: false) else {
-                previousFrames = []; stableSince = nil; return false
+                app.descendants(matching: .any).matching(identifier: "message-field"), in: app, actionable: false)
+            else { return notReady("field not visible") }
+            let editorQuery = app.descendants(matching: .any).matching(identifier: "message-editor")
+            guard let editor = NativeUITestElementResolution.visible(editorQuery, in: app, actionable: false) else {
+                // Name what XCUI resolved so a settled-looking screenshot can be explained.
+                let seen = editorQuery.allElementsBoundByIndex.map { "\($0.elementType.rawValue):\($0.frame)" }
+                return notReady("editor not visible; candidates=\(seen) window=\(app.windows.firstMatch.frame)")
             }
-            guard field.frame.width > 0, editor.frame.height > 0,
-                  control.frame.height > 0, cancel.frame.height > 0,
-                  field.frame.insetBy(dx: -2, dy: -2).contains(control.frame),
-                  control.frame.minY >= field.frame.minY + 8,
-                  NativeComposerRenderedLayoutAssertions.isBeside(control, field: field, editor: editor),
-                  field.frame.insetBy(dx: -2, dy: -2).contains(editor.frame),
-                  cancel.frame.minY >= field.frame.maxY,
-                  app.windows.firstMatch.frame.contains(cancel.frame),
-                  control.isHittable, cancel.isHittable else {
-                previousFrames = []; stableSince = nil; return false
+            guard let control = NativeUITestElementResolution.visible(
+                app.buttons.matching(identifier: "message-input-fullscreen-button"), in: app, actionable: false)
+            else { return notReady("expand control not visible") }
+            guard let cancel = NativeUITestElementResolution.visible(
+                app.buttons.matching(identifier: "chat-composer-cancel"), in: app, actionable: false)
+            else { return notReady("cancel not visible") }
+            let window = app.windows.firstMatch.frame
+            // Read each index-bound frame ONCE per poll. A second read re-resolves
+            // the query and can land on a retained or re-created element mid-
+            // transition, which answered (0,0,0,0) in CI after the first read was
+            // valid, so every poll failed although the rendered UI was settled.
+            let fieldFrame = field.frame, editorFrame = editor.frame
+            let controlFrame = control.frame, cancelFrame = cancel.frame
+            let checks: [(Bool, String)] = [
+                (fieldFrame.width > 0 && editorFrame.height > 0 && controlFrame.height > 0 && cancelFrame.height > 0,
+                 "empty frame"),
+                (fieldFrame.insetBy(dx: -2, dy: -2).contains(controlFrame), "control \(controlFrame) outside field \(fieldFrame)"),
+                (controlFrame.minY >= fieldFrame.minY + 8, "control \(controlFrame) not inset from field top \(fieldFrame)"),
+                (fieldFrame.insetBy(dx: -2, dy: -2).contains(editorFrame), "editor \(editorFrame) outside field"),
+                (cancelFrame.minY >= fieldFrame.maxY, "cancel \(cancelFrame) overlaps field \(fieldFrame)"),
+                (window.contains(cancelFrame), "cancel outside window"),
+                // Mid-animation the expand control can sit outside the window, where
+                // XCUI raises instead of answering isHittable; poll again until it lands.
+                (window.contains(controlFrame), "control \(controlFrame) outside window"),
+            ]
+            if let failed = checks.first(where: { !$0.0 }) { return notReady(failed.1) }
+            if let beside = NativeComposerRenderedLayoutAssertions.besideFailure(control, field: field, editor: editor) {
+                return notReady("beside: \(beside)")
             }
+            guard control.isHittable else { return notReady("control not hittable") }
+            guard cancel.isHittable else { return notReady("cancel not hittable") }
             // The compact inline New Chat target must have left this row's hit
             // region; a separate top navigation target is outside this band.
             let compactTargets = app.buttons.matching(identifier: "new-chat-button").allElementsBoundByIndex
             guard !compactTargets.contains(where: { target in
                 target.exists && target.frame.height > 0
                     && NativeUITestElementResolution.isOnScreen(target, in: app)
-                    && target.frame.maxY > field.frame.minY && target.frame.minY < field.frame.maxY
+                    && target.frame.maxY > fieldFrame.minY && target.frame.minY < fieldFrame.maxY
                     && target.isEnabled && target.isHittable
-            }) else { previousFrames = []; stableSince = nil; return false }
-            let frames = [field.frame, editor.frame, control.frame, cancel.frame]
+            }) else { return notReady("compact new-chat target still in the row") }
+            let frames = [fieldFrame, editorFrame, controlFrame, cancelFrame]
             if frames != previousFrames {
+                lastReason = "frames still moving"
                 previousFrames = frames; stableSince = Date(); return false
             }
             return stableSince.map { Date().timeIntervalSince($0) >= 0.3 } ?? false
         }, object: app)
-        let result = XCTWaiter.wait(for: [ready], timeout: 5)
+        let result = XCTWaiter.wait(for: [ready], timeout: NativeComposerRenderedLayoutAssertions.renderedSettleTimeout)
         if result != .completed {
-            attachScreenshot(name: "Chat focus geometry did not settle")
+            let reason = XCTAttachment(string: "Last unmet condition: \(lastReason)")
+            reason.name = "Chat focus settle reason"; reason.lifetime = .keepAlways; add(reason)
+            attachScreenshot(name: "Chat focus geometry did not settle (\(lastReason))")
             let dump = XCTAttachment(string: app.debugDescription); dump.lifetime = .keepAlways; add(dump)
             let geometry = XCTAttachment(string: String(describing: element(in: app, identifier: "message-field").value))
             geometry.name = "Actual native composer geometry after real typing"
@@ -1206,6 +1299,12 @@ final class ComposerVisualParityUITests: XCTestCase {
 // Actual retained native TextKit coordinates, rather than an empty SwiftUI box.
 // The DEBUG payload contains only rectangles/offset, never message text.
 enum NativeComposerRenderedLayoutAssertions {
+    // Each layout probe makes several accessibility round trips (existence,
+    // frames, the field's layout payload). On shared macOS CI runners one probe
+    // can take over a second, so a 3 s budget allowed only one or two probes and
+    // failed layouts that were already correct ("met after timeout"). The
+    // conditions are unchanged; only the time to observe them grows.
+    static let renderedSettleTimeout: TimeInterval = 8
     // XCTest predicate expectations defer their first AX evaluation. Probe now
     // and charge that probe against the SAME deadline, so a valid two-second
     // snapshot does not lose a three-second budget to an initial poll delay.
@@ -1250,45 +1349,77 @@ enum NativeComposerRenderedLayoutAssertions {
               right.doubleValue.isFinite, bounds.minX.isFinite else { return nil }
         return viewport.minX + CGFloat(right.doubleValue) - bounds.minX
     }
+    /// AX frames and the layout payload convert the same geometry along different paths and
+    /// can differ in the last bits (122.66666666666666 vs …67); allow a sub-pixel margin only.
+    static func containsWithinRounding(_ outer: CGRect, _ inner: CGRect) -> Bool {
+        outer.insetBy(dx: -0.5, dy: -0.5).contains(inner)
+    }
     static func isBeside(_ control: XCUIElement, field: XCUIElement, editor: XCUIElement) -> Bool {
-        guard editor.exists, let data = payload(field) else { return false }
+        besideFailure(control, field: field, editor: editor) == nil
+    }
+    /// The first unmet beside condition, or nil when the control sits beside the first line.
+    static func besideFailure(_ control: XCUIElement, field: XCUIElement, editor: XCUIElement) -> String? {
+        guard editor.exists else { return "editor missing" }
+        guard let data = payload(field) else { return "no layout payload" }
         let fieldFrame = field.frame
         let controlFrame = control.frame
-        guard let viewport = viewport(data), fieldFrame.contains(viewport),
-              let first = rect("first", in: data), let right = rightEdge(data), first.height > 0 else { return false }
-        return fieldFrame.contains(controlFrame) && viewport.minY <= controlFrame.minY
-            && first.minY < controlFrame.maxY && first.maxY > controlFrame.minY
-            && first.minY - viewport.minY < controlFrame.height / 2
-            && first.maxX + 4 <= controlFrame.minX && right + 4 <= controlFrame.minX
+        guard let viewport = viewport(data) else { return "no viewport" }
+        guard containsWithinRounding(fieldFrame, viewport) else { return "viewport \(viewport) outside field \(fieldFrame)" }
+        guard let first = rect("first", in: data), let right = rightEdge(data), first.height > 0 else { return "no first line/right edge" }
+        let checks: [(Bool, String)] = [
+            (fieldFrame.contains(controlFrame), "control \(controlFrame) outside field \(fieldFrame)"),
+            (viewport.minY <= controlFrame.minY, "control above viewport"),
+            (first.minY < controlFrame.maxY && first.maxY > controlFrame.minY, "first line \(first) not level with control"),
+            (first.minY - viewport.minY < controlFrame.height / 2, "first line \(first) not at viewport top"),
+            (first.maxX + 4 <= controlFrame.minX, "first line \(first) runs into control"),
+            (right + 4 <= controlFrame.minX, "text right edge \(right) runs into control"),
+        ]
+        return checks.first(where: { !$0.0 })?.1
     }
     // Geometry math consumes one captured value/frame pair. It must not query AX
     // again for every converted coordinate inside the three-second readiness poll.
     static func selectedCaretClears(_ data: [String: Any], fieldFrame: CGRect,
                                     controlFrame: CGRect, requiresScroll: Bool) -> Bool {
-        guard let viewport = viewport(data), fieldFrame.contains(viewport),
-              let selected = rect("selected", in: data),
-              let offset = data["offset"] as? NSNumber, offset.doubleValue.isFinite,
-              let right = rightEdge(data) else { return false }
-        return (!requiresScroll || offset.doubleValue > 0) && viewport.insetBy(dx: -2, dy: -2).contains(selected)
-            && selected.maxX + 4 <= controlFrame.minX && right + 4 <= controlFrame.minX
+        selectedCaretFailure(data, fieldFrame: fieldFrame, controlFrame: controlFrame,
+                             requiresScroll: requiresScroll) == nil
+    }
+    /// The first unmet caret condition, or nil when the selected caret is visible and clear.
+    static func selectedCaretFailure(_ data: [String: Any], fieldFrame: CGRect,
+                                     controlFrame: CGRect, requiresScroll: Bool) -> String? {
+        guard let viewport = viewport(data) else { return "no viewport" }
+        guard containsWithinRounding(fieldFrame, viewport) else { return "viewport \(viewport) outside field \(fieldFrame)" }
+        guard let selected = rect("selected", in: data) else { return "no selected rect" }
+        guard let offset = data["offset"] as? NSNumber, offset.doubleValue.isFinite else { return "no offset" }
+        guard let right = rightEdge(data) else { return "no right edge" }
+        let checks: [(Bool, String)] = [
+            (!requiresScroll || offset.doubleValue > 0, "offset \(offset) not scrolled"),
+            (viewport.insetBy(dx: -2, dy: -2).contains(selected), "caret \(selected) outside viewport \(viewport)"),
+            (selected.maxX + 4 <= controlFrame.minX, "caret \(selected) in control lane \(controlFrame)"),
+            (right + 4 <= controlFrame.minX, "text right edge \(right) in control lane \(controlFrame)"),
+        ]
+        return checks.first(where: { !$0.0 })?.1
     }
     static func assertBeside(_ control: XCUIElement, field: XCUIElement, editor: XCUIElement,
                              file: StaticString = #filePath, line: UInt = #line) {
-        let result = waitForRenderedCondition(timeout: 3, object: field) {
+        let result = waitForRenderedCondition(timeout: renderedSettleTimeout, object: field) {
             control.exists && field.exists && isBeside(control, field: field, editor: editor)
         }
+        let reason = besideFailure(control, field: field, editor: editor) ?? "met after timeout"
         XCTAssertEqual(result, .completed,
-            "Actual first line must start at top-left beside the icon with a clear native right lane. field=\(field.frame) editor=\(editor.frame) control=\(control.frame) value=\(String(describing: field.value))", file: file, line: line)
+            "Actual first line must start at top-left beside the icon with a clear native right lane (\(reason)). field=\(field.frame) editor=\(editor.frame) control=\(control.frame) value=\(String(describing: field.value))", file: file, line: line)
     }
     static func assertSelectedCaretClears(_ control: XCUIElement, field: XCUIElement, editor: XCUIElement,
                                           requiresScroll: Bool = true, file: StaticString = #filePath, line: UInt = #line) {
-        let result = waitForRenderedCondition(timeout: 3, object: field) {
+        let result = waitForRenderedCondition(timeout: renderedSettleTimeout, object: field) {
             guard editor.exists, field.exists, let data = payload(field) else { return false }
             return selectedCaretClears(data, fieldFrame: field.frame, controlFrame: control.frame,
                                        requiresScroll: requiresScroll)
         }
+        let reason = payload(field).flatMap {
+            selectedCaretFailure($0, fieldFrame: field.frame, controlFrame: control.frame, requiresScroll: requiresScroll)
+        } ?? "met after timeout or no payload"
         XCTAssertEqual(result, .completed,
-            "Real native multiline scrolling must keep the selected caret visible and outside the sticky icon lane", file: file, line: line)
+            "Real native multiline scrolling must keep the selected caret visible and outside the sticky icon lane (\(reason)). field=\(field.frame) control=\(control.frame) value=\(String(describing: field.value))", file: file, line: line)
     }
 }
 

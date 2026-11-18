@@ -50,8 +50,11 @@ KIND_PRODUCT = "product"
 
 MERCURY_MODEL = "mercury-3"
 GEMINI_MODEL = "gemini-3.8-flash"
-# Chosen by backend/scripts/benchmark_web_result_extraction.py.
+# Chosen by backend/scripts/benchmark_web_result_extraction.py (2026-11-13: same validated rows as
+# Gemini 3.8 Flash on four real queries, about 11x cheaper and 5x faster).
 DEFAULT_MODEL = MERCURY_MODEL
+# Pricing references (``provider/model`` in backend/providers/*.yml) of the extraction models.
+MODEL_REFS = {MERCURY_MODEL: "inception/mercury-3", GEMINI_MODEL: "google/gemini-3.8-flash"}
 GOOGLE_SECRET_PATH = "kv/data/providers/google_ai_studio"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
@@ -116,6 +119,9 @@ class WebExtraction:
     pages_excluded: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    # Answered web search requests and the extraction model (``provider/model``), for usage billing.
+    search_requests: int = 0
+    model: str = ""
     error: Optional[str] = None
 
 
@@ -365,13 +371,17 @@ async def _read_page(url: str) -> Optional[Dict[str, Any]]:
 
 async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_manager: Any, limit: int = 20,
                               country: str = "us", language: str = "en",
-                              model: str = DEFAULT_MODEL) -> WebExtraction:
+                              model: str = DEFAULT_MODEL,
+                              outcome: Optional[WebExtraction] = None) -> WebExtraction:
     """Search the web for ``request`` and return validated result rows of ``kind``.
 
     ``request`` holds only search facts (query, location, dates, criteria); it is
-    sent to the search provider (query) and the extraction model.
+    sent to the search provider (query) and the extraction model. A caller that
+    may cancel the call passes its own ``outcome`` so the usage counted so far
+    (search requests, tokens) survives the cancellation.
     """
-    outcome = WebExtraction()
+    outcome = outcome if outcome is not None else WebExtraction()
+    outcome.model = MODEL_REFS[model]
     today = datetime.now(timezone.utc).date()
     query = search_query(kind, request, today)
     if not str(request.get("query") or "").strip():
@@ -388,6 +398,7 @@ async def extract_web_results(kind: str, request: Mapping[str, Any], *, secrets_
     if found.get("error"):
         outcome.error = "Web search is unavailable."
         return outcome
+    outcome.search_requests += 1
     found_urls = list(dict.fromkeys(entry["url"] for entry in found.get("results") or []
                                     if isinstance(entry, dict) and isinstance(entry.get("url"), str)))
     blocked = excluded_hosts()

@@ -22,6 +22,10 @@
   import ProjectChatsSection from './ProjectChatsSection.svelte';
   import type { ProjectChatPresentation } from '../../services/projectChatPreviewService';
   import ProjectReadme from './ProjectReadme.svelte';
+  import ProjectSpecificationsPanel from './ProjectSpecificationsPanel.svelte';
+  import ProjectChecksPanel from './ProjectChecksPanel.svelte';
+  import ProjectTimelinePanel from './ProjectTimelinePanel.svelte';
+  import ProjectCreateFileEntries from './ProjectCreateFileEntries.svelte';
   import ProjectWorkspaceHeader from './ProjectWorkspaceHeader.svelte';
   import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
   import TasksPage from '../tasks/TasksPage.svelte';
@@ -61,6 +65,9 @@
     transferProjectRemoteEntries,
     updateProjectMetadata,
     uploadFileToProject,
+  createProjectDocument,
+  createFolder as createProjectFolderRecord,
+  type ProjectDocumentKind,
     type ProjectFolderViewModel,
     type ProjectItemViewModel,
     type ProjectSourceViewModel,
@@ -92,7 +99,7 @@
   import { loadProjectReadme, readConnectedProjectImage, releaseProjectReadmeImages, type ProjectReadmeState } from '../../services/projectReadme';
   import { cleanupStaleConnectedProjectDownloads, downloadConnectedProjectFile } from '../../services/projectRemoteDownload';
 
-  type ProjectTab = 'overview' | 'folders' | 'tasks';
+  type ProjectTab = 'overview' | 'folders' | 'timeline' | 'tasks';
   // Keep expensive embed previews bounded even when a folder contains thousands of files.
   const FILES_PAGE_SIZE = 48;
 
@@ -350,11 +357,12 @@
     icon: 'folder',
     source: 'recent',
   })));
-  const projectTabs = [
+  let projectTabs = $derived([
     { id: 'overview', icon: 'project', label: 'Overview' },
     { id: 'folders', icon: 'files', label: 'Files' },
+    { id: 'timeline', icon: 'time', label: $text('projects.timeline_tab') },
     { id: 'tasks', icon: 'projectmanagement', label: 'Tasks' },
-  ];
+  ]);
   let normalizedFolderSearch = $derived(folderSearchQuery.trim().toLocaleLowerCase());
   let visibleBrowserFolders = $derived(sortEntries(
     browserFolders.filter((folder) => !normalizedFolderSearch || (folder.name || 'Untitled folder').toLocaleLowerCase().includes(normalizedFolderSearch)),
@@ -1332,8 +1340,60 @@
     }
   }
 
+  // New files and folders are stored OpenMates folder records, so they can only be
+  // created in the root or a stored folder; path-based folders (hosted app files)
+  // and connected sources keep the chat/workflow/plan entries only.
+  const canCreateFiles = $derived(!!selectedProject && !activeRemoteSource && currentVirtualPath === null);
+
+  async function createProjectSubfolder(name: string): Promise<boolean> {
+    if (!selectedProject) return false;
+    try {
+      await createProjectFolderRecord(selectedProject, name, currentFolder?.folder_id ?? undefined, { teamId: selectedProject.teamId });
+      showCreateMenu = false;
+      await refreshSelectedProject();
+      return true;
+    } catch (error) {
+      console.error('[ProjectsPage] Failed to create Project folder:', error);
+      notificationStore.error(error instanceof Error && error.message ? error.message : $text('projects.create_folder_failed'));
+      return false;
+    }
+  }
+
+  async function createProjectFile(kind: ProjectDocumentKind, name: string): Promise<boolean> {
+    if (!selectedProject) return false;
+    try {
+      const created = await createProjectDocument(selectedProject, kind, name, { folderId: currentFolder?.folder_id ?? null });
+      showCreateMenu = false;
+      await refreshSelectedProject();
+      openStoredFullscreen({
+        embedId: created.embedId,
+        projectId: selectedProject.project_id,
+        teamId: selectedProject.teamId,
+        embedData: { embed_id: created.embedId, type: created.embedType, status: 'finished' },
+        decodedContent: created.content,
+        embedType: created.embedType,
+        attrs: { type: created.embedType, contentRef: `embed:${created.embedId}`, status: 'finished' },
+        hasChatContext: false,
+      });
+      return true;
+    } catch (error) {
+      console.error('[ProjectsPage] Failed to create Project file:', error);
+      notificationStore.error(error instanceof Error && error.message ? error.message : $text('projects.create_file_failed'));
+      return false;
+    }
+  }
+
   function openStoredFullscreen(detail: EmbedFullscreenDispatchDetail): void {
     activeStoredFullscreen = detail;
+  }
+
+  // Timeline file rows open the file's folder in the Files tab (the file card is shown there).
+  function openTimelineFile(path: string): void {
+    const parent = directParentPath(path);
+    activeRemoteSourceId = null;
+    currentFolderHash = null;
+    currentVirtualPath = parent === '.' ? null : parent;
+    activeTab = 'folders';
   }
 
   function closeStoredFullscreen(): void {
@@ -2184,7 +2244,7 @@
         <SettingsTabs
           tabs={projectTabs}
           bind:activeTab
-          maxVisibleTabs={3}
+          maxVisibleTabs={4}
           testIdPrefix="project-tab"
         />
       </div>
@@ -2192,6 +2252,8 @@
       {#if activeTab === 'overview'}
         <section class="project-panel overview-panel" role="tabpanel" id="tabpanel-overview" data-testid="project-overview-panel">
           <ProjectChatsSection {items} presentations={previewState?.chatPresentations} />
+          {#if selectedProject && !previewState}<ProjectSpecificationsPanel project={selectedProject} />{/if}
+          {#if selectedProject && !previewState}<ProjectChecksPanel project={selectedProject} />{/if}
           <ProjectReadme
             state={readmeState}
             onUpload={() => uploadInput?.click()}
@@ -2212,12 +2274,15 @@
                 <span class="menu-icon plan-icon" aria-hidden="true"></span>
                 <span><strong>New plan</strong><small>Plan work for this project</small></span>
               </button>
+              {#if canCreateFiles}<ProjectCreateFileEntries variant="root" onCreate={createProjectFile} onCreateFolder={createProjectSubfolder} />{/if}
             </div>
           {/if}
           {#if readmeState.status === 'empty'}
             <div class="legacy-empty-contract" data-testid="project-empty-items" aria-hidden="true"></div>
           {/if}
         </section>
+      {:else if activeTab === 'timeline'}
+        <section class="project-panel" role="tabpanel" id="tabpanel-timeline" data-testid="project-timeline-panel">{#if selectedProject}<ProjectTimelinePanel projectId={selectedProject.project_id} teamId={selectedProject.teamId ?? null} onOpenFile={openTimelineFile} />{/if}</section>
       {:else if activeTab === 'folders'}
       <section class="project-panel folders-panel" class:viewer-split-open={viewerSplitOpen} role="tabpanel" id="tabpanel-folders" data-testid="project-folders-panel">
         <div class="folder-summary-row">
@@ -2326,6 +2391,7 @@
                 <button type="button" data-testid="project-create-chat" onclick={startProjectChat}><span class="menu-icon chat-icon" aria-hidden="true"></span><span><strong>New chat</strong></span></button>
                 <button type="button" data-testid="project-create-workflow" onclick={startProjectWorkflow}><span class="menu-icon workflow-icon" aria-hidden="true"></span><span><strong>New workflow</strong></span></button>
                 <button type="button" data-testid="project-create-plan" onclick={startProjectPlan}><span class="menu-icon plan-icon" aria-hidden="true"></span><span><strong>New plan</strong></span></button>
+                {#if canCreateFiles}<ProjectCreateFileEntries variant="folder" onCreate={createProjectFile} onCreateFolder={createProjectSubfolder} />{/if}
               </div>
             {/if}
             </div>
@@ -3465,8 +3531,8 @@
     width: 100%;
     margin: 0;
     transform: none;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-auto-rows: 1fr;
+    /* Wraps instead of squeezing when the folder panel is narrow (e.g. beside an open file). */
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
     min-height: 10rem;
     border: 0;
     border-inline-start: 1px solid var(--color-grey-30);
@@ -3485,6 +3551,9 @@
     min-height: 10rem;
     color: var(--color-font-secondary);
     text-align: center;
+    /* Flat tiles like Sync/Upload/Create, without the global button drop shadow. */
+    filter: none;
+    text-shadow: none;
   }
 
   .create-menu.folder-create-menu .menu-icon { width: 1.75rem; height: 1.75rem; }
@@ -3880,6 +3949,17 @@
 
   @container project-page (max-width: 700px) {
     .browser-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* A narrow folder panel (small window or a file open beside it) stacks the
+     Create menu under Sync/Upload/Create so every entry stays readable and clickable. */
+  @container project-page (max-width: 899px) {
+    .browser-grid > .project-action-expander.expanded,
+    .browser-list > .project-action-expander.expanded { grid-template-columns: minmax(0, 1fr); }
+    .project-action-expander.expanded .project-actions { width: 100%; }
+    .project-action-expander.expanded .project-actions button { flex: 1; min-width: 0; }
+    .create-menu.folder-create-menu { min-height: 0; border-inline-start: 0; border-top: 1px solid var(--color-grey-30); }
+    .create-menu.folder-create-menu button { min-height: 6rem; }
   }
 
   @container project-page (max-width: 500px) {

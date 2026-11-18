@@ -317,6 +317,7 @@ async def _run_mocked_protocol_guard_main_processor(
     resolved_chat_depth=0,
     always_include_skills=None,
     on_tool_generation=None,
+    encryption_service=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -426,6 +427,10 @@ async def _run_mocked_protocol_guard_main_processor(
     # This loop fixture owns fake integration boundaries; never make real IPC
     # requests while exercising tool parsing, fallback and prompt behavior.
     monkeypatch.setattr(main_processor, "fetch_related_chat_summaries", AsyncMock(return_value=[]))
+    # Spawned-chat lookups read Redis sets the fake caches do not model; chat
+    # orchestration has its own tests (test_chat_orchestration_skills.py).
+    monkeypatch.setattr(main_processor, "orchestration_skill_additions", AsyncMock(return_value=(set(), None)))
+    monkeypatch.setattr(main_processor, "orchestration_blocked_skills", AsyncMock(return_value=(set(), None)))
     from backend.apps.workflows.skills import saved_workflow_context
     monkeypatch.setattr(saved_workflow_context, "saved_workflow_metadata", lambda *_args, **_kwargs: [])
     from backend.core.api.app.services.cache import CacheService
@@ -542,7 +547,7 @@ async def _run_mocked_protocol_guard_main_processor(
             preprocessing_results,
             production_instructions,
             directus_service,
-            None,
+            encryption_service,
             user_vault_key_id,
             all_mates_configs or [],
             discovered_apps_metadata=discovered_apps_metadata or {},
@@ -1028,6 +1033,31 @@ async def test_stage_one_app_shortlist_limits_ordinary_main_prompt_instructions(
     assert "SELECTED_APP_INSTRUCTION" in prompt
     assert "UNRELATED_APP_INSTRUCTION" not in prompt
 
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user,web-browse.dispatch-and-routing
+@pytest.mark.parametrize("selected", [["web-browse"], ["web-search"]])
+async def test_browse_form_guidance_loads_only_when_browse_is_selected(monkeypatch, selected) -> None:
+    import yaml
+    from backend.shared.python_schemas.app_metadata_schemas import AppInstructionDefinition
+
+    definitions = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/web/app.yml").read_text())
+    instructions = [AppInstructionDefinition.model_validate(value) for value in definitions["instructions"]]
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Answer."]],
+        discovered_apps_metadata={"web": SimpleNamespace(
+            skills=[SimpleNamespace(id="search"), SimpleNamespace(id="browse")],
+            instructions=instructions, focuses=[],
+        )},
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": selected},
+    )
+    prompt = calls[0]["system_prompt"]
+    assert ("Filling a web form together with the user" in prompt) is (selected == ["web-browse"])
+    assert "Never submit, send or finish the form yourself" in prompt or selected != ["web-browse"]
+    # The session cap covers the whole form and cannot be raised later; a reached
+    # cap is reported, never hidden behind claimed fills.
+    assert ("`max_credits: 1000`" in prompt and "`budget_exceeded`" in prompt) is (selected == ["web-browse"])
+    assert ("no `start_url` or `max_credits`" in prompt) is (selected == ["web-browse"])
 
 def _baseline_search_test_catalog():
     def metadata(app_id, skill_ids):
@@ -2570,8 +2600,11 @@ async def test_answer_recovery_excludes_dispatch_guidance_but_keeps_result_and_s
     assert recovery["tools"] is None and recovery["tool_choice"] == "none"
     assert "MUST make a SINGLE skill call" in primary["system_prompt"]
     assert "MUST make a SINGLE skill call" not in recovery["system_prompt"]
+    browse_guidance = [i for i in instructions if i.for_skills == ["browse"]]
+    assert browse_guidance, "web-browse operating guidance is skill-gated"
     for instruction in instructions:
-        included = not instruction.categories or category in instruction.categories
+        # Skill-gated guidance loads only with its skill; web-browse is not selected here.
+        included = (not instruction.categories or category in instruction.categories) and not instruction.for_skills
         assert (instruction.instruction in primary["system_prompt"]) is included
         assert (instruction.instruction in recovery["system_prompt"]) is (included and not instruction.tool_phase_only)
     actual = load_base_instructions()

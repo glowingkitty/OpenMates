@@ -4,12 +4,12 @@
  */
 
 import { get } from "svelte/store";
-import { getApiEndpoint, apiEndpoints, isDevEnvironment } from "../config/api";
+import { getApiEndpoint, isDevEnvironment } from "../config/api";
 import {
   currentSignupStep,
   isInSignupProcess,
   getStepFromPath,
-  STEP_ALPHA_DISCLAIMER,
+  STEP_BASICS,
   isSignupPath,
   primeSignupLocation,
 } from "./signupState";
@@ -79,7 +79,7 @@ import {
 } from "./authState";
 // Import auth types
 import type { SessionCheckResult } from "./authTypes";
-import { installRustCrossTabLogout, prewarmRustAuth, rustAuthEnabled, rustSessionCheck } from "../services/rustCore/authOperation";
+import { installRustCrossTabLogout, prewarmRustAuth, rustSessionCheck } from "../services/rustCore/authOperation";
 import { missingKeyPlanFailClosed, resumeDebugSessionRust, rustLanguageReconcile } from "../services/rustCore/auth/actionsPush";
 
 // Flag builds: start the Rust auth Worker while the app hydrates so session
@@ -184,39 +184,14 @@ async function performAuthCheck(
         const checkSession = async (): Promise<SessionCheckResult | null> => {
           // A queued tab or an older login attempt may have been superseded.
           if (!isCurrentSession()) return null;
-          if (rustAuthEnabled()) {
-            // Rust builds and classifies the same request; the page executes it.
-            const decision = await rustSessionCheck({
-              deviceSignals: deviceSignals || {},
-              sessionId: getSessionId(),
-              signal: authAbortController.signal,
-            });
-            if (decision.kind === "unreachable") throw new Error(`HTTP ${decision.status}`);
-            return decision.data as SessionCheckResult;
-          }
-          const response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/json",
-              Origin: window.location.origin,
-            },
-            body: JSON.stringify({
-              deviceSignals: deviceSignals || {},
-              session_id: getSessionId(),
-            }),
-            credentials: "include",
+          // Rust builds and classifies the request; the page executes it.
+          const decision = await rustSessionCheck({
+            deviceSignals: deviceSignals || {},
+            sessionId: getSessionId(),
             signal: authAbortController.signal,
           });
-          if (response.status === 401) {
-            // An explicit auth rejection is definitive, unlike a network/503
-            // failure. Route it through the existing session-expiry cleanup.
-            return { success: false, message: "Session expired or revoked" };
-          }
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-          return await response.json();
+          if (decision.kind === "unreachable") throw new Error(`HTTP ${decision.status}`);
+          return decision.data as SessionCheckResult;
         };
 
         // Cookies are read when fetch starts under the lock, after the previous
@@ -361,40 +336,16 @@ async function performAuthCheck(
 
         // Flag builds: Rust plans the rest of the forced logout. The forced flag
         // above is already set, so no encrypted chat loads while Rust answers.
-        const rustPlan = rustAuthEnabled()
-          ? await missingKeyPlanFailClosed({
-              alreadyForced: alreadyForcedLogout,
-              sharedChatSession: isSharedChatSession,
-              pairLoginPending: isPairLoginPending,
-              ogImageMode: isOgImageMode,
-              hadLocalSession: Boolean(get(userProfile)?.username || get(userProfile)?.user_id),
-              storageEvicted: (await import("../services/cryptoKeyStorage")).wasStayLoggedIn(),
-            })
-          : null;
-        if (rustPlan && !isCurrentSession()) return currentAuthResult();
-
-        if (rustPlan) {
-          if (rustPlan.clearActiveChat) activeChatStore.clearActiveChat();
-        } else if (typeof window !== "undefined") {
-          if (isSharedChatSession) {
-            console.debug(
-              "[AuthSessionActions] Preserving shared chat session (key in URL fragment, not master key)",
-            );
-          } else if (isPairLoginPending) {
-            console.debug(
-              "[AuthSessionActions] Preserving pair login deep link; user will authenticate fresh",
-            );
-          } else if (isOgImageMode) {
-            console.debug(
-              "[AuthSessionActions] Preserving welcome screen in og=1 mode",
-            );
-          } else {
-            activeChatStore.clearActiveChat();
-            console.debug(
-              "[AuthSessionActions] Cleared active chat IMMEDIATELY (synchronous) - missing master key",
-            );
-          }
-        }
+        const rustPlan = await missingKeyPlanFailClosed({
+          alreadyForced: alreadyForcedLogout,
+          sharedChatSession: isSharedChatSession,
+          pairLoginPending: isPairLoginPending,
+          ogImageMode: isOgImageMode,
+          hadLocalSession: Boolean(get(userProfile)?.username || get(userProfile)?.user_id),
+          storageEvicted: (await import("../services/cryptoKeyStorage")).wasStayLoggedIn(),
+        });
+        if (!isCurrentSession()) return currentAuthResult();
+        if (rustPlan.clearActiveChat) activeChatStore.clearActiveChat();
 
         // Set auth state (don't block on database deletion)
         authStore.update((state) => ({
@@ -411,24 +362,9 @@ async function performAuthCheck(
         // means the user has no local session record (e.g. DB schema upgrade wiped data, or a stale
         // server cookie survived an explicit logout). Showing "You have been logged out" is
         // misleading when the user was never logged in from the browser's perspective.
-        const localProfile = get(userProfile);
-        const hadLocalSession =
-          localProfile?.username || localProfile?.user_id;
-
-        if (
-          rustPlan
-            ? rustPlan.notify !== null
-            : !alreadyForcedLogout &&
-              !isSharedChatSession &&
-              !isPairLoginPending &&
-              hadLocalSession
-        ) {
+        if (rustPlan.notify !== null) {
           const $text = get(text);
-          const { wasStayLoggedIn } =
-            await import("../services/cryptoKeyStorage");
-          const wasStorageEvicted = rustPlan
-            ? rustPlan.notify === "storage_evicted"
-            : wasStayLoggedIn();
+          const wasStorageEvicted = rustPlan.notify === "storage_evicted";
 
           if (wasStorageEvicted) {
             // User had stayLoggedIn=true but browser evicted IndexedDB (e.g. iOS Safari storage pressure)
@@ -461,11 +397,7 @@ async function performAuthCheck(
         // derives a new master key. The background logout IIFE would race with the new session
         // (POST /auth/logout with credentials: 'include' sends the new session's cookies).
         // Simply clearing auth state is sufficient for both cases.
-        if (
-          rustPlan
-            ? rustPlan.destructiveLogout
-            : !isSharedChatSession && !isPairLoginPending
-        ) {
+        if (rustPlan.destructiveLogout) {
           isLoggingOut.set(true);
           console.debug(
             "[AuthSessionActions] Set isLoggingOut to true for missing master key logout",
@@ -524,7 +456,7 @@ async function performAuthCheck(
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         // Only delete cookies if not a pair login — the user needs the existing session
         // cookies intact so checkAuth() can validate after passkey login succeeds.
-        if (rustPlan ? rustPlan.deleteCookies : !isPairLoginPending) {
+        if (rustPlan.deleteCookies) {
           deleteAllCookies();
         }
         return false;
@@ -560,7 +492,7 @@ async function performAuthCheck(
       // A validated account's persisted stage is authoritative. A signup URL
       // can start the guest flow, but must never reopen signup for a completed
       // account or move an unfinished account away from its saved stage.
-      if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") await primeSignupLocation(data.user.last_opened);
+      await primeSignupLocation(data.user.last_opened);
       if (isSignupPath(data.user.last_opened)) {
         currentSignupStep.set(getStepFromPath(data.user.last_opened));
         isInSignupProcess.set(true);
@@ -627,17 +559,9 @@ async function performAuthCheck(
             ? rawLocalLanguage
             : null;
 
-        const languagePlan = rustAuthEnabled()
-          ? await rustLanguageReconcile(data.user.language, defaultProfile.language, localPreferredLanguage)
-          : null;
-        const accountLanguage = languagePlan ? languagePlan.applyAccount : userLanguage;
-        if (
-          languagePlan
-            ? languagePlan.pushLocal
-            : localPreferredLanguage &&
-              localPreferredLanguage !== userLanguage &&
-              data.user.language // only reconcile if server has a stored language
-        ) {
+        const languagePlan = await rustLanguageReconcile(data.user.language, defaultProfile.language, localPreferredLanguage);
+        const accountLanguage = languagePlan.applyAccount;
+        if (languagePlan.pushLocal) {
           console.info(
             `[AuthSessionActions] Language mismatch: server="${userLanguage}", local="${localPreferredLanguage}" — pushing local preference to server`,
           );
@@ -684,11 +608,7 @@ async function performAuthCheck(
 
         // Use reconciled language (local takes priority if it differs)
         const effectiveLanguage =
-          (languagePlan
-            ? languagePlan.effectiveIsLocal
-            : localPreferredLanguage &&
-              localPreferredLanguage !== userLanguage &&
-              data.user.language)
+          languagePlan.effectiveIsLocal
             ? localPreferredLanguage
             : getCurrentLanguage();
 
@@ -775,21 +695,7 @@ async function performAuthCheck(
       } else {
         // Non-admin on prod: resume debug log sharing session if one was active
         try {
-          if (rustAuthEnabled()) {
-            await resumeDebugSessionRust((id) => clientLogForwarder.startDebugSession(id));
-          }
-          const debugSession = rustAuthEnabled() ? null : localStorage.getItem("debug_session");
-          if (debugSession) {
-            const parsed = JSON.parse(debugSession);
-            const expiresAt = parsed.expires_at
-              ? new Date(parsed.expires_at).getTime()
-              : Infinity;
-            if (expiresAt > Date.now() && parsed.debugging_id) {
-              clientLogForwarder.startDebugSession(parsed.debugging_id);
-            } else {
-              localStorage.removeItem("debug_session");
-            }
-          }
+          await resumeDebugSessionRust((id) => clientLogForwarder.startDebugSession(id));
         } catch {
           // Non-critical
         }
@@ -937,8 +843,8 @@ async function performAuthCheck(
             );
           });
 
-          // Reset signup step to alpha disclaimer for next time
-          currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+          // Reset signup step so the next signup starts at the first step
+          currentSignupStep.set(STEP_BASICS);
 
           // CRITICAL: Clear all sessionStorage drafts when returning to demo mode
           // This ensures drafts don't persist if user interrupts login/signup
@@ -1273,7 +1179,7 @@ async function performAuthCheck(
         // Check if user is in signup flow (offline-first mode)
         // A user is in signup flow only if last_opened explicitly indicates signup
         // Avoid using tfa_enabled=false to keep passkey-only users out of OTP setup
-        if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") await primeSignupLocation(localProfile.last_opened);
+        await primeSignupLocation(localProfile.last_opened);
         const inSignupFlow = isSignupPath(localProfile.last_opened);
 
         if (inSignupFlow) {

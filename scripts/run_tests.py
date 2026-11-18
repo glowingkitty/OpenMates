@@ -32,7 +32,7 @@ Usage:
     python3 scripts/tests.py run --prod-app-skill          # prod CLI app-skill smoke (daily slot)
     python3 scripts/tests.py run --hourly-dev --dry-run-notify  # test Discord wiring
     python3 scripts/tests.py run --max-concurrent 10       # override batch size
-    python3 scripts/tests.py run --no-fail-fast            # run all batches
+    python3 scripts/tests.py run --fail-fast               # stop after the first failed spec (default: run all)
 
 Architecture: docs/architecture/test-orchestration.md
 """
@@ -129,6 +129,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from backend.shared.python_utils.live_email_policy import require_live_email  # noqa: E402 (repo path bootstrap)
+from scripts.brevo_ipv4 import urlopen as brevo_urlopen  # noqa: E402 (repo path bootstrap)
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 STORAGE_AUDIT_CANDIDATE_DIR = RESULTS_DIR / "storage-audit-candidate"
@@ -4655,7 +4656,7 @@ class NotificationService:
                 "api-key": self.brevo_api_key,
                 "content-type": "application/json",
             }, method="POST")
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with brevo_urlopen(req, timeout=30) as resp:
                 resp.read()
             _log("Email accepted via Brevo")
             return True
@@ -6012,9 +6013,13 @@ PROD_SMOKE_SPECS: list[tuple[str, str, str]] = [
     ("reachability", "reachability spec", "prod-smoke-reachability.spec.ts"),
     ("paid-chat", "CLI paid chat smoke", "verify_prod_cli_smoke.py"),
     ("app-skill-web-search", "CLI web-search app-skill smoke", "verify_prod_cli_smoke.py"),
+    # Signed-out chat that must get an assistant reply (TASK-832).
+    ("guest-chat", "guest chat reply smoke", "verify_prod_cli_smoke.py"),
+    # Signed-out web composer: active Send that sends and gets a reply (TASK-2459).
+    ("guest-web-send", "signed-out web send smoke", "prod-smoke-guest-web-send.spec.ts"),
 ]
 PROD_SMOKE_SPECS_BY_SUITE: dict[str, list[tuple[str, str, str]]] = {
-    PROD_SMOKE_SUITE_FREE_HOURLY: [PROD_SMOKE_SPECS[0]],
+    PROD_SMOKE_SUITE_FREE_HOURLY: [PROD_SMOKE_SPECS[0], PROD_SMOKE_SPECS[4], PROD_SMOKE_SPECS[3]],
     PROD_SMOKE_SUITE_PAID_CHAT: [PROD_SMOKE_SPECS[1]],
     PROD_SMOKE_SUITE_APP_SKILL_WEB_SEARCH: [PROD_SMOKE_SPECS[2]],
 }
@@ -7711,7 +7716,8 @@ class TestOrchestrator:
         self.max_concurrent = args.max_concurrent
         self.account = args.account
         self.create_account_slot = args.create_account_slot
-        self.fail_fast = not args.no_fail_fast
+        # Run the whole selection by default; stopping early hides later failures.
+        self.fail_fast = bool(getattr(args, "fail_fast", False)) and not args.no_fail_fast
         self.use_mocks = not args.no_mocks
         self.record_live_fixtures = args.record_live_fixtures
         self.proof_video_profile = args.proof_video_profile
@@ -9435,8 +9441,11 @@ def main() -> int:
                         help="Pin a single Playwright spec to a specific GitHub Actions test-account slot")
     parser.add_argument("--create-account-slot", type=int, choices=range(14, 21), metavar="14-20", default=None,
                         help="Provision a reserved auth-test account slot via cli-provision-auth-accounts.spec.ts")
+    parser.add_argument("--fail-fast", action="store_true",
+                        help="Stop dispatching further specs after the first failure (off by default: "
+                             "every selected spec runs so all failures are reported together)")
     parser.add_argument("--no-fail-fast", action="store_true",
-                        help="Don't stop on first batch failure")
+                        help="Accepted for older callers; running every spec is the default")
     parser.add_argument("--no-mocks", action="store_true",
                         help="Run with real LLM calls instead of mocks")
     parser.add_argument("--record-live-fixtures", action="store_true",

@@ -108,6 +108,7 @@ fn plan(input: &Map<String, Value>) -> Result<Value, String> {
     let label = match label_value {
         Some(Value::String(label)) => label,
         _ if provider == "google_calendar" => "Google Calendar".to_string(),
+        _ if provider == "figma" => "Figma".to_string(),
         _ => "Connected account".to_string(),
     };
     let account_ref = match prop(hint, "account_ref").ok().flatten() {
@@ -134,7 +135,11 @@ fn plan(input: &Map<String, Value>) -> Result<Value, String> {
         None if bundle_nullish => return Ok(json!({"kind": "ok", "steps": steps, "malformed": true})),
         None => scopes_text(input, "bundleScopes")?.unwrap_or_else(|| "[]".to_string()),
     };
-    let app_id = if provider == "google_calendar" { "calendar" } else { provider.as_str() };
+    let app_id = match provider.as_str() {
+        "google_calendar" => "calendar",
+        "figma" => "design",
+        other => other,
+    };
     let permissions = format!(
         "{{\"app_id\":{},\"allowed_actions\":{},\"scopes\":{}}}",
         quote(app_id),

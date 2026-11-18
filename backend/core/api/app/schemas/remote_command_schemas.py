@@ -10,6 +10,17 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class _StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_trace_context(cls, value: object) -> object:
+        # The web WebSocket client adds a W3C `_traceparent` to every outgoing
+        # payload (ws_trace_context). It is transport metadata, not part of the
+        # command contract, so it is removed here; every other unknown field is
+        # still refused.
+        if isinstance(value, dict) and "_traceparent" in value:
+            return {key: item for key, item in value.items() if key != "_traceparent"}
+        return value
+
 
 class RemoteCommandPolicy(_StrictModel):
     argv: list[str] = Field(min_length=1, max_length=128)

@@ -57,6 +57,8 @@ const proofColorScheme = isPhoneProofProfile ? 'dark' : proofVideoProfile === 'w
 const isLiveFixtureRecording = process.env.E2E_RECORD_LIVE_FIXTURES === '1';
 
 const config: PlaywrightTestConfig = {
+	// A committed `.only` would silently narrow a CI run and hide every other failure.
+	forbidOnly: Boolean(process.env.CI),
 	use: {
 		browserName,
 		// Allow tests to call page.goto('/') and similar relative paths.

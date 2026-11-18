@@ -33,18 +33,19 @@ TEST_RESULT_FRONTEND_TYPE = "code-test-result"
 TEST_RESULT_APP_ID = "code"
 TEST_RESULT_SKILL_ID = "test_result"
 STALE_REASON_REVISIONS_CHANGED = "revisions_changed"
-# Fixed namespace: one execution always maps to the same test result embed id.
-_TEST_RESULT_EMBED_NAMESPACE = uuid.UUID("5b0c3e8e-2f4a-4d55-9a57-6f1d8c0e7a21")
+RESULT_EMBED_ID_KEY = "result_embed_id"
 
 
-def run_result_embed_id(execution_id: str) -> str:
-    """Id of the test result embed of one Code Run execution.
+def run_result_embed_id(payload: dict[str, Any]) -> str:
+    """Id of the test result embed of one Code Run task, chosen on first use.
 
     Known before the run ends, so a chat-bound run without a target embed stores
     its evidence under this id; the owner-checked generated-assets download-url
-    route then finds the embed that references the evidence.
+    route then finds the embed that references the evidence. A random UUIDv4 on
+    purpose: the embed transaction reserves UUIDv5 ids for sealed AI children.
+    The task payload is one dict for the whole run, so every caller sees one id.
     """
-    return str(uuid.uuid5(_TEST_RESULT_EMBED_NAMESPACE, f"test_result:{execution_id}"))
+    return payload.setdefault(RESULT_EMBED_ID_KEY, str(uuid.uuid4()))
 
 
 def build_test_result_content(
@@ -343,5 +344,5 @@ async def persist_test_result_embed(
         project_id=(payload.get("test_run") or {}).get("project_id"),
         tested_embed_ids=tested,
         log_prefix=f"[TestResultEmbed] [execution:{execution_id[:8]}]",
-        embed_id=run_result_embed_id(execution_id),
+        embed_id=run_result_embed_id(payload),
     )

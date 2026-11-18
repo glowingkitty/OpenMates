@@ -301,6 +301,19 @@ test('types outside the allowlist are refused', async () => {
     403, 'embed_access_denied');
 });
 
+// contract-test: direct surface=rest_api assertions=projects.items.create-documents,projects.files.user-edit-direct
+test('a code file is editable in its Project but not in a chat', async () => {
+  const rows = seed({ embed: { app_id: 'code', skill_id: 'code' } });
+  linkToProject(rows, DIAGRAM_ID);
+  const db = fakeDatabase(rows);
+  await rejectsWith(commitUserEmbedRevision(db, body()), 403, 'project_context_required');
+  const result = await commitUserEmbedRevision(db, body({ scope: { kind: 'project', project_id: PROJECT_ID } }));
+  assert.equal(result.status, 'committed');
+  assert.equal(result.current_revision, 2);
+  await rejectsWith(commitUserEmbedRevision(fakeDatabase(seed({ embed: { app_id: 'code', skill_id: 'code' } })), body()),
+    403, 'embed_type_not_editable');
+});
+
 // contract-test: direct surface=rest_api assertions=embed-user-edits.edit.next-version
 test('a stale version or head hash is a conflict that writes nothing', async () => {
   for (const stale of [{ expected_content_hash: hash('older-cipher') }, { expected_revision: 2,

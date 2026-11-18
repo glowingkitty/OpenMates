@@ -241,6 +241,18 @@ enum NativeEmbedDownload {
         }
         return zip.data ?? Data()
     }
+    /// Flat ZIP of named files (embroidery machine formats); fails when a name repeats or a file is empty.
+    static func zip(entries: [(name: String, bytes: Data)]) throws -> Data {
+        let archive = try Archive(data: Data(), accessMode: .create)
+        var names = Set<String>()
+        for entry in entries {
+            guard !entry.bytes.isEmpty, names.insert(entry.name).inserted else { throw URLError(.zeroByteResource) }
+            try archive.addEntry(with: entry.name, type: .file, uncompressedSize: Int64(entry.bytes.count), compressionMethod: .deflate) { position, count in
+                entry.bytes.subdata(in: Int(position)..<min(entry.bytes.count, Int(position) + count))
+            }
+        }
+        return archive.data ?? Data()
+    }
     private static func imageFilename(prompt: String, extension ext: String) -> String {
         var slug = prompt.lowercased().replacingOccurrences(of: "[^a-z0-9\\s]", with: " ", options: .regularExpression)
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)

@@ -5,6 +5,18 @@
 # notification through `python3 scripts/run_tests.py ...` so alerts come from
 # one place. This workflow only executes the selected suite and uploads the
 # structured artifacts that the dev server parses.
+#
+# Account: OPENMATES_TEST_ACCOUNT_API_KEY belongs to one dedicated production
+# test account (not a person's account). It is an ordinary account funded once
+# by a single-use admin gift card: no unlimited credits and no bypass, so a
+# run fails like a user's would when credits run out. Its email is in the dev
+# server .env, which keeps it out of the daily growth/usage report, and an
+# admin gift card is not a purchase, so it never appears in billing revenue.
+# Safety strikes (and the account deletion at the third strike) come only from
+# image/video safety checks; these suites send text chat and web search only,
+# so they cannot earn a strike. Expected cost: paid-chat 3x/day (~2 credits
+# each) plus app-skill-web-search 1x/day (~10) is about 16 credits a day; the
+# free-hourly suite uses the guest endpoint and no account credits.
 
 name: "Prod smoke tests"
 run-name: "Prod smoke ${{ inputs.suite || 'free-hourly' }} ${{ inputs.dispatch_token || github.run_id }}"
@@ -83,7 +95,45 @@ jobs:
           fi
           echo "status=passed" >> "$GITHUB_OUTPUT"
         env:
-          PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.PROD_BASE_URL }}
+          # The web app's public URL. openmates.org now serves the marketing
+          # site, which has no app header or composer, so every web smoke failed there.
+          PLAYWRIGHT_TEST_BASE_URL: https://app.openmates.org
+
+      - name: Run signed-out web send smoke (active Send, sends, reply)
+        if: ${{ inputs.suite == 'free-hourly' }}
+        id: guest_web_send
+        continue-on-error: true
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          cd frontend/apps/web_app
+          npx playwright test "tests/prod-smoke/prod-smoke-guest-web-send.spec.ts" \
+            --reporter=list,json \
+            > "$GITHUB_WORKSPACE/test-results/guest-web-send.json" || exit_code=$?
+          if [ "${exit_code:-0}" != "0" ]; then
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "status=passed" >> "$GITHUB_OUTPUT"
+        env:
+          # The web app's public URL. openmates.org now serves the marketing
+          # site, which has no app header or composer, so every web smoke failed there.
+          PLAYWRIGHT_TEST_BASE_URL: https://app.openmates.org
+
+      - name: Run guest chat smoke (requires an assistant reply)
+        if: ${{ inputs.suite == 'free-hourly' }}
+        id: guest_chat
+        continue-on-error: true
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          python3 scripts/verify_prod_cli_smoke.py \
+            --scenario guest-chat \
+            --api-url "$PROD_API_URL" \
+            > "$GITHUB_WORKSPACE/test-results/guest-chat.json" || exit_code=$?
+          if [ "${exit_code:-0}" != "0" ]; then
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "status=passed" >> "$GITHUB_OUTPUT"
 
       - name: Run paid CLI chat smoke
         if: ${{ inputs.suite == 'paid-chat' }}
@@ -127,13 +177,18 @@ jobs:
         if: always()
         with:
           name: prod-smoke-results-${{ github.run_id }}
-          path: test-results/
+          # Playwright screenshots, page snapshots and videos explain a failed browser check.
+          path: |
+            test-results/
+            frontend/apps/web_app/test-results/
           if-no-files-found: ignore
           retention-days: 14
 
       - name: Fail workflow on selected suite failure
         if: |
           (inputs.suite == 'free-hourly' && steps.reachability.outputs.status == 'failed') ||
+          (inputs.suite == 'free-hourly' && steps.guest_chat.outputs.status == 'failed') ||
+          (inputs.suite == 'free-hourly' && steps.guest_web_send.outputs.status == 'failed') ||
           (inputs.suite == 'paid-chat' && steps.paid_chat.outputs.status == 'failed') ||
           (inputs.suite == 'app-skill-web-search' && steps.app_skill_web_search.outputs.status == 'failed')
         run: exit 1

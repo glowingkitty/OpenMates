@@ -94,3 +94,23 @@ skills.search.description:
   sv: Hitta krypterade planer via en kapabel ansluten klient.
   he: מציאת תוכניות מוצפנות דרך לקוח מחובר מתאים.
   verified_by_human: []
+skills.specification:
+  context: Skill name for drafting a Specification
+  en: Specification
+  de: Spezifikation
+  verified_by_human: []
+skills.specification.description:
+  context: Description for the Specification skill
+  en: Draft or update a Specification with scope, requirements and flows.
+  de: Eine Spezifikation mit Umfang, Anforderungen und Abläufen entwerfen oder aktualisieren.
+  verified_by_human: []
+skills.check:
+  context: Skill name for defining a reusable Check
+  en: Check
+  de: Prüfung
+  verified_by_human: []
+skills.check.description:
+  context: Description for the Check skill
+  en: Define a reusable Check with mixed test, evaluation and confirmation sources.
+  de: Eine wiederverwendbare Prüfung mit gemischten Test-, Bewertungs- und Bestätigungsquellen definieren.
+  verified_by_human: []

@@ -156,9 +156,14 @@ MARKER_CHAT_EPOCH_SPECS = frozenset(
         "cli-recovery-fixtures.spec.ts",
         "cli-recovery-discovery.spec.ts",
         "diagram-html-editing.spec.ts",
+        # Slides focus replies come from the server-fired Focus continuation, which
+        # has no legacy claim; like dev and production they persist through epoch one.
+        "slides-focus-template-designer.spec.ts",
+        "slides-focus-presentation-planner.spec.ts",
         "maps-discovery-chat.spec.ts",
         "audio-recording-deferred-send.spec.ts",
         "chat-queued-followups-protocol.spec.ts",
+        "chat-queued-followups-same-tab.spec.ts",
         "chat-interrupted-followup.spec.ts",
         "workflow-metadata-warmup.spec.ts",
         "connection-resilience.spec.ts",
@@ -2022,10 +2027,12 @@ const [url, timeout, core] = [process.argv[1], Number(process.argv[2]), process.
 def component_warmup_route(specs: list[str]) -> str:
     """First preview route named in the first component spec, else a small default."""
     for name in specs[:1]:
-        found = re.search(
-            r"/dev/preview/[A-Za-z0-9_/.-]+", (WEB / "tests" / name).read_text()
-        )
-        if found and not found.group(0).endswith("/"):
+        source = (WEB / "tests" / name).read_text()
+        for found in re.finditer(r"/dev/preview/[A-Za-z0-9_/.-]+", source):
+            # A template literal continues the route (`.../DiagramHtmlEmbed${component}`):
+            # the matched prefix is not a page, so it never reaches data-preview-ready.
+            if found.group(0).endswith("/") or source[found.end():found.end() + 2] == "${":
+                continue
             return found.group(0)
     return COMPONENT_WARMUP_DEFAULT_ROUTE
 

@@ -16,6 +16,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from backend.apps.base_skill import BaseSkill
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
 from backend.apps.jobs.listing_filters import matches_listing_filters
 from backend.apps.jobs.provider_aliases import PROVIDER_ALIASES
 from backend.shared.app_packages.contracts import jobs_search_input
@@ -372,7 +373,7 @@ class SearchSkill(BaseSkill):
         except ValueError as exc:
             return JobsSearchResponse(error=str(exc))
         groups = await asyncio.gather(
-            *(self._search_one(index, raw, default_countries, secrets_manager) for index, raw in enumerate(requests, start=1))
+            *(self._search_one(index, raw, default_countries, secrets_manager, policy_from_skill_kwargs(kwargs)) for index, raw in enumerate(requests, start=1))
         )
         warnings = [warning for group in groups for warning in group.get("warnings", [])]
         providers = list(dict.fromkeys(provider for group in groups for provider in group.get("providers", [])))
@@ -388,6 +389,7 @@ class SearchSkill(BaseSkill):
 
     async def _search_one(
         self, index: int, raw: Any, default_countries: list[str], secrets_manager: Any,
+        policy: InternalLlmPolicy | None = None,
     ) -> dict[str, Any]:
         candidate_id = raw.get("id", index) if isinstance(raw, dict) else index
         request_id = candidate_id if isinstance(candidate_id, (str, int)) else index
@@ -482,7 +484,7 @@ class SearchSkill(BaseSkill):
                     candidates=jobs, candidate_projections=projections,
                     relevance_criteria=item.relevance_criteria,
                     search_parameters={"query": item.query, "countries": selected_countries, "location": item.location},
-                    profile="jobs", secrets_manager=secrets_manager,
+                    profile="jobs", secrets_manager=secrets_manager, policy=policy,
                 )
                 if ranking.applied:
                     jobs = ranking.candidates

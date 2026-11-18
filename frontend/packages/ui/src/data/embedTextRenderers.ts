@@ -76,7 +76,7 @@ import { renderDesignEmbroidery, renderDesignIconResult, renderDesignIconSearch 
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
-import { renderSlidesDeck } from '../components/embeds/slides/slidesEmbedText';
+import { renderSlidesDeck, renderSlidesTemplate } from '../components/embeds/slides/slidesEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
 import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from '../components/embeds/weather/weatherEmbedText';
 import { renderCompanyFinancialResult, renderCompanyFinancials, renderTrademarkSearch } from '../components/embeds/business/businessEmbedText';
@@ -130,6 +130,20 @@ function renderModel3DResult(content: Record<string, unknown>): string {
 	if (provider) lines.push(`provider: ${provider}`);
 	if (creator) lines.push(`creator: ${creator}`);
 	if (sourceUrl) lines.push(sourceUrl);
+	return lines.join('\n');
+}
+
+function renderPlansSkill(content: Record<string, unknown>): string {
+	const skill = str(content.skill_id) ?? str(content.type) ?? 'create';
+	const label = skill === 'specification' ? 'Specification (draft)' : skill === 'check' ? 'Check (draft)' : 'Plan (draft)';
+	const lines = [`**${str(content.title) ?? label}**`, label];
+	const summary = str(content.summary) ?? str(content.description) ?? str(content.goal);
+	if (summary) lines.push(trunc(summary, 240));
+	const count = (key: string) => (Array.isArray(content[key]) ? (content[key] as unknown[]).length : null);
+	const requirements = count('requirements');
+	if (requirements !== null) lines.push(`requirements: ${requirements}`);
+	const sources = count('sources');
+	if (sources !== null) lines.push(`sources: ${sources}`);
 	return lines.join('\n');
 }
 
@@ -251,6 +265,11 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:fitness:search_classes': renderFitnessSearch,
 	'app:openmates:share-usecase': renderGenericAppSkill,
 	'app:openmates:get-docs': renderGenericAppSkill,
+	'app:openmates:start-chat': renderGenericAppSkill,
+	'app:openmates:list-spawned-chats': renderGenericAppSkill,
+	'app:openmates:read-spawned-chat': renderGenericAppSkill,
+	'app:openmates:send-to-spawned-chat': renderGenericAppSkill,
+	'app:openmates:report-to-creator': renderGenericAppSkill,
 	'app:pdf:read': renderGenericAppSkill,
 	'app:pdf:search': renderGenericAppSkill,
 	'app:pdf:view': renderGenericAppSkill,
@@ -276,6 +295,9 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:business:search_investors': renderInvestorSearchText,
 	'app:business:company_ownership': renderCompanyOwnershipText,
 	'app:finance:check_accounts': renderFinanceCheckAccounts,
+	'app:plans:specification': renderPlansSkill,
+	'app:plans:check': renderPlansSkill,
+	'app:plans:create': renderPlansSkill,
 	'app:tasks:create': renderTasksParent,
 	'app:tasks:search': renderTasksParent,
 	'app:workflows:create-or-modify': renderWorkflowsParent,
@@ -299,6 +321,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'file-file': renderFile,
 	'docs-doc': renderDoc,
 	'slides-deck': renderSlidesDeck,
+	'slides-template': renderSlidesTemplate,
 	'sheets-sheet': renderSheet,
 	'pdf': renderPdf,
 	'image': renderImage,
@@ -341,6 +364,12 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'social-media-post': renderSocialMediaPost,
 	'tasks-task': renderTask,
 	'workflows-workflow': renderWorkflow,
+	'helplines': (c) => {
+		const lines = Array.isArray(c.lines) ? (c.lines as Record<string, unknown>[]) : [];
+		const rows = lines.map((l) => `- ${str(l.name) ?? ''}${str(l.phone) ? ` ${str(l.phone)}` : ''}`);
+		const emergency = str(c.emergency_number);
+		return ['**Helplines**', ...rows, ...(emergency ? [`Emergency: ${emergency}`] : [])].join('\n');
+	},
 	'focus-mode-activation': (c) => {
 		const name = str(c.focus_mode_name) ?? '';
 		return `**Focus Mode**${name ? ` — ${name}` : ''}`;

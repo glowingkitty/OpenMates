@@ -214,15 +214,14 @@ enum AppStrings {
     static var delete: String { L("common.delete") }
     static var close: String { L("common.close") }
     static var loading: String { L("common.loading") }
-    static var error: String { L("common.error") }
-    static var success: String { L("common.success") }
+    static var error: String { L("embeds.error") }
+    static var success: String { L("apple.common.success") }
     static var credits: String { L("common.credits") }
     static var pricing: String { L("common.pricing") }
     static var back: String { L("common.back") }
     static var showLess: String { L("common.show_less") }
     // Reuse the catalog's translated navigation action; common.next is absent.
     static var next: String { L("projects.workspace_next") }
-    static var skip: String { L("common.skip") }
     static var search: String { L("activity.search") }
     static var quickActionAsk: String { L("activity.quick_action_ask") }
     static var quickActionRecordRequest: String { L("activity.quick_action_record_request") }
@@ -231,17 +230,17 @@ enum AppStrings {
     static var retry: String { L("common.retry") }
     static var confirm: String { L("common.confirm") }
     static var edit: String { L("common.edit") }
-    static var add: String { L("common.add") }
+    static var add: String { L("tasks.workspace.add") }
     // The shared web catalog defines this action under sessions; common.remove
     // does not exist and previously exposed the raw key on attachment buttons.
     static var remove: String { L("settings.sessions.remove") }
     static var enabled: String { L("common.enabled") }
     static var disabled: String { L("common.disabled") }
-    static var on: String { L("common.on") }
-    static var off: String { L("common.off") }
-    static var yes: String { L("common.yes") }
-    static var no: String { L("common.no") }
-    static var ok: String { L("common.ok") }
+    static var on: String { L("apple.common.on") }
+    static var off: String { L("apple.common.off") }
+    static var yes: String { L("embeds.reminder.yes") }
+    static var no: String { L("embeds.reminder.no") }
+    static var ok: String { L("apple.common.ok") }
     static var copied: String { L("common.copied") }
     static var version: String { L("settings.current_version") }
     static var openMatesName: String { L("apps.openmates") }
@@ -435,16 +434,22 @@ enum AppStrings {
     static var syncing: String { L("activity.syncing") }
     static var syncComplete: String { L("activity.sync_complete") }
     static var incognito: String { L("activity.incognito") }
-    static var sendMessage: String { L("context_menu.send") }
+    static var sendMessage: String { L("enter_message.send") }
     static var sendAction: String { L("enter_message.send") }
     static var copyMessage: String { L("chats.context_menu.copy.text") }
     static var editMessage: String { L("chats.context_menu.edit.text") }
     static var deleteMessage: String { L("chats.context_menu.delete_message.text") }
     static var forkConversation: String { L("chats.context_menu.fork.text") }
-    static var chatMessageInput: String { L("chat.message_input") }
+    /// Web MessageInput uses its placeholder as the editor's aria-label.
+    static var chatMessageInput: String {
+        #if os(macOS)
+        L("enter_message.placeholder.desktop")
+        #else
+        L("enter_message.placeholder.touch")
+        #endif
+    }
     static var typeMessage: String { L("enter_message.placeholder.touch") }
     static var typeFollowup: String { L("enter_message.placeholder.followup_touch") }
-    static var startTyping: String { L("chat.start_typing") }
     static var aiResponding: String { L("enter_message.processing") }
     static func mateIsTyping(_ mate: String) -> String {
         LocalizationManager.shared.text("enter_message.is_typing", replacements: ["mate": mate])
@@ -461,11 +466,9 @@ enum AppStrings {
     static var thinkingHeaderDone: String { L("chat.thinking.header_done") }
     static var thinkingExpand: String { L("chat.thinking.expand") }
     static var thinkingCollapse: String { L("chat.thinking.collapse") }
-    static var stopResponse: String { L("chat.stop_response") }
+    static var stopResponse: String { L("common.stop") }
     static var messageQueued: String { L("enter_message.message_queued") }
-    static var loadEarlierMessages: String { L("chat.load_earlier") }
-    static var selectChatOrNew: String { L("chat.select_or_new") }
-    static var whatToHelpWith: String { L("chat.what_to_help_with") }
+    static var loadEarlierMessages: String { L("chat.timeline.load_earlier") }
     static var whatDoYouNeedHelpWith: String { L("chat.welcome.what_do_you_need_help_with") }
     static var resumeLastChatTitle: String { L("chats.resume_last_chat.title") }
     static var welcomeShowAllChats: String { L("chat.welcome.show_all_chats") }
@@ -479,18 +482,17 @@ enum AppStrings {
     static var recentChats: String { L("chat.recent") }
     static var hiddenChats: String { L("chat.hidden_chats") }
     static var noHiddenChats: String { L("chat.no_hidden_chats") }
-    static var unhide: String { L("chat.unhide") }
+    static var unhide: String { L("chats.context_menu.unhide") }
     static var piiHide: String { L("chat.pii_hide") }
     static var piiShow: String { L("chat.pii_show") }
-    static var renameChat: String { L("chat.rename") }
-    static var chatTitle: String { L("chat.title") }
-    static var conversationForked: String { L("chat.forked") }
+    static var renameChat: String { L("settings.developers_devices_rename") }
+    static var chatTitle: String { L("apple.chat.title_placeholder") }
     // Specification: specifications/features/chats/specification.yml
     // Assertion: chats.layout.responsive-history
     static var setReminder: String { L("chat.header.set_reminder") }
     static var chats: String { L("common.chats") }
     static var summary: String { L("common.summary") }
-    static var explore: String { L("common.explore") }
+    static var explore: String { L("apple.common.explore") }
     static var openChat: String { L("chat.open_chat") }
     static var searchNoResults: String { L("chats.search.no_results") }
     static var searchResultsLabel: String { L("chats.search.results_label") }
@@ -505,9 +507,9 @@ enum AppStrings {
     static var scrollToTop: String { L("chats.scroll_to_top") }
     static var scrollToBottom: String { L("chats.scroll_to_bottom") }
     static var interactiveQuestionFailed: String { L("chat.interactive_question_failed") }
-    static var interactiveQuestionClear: String { L("chat.interactive_question_clear") }
+    static var interactiveQuestionClear: String { L("apple.chat.interactive_question_clear") }
     static var anonymousFreeUsageFeatureNotice: String { L("chat.anonymous_free_usage.feature_notice") }
-    static var uploadSignupRequired: String { L("enter_message.attachments.signup_required.title") }
+    static var uploadSignupRequired: String { L("enter_message.attachments.signup_required_title") }
     static var requestFeature: String { L("chat.request_feature") }
     static var requestFeaturePrefill: String { L("chat.request_feature_prefill") }
     static var assistantFeedbackRateLabel: String { L("chat.assistant_feedback.rate_label") }
@@ -581,12 +583,11 @@ enum AppStrings {
     static var importMessagesImported: String { L("settings.account.import_messages_imported") }
     static var importMessagesBlocked: String { L("settings.account.import_messages_blocked") }
     static var importCreditsCharged: String { L("settings.account.import_credits_charged") }
-    static var importInvalidFormat: String { L("common.error") }
     static var importNoChats: String { L("settings.account.import_select_chats") }
     static var deleteAccount: String { L("settings.delete_account") }
-    static var deleteAccountWarning: String { L("settings.delete_account.warning") }
-    static var deleteAccountConfirmText: String { L("settings.delete_account.confirm_text") }
-    static var permanentlyDeleteAccount: String { L("settings.delete_account.confirm_button") }
+    static var deleteAccountWarning: String { L("settings.account.delete_account_data_deletion_warning_message") }
+    static var deleteAccountConfirmText: String { L("settings.account.delete_account_confirmation_input_label") }
+    static var permanentlyDeleteAccount: String { L("settings.account.delete_account_delete_button") }
 
     // MARK: - Settings - AI
     static var aiModelProviders: String { L("settings.ai") }
@@ -609,7 +610,6 @@ enum AppStrings {
     static var memoriesDescription: String { L("settings.app_store.settings_memories.section_description") }
     static var encryptionNotice: String { L("settings.app_settings_memories.encrypted_notice") }
     static var confirmDeleteMemory: String { L("settings.app_settings_memories.confirm_delete") }
-    static var entries: String { L("settings.app_settings_memories.entries") }
     static var memoryKeyRequired: String { L("settings.app_settings_memories.item_key_required") }
     static var memoryValueRequired: String { L("settings.app_settings_memories.item_value_required") }
     static var memoryAuthenticationRequired: String { L("settings.app_settings_memories.authentication_required") }
@@ -626,8 +626,8 @@ enum AppStrings {
     // MARK: - Settings - Apps
     static var showAllApps: String { L("settings.app_store.show_all_apps") }
     static var noAppsAvailable: String { L("settings.app_store.no_apps_available") }
-    static var installed: String { L("settings.app_store.installed") }
-    static var searchApps: String { L("settings.app_store.search_apps") }
+    static var installed: String { L("settings.installed") }
+    static var searchApps: String { L("settings.app_store.all_apps.search_placeholder") }
     static var apps: String { L("settings.apps") }
     static var allAppsFilterAll: String { L("settings.app_store.all_apps.filter_all") }
     static var allAppsFilterSettingsMemories: String { L("settings.app_store.all_apps.filter_settings_memories") }
@@ -654,19 +654,18 @@ enum AppStrings {
     static var activeSessions: String { L("settings.sessions.title") }
     static var pairNewDevice: String { L("settings.sessions.pair_initiate_title") }
     static var logoutAllSessions: String { L("settings.logout_all") }
-    static var addPasskey: String { L("settings.passkeys.add") }
-    static var setup2FA: String { L("settings.two_factor_auth.setup") }
-    static var disable2FA: String { L("settings.two_factor_auth.disable") }
-    static var regenerateRecoveryKey: String { L("settings.recovery_key.regenerate") }
-    static var accountSecurityRequestFailed: String { L("common.error") }
+    static var addPasskey: String { L("apple.passkeys.add") }
+    static var setup2FA: String { L("signup.setup_2fa") }
+    static var regenerateRecoveryKey: String { L("settings.security.recovery_key_regenerate_button") }
+    static var accountSecurityRequestFailed: String { L("embeds.error") }
     static var accountSecurityMissingData: String { L("settings.security.auth_description") }
     static var passkeyUnknownDevice: String { L("settings.sessions.unknown_device") }
-    static var passkeyAddedSuccessfully: String { L("common.success") }
-    static var passkeyDeletedSuccessfully: String { L("common.success") }
+    static var passkeyAddedSuccessfully: String { L("apple.common.success") }
+    static var passkeyDeletedSuccessfully: String { L("apple.common.success") }
     static var passkeyDeleteTitle: String { L("common.delete") }
     static var passkeyDeleteDescription: String { L("settings.security.auth_description") }
-    static var passkeyInvalidChallenge: String { L("common.error") }
-    static var passkeyRegistrationFailed: String { L("common.error") }
+    static var passkeyInvalidChallenge: String { L("embeds.error") }
+    static var passkeyRegistrationFailed: String { L("embeds.error") }
     static var passkeyPRFRequired: String { L("settings.security.passkey_prompt") }
     static var twoFactorChangeApp: String { L("settings.security.tfa_change_app") }
     static var twoFactorResetBackupCodes: String { L("settings.security.tfa_reset_backup_codes") }
@@ -692,7 +691,7 @@ enum AppStrings {
     static var photoFileTooLarge: String { L("settings.account.profile_picture.file_too_large") }
     static var photoWrongFormat: String { L("settings.account.profile_picture.wrong_format") }
     static var photoRejected: String { L("settings.profile_image_not_allowed") }
-    static var accountDeleted: String { L("settings.account_deleted") }
+    static var accountDeleted: String { L("apple.account.deleted") }
     // Authoritative storage summaries and bounded warning scopes.
     static var storageMeasuredAt: String { L("settings.storage.storage_measured_at") }
     static var storageFreeTier: String { L("settings.storage.storage_free_tier_label") }
@@ -761,8 +760,8 @@ enum AppStrings {
     static var chatStatistics: String { L("settings.account.chats.description") }
     static var chatTotal: String { L("common.chats") }
     static var chatDeleteOld: String { L("settings.account.chats.delete_section_title") }
-    static var preview: String { L("common.preview") }
-    static var untitled: String { L("common.untitled") }
+    static var preview: String { L("settings.account.chats.preview_button") }
+    static var untitled: String { L("chat.untitled_chat") }
     static var chatDeleteConfirm: String { L("settings.account.chats.delete_confirm_desc") }
     static var chatDeleteSuccess: String { L("settings.account.chats.delete_success") }
     static var chatOlderThan: String { L("settings.account.chats.delete_older_than") }
@@ -794,7 +793,7 @@ enum AppStrings {
     static var hidePersonalData: String { L("settings.hide_personal_data") }
     static var privacyHidePersonalData: String { L("settings.privacy.hide_personal_data") }
     static var privacyHidePersonalDataChats: String { L("settings.privacy.hide_personal_data.chats") }
-    static var privacyHidePersonalDataDescription: String { L("settings.privacy.hide_personal_data.description") }
+    static var privacyHidePersonalDataDescription: String { L("apple.privacy.hide_personal_data_description") }
     static var privacyContacts: String { L("settings.privacy.contacts") }
     static var privacyAddName: String { L("settings.privacy.add_name") }
     static var privacyAddAddress: String { L("settings.privacy.add_address") }
@@ -841,7 +840,7 @@ enum AppStrings {
     static var enhancedPIIModelComposerSuggestionDescription: String { L("settings.privacy.enhanced_pii_model.composer_suggestion_description") }
     static var autoDeleteChats: String { L("settings.privacy.auto_deletion") }
     static var shareDebugLogs: String { L("settings.privacy.debug_logging_title") }
-    static var never: String { L("common.never") }
+    static var never: String { L("settings.api_keys.expiration_never") }
     static var none: String { L("settings.privacy.connected_accounts.none") }
     static var privacyOpenPolicy: String { L("settings.privacy.open_privacy_policy") }
     static var privacyAnonymization: String { L("settings.privacy.anonymization") }
@@ -943,7 +942,7 @@ enum AppStrings {
     static var learningModeCollaborativeConfirmButton: String { L("settings.learning_mode_collaborative_confirm_button") }
     static var learningModeCollaborativeEnabled: String { L("settings.learning_mode_collaborative_enabled") }
     static var learningModeCollaborativeDisabled: String { L("settings.learning_mode_collaborative_disabled") }
-    static var learningModeShortenedNotice: String { L("learning_mode_shortened_notice") }
+    static var learningModeShortenedNotice: String { L("embeds.learning_mode_shortened_notice") }
     static var incognitoExplainerDescription: String { L("settings.incognito_explainer_description") }
     static var incognitoExplainerDeviceSpecific: String { L("settings.incognito_explainer_feature_device_specific") }
     static var incognitoExplainerNotStored: String { L("settings.incognito_explainer_feature_not_stored") }
@@ -965,7 +964,6 @@ enum AppStrings {
     static var billingCredits: String { L("settings.billing.credits") }
     static var buyCredits: String { L("settings.buy_credits") }
     static var autoTopUp: String { L("settings.auto_topup") }
-    static var purchaseHistory: String { L("settings.billing.purchase_history") }
     static var invoices: String { L("settings.invoices") }
     static var giftCards: String { L("settings.gift_cards") }
     static var getFreeCredits: String { L("settings.billing.get_free_credits") }
@@ -992,17 +990,17 @@ enum AppStrings {
     static var referralConditions: String { L("settings.billing.referral_conditions") }
     static var billingSupport: String { L("settings.billing.apple_support") }
     static var billingUsageDetails: String { L("settings.billing.apple_usage_details") }
-    static var billingCreditPackages: String { L("settings.billing.credit_packages") }
-    static var billingLoadingProducts: String { L("settings.billing.loading_products") }
-    static var billingProcessingPurchase: String { L("settings.billing.processing_purchase") }
-    static var billingVerifyingPurchase: String { L("settings.billing.verifying_with_server") }
-    static var billingPurchaseComplete: String { L("settings.billing.purchase_complete") }
-    static var billingRestorePurchases: String { L("settings.billing.restore_purchases") }
-    static var billingLowBalanceAutoTopUp: String { L("settings.billing.low_balance_auto_topup") }
+    static var billingCreditPackages: String { L("settings.pricing.packages_heading") }
+    static var billingLoadingProducts: String { L("apple.billing.loading_products") }
+    static var billingProcessingPurchase: String { L("settings.billing.processing") }
+    static var billingVerifyingPurchase: String { L("apple.billing.verifying_purchase") }
+    static var billingPurchaseComplete: String { L("settings.billing.purchase_successful") }
+    static var billingRestorePurchases: String { L("apple.billing.restore_purchases") }
+    static var billingLowBalanceAutoTopUp: String { L("settings.billing.low_balance_topup") }
     static var billingLowBalanceDescription: String { L("settings.billing.low_balance_description") }
-    static var billingWhenBelow: String { L("settings.billing.when_below") }
-    static var billingTopUpPackage: String { L("settings.billing.topup_package") }
-    static var billingNoInvoices: String { L("settings.billing.no_invoices") }
+    static var billingWhenBelow: String { L("settings.billing.threshold") }
+    static var billingTopUpPackage: String { L("settings.billing.topup_amount") }
+    static var billingNoInvoices: String { L("settings.billing.invoices_no_invoices_title") }
     static var billingDownloadInvoice: String { L("settings.billing.invoices_download_invoice") }
     static var billingDownloadCreditNote: String { L("settings.billing.invoices_download_credit_note") }
     static var billingExportUsage: String { L("settings.usage.export") }
@@ -1077,9 +1075,9 @@ enum AppStrings {
     static var reconnectingBanner: String { L("notifications.connection.reconnecting") }
 
     // MARK: - Settings - Notifications
-    static var pushNotifications: String { L("settings.notifications.push") }
+    static var pushNotifications: String { L("settings.chat.notifications.enable") }
     static var chatMessages: String { L("settings.notifications.chat") }
-    static var emailNotifications: String { L("settings.notifications.email") }
+    static var emailNotifications: String { L("settings.chat.notifications.email_section") }
     static var backupReminders: String { L("settings.notifications.backup") }
 
     // MARK: - Settings - Interface
@@ -1105,8 +1103,7 @@ enum AppStrings {
     static var about: String { L("settings.app_store.provider_detail.about") }
 
     // MARK: - Settings - Newsletter
-    static var newsletterSubscribe: String { L("settings.newsletter.subscribe") }
-    static var newsletterUnsubscribe: String { L("settings.newsletter.unsubscribe") }
+    static var newsletterSubscribe: String { L("settings.newsletter_subscribe_button") }
 
     // MARK: - Settings - Server (admin)
     static var serverAdmin: String { L("settings.server") }
@@ -1121,13 +1118,9 @@ enum AppStrings {
     static var signupVersionTitle: String { L("signup.version_title") }
     static var logout: String { L("settings.logout") }
     static var logOut: String { L("settings.logout") }
-    static var enterPassword: String { L("auth.enter_password") }
-    static var forgotPassword: String { L("auth.forgot_password") }
-    static var loginWithPasskey: String { L("auth.login_with_passkey") }
-    static var loginWithPassword: String { L("auth.login_with_password") }
-    static var loginWithRecoveryKey: String { L("auth.login_with_recovery_key") }
-    static var twoFactorRequired: String { L("auth.two_factor_required") }
-    static var invalidCredentials: String { L("auth.invalid_credentials") }
+    static var enterPassword: String { L("chat_settings.recipient_password_placeholder") }
+    static var loginWithPasskey: String { L("login.login_with_passkey") }
+    static var loginWithRecoveryKey: String { L("login.login_with_recovery_key") }
     static var loginButton: String { L("login.login_button") }
     static var loginFailed: String { L("login.login_failed") }
     static var passwordPlaceholder: String { L("login.password_placeholder") }
@@ -1257,10 +1250,9 @@ enum AppStrings {
     static var play: String { L("audio.play") }
     static var pause: String { L("audio.pause") }
     static var locationNearby: String { L("embeds.maps_location.nearby") }
-    static var openVideo: String { L("embed.open_video") }
-    static var openInBrowser: String { L("embed.open_in_browser") }
-    static var loadPDF: String { L("embed.load_pdf") }
-    static var decryptingPDF: String { L("embed.decrypting_pdf") }
+    static var openInBrowser: String { L("apple.embed.open_in_browser") }
+    static var loadPDF: String { L("apple.embed.load_pdf") }
+    static var decryptingPDF: String { L("apple.embed.decrypting_pdf") }
     static var snippets: String { L("embeds.snippets") }
     static var viaBraveSearch: String { L("embeds.via_brave_search") }
     static var via: String { L("embeds.via") }
@@ -1421,6 +1413,14 @@ enum AppStrings {
     }
     static var mindMapInvalidJSON: String { L("embeds.mindmaps.invalid_json") }
     static var mindMapInvalidContent: String { L("embeds.mindmaps.invalid_content") }
+    static var slidesDeckDefaultTitle: String { L("embeds.slides_deck_default_title") }
+    static var slidesCountSingular: String { L("embeds.slides_count_singular") }
+    static var slidesCountPlural: String { L("embeds.slides_count_plural") }
+    static var slidesPrevious: String { L("embeds.slides_prev") }
+    static var slidesNext: String { L("embeds.slides_next") }
+    static var slidesStripLabel: String { L("embeds.slides_strip_label") }
+    static var slidesSlideLabel: String { L("embeds.slides_slide_label") }
+    static var slidesNoContent: String { L("embeds.slides_no_content") }
     static var mindMapValidationWarnings: String { L("embeds.mindmaps.validation_warnings") }
     static var mindMapSource: String { L("embeds.mindmaps.source") }
 
@@ -1453,20 +1453,17 @@ enum AppStrings {
     }
 
     // MARK: - Notifications
-    static var offline: String { L("notifications.offline") }
-    static var reconnecting: String { L("notifications.reconnecting") }
-    static var incognitoModeOn: String { L("notifications.incognito_on") }
-    static var incognitoModeOff: String { L("notifications.incognito_off") }
+    static var reconnecting: String { L("voicecall.reconnecting") }
+    static var incognitoModeOn: String { L("apple.incognito.on") }
+    static var incognitoModeOff: String { L("apple.incognito.off") }
     static var newMessageReceived: String { L("notifications.chat_message.new_message_received") }
     static var clickToRespond: String { L("notifications.click_to_respond") }
-    static var incognitoDescription: String { L("settings.incognito.description") }
 
     // MARK: - Misc
     static var dailyInspiration: String { L("daily_inspiration.label") }
     static var dailyInspirationCTA: String { L("daily_inspiration.click_to_start_chat") }
-    static var tapToExplore: String { L("common.tap_to_explore") }
-    static var report: String { L("common.report") }
-    static var send: String { L("common.send") }
+    static var tapToExplore: String { L("apple.common.tap_to_explore") }
+    static var send: String { L("enter_message.send") }
     static var share: String { L("common.share") }
     static var shareChat: String { L("settings.share.share_chat") }
     static var shareEmbed: String { L("settings.share.share_embed") }
@@ -1495,11 +1492,7 @@ enum AppStrings {
     static var shareLinkCopied: String { L("settings.share.link_copied") }
     static var shareUnshare: String { L("settings.share.unshare") }
     static var shareExpirationPrefix: String { L("settings.share.link_will_expire_in") }
-    static var pin: String { L("common.pin") }
-    static var unpin: String { L("common.unpin") }
-    static var archive: String { L("common.archive") }
-    static var hide: String { L("common.hide") }
-    static var rename: String { L("common.rename") }
+    static var rename: String { L("settings.developers_devices_rename") }
     static var stop: String { L("common.stop") }
 
     // MARK: - Chat banner (ChatHeader.svelte)
@@ -1530,11 +1523,8 @@ enum AppStrings {
     static var showHiddenChats: String { L("chats.hidden_chats.show_hidden_chats") }
 
     // MARK: - Demo chats — intro
-    static var teaserLine1: String { L("demo_chats.for_everyone.teaser_line1") }
-    static var teaserLine2: String { L("demo_chats.for_everyone.teaser_line2") }
-    static var teaserLine3: String { L("demo_chats.for_everyone.teaser_line3") }
-    static var demoWhoDevTitle: String { L("demo_chats.who_develops_openmates.title") }
-    static var demoWhoDevDescription: String { L("demo_chats.who_develops_openmates.description") }
+    static var demoWhoDevTitle: String { L("apple.demo.who_develops.title") }
+    static var demoWhoDevDescription: String { L("apple.demo.who_develops.description") }
     static var demoAnnouncementsV09Title: String { L("demo_chats.announcements_introducing_openmates_v09.title") }
     static var demoAnnouncementsV09Description: String { L("demo_chats.announcements_introducing_openmates_v09.description") }
 
@@ -1566,7 +1556,7 @@ enum AppStrings {
     }
 
     static func entriesCount(_ count: Int) -> String {
-        "\(count) \(L("settings.app_settings_memories.entries"))"
+        "\(count) \(L("chat.permissions.entry_plural"))"
     }
 
     // MARK: - Helper
@@ -1577,6 +1567,61 @@ enum AppStrings {
     private static func L(_ key: String) -> String {
         LocalizationManager.shared.text(key)
     }
+}
+
+// MARK: - Embroidery result and image authenticity badge (existing en.json keys)
+extension AppStrings {
+    private static func embroidery(_ suffix: String, _ replacements: [String: String] = [:]) -> String {
+        replacements.isEmpty
+            ? LocalizationManager.shared.text("embeds.design.embroidery.\(suffix)")
+            : LocalizationManager.shared.text("embeds.design.embroidery.\(suffix)", replacements: replacements)
+    }
+    static var embroiderySkillName: String { LocalizationManager.shared.text("app_skills.design.embroidery") }
+    static var embroideryThreads: String { embroidery("threads") }
+    static var embroideryStitchesUnit: String { embroidery("stitches_unit") }
+    static var embroideryStitches: String { embroidery("stitches") }
+    static var embroiderySize: String { embroidery("size") }
+    static var embroideryThreadChanges: String { embroidery("thread_changes") }
+    static var embroiderySewingTime: String { embroidery("sewing_time") }
+    static var embroiderySewingTimeNote: String { embroidery("sewing_time_note") }
+    static var embroideryThreadLength: String { embroidery("thread_length") }
+    static func embroideryThreadAmount(length: String) -> String { embroidery("thread_amount", ["length": length]) }
+    static func embroideryFitsHoop(_ hoop: String) -> String { embroidery("fits_hoop", ["hoop": hoop]) }
+    static func embroideryTooLargeForHoop(_ hoop: String) -> String { embroidery("too_large_for_hoop", ["hoop": hoop]) }
+    static var embroideryFabric: String { embroidery("fabric") }
+    static func embroideryFabricName(_ fabric: String) -> String { embroidery("fabric_\(fabric)") }
+    static var embroideryBorder: String { embroidery("border") }
+    static func embroideryBorderMm(_ width: Int) -> String { embroidery("border_mm", ["width": String(width)]) }
+    static var embroideryDownload: String { embroidery("download") }
+    static var embroideryDownloadAll: String { embroidery("download_all") }
+    static var embroideryDownloadSingle: String { embroidery("download_single") }
+    static var embroideryNotes: String { embroidery("notes") }
+    static var embroideryReworkedHint: String { embroidery("reworked_hint") }
+    static var embroideryViewStitches: String { embroidery("view_stitches") }
+    static var embroideryViewGraphic: String { embroidery("view_graphic") }
+    static var embroideryConverting: String { embroidery("converting") }
+    static var embroideryFailed: String { embroidery("failed") }
+    static var embroideryPreviewUnavailable: String { embroidery("preview_unavailable") }
+    static var embroideryActionFailed: String { LocalizationManager.shared.text("embeds.action_failed") }
+    /// Translated error reason or note; `key` comes from `EmbroideryDesignModel.errorKey` / `noteKey`.
+    static func embroideryText(key: String, replacements: [String: String] = [:]) -> String {
+        replacements.isEmpty ? LocalizationManager.shared.text(key) : LocalizationManager.shared.text(key, replacements: replacements)
+    }
+
+    private static func imageView(_ suffix: String, _ replacements: [String: String] = [:]) -> String {
+        replacements.isEmpty
+            ? LocalizationManager.shared.text("app_skills.images.view.\(suffix)")
+            : LocalizationManager.shared.text("app_skills.images.view.\(suffix)", replacements: replacements)
+    }
+    static var imageAuthenticityAIGenerated: String { imageView("ai_generated") }
+    static var imageAuthenticityAuthentic: String { imageView("authentic") }
+    static func imageAuthenticityChance(percentage: String) -> String { imageView("ai_generated_chance", ["percentage": percentage]) }
+    static var imageAuthenticityViaPrefix: String { imageView("via_provider_prefix") }
+    static func imageAuthenticityVia(provider: String) -> String { imageView("via_provider", ["provider": provider]) }
+    static var imageAuthenticityLimitations: String { imageView("detection_limitations") }
+    static var imageAuthenticityFailedTitle: String { imageView("detection_failed_title") }
+    static var imageAuthenticityFailedRetry: String { imageView("detection_failed_retry") }
+    static var imageAuthenticityFailedDescription: String { imageView("detection_failed_description") }
 }
 
 // MARK: - Workflow workspace
@@ -1698,6 +1743,17 @@ extension AppStrings {
     static var projectOverviewEmpty: String { localized("projects.workspace_overview_empty") }
     static var projectUpload: String { localized("projects.workspace_upload") }
     static var projectCreateAction: String { localized("projects.workspace_create") }
+    static var projectCreateDocument: String { localized("projects.create_document") }
+    static var projectCreateSheet: String { localized("projects.create_sheet") }
+    static var projectCreateSlides: String { localized("projects.create_slides") }
+    static var projectCreateCodeFile: String { localized("projects.create_code_file") }
+    static var projectCreateNameLabel: String { localized("projects.create_name_label") }
+    static var projectCreateNameSubmit: String { localized("projects.create_name_submit") }
+    static var projectCreateDefaultDocumentName: String { localized("projects.create_default_document_name") }
+    static var projectCreateDefaultSheetName: String { localized("projects.create_default_sheet_name") }
+    static var projectCreateDefaultSlidesName: String { localized("projects.create_default_slides_name") }
+    static var projectCreateDefaultCodeName: String { localized("projects.create_default_code_name") }
+    static var projectCreateFileFailed: String { localized("projects.create_file_failed") }
     static var projectSourceNeeded: String { localized("projects.workspace_source_needed") }
     static var projectOverviewFailed: String { localized("projects.workspace_overview_failed") }
     static var projectTasksHeading: String { localized("projects.workspace_project_tasks") }

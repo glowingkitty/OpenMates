@@ -5,8 +5,10 @@ status: draft
 title: Checks
 summary: >
   Checks are reusable proof definitions that verify Specification Requirements or Plan
-  success criteria through deterministic execution, structured AI evaluation,
-  or explicit human confirmation, with revision-bound Runs and private artifacts.
+  success criteria. One Check may mix source types - e2e, unit, integration, static
+  analysis, deterministic audits, AI evaluation and human confirmation - where each
+  source keeps its own type and result, the Check is green only when every required
+  source passes, and Runs are revision-bound with private artifacts.
 
 purpose:
   outcomes:
@@ -17,16 +19,16 @@ purpose:
 scope:
   includes:
     - Independent Check definitions with stable ids, immutable revisions, descriptions, covered claims, execution type, source bindings, and ownership context.
-    - Deterministic, AI evaluation, and human confirmation Check types.
+    - Mixed-source Checks - e2e, unit, integration, static analysis, deterministic audit, AI evaluation (a natural-language question judged by a decision model) and human confirmation sources in one Check, each with its own type and result.
     - Immutable Check Runs bound to the exact Check revision and subject revision being evaluated.
     - Encrypted result summaries, evaluator feedback, human confirmation notes, logs, screenshots, video, traces, reports, and other artifacts.
     - A scalable test catalog that indexes repository test sources without materializing every discovered test as a Check record.
-    - Deterministic Check revisions that group several required or supporting verification sources, including platform-specific E2E specs, integration suites, unit-test suites, static analysis, and deterministic audits; AI evaluation and human confirmation remain distinct Check types.
+    - Check revisions that group several required or supporting verification sources of any type, including platform-specific E2E specs, integration suites, unit-test suites, static analysis, deterministic audits, AI evaluation questions and human confirmations.
     - Project Check previews/fullscreen detail, run history, status, stale-proof state, and links to Plans, Specifications, Tasks, sources, and evaluator sub-chats.
     - OpenMates-managed sandbox, connected CI, remote-access, and human execution contexts.
   excludes:
     - Automatically creating a Project Check for every discovered test file or test case.
-    - Treating an AI score as deterministic proof for security, privacy, permissions, encryption, migrations, or exact API behavior.
+    - Treating an AI score or a human confirmation as the only proof for security, privacy, permissions, encryption, migrations, or exact API behavior.
     - Treating a linked Task completion as proof that a Check passed.
     - Requiring browser video when a deterministic non-visual result is sufficiently represented by structured output.
 
@@ -47,7 +49,6 @@ models:
   CheckDefinition:
     check_id: {type: stable_id, required: true}
     current_revision_id: {type: stable_id, required: true}
-    kind: {type: enum, values: [deterministic, ai_evaluation, human_confirmation], required: true}
     status: {type: enum, values: [draft, ready, archived], required: true}
     home_project_hash: {type: sha256_hex, required: true}
     linked_project_hashes: {type: hashed_id_list, nullable: true}
@@ -57,21 +58,23 @@ models:
   CheckRevision:
     revision_id: {type: stable_id, required: true}
     revision_number: {type: integer, required: true, constraints: {monotonic: true}}
-    kind: {type: enum, values: [deterministic, ai_evaluation, human_confirmation], required: true, constraints: {must_match_check_definition_kind: true}}
+    base_revision_id: {type: stable_id_or_null, nullable: true, constraints: {stale_base_rejected: true}}
     definition_hash: {type: sha256_hex, required: true}
+    requires_deterministic: {type: boolean, required: true, constraints: {true_when_claim_covers: [security, privacy, encryption, permissions, migrations, exact_api_behavior]}}
     covered_specification_requirements: {type: revision_bound_requirement_reference_list, nullable: true}
     covered_specification_flows: {type: revision_bound_flow_reference_list, nullable: true}
     covered_plan_criteria: {type: revision_bound_criterion_reference_list, nullable: true}
     project_surface_ids: {type: stable_id_list, nullable: true}
-    source_binding_ids: {type: stable_id_list, required: true}
+    source_binding_ids: {type: stable_id_list, required: true, constraints: {at_least_one_required_source: true, deterministic_required_source_when_requires_deterministic: true}}
     encrypted_execution_definition: {type: client_ciphertext, required: true}
 
   CheckSourceBinding:
     source_binding_id: {type: stable_id, required: true}
-    source_kind: {type: enum, values: [e2e, integration, unit_suite, static_analysis, deterministic_audit, ai_evaluation, human_confirmation], required: true, constraints: {compatible_with_check_kind: {deterministic: [e2e, integration, unit_suite, static_analysis, deterministic_audit], ai_evaluation: [ai_evaluation], human_confirmation: [human_confirmation]}}}
+    source_kind: {type: enum, values: [e2e, unit, integration, static_analysis, deterministic_audit, ai_evaluation, human_confirmation], required: true}
+    deterministic: {type: derived_boolean, required: true, constraints: {true_for: [e2e, unit, integration, static_analysis, deterministic_audit]}}
     role: {type: enum, values: [required, supporting], required: true}
     project_surface_ids: {type: stable_id_list, nullable: true}
-    source_ref: {type: encrypted_source_reference, required: true, constraints: {supports: [code_embed, project_source_path, test_selector, workflow, human_instruction]}}
+    source_ref: {type: encrypted_source_reference, required: true, constraints: {supports: [code_embed, project_source_path, test_selector, workflow, ai_question, human_instruction]}}
     pinned_revision: {type: immutable_revision_reference, required: true}
     discovered_test_count: {type: integer_or_null, nullable: true}
 
@@ -79,11 +82,9 @@ models:
     run_id: {type: stable_id, required: true}
     check_revision_id: {type: stable_id, required: true}
     subject_revision: {type: immutable_revision_reference, required: true}
-    status: {type: enum, values: [queued, running, passed, failed, blocked, error, cancelled, skipped, waived], required: true}
-    result_kind: {type: enum, values: [deterministic, ai_evaluation, human_confirmation], required: true, constraints: {must_match_check_revision_kind: true}}
-    result_id: {type: stable_id_or_null, nullable: true, constraints: {required_when_terminal_except_cancelled: true, must_reference_result_type_matching_result_kind: true}}
-    aggregation_rule: {type: enum, values: [all_required_sources_must_pass, type_specific_single_result], required: true}
-    source_result_ids: {type: stable_id_list, nullable: true, constraints: {required_for_grouped_deterministic_check: true}}
+    status: {type: enum, values: [queued, running, passed, failed, error, blocked, waiting_for_confirmation, cancelled, skipped, waived], required: true}
+    aggregation_rule: {type: enum, values: [all_required_sources_must_pass], required: true}
+    source_result_ids: {type: stable_id_list, required: true, constraints: {one_per_source_binding: true}}
     started_at: {type: timestamp_or_null, nullable: true}
     finished_at: {type: timestamp_or_null, nullable: true}
     encrypted_result: {type: client_ciphertext, nullable: true}
@@ -92,13 +93,22 @@ models:
     source_result_id: {type: stable_id, required: true}
     run_id: {type: stable_id, required: true}
     source_binding_id: {type: stable_id, required: true}
-    status: {type: enum, values: [passed, failed, blocked, error, cancelled, skipped], required: true}
-    result_id: {type: stable_id_or_null, nullable: true}
+    source_kind: {type: enum, values: [e2e, unit, integration, static_analysis, deterministic_audit, ai_evaluation, human_confirmation], required: true, constraints: {must_equal_binding_source_kind: true}}
+    status: {type: enum, values: [pending, running, passed, failed, error, blocked, skipped, cancelled, waived], required: true}
+    result_id: {type: stable_id_or_null, nullable: true, constraints: {must_reference_result_type_matching_source_kind: true}}
+    test_result_embed_id: {type: stable_id_or_null, nullable: true, constraints: {deterministic_sources_only: true}}
     constraints: {type: source_aggregation, required: true, constraints: {required_failure_blocks_run_pass: true, supporting_failure_visible_but_not_gating: true}}
+
+  CheckAggregation:
+    order: {type: precedence, required: true, constraints: {over_required_sources_only: true, sequence: [failed, error, blocked, running, waiting_for_confirmation, passed]}}
+    running: {type: rule, required: true, constraints: {any_required_non_human_source_pending_or_running: true}}
+    waiting_for_confirmation: {type: rule, required: true, constraints: {only_unfinished_required_sources_are_human_confirmation: true, never_reported_as_failed: true}}
+    passed: {type: rule, required: true, constraints: {every_required_source_passed_or_waived: true}}
 
   CheckArtifact:
     artifact_id: {type: stable_id, required: true}
     run_id: {type: stable_id, required: true}
+    source_result_id: {type: stable_id_or_null, nullable: true}
     kind: {type: enum_or_string, values: [stdout, stderr, screenshot, video, trace, report, source, attachment], required: true}
     encrypted_storage_reference: {type: client_ciphertext, required: true}
     content_hash: {type: sha256_hex, required: true}
@@ -106,10 +116,10 @@ models:
 
   DeterministicResult:
     deterministic_result_id: {type: stable_id, required: true}
-    run_id: {type: stable_id, required: true, constraints: {one_to_one_with_check_run: true}}
+    source_result_id: {type: stable_id, required: true, constraints: {one_to_one_with_source_result: true}}
     exit_code: {type: integer_or_null, nullable: true}
     verdict: {type: enum, values: [passed, failed, error], required: true}
-    constraints: {type: result_status_mapping, required: true, constraints: {passed_maps_to_run_passed: true, failed_maps_to_run_failed: true, error_maps_to_run_error: true}}
+    constraints: {type: result_status_mapping, required: true, constraints: {passed_maps_to_source_passed: true, failed_maps_to_source_failed: true, error_maps_to_source_error: true}}
 
   TestCatalogEntry:
     catalog_entry_id: {type: stable_id, required: true}
@@ -121,29 +131,30 @@ models:
 
   AiEvaluationResult:
     evaluation_result_id: {type: stable_id, required: true}
-    run_id: {type: stable_id, required: true, constraints: {one_to_one_with_check_run: true}}
+    source_result_id: {type: stable_id, required: true, constraints: {one_to_one_with_source_result: true}}
     evaluator_model: {type: model_id, required: true}
     evaluator_model_version: {type: model_version, required: true}
     evaluator_instruction_hash: {type: sha256_hex, required: true}
-    rubric_hash: {type: sha256_hex, required: true}
+    question_hash: {type: sha256_hex, required: true}
+    rubric_hash: {type: sha256_hex, nullable: true}
     input_revision: {type: immutable_revision_reference, required: true, constraints: {must_equal_check_run_subject_revision: true}}
     verdict: {type: enum, values: [passed, failed, error], required: true}
-    score: {type: integer, required: true, constraints: {minimum: 0, maximum: 100}}
-    threshold: {type: integer, required: true, constraints: {minimum: 0, maximum: 100}}
-    criteria_scores: {type: structured_score_list, required: true}
+    score: {type: integer, nullable: true, constraints: {minimum: 0, maximum: 100}}
+    threshold: {type: integer, nullable: true, constraints: {minimum: 0, maximum: 100}}
+    criteria_scores: {type: structured_score_list, nullable: true}
     encrypted_feedback: {type: client_ciphertext, required: true}
     encrypted_required_fixes: {type: client_ciphertext, nullable: true}
-    constraints: {type: result_status_mapping, required: true, constraints: {passed_maps_to_run_passed: true, failed_maps_to_run_failed: true, error_maps_to_run_error: true}}
+    constraints: {type: result_status_mapping, required: true, constraints: {passed_maps_to_source_passed: true, failed_maps_to_source_failed: true, error_maps_to_source_error: true}}
 
   HumanConfirmationResult:
     confirmation_result_id: {type: stable_id, required: true}
-    run_id: {type: stable_id, required: true, constraints: {one_to_one_with_check_run: true}}
+    source_result_id: {type: stable_id, required: true, constraints: {one_to_one_with_source_result: true}}
     subject_revision: {type: immutable_revision_reference, required: true, constraints: {must_equal_check_run_subject_revision: true}}
     confirmer_hash: {type: hashed_actor_id, required: true}
     decision: {type: enum, values: [confirmed, rejected, blocked, waived], required: true}
     confirmed_at: {type: timestamp, required: true}
     encrypted_note: {type: client_ciphertext, nullable: true}
-    constraints: {type: result_status_mapping, required: true, constraints: {confirmed_maps_to_run_passed: true, rejected_maps_to_run_failed: true, blocked_maps_to_run_blocked: true, waived_maps_to_run_waived: true}}
+    constraints: {type: result_status_mapping, required: true, constraints: {confirmed_maps_to_source_passed: true, rejected_maps_to_source_failed: true, blocked_maps_to_source_blocked: true, waived_maps_to_source_waived: true, pending_maps_to_check_waiting_for_confirmation: true}}
 
 assertions:
   - id: checks.definition.reusable-revisioned
@@ -152,8 +163,24 @@ assertions:
     depends_on: [models.CheckDefinition, models.CheckRevision, examples.check_reuse]
   - id: checks.sources.grouped-multi-surface
     type: behavior
-    must: One coherent deterministic Check may group several required or supporting source bindings, including separate web and Apple E2E tests plus related integration and unit suites; every binding records a per-source result, all required sources gate the aggregate verdict, supporting failures remain visible without gating, a Check may have no E2E source, and AI evaluation or human confirmation use separate type-specific Checks linked to the same claim when needed.
+    must: One coherent Check may group several required or supporting source bindings, including separate web and Apple E2E tests plus related integration and unit suites; every binding records a per-source result, and a Check may have no E2E source.
     depends_on: [models.CheckRevision, models.CheckSourceBinding, models.CheckRun, models.CheckSourceResult, examples.grouped_check_sources]
+  - id: checks.sources.mixed-types
+    type: behavior
+    must: One Check may mix e2e, unit, integration, static analysis, deterministic audit, AI evaluation and human confirmation sources; each source keeps its own type, result record and visible result, and an AI evaluation source is a natural-language question judged by a decision model against the exact subject revision.
+    depends_on: [models.CheckSourceBinding, models.CheckSourceResult, models.AiEvaluationResult, models.HumanConfirmationResult, examples.mixed_sources]
+  - id: checks.aggregation.required-sources-gate
+    type: invariant
+    must: A Check Run is passed only when every required source passed or was waived; any failed required source makes it failed; supporting results stay visible and never change the aggregate.
+    depends_on: [models.CheckAggregation, models.CheckSourceResult, examples.grouped_check_sources, examples.mixed_sources]
+  - id: checks.sources.deterministic-for-sensitive-claims
+    type: invariant
+    must: A Check covering security, privacy, encryption, permissions, migrations or exact API behavior is rejected unless it has at least one required deterministic source; AI evaluation and human confirmation may add to such a Check but never replace that source.
+    depends_on: [models.CheckRevision.requires_deterministic, models.CheckSourceBinding.deterministic, examples.mixed_sources]
+  - id: checks.human.waiting-for-confirmation
+    type: behavior
+    must: When the only unfinished required sources of a Run are human confirmations, the Run and the Check show waiting for confirmation, never failed, until a person confirms, rejects, blocks or waives each one.
+    depends_on: [models.CheckAggregation, models.HumanConfirmationResult, examples.human_confirmation]
   - id: checks.catalog.lazy-materialization
     type: behavior
     must: Repository tests are indexed in a searchable catalog, but a Check record is materialized only when a user or agent explicitly creates one or when a Plan, Specification Requirement, or Project promotes a catalog entry.
@@ -164,12 +191,12 @@ assertions:
     depends_on: [models.CheckRun, examples.check_runs]
   - id: checks.types.explicit
     type: behavior
-    must: Deterministic, AI evaluation, and human confirmation are distinct Check types with type-appropriate definitions, execution, results, and failure states.
-    depends_on: [models.CheckDefinition.kind, examples.check_types]
+    must: Every source has an explicit type with type-appropriate definition, execution, result record and failure states; a source result whose type differs from its binding is rejected.
+    depends_on: [models.CheckSourceBinding.source_kind, models.CheckSourceResult, examples.check_types]
   - id: checks.ai.structured-bounded
     type: invariant
-    must: AI evaluation binds model, evaluator instructions, rubric, input revision, score threshold, criteria scores, verdict, feedback, and required fixes; it cannot substitute for deterministic proof where exact behavior is testable.
-    depends_on: [models.CheckRun, models.AiEvaluationResult, examples.ai_evaluation]
+    must: An AI evaluation source binds model, evaluator instructions, question, optional rubric and score threshold, input revision, verdict, feedback, and required fixes; it cannot substitute for deterministic proof where exact behavior is testable.
+    depends_on: [models.CheckSourceResult, models.AiEvaluationResult, examples.ai_evaluation]
   - id: checks.human.explicit-confirmation
     type: behavior
     must: Physical-device, subjective-approval, and inaccessible-external-system claims may require a named human confirmation result with timestamp, decision, optional note, and visible blocking or waiver state.
@@ -180,8 +207,12 @@ assertions:
     depends_on: [models.CheckArtifact, examples.check_artifacts]
   - id: checks.project.encrypted-embed
     type: behavior
-    must: Materialized Checks appear in Projects as preview/fullscreen embeds with type, covered claims, latest result, stale state, run history, source, artifacts, and context-appropriate actions.
+    must: Materialized Checks appear in Projects as preview/fullscreen embeds with source types and per-source results, covered claims, latest aggregate result including waiting for confirmation, stale state, run history, artifacts, and context-appropriate actions.
     depends_on: [models.CheckDefinition, examples.check_project_embed, applies_to.gui]
+  - id: checks.continuation.required-checks-open
+    type: behavior
+    must: When no Task work remains, automatic continuation keeps an active Plan's assistant working while any required Check is failing, running or has no run on its current revision; it stops with a waiting-for-confirmation state when only human confirmations remain, stops when all required Checks passed, ignores draft Plans, and fails closed when Check storage is unavailable.
+    depends_on: [models.CheckAggregation, examples.mixed_sources]
   - id: checks.surface.semantic-parity
     type: parity
     must: REST, CLI, SDK, and web preserve the same Check definitions, revisions, run provenance, type semantics, artifacts, links, and visible failures wherever Check operations are exposed.
@@ -210,12 +241,12 @@ applies_to:
         required: true
         requirements:
           - id: checks.gui.preview
-            elements: [title, type, latest_status, covered_claims_summary, last_run_time, stale_indicator]
+            elements: [title, source_type_summary, latest_status, covered_claims_summary, last_run_time, stale_indicator]
             interactions: [open_fullscreen, run_again_when_authorized]
           - id: checks.gui.fullscreen
-            elements: [definition, covered_requirements, covered_flows, applicable_surfaces, grouped_sources, latest_result, run_history, artifacts, evaluator_or_confirmer_details]
+            elements: [definition, covered_requirements, covered_flows, applicable_surfaces, sources_grouped_by_type, per_source_result, latest_result, run_history, artifacts, evaluator_or_confirmer_details, deterministic_rule_notice]
             interactions: [run, cancel, open_artifact, open_evaluator_sub_chat, confirm_or_reject_human_check, promote_catalog_entry]
-            states: [draft, ready, queued, running, passed, failed, error, stale, blocked, waived]
+            states: [draft, ready, queued, running, passed, failed, error, stale, blocked, waived, waiting_for_confirmation]
             accessibility: [status_text_not_color_only, artifact_labels, keyboard_run_history, confirmation_actor_and_time_announced]
             responsive_behavior: [split_detail_when_space_allows, fullscreen_overlay_on_compact_viewports]
             design_references: optional
@@ -228,4 +259,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [check_reuse, grouped_check_sources, test_catalog, check_runs, check_types, ai_evaluation, human_confirmation, check_artifacts, check_project_embed, check_surface_parity]
+  required_groups: [check_reuse, grouped_check_sources, mixed_sources, test_catalog, check_runs, check_types, ai_evaluation, human_confirmation, check_artifacts, check_project_embed, check_surface_parity]

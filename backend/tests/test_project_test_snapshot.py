@@ -167,3 +167,25 @@ async def test_injected_snapshot_passes_the_files_required_check(monkeypatch) ->
         cache_service=MemoryCache(), encryption_service=object(),
     )
     assert error is not None and "Project snapshot" in error.error
+
+
+MACHINE = {"source_id": "src_machine", "source_type": "remote_cli", "status": "connected",
+           "capabilities": ["read", "search", "write_request"]}
+
+
+# contract-test: direct surface=rest_api assertions=code-run.execution.e2b-only
+def test_test_run_without_target_goes_to_the_machine_the_project_lives_on() -> None:
+    call = {"test_run": {"kind": "unit", "test_command": {"argv": ["npm", "test"], "cwd": "web-app"}}}
+    runnable = {**MACHINE, "capabilities": [*MACHINE["capabilities"], "run_command"]}
+    for sources in ([runnable], [MACHINE]):
+        routed = pts.route_machine_test_run(call, sources)
+        assert routed["test_run"]["target"] == "remote_source"
+        assert routed["test_run"]["source_id"] == "src_machine"
+        # No hosted snapshot is collected for a machine Project; a missing run_command
+        # grant is reported by the remote path instead of an endless snapshot loop.
+        assert not pts.needs_snapshot(routed)
+    # Hosted Projects (no source) and explicit targets are unchanged.
+    assert pts.route_machine_test_run(call, []) is call
+    explicit = {"test_run": {**call["test_run"], "target": "e2b"}}
+    assert pts.route_machine_test_run(explicit, [runnable]) is explicit
+    assert pts.needs_snapshot(pts.route_machine_test_run(call, []))

@@ -33,9 +33,7 @@ import {
   getKeyFromStorage,
 } from "../services/cryptoService";
 import { chatSyncService } from "../services/chatSyncService";
-import {
-  decidePrivacyEntry, decidePrivacyEntrySync, privacyEntryPlanIsAsync,
-} from "../services/appSettingsRequestDecisions";
+import { decidePrivacyEntry } from "../services/appSettingsRequestDecisions";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -362,15 +360,9 @@ async function performLoadFromStorage(privacyOwner: string | null): Promise<void
 
         const data = JSON.parse(decryptedJson);
 
-        // Defaults per item type (privacyEntryPolicy.ts). Flag-off stays
-        // synchronous; flag-on awaits the Rust unit and re-checks ownership.
-        let plan;
-        if (privacyEntryPlanIsAsync) {
-          plan = await decidePrivacyEntry(entry.item_type, data, DEFAULT_PII_CATEGORIES);
-          if (!current()) return;
-        } else {
-          plan = decidePrivacyEntrySync(entry.item_type, data, DEFAULT_PII_CATEGORIES);
-        }
+        // Defaults per item type come from the Rust settings unit; re-check ownership after the await.
+        const plan = await decidePrivacyEntry(entry.item_type, data, DEFAULT_PII_CATEGORIES);
+        if (!current()) return;
 
         if (plan.kind === "pii") {
           // PII detection settings singleton

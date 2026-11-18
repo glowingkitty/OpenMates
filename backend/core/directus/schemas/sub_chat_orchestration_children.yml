@@ -44,6 +44,11 @@ sub_chat_orchestration_children:
     updated_at:
       type: datetime
       required: true
+    spawn_kind:
+      type: string
+      length: 24
+      default: sub_chat
+      note: "sub_chat (server-created child chat row) or main_chat (normal chat created by the user's device; no chat row, no budget)."
     dispatched_at:
       type: datetime
       nullable: true

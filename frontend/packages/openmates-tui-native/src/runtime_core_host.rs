@@ -30,6 +30,7 @@ use tokio_util::sync::CancellationToken;
 /// and request lifetime: a logout or cancel while the reply waits in the
 /// bounded channel still keeps it off the screen. Windows and live lists
 /// also carry an owner lease (owner key, expiry, chat denials).
+#[derive(Clone)]
 pub(super) struct TerminalSink {
     replies: mpsc::Sender<Reply>,
     epoch: Stamp,

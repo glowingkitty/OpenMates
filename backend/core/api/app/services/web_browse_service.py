@@ -11,6 +11,7 @@ import os
 import time
 from typing import Any, AsyncIterator, Awaitable, Callable
 import uuid
+from urllib.parse import unquote
 
 from fastapi import HTTPException
 
@@ -21,6 +22,7 @@ from backend.shared.providers.e2b_browser import (
     BrowserAdmissionRejected,
 )
 from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async
+from backend.shared.providers.web_browse_runtime import observation_url
 from backend.core.api.app.services.web_browse_pool import BrowsePool
 from backend.core.api.app.services.web_browse_run import (
     BrowseBudgetExceeded,
@@ -171,6 +173,23 @@ class BrowseStore:
         record["_version"] = row.get("version", 1)
         return record
 
+    async def open_session_ids(self, user_id: str) -> list[str]:
+        """The owner's sessions that are not closed or expired, newest first."""
+        rows = await self.db.get_items(
+            COLLECTION,
+            params={
+                "filter[owner_hash][_eq]": owner_hash(user_id),
+                "filter[status][_nin]": "closed,expired",
+                "fields": "id",
+                "sort": "-last_activity",
+                "limit": OPEN_SESSION_LOOKUP_LIMIT,
+            },
+            no_cache=True,
+            admin_required=True,
+            raise_on_error=True,
+        )
+        return [row["id"] for row in rows]
+
     async def save(self, record: dict[str, Any], *, create: bool = False) -> None:
         started = time.monotonic()
         try:
@@ -219,6 +238,51 @@ class BrowseStore:
                     409, "Browser state changed; refresh before continuing."
                 )
         record["_version"] = version + 1
+
+
+# Smallest partial hold worth starting a browser window for (about $0.01 of
+# supplier cost); below it the wallet refusal stands.
+MIN_RESERVED_CREDITS = 20
+
+
+def quotable_credits(exc: HTTPException) -> int | None:
+    """The wallet's largest admissible hold from a reservation refusal, if stated.
+
+    The internal client wraps the billing body as "Internal API error: <json>".
+    """
+    if exc.status_code != 402 or not isinstance(exc.detail, str):
+        return None
+    _, _, body = exc.detail.partition("Internal API error: ")
+    try:
+        detail = json.loads(body).get("detail")
+    except (ValueError, AttributeError):
+        return None
+    if not isinstance(detail, dict) or detail.get("code") != "reservation_budget_exceeded":
+        return None
+    value = detail.get("max_quotable_credits")
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+# Live sessions checked when a call names neither a session nor a start address;
+# an owner has at most a few, and only the same chat's session is continued.
+OPEN_SESSION_LOOKUP_LIMIT = 10
+
+# Longest wait after a run for the page's pending requests before compute pauses.
+QUIESCE_SECONDS = 60
+# One quiesce RPC stays well inside the 25 s default RPC timeout.
+QUIESCE_ROUND_SECONDS = 15
+
+
+def user_given_url(observed: str, start_url: str | None) -> str:
+    """The user's own start address when the observation is its redacted form.
+
+    Observations redact private query values; reusing that redacted address
+    loses the page (an event id becomes "[redacted]"). The address the user gave
+    is theirs to see and keeps continuations on the right page.
+    """
+    if start_url and observed and observation_url(start_url) == observed:
+        return start_url
+    return observed
 
 
 class BrowseService:
@@ -316,28 +380,48 @@ class BrowseService:
         # A crash after wallet admission must still leave a recoverable operation identity.
         record["reservation"] = operation
         await self.store.save(record)
+        quote = remaining
         try:
-            await self.app._make_internal_api_request(
-                "POST",
-                "/internal/billing/reserve",
-                payload={
-                    "user_id": record["user_id"],
-                    "user_id_hash": owner_hash(record["user_id"]),
-                    "idempotency_key": operation,
-                    "quoted_credits": remaining,
-                    "app_id": "web",
-                    "skill_id": "browse",
-                },
-            )
+            try:
+                await self._reserve_credits(record, operation, quote)
+            except HTTPException as exc:
+                # The wallet cannot hold the whole cap: hold what it can and let
+                # this window stop at that amount instead of failing the call.
+                affordable = quotable_credits(exc)
+                if affordable is None or affordable < MIN_RESERVED_CREDITS:
+                    raise
+                quote = min(remaining, affordable)
+                await self._reserve_credits(record, operation, quote)
         except HTTPException as exc:
             if exc.status_code < 500:
                 record["reservation"] = None
                 record["reservation_admitted"] = False
+                record["reserved_ceiling"] = None
                 record["status"] = "paused"
                 await self.store.save(record)
             raise
         record["reservation_admitted"] = True
+        # Credits this window may reach: what was charged plus what is held.
+        record["reserved_ceiling"] = (
+            None if quote == remaining else record.get("charged_credits", 0) + quote
+        )
         await self.store.save(record)
+
+    async def _reserve_credits(
+        self, record: dict[str, Any], operation: str, quote: int
+    ) -> None:
+        await self.app._make_internal_api_request(
+            "POST",
+            "/internal/billing/reserve",
+            payload={
+                "user_id": record["user_id"],
+                "user_id_hash": owner_hash(record["user_id"]),
+                "idempotency_key": operation,
+                "quoted_credits": quote,
+                "app_id": "web",
+                "skill_id": "browse",
+            },
+        )
 
     def runtime_cost(
         self, record: dict[str, Any], *, stop_at: float | None = None
@@ -366,7 +450,10 @@ class BrowseService:
         )
 
     def remaining_usd(self, record: dict[str, Any]) -> Decimal:
-        return Decimal(record["max_credits"]) / 2000 - self.total_cost(record)
+        ceiling = record["max_credits"]
+        if record.get("reserved_ceiling") is not None:
+            ceiling = min(ceiling, record["reserved_ceiling"])
+        return Decimal(ceiling) / 2000 - self.total_cost(record)
 
     async def keep_running(
         self, record: dict[str, Any], reserved_usd: Decimal = Decimal(0)
@@ -470,6 +557,7 @@ class BrowseService:
         record.pop("settlement", None)
         record["reservation"] = None
         record["reservation_admitted"] = False
+        record["reserved_ceiling"] = None
         await self.store.save(record)
 
     async def pause(self, record: dict[str, Any]) -> None:
@@ -527,6 +615,20 @@ class BrowseService:
         record.pop("steps", None)
         await self.store.save(record)
 
+    async def chat_session(self, user_id: str, chat_id: str) -> str | None:
+        """The newest session of this chat that is still live, if any."""
+        for session_id in await self.store.open_session_ids(user_id):
+            try:
+                record = await self.store.load(session_id, user_id, chat_id)
+            except HTTPException as exc:
+                # Another chat's session (404) or unreadable state (409) is skipped.
+                if exc.status_code in (404, 409):
+                    continue
+                raise
+            if session_lifecycle(record, time.time()) not in ("closed", "expired"):
+                return session_id
+        return None
+
     async def ensure_live(self, record: dict[str, Any]) -> None:
         if session_lifecycle(record, time.time()) in ("closed", "expired"):
             if record["status"] not in ("closed", "expired"):
@@ -548,6 +650,12 @@ class BrowseService:
     ) -> BrowseResult | BrowseJob:
         if not user_id or not chat_id or not message_id or not vault_key_id:
             raise HTTPException(401, "An authenticated chat is required for Browse.")
+        if not request.session_id and not request.start_url:
+            # A follow-up that names neither continues this chat's live browser
+            # (the model can drop the session id on a later form turn).
+            session_id = await self.chat_session(user_id, chat_id)
+            if session_id:
+                request = request.model_copy(update={"session_id": session_id})
         job = browse_identity(request, user_id, chat_id, message_id)
         run_id, session_id = job.run_id, job.session_id
         prepared = False
@@ -560,6 +668,11 @@ class BrowseService:
                     raise
                 if not request.start_url:
                     raise HTTPException(422, "A new browser needs a starting URL.")
+                if "[redacted]" in unquote(request.start_url):
+                    raise HTTPException(
+                        422,
+                        "The starting URL contains a redacted value; use the address the user gave.",
+                    )
                 record = {
                     "session_id": session_id,
                     "user_id": user_id,
@@ -578,6 +691,9 @@ class BrowseService:
                     "provider": None,
                     "pending_calls": {},
                     "model_calls": [],
+                    # Results show this address instead of its redacted
+                    # observation, so a continuation can name the real page.
+                    "start_url": request.start_url,
                 }
                 await self.store.save(record, create=True)
             try:
@@ -592,7 +708,11 @@ class BrowseService:
                     else saved
                 )
             await self.ensure_live(record)
-            if request.session_id and request.max_credits < record["max_credits"]:
+            if (
+                request.session_id
+                and "max_credits" in request.model_fields_set
+                and request.max_credits < record["max_credits"]
+            ):
                 # Never accept a tighter requested cap while spending against a
                 # previously authorized, larger window. Changing a session cap
                 # requires closing it and explicitly starting another session.
@@ -668,7 +788,9 @@ class BrowseService:
                 active_deadline=time.time() + request.timeout_seconds + 100,
                 last_activity=time.time(),
                 task=request.task,
-                request=request.model_dump(),
+                # Only set fields: the worker rebuilds the request from this, and
+                # an unset cap must stay unset there (the session keeps its cap).
+                request=request.model_dump(exclude_unset=True),
                 status="ai",
                 phase="starting",
             )
@@ -828,6 +950,11 @@ class BrowseService:
             # Rejected extraction cannot expose proposed facts as observed data.
             missing = loop.missing if completed else []
             checked = loop.checked_observations if completed else {}
+            scanned_form = (loop.checked_observations or {}).get("form")
+            if status == "needs_user" and scanned_form:
+                # Only the scanned form fields, never unverified page facts, so the
+                # assistant can continue the form with the user (form-with-user).
+                checked = {"form": scanned_form}
             if loop.ledger and record["status"] not in ("closed", "expired"):
                 record["evidence"] = loop.ledger
             if status != "needs_user" and record["status"] not in (
@@ -855,9 +982,12 @@ class BrowseService:
                     for k, v in loop.metrics().items()
                 },
             }
+            shown_url = user_given_url(
+                observation.get("url", ""), record.get("start_url")
+            )
             current = (
-                {"url": observation["url"], "title": checked.get("title", "")}
-                if observation.get("url")
+                {"url": shown_url, "title": checked.get("title", "")}
+                if shown_url
                 else None
             )
             sources = (loop.sources if completed else []) or (
@@ -868,7 +998,7 @@ class BrowseService:
                 run_id=run_id,
                 status=status,
                 reason=reason,
-                url=observation.get("url", ""),
+                url=shown_url,
                 title=checked.get("title", "Browse"),
                 data=data,
                 missing=missing,
@@ -889,8 +1019,35 @@ class BrowseService:
             await self.store.save(record)
         return result
 
+    async def quiesce(self, provider: dict[str, Any]) -> None:
+        """Wait in short RPC rounds (each within the default RPC timeout) until no request is pending."""
+        driver = await self.browser()
+        deadline = time.monotonic() + QUIESCE_SECONDS
+        while (left := deadline - time.monotonic()) > 0:
+            reply = await driver.rpc(
+                provider,
+                {"operation": "quiesce", "seconds": min(QUIESCE_ROUND_SECONDS, left)},
+            )
+            if not reply.get("in_flight"):
+                return
+        logger.warning("Browser page still had pending requests at pause.")
+
     async def pause_after_run(self, record: dict[str, Any]) -> None:
-        """Pause a finished run; a pending charge receipt is retried by the sweeper."""
+        """Pause a finished run; a pending charge receipt is retried by the sweeper.
+
+        The page's pending requests may finish first (bounded by
+        QUIESCE_SECONDS, billed as ordinary runtime): a request still open at
+        the pause cannot complete after the resume, and a form loading its
+        settings from a waking backend then shows its own error page in a
+        later turn (feature.app-skill.web-browse lifecycle, form-with-user).
+        """
+        provider = record.get("provider")
+        if provider and not provider.get("deleted"):
+            try:
+                await self.quiesce(provider)
+            except BrowserUnavailable:
+                # Paid compute must still pause; the page may just lose a pending request.
+                logger.warning("Browser pending-request wait failed; pausing now.")
         try:
             await self.pause(record)
         except HTTPException as exc:
@@ -1081,6 +1238,10 @@ class BrowseService:
             return self.public_state(record)
         async with self.store.lease(session_id):
             record = await self.store.load(session_id, user_id)
+            if record["status"] == "closed":
+                # A browser the owner closed reads as closed, not expired; its
+                # private live state was already removed by close.
+                return self.public_state(record)
             await self.ensure_live(record)
             if (
                 record["status"] not in ("paused", "closed", "expired")
@@ -1097,6 +1258,8 @@ class BrowseService:
         if record is None:
             await self.state(session_id, user_id)
             record = await self.store.load(session_id, user_id)
+        if record["status"] == "closed":
+            raise HTTPException(410, "This browser was closed.")
         if not record.get("provider"):
             raise HTTPException(
                 404, "The browser has not produced its first frame yet."

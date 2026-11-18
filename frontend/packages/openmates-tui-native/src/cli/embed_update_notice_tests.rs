@@ -103,7 +103,7 @@ fn consecutive_events_of_one_embed_fold_into_one_line_naming_the_newest() {
 
 // contract-test: supporting surface=cli assertions=embed-user-edits.event.chat-notice
 #[test]
-fn other_system_rows_and_invalid_payloads_stay_ordinary_messages() {
+fn other_system_rows_and_invalid_payloads_become_lines_without_raw_json() {
     let messages = vec![
         message(
             "s1",
@@ -112,7 +112,59 @@ fn other_system_rows_and_invalid_payloads_stay_ordinary_messages() {
         ),
         message("s2", "system", "plain note".into()),
     ];
+    assert_eq!(
+        lines(&messages),
+        vec!["notice: System event: embed_updated", "notice: plain note"]
+    );
+}
+
+// contract-test: supporting surface=cli assertions=app-memories.privacy.client-encrypted
+#[test]
+fn memory_events_read_as_lines_and_never_print_placeholder_mappings() {
+    let response = serde_json::json!({
+        "type": "app_settings_memories_response",
+        "user_message_id": "u1",
+        "action": "included",
+        "categories": [{"appId": "memory", "itemType": "memory-1", "entryCount": 1}],
+        "pii_mappings": [{"placeholder": "[OM_PII_EMAIL_1]", "original": "someone@example.org"}]
+    })
+    .to_string();
+    let messages = vec![
+        message("u1", "user", "Write my cover letter".into()),
+        message("u1-memory-response-r1", "system", response),
+        message("a1", "assistant", "Here is your letter".into()),
+    ];
     let out = lines(&messages);
-    assert_eq!(out.len(), 2);
-    assert!(out.iter().all(|line| line.starts_with("system: ")));
+    assert_eq!(
+        out,
+        vec![
+            "user: Write my cover letter",
+            "notice: Memories shared with the assistant (1)",
+            "assistant: Here is your letter"
+        ]
+    );
+    assert!(out.iter().all(|line| !line.contains("example.org")));
+}
+
+// contract-test: supporting surface=cli assertions=chat-orchestration.events.creator-system-events
+#[test]
+fn chat_orchestration_events_read_as_one_line_each() {
+    let report = r#"{"schema_version":1,"type":"chat_orchestration","action":"report","chat_id":"11111111-1111-4111-8111-111111111111","title":"Kitchen quotes","text":"Three quotes found","event_id":"ev-1","created_at":1700000000}"#;
+    let finished = report
+        .replace(r#""action":"report""#, r#""action":"finished""#)
+        .replace(r#","text":"Three quotes found""#, "")
+        .replace("ev-1", "ev-2");
+    let messages = vec![
+        message("u1", "user", "Start a chat for kitchen quotes".into()),
+        message("ev-1", "system", report.into()),
+        message("ev-2", "system", finished),
+    ];
+    assert_eq!(
+        lines(&messages),
+        vec![
+            "user: Start a chat for kitchen quotes".to_owned(),
+            "notice: Report from Kitchen quotes: Three quotes found".to_owned(),
+            "notice: Kitchen quotes finished".to_owned(),
+        ]
+    );
 }

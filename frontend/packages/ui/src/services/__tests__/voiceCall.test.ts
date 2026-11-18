@@ -21,8 +21,9 @@ vi.mock('../voiceCallEmptyChatCleanup', () => ({cleanupEmptyVoiceCallChat:cleanu
 vi.mock('../workspaceQueryCache', () => ({getWorkspaceCacheIdentity:()=>cleanup.identity}));
 vi.mock('../workspaceCacheLifecycle', () => ({getWorkspaceCacheEpoch:()=>cleanup.epoch}));
 const heard = vi.hoisted(() => ({ value: null as {assistant_message_id:string;completed_sequences:number[];active_sequence:number|null;active_offset_ms:number}|null }));
-const canonical = vi.hoisted(() => ({ send: vi.fn(async (_turn: unknown) => true), cancel: vi.fn(async () => {}), tasks: new Map<string,{taskId:string;userMessageId:string}>() }));
-vi.mock('../voiceCallTurns', () => ({ sendVoiceCallTurn: canonical.send, reportVoiceCallTurnDelivery: vi.fn() }));
+const canonical = vi.hoisted(() => ({ send: vi.fn(async (_turn: unknown) => true), cancel: vi.fn(async () => {}), tasks: new Map<string,{taskId:string;userMessageId:string}>(),
+  admit: vi.fn(async (_chatId: string) => true) }));
+vi.mock('../voiceCallTurns', () => ({ sendVoiceCallTurn: canonical.send, reportVoiceCallTurnDelivery: vi.fn(), admitVoiceCallChat: canonical.admit }));
 const privacy = vi.hoisted(() => ({ ensure: vi.fn(async (_signal:AbortSignal, _gesture:()=>void) => true) }));
 vi.mock('../voiceCallPrivacy', () => ({ ensureVoiceCallPrivacyAcknowledgement: privacy.ensure }));
 const streaming = vi.hoisted(() => ({ supported: vi.fn(() => true) }));
@@ -197,6 +198,7 @@ describe('integrated voice call typed turns', () => {
     visual.resolve.mockReset().mockResolvedValue([]);
     visual.destroy.mockClear();
     persistence.prepare.mockReset().mockResolvedValue({ chatId: 'chat-1', history: [] });
+    canonical.admit.mockReset().mockResolvedValue(true);
   });
   afterEach(() => { notificationStore.clearAllNotifications(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
@@ -269,6 +271,25 @@ describe('integrated voice call typed turns', () => {
     expect(cleanup.remove.mock.calls[0][0]).toMatchObject({chatId:'old-late-shell',callId:null});
     expect(get(controller)).toMatchObject({status:'connecting',chatId:'chat-1'});expect(sockets).toHaveLength(1);
     controller.hangup();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+  it('admits the bound chat into the client core while the call connects and ends the call when it cannot', async () => {
+    let admit!: (ok: boolean) => void;
+    canonical.admit.mockReturnValueOnce(new Promise<boolean>((resolve) => { admit = resolve; }));
+    const { controller, sockets } = startingController();
+    await controller.start('chat-1');
+    expect(canonical.admit).toHaveBeenCalledWith('chat-1');
+    // The call socket does not wait for the core admission.
+    expect(sockets).toHaveLength(1);
+    admit(true);
+    await vi.waitFor(() => expect(get(controller).status).not.toBe('error'));
+    controller.hangup();
+    canonical.admit.mockResolvedValueOnce(false);
+    const refused = startingController();
+    await refused.controller.start('chat-1');
+    await vi.waitFor(() => expect(get(refused.controller)).toMatchObject({ status: 'error', error: 'call_unavailable' }));
+    expect(canonical.send).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.audio.spoken-rich-response,video-call.lifecycle.recovery-and-billing,video-call.privacy
@@ -374,7 +395,7 @@ describe('integrated voice call typed turns', () => {
     background.away = true;
     background.options.onAway();
     expect(get(controller)).toMatchObject({ status: 'ended', error: null });
-    expect(JSON.parse(socket.send.mock.calls.at(-1)![0] as string)).toEqual({ type: 'hangup' });
+    expect(JSON.parse(socket.send.mock.calls[socket.send.mock.calls.length - 1][0] as string)).toEqual({ type: 'hangup' });
     expect(cues.play).toHaveBeenCalledWith('ended');
     expect(get(notificationStore).notifications).toHaveLength(0);
     cues.play.mockClear();

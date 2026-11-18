@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import response types (these are shared types, not provider-specific)
+from backend.apps.ai.processing.chat_orchestration_hooks import orchestration_event_text
 from backend.apps.ai.llm_providers.mistral_client import (
     MISTRAL_THINKING_STATE_KEY,
     UnifiedMistralResponse as UnifiedMistralResponse,
@@ -966,6 +967,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
             role = "user"
         if "role" in msg:
             role = msg["role"]
+        event_text = orchestration_event_text(msg.get("content"))
+        if event_text is not None:
+            transformed_messages.append({"role": "system", "content": event_text})
+            continue
 
         # Handle tool role messages (tool results from skill execution)
         # OpenAI-compatible APIs require: {"role": "tool", "tool_call_id": str, "content": str}
@@ -1623,7 +1628,7 @@ async def call_preprocessing_llm(
                         health_data_json = health_data_json.decode('utf-8')
                     health_data = json.loads(health_data_json)
                     status = health_data.get("status", "unknown")
-                    return status == "unhealthy"
+                    return status in {"unhealthy", "not_configured"}
         except Exception as e:
             logger.debug(f"[{task_id}] LLM Utils: Could not check health status for '{provider_id}': {e}. Proceeding with attempt.")
         return False  # If cache miss or error, proceed (don't block on missing health data)
@@ -2435,6 +2440,8 @@ async def call_main_llm_stream(
             if (_retry_provider_prefix == "openai" and sanitized_cacheable_prefix
                     and _cache_checkpoint_allowed(_retry_tariff, "openai")):
                 _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
+            if _retry_provider_prefix == "google_ai_studio" and sanitized_cacheable_prefix:
+                _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
             if _retry_provider_prefix in {"mistral", "baseten", "openrouter", "together", "cerebras"} and prompt_cache_key:
                 _retry_input["prompt_cache_key"] = prompt_cache_key
             if _retry_provider_prefix == "openrouter":
@@ -2516,7 +2523,7 @@ async def call_main_llm_stream(
                         health_data_json = health_data_json.decode('utf-8')
                     health_data = json.loads(health_data_json)
                     status = health_data.get("status", "unknown")
-                    return status == "unhealthy"
+                    return status in {"unhealthy", "not_configured"}
         except Exception as e:
             logger.debug(f"{log_prefix} Could not check health status for '{provider_id}': {e}. Proceeding with attempt.")
         return False  # If cache miss or error, proceed (don't block on missing health data)
@@ -2685,6 +2692,9 @@ async def call_main_llm_stream(
             server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
         if (prepared_native_context is None and server_provider_prefix == "openai" and sanitized_cacheable_prefix
                 and _cache_checkpoint_allowed(tariff_snapshot, "openai")):
+            server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
+        # Explicit Gemini cache creation is platform cost; reads bill via cache_read tokens.
+        if server_provider_prefix == "google_ai_studio" and sanitized_cacheable_prefix:
             server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
         if server_provider_prefix in {"mistral", "baseten", "openrouter", "together", "cerebras"} and prompt_cache_key:
             server_llm_input_details["prompt_cache_key"] = prompt_cache_key
@@ -2995,12 +3005,20 @@ async def call_main_llm_stream(
         raise AllServersFailedError(original_model_id, attempted_servers, last_error)
 
 
-def log_main_llm_stream_aggregated_output(task_id: str, aggregated_response: str, error_message: Optional[str] = None):
+def log_main_llm_stream_aggregated_output(
+    task_id: str,
+    aggregated_response: str,
+    error_message: Optional[str] = None,
+    expected_failure: bool = False,
+):
     """
     Log aggregated LLM stream output with sanitization.
     Even in development mode, we don't log actual response content, only metadata.
+    ``expected_failure`` marks an expected rejection (e.g. an anonymous user's
+    sign-up limit): it is logged at WARNING so error monitoring ignores it.
     """
     log_prefix = f"[{task_id}] LLM Utils (Main Stream Aggregated Output):"
+    error_level = logging.WARNING if expected_failure else logging.ERROR
     
     if os.getenv("SERVER_ENVIRONMENT") == "development":
         if error_message:
@@ -3012,7 +3030,7 @@ def log_main_llm_stream_aggregated_output(task_id: str, aggregated_response: str
                 "partial_response_content": "[REDACTED_CONTENT]",
                 "event_type": "llm_main_stream_aggregated_output_error"
             }
-            logger.error(f"{log_prefix} Error during stream processing: {error_message}", extra=log_details)
+            logger.log(error_level, f"{log_prefix} Error during stream processing: {error_message}", extra=log_details)
         else:
             # Sanitize: show only length, not actual content
             log_details = {
@@ -3024,6 +3042,6 @@ def log_main_llm_stream_aggregated_output(task_id: str, aggregated_response: str
             logger.info(f"{log_prefix} Successfully aggregated stream. Length: {len(aggregated_response)}", extra=log_details)
     else:
         if error_message:
-            logger.error(f"{log_prefix} Error during stream processing: {error_message}. Detailed logging skipped.")
+            logger.log(error_level, f"{log_prefix} Error during stream processing: {error_message}. Detailed logging skipped.")
         else:
             logger.info(f"{log_prefix} Successfully aggregated stream. Length: {len(aggregated_response)}. Detailed logging skipped.")

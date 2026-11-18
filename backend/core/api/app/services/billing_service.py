@@ -312,6 +312,18 @@ class BillingService:
             # failure does not lose settlement work.
             logger.exception("Failed to dispatch durable billing settlement retry")
 
+    async def _is_monitoring_account(self, user_id: str) -> bool:
+        """Operator-listed (Vault) status-monitor accounts are never billed."""
+        from backend.core.api.app.utils.secrets_manager import SecretsManager
+        from backend.shared.python_utils.monitor_traffic import is_monitor_account
+
+        secrets_manager = getattr(self, "_monitor_secrets_manager", None)
+        if secrets_manager is None:
+            secrets_manager = SecretsManager(cache_service=self.cache_service)
+            await secrets_manager.initialize()
+            self._monitor_secrets_manager = secrets_manager
+        return await is_monitor_account(secrets_manager, user_id)
+
     async def charge_user_credits(
         self,
         user_id: str,
@@ -363,6 +375,15 @@ class BillingService:
         if not skill_id or not isinstance(skill_id, str) or not skill_id.strip():
             logger.error(f"Invalid skill_id provided for credit charge: {skill_id}. Cannot create usage entry.")
             raise HTTPException(status_code=400, detail="skill_id is required and must not be empty.")
+
+        if await self._is_monitoring_account(user_id):
+            logger.info("monitoring account charge skipped: credits=%s", credits_to_deduct)
+            return {
+                "charge_id": idempotency_key,
+                "charged_credits": 0,
+                "requested_credits": credits_to_deduct,
+                "idempotent": False,
+            }
 
         if not _settlement_locked:
             billing_subject = user_id_hash
@@ -1213,6 +1234,12 @@ class BillingService:
         try:
             # Check if feature is enabled and threshold is set
             if not user.get('auto_topup_low_balance_enabled', False):
+                return
+
+            # No charges while the account is safety-suspended
+            from backend.shared.python_utils.image_safety.account_suspension import active_suspension
+            if active_suspension(user) is not None:
+                logger.info(f"Skipping low-balance auto top-up for suspended user {user_id[:8]}")
                 return
 
             # Fixed threshold: always 100 credits (cannot be changed to simplify setup)

@@ -8,6 +8,10 @@ use super::plaintext::{Plain,Wipe,replace_text};
 use crate::crypto::master::MasterCapability;
 #[path="send_prepared_turn.rs"]
 pub(in crate::client) mod prepared_turn;
+#[path="send_turn_stages.rs"]
+pub(in crate::client) mod turn_stages;
+#[path="voice_turn.rs"]
+pub(in crate::client) mod voice_turn;
 #[path="send_prepared_transport.rs"]
 pub(in crate::client) mod prepared_transport;
 #[path="refusal_trace.rs"]
@@ -16,6 +20,8 @@ pub(in crate::client) mod refusal_trace;
 pub(in crate::client) mod turn_runtime;
 #[path="turn_deadline.rs"]
 pub(in crate::client) mod turn_deadline;
+#[path="send_unfinished_embeds.rs"]
+pub(in crate::client) mod unfinished_embeds;
 #[cfg(not(target_arch="wasm32"))]
 #[path="send_split.rs"]
 pub(in crate::client) mod split;
@@ -998,6 +1004,8 @@ fn bind_turn_embeds(
             }
         }
     }
+    // Processing placeholders are never this turn's to persist or adopt.
+    unfinished_embeds::drop_unfinished(&mut bound);
     Plain::new(bound)
 }
 

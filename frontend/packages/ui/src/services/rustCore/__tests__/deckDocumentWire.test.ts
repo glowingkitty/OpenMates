@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type {
-	DeckAspect, DeckElementContent, DeckElementKind, DeckElementModel, DeckErrorCode, DeckOperation, DeckOperationName,
+	DeckAspect, DeckElementContent, DeckElementKind, DeckElementModel, DeckErrorCode, DeckKind, DeckOperation, DeckOperationName,
 	DeckOutcome, DeckSlideModel, DeckView,
 } from '../deckDocument/deckDocumentTypes';
 
@@ -20,7 +20,7 @@ function keys<T>(record: Record<keyof T, true>): string[] {
 	return Object.keys(record).sort();
 }
 
-const VIEW_KEYS = keys<DeckView>({ title: true, aspect: true, template: true, canvas_width: true, canvas_height: true, slides: true, can_undo: true, can_redo: true });
+const VIEW_KEYS = keys<DeckView>({ title: true, aspect: true, template: true, kind: true, theme: true, canvas_width: true, canvas_height: true, slides: true, can_undo: true, can_redo: true });
 const SLIDE_KEYS = keys<DeckSlideModel>({ id: true, layout: true, transition: true, notes: true, elements: true });
 const ELEMENT_KEYS = keys<DeckElementModel>({ id: true, kind: true, x: true, y: true, w: true, h: true, attributes: true, content: true });
 const ASPECTS: Record<DeckAspect, true> = { '16:9': true, '16:10': true, '4:3': true };
@@ -30,8 +30,9 @@ const OPERATION_NAMES: Record<DeckOperationName, true> = {
 	set_text_content: true, set_text_style: true, set_geometry: true, set_image_source: true, add_element: true, delete_element: true,
 	duplicate_element: true, move_element: true, add_slide: true, duplicate_slide: true, delete_slide: true, move_slide: true, set_slide_layout: true,
 	set_speaker_notes: true, set_notepad_text: true, set_todo_items: true, set_todo_item_done: true, clear_interactive_element: true,
-	clear_all_interactive: true, set_interactive_hidden: true, set_all_interactive_hidden: true,
+	clear_all_interactive: true, set_interactive_hidden: true, set_all_interactive_hidden: true, set_theme: true,
 };
+const KIND_VALUES: Record<DeckKind, true> = { deck: true, template: true };
 const ERROR_CODES: Record<DeckErrorCode, true> = {
 	slides_markup_not_normalised: true, slides_deck_has_no_slide: true, slides_slide_not_found: true, slides_element_not_found: true,
 	slides_wrong_element_kind: true, slides_unknown_attribute: true, slides_invalid_value: true, slides_limit_reached: true,
@@ -65,6 +66,10 @@ const OPERATIONS: DeckOperation[] = [
 	{ op: 'clear_all_interactive' },
 	{ op: 'set_interactive_hidden', slide_id: 's1', element_id: 'e1', hidden: true },
 	{ op: 'set_all_interactive_hidden', hidden: false },
+	{
+		op: 'set_theme', template: 'library:club',
+		theme: { heading: 'Georgia', body: null, background: null, foreground: null, accent: '#1f9d55', accent_2: '#f2c94c', muted: null, surface: null },
+	},
 ];
 
 const OUTCOMES: DeckOutcome[] = [
@@ -90,6 +95,8 @@ describe('deck wire fixture', () => {
 		const view = fixture.view;
 		expect(Object.keys(view).sort()).toEqual(VIEW_KEYS);
 		expect(Object.hasOwn(ASPECTS, view.aspect)).toBe(true);
+		expect(Object.hasOwn(KIND_VALUES, view.kind)).toBe(true);
+		expect(view.theme).toBeNull();
 		const kinds = new Set<string>();
 		const contentTypes = new Set<string>();
 		for (const slide of view.slides) {

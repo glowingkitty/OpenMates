@@ -38,6 +38,7 @@ describe('connectedAccountStorageService', () => {
 		vi.clearAllMocks();
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('creates encrypted rows with the current user hash and credentials', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
 			new Response(JSON.stringify({ id: 'acct-1', sync_version: 1760000000 }), {
@@ -58,6 +59,7 @@ describe('connectedAccountStorageService', () => {
 		});
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('lists encrypted rows and rejects plaintext provider identity in responses', async () => {
 		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
 			new Response(
@@ -71,6 +73,7 @@ describe('connectedAccountStorageService', () => {
 		await expect(listConnectedAccounts()).rejects.toThrow('provider_email');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('patches encrypted fields without owner hashes or plaintext fields', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
 			new Response(JSON.stringify({ id: 'acct-1', sync_version: 1760000200 }), {
@@ -94,6 +97,7 @@ describe('connectedAccountStorageService', () => {
 		});
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('rejects plaintext refresh tokens before calling the API', async () => {
 		const fetchMock = vi.spyOn(globalThis, 'fetch');
 
@@ -106,6 +110,7 @@ describe('connectedAccountStorageService', () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('builds chat directory and broker-only token ref inputs from encrypted rows', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -146,6 +151,49 @@ describe('connectedAccountStorageService', () => {
 		});
 	});
 
+	// contract-test: supporting surface=gui.web assertions=design-figma.execution.token-lifecycle
+	it('builds a design send context with a read-only figma token ref input', async () => {
+		const context = await buildConnectedAccountSendContext({
+			appId: 'design',
+			rows: [
+				{
+					...encryptedRow,
+					id: 'acct-figma',
+					hashed_user_id: 'hash:user-1',
+					encrypted_provider_type: 'enc:figma',
+					encrypted_account_label: 'enc:"Figma"',
+					encrypted_capabilities: 'enc:["read","variables"]',
+					encrypted_app_permissions: 'enc:{"app_id":"design","allowed_actions":["read"]}',
+					encrypted_refresh_token_bundle: 'enc:{"refresh_token":"secret-refresh","provider":"figma"}',
+					encrypted_account_directory_hint:
+						'enc:{"account_ref":"figma-user","label":"Figma","capabilities":["read","variables"],"runtime_modes":{"read":"allow_automatically"}}'
+				},
+				{ ...encryptedRow, hashed_user_id: 'hash:user-1' }
+			]
+		});
+
+		expect(context?.directory).toEqual([
+			{
+				connected_account_id: 'acct-figma',
+				app_id: 'design',
+				provider_id: 'figma',
+				account_ref: 'figma-user',
+				label: 'Figma',
+				capabilities: ['read', 'variables'],
+				runtime_modes: { read: 'allow_automatically' }
+			}
+		]);
+		expect(context?.tokenRefInputs).toHaveLength(1);
+		expect(context?.tokenRefInputs?.[0]).toMatchObject({
+			connected_account_id: 'acct-figma',
+			app_id: 'design',
+			provider_id: 'figma',
+			allowed_actions: ['read']
+		});
+		expect(context?.tokenRefInputs?.[0]?.action_scope).toBeUndefined();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('normalizes legacy google_calendar app ids in send context', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -173,6 +221,7 @@ describe('connectedAccountStorageService', () => {
 		});
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('builds approvable directory entries from legacy string capabilities', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -203,6 +252,7 @@ describe('connectedAccountStorageService', () => {
 		expect(context?.tokenRefInputs).toEqual([]);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('uses one provider account for multiple app-specific permission envelopes', async () => {
 		const row = {
 			...encryptedRow,
@@ -248,6 +298,7 @@ describe('connectedAccountStorageService', () => {
 		});
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('does not broaden update-only action fallback into write capability', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -267,6 +318,7 @@ describe('connectedAccountStorageService', () => {
 		expect(context?.directory?.[0].capabilities).not.toContain('write');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('uses default read capability for legacy Calendar chat send directories only', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -296,6 +348,7 @@ describe('connectedAccountStorageService', () => {
 		);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('does not derive capabilities from ambiguous legacy strings', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -314,6 +367,7 @@ describe('connectedAccountStorageService', () => {
 		expect(context?.directory?.[0].capabilities).toEqual([]);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('does not use default read fallback for ambiguous legacy capability strings', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -333,6 +387,7 @@ describe('connectedAccountStorageService', () => {
 		expect(context?.directory?.[0].capabilities).toEqual([]);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('does not apply Calendar default read fallback to other connected-account apps', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -355,6 +410,7 @@ describe('connectedAccountStorageService', () => {
 		expect(context?.tokenRefInputs).toEqual([]);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('summarizes connected account rows without decrypting refresh token envelopes', async () => {
 		const summaries = await summarizeConnectedAccountRows([
 			{
@@ -390,6 +446,7 @@ describe('connectedAccountStorageService', () => {
 		);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('pre-submits token refs only for auto runtime modes during normal sends', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -419,6 +476,7 @@ describe('connectedAccountStorageService', () => {
 		expect(JSON.stringify(context?.tokenRefInputs)).not.toContain('always_ask');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('does not decrypt refresh token envelopes when every action is always ask', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -444,6 +502,7 @@ describe('connectedAccountStorageService', () => {
 		);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('narrows broker token refs to an approved action override', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',
@@ -464,6 +523,7 @@ describe('connectedAccountStorageService', () => {
 		expect(context?.tokenRefInputs?.[0].allowed_actions).toEqual(['update']);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.execution.client-mediated
 	it('creates scoped broker token refs for explicit connected-account approvals', async () => {
 		const context = await buildConnectedAccountSendContext({
 			appId: 'calendar',

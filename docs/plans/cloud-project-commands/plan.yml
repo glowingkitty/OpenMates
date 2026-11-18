@@ -1,0 +1,137 @@
+schema_version: 2
+profile: concise
+id: cloud-project-commands
+title: Terminal commands for cloud Projects in a per-Project E2B workspace
+status: implementing
+goal: >-
+  Make the whole agentic coding workflow work end to end on cloud Projects
+  (hosted Projects with no connected machine, code runs in E2B): a Project
+  created by the assistant, Specification, Checks, Plan, code and file edits,
+  terminal command execution (installs, builds, tests, dev server), the
+  preview, the test recording and the commit. Proven in the dev web app with a
+  Playwright video on the personal dev test account.
+
+tracking:
+  authority: OpenMates Tasks
+  delivery_task_id: 47659cb6-ac2b-4c7b-b106-1aae6ee4024c
+  session: 5349
+  owner_receipts: [992b3895392d1d68, fa3efcf81752e952]
+  parent_plan: docs/plans/cloud-project-development/plan.yml (P5 hosted build/test/preview, P14 auto-commit)
+  related_plans: [docs/plans/native-agentic-coding-readiness/plan.yml (R3/R9 machine runtime), docs/plans/agentic-tests-and-git-sync/plan.yml (test runs)]
+
+authorization:
+  implementation: Owner receipt 992b3895392d1d68 (top priority, R3 confined command runtime for both E2B and the user's machine, git unchanged until TASK-4354). Owner receipt fa3efcf81752e952 adds the file rule and the testing order below.
+  out_of_scope_decisions: Git app skills versus raw git commands stay open (TASK-4354); nothing here adds git commands.
+
+existing:
+  - E2B test runs for hosted Projects (code.run test_run) with setup commands, a started server, a recorded browser video and a test result embed; the client hands the Project snapshot over through project_test_snapshot.py (client-executed snapshot job, Redis 15 min read-once).
+  - The E2B application preview for Svelte/Vite web apps (run_application_preview_task.py), shown on the application card.
+  - Hosted Project file tools and their client executor in the Rust core (work/projects/hosted/job.rs), commits and the Project Timeline.
+  - The remote-machine command contract (argv, cwd, deadlines, output caps, explanation, approval) from R3/R9.
+gaps:
+  - No general terminal command on E2B for a hosted Project; only inline scripts and test runs, each in a fresh sandbox.
+  - No sandbox that outlives one run, so every install starts from zero and a dev server cannot outlive its test.
+  - Files a command changes (lockfile, generated code, formatter output) are lost.
+  - The web app's Project file executor (TypeScript; projects capability ts-only) runs only list, search, read_text, create_file and update_file. Snapshot (every hosted test run and cloud command), commit, rename/delete and apply_changes run only in the Rust core (CLI). The web proof needs them; decision asked of the owner (recommendation - the Rust executor in the shared Worker).
+  - Since 2026-08-07 every root turn that offers start_sub_chats carries an orchestration id, and the async-skill gate refuses every code.run in it, cloud or machine, leaving a stuck Processing card.
+
+rules:
+  files_through_file_tools: >-
+    Files are always searched, read and edited through the existing Project file tools (encrypted,
+    shown as diffs). Terminal commands are only for work that needs execution: installs, builds,
+    tests, linters, the preview or a dev server. They are never used to read or edit files (no cat,
+    head, sed, echo > file, tee). The command gate refuses the obvious forms deterministically and
+    points to the file tools; the tool description states the rule for the rest.
+  command_changes_sync_back: >-
+    When a command changes Project files itself (a lockfile, generated code, formatter output), those
+    changes are synced back into the Project and shown as normal file diffs, never silently. Files
+    under ignored paths (.gitignore plus node_modules, dist, build, .svelte-kit, .cache, coverage,
+    .git) are command-only outputs and are not synced.
+  testing_order: >-
+    Iterate fast through the Rust CLI or TUI first. The final proof is the dev web app with a
+    Playwright video of the web UI on the personal dev test account.
+
+design:
+  command_contract: >-
+    code.run with target e2b and argv (no files, no test_run) runs one exact argument list in the
+    focused cloud Project's workspace. Same limits as the machine runtime: at most 128 arguments of
+    at most 16 KiB, a shell only when argv names one, cwd Project-relative. Foreground deadline
+    default 300 s, at most 1800 s. Background mode (dev server) needs a ready_url on localhost and
+    lives at most as long as the workspace.
+  sandbox_lifecycle: >-
+    One E2B workspace sandbox per (user, chat, Project), recorded in Redis with the sandbox id and
+    the synced file revisions. It is created on the first command and reused by later commands and
+    turns of that chat. Every use extends its E2B timeout to 15 minutes idle; it is recreated after
+    60 minutes total or when E2B reports it gone. No pause/resume in v1.
+  file_persistence: >-
+    The encrypted Project files stay the only source of truth; the workspace is a disposable cache.
+    A sync-back job that expires waits like any other file job (paused, the parked command result
+    kept 30 minutes). Before each command the client snapshot is synced into /home/user/project (changed revisions
+    written, Project files deleted since the last sync removed, untracked outputs such as
+    node_modules kept). The snapshot reaches the sandbox only as file contents; no Project, chat or
+    embed keys.
+  sync_back: >-
+    After a command, the workspace compares tracked text files with the synced snapshot by SHA-256 and
+    finds new non-ignored text files. Changes (at most 20 files, 256 KiB each; larger or binary
+    changes are listed as not synced) go back to the client as one ordered client file job that
+    applies each entry through the existing hosted create/update/delete write, with expected bases
+    from the snapshot. Each applied change appears as its normal diff card; a stale base is reported
+    and that file is not overwritten.
+  secrets: >-
+    The sandbox gets no OpenMates, provider or user secrets and a minimal environment. Project
+    secrets for commands are out of scope for v1 and are not injected.
+  cost_and_time: >-
+    Billed like Code Run, per started minute of command time against the user's credits, with the
+    Code Run active-run and rate limits. At most 20 commands per assistant turn. Idle workspace
+    time is not billed and is bounded by the 15-minute idle timeout and 60-minute lifetime.
+  output_limits: >-
+    Live output streams to the chat's code-run card. The model receives at most 64 KiB per command
+    (head and tail, marked truncated), after the terminal-text safety guard
+    (code-run.output.external-text-guard).
+  network: >-
+    Internet is on for the workspace so installs work; the sandbox cannot reach OpenMates internal
+    services. The workspace is shared by the chat's commands, so v1 has no per-command network switch.
+  web_display: >-
+    Each command is a code-run card in the chat showing the command, cwd, live output, status, exit
+    code and duration, with the existing terminal fullscreen. Synced-back changes show as the
+    normal "File changed" diff cards. Test runs keep their test result embed with video.
+  orchestration_gate: >-
+    A root-turn code.run passes the async-skill orchestration gate (it is the user's own request,
+    billed per minute under the Code Run limits as before orchestration roots existed); sub-chats
+    and other async skills stay refused, and a refused call's card is settled to error.
+
+packages:
+  - id: C1
+    outcome: Root-turn code.run passes the orchestration gate; refused placeholders settle to error.
+    ownership: backend/apps/ai/processing/orchestration_skill_gate.py, main_processor.py gate branch, backend/tests/test_orchestration_skill_gate.py.
+  - id: C2
+    outcome: Workspace provider and command mode. E2B workspace sandbox reuse, snapshot sync, foreground and background commands, change detection; code.run command mode with the file-command refusal and the snapshot handoff for commands.
+    ownership: backend/shared/providers/e2b_project_workspace.py (new), backend/apps/code/cloud_command.py (new), run_code_skill.py, run_code_task.py command branch, project_test_snapshot.py, code app.yml tool description.
+  - id: C3
+    outcome: Sync-back. One ordered client file job (apply_changes) in the Rust hosted executor reusing the existing write path; dispatched after a command that changed files; diff cards in web and CLI.
+    ownership: packages/openmates-rust/src/work/projects/hosted (new apply_changes module), backend dispatch beside project_test_snapshot.py.
+  - id: C3w
+    outcome: Web executes every hosted file-job operation (snapshot, commit, rename/delete, apply_changes) through the Rust core, per the owner's decision.
+    ownership: packages/openmates-rust hosted executor binding, packages/openmates-browser-bindings, the shared Worker unit, frontend/packages/ui/src/services/projectFileJobExecutor.ts.
+  - id: C4
+    outcome: Proof. CLI acceptance first, then the web E2E spec for the full cloud flow with a Playwright video on the personal dev test account.
+    ownership: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts (new), scripts/agentic_cloud_project_web_real_test.py (new).
+
+acceptance_criteria:
+  - {id: AC-1, required: true, text: "In a cloud Project chat the assistant runs npm install, a build and the tests as code.run commands in E2B; a later turn reuses the same workspace (no fresh install) while it is alive."}
+  - {id: AC-2, required: true, text: "A dev server started in background mode becomes ready and is reachable by a following test run or command in the same workspace."}
+  - {id: AC-3, required: true, text: "A command that writes a tracked or new non-ignored file (for example package-lock.json) produces a visible diff card and a new Project file revision; nothing under ignored paths is synced."}
+  - {id: AC-4, required: true, text: "cat/sed/echo-style file reads and edits are refused with a pointer to the Project file tools."}
+  - {id: AC-5, required: true, text: "The web app shows every command card with live output, status and exit code; the full flow (created Project, Specification, Checks, Plan, code, commands, preview, recorded test, commit) passes on dev with a Playwright video."}
+
+verification:
+  checks:
+    - id: V-1
+      required: true
+      proof: Unit tests for the workspace provider (sync, change detection, ignore rules, limits) and the command mode (refusals, snapshot handoff, gate) in isolated CI pytest.
+    - id: V-2
+      required: true
+      proof: Rust crate tests for apply_changes (ordered writes, stale base, size refusals) in rust-check.
+    - id: V-3
+      required: true
+      proof: Real-inference cloud flow through the Rust CLI on dev, then the web E2E with a Playwright video on the personal dev test account (laptop size).

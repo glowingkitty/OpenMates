@@ -2,14 +2,13 @@ import { debounce } from "lodash-es"; // Import isEqual
 import { get } from "svelte/store";
 import type { Editor } from "@tiptap/core";
 import { chatDB } from "../db";
-import type { Chat, TiptapJSON, OfflineChange } from "../../types/chat";
+import type { TiptapJSON } from "../../types/chat";
 import { draftEditorUIState, initialDraftEditorState } from "./draftState"; // Renamed import
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./draftConstants";
 import { getEditorInstance, clearEditorAndResetDraftState } from "./draftCore";
 import { inspectDraftContent } from "./draftContent";
 import { chatSyncService } from "../chatSyncService"; // Import the new service
 import { tipTapToCanonicalMarkdown } from "../../message_parsing/serializers"; // Import markdown converter
-import { encryptWithMasterKey } from "../cryptoService"; // Import encryption functions
 import { chatMetadataCache } from "../chatMetadataCache"; // For cache invalidation
 import { authStore } from "../../stores/authStore"; // Import auth store to check authentication status
 import { userProfile } from "../../stores/userProfile";
@@ -30,12 +29,10 @@ import { draftEmbedLabel, formatDraftPreview } from "../../utils/draftPreview";
 const DEFERRED_EMPTY_DRAFT_FLUSH_DELAY_MS = 550;
 const DEFERRED_EMPTY_DRAFT_FLUSH_ATTEMPTS = 2;
 
-// Rust-core builds: load the draft route with this module, while the app is online.
-// Loading it on the first save would fail for a draft first edited offline. A failed
-// warm-up is not handled here: the save imports the route again and reports the error.
-if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") {
-  void import("../rustCore/drafts/rustDraftRoute").catch(() => undefined);
-}
+// Load the draft route with this module, while the app is online. Loading it on the
+// first save would fail for a draft first edited offline. A failed warm-up is not
+// handled here: the save imports the route again and reports the error.
+void import("../rustCore/drafts/rustDraftRoute").catch(() => undefined);
 
 let deferredEmptyDraftFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -268,7 +265,7 @@ function processMarkdownForPreview(markdown: string): string {
   return displayText;
 }
 
-function generateDraftPreview(
+export function generateDraftPreview(
   markdown: string,
   maxLength: number = 100,
   tiptapJSON?: unknown,
@@ -1120,505 +1117,98 @@ export const saveDraftDebounced = debounce(
       isSaveInProgress: true,
     }));
 
-    // Rust-core build: an existing saved Personal chat is saved by shared Rust in
-    // the core Worker (encryption, version, chats_db row and durable sync intent);
-    // this branch only keeps the editor state and sends Rust's ciphertext on the
-    // existing socket. Every other shape is routed to the TS writer below with a
-    // marked reason (rustDraftRoute.ts).
+    // The shared Rust core saves the draft (encryption, version, chats_db row,
+    // new-chat and team-chat creation, durable sync intent). This shell keeps the
+    // editor state and sends Rust's ciphertext on the existing socket.
     if (
-      import.meta.env.VITE_OPENMATES_RUST_CORE === "1" &&
       currentChatIdForOperation &&
-      !draftTeamContext.teamId &&
-      previewText
-    ) {
-      if (
-        currentState.currentChatId === currentChatIdForOperation &&
-        currentState.lastSavedContentMarkdown &&
-        contentMarkdown === currentState.lastSavedContentMarkdown
-      ) {
-        draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: false, isSaveInProgress: false }));
-        notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
-        return;
-      }
-      const rustChatId = currentChatIdForOperation;
-      const rustSave = { editor, chatId: rustChatId, suppressResaveForQueuedEdit: false };
-      activeDraftSaves.add(rustSave);
-      let routedToRust = false;
-      try {
-        const { saveDraftWithRustCore } = await import("../rustCore/drafts/rustDraftRoute");
-        const outcome = await saveDraftWithRustCore({
-          chatId: rustChatId,
-          markdown: contentMarkdown,
-          preview: previewText,
-          workspaceEpoch: draftTeamContext.epoch,
-          send: (payload) =>
-            chatSyncService.sendUpdateDraft(
-              payload.chat_id,
-              payload.encrypted_draft_md,
-              payload.encrypted_draft_preview,
-              payload.draft_v,
-            ),
-        });
-        if (outcome.kind !== "legacy") {
-          routedToRust = true;
-          if (outcome.kind === "failed") {
-            draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
-            return;
-          }
-          if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
-            await discardStaleDraftWrite(rustChatId);
-            return;
-          }
-          draftEditorUIState.update((s) => ({
-            ...s,
-            currentUserDraftVersion: outcome.version,
-            hasUnsavedChanges: false,
-            lastSavedContentMarkdown: contentMarkdown,
-            isSaveInProgress: false,
-          }));
-          notifyQueuedEditDraftSavedLocally(editor, rustChatId);
-          chatMetadataCache.invalidateDraftProjection(rustChatId);
-          window.dispatchEvent(
-            new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: rustChatId } }),
-          );
-          try {
-            await outcome.synced;
-          } catch (wsError) {
-            if (!isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) return;
-            console.error(
-              `[DraftService] Error sending Rust draft update for chat ${rustChatId}; its durable intent replays offline:`,
-              wsError,
-            );
-            scheduleOfflineDraftFlush();
-            draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
-          }
-          return;
-        }
-      } finally {
-        activeDraftSaves.delete(rustSave);
-        if (routedToRust) {
-          // Same lock release and follow-up save as the TS writer's finally block
-          // (kept inside this build-time branch so the flag-off bundle is unchanged).
-          draftEditorUIState.update((s) => ({ ...s, isSaveInProgress: false }));
-          if (resaveNeeded) {
-            resaveNeeded = false;
-            if (!rustSave.suppressResaveForQueuedEdit) {
-              const pendingResave = {
-                timer: null as unknown as ReturnType<typeof setTimeout>,
-                editor: editorOverride ?? getEditorInstance(),
-                chatId: chatIdFromMessageInput,
-              };
-              pendingResave.timer = setTimeout(() => {
-                pendingResaves.delete(pendingResave);
-                const followUpEditor = editorOverride ?? getEditorInstance();
-                if (followUpEditor && !followUpEditor.isDestroyed) {
-                  saveDraftDebounced(chatIdFromMessageInput, followUpEditor);
-                }
-              }, 100);
-              pendingResaves.add(pendingResave);
-            }
-          }
-        }
-      }
-    }
-
-    // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent TypeError when calling substring
-    const encryptedMarkdown = await encryptWithMasterKey(contentMarkdown);
-    const encryptedPreview = previewText
-      ? await encryptWithMasterKey(previewText)
-      : null;
-
-    if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
-      console.info("[DraftService] Draft save cancelled because its draft lifecycle was cleared.");
-      draftEditorUIState.update((s) => ({ ...s, isSaveInProgress: false }));
-      return;
-    }
-
-    if (!encryptedMarkdown) {
-      console.error(
-        "[DraftService] Failed to encrypt draft content - master key not available",
-      );
-      draftEditorUIState.update((s) => ({
-        ...s,
-        hasUnsavedChanges: true,
-        isSaveInProgress: false,
-      }));
-      return;
-    }
-
-    console.debug("[DraftService] Saving encrypted draft:", {
-      chatId: currentChatIdForOperation,
-      markdownLength: contentMarkdown.length,
-      encryptedLength: encryptedMarkdown.length,
-      previewLength: previewText?.length || 0,
-      encryptedPreviewLength: encryptedPreview?.length || 0,
-    });
-
-    // Check if content has actually changed compared to the last saved version for this chat
-    if (
       currentState.currentChatId === currentChatIdForOperation &&
       currentState.lastSavedContentMarkdown &&
       contentMarkdown === currentState.lastSavedContentMarkdown
     ) {
-      console.info(
-        `[DraftService] Draft content for chat ${currentChatIdForOperation} is unchanged. Skipping save.`,
-      );
-      // Ensure hasUnsavedChanges is false if content matches last save
-      draftEditorUIState.update((s) => ({
-        ...s,
-        hasUnsavedChanges: false,
-        isSaveInProgress: false,
-      }));
+      draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: false, isSaveInProgress: false }));
       notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
       return;
     }
 
-    // Saving non-empty, changed content
-    // The save lock was acquired before encryption to prevent send/create races.
-    draftEditorUIState.update((s) => ({
-      ...s,
-      hasUnsavedChanges: true,
-    }));
-
-    let userDraft: Chat | null = null;
-    let versionBeforeSave = 0;
-
-    const activeSave = {
-      editor,
-      chatId: currentChatIdForOperation ?? chatIdFromMessageInput,
-      suppressResaveForQueuedEdit: false,
-    };
-    activeDraftSaves.add(activeSave);
-    try {
-      if (!currentChatIdForOperation) {
-        console.info(
-          `[DraftService] Creating new chat for draft. currentChatIdForOperation is falsy: ${currentChatIdForOperation}`,
-        );
-        try {
-          // CRITICAL: Don't create incognito chats from drafts
-          // Incognito chats are created when the first message is sent, not when drafts are saved
-          // Create regular chat in IndexedDB
-          console.debug(
-            `[DraftService] About to call createNewChatWithCurrentUserDraft with encryptedMarkdown length: ${encryptedMarkdown?.length}, encryptedPreview length: ${encryptedPreview?.length}`,
-          );
-          const newChat = await chatDB.createNewChatWithCurrentUserDraft(
-            encryptedMarkdown,
-            encryptedPreview,
-            draftTeamContext.teamId,
-          );
-
-          console.debug(
-            `[DraftService] createNewChatWithCurrentUserDraft returned:`,
-            {
-              chatId: newChat.chat_id,
-              draftVersion: newChat.draft_v,
-              hasEncryptedDraftMd: !!newChat.encrypted_draft_md,
-              hasEncryptedDraftPreview: !!newChat.encrypted_draft_preview,
-            },
-          );
-          currentChatIdForOperation = newChat.chat_id; // Update for subsequent use in this function
-          userDraft = newChat;
-          if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
-            await discardStaleDraftWrite(currentChatIdForOperation);
-            return;
-          }
-          draftEditorUIState.update((s) => ({
-            ...s,
-            currentChatId: currentChatIdForOperation, // This is now the ID of the new chat
-            currentUserDraftVersion: userDraft.draft_v,
-            newlyCreatedChatIdToSelect: currentChatIdForOperation,
-            hasUnsavedChanges: false,
-            lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
-            isSaveInProgress: false, // Release lock on success
-          }));
-          notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
-          console.info(
-            `[DraftService] Created new local chat ${currentChatIdForOperation} with encrypted draft. Version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`,
-          );
-        } catch (error) {
-          console.error(
-            `[DraftService] Error creating new chat for draft:`,
-            error,
-          );
-          // If chat creation fails, we can't save the draft
-          draftEditorUIState.update((s) => ({
-            ...s,
-            hasUnsavedChanges: true,
-            isSaveInProgress: false,
-          }));
-          return;
-        }
-      } else {
-        // Check if chat exists in database or incognito service before deciding whether to create or update
-        let existingChat: Chat | null = null;
-        let isIncognitoChat = false;
-
-        // First check if it's an incognito chat
-        const { incognitoChatService } =
-          await import("../incognitoChatService");
-        try {
-          existingChat = await incognitoChatService.getChat(
-            currentChatIdForOperation,
-          );
-          if (existingChat) {
-            isIncognitoChat = true;
-          }
-        } catch (_error) {
-          // Not an incognito chat or error - continue to check IndexedDB
-        }
-
-        // If not found in incognito service, check IndexedDB without decrypting
-        // metadata. Synced CLI/IdeaBucket draft-only shells may not have a usable
-        // local chat key yet, but their encrypted draft fields are safe to update.
-        if (!existingChat) {
-          try {
-            existingChat = await chatDB.getRawChat(currentChatIdForOperation);
-          } catch (error) {
-            console.error(
-              `[DraftService] Error during database lookup for chat ${currentChatIdForOperation}:`,
-              error,
-            );
-            draftEditorUIState.update((s) => ({
-              ...s,
-              hasUnsavedChanges: true,
-              isSaveInProgress: false,
-            }));
-            return;
-          }
-        }
-
-        if (!existingChat) {
-          // CRITICAL FIX: Chat ID exists in state but not in IndexedDB
-          // This can happen after login when state is restored but DB is cleared
-          // Instead of creating a new chat with a DIFFERENT random UUID (which causes duplicate chats),
-          // create a chat using the EXISTING ID from state
-          console.warn(
-            `[DraftService] Chat ${currentChatIdForOperation} not found in local DB. Creating chat with the SAME ID to prevent duplicates.`,
-          );
-          try {
-            // Create a chat object with the EXISTING ID (not a new random UUID)
-            const nowTimestamp = Math.floor(Date.now() / 1000);
-            const chatToCreate: Chat = {
-              chat_id: currentChatIdForOperation, // USE THE EXISTING ID!
-              team_id: draftTeamContext.teamId,
-              team_chat_pending_commit: !!draftTeamContext.teamId,
-              encrypted_title: null,
-              messages_v: 0,
-              title_v: 0,
-              draft_v: 1,
-              encrypted_draft_md: encryptedMarkdown,
-              encrypted_draft_preview: encryptedPreview,
-              last_edited_overall_timestamp: nowTimestamp,
-              unread_count: 0,
-              created_at: nowTimestamp,
-              updated_at: nowTimestamp,
-            };
-
-            // Save directly to IndexedDB using addChat (not createNewChatWithCurrentUserDraft which generates a new UUID)
-            await chatDB.addChat(chatToCreate);
-            userDraft = chatToCreate;
-
-            if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
-              await discardStaleDraftWrite(currentChatIdForOperation);
-              return;
-            }
-
-            draftEditorUIState.update((s) => ({
-              ...s,
-              // Keep the same currentChatId - DO NOT change it
-              currentUserDraftVersion: userDraft.draft_v,
-              newlyCreatedChatIdToSelect: currentChatIdForOperation,
-              hasUnsavedChanges: false,
-              lastSavedContentMarkdown: contentMarkdown,
-              isSaveInProgress: false, // Release lock on success
-            }));
-            notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
-            console.info(
-              `[DraftService] Created chat ${currentChatIdForOperation} (using existing ID) with encrypted draft. Version: ${userDraft.draft_v}`,
-            );
-          } catch (error) {
-            console.error(
-              `[DraftService] Error creating chat with existing ID ${currentChatIdForOperation}:`,
-              error,
-            );
-            draftEditorUIState.update((s) => ({
-              ...s,
-              hasUnsavedChanges: true,
-              isSaveInProgress: false,
-            }));
-            return;
-          }
-        } else {
-          if (!isIncognitoChat && (existingChat.team_id ?? null) !== draftTeamContext.teamId) {
-            draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: false }));
-            return;
-          }
-          // Chat exists - update it normally
-          // CRITICAL: Don't save drafts for incognito chats
-          if (isIncognitoChat) {
-            console.debug(
-              `[DraftService] Skipping draft update for incognito chat ${currentChatIdForOperation} - drafts are not saved for incognito chats`,
-            );
-            // Just update the draft state in memory, but don't persist
-            draftEditorUIState.update((s) => ({
-              ...s,
-              hasUnsavedChanges: false,
-              lastSavedContentMarkdown: contentMarkdown,
-              isSaveInProgress: false, // Release lock
-            }));
-            notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
-            return;
-          }
-
-          // Update regular chat draft in IndexedDB using the raw row so draft-only
-          // sync shells do not depend on chat-key metadata decryption before the
-          // local draft write is durable.
-          console.info(
-            `[DraftService] Updating existing draft for chat ${currentChatIdForOperation}`,
-          );
-          versionBeforeSave = Math.max(existingChat.draft_v ?? 0, existingChat.cleared_draft_v ?? 0);
-          userDraft = {
-            ...existingChat,
-            encrypted_draft_md: encryptedMarkdown,
-            encrypted_draft_preview: encryptedPreview,
-            draft_v:
-              existingChat.encrypted_draft_md !== encryptedMarkdown
-                ? versionBeforeSave + 1
-                : versionBeforeSave,
-            updated_at: Math.max(
-              Math.floor(Date.now() / 1000),
-              (existingChat.updated_at ?? 0) + 1,
-            ),
-          };
-          const savedDraft = await chatDB.saveChatDraftFields(currentChatIdForOperation, {
-            encrypted_draft_md: userDraft.encrypted_draft_md,
-            encrypted_draft_preview: userDraft.encrypted_draft_preview,
-            draft_v: userDraft.draft_v,
-            updated_at: userDraft.updated_at,
-          });
-          if (!savedDraft || savedDraft.encrypted_draft_md !== encryptedMarkdown ||
-              savedDraft.encrypted_draft_preview !== encryptedPreview) {
-            // A concurrent clear/newer draft won the write lock. Never acknowledge
-            // this editor's different plaintext as saved or sync the rejected copy.
-            draftEditorUIState.update((state) => state.currentChatId === currentChatIdForOperation
-              ? { ...state, hasUnsavedChanges: true } : state);
-            return;
-          }
-          userDraft = savedDraft;
-          if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
-            await discardStaleDraftWrite(currentChatIdForOperation);
-            return;
-          }
-          if (userDraft) {
-            // currentChatId in state should already be currentChatIdForOperation due to earlier update or initial state
-            draftEditorUIState.update((s) => ({
-              ...s,
-              currentUserDraftVersion: userDraft.draft_v,
-              hasUnsavedChanges: false,
-              lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
-              isSaveInProgress: false, // Release lock on success
-            }));
-            notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
-            console.info(
-              `[DraftService] Saved encrypted draft locally for chat ${currentChatIdForOperation}, new version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`,
-            );
-          } else {
-            console.error(
-              `[DraftService] Failed to save draft locally for chat ${currentChatIdForOperation}.`,
-            );
-            draftEditorUIState.update((s) => ({
-              ...s,
-              hasUnsavedChanges: true,
-              isSaveInProgress: false,
-            }));
-            return; // Stop if local save failed
-          }
-        }
-      }
-
-      if (!userDraft || !currentChatIdForOperation) {
-        console.error(
-          "[DraftService] Critical error: UserDraft object or ID is null after local save attempt.",
-        );
-        draftEditorUIState.update((s) => ({
-          ...s,
-          hasUnsavedChanges: true,
-          isSaveInProgress: false,
-        }));
-        return;
-      }
-
-      if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
-        console.info(
-          `[DraftService] Skipping stale draft publication for cleared chat ${currentChatIdForOperation}.`,
-        );
-        return;
-      }
-
-      // Invalidate cache directly (important for when Chats component is unmounted)
-      console.debug(
-        `[DraftService] Invalidating cache for updated draft in chat: ${currentChatIdForOperation}`,
-      );
-      chatMetadataCache.invalidateDraftProjection(currentChatIdForOperation);
-
-      // Dispatch event for UI lists to update
-      window.dispatchEvent(
-        new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
-          detail: { chat_id: currentChatIdForOperation },
-        }),
-      );
-
-      // Send to server or queue if the encrypted WebSocket send fails.
-      // NOTE: Local storage with encrypted content has already been completed above
+    const mintedChatId = !currentChatIdForOperation;
+    const rustChatId = currentChatIdForOperation ?? crypto.randomUUID();
+    let createChat = mintedChatId;
+    if (!mintedChatId) {
       try {
-        // Send encrypted markdown and preview to server for synchronization.
-        // The sendUpdateDraft function will NOT save to local database - that's already done above with encryption.
-        await chatSyncService.sendUpdateDraft(
-          currentChatIdForOperation,
-          encryptedMarkdown,
-          encryptedPreview,
-          userDraft.draft_v,
+        createChat = !(await chatDB.getRawChat(rustChatId));
+      } catch (error) {
+        console.error(
+          `[DraftService] Error during database lookup for chat ${rustChatId}:`,
+          error,
         );
-        console.info(
-          `[DraftService] Successfully sent encrypted draft to server for chat ${currentChatIdForOperation}.`,
-        );
+        draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: false }));
+        return;
+      }
+    }
+    const rustSave = { editor, chatId: rustChatId, suppressResaveForQueuedEdit: false };
+    activeDraftSaves.add(rustSave);
+    try {
+      const { saveDraftWithRustCore } = await import("../rustCore/drafts/rustDraftRoute");
+      const outcome = await saveDraftWithRustCore({
+        chatId: rustChatId,
+        markdown: contentMarkdown,
+        // Rust refuses a blank preview; content that renders to no preview text uses its markdown.
+        preview: previewText || contentMarkdown.trim().slice(0, 100),
+        workspaceEpoch: draftTeamContext.epoch,
+        teamId: draftTeamContext.teamId ?? null,
+        createChat,
+        send: (payload) =>
+          chatSyncService.sendUpdateDraft(
+            payload.chat_id,
+            payload.encrypted_draft_md,
+            payload.encrypted_draft_preview,
+            payload.draft_v,
+          ),
+      });
+      if (outcome.kind === "failed") {
+        draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
+        return;
+      }
+      if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
+        await discardStaleDraftWrite(rustChatId);
+        return;
+      }
+      draftEditorUIState.update((s) => ({
+        ...s,
+        ...(mintedChatId ? { currentChatId: rustChatId } : {}),
+        ...(createChat ? { newlyCreatedChatIdToSelect: rustChatId } : {}),
+        currentUserDraftVersion: outcome.version,
+        hasUnsavedChanges: false,
+        lastSavedContentMarkdown: contentMarkdown,
+        isSaveInProgress: false,
+      }));
+      notifyQueuedEditDraftSavedLocally(editor, rustChatId);
+      chatMetadataCache.invalidateDraftProjection(rustChatId);
+      window.dispatchEvent(
+        new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: rustChatId } }),
+      );
+      // Offline: the core wrote the local encrypted row and queued its intent; the
+      // existing offline replay publishes it once the connection returns.
+      if (outcome.localOnly) scheduleOfflineDraftFlush();
+      try {
+        await outcome.synced;
       } catch (wsError) {
         if (!isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) return;
         console.error(
-          `[DraftService] Error sending encrypted draft update via WS for chat ${currentChatIdForOperation}. Queuing encrypted draft update:`,
+          `[DraftService] Error sending Rust draft update for chat ${rustChatId}; its durable intent replays offline:`,
           wsError,
         );
-        const offlineChange: Omit<OfflineChange, "change_id"> = {
-          chat_id: currentChatIdForOperation,
-          ...(draftTeamContext.teamId ? { team_id: draftTeamContext.teamId } : {}),
-          type: "draft",
-          value: encryptedMarkdown,
-          encrypted_draft_preview: encryptedPreview,
-          version_before_edit: versionBeforeSave,
-        };
-        await chatSyncService.queueOfflineChange(offlineChange);
         scheduleOfflineDraftFlush();
-        draftEditorUIState.update((s) => ({
-          ...s,
-          hasUnsavedChanges: true,
-          isSaveInProgress: false,
-        }));
+        draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
       }
     } finally {
-      // CRITICAL: Ensure save lock is always released, even if an unexpected error occurs
+      // The save lock is always released; a save requested meanwhile is repeated
+      // shortly after so typing during a slow save is not lost.
       draftEditorUIState.update((s) => ({ ...s, isSaveInProgress: false }));
-
-      // If another save was requested while this one was in progress, schedule
-      // a follow-up save with a short delay to capture the latest editor content.
-      // This prevents content loss when the user types during a slow save (encryption).
       if (resaveNeeded) {
         resaveNeeded = false;
-        if (!activeSave.suppressResaveForQueuedEdit) {
-          console.debug(
-            "[DraftService] Executing follow-up save for content that arrived during previous save",
-          );
-          // Defer only this save's follow-up, so a queued edit can cancel its
-          // own pending timer after the independent draft is durable locally.
+        if (!rustSave.suppressResaveForQueuedEdit) {
           const pendingResave = {
             timer: null as unknown as ReturnType<typeof setTimeout>,
             editor: editorOverride ?? getEditorInstance(),
@@ -1634,7 +1224,7 @@ export const saveDraftDebounced = debounce(
           pendingResaves.add(pendingResave);
         }
       }
-      activeDraftSaves.delete(activeSave);
+      activeDraftSaves.delete(rustSave);
     }
   },
   1200,

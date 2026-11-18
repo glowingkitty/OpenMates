@@ -6,6 +6,7 @@
  * Open /dev/preview/embeds/specifications/SpecificationEmbedFullscreen?chrome=0.
  */
 import type { SpecificationDocument } from './SpecificationDocument';
+import type { SpecificationRevisionSummary } from './SpecificationRevision';
 
 const document: SpecificationDocument = {
   title: 'Teams', project: 'OpenMates', category: 'Feature',
@@ -44,4 +45,33 @@ const document: SpecificationDocument = {
   ],
 };
 
-export default { data: { decodedContent: { document } }, onClose: () => window.dispatchEvent(new CustomEvent('specification-preview-close')) };
+const revisions: SpecificationRevisionSummary[] = [
+  { revision_id: 'rev-3', revision_number: 3, created_at: '2026-11-10T09:30:00Z', author_label: 'Alex', summary: 'Added viewer permissions edge case.', status: 'draft', content_hash: 'sha256:c3' },
+  { revision_id: 'rev-2', revision_number: 2, created_at: '2026-11-05T14:00:00Z', author_label: 'OpenMates', summary: 'Split lifecycle and profile image requirements.', status: 'approved', content_hash: 'sha256:b2' },
+  { revision_id: 'rev-1', revision_number: 1, created_at: '2026-11-01T08:15:00Z', author_label: 'Alex', summary: 'First draft.', status: 'superseded', content_hash: 'sha256:a1' },
+];
+const onClose = () => window.dispatchEvent(new CustomEvent('specification-preview-close'));
+const onApprove = (revisionId: string, contentHash: string) => window.dispatchEvent(new CustomEvent('specification-preview-approve', { detail: { revisionId, contentHash } }));
+const base = { document, revisions, currentRevisionId: 'rev-3', viewedRevisionId: 'rev-3', approval: { state: 'stale' as const, approved_revision_id: 'rev-2', approved_at: '2026-11-06T10:00:00Z' }, onApprove, onSelectRevision: () => {}, onClose };
+
+export default base;
+
+// Shaped like a document stored through the CLI or API: no chapters and no proof
+// projection. Every requirement must still render, as not proven.
+const storedDocument: SpecificationDocument = {
+  title: 'Recipe planning', project: '', category: 'Product',
+  summary: 'Save recipes and plan meals for the week', outcome: 'People keep their recipes in one place.',
+  scope: { included: ['Saving recipes'], excluded: ['Grocery delivery'] },
+  chapters: [],
+  requirements: [{ id: 'R1', statement: 'A user can save a recipe.', appliesTo: [], example: 'Saving "Pancakes" lists it under recipes.' }],
+  flows: [], models: [],
+};
+
+export const variants = {
+  'stored-document': { ...base, document: storedDocument, approval: { state: 'draft' as const, approved_revision_id: null, approved_at: null } },
+  draft: { ...base, approval: { state: 'draft' as const, approved_revision_id: null, approved_at: null } },
+  // Design to refine: status strip, revisions panel, approval confirmation.
+  approved: { ...base, currentRevisionId: 'rev-2', viewedRevisionId: 'rev-2', revisions: revisions.slice(1), approval: { state: 'approved' as const, approved_revision_id: 'rev-2', approved_at: '2026-11-06T10:00:00Z' } },
+  'changes-since-approval': { ...base, approval: { state: 'stale' as const, approved_revision_id: 'rev-2', approved_at: '2026-11-06T10:00:00Z' } },
+  'older-revision-read-only': { ...base, viewedRevisionId: 'rev-1', approval: { state: 'stale' as const, approved_revision_id: 'rev-2', approved_at: '2026-11-06T10:00:00Z' } },
+};

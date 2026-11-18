@@ -186,7 +186,7 @@
         <GeneratedMediaThumbnails childEmbedIds={childIds} onPrompt={(value) => { childPrompt = value; }} />
       {/if}
       {#if prompt && !showRequest}<p class="prompt" data-testid="generated-media-parent-prompt">{prompt}</p>{/if}
-      {#if currentError || error}<span class="partial-error">{currentError || error}</span>{/if}
+      {#if currentError || error}<span class="partial-error" data-testid="generated-media-error-text">{currentError || error}</span>{/if}
     </div>
   {/snippet}
 </UnifiedEmbedPreview>

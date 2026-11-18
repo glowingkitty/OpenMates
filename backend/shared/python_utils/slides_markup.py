@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import html
 import re
+from functools import lru_cache
+from pathlib import Path
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from typing import Callable, Dict, List, Optional, Tuple, Union
@@ -49,7 +51,7 @@ TRANSITIONS = {"none", "fade", "slide"}
 INLINE_TAGS = {"b", "i", "u", "s", "br", "ul", "ol", "li"}
 ELEMENT_TAGS = {"text", "image", "video", "shape", "notepad", "todo", "link", "block"}
 # Elements that never have children: they auto-close without an end tag.
-VOID_TAGS = {"image", "video", "shape", "br"}
+VOID_TAGS = {"image", "video", "shape", "br", "theme"}
 # Dropped together with their whole subtree; every other unknown element is unwrapped.
 DANGEROUS_TAGS = {
     "script", "style", "iframe", "object", "embed", "template", "noscript",
@@ -67,6 +69,16 @@ _INT_RE = re.compile(r"^-?[0-9]{1,6}(?:\.[0-9]+)?$")
 _BLOCK_START_RE = re.compile(r"<block(?=[\s/>])", re.IGNORECASE)
 _BLOCK_END_RE = re.compile(r"</block\s*>", re.IGNORECASE)
 _BLOCK_MARK = "data-om-block-index"
+_ID_FILE_RE = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
+_THEME_HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+DECK_KINDS = {"deck", "template"}
+THEME_FONTS = ("heading", "body")
+THEME_COLORS = ("background", "foreground", "accent", "accent-2", "muted", "surface")
+# Layout names a template sample slide can stand in for (alias -> canonical name).
+LAYOUT_ALIASES = {"title-and-content": "content"}
+# backend/shared/python_utils -> backend/apps/slides/templates (same layout in every container).
+BUILTIN_TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "apps" / "slides" / "templates"
 
 
 class SlidesMarkupError(ValueError):
@@ -79,6 +91,7 @@ class NormalisedDeck:
     title: str
     slide_count: int
     aspect: str
+    kind: str = "deck"
 
 
 class _Node:
@@ -482,6 +495,84 @@ def _slide_children(slide: _Node) -> List[_Node]:
     return found
 
 
+# -------------------------------------------------------------------- themes
+
+def _clean_theme(node: Optional[_Node]) -> Dict[str, str]:
+    """Valid theme attributes in serialised order (fonts, then colour tokens)."""
+    if node is None:
+        return {}
+    theme: Dict[str, str] = {}
+    for name in THEME_FONTS:
+        font = SAFE_FONTS.get(node.attrs.get(name, "").strip().lower())
+        if font:
+            theme[name] = font
+    for name in THEME_COLORS:
+        value = node.attrs.get(name, "").strip()
+        if _THEME_HEX_RE.match(value):
+            theme[name] = value.lower()
+    return theme
+
+
+@dataclass(frozen=True)
+class _Builtin:
+    markup: str
+    title: str
+    theme: Dict[str, str]
+    slides: Dict[str, "_Node"]
+
+
+def builtin_template_ids() -> List[str]:
+    """Ids of the built-in templates, ``plain`` first."""
+    ids = sorted(p.stem for p in BUILTIN_TEMPLATES_DIR.glob("*.slides"))
+    return sorted(ids, key=lambda i: (i != "plain", i))
+
+
+@lru_cache(maxsize=None)
+def _builtin(template_id: str) -> Optional[_Builtin]:
+    path = BUILTIN_TEMPLATES_DIR / f"{template_id}.slides"
+    if not _ID_FILE_RE.match(template_id) or not path.is_file():
+        return None
+    markup = path.read_text(encoding="utf-8")
+    parser = _TreeBuilder()
+    parser.feed(markup)
+    parser.close()
+    deck = _find_deck(parser.root)
+    slides = {s.attrs.get("layout", ""): s for s in _slides_of(deck)}
+    return _Builtin(markup, deck.attrs.get("title", ""), _clean_theme(next(iter(_collect(deck.children, "theme")), None)), slides)
+
+
+def builtin_template_markup(template_id: str) -> Optional[str]:
+    """Normalised markup of a built-in template, or None for an unknown id."""
+    found = _builtin(template_id)
+    return found.markup if found else None
+
+
+def _apply_builtin_design(slide: _Node, elements: List[_Node], sample: _Node) -> List[_Node]:
+    """Decorations first, then slot geometry/style for texts without a position."""
+    sample_elements = _slide_children(sample)
+    decorations = [
+        _Node("shape", {k: v for k, v in e.attrs.items() if k != "id"})
+        for e in sample_elements if e.tag == "shape"
+    ]
+    slots: Dict[str, List[_Node]] = {}
+    for e in sample_elements:
+        if e.tag == "text":
+            slots.setdefault(e.attrs.get("role", ""), []).append(e)
+    seen: Dict[str, int] = {}
+    for node in elements:
+        if node.tag != "text":
+            continue
+        role = node.attrs.get("role", "").strip().lower()
+        index = seen.get(role, 0)
+        seen[role] = index + 1
+        if any(k in node.attrs for k in ("x", "y", "w", "h")) or index >= len(slots.get(role, [])):
+            continue
+        for key, value in slots[role][index].attrs.items():
+            if key in {"x", "y", "w", "h", "size", "align", "weight", "color"} and key not in node.attrs:
+                node.attrs[key] = value
+    return decorations + elements
+
+
 def normalise_slides_markup(source: str) -> NormalisedDeck:
     """Parse, sanitise and re-serialise a slides deck.
 
@@ -498,7 +589,15 @@ def normalise_slides_markup(source: str) -> NormalisedDeck:
     parser.close()
     deck = _find_deck(parser.root)
     slides = _slides_of(deck)
+    kind = deck.attrs.get("kind", "").strip().lower()
+    kind = kind if kind in DECK_KINDS else "deck"
     if not slides:
+        # Built-in shortcut: an empty template fence stands for that built-in template.
+        shortcut = deck.attrs.get("template", "").strip()
+        if kind == "template" and shortcut.startswith("builtin:"):
+            builtin_markup = builtin_template_markup(shortcut[len("builtin:"):])
+            if builtin_markup is not None:
+                return normalise_slides_markup(builtin_markup)
         raise SlidesMarkupError("slides markup contains no slide")
     slides = slides[:MAX_SLIDES]
 
@@ -511,7 +610,17 @@ def normalise_slides_markup(source: str) -> NormalisedDeck:
     ids = _IdAllocator(_all_ids(deck) | {_block_node(a).attrs.get("id", "") for a, _ in blocks})
 
     deck_attrs = {"title": title, "aspect": aspect, "template": template}
+    if kind == "template":
+        deck_attrs["kind"] = kind
+    theme = _clean_theme(next(iter(_collect(deck.children, "theme")), None))
+    design = None
+    if kind == "deck" and not theme and template.startswith("builtin:") and template != DEFAULT_TEMPLATE:
+        design = _builtin(template[len("builtin:"):])
+        if design is not None:
+            theme = dict(design.theme)
     lines = [_fmt("deck", deck_attrs, ">")]
+    if theme:
+        lines.append("  " + _fmt("theme", theme, "/>"))
     for slide in slides:
         slide_attrs: Dict[str, str] = {"id": ids.slide(slide.attrs.get("id"))}
         layout = slide.attrs.get("layout", "").strip().lower()
@@ -523,7 +632,12 @@ def normalise_slides_markup(source: str) -> NormalisedDeck:
         lines.append("  " + _fmt("slide", slide_attrs, ">"))
         notes = ""
         count = 0
-        for node in _slide_children(slide):
+        elements = _slide_children(slide)
+        if design is not None:
+            sample = design.slides.get(LAYOUT_ALIASES.get(layout, layout))
+            if sample is not None:
+                elements = _apply_builtin_design(slide, elements, sample)
+        for node in elements:
             if node.tag == "notes":
                 notes = notes or _plain_text(node.children).strip()
                 continue
@@ -537,4 +651,4 @@ def normalise_slides_markup(source: str) -> NormalisedDeck:
             lines.append("    <notes>" + html.escape(notes[:5000], quote=False) + "</notes>")
         lines.append("  </slide>")
     lines.append("</deck>")
-    return NormalisedDeck("\n".join(lines) + "\n", title, len(slides), aspect)
+    return NormalisedDeck("\n".join(lines) + "\n", title, len(slides), aspect, kind)

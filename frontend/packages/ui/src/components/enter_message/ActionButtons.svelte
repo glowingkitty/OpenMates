@@ -22,6 +22,8 @@
         isRecordButtonPressed?: boolean;
         isAuthenticated?: boolean;
         allowAnonymousTextSend?: boolean;
+        /** Signed out and guest access still being checked: short loading state, never a disabled Send. */
+        guestStatusLoading?: boolean;
         hasNoCredits?: boolean;
         blockedMicAttempt?: number;
         highlightPressHold?: boolean;
@@ -47,6 +49,7 @@
         blockedMicAttempt = 0,
         isAuthenticated = true,
         allowAnonymousTextSend = false,
+        guestStatusLoading = false,
         hasNoCredits = false,
         isSketchOpen = false,
         unauthenticatedCtaLabel = $text('signup.sign_up'),
@@ -87,6 +90,8 @@
     let speechEnabled = $state(false);
     let canSendMessage = $derived(isAuthenticated || allowAnonymousTextSend);
     let sendBusy = $derived(isComposerSendBusy(sendInProgress, modelSelectionReady, queuedEditActive));
+    // Signed out, Send is either active or replaced by Sign up / Log in: never disabled.
+    let sendDisabled = $derived(isAuthenticated && sendBusy);
 
     onMount(() => {
         previousAutoSpeakResponse = autoSpeakResponse;
@@ -261,11 +266,15 @@
                 </button>
             {:else if canSendMessage && !forceUnauthenticatedCta}
                 <!-- Keep the composer expanded between pointer-down and click, including during autosave. -->
-                <button type="button" class="send-button" data-testid="composer-send-button" data-preserve-composer-focus="true" data-action="send-message" onclick={handleSendMessageClick} aria-label={$text('enter_message.send')} disabled={sendBusy} aria-busy={sendBusy} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
+                <button type="button" class="send-button" data-testid="composer-send-button" data-preserve-composer-focus="true" data-action="send-message" onclick={handleSendMessageClick} aria-label={$text('enter_message.send')} disabled={sendDisabled} aria-busy={sendBusy} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
                     {$text('enter_message.send')}
                 </button>
+            {:else if guestStatusLoading && !forceUnauthenticatedCta}
+                <span class="send-button send-button-loading" role="status" data-testid="composer-send-loading" data-action="guest-status-loading" aria-label={$text('enter_message.guest_access_checking')} in:fly={{ x: 40, duration: 200 }}>
+                    <span class="send-loading-dot" aria-hidden="true"></span>
+                </span>
             {:else}
-                <button type="button" class="send-button" data-preserve-composer-focus="true" data-action="sign-up-to-send" onclick={handleSignUpClick} aria-label={unauthenticatedCtaLabel} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
+                <button type="button" class="send-button" data-testid="composer-account-cta" data-preserve-composer-focus="true" data-action="sign-up-to-send" onclick={handleSignUpClick} aria-label={unauthenticatedCtaLabel} in:fly={{ x: 40, duration: 200 }} out:fly={{ x: 40, duration: 150 }}>
                     {unauthenticatedCtaLabel}
                 </button>
             {/if}
@@ -395,6 +404,29 @@
         font-weight: 500;
         background: var(--color-button-primary);
         cursor: pointer;
+    }
+
+    .send-button-loading {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 64px;
+        cursor: progress;
+    }
+
+    .send-loading-dot {
+        width: 16px;
+        height: 16px;
+        border: 2px solid currentColor;
+        border-inline-end-color: transparent;
+        border-radius: 50%;
+        animation: send-loading-spin 0.8s linear infinite;
+    }
+
+    @keyframes send-loading-spin { to { transform: rotate(360deg); } }
+
+    @media (prefers-reduced-motion: reduce) {
+        .send-loading-dot { animation: none; }
     }
 
     @container composer-actions (max-width: 34rem) {

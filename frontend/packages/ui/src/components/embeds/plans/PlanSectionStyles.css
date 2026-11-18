@@ -1,0 +1,13 @@
+/* Shared look of Plan section cards and rows (imported by the section components). */
+.plan-section { display: grid; gap: var(--spacing-5); padding: var(--spacing-8); border: 1px solid var(--color-grey-20); border-radius: var(--radius-5, 24px); background: var(--color-grey-0); }
+.plan-section-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-5); }
+.plan-section-heading p { margin: 0; font-weight: 700; color: var(--color-font-primary); }
+.plan-section-count { display: grid; min-width: 28px; height: 28px; place-items: center; border-radius: 999px; background: var(--color-grey-10); color: var(--color-font-secondary); font-size: var(--font-size-xs); }
+.plan-rows { display: grid; gap: var(--spacing-4); margin: 0; padding: 0; list-style: none; }
+.plan-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-5); padding: var(--spacing-5); border-radius: var(--radius-4, 18px); background: var(--color-grey-10); color: var(--color-font-primary); }
+.plan-row-main { display: grid; gap: var(--spacing-2); min-width: 0; }
+.plan-row-main small, .plan-empty { color: var(--color-font-secondary); }
+.plan-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-3); }
+.plan-link { justify-self: start; margin: 0; min-width: 0; height: auto; border: 0; background: none; padding: 0; color: var(--color-font-primary); font: inherit; text-decoration: underline; cursor: pointer; text-align: left; }
+.plan-empty { margin: 0; }
+@media (max-width: 760px) { .plan-row { align-items: stretch; flex-direction: column; } }

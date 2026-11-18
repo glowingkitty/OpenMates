@@ -272,6 +272,13 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.always_active.sightengine", privacyPolicyLinks.sightengine);
   renderProvider("legal.privacy.providers.always_active.api_video", privacyPolicyLinks.apiVideo);
 
+  // Status page — only when visiting status.openmates.org
+  lines.push(`### ${t("legal.privacy.providers.status_page.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.status_page.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.status_page.upcloud", privacyPolicyLinks.upcloud);
+
   // Group B — Payments
   lines.push(`### ${t("legal.privacy.providers.payments.heading")}`);
   lines.push("");
@@ -393,6 +400,7 @@ export function buildPrivacyPolicyContent(
   lines.push(t("legal.privacy.providers.connected_services.description"));
   lines.push("");
   renderProvider("legal.privacy.providers.connected_services.google_calendar", privacyPolicyLinks.googleCalendar);
+  renderProvider("legal.privacy.providers.connected_services.figma", privacyPolicyLinks.figma);
 
   // Group J3 — Public company data
   lines.push(`### ${t("legal.privacy.providers.business_data.heading")}`);

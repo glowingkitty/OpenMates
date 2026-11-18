@@ -37,7 +37,7 @@ impl PreparedRead {
     pub(super) async fn send(self) -> SentRead {
         let Self { request, path, generation, monitor_origin, metadata_not_found } = self;
         SentRead {
-            response: request.send().await.map_err(|_| Error::Offline),
+            response: request.send().await.map_err(|_| crate::client::send::refusal_trace::offline_at!()),
             path,
             generation,
             monitor_origin,
@@ -639,10 +639,35 @@ impl Client {
             || metadata_not_found || http_failure_status.is_some() || auth_response_status.is_some() || history_version.is_some()) {
             return Err(crate::client::send::refusal_trace::protocol_at!());
         }
-        let (req, generation, monitor_origin) = self.prepare_http_request(
-            method, path, body, pair_secret, idempotency, task, committed_task,
-        )?;
-        let response = session_request_budget_at(req,session_budget,crate::platform::time::Instant::now())?.send().await.map_err(|_| Error::Offline);
+        // A rate-limited (429) or briefly unavailable (503) body-less GET waits out Retry-After and is prepared
+        // and sent again (every pre-send fence, including cancellation, runs
+        // again); see `rate_limited_read`. Callers that observe the HTTP status
+        // themselves (status slots, settings reminders with their own retry
+        // wait, session admission budget) keep seeing the first 429 or 503.
+        let caller_reads_status = http_failure_status.is_some() || auth_response_status.is_some()
+            || settings_reminders || session_budget.is_some();
+        let keep_first_response = body.is_some() || caller_reads_status;
+        let mut body = body;
+        let mut resends = 0u32;
+        let (response, generation, monitor_origin) = loop {
+            let (req, generation, monitor_origin) = self.prepare_http_request(
+                method.clone(), path, body.take(), pair_secret, idempotency, task, committed_task,
+            )?;
+            let response = session_request_budget_at(req,session_budget,crate::platform::time::Instant::now())?.send().await.map_err(|_| crate::client::send::refusal_trace::offline_at!());
+            if let Ok(sent) = &response
+                && super::rate_limited_read::resend_after_rate_limit(&method, keep_first_response, sent.status().as_u16(), resends)
+            {
+                let wait = super::rate_limited_read::rate_limit_wait(sent.headers(), resends);
+                drop(response);
+                resends += 1;
+                crate::platform::time::sleep(wait).await;
+                if self.generation != generation {
+                    return Err(Error::Cancelled);
+                }
+                continue;
+            }
+            break (response, generation, monitor_origin);
+        };
         self.finish_http_response(path, response, generation, monitor_origin, metadata_not_found,
             http_failure_status, auth_response_status, settings_http_error, settings_root_keys,
             history_version, project_result_pending).await
@@ -841,7 +866,7 @@ impl Client {
             return Err(crate::client::send::refusal_trace::protocol_at!());
         }
         let mut bytes = zeroize::Zeroizing::new(Vec::new());
-        while let Some(chunk) = response.chunk().await.map_err(|_| Error::Offline)? {
+        while let Some(chunk) = response.chunk().await.map_err(|_| crate::client::send::refusal_trace::offline_at!())? {
             if status.as_u16()==403&&bytes.len()+chunk.len()>4096{return Err(Error::Forbidden);}
             if bytes.len() + chunk.len() > MAX_BODY {
                 return Err(crate::client::send::refusal_trace::protocol_at!());
@@ -895,7 +920,12 @@ impl Client {
                 409 => Error::Conflict,
                 400 | 422 => Error::Invalid("The server rejected the requested operation."),
                 404 | 410 => Error::Invalid("The requested item is unavailable."),
-                429 | 500..=599 => Error::Offline,
+                // Name the refused route (ids masked), not this line, so a turn
+                // ending `turn_recovery_required` shows which read was limited.
+                429 | 500..=599 => {
+                    super::send::refusal_trace::note_http(status.as_u16(), path);
+                    Error::Offline
+                }
                 _ => crate::client::send::refusal_trace::protocol_at!(),
             });
         }
@@ -930,14 +960,14 @@ impl Client {
             .header("Accept", "application/json")
             .send()
             .await
-            .map_err(|_| Error::Offline)?;
+            .map_err(|_| crate::client::send::refusal_trace::offline_at!())?;
         if response.status().is_redirection() {
             return Err(Error::Forbidden);
         }
         if !response.status().is_success() {
             return Err(match response.status().as_u16() {
                 404 | 410 => Error::Invalid("The requested template is unavailable."),
-                429 | 500..=599 => Error::Offline,
+                429 | 500..=599 => crate::client::send::refusal_trace::offline_at!(),
                 _ => Error::Forbidden,
             });
         }
@@ -945,7 +975,7 @@ impl Client {
             return Err(crate::client::send::refusal_trace::protocol_at!());
         }
         let mut bytes = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(|_| Error::Offline)? {
+        while let Some(chunk) = response.chunk().await.map_err(|_| crate::client::send::refusal_trace::offline_at!())? {
             if bytes.len() + chunk.len() > 1_048_576 {
                 return Err(crate::client::send::refusal_trace::protocol_at!());
             }
@@ -1189,7 +1219,7 @@ async fn connect_socket_stream(request:tungstenite::http::Request<()>,config:Web
     inventory_network:std::sync::Arc<std::sync::atomic::AtomicU64>)->Result<Socket>{
     let(inner,_)=crate::platform::time::timeout(Duration::from_secs(10),
         crate::platform::socket::connect(request,Some(config),false))
-        .await.map_err(|_|Error::Offline)?.map_err(|_|Error::Authentication)?;
+        .await.map_err(|_|crate::client::send::refusal_trace::offline_at!())?.map_err(|_|Error::Authentication)?;
     Ok(Socket::new(inner,Some(inventory_network)))
 }
 async fn connect_prepared_socket(prepared:PreparedSocketConnection)->Result<Socket>{
@@ -1236,7 +1266,7 @@ where
             .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         sink.send(tungstenite::Message::Text(text))
             .await
-            .map_err(|_| Error::Offline)
+            .map_err(|_| crate::client::send::refusal_trace::offline_at!())
     }
 }
 pub(super) async fn send(ws: &mut Socket, kind: &str, payload: Value) -> Result<()> {
@@ -1248,7 +1278,7 @@ pub(super) async fn send(ws: &mut Socket, kind: &str, payload: Value) -> Result<
             json!({"type":kind,"payload":payload}).to_string().into(),
         ))
         .await
-        .map_err(|_| Error::Offline)
+        .map_err(|_| crate::client::send::refusal_trace::offline_at!())
 }
 /// `chat_turn_preflight_handler.py` rejects a durable preflight (for example a
 /// CMS transaction failure) with this exact frame before anything is admitted.
@@ -1342,7 +1372,7 @@ async fn receive_raw_policy(
         let next = {
             let mut original=ws.resource.inner.lock().await;
             crate::platform::time::timeout(Duration::from_secs(90),original.next()).await
-                .map_err(|_|Error::Offline)?.ok_or(Error::Offline)?.map_err(|_|Error::Offline)?
+                .map_err(|_|crate::client::send::refusal_trace::offline_at!())?.ok_or_else(|| crate::client::send::refusal_trace::offline_at!())?.map_err(|_|crate::client::send::refusal_trace::offline_at!())?
         }; // No socket guard survives frame parsing or a Client phase callback.
         if let Some(network) = &ws.inventory_network {
             network.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -1382,8 +1412,8 @@ async fn receive_raw_policy(
             tungstenite::Message::Ping(data) => ws.resource.inner.lock().await
                 .send(tungstenite::Message::Pong(data))
                 .await
-                .map_err(|_| Error::Offline)?,
-            tungstenite::Message::Close(_) => return Err(Error::Offline),
+                .map_err(|_| crate::client::send::refusal_trace::offline_at!())?,
+            tungstenite::Message::Close(_) => return Err(crate::client::send::refusal_trace::offline_at!()),
             _ => {}
         }
     }
@@ -1502,7 +1532,7 @@ async fn wait_matching_policy(
     loop {
         let (k, p) = crate::platform::time::timeout_at(deadline, receive_raw_policy(ws, false, false, allowance))
             .await
-            .map_err(|_| Error::Offline)??;
+            .map_err(|_| crate::client::send::refusal_trace::offline_at!())??;
         if matches(&k, &p) {
             return Ok((k, p));
         }
@@ -1779,6 +1809,11 @@ fn prepared_socket_grant_current(authority:&project_task_watch::WatchAuthority,e
 }
 impl Client {
     pub(super) fn prepare_task_socket(&self) -> Result<TaskSocketRequest> {
+        self.prepare_task_socket_with("")
+    }
+    /// [`Self::prepare_task_socket`] with an explicit `client_capabilities`
+    /// value; only the source host passes one (`remote_command_jobs`).
+    fn prepare_task_socket_with(&self, client_capabilities: &str) -> Result<TaskSocketRequest> {
         if self.is_local_browser_profile(){return Err(Error::Unavailable{code:"browser_offline_read_only",reason:"LOCAL_PROFILE_DOES_NOT_GRANT_SERVER_OR_STREAM_AUTHORITY"});}
         self.require_browser_owner_guards()?;
         self.invalidate_chat_inventory_proofs();
@@ -1791,7 +1826,7 @@ impl Client {
         })
         .map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         url.query_pairs_mut()
-            .append_pair("client_capabilities", "")
+            .append_pair("client_capabilities", client_capabilities)
             .append_pair("sessionId", &uuid::Uuid::new_v4().to_string())
             .append_pair(
                 "token",
@@ -1836,7 +1871,7 @@ pub(super) async fn connect_task_socket(prepared: TaskSocketRequest) -> Result<S
         crate::platform::socket::connect(prepared.request, Some(config), false),
     )
     .await
-    .map_err(|_| Error::Offline)?
+    .map_err(|_| crate::client::send::refusal_trace::offline_at!())?
     .map_err(|_| Error::Authentication)?;
     let mut socket=Socket::new(inner,Some(prepared.inventory_network));
     if let Err(error)=prepared_socket_grant_current(&prepared.authority,prepared.expires_at,&prepared.prepared_cancel){let _=socket.close(None).await;return Err(error);}
@@ -1857,8 +1892,21 @@ pub(super) async fn connect_task_socket(prepared: TaskSocketRequest) -> Result<S
 pub(super) struct SourceHostSocketRequest(TaskSocketRequest);
 impl Client {
     pub(super) fn prepare_source_host_socket(&self) -> Result<SourceHostSocketRequest> {
-        // Same Cookie/Origin/token/SDK header preparation, empty generic jobs.
-        Ok(SourceHostSocketRequest(self.prepare_task_socket()?))
+        self.prepare_source_host_socket_for(false)
+    }
+    /// Source host socket; `remote_command_jobs` declares the job capability
+    /// the server requires before it routes `remote_command_*` frames (the npm
+    /// host's `remoteCommandJobs` option). No other generic job is declared.
+    pub(super) fn prepare_source_host_socket_for(
+        &self,
+        remote_command_jobs: bool,
+    ) -> Result<SourceHostSocketRequest> {
+        let capabilities = if remote_command_jobs {
+            super::remote_command_jobs::REMOTE_COMMAND_JOBS_CAPABILITY
+        } else {
+            ""
+        };
+        Ok(SourceHostSocketRequest(self.prepare_task_socket_with(capabilities)?))
     }
 }
 pub(super) async fn connect_source_host_socket(
@@ -1889,7 +1937,11 @@ pub(super) async fn connect_source_host_socket(
         Ok(socket)
     })
     .await
-    .map_err(|_| Error::Offline)?
+    .map_err(|_| crate::client::send::refusal_trace::offline_at!())?
+}
+#[cfg(test)]
+pub(super) fn source_socket_uri_for_test(prepared: &SourceHostSocketRequest) -> String {
+    prepared.0.request.uri().to_string()
 }
 #[cfg(test)]
 pub(super) fn expire_prepared_socket_for_test(prepared:&mut TaskSocketRequest){prepared.expires_at=Some(0);}

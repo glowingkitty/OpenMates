@@ -3,7 +3,7 @@ import {
   awaitPersonalChatPredecessor, bindPersonalChatTurn, clearPersonalChatTurnBarriers,
   completePersonalChatTurn, completePersonalChatMessage, failMatchingPersonalChatTurn, failPersonalChatTurn,
   reservePersonalChatTurn, observePersonalChatCanonicalVersion, hasRecoveryBoundPersonalChatMessage,
-  markPersonalChatTurnLegacy,
+  markPersonalChatTurnLegacy, admitPersonalChatTurn, markPersonalChatReplyEnded, markPersonalChatReplyRunning,
 } from '../personalChatTurnBarrier';
 
 afterEach(() => clearPersonalChatTurnBarriers());
@@ -115,6 +115,34 @@ describe('legacy user message settlement', () => {
     expect(completePersonalChatMessage('legacy-chat', 'user-1', 8)).toBe(false);
     expect(second.settled).toBe(false);
   });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it('resolves a follower at the predecessor admitted version without terminal persistence', async () => {
+    const first = reservePersonalChatTurn('chat-q', 'user-1');
+    bindPersonalChatTurn(first, 'turn-1');
+    const second = reservePersonalChatTurn('chat-q', 'user-2');
+    const third = reservePersonalChatTurn('chat-q', 'user-3');
+    const entered = vi.fn();
+    const secondWait = awaitPersonalChatPredecessor(second).then(entered);
+    await Promise.resolve();
+    expect(entered).not.toHaveBeenCalled(); // still preflighting: no admitted version yet
+    admitPersonalChatTurn(first, 3);
+    await secondWait;
+    expect(entered).toHaveBeenCalledWith(3);
+    // The follower's own admission advances the chain for the next follower.
+    admitPersonalChatTurn(second, 4);
+    expect(await awaitPersonalChatPredecessor(third)).toBe(4);
+    expect(first.settled).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it('rejects a follower when the predecessor fails before admission', async () => {
+    const first = reservePersonalChatTurn('chat-r', 'user-1');
+    const second = reservePersonalChatTurn('chat-r', 'user-2');
+    const waiting = awaitPersonalChatPredecessor(second);
+    failPersonalChatTurn(first, new Error('boom'));
+    await expect(waiting).rejects.toThrow('has not been saved');
+  });
 });
 
 
@@ -130,4 +158,66 @@ it('reports ordinary sends before their journal exists, including an older turn 
   expect(barrier.hasPendingPersonalChatTurn('cleanup-chat')).toBe(true);
   barrier.failPersonalChatTurn(first,new Error('not sent'));
   expect(barrier.hasPendingPersonalChatTurn('cleanup-chat')).toBe(false);
+});
+
+describe('queued follow-up behind an admitted turn', () => {
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it('uses the newest server version when another device queued a row after the admitted predecessor', async () => {
+    const first = reservePersonalChatTurn('queue-chat', 'user-1');
+    bindPersonalChatTurn(first, 'turn-1');
+    const followUp = reservePersonalChatTurn('queue-chat', 'user-2');
+    admitPersonalChatTurn(first, 5);
+    // A CLI follow-up queued on another device committed its row at version 6.
+    observePersonalChatCanonicalVersion('queue-chat', 6);
+    await expect(awaitPersonalChatPredecessor(followUp)).resolves.toBe(6);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it('keeps the admitted version when no newer server version was observed', async () => {
+    const first = reservePersonalChatTurn('queue-chat-2', 'user-1');
+    bindPersonalChatTurn(first, 'turn-1');
+    const followUp = reservePersonalChatTurn('queue-chat-2', 'user-2');
+    admitPersonalChatTurn(first, 5);
+    await expect(awaitPersonalChatPredecessor(followUp)).resolves.toBe(5);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it('waits for the stored reply once the predecessor run ended, so the server version is not stale', async () => {
+    const first = reservePersonalChatTurn('ended-chat', 'user-1');
+    bindPersonalChatTurn(first, 'turn-1');
+    admitPersonalChatTurn(first, 5);
+    // The reply finished streaming; its encrypted row is still being stored.
+    markPersonalChatReplyEnded('ended-chat', 'user-1');
+    const followUp = reservePersonalChatTurn('ended-chat', 'user-2');
+    let resolved: number | null | undefined;
+    const pending = awaitPersonalChatPredecessor(followUp).then((version) => { resolved = version; });
+    await new Promise((tick) => setTimeout(tick, 0));
+    expect(resolved).toBeUndefined();
+    expect(completePersonalChatTurn('ended-chat', 'turn-1', 6)).toBe(true);
+    await pending;
+    expect(resolved).toBe(6);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it('goes at once again when a focus continuation starts a new run before the reply is stored', async () => {
+    const first = reservePersonalChatTurn('focus-chat', 'user-1');
+    bindPersonalChatTurn(first, 'turn-1');
+    admitPersonalChatTurn(first, 5);
+    markPersonalChatReplyEnded('focus-chat', 'user-1');
+    const followUp = reservePersonalChatTurn('focus-chat', 'user-2');
+    const pending = awaitPersonalChatPredecessor(followUp);
+    await new Promise((tick) => setTimeout(tick, 0));
+    // The continuation task is running: the server queues the follow-up behind it.
+    markPersonalChatReplyRunning('focus-chat');
+    await expect(pending).resolves.toBe(5);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it('does not wait for persistence while the predecessor reply is still running', async () => {
+    const first = reservePersonalChatTurn('running-chat', 'user-1');
+    bindPersonalChatTurn(first, 'turn-1');
+    const followUp = reservePersonalChatTurn('running-chat', 'user-2');
+    admitPersonalChatTurn(first, 5);
+    await expect(awaitPersonalChatPredecessor(followUp)).resolves.toBe(5);
+  });
 });

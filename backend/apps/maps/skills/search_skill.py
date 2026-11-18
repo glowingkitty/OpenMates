@@ -29,6 +29,7 @@ from backend.shared.providers.geoapify.places import (
     build_status_enrichment,
 )
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy, policy_from_skill_kwargs
 from backend.shared.python_utils.app_skill_helpers import (
     check_rate_limit,
     sanitize_long_text_fields_in_payload,
@@ -612,7 +613,7 @@ class SearchSkill(BaseSkill):
             return any(item not in (None, False, "", "unknown", "no") for item in value.values())
         return True
     
-    async def _process_discovery_request(self, req, request_id, secrets_manager, cache_service):
+    async def _process_discovery_request(self, req, request_id, secrets_manager, cache_service, policy=None):
         metadata = {"provider": "Geoapify", "status": "invalid_request"}
         try:
             discovery = DiscoveryRequest.model_validate(req)
@@ -678,7 +679,7 @@ class SearchSkill(BaseSkill):
             ranking = await rank_search_candidates(
                 candidates=previews, candidate_projections=previews,
                 relevance_criteria=criteria, search_parameters={"query": req["query"], **metadata["search_context"]},
-                profile="maps", secrets_manager=secrets_manager,
+                profile="maps", secrets_manager=secrets_manager, policy=policy,
             )
             previews = ranking.candidates
         return request_id, previews[:size], None, metadata
@@ -688,7 +689,8 @@ class SearchSkill(BaseSkill):
         req: Dict[str, Any],
         request_id: Any,
         secrets_manager: SecretsManager,
-        cache_service: CacheService
+        cache_service: CacheService,
+        policy: Optional[InternalLlmPolicy] = None,
     ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
         """
         Process a single place search request.
@@ -718,7 +720,7 @@ class SearchSkill(BaseSkill):
         if not search_query:
             return (request_id, [], "Missing 'query' parameter")
         if req.get("categories") is not None:
-            return await self._process_discovery_request(req, request_id, secrets_manager, cache_service)
+            return await self._process_discovery_request(req, request_id, secrets_manager, cache_service, policy)
         if req.get("area") is not None:
             return request_id, [], "area requires discovery categories", {"status": "invalid_request"}
         try:
@@ -933,6 +935,7 @@ class SearchSkill(BaseSkill):
                     },
                     profile="maps",
                     secrets_manager=secrets_manager,
+                    policy=policy,
                 )
                 previews = ranking.candidates
 
@@ -1021,7 +1024,8 @@ class SearchSkill(BaseSkill):
             process_single_request_func=self._process_single_search_request,
             logger=logger,
             secrets_manager=secrets_manager,
-            cache_service=cache_service
+            cache_service=cache_service,
+            policy=policy_from_skill_kwargs(kwargs),
         )
         
         # Group results by request ID while preserving maps-specific metadata.

@@ -32,7 +32,7 @@ export const NEW_CHAT_KEYS = [
 	'encrypted_chat_summary', 'encrypted_share_cta_text', 'encrypted_shared_short_url', 'encrypted_chat_tags',
 	'encrypted_top_recommended_apps_for_chat', 'encrypted_recommendations', 'encrypted_active_focus_id',
 	'encrypted_focus_phase_state', 'encrypted_auto_speak_response', 'is_shared', 'is_private', 'is_anonymous', 'share_pii',
-	'share_highlights', 'parent_id', 'is_sub_chat', 'budget_limit', 'budget_spent', 'user_id',
+	'share_highlights', 'parent_id', 'is_sub_chat', 'budget_limit', 'budget_spent', 'user_id', 'creator_chat_id',
 ] as const;
 
 /** Key order of `mergeServerChatWithLocal`'s merged literal. */
@@ -47,7 +47,7 @@ export const MERGED_CHAT_KEYS = [
 	'encrypted_share_cta_text', 'encrypted_shared_short_url', 'encrypted_chat_tags', 'encrypted_top_recommended_apps_for_chat',
 	'encrypted_recommendations', 'encrypted_focus_phase_state', 'encrypted_active_focus_id', 'encrypted_auto_speak_response',
 	'is_shared', 'is_private', 'is_anonymous', 'share_pii', 'share_highlights', 'parent_id', 'is_sub_chat', 'budget_limit',
-	'budget_spent',
+	'budget_spent', 'creator_chat_id',
 ] as const;
 
 /** Key order of `buildMetadataOnlyChatFromDetails`. */
@@ -58,7 +58,7 @@ export const METADATA_CHAT_KEYS = [
 	'encrypted_category', 'encrypted_icon', 'encrypted_chat_key', 'chat_visibility', 'participant_user_hashes',
 	'anonymous_encrypted_chat_key', 'encrypted_chat_summary', 'encrypted_share_cta_text', 'encrypted_chat_tags',
 	'encrypted_follow_up_request_suggestions', 'encrypted_suggested_followup_message', 'encrypted_active_focus_id',
-	'encrypted_focus_phase_state', 'encrypted_auto_speak_response', 'pinned', 'is_shared', 'is_private', 'is_anonymous',
+	'encrypted_focus_phase_state', 'encrypted_wellbeing_scores', 'encrypted_auto_speak_response', 'pinned', 'is_shared', 'is_private', 'is_anonymous',
 	'share_pii', 'share_highlights', 'is_metadata_only',
 ] as const;
 

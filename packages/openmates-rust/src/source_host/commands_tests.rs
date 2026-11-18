@@ -179,12 +179,22 @@ fn timeout_kills_the_whole_process_group() {
         .trim()
         .parse()
         .expect("background pid");
-    // Gone, or a zombie waiting for its new parent to reap it.
-    let state = fs::read_to_string(format!("/proc/{child}/stat")).ok();
-    let running = state
-        .as_deref()
-        .and_then(|stat| stat.rsplit_once(") "))
-        .is_some_and(|(_, rest)| !rest.starts_with('Z'));
+    // Gone, or a zombie waiting for its new parent to reap it. SIGKILL is
+    // delivered asynchronously: on a loaded host the descendant can still read
+    // as sleeping for a moment after `run_bounded` returned, so allow it a
+    // bounded few seconds (far below its own 30 s sleep) to finish dying.
+    let running = || {
+        fs::read_to_string(format!("/proc/{child}/stat"))
+            .ok()
+            .as_deref()
+            .and_then(|stat| stat.rsplit_once(") "))
+            .is_some_and(|(_, rest)| !rest.starts_with('Z'))
+    };
+    let settle = std::time::Instant::now() + Duration::from_secs(5);
+    while running() && std::time::Instant::now() < settle {
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let running = running();
     if cfg!(target_os = "linux") {
         assert!(
             !running,

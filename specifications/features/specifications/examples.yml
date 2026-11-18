@@ -78,3 +78,16 @@ specification_surface_parity:
   - id: canonical-channels-remain-stable
     input: {applies_to: {channels: [rest_api, cli, sdks, gui]}}
     expect: {canonical_machine_identifiers_preserved: true}
+
+specification_guided_authoring:
+  - id: open-assumptions-stay-visible
+    given: A guided spec-authoring chat drafted "Online sourdough ordering" with the open assumption "Pickup only, no delivery".
+    when: The user opens the Specification embed and saves it to the Project.
+    then: The detail shows "Open assumptions" with that entry, apart from the requirements, and the saved revision keeps it.
+  - id: split-roles-and-links
+    given: The user agreed to split a marketplace into product, design and technical Specifications.
+    when: The product Specification is drafted.
+    then: It shows the role Product Specification and lists the design and technical Specifications as linked, each with its role.
+  - id: unknown-role-refused
+    input: {role: marketing}
+    expect: {refused: true, message_mentions: "product, design or technical"}

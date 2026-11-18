@@ -1,0 +1,38 @@
+<deck title="Clean business" aspect="16:9" template="builtin:plain" kind="template">
+  <theme heading="Arial" body="Helvetica" background="#ffffff" foreground="#1f2937" accent="#1e3a8a" accent-2="#64748b" muted="#6b7280" surface="#f1f5f9"/>
+  <slide id="s1" layout="title">
+    <shape id="e1" x="0" y="0" w="1920" h="24" kind="rect" fill="accent"/>
+    <shape id="e2" x="160" y="420" w="6" h="260" kind="rect" fill="accent"/>
+    <text id="e3" x="200" y="400" w="1500" h="200" role="title" font="heading" size="84" color="accent" align="left" weight="bold">Quarterly business review</text>
+    <text id="e4" x="200" y="620" w="1500" h="70" role="subtitle" size="36" color="muted" align="left">Prepared by the strategy team</text>
+    <text id="e5" x="160" y="960" w="1600" h="40" role="caption" size="24" color="muted" align="left">Confidential</text>
+  </slide>
+  <slide id="s2" layout="section">
+    <shape id="e6" x="0" y="0" w="640" h="1080" kind="rect" fill="accent"/>
+    <text id="e7" x="80" y="420" w="480" h="200" role="caption" size="56" color="background" align="left" weight="normal">Part 2</text>
+    <text id="e8" x="720" y="420" w="1040" h="240" role="title" font="heading" size="76" color="accent" align="left" weight="bold">Market overview</text>
+  </slide>
+  <slide id="s3" layout="content">
+    <text id="e9" x="160" y="100" w="1600" h="110" role="title" font="heading" size="60" color="accent" align="left" weight="bold">Key results this quarter</text>
+    <shape id="e10" x="160" y="225" w="1600" h="3" kind="rect" fill="muted"/>
+    <text id="e11" x="160" y="290" w="1600" h="620" role="body" size="38" color="foreground" align="left"><ul><li>Revenue grew steadily across all regions</li><li>Customer retention stayed above target</li><li>Operating costs fell by a small margin</li></ul></text>
+    <text id="e12" x="160" y="990" w="1600" h="40" role="caption" size="22" color="muted" align="left">Source: internal reporting</text>
+  </slide>
+  <slide id="s4" layout="image">
+    <text id="e13" x="160" y="100" w="1600" h="110" role="title" font="heading" size="60" color="accent" align="left" weight="bold">Regional performance</text>
+    <shape id="e14" x="160" y="260" w="1000" h="640" kind="rect" fill="surface"/>
+    <shape id="e15" x="1240" y="260" w="520" h="3" kind="rect" fill="accent"/>
+    <text id="e16" x="1240" y="290" w="520" h="400" role="body" size="32" color="foreground" align="left">A short note that explains what the figure on the left shows.</text>
+    <text id="e17" x="160" y="930" w="1000" h="40" role="caption" size="22" color="muted" align="left">Figure 1: placeholder for a chart</text>
+  </slide>
+  <slide id="s5" layout="quote">
+    <shape id="e18" x="160" y="300" w="6" h="380" kind="rect" fill="accent-2"/>
+    <text id="e19" x="220" y="300" w="1480" h="300" role="quote" font="heading" size="58" color="accent" align="left" weight="normal">Good strategy is mostly about choosing what not to do</text>
+    <text id="e20" x="220" y="640" w="1480" h="50" role="caption" size="28" color="muted" align="left">Name, title</text>
+  </slide>
+  <slide id="s6" layout="closing">
+    <shape id="e21" x="0" y="1056" w="1920" h="24" kind="rect" fill="accent"/>
+    <text id="e22" x="160" y="380" w="1600" h="160" role="title" font="heading" size="84" color="accent" align="left" weight="bold">Thank you</text>
+    <text id="e23" x="160" y="570" w="1600" h="60" role="subtitle" size="34" color="muted" align="left">name@example.org | example.org</text>
+  </slide>
+</deck>

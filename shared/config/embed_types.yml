@@ -65,6 +65,38 @@ embed_types:
         type: string
         required: true
 
+  # Helpline card — created server-side by the wellbeing layer, placed before the answer text.
+  # No preview/fullscreen pair: HelplinesRenderer mounts the card directly (no fullscreen view).
+  - id: helplines
+    app_id: ai
+    category: direct
+    frontend_type: helplines
+    backend_type: helplines
+    has_children: false
+    groupable: false
+    icon: focus
+    gradient_var: "--color-app-ai"
+    i18n_namespace: helplines
+    content_fields:
+      - name: country
+        type: string
+        required: true
+      - name: language
+        type: string
+        required: true
+      - name: lines
+        type: array
+        required: true
+      - name: emergency_number
+        type: string
+        required: true
+      - name: directory_url
+        type: string
+        required: true
+      - name: source
+        type: string
+        required: true
+
   # GitHub repository — auto-detected from pasted repo URLs and web search results
   - id: repo
     app_id: code

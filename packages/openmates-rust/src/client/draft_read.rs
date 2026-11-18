@@ -564,6 +564,15 @@ impl Client {
         Ok(())
     }
     pub(super) fn validate_draft_row_scope(&self, row: &Value, id: &str) -> Result<()> {
+        self.validate_draft_row_scope_for_team(row, id, None)
+    }
+    /// Row scope check; a team row is admitted only for the explicit matching `team`.
+    pub(super) fn validate_draft_row_scope_for_team(
+        &self,
+        row: &Value,
+        id: &str,
+        team: Option<&str>,
+    ) -> Result<()> {
         if !row.is_object()
             || row
                 .get("id")
@@ -574,7 +583,11 @@ impl Client {
             return Err(Error::Protocol);
         }
         for field in ["team_id", "hashed_team_id"] {
-            if row.get(field).is_some_and(|v| !v.is_null() && v != "") {
+            if row.get(field).is_some_and(|v| {
+                !v.is_null()
+                    && v != ""
+                    && !team.is_some_and(|t| v == &json!(t) || v == &json!(sha256(t)))
+            }) {
                 return Err(Error::Forbidden);
             }
         }

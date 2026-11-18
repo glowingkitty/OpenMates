@@ -188,6 +188,7 @@ async def _trigger_continuation_without_focus(
             "team_id_hash": pending_context.get("team_id_hash"),
             "team_workspace_type": pending_context.get("team_workspace_type", "chat"),
             "team_object_id_hash": pending_context.get("team_object_id_hash"),
+            "client_capabilities": list(pending_context.get("client_capabilities") or []),
             # Signal that this is a continuation after focus mode rejection
             "is_focus_mode_continuation": True,
             # Continuation creates its own assistant message. Client merges for display when previous was focus activation.

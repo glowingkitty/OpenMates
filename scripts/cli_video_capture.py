@@ -621,7 +621,9 @@ def build_capture_plan(
         xvfb_argv=[xvfb, display, "-screen", "0", f"{TERMINAL_WIDTH}x{TERMINAL_HEIGHT}x{DISPLAY_DEPTH}", "-nolisten", "tcp"],
         terminal_argv=terminal_argv,
         ffmpeg_argv=[
-            ffmpeg, "-y", "-f", "x11grab", "-framerate", "30", "-video_size", f"{TERMINAL_WIDTH}x{TERMINAL_HEIGHT}",
+            # Quiet stderr: nobody drains this pipe while recording, and the
+            # progress stats would fill it after a few minutes and block FFmpeg.
+            ffmpeg, "-y", "-nostats", "-loglevel", "error", "-f", "x11grab", "-framerate", "30", "-video_size", f"{TERMINAL_WIDTH}x{TERMINAL_HEIGHT}",
             "-i", f"{display}.0", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", str(video),
         ],
     )
@@ -793,7 +795,8 @@ def capture_cli_video(
             exit_status = 125
         time.sleep(0.35)
         ffmpeg.send_signal(signal.SIGINT)
-        ffmpeg.wait(timeout=10)
+        # Encoding can lag the capture on a loaded host; let it finish the file.
+        ffmpeg.wait(timeout=60)
         if ffmpeg.returncode not in {0, 255} or not plan.video_path.is_file():
             raise CliCaptureError(f"FFmpeg terminal capture failed: {(ffmpeg.stderr.read() if ffmpeg.stderr else '')[-1000:]}")
         missing = [path for path in (plan.transcript_path, plan.events_path) if not path.is_file()]

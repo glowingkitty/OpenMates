@@ -30,8 +30,10 @@ import time
 import uuid
 
 GIB = 1024 ** 3
-MIN_FREE = 30 * GIB
-MAX_USED_PERCENT = 85
+# One hard floor, an emergency line only (owner decision 2026-11-17, TASK-7646): the
+# hourly category budgets keep the disk near 57%. No percent ceiling (100 = off).
+MIN_FREE = 10 * GIB
+MAX_USED_PERCENT = 100
 RESULT_AGE_SECONDS = 14 * 24 * 3600
 # Hard age cap: after this, terminal CI payloads and candidate patches of
 # inactive owners are disposable even when failed or never delivered. Receipts

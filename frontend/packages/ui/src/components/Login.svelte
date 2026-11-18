@@ -1,10 +1,13 @@
 <script lang="ts">
     import { fade, scale } from 'svelte/transition';
     import { text } from '@repo/ui';
+    import AccountSuspended from './safety/AccountSuspended.svelte';
+    import { accountSuspension, captureAccountSuspension } from '../stores/accountSuspension';
+    import { submitAppeal } from '../services/safetyAppealApi';
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, deviceVerificationType, devicePasswordFallbackAvailable, devicePasswordCredentialVersion, deviceVerificationReason, checkAuth, logout, bumpLoginSessionGeneration } from '../stores/authStore';
-    import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, primeSignupLocation, STEP_PAYMENT } from '../stores/signupState';
+    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, primeSignupLocation, STEP_PAYMENT } from '../stores/signupState';
     import { clearSignupData } from '../stores/signupStore';
     import { requireInviteCode } from '../stores/signupRequirements';
     import { get } from 'svelte/store';
@@ -166,10 +169,24 @@
     let rateLimitTimer: ReturnType<typeof setTimeout>;
 
     let isPolicyViolationLockout = $state(false);
+    let suspensionAppealSent = $state(false);
+    let suspensionAppealSubmitting = $state(false);
+    let suspensionAppealError = $state<string | null>(null);
+
+    /** Send the appeal with the short-lived token the suspension response carried. */
+    async function handleSuspensionAppeal(payload: { explanation: string; consent_share_requests: boolean; flagged_requests: string[]; attachment_data_url: string | null }) {
+        const token = $accountSuspension?.appeal_token;
+        if (!token) return;
+        suspensionAppealSubmitting = true;
+        suspensionAppealError = null;
+        const result = await submitAppeal(token, payload);
+        suspensionAppealSubmitting = false;
+        if (result.ok) suspensionAppealSent = true;
+        else suspensionAppealError = result.message ?? null;
+    }
     let isAccountDeleted = $state(false);
 
     // Add state for tracking account deletion during the current session using $state (Svelte 5 runes mode)
-    let accountJustDeleted = $state(false);
     
     // Add state for tracking account recovery mode (from PasswordAndTfaOtp component)
     // When true, the inactivity timer should NOT reset the login interface
@@ -396,7 +413,6 @@
         // Note: isRateLimited is preserved to respect actual rate limits
         isPolicyViolationLockout = false;
         isAccountDeleted = false;
-        accountJustDeleted = false;
         
         // Clear account recovery mode
         isInAccountRecoveryMode = false;
@@ -430,9 +446,8 @@
             // Continue with signup even if check fails - the Basics component will handle validation
         }
 
-        // Reset the signup step to alpha disclaimer when starting a new signup process
-        // This ensures users see the alpha disclaimer before proceeding with signup
-        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+        // Reset the signup step to the first step when starting a new signup process
+        currentSignupStep.set(STEP_BASICS);
         
         // Set the signup process flag, which will reactively change the view
         isInSignupProcess.set(true);
@@ -461,9 +476,9 @@
         // This ensures sensitive data is removed if user switches views
         clearSignupData();
 
-        // Reset the signup step to alpha disclaimer for clean state when returning to signup later
+        // Reset the signup step for clean state when returning to signup later
         // This ensures users will start fresh if they switch back to signup
-        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+        currentSignupStep.set(STEP_BASICS);
 
         // Reset the signup process flag, which will reactively change the view
         isInSignupProcess.set(false);
@@ -831,6 +846,12 @@
             
             if (!verifyResponse.ok) {
                 const errorData = await verifyResponse.json();
+                if (captureAccountSuspension(errorData)) {
+                    loginErrorMessage = null;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
                 console.error('Passkey assertion verification failed:', errorData);
                 loginErrorMessage = errorData.message || null;
                 loginFailedWarning = true;
@@ -840,6 +861,12 @@
             }
             
             const verifyData = await verifyResponse.json();
+            
+            if (captureAccountSuspension(verifyData)) {
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
             
             if (!verifyData.success) {
                 console.error('Passkey verification failed:', verifyData.message);
@@ -1131,7 +1158,7 @@
             // CRITICAL: Check if user is in signup flow based on last_opened
             // This ensures signup state is preserved after login
             // Note: userData is already declared above, so we reuse it
-            if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(userData?.last_opened);
+            await primeSignupLocation(userData?.last_opened);
             const inSignupFlow = userData?.last_opened ? isSignupPath(userData.last_opened) : false;
 
             email = '';
@@ -1468,6 +1495,12 @@
             
             if (!verifyResponse.ok) {
                 const errorData = await verifyResponse.json();
+                if (captureAccountSuspension(errorData)) {
+                    loginErrorMessage = null;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
                 console.error('[Login] Passkey assertion verification failed:', errorData);
                 loginErrorMessage = errorData.message || null;
                 loginFailedWarning = true;
@@ -1477,6 +1510,12 @@
             }
             
             const verifyData = await verifyResponse.json();
+            
+            if (captureAccountSuspension(verifyData)) {
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
             
             if (!verifyData.success) {
                 console.error('[Login] Passkey verification failed:', verifyData.message);
@@ -1720,7 +1759,7 @@
             // Dispatch login success
             // CRITICAL: Check if user is in signup flow based on last_opened
             // This ensures signup state is preserved after login
-            if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(userData?.last_opened);
+            await primeSignupLocation(userData?.last_opened);
             const inSignupFlow = userData?.last_opened ? isSignupPath(userData.last_opened) : false;
 
             email = '';
@@ -1898,19 +1937,11 @@
                     localStorage.removeItem('policy_violation_lockout');
                 }
             }
-
-            // Check if account was deleted
-            isAccountDeleted = sessionStorage.getItem('account_deleted') === 'true';
-            if (isAccountDeleted) {
-                // Clear after reading once
-                sessionStorage.removeItem('account_deleted');
-            }
         })();
         
         // Add event listener for account deletion
         const handleAccountDeleted = () => {
             console.debug("Account deletion event received");
-            accountJustDeleted = true;
             isAccountDeleted = true;
         };
         
@@ -2111,11 +2142,11 @@
     });
 
     // Determine if tabs should be visible
-    // Tabs should only be visible on login screen or during alpha disclaimer and basics steps
+    // Tabs should only be visible on login screen or during the basics step
     // Once user reaches confirm email step, tabs should be hidden
     let showTabs = $derived(
         (currentView === 'login' || 
-        (currentView === 'signup' && ($currentSignupStep === STEP_ALPHA_DISCLAIMER || $currentSignupStep === STEP_BASICS)))
+        (currentView === 'signup' && $currentSignupStep === STEP_BASICS))
     );
     
     // State for SignupNav (exposed from Signup component via bindable props)
@@ -2257,17 +2288,6 @@
             stopInactivityTimer();
         }
 
-        if (!$authStore.isAuthenticated) {
-            if (sessionStorage.getItem('account_deleted') === 'true' || accountJustDeleted) {
-                console.debug("Account deleted, showing deletion message");
-                isAccountDeleted = true;
-                isPolicyViolationLockout = true;
-                
-                if (accountJustDeleted) {
-                    accountJustDeleted = false;
-                }
-            }
-        }
     });
 </script>
 
@@ -2327,7 +2347,21 @@
                         showAdminButton={signupIsAdmin && $currentSignupStep === STEP_BASICS && signupIsInviteCodeValidated}
                     />
                 {/if}
-                {#if isPolicyViolationLockout || isAccountDeleted}
+                {#if $accountSuspension}
+                    <div class="content-area" in:fade={{ duration: 400 }}>
+                        <div class="form-container">
+                            <AccountSuspended
+                                message={$accountSuspension.message}
+                                state={$accountSuspension.state}
+                                until={$accountSuspension.until}
+                                sent={suspensionAppealSent}
+                                submitting={suspensionAppealSubmitting}
+                                errorMessage={suspensionAppealError}
+                                onappeal={handleSuspensionAppeal}
+                            />
+                        </div>
+                    </div>
+                {:else if isPolicyViolationLockout || isAccountDeleted}
                     <div class="content-area" in:fade={{ duration: 400 }}>
                         <h1><mark>{$text('login.login')}</mark></h1>
                         <h2>{$text('login.to_chat_to_your')}<br><mark>{$text('login.digital_team_mates')}</mark></h2>
@@ -2507,7 +2541,7 @@
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(e.detail.user?.last_opened);
+                                                        await primeSignupLocation(e.detail.user?.last_opened);
                                                         const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
@@ -2573,7 +2607,7 @@
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(e.detail.user?.last_opened);
+                                                        await primeSignupLocation(e.detail.user?.last_opened);
                                                         const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
@@ -2616,7 +2650,7 @@
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') await primeSignupLocation(e.detail.user?.last_opened);
+                                                        await primeSignupLocation(e.detail.user?.last_opened);
                                                         const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
@@ -2685,7 +2719,7 @@
                     </div> <!-- End content-area for login view -->
                 {:else} <!-- Handles currentView !== 'login' -->
                     <div class="content-area" in:fade={{ duration: 200 }}>
-                        <!-- Login/Signup tabs - only show during alpha disclaimer and basics steps -->
+                        <!-- Login/Signup tabs - only show during the basics step -->
                         {#if showTabs}
                             <div class="login-tabs" data-testid="login-tabs">
                                 <button

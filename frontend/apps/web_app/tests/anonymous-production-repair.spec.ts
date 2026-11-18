@@ -178,7 +178,7 @@ test.describe('Anonymous production repair', () => {
 		const signupLink = page.getByTestId('anonymous-signup-link');
 		await expect(signupLink).toHaveText('Signup now');
 		await signupLink.click();
-		await expect(page.getByTestId('signup-alpha-github-link')).toBeVisible({ timeout: 10_000 });
+		await expect(page.locator('input[autocomplete="email"], [data-testid="signup-invite-code-input"]').first()).toBeVisible({ timeout: 10_000 });
 		await expect(serverChatWrites).toEqual([]);
 		await assertNoMissingTranslations(page);
 	});

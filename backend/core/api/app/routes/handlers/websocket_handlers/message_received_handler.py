@@ -8,6 +8,7 @@
 from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
 
 from backend.core.api.app.routes.handlers.websocket_handlers.draft_submission import clear_sent_message_draft
+import re
 import logging
 import asyncio
 import json
@@ -45,6 +46,12 @@ from backend.shared.python_utils.native_cache_history import (
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
 from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
+
+from backend.shared.python_utils.chat_orchestration_jobs import (
+    OrchestrationError,
+    classify_chat_message,
+    client_orchestration_job_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +170,17 @@ def _prepare_test_mock_marker(
         if signed_marker:
             return signed_marker
     raise ValueError("Invalid or unauthorized dev E2E test marker")
+
+_UI_LANGUAGE_PATTERN = re.compile(r"^([a-z]{2,3})(?:-[A-Za-z0-9]{2,8})?$")
+
+
+def displayed_ui_language(value: Any) -> Optional[str]:
+    """Base language code of the interface the client displays, or None if absent/invalid."""
+    if not isinstance(value, str):
+        return None
+    match = _UI_LANGUAGE_PATTERN.match(value.strip())
+    return match.group(1) if match else None
+
 
 AI_USER_PREFERENCE_FIELDS = [
     "timezone",
@@ -1381,17 +1399,36 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
         # Fence later client-executed tool continuations to this accepted user
         # turn. A newer message replaces this value before it starts inference.
+        # A follow-up that arrives while a run is active waits in the queue: it
+        # becomes the latest turn only when it is dispatched, so the running
+        # turn's focus or skill continuation is not discarded as superseded
+        # (feature.chat-queued-followups admission.synced).
+        latest_turn_deferred = False
         if role == "user":
             from backend.apps.ai.tasks.async_skill_continuation import (
                 ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
                 async_skill_latest_user_turn_key,
             )
-
-            await cache_service.set(
-                async_skill_latest_user_turn_key(user_id, chat_id),
-                message_id,
-                ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+            from backend.shared.python_utils.queued_turn_marker import (
+                QUEUED_TURN_PENDING,
+                queued_turn_pending_key,
             )
+
+            prior_latest_user_turn = await cache_service.get(
+                async_skill_latest_user_turn_key(user_id, chat_id),
+            )
+            if await cache_service.get_active_ai_task(chat_id):
+                latest_turn_deferred = True
+                await cache_service.set(
+                    queued_turn_pending_key(user_id, chat_id, message_id), QUEUED_TURN_PENDING,
+                    ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+                )
+            else:
+                await cache_service.set(
+                    async_skill_latest_user_turn_key(user_id, chat_id),
+                    message_id,
+                    ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+                )
 
         # DELETE NEW CHAT SUGGESTION if user clicked one before sending this message
         # This ensures used suggestions are removed from the pool on both client and server
@@ -2646,7 +2683,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 logger.debug(f"Including user timezone '{user_timezone}' in AI request for user {user_id}")
             # Include user's system/UI language (ISO 639-1 code, e.g., "en", "de")
             # Used by postprocessor to generate new chat suggestions in the user's interface language
-            user_system_language = user_data_for_prefs.get("language", "en")
+            # The language the client actually displays wins over the stored account
+            # value: Automatic mode and ?lang= never rewrite the account language, so
+            # the profile can say "de" while the user reads an English interface.
+            user_system_language = (
+                displayed_ui_language(payload.get("ui_language"))
+                or user_data_for_prefs.get("language", "en")
+            )
             user_preferences_dict["language"] = user_system_language
             logger.debug(f"Including user system language '{user_system_language}' in AI request for user {user_id}")
             # Include user's default model preferences (cross-device synced via Directus + Redis cache).
@@ -2736,6 +2779,27 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         ) or 1
 
         db_parent_id = chat_metadata_from_db.get("parent_id") if chat_metadata_from_db else None
+        from backend.shared.python_utils.chat_orchestration_interpretation import reset_streak
+        from backend.shared.python_utils.chat_orchestration_safety import record_message_origin
+        creator_chat_id_for_ai = None
+        try:
+            # Turn origin gates cross-chat writes; only real user input ends the automatic streak.
+            turn_origin = await record_message_origin(
+                cache_service=cache_service, user_id=user_id, chat_id=chat_id,
+                message_id=str(message_payload_from_client.get("message_id")),
+                job_id=client_orchestration_job_id(payload, message_payload_from_client),
+            )
+            if turn_origin["origin"] == "user":
+                await reset_streak(cache_service=cache_service, user_id=user_id, chat_id=chat_id)
+            creator_chat_id_for_ai = await classify_chat_message(
+                cache_service=cache_service, encryption_service=encryption_service, user_id=user_id,
+                chat_id=chat_id, message_id=str(message_payload_from_client.get("message_id")),
+                job_id=client_orchestration_job_id(payload, message_payload_from_client),
+                creator_chat_id=(chat_metadata_from_db or {}).get("creator_chat_id"),
+            )
+        except OrchestrationError as orchestration_error:
+            # Side effect of a message in a spawned chat; the message itself must still be processed.
+            logger.warning(f"Chat orchestration classification failed for chat {chat_id}: {orchestration_error.code}")
         db_budget_limit = chat_metadata_from_db.get("budget_limit") if chat_metadata_from_db else None
         db_budget_spent = chat_metadata_from_db.get("budget_spent", 0) if chat_metadata_from_db else 0
 
@@ -2784,6 +2848,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             focus_phase_state=payload.get("focus_phase_state"),
+            wellbeing_scores=payload.get("wellbeing_scores"),
             current_project=current_project,
             project_focus_candidates=project_candidates_from_client[:40]
             if isinstance(project_candidates_from_client, list) else [],
@@ -2816,6 +2881,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
             has_image_upload_embed=_has_image_upload_embed,
             parent_id=db_parent_id,
+            creator_chat_id=creator_chat_id_for_ai,
             is_sub_chat=False,
             budget_limit=db_budget_limit,
             budget_spent=db_budget_spent,
@@ -2896,6 +2962,27 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     active_task_id = None
                     stale_legacy_queue = False
             
+            if queued_success and role == "user":
+                from backend.apps.ai.tasks.async_skill_continuation import (
+                    ASYNC_SKILL_CONTINUATION_TTL_SECONDS as _QUEUED_TURN_TTL,
+                    async_skill_latest_user_turn_key as _latest_turn_key,
+                )
+                from backend.shared.python_utils.queued_turn_marker import (
+                QUEUED_TURN_PENDING,
+                queued_turn_pending_key,
+            )
+                if await cache_service.get(_latest_turn_key(user_id, chat_id)) == message_id:
+                    if prior_latest_user_turn:
+                        await cache_service.set(
+                            _latest_turn_key(user_id, chat_id), prior_latest_user_turn,
+                            ttl=_QUEUED_TURN_TTL,
+                        )
+                    else:
+                        await cache_service.delete(_latest_turn_key(user_id, chat_id))
+                await cache_service.set(
+                    queued_turn_pending_key(user_id, chat_id, message_id), QUEUED_TURN_PENDING,
+                    ttl=_QUEUED_TURN_TTL,
+                )
             if queued_success:
                 durable_pending = True
                 if not is_incognito:
@@ -2943,6 +3030,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         "queue_revision": ai_request_payload.queue_revision,
                         "message": "Message queued",
                     }
+                    # Marking the row queued advances the chat's messages_v; clients
+                    # send it as the expected version of their next queued follow-up.
+                    queued_messages_v = (pending_status or {}).get("messages_v") if not is_incognito else None
+                    if isinstance(queued_messages_v, int) and not isinstance(queued_messages_v, bool):
+                        queued_notice["messages_v"] = queued_messages_v
                     await manager.send_personal_message(
                         {"type": "message_queued", "payload": queued_notice},
                         user_id, device_fingerprint_hash,
@@ -3034,6 +3126,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 return
             fresh_task_claim_id = candidate_id
+        if role == "user" and latest_turn_deferred:
+            # The run observed at admission finished before this turn was queued;
+            # it starts now, so it is the latest turn from here on.
+            await cache_service.set(
+                async_skill_latest_user_turn_key(user_id, chat_id), message_id,
+                ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+            )
+            await cache_service.delete(queued_turn_pending_key(user_id, chat_id, message_id))
         if is_incognito:
             ai_request_payload.volatile_dispatch_task_id = fresh_task_claim_id
         if not is_incognito and protocol_epoch == 0:

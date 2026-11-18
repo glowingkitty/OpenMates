@@ -161,3 +161,33 @@ fn inherited_prototype_app_key_reads_as_permission_without_fields() {
     assert_eq!(plan["directory"][0]["app_id"], "constructor");
     assert_eq!(plan["tokens"], json!([]));
 }
+
+// contract-test: supporting surface=sdks.rust assertions=design-figma.connection.oauth
+#[test]
+fn figma_oauth_row_plan_stores_design_app_and_figma_label() {
+    let input = json!({"connectedAccountId": "acct-f", "providerId": "figma", "bundleNullish": false,
+        "hint": {"capabilities": ["read", "variables"]}, "hintScopes": "[\"file_content:read\"]"});
+    let plan = parsed(&oauth::oauth_row_plan_json(&input.to_string()).unwrap());
+    let steps = plan["steps"].as_array().unwrap();
+    let encrypted = |field: &str| steps.iter().find(|s| s["field"] == field).unwrap()["encrypt"].as_str().unwrap().to_string();
+    assert_eq!(encrypted("encrypted_account_label"), "Figma");
+    assert_eq!(encrypted("encrypted_provider_type"), "figma");
+    assert_eq!(steps.iter().find(|s| s["field"] == "provider_type_hash").unwrap()["hash"], "figma");
+    let permissions = encrypted("encrypted_app_permissions");
+    assert!(permissions.contains("\"app_id\":\"design\""), "{permissions}");
+    assert!(permissions.contains("\"allowed_actions\":[\"read\"]"), "{permissions}");
+}
+
+// contract-test: supporting surface=sdks.rust assertions=design-figma.execution.token-lifecycle
+#[test]
+fn figma_send_context_maps_provider_and_app_without_action_scope() {
+    let row = json!({"id": "acct-f", "provider": "figma", "label": "Figma", "capabilities": ["read", "variables"],
+        "permissions": {"app_id": "figma", "allowed_actions": ["read"], "runtime_modes": {"read": "allow_automatically"}}});
+    for app in ["design", "figma"] {
+        let plan = parsed(&send_context_plan_json(&json!({"appId": app, "rows": [row]}).to_string()).unwrap());
+        assert_eq!(plan["directory"][0]["app_id"], "design");
+        assert_eq!(plan["directory"][0]["provider_id"], "figma");
+        assert_eq!(plan["tokens"][0]["allowed_actions"], json!(["read"]));
+        assert!(plan["tokens"][0].get("action_scope").is_none());
+    }
+}

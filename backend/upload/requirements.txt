@@ -34,3 +34,6 @@ python-magic==0.4.27
 # PDF processing: page count extraction (no rendering required at upload time)
 # Full rendering (screenshots) happens in the pdf app worker after upload
 pymupdf==1.28.2
+
+# SVG sanitizing before storage (slides.media.svg-declarative-animation)
+defusedxml==0.7.1

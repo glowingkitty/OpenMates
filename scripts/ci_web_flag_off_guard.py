@@ -92,10 +92,12 @@ def scan(build: Path, markers: set[str], stems: set[str], namespaces: frozenset[
             if namespaces and all(n in text for n in namespaces):
                 hits.append(f"all shared-worker namespaces {sorted(namespaces)}")
                 found.setdefault(sorted(namespaces)[0], re.search(re.escape(sorted(namespaces)[0]), text))
+            positions = [hit.start() for hit in found.values()]
             if "rustCore/" in text:
                 hits.append("rustCore/ source path")
+                positions.append(text.index("rustCore/"))
             if hits:
-                at = min(hit.start() for hit in found.values())
+                at = min(positions)
                 context = " context=" + repr(text[max(0, at - 150) : at + 250])
                 violations.append(f"{rel}: markers {hits}{context}")
     return violations

@@ -15,6 +15,7 @@ from backend.apps.ai.processing.focus_mode_routing import (
     should_force_deep_research_delegation,
     should_enable_subchats_for_active_focus,
     workflow_clarification_skill_scope,
+    focus_offered_skill_scope,
     resolve_automatic_focus_proposal,
 )
 
@@ -183,7 +184,8 @@ def _focus_prompt_scope(active_focus_id="jobs-career_insights", *, language="en"
     end = next(i for i, n in enumerate(function.body) if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "follow_up_suggestions_enabled" for t in n.targets))
     instruction = "Full focus instruction: ask about constraints.\nPreserve all configured details."
     translator = SimpleNamespace(get_nested_translation=lambda key, lang="en": instruction if lang == "en" and translation_available else None)
-    scope = dict(vars(focus_mode_routing))
+    from backend.apps.ai.processing import focus_layering
+    scope = {**vars(focus_mode_routing), **vars(focus_layering)}
     # The production slice records setup timing; its enclosing helper is outside
     # this prompt-only test. Preserve all prompt assertions while supplying it.
     scope["mark_project_reference_setup"] = lambda stage: None
@@ -226,16 +228,18 @@ def test_ai_deactivation_removes_instruction_before_next_inference():
     body = [n for n in branch.body if not isinstance(n, ast.Continue)]
     function = ast.AsyncFunctionDef(name="run_branch", args=ast.arguments(posonlyargs=[], args=[
         ast.arg(arg="active_focus_prompt_section"), ast.arg(arg="answer_recovery_system_prompt"),
-        ast.arg(arg="agentic_section")], kwonlyargs=[], kw_defaults=[], defaults=[]), body=body + [ast.Return(value=ast.Call(func=ast.Name(id="locals", ctx=ast.Load()), args=[], keywords=[]))], decorator_list=[])
+        ast.arg(arg="agentic_section"), ast.arg(arg="active_project_focus")], kwonlyargs=[], kw_defaults=[], defaults=[]), body=body + [ast.Return(value=ast.Call(func=ast.Name(id="locals", ctx=ast.Load()), args=[], keywords=[]))], decorator_list=[])
     module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
     instruction = "Full focus instruction"
     focus_part = f"--- Active Focus: jobs-career_insights ---\n{instruction}\n--- End Active Focus ---"
-    scope = dict(vars(focus_mode_routing))
+    from backend.apps.ai.processing import focus_layering
+    scope = {**vars(focus_mode_routing), **vars(focus_layering)}
+    scope.update(layer_precedence_section=None, project_phase_prompt_section=None)
     scope.update(json=json, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id="jobs-career_insights", user_id="owner", chat_id="chat"), cache_service=None, phase_redis=None, focus_phase_runtimes=[], current_message_history=[], tool_call_id="deactivate-1", tool_name="system-deactivate_focus_mode", prompt_parts=[focus_part, "Base instructions"], active_focus_prompt_text=instruction, active_focus_prompt_section=focus_part, full_system_prompt=focus_part + "\n\nBase instructions")
     from backend.apps.ai.processing.focus_phases import invalidate_phase_runtime
     scope["invalidate_phase_runtime"] = invalidate_phase_runtime
     exec(compile(module, "production-focus-deactivate", "exec"), scope)
-    result = asyncio.run(scope["run_branch"](focus_part, scope["full_system_prompt"], ""))
+    result = asyncio.run(scope["run_branch"](focus_part, scope["full_system_prompt"], "", None))
     assert scope["request_data"].active_focus_id is None
     assert instruction not in result.get("full_system_prompt", scope["full_system_prompt"])
     assert instruction not in result["answer_recovery_system_prompt"]
@@ -371,3 +375,75 @@ def test_conference_talk_focus_targets_the_attached_event_card_and_always_states
     assert "takes priority over every other conference mentioned earlier" in prompt
     assert "never guess one" in prompt
     assert '"Title and abstract limits:"' in prompt
+
+
+# contract-test: supporting surface=cli assertions=focus-modes.natural-request
+def test_active_spec_authoring_focus_keeps_plans_and_tasks_skills_offered() -> None:
+    available = {"plans-specification", "plans-check", "plans-create", "tasks-create", "web-search"}
+    # A design-phase turn where preprocessing picked no plans skill still offers them.
+    assert focus_offered_skill_scope(active_focus_id="code-write_specification", selected_skills=["web-search"],
+                                      available_skills=available, exact_request=False) == [
+        "web-search", "plans-specification", "plans-check", "plans-create", "tasks-create"]
+    # Other focus modes, explicit skill requests and unavailable skills are unchanged.
+    assert focus_offered_skill_scope(active_focus_id="web-research", selected_skills=[],
+                                      available_skills=available, exact_request=False) == []
+    assert focus_offered_skill_scope(active_focus_id="code-write_specification", selected_skills=["web-search"],
+                                      available_skills=available, exact_request=True) == ["web-search"]
+    assert focus_offered_skill_scope(active_focus_id="code-write_specification", selected_skills=[],
+                                      available_skills={"plans-check"}, exact_request=False) == ["plans-check"]
+
+
+# contract-test: supporting surface=cli assertions=life-compass.next-steps
+def test_active_life_compass_focus_keeps_tasks_and_reminder_skills_offered() -> None:
+    available = {"tasks-create", "tasks-search", "reminder-set-reminder", "web-search"}
+    # "Yes, let's do those" reads as small talk to preprocessing; the todo skills stay offered.
+    assert focus_offered_skill_scope(active_focus_id="life_coaching-life_compass", selected_skills=[],
+                                     available_skills=available, exact_request=False) == [
+        "tasks-create", "reminder-set-reminder"]
+    # Where Tasks are disabled only the reminder fallback is offered.
+    assert focus_offered_skill_scope(active_focus_id="life_coaching-life_compass", selected_skills=[],
+                                     available_skills={"reminder-set-reminder"}, exact_request=False) == [
+        "reminder-set-reminder"]
+
+
+def _request_app_focus_source() -> str:
+    import ast
+
+    tree = ast.parse(Path("backend/apps/ai/processing/main_processor.py").read_text())
+    function = next(
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.AsyncFunctionDef) and n.name == "request_app_focus"
+    )
+    return ast.unparse(function)
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.explicit-activation
+def test_directly_named_focus_activates_without_countdown_or_pending_event() -> None:
+    source = _request_app_focus_source()
+    assert "named_by_user: bool=False" in source
+    # No rejection window: auto-confirm runs at once and the pending entry activates now.
+    assert "countdown=0 if named_by_user else FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN" in source
+    assert "**({'user_override': True} if named_by_user else {})" in source
+    # The client shows a countdown only after focus_mode_pending; a named focus never sends it.
+    assert "if cache_service and pending_context_stored and (not named_by_user):" in source
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.explicit-activation,focus-modes.activation
+def test_model_marks_directly_named_focus_and_suggestions_keep_the_countdown() -> None:
+    source = Path("backend/apps/ai/processing/main_processor.py").read_text()
+    assert '"named_by_user": {\n                            "type": "boolean"' in source
+    # Only an explicit true from the tool call skips the countdown; anything else is a suggestion.
+    assert 'named_by_user=parsed_args.get("named_by_user") is True' in source
+    cache_source = Path("backend/core/api/app/services/cache_chat_mixin.py").read_text()
+    assert '"activate_at": time.time() + (0 if context.get("user_override") is True else 4)' in cache_source
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.layer-precedence
+def test_layered_focus_states_precedence_over_the_project_base() -> None:
+    """A focus on top of the Project base gets the precedence section; the base alone does not."""
+    scope, _instruction = _focus_prompt_scope(active_project_focus={"focus_id": "project-base", "project_id": "p1"})
+    joined = "\n".join(scope["prompt_parts"])
+    assert "--- Focus layering ---" in joined
+    assert "never overridden by the layered focus" in joined
+    plain, _ = _focus_prompt_scope()
+    assert "--- Focus layering ---" not in "\n".join(plain["prompt_parts"])

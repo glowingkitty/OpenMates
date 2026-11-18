@@ -7,7 +7,6 @@ import pytest
 from backend.apps.events.skills import search_skill
 from backend.shared.providers.typesafe.client import DecisionProviderUnavailable
 from backend.shared.providers.typesafe.models import DecisionResponse
-from backend.shared.python_utils import search_relevance
 
 
 def _event(identity: str, title: str, day: int) -> dict[str, Any]:
@@ -56,7 +55,7 @@ def event_search(monkeypatch):
             })
 
     monkeypatch.setattr(search_skill.SearchSkill, "_search_pretalx", provider)
-    monkeypatch.setattr(search_relevance, "JevDecisionClient", DecisionClient)
+    monkeypatch.setattr("backend.apps.ai.utils.internal_decisions.JevDecisionClient", DecisionClient)
     skill = object.__new__(search_skill.SearchSkill)
     request = {"query": "AI", "location": "Berlin", "lat": 52.52,
                "lon": 13.405, "conference": "39C3", "provider": "pretalx", "count": 3}

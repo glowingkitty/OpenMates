@@ -10,6 +10,23 @@ final class WorkspaceContinuationLayoutTests: XCTestCase {
         XCTAssertFalse(MessageComposerMetric.compactKeyboardLayout(isPhone: true, compactHeight: true, keyboardVisible: false))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.focus.workspace-suppression,message-input.layout.responsive-parity
+    func testExpandedChatComposerKeepsAnOutsideTapLaneAndSettles() {
+        let lane = MessageComposerMetric.expandedOutsideTapLaneHeight
+        XCTAssertGreaterThanOrEqual(lane, 44, "The outside strip is at least a minimum hit target")
+        // Measured CI case: the Cancel row consumed the top reserve, leaving no strip.
+        var heights = MessageComposerMetric.OutsideLaneHeights(field: 700, above: 0)
+        let cap = heights.fieldCap(viewportCap: 700)
+        XCTAssertEqual(cap, 700 - lane)
+        // The field shrinks by the deficit and the strip grows by the same amount.
+        heights = .init(field: cap, above: lane)
+        XCTAssertEqual(heights.fieldCap(viewportCap: 700), cap, "The cap is stable once the strip exists")
+        // A strip that is already wide enough leaves the viewport cap in charge,
+        // and an unmeasured field never changes it.
+        XCTAssertEqual(MessageComposerMetric.OutsideLaneHeights(field: 300, above: 400).fieldCap(viewportCap: 640), 640)
+        XCTAssertEqual(MessageComposerMetric.OutsideLaneHeights().fieldCap(viewportCap: 640), 640)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
     func testZeroHeightRegressionRequiresReclaimedPhysicalChromeAndBoundedCollapse() {
         let originalAvailable: CGFloat = 116

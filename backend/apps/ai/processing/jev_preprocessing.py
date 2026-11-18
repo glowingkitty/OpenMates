@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from typing import Any, Awaitable, Callable, Iterable, Mapping, Optional
 
+from backend.apps.ai.processing.request_purpose_policy import (
+    extract_purpose_decisions, request_purpose_questions, valid_purpose_decisions,
+)
+from backend.apps.ai.processing.wellbeing_questions import (
+    WELLBEING_SIGNALS, wellbeing_question_ids, wellbeing_questions,
+)
 from backend.apps.ai.processing.jev_decisions import (
     choice_value,
     evaluate_jev_decisions,
@@ -71,6 +78,18 @@ ICONS = {
     "utensils": "Food or cooking",
     "heart": "Health or relationships",
 }
+
+# A selected Ask first Memory is only offered by title and loads after the user's
+# approval, so a near miss costs one question; Auto include loads silently.
+AUTO_INCLUDE_RULE_THRESHOLD = 0.75
+ASK_FIRST_RULE_THRESHOLD = 0.65
+
+
+def rule_selection_threshold(row: dict) -> float:
+    """Minimum relevance for selecting a Memory candidate, by its load mode."""
+    return ASK_FIRST_RULE_THRESHOLD if row.get("load_mode") == "ask_first" else AUTO_INCLUDE_RULE_THRESHOLD
+
+
 def _criteria(entries: Iterable[str]) -> dict[str, str]:
     result: dict[str, str] = {}
     for entry in entries:
@@ -140,6 +159,9 @@ def _app_catalogue(available_apps: Iterable[str], available_skills: Iterable[str
     catalogue = []
     for app_id in app_ids:
         focus_examples[app_id].sort(key=lambda row: -len(request_words & _routing_words(row)))
+        # Only two skill hints fit the sketch: the ones matching the request win,
+        # otherwise a later skill (plans check) is never described to stage one.
+        examples[app_id].sort(key=lambda row: -len(request_words & _routing_words(row)))
         skills_and_focuses = f"capabilities {', '.join(names[app_id])}" if names[app_id] else ""
         example_hints = "; ".join(focus_examples[app_id] + examples[app_id][:2])
         provider_names = ", ".join(dict.fromkeys(providers[app_id]))
@@ -176,6 +198,86 @@ def _latest_user_text(message_history: list[Any]) -> str:
     return next((row["content"] for row in reversed(_messages(message_history)) if row["role"] == "user"), "")
 
 
+# An upload in the user's message reaches routing either as the client's embed
+# reference (a json block with type image and embed_id) or, once resolved, as a
+# TOON block with skill_id: upload. Neither says anything the decision model can
+# use except that a file is attached; storage keys and hashes only add noise.
+_UPLOAD_BLOCK = re.compile(r"```toon\n(?P<body>(?:(?!```)[\s\S])*?\bskill_id: upload\b[\s\S]*?)\n```")
+_EMBED_REFERENCE_BLOCK = re.compile(r"```(?:json|json_embed)\s*\n(?P<body>(?:(?!```)[\s\S])*?)\n```")
+_TOON_FIELD = r"^{}: *(?P<value>[^\n]+)$"
+
+
+def _image_reference_marker(match: re.Match[str]) -> str:
+    try:
+        reference = json.loads(match.group("body").strip())
+    except json.JSONDecodeError:
+        return match.group(0)
+    if (isinstance(reference, dict) and reference.get("type") == "image"
+            and isinstance(reference.get("embed_id"), str) and reference["embed_id"].strip()):
+        return "[Attached image]"
+    return match.group(0)
+
+
+def _compact_uploads(content: str) -> str:
+    """Show the decision model an attachment marker instead of upload embed metadata."""
+    def marker(match: re.Match[str]) -> str:
+        body = match.group("body")
+        def field(name: str) -> str:
+            found = re.search(_TOON_FIELD.format(name), body, re.MULTILINE)
+            value = found.group("value").strip().strip('"') if found else ""
+            return "" if value == "null" else value
+        kind = field("type") or field("app_id") or "file"
+        name = field("filename") or field("embed_ref")
+        return f"[Attached {kind}: {name}]" if name else f"[Attached {kind}]"
+    return _EMBED_REFERENCE_BLOCK.sub(_image_reference_marker, _UPLOAD_BLOCK.sub(marker, content))
+
+
+APP_SELECTION_THRESHOLD = 0.65
+# The decision model reads text only. When the latest request carries an upload,
+# "where is this cheapest?" names nothing and the app that fits the file's content
+# lands just under the usual threshold, so a lower one keeps it available; the main
+# model, which sees the file, still decides whether to call it.
+APP_SELECTION_THRESHOLD_WITH_UPLOAD = 0.5
+SKILL_SELECTION_THRESHOLD = 0.70
+SKILL_SELECTION_THRESHOLD_WITH_UPLOAD = 0.5
+
+
+def _latest_request_has_upload(message_history: list[Any]) -> bool:
+    for message in reversed(message_history):
+        role = message.get("role") if isinstance(message, dict) else getattr(message, "role", None)
+        sender = message.get("sender_name") if isinstance(message, dict) else getattr(message, "sender_name", None)
+        if role != "user" or sender == "async_tool_result":
+            continue
+        content = message.get("content") if isinstance(message, dict) else getattr(message, "content", None)
+        return isinstance(content, str) and _compact_uploads(content) != content
+    return False
+
+
+_FENCE = re.compile(r"```(?P<lang>[\w-]*)\n(?P<body>(?:(?!```)[\s\S])*?)\n```")
+
+
+def _routing_view_shape(messages: list[dict[str, str]]) -> str:
+    """Content-free shape of the latest user message the decision model reads.
+
+    Lists attachment markers and, for every other fenced block, its language and
+    field names (never values), so routing logs show what a request looked like
+    without logging what the user wrote.
+    """
+    latest = next((row["content"] for row in reversed(messages) if row["role"] == "user"), "")
+    blocks = []
+    for match in _FENCE.finditer(latest):
+        body = match.group("body")
+        try:
+            parsed = json.loads(body)
+            keys = sorted(parsed) if isinstance(parsed, dict) else [type(parsed).__name__]
+        except json.JSONDecodeError:
+            keys = re.findall(r"^([A-Za-z_][\w-]*):", body, re.MULTILINE)
+        blocks.append(f"{match.group('lang') or 'plain'}{keys[:8]}")
+    outside = _FENCE.sub("", latest)
+    return (f"markers={latest.count('[Attached ')} blocks={blocks} "
+            f"text_chars={len(outside.strip())}")
+
+
 def _messages(message_history: list[Any]) -> list[dict[str, str]]:
     result: list[dict[str, str]] = []
     for message in message_history:
@@ -186,6 +288,8 @@ def _messages(message_history: list[Any]) -> list[dict[str, str]]:
             sender_name = getattr(message, "sender_name", None)
         if role == "user" and sender_name == "async_tool_result":
             continue
+        if role == "user" and isinstance(content, str):
+            content = _compact_uploads(content)
         if role in {"user", "assistant"} and isinstance(content, str) and content.strip():
             result.append({"role": role, "content": content.strip()})
     latest_user = next((index for index in reversed(range(len(result)))
@@ -278,7 +382,13 @@ def _early_routing_questions(topic_areas: list[str], skip_mate_routing: bool) ->
         }},
         "complexity": {"type": "choice", "instructions": (
             "Select the minimum reasoning depth the main assistant needs for a high-quality answer, "
-            "excluding reasoning delegated to app skills. Most requests are low. "
+            "excluding reasoning delegated to app skills. Judge only the LATEST user request; earlier "
+            "chat history is context, not a reason to raise the level. Most requests are low: short "
+            "factual, conversational or greeting messages, quick lookups, definitions, translations, "
+            "rewrites and follow-up questions are low (for example 'What is the capital of Peru?', "
+            "'hi, how are you?', 'translate this sentence', 'thanks!'). Comparisons, multi-step "
+            "analysis or debugging of a real problem are medium (for example 'compare these two "
+            "database designs for my app'). If unsure, choose low. "
             "Forwarding a known Shopping query and reference images for skill-owned visual comparison "
             "is low; forty candidates or three photos alone do not raise the assistant tier. "
             "Length, importance, tools, attachments, or dissatisfaction alone do not justify max. "
@@ -393,6 +503,8 @@ def _public_decision_questions(
                     "criteria": {key: value for key, value in PREVIEW_TYPES.items()
                                  if authoring_definitions is None or "." not in key or key in authoring_definitions}},
     }
+    questions.update(wellbeing_questions())
+    questions.update(request_purpose_questions())
     if is_first_message:
         questions["icon"] = {"type": "choice", "instructions": "Choose one common Lucide icon representing the conversation topic.",
                              "criteria": ICONS}
@@ -412,9 +524,15 @@ def _validated_public_decisions(response: DecisionResponse, is_first_message: bo
             "enable_subchats", "model_llm", "model_image", "model_video", "model_audio", "harmful", "misuse")}
         if any(not 0 <= value <= 1 for value in nouls.values()):
             return None
+        wellbeing = {signal: noul_value(response, question) for signal, question in wellbeing_question_ids().items()}
+        if any(not 0 <= value <= 1 for value in wellbeing.values()):
+            return None
+        request_purpose = extract_purpose_decisions(response, choice_value, noul_value)
     except (ValueError, KeyError, TypeError):
         return None
     return {
+        "wellbeing_scores": {signal: round(value, 2) for signal, value in wellbeing.items()},
+        "request_purpose": request_purpose,
         "temperature": choices["temperature"],
         "enable_subchats": nouls["enable_subchats"] >= 0.65,
         "ai_model_topics": [family for family in ("llm", "image", "video", "audio")
@@ -444,6 +562,10 @@ def _complete_public_decisions(value: Any, is_first_message: bool) -> bool:
             and 0 <= value["misuse_risk"] <= 10
             and isinstance(value.get("output_language"), str) and value["output_language"] in LANGUAGES
             and isinstance(value.get("preview"), str) and value["preview"] in PREVIEW_TYPES
+            and valid_purpose_decisions(value.get("request_purpose"))
+            and isinstance(value.get("wellbeing_scores"), dict)
+            and set(value["wellbeing_scores"]) == set(WELLBEING_SIGNALS)
+            and all(type(score) in {int, float} and 0 <= score <= 1 for score in value["wellbeing_scores"].values())
             and isinstance(value.get("icon_names"), list)
             and (len(value["icon_names"]) == 1 and isinstance(value["icon_names"][0], str)
                  and value["icon_names"][0] in ICONS
@@ -470,6 +592,7 @@ async def decide_app_and_project_routing_with_jev(
     precomputed_stage_one: dict[str, Any] | None = None,
     voice_heard_context: str | None = None,
     authoring_definitions: Mapping[str, Mapping[str, Any]] | None = None,
+    latest_request_has_upload: bool | None = None,
 ) -> dict[str, Any]:
     """Choose public app/Project routing before any private or detailed catalogue.
 
@@ -515,9 +638,20 @@ async def decide_app_and_project_routing_with_jev(
         state=state, questions=questions, secrets_manager=secrets_manager,
         model_id=model_id, telemetry_task_id=telemetry_task_id,
     ) if questions and project_routing_focus_id is None and precomputed_stage_one is None else None
+    if latest_request_has_upload is None:
+        latest_request_has_upload = _latest_request_has_upload(message_history)
+    threshold = APP_SELECTION_THRESHOLD_WITH_UPLOAD if latest_request_has_upload else APP_SELECTION_THRESHOLD
     selected = ([app_id for question, app_id in app_map.items()
-                 if response is not None and noul_value(response, question) >= .65]
+                 if response is not None and noul_value(response, question) >= threshold]
                 if selected_app_ids is None else [app for app in selected_app_ids if app in valid_apps])
+    if response is not None and selected_app_ids is None:
+        # Content-free: app ids and scores only, to explain a missed or extra app.
+        scored = sorted(((noul_value(response, question), app_id) for question, app_id in app_map.items()),
+                        reverse=True)
+        logger.info("Stage-one app scores task=%s upload=%s threshold=%.2f top=%s view=%s", telemetry_task_id,
+                    threshold == APP_SELECTION_THRESHOLD_WITH_UPLOAD, threshold,
+                    ", ".join(f"{app_id}={score:.2f}" for score, app_id in scored[:6]),
+                    _routing_view_shape(_messages(message_history)))
     selected.extend(app for app in (forced_app_ids or []) if app in valid_apps)
     result: dict[str, Any] = {"selected_app_ids": list(dict.fromkeys(selected)),
                               "project_target_outcome": "no_eligible_candidate"}
@@ -651,6 +785,7 @@ async def decide_preprocessing_with_jev(
     related_discovery_complete: bool = False,
     voice_heard_context: str | None = None,
     authoring_definitions: Mapping[str, Mapping[str, Any]] | None = None,
+    latest_request_has_upload: bool | None = None,
 ) -> dict[str, Any]:
     """Return preprocessing arguments matching the existing structured-output schema."""
 
@@ -688,6 +823,7 @@ async def decide_preprocessing_with_jev(
             topic_areas=topic_areas, skip_mate_routing=skip_mate_routing,
             voice_heard_context=voice_heard_context,
             authoring_definitions=authoring_definitions,
+            latest_request_has_upload=latest_request_has_upload,
         )
         selected = routing["selected_app_ids"]
         early_decisions = routing.get("early_decisions")
@@ -852,6 +988,17 @@ async def decide_preprocessing_with_jev(
         state=state, questions=questions, secrets_manager=secrets_manager,
         model_id=model_id, telemetry_task_id=telemetry_task_id,
     ) if questions else None
+    if latest_request_has_upload is None:
+        latest_request_has_upload = _latest_request_has_upload(message_history)
+    # Same reason as stage one: the decision model cannot see the attached file.
+    skill_threshold = SKILL_SELECTION_THRESHOLD_WITH_UPLOAD if latest_request_has_upload else SKILL_SELECTION_THRESHOLD
+    skill_scores = {key: noul_value(response, question) for question, key in skill_map.items()} if response else {}
+    if skill_scores:
+        logger.info("Stage-two skill scores task=%s upload=%s threshold=%.2f top=%s view=%s", telemetry_task_id,
+                    latest_request_has_upload, skill_threshold,
+                    ", ".join(f"{key}={score:.2f}" for key, score in
+                              sorted(skill_scores.items(), key=lambda item: -item[1])[:6]),
+                    _routing_view_shape(state["messages"]))
 
     temperature = {"precise": 0.2, "balanced": 0.4, "creative": 0.8}[
         public_decisions["temperature"] if public_decisions else choice_value(response, "temperature")
@@ -867,6 +1014,7 @@ async def decide_preprocessing_with_jev(
             if type_id in diagram_type_ids and type_id not in selected_diagram_types:
                 selected_diagram_types.append(type_id)
 
+    rule_scores = {key: noul_value(response, question) for question, key in rule_map.items()}
     result: dict[str, Any] = {
         "llm_response_temp": temperature,
         "reasoning_level": (early_decisions.get("reasoning_level") if early_decisions
@@ -882,13 +1030,13 @@ async def decide_preprocessing_with_jev(
             if noul_value(response, f"model_{family}") >= 0.65
         ],
         "load_app_settings_and_memories": [key for question, key in memory_map.items() if noul_value(response, question) >= 0.75],
-        "relevant_app_skills": [key for question, key in skill_map.items() if noul_value(response, question) >= 0.70],
+        "relevant_app_skills": [key for key, score in skill_scores.items() if score >= skill_threshold],
         "relevant_focus_modes": [key for question, key in focus_map.items() if noul_value(response, question) >= 0.75],
         # `source` must survive: the preprocessor turns selected personal rows into
         # `memory:<id>` load requests and drops every non-auto_include row without it.
         "relevant_rules": [{"id": row["id"], "revision": row.get("revision"), "source": row.get("source"),
-                            "load_mode": row.get("load_mode", "auto_include")} for row in rule_candidates if row['id'] in {
-            key for question, key in rule_map.items() if noul_value(response, question) >= 0.75}],
+                            "load_mode": row.get("load_mode", "auto_include")} for row in rule_candidates
+                           if rule_scores.get(row["id"], 0.0) >= rule_selection_threshold(row)],
         "relevant_diagram_types": selected_diagram_types,
         "relevant_diagram_variant": (
             choice_value(response, "diagram_variant") if selected_diagram_types else None
@@ -908,6 +1056,11 @@ async def decide_preprocessing_with_jev(
         "topic_shift": early_decisions.get("topic_shift") if early_decisions else (None if skip_mate_routing else (
             "noticeable_shift" if is_first_message else choice_value(response, "topic_shift")
         )),
+        "request_purpose": public_decisions["request_purpose"] if public_decisions else extract_purpose_decisions(
+            response, choice_value, noul_value),
+        "wellbeing_scores": public_decisions["wellbeing_scores"] if public_decisions else {
+            signal: round(noul_value(response, question), 2)
+            for signal, question in wellbeing_question_ids().items()},
         "harmful_or_illegal": public_decisions["harmful_or_illegal"] if public_decisions else round(noul_value(response, "harmful") * 10.0, 2),
         "misuse_risk": public_decisions["misuse_risk"] if public_decisions else round(noul_value(response, "misuse") * 10.0),
         "output_language": public_decisions["output_language"] if public_decisions else choice_value(response, "language"),
@@ -916,7 +1069,6 @@ async def decide_preprocessing_with_jev(
         "selected_app_ids": selected,
     }
     # Counts only (no titles or ids): shows whether a Project Memory was offered and chosen.
-    rule_scores = {key: noul_value(response, question) for question, key in rule_map.items()}
     rule_sources = [row.get("source") for row in rule_candidates]
     logger.info("[RULE_PRESELECTION] candidates app=%d project=%d selected app=%d project=%d project_scores=%s",
                 rule_sources.count("app"), rule_sources.count("project"),

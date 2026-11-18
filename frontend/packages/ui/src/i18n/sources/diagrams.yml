@@ -93,15 +93,3 @@ cancel:
   en: Cancel
   de: Abbrechen
   verified_by_human: []
-
-save:
-  context: Save the current diagram edits
-  en: Save changes
-  de: Änderungen speichern
-  verified_by_human: []
-
-saving:
-  context: Diagram edit save in progress
-  en: Saving…
-  de: Wird gespeichert…
-  verified_by_human: []

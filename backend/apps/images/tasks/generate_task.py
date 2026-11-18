@@ -33,6 +33,7 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.utils.image_processing import (
     process_image_for_storage,
     process_svg_for_storage,
+    is_sanitized_svg,
 )
 from backend.shared.providers.google.gemini_image import generate_image_google
 from backend.shared.providers.fal.flux import generate_image_fal_flux
@@ -47,11 +48,11 @@ from backend.shared.providers.recraft.recraft import (
     RECRAFT_RASTER_MODEL_MAX,
 )
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.shared.python_utils.internal_llm_policy import DEFAULT_POLICY, InternalLlmPolicy
 from backend.apps.images.vector_author import (
     MAX_CORRECTION_ROUNDS,
     MAX_SOURCE_SVG_CHARS,
     VECTOR_AUTHOR_MODELS,
-    VECTOR_REVIEW_MODEL,
     VectorAuthorError,
     VectorAuthorResult,
     VectorUsage,
@@ -86,7 +87,21 @@ from backend.shared.python_utils.image_safety import (
     get_pipeline,
     get_strike_counter,
 )
+from backend.shared.python_utils.image_safety.account_suspension import (
+    rejection_decision,
+    suspend_account_for_strikes,
+)
 from backend.shared.python_utils.image_safety.audit_log import write_audit_entry
+from backend.shared.python_utils.image_safety.explanations import (
+    has_explanation,
+    localized_rejection_payload,
+)
+from backend.shared.python_utils.image_safety.strike_policy import (
+    is_technical_failure,
+    strike_warning,
+    unavailable_message,
+    user_language,
+)
 from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 
 logger = logging.getLogger(__name__)
@@ -198,11 +213,28 @@ DRAFT_FLASH_MODEL_REF = f"recraft/{RECRAFT_RASTER_MODEL_FLASH}"
 DRAFT_EDIT_MODEL_REF = "bfl/flux-2-klein"
 
 
+HIGHEST_QUALITY_RASTER_MODEL_REF = "google/gemini-3-pro-image-preview"
+
+
 def _draft_model_ref_for_references(model_ref: Optional[str], has_reference_images: bool) -> Optional[str]:
     """The text-only Flash draft model cannot take reference images; those drafts use FLUX klein edit."""
     if model_ref == DRAFT_FLASH_MODEL_REF and has_reference_images:
         return DRAFT_EDIT_MODEL_REF
     return model_ref
+
+
+def _resolve_raster_model_ref(
+    model_ref: Optional[str], *, skill_id: Optional[str], quality: str, has_reference_images: bool,
+) -> Optional[str]:
+    """The pixel-image model that runs for this request.
+
+    images.generate defaults to the cheap Flash model; only quality "max" (an
+    explicit highest-quality request) switches the default to Gemini 3 Pro Image.
+    Drafts ignore quality. A model the user saved in settings is kept as it is.
+    """
+    if model_ref == DRAFT_FLASH_MODEL_REF and skill_id == "generate" and quality == "max":
+        return HIGHEST_QUALITY_RASTER_MODEL_REF
+    return _draft_model_ref_for_references(model_ref, has_reference_images)
 
 
 def _resolve_image_billing_model_ref(
@@ -484,12 +516,32 @@ async def _handle_safety_rejection(
     provider: Optional[str],
     model: Optional[str],
     log_prefix: str,
+    subject: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Unified rejection handler: records the strike, writes the audit log,
-    caches the rejection for the remainder of the assistant response, and
-    returns the structured tool response for the LLM.
+    Unified rejection handler: records exactly one strike (StrikeCounter is the
+    only owner of the count), writes the audit log, caches the rejection for the
+    remainder of the assistant response, and returns the structured tool
+    response for the LLM. Strike 1 and 2 carry a localized warning
+    ("This is strike N of 3."); strike 2 suspends the account for 7 days and strike 3 suspends it until
+    an admin review; nothing here ever deletes an account.
     """
+    if is_technical_failure(rejection.category):
+        # The safety check itself failed: refuse (fail closed) but never count a
+        # strike, never ban and never audit it as a violation.
+        tool_response = dict(rejection.tool_response)
+        tool_response["user_facing_message"] = unavailable_message(
+            await user_language(task._cache_service, user_id)
+        )
+        logger.error(
+            f"{log_prefix} [ImageSafety] Safety check unavailable "
+            f"(category={rejection.category} reason={rejection.reason}); refused without strike"
+        )
+        await _cache_safety_rejection(
+            task, user_id, assistant_response_id, tool_response
+        )
+        return tool_response
+
     strike_counter = get_strike_counter(task._cache_service)
     strike_result = await strike_counter.record_strike(
         user_id=user_id,
@@ -504,9 +556,7 @@ async def _handle_safety_rejection(
         decision="block",
         category=rejection.category,
         severity=rejection.severity,
-        strike_weight=(0 if strike_result.debounced else
-                       {"critical": 4, "adversarial": 2, "severe": 2,
-                        "moderate": 1}.get(rejection.severity, 1)),
+        strike_weight=0 if strike_result.debounced else 1,
         sightengine_json=rejection.sightengine_audit,
         vlm_json=rejection.vlm_audit,
         safeguard_reasoning=(rejection.safeguard_audit or {}).get("reasoning"),
@@ -518,8 +568,24 @@ async def _handle_safety_rejection(
         assistant_response_id=assistant_response_id,
     )
 
+    language = await user_language(task._cache_service, user_id)
+    tool_response = localized_rejection_payload(
+        rejection.category,
+        language,
+        severity=rejection.severity,
+        error=str(rejection.tool_response.get("error") or "safety_rejection"),
+    )
+    if strike_result.error is None:
+        tool_response["user_facing_message"] = strike_warning(
+            rejection.category,
+            subject or ("image_edit" if source_embed_id else "image_generate"),
+            max(strike_result.new_count, 1),
+            language,
+        )
+        tool_response["strike"] = strike_result.new_count
+
     await _cache_safety_rejection(
-        task, user_id, assistant_response_id, rejection.tool_response
+        task, user_id, assistant_response_id, tool_response
     )
 
     logger.warning(
@@ -529,50 +595,17 @@ async def _handle_safety_rejection(
         f"ban={strike_result.ban_triggered} debounced={strike_result.debounced}"
     )
 
-    # Ban path — kept best-effort; delegated to internal ban endpoint if the
-    # strike counter crossed the threshold. Current upload-content-safety-reject
-    # endpoint already implements account deletion, so we reuse the pattern
-    # here when weight pushes the counter over the threshold.
-    if strike_result.ban_triggered and not strike_result.debounced:
-        await _trigger_safety_ban(
+    if strike_result.new_count >= 2 and strike_result.recorded and not strike_result.debounced:
+        await suspend_account_for_strikes(
             user_id=user_id,
+            strike_count=strike_result.new_count,
             category=rejection.category,
-            log_prefix=log_prefix,
+            directus_service=task._directus_service,
+            cache_service=task._cache_service,
+            decision=rejection_decision(rejection),
         )
 
-    return rejection.tool_response
-
-
-async def _trigger_safety_ban(
-    *,
-    user_id: str,
-    category: str,
-    log_prefix: str,
-) -> None:
-    """
-    Call the internal API ban endpoint. Best-effort; logs on failure.
-    Mirrors the existing upload-content-safety-reject behavior.
-    """
-    try:
-        headers = {"Content-Type": "application/json"}
-        if INTERNAL_API_SHARED_TOKEN:
-            headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
-        async with httpx.AsyncClient(timeout=15) as client:
-            await client.post(
-                f"{INTERNAL_API_BASE_URL}/internal/uploads/content-safety-reject",
-                json={
-                    "user_id": user_id,
-                    "rejection_reason": f"image_generation_safety:{category}",
-                    "upload_type": "chat_image",
-                },
-                headers=headers,
-            )
-        logger.warning(f"{log_prefix} [ImageSafety] Ban triggered for user")
-    except Exception as e:
-        logger.error(
-            f"{log_prefix} [ImageSafety] Ban trigger failed (non-fatal): {e}",
-            exc_info=True,
-        )
+    return tool_response
 
 
 async def _emit_safety_rejection_embed(
@@ -702,14 +735,15 @@ async def _flat_image_credits(model_ref: str, log_prefix: str) -> int:
 
 async def _review_and_follow_up_recraft_svg(
     task: BaseServiceTask, svg: str, *, prompt: str, aspect_ratio: str, quality: str,
-    requirements: List[str], task_id: str, on_draft: Any,
+    requirements: List[str], task_id: str, on_draft: Any, policy: Optional[InternalLlmPolicy] = None,
 ) -> VectorAuthorResult:
     """Check a Recraft drawing against the requirements; let the LLM author fix clear misses."""
     review = await review_with_jev(
         svg=svg, prompt=prompt, requirements=requirements, is_modification=False,
-        secrets_manager=task._secrets_manager, task_id=task_id,
+        secrets_manager=task._secrets_manager, task_id=task_id, policy=policy,
     )
-    usage = [VectorUsage("review", VECTOR_REVIEW_MODEL, review.input_tokens, 0)] if review.input_tokens else []
+    usage = ([VectorUsage("review", review.model_id, review.input_tokens, review.output_tokens)]
+             if review.input_tokens else [])
     reviewed = VectorAuthorResult(
         svg=svg, model_id="recraft", attempts=1, review_status=review.status, usage=usage,
         engine=VECTOR_ENGINE_RECRAFT, unmet_requirements=review.unmet,
@@ -725,6 +759,7 @@ async def _review_and_follow_up_recraft_svg(
             requirements=requirements, source_svgs=[svg] if editable else [],
             reference_images=[] if editable else [(render_review_jpeg(svg), "image/jpeg")],
             secrets_manager=task._secrets_manager, on_draft=on_draft, max_attempts=MAX_CORRECTION_ROUNDS,
+            policy=policy,
         )
     except VectorAuthorError as exc:
         # The follow-up produced nothing usable: the Recraft drawing is delivered with what it misses.
@@ -736,10 +771,11 @@ async def _review_and_follow_up_recraft_svg(
 
 
 def _planned_display_model(model_ref: Optional[str], output_filetype: str, use_vector_author: bool,
-                           quality: str) -> Optional[str]:
+                           quality: str, policy: Optional[InternalLlmPolicy] = None) -> Optional[str]:
     """Short id of the model that starts this request, as the client's model metadata knows it."""
     if use_vector_author:
-        return VECTOR_AUTHOR_MODELS[0].split("/")[-1]
+        routes = (policy or DEFAULT_POLICY).author_routes(VECTOR_AUTHOR_MODELS)
+        return (routes[0].model_id if routes else VECTOR_AUTHOR_MODELS[0]).split("/")[-1]
     if output_filetype == "svg":
         return RECRAFT_MODEL_MAX if quality == "max" else RECRAFT_MODEL_DEFAULT
     return model_ref.split("/")[-1] if model_ref else None
@@ -831,6 +867,8 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         style = arguments.get("style")
         # vector_engine: who draws an SVG — the LLM vector author (default) or Recraft.
         vector_engine = _resolve_vector_engine(arguments.get("vector_engine"))
+        # The user's AI model and server settings for the drawing author and its review.
+        llm_policy = InternalLlmPolicy.from_payload(arguments.get("internal_llm_policy"))
         use_vector_author = output_filetype == "svg" and vector_engine != VECTOR_ENGINE_RECRAFT
         # Natural-language requirements a vector result is checked against (no review without them).
         vector_requirements = normalize_requirements(arguments.get("requirements")) if output_filetype == "svg" else []
@@ -838,7 +876,10 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         reference_script_sources: List[str] = []
         # Reference images for image-to-image generation (resolved embed IDs from skill layer)
         reference_image_embed_ids: List[str] = arguments.get("reference_image_embed_ids") or []
-        model_ref = _draft_model_ref_for_references(model_ref, bool(reference_image_embed_ids))
+        model_ref = _resolve_raster_model_ref(
+            model_ref, skill_id=arguments.get("skill_id"), quality=quality,
+            has_reference_images=bool(reference_image_embed_ids),
+        )
         user_vault_key_id: Optional[str] = arguments.get("user_vault_key_id")
 
         if not prompt or not user_id:
@@ -863,7 +904,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             task, arguments=arguments, embed_id=embed_id, prompt=prompt, aspect_ratio=aspect_ratio,
             user_id=user_id, chat_id=chat_id, message_id=message_id, log_prefix=log_prefix,
             output_filetype=output_filetype, input_embed_ids=reference_image_embed_ids,
-            model=_planned_display_model(model_ref, output_filetype, use_vector_author, quality),
+            model=_planned_display_model(model_ref, output_filetype, use_vector_author, quality, llm_policy),
             revised_from=image_revision.revision_content_fields(revision)["revised_from"] if revision else None,
         )
         if progress_publisher:
@@ -883,6 +924,13 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         )
         if not media_decision.allowed:
             tool_response = media_decision.to_rejection_payload()
+            if has_explanation(media_decision.category or ""):
+                tool_response = localized_rejection_payload(
+                    str(media_decision.category),
+                    await user_language(task._cache_service, user_id),
+                    severity=media_decision.severity,
+                    error=str(tool_response["error"]),
+                )
             logger.warning(
                 "%s [MediaSafety] REJECTED category=%s reason=%s",
                 log_prefix,
@@ -1066,7 +1114,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 task_id=str(task_id), prompt=str(prompt), aspect_ratio=aspect_ratio, quality=quality,
                 engine=vector_engine, requirements=vector_requirements,
                 source_svgs=source_svgs, reference_images=pixel_references, source_script=source_script,
-                secrets_manager=task._secrets_manager, on_draft=on_draft,
+                secrets_manager=task._secrets_manager, on_draft=on_draft, policy=llm_policy,
             )
             svg_bytes = authored.svg.encode("utf-8")
             model_ref = authored.model_id
@@ -1098,6 +1146,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 authored = await _review_and_follow_up_recraft_svg(
                     task, svg_bytes.decode("utf-8"), prompt=str(prompt), aspect_ratio=aspect_ratio,
                     quality=quality, requirements=vector_requirements, task_id=str(task_id), on_draft=on_draft,
+                    policy=llm_policy,
                 )
                 svg_bytes = authored.svg.encode("utf-8")
                 metered_credits, metered_usage = await _vector_author_credits(
@@ -1437,6 +1486,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 "format": ext,
                 "mime_type": stored_mime,
                 **encrypted_variants.metadata[format_key],
+                **({"sanitized": is_sanitized_svg(content)} if output_filetype == "svg" and format_key == "original" else {}),
             }
 
         # 9. Prepare embed content for client-side storage

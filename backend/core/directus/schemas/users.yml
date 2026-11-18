@@ -490,6 +490,52 @@ directus_users:
       note: "User opted in to detailed debug logging (Tier 3 traces). Controlled via Settings > Privacy & Security."
 
     # Ephemeral stability log forwarding opt-out
+    safety_suspension_state:
+      type: string
+      length: 32
+      default: "none"
+      note: "Safety-strike suspension: none, temporary (7 days, ends by itself at safety_suspended_until) or pending_review (until an admin restores or deletes the account). Never set by chat or client code."
+
+    safety_suspended_until:
+      type: string
+      length: 64
+      nullable: true
+      note: "ISO timestamp when a temporary safety suspension ends. Null for none and pending_review."
+
+    safety_suspension_category:
+      type: string
+      length: 128
+      nullable: true
+      note: "Safety category of the strike that caused the suspension (category only, never request content)."
+
+    safety_suspension_started_at:
+      type: string
+      length: 64
+      nullable: true
+      note: "ISO timestamp when the current safety suspension started."
+
+    safety_flagged_message_ids:
+      type: json
+      nullable: true
+      note: "Ids of the flagged requests behind the safety strikes (ids only, never content); the user's own device reads them when appealing."
+
+    safety_decision:
+      type: json
+      nullable: true
+      note: "Deciding check of the last strike: stage, reason code, numeric scores and threshold. No request text, no image."
+
+    safety_review_reminded_at:
+      type: string
+      length: 64
+      nullable: true
+      note: "ISO timestamp of the last 48-hour reminder sent to the admin for an undecided review."
+
+    safety_suspension_closed_at:
+      type: string
+      length: 64
+      nullable: true
+      note: "ISO timestamp when the safety case closed (restore or temporary end); the strike and suspension record is purged 90 days later."
+
     console_log_forwarding_opted_out:
       type: boolean
       default: false

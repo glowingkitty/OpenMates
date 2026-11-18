@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-08-25
+last_verified: 2026-11-15
 key_files:
 - backend/core/api/app/tasks/health_check_tasks.py
 - backend/core/api/app/tasks/celery_config.py
@@ -106,6 +106,8 @@ App and external-service checks run every **5 minutes**. Provider inference prob
 | AWS Bedrock   | `boto3.list_foundation_models()` | Vault `kv/data/providers/aws`            |
 | Vercel Domain | HTTP GET (follow redirects)      | `VERCEL_DOMAIN` env var                  |
 
+The hourly prod smoke also checks transactional email sending (account, credits, prod error rate); see [transactional-email-monitoring.md](./transactional-email-monitoring.md).
+
 Missing credentials yield `unhealthy` with `missing_credentials`. HTTP errors return the status code; timeouts return `"timeout"`.
 
 ### Health Event Persistence
@@ -122,6 +124,10 @@ Discord webhook resolution:
 - Existing degraded-services fallback: `DISCORD_WEBHOOK_DEGRADED_SERVICES`, then `DISCORD_WEBHOOK_PROD_SMOKE` for production or `DISCORD_WEBHOOK_DEV_SMOKE` for dev.
 
 Email is disabled unless `OPENMATES_HEALTH_ALERT_EMAIL_ENABLED=true`. When enabled, the recipient resolves in this order: `OPENMATES_HEALTH_ALERT_EMAIL_TO`, `OPENMATES_RUNTIME_HEALTH_EMAIL_TO`, `SERVER_OWNER_EMAIL`, then `ADMIN_NOTIFY_EMAIL`. This lets self-hosting operators opt into email explicitly without enabling it on the OpenMates dev server by accident.
+
+Delegation: with `OPENMATES_HEALTH_ALERTS_DELEGATED=true` (default false) provider, app and external-service transition alerts are not sent to Discord or email, because the external status monitor alerts with escalation. Transitions are still recorded in `health_events` and logged at info ("delegated to external status monitor").
+
+Liveness: `GET /v1/health/liveness` (public, rate-limited, no auth) dispatches the no-spend `runtime_health.worker_probe` task to `app_ai` and returns `{"status","api","ai_worker","checked_at"}`; the outcome is cached for 30 s with a single-flight lock. Unlike `/v1/health` (a cache filled by Celery tasks) it shows worker liveness.
 
 Alert policy:
 - Send one Discord alert when a provider, app, or external service enters `degraded` or `unhealthy`.
@@ -175,6 +181,32 @@ source records and retry intent until storage succeeds.
 When a verified email or Discord destination exists, the same host scheduler sends a compact daily 24-hour operational digest at 08:30 UTC. The report watchdog opens one incident after 26 hours without an accepted report and emits one recovery event after delivery resumes. Host notification delivery retries independently and does not depend on the API or Celery task scheduler.
 
 Prometheus provides container/host trend data and disk/report-staleness alerts. Alertmanager can additionally send critical events directly to an environment-specific Discord webhook; the host verifier remains the independent email/Discord path when that optional Alertmanager receiver is not configured.
+
+## Required Production Alert Configuration
+
+Every alert path on production silently drops its message when one of these
+runtime `.env` keys is empty. Both must be set on the production core server:
+
+| Key | Used by | Effect when empty |
+|---|---|---|
+| `OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION` | Weekday degraded-services report (`core-worker`), Alertmanager `urgent-discord` receiver, host runtime monitor and daily digest | Report logs `[DEGRADED_REPORT] Discord webhook not configured; skipping report`; Alertmanager starts with only `api-webhook` |
+| `SERVER_OWNER_EMAIL` | Alertmanager `api-webhook` email (`/internal/alertmanager-webhook`), weekly error digest (`task-worker`), test-failure emails | Alerts are accepted and dropped (`SERVER_OWNER_EMAIL not configured`); digest logs `[ERROR_DIGEST] Recipient not configured` |
+
+Incident, 15 Nov 2026: production had no `SERVER_OWNER_EMAIL` at all, and the
+Discord key was added to `.env` on 14 Nov after the workers had started, so no
+running container had it. Both were set and the affected services recreated;
+a `notifications test --channel discord` delivery and a manual degraded
+report run both reached Discord. Email delivery additionally depends on Brevo
+(TASK-6346).
+
+Applying `.env` changes: `openmates server restart` runs `docker compose
+restart`, which keeps the old container environment. `openmates server start
+--services <csv>` re-reads `.env` but also recreates changed dependencies
+(database, CMS, Vault setup). Until the CLI offers a dependency-free recreate,
+apply alert-key changes with `docker compose ... up -d --no-deps api
+core-worker task-worker task-scheduler alertmanager` after a `--dry-run` of the
+same command, and check the keys with `docker exec <service> printenv <KEY>`
+(presence only, never print the value).
 
 ## Related Docs
 

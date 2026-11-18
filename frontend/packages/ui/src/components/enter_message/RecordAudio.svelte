@@ -29,6 +29,7 @@
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
     import CompactSendButton from './CompactSendButton.svelte';
+    import { authStore } from '../../stores/authStore';
     import { buildWaveformFromLevels, type AudioWaveformData } from '../../utils/audioWaveform';
     import {
         startAudioRealtimeTranscription,
@@ -858,9 +859,10 @@
             </button>
             {#if showSend}
                 <span class="record-send-slot" transition:fade={{ duration: 150 }}>
+                    <!-- Signed out: never a disabled Send; requestSend() ignores repeat clicks (message-input.signed-out-two-states). -->
                     <CompactSendButton
                         testId="record-send-button"
-                        disabled={sendRequested || overlayCloseRequested}
+                        disabled={$authStore.isAuthenticated && (sendRequested || overlayCloseRequested)}
                         busy={sendRequested && isProcessing}
                         onclick={requestSend}
                     />

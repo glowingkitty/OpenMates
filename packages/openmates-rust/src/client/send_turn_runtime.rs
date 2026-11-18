@@ -107,6 +107,14 @@ async fn adopt_turn_embeds<P: SavedTurnClientPhases>(
     }
     Ok(())
 }
+/// True for a remote command frame (review, event, response) of this turn's
+/// chat; only a send that runs Project file jobs declares the capability.
+fn routes_remote_command_frame(options: &SendOptions, kind: &str, frame: &Value, chat: &str) -> bool {
+    options.project_file_jobs
+        && PROJECT_FILE_JOBS_AVAILABLE
+        && crate::client::remote_command_jobs::is_frame(kind)
+        && (text(frame, "chat_id") == chat || text(frame, "chat_id").is_empty())
+}
 /// True for a Memory write job frame of this turn's chat that this send handles,
 /// in the stream and among the trailing frames alike.
 fn routes_memory_job_frame(options: &SendOptions, kind: &str, frame: &Value, chat: &str) -> bool {
@@ -182,6 +190,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
         let mut content = Plain::new(String::new());
         let mut thinking = Plain::new(String::new());
         let mut final_frame=Plain::new(None::<Value>);
+        let mut withdrawal = super::answer_withdrawal::Withdrawal::default();
         // Idle limit: each received frame restarts it (long coding turns keep streaming).
         let mut turn_deadline = super::turn_deadline::TurnDeadline::start(crate::platform::time::Instant::now(),
             Duration::from_millis(options.response_timeout_ms.unwrap_or(600_000)));
@@ -199,7 +208,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             let event = if let Some(event) = deferred.pop_front() {
                 event
             } else {
-                let received=tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=crate::platform::time::timeout_at(turn_deadline.at(),receive(ws))=>r.map_err(|_|Error::Offline)??};
+                let received=tokio::select! {biased;_=cancel.cancelled()=>return Err(Error::Cancelled),r=crate::platform::time::timeout_at(turn_deadline.at(),receive(ws))=>r.map_err(|_|crate::client::send::refusal_trace::offline_at!())??};
                 turn_deadline.on_frame(crate::platform::time::Instant::now());
                 received
             };
@@ -298,7 +307,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             if kind == "ai_typing_started" && same {
                 generated_header.wipe();*generated_header=p.clone();
             }
-            if ["focus_mode_activated", "focus_phases_updated"].contains(&kind.as_str())
+            if ["focus_mode_activated", "focus_phases_updated", super::wellbeing::EVENT_KIND].contains(&kind.as_str())
                 && text(&p, "chat_id") == id
                 && (text(&p, "task_id").is_empty() || text(&p, "task_id") == task_id.as_str())
             {
@@ -343,10 +352,21 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             {
                 // Hosted Project file tool calls run here; the turn resumes afterwards.
                 observed.project_create.file_jobs.approve_writes = options.approve_project_file_writes;
+                observed.project_create.file_jobs.set_mappings(&prepared.mappings);
                 trace.phase = SendPhase::ProjectPhase;
                 phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
                 trace.phase = SendPhase::FrameValidation;
                 for notice in observed.project_create.file_jobs.take_notices() {
+                    phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;
+                }
+            }
+            if routes_remote_command_frame(options, &kind, &p, id) {
+                // code.run on a machine source waits for our approval and completion.
+                observed.project_create.remote_commands.approve = options.approve_project_file_writes;
+                trace.phase = SendPhase::ProjectPhase;
+                phases.project_create(ws, &kind, &p, id, &mut observed.project_create).await?;
+                trace.phase = SendPhase::FrameValidation;
+                for notice in observed.project_create.remote_commands.take_notices() {
                     phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Status(notice)).await?;
                 }
             }
@@ -429,11 +449,24 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                         mate: String::new(),
                     }).await?;
             }
+            if kind == super::answer_withdrawal::EVENT_KIND
+                && withdrawal.observe(&p, id, &task_id)?
+                && let Some(notice) = withdrawal.current_notice()
+            {
+                // The notice replaces the answer shown so far; later chunks are dropped.
+                replace_text(&mut content, notice.into());
+                phases.deliver_update(&turn_scope,id,updates,cancel,StreamUpdate::Content {
+                        content: content.clone(),
+                        thinking: thinking.clone(),
+                        mate: String::new(),
+                    }).await?;
+            }
             if same && (kind == "ai_message_update" || kind == "ai_background_response_completed") {
                 if let Some(full) = p
                     .get("full_content_so_far")
                     .or_else(|| p.get("full_content"))
                     .and_then(Value::as_str)
+                    .filter(|_| !withdrawal.suppresses(text(&p, "message_id")))
                 {
                     replace_text(&mut content,full.into())
                 }
@@ -520,6 +553,11 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                         && owns_metadata(&p, id, message, turn, &task_id)
                     {
                         observed.capture_jobs(&p, id)?;
+                    }
+                    // The check runs after the final chunk; the notice still lands
+                    // before the assistant message is persisted below.
+                    if kind == super::answer_withdrawal::EVENT_KIND {
+                        withdrawal.observe(&p, id, &task_id)?;
                     }
                     trace.observe_discovery(&kind, &p);
                     crate::client::recovery::capture(&kind, &p, &mut recovery_outputs)?;
@@ -611,6 +649,7 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                 return Err(super::send::refusal_trace::protocol_at!());
             }
             let content=Plain::new(chat.messages.iter().find(|m|m.id==assistant_id).ok_or_else(|| super::send::refusal_trace::protocol_at!())?.content.clone());
+            let content=Plain::new(withdrawal.notice_for(assistant_id).map_or_else(||content.into_inner(),str::to_owned));
             trace.phase = SendPhase::TaskFinalize;
             phases.finish_task_jobs(ws, &mut observed, id, message, key, cancel, options)
                 .await?;
@@ -638,7 +677,10 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
             assistant_message_id: assistant_id.into(),
             key_version: 1,
         };
-        let recovered=Plain::new(crate::client::completion_recovery::decode_main_completion(&envelope,key,&identity)?);
+        let mut recovered=Plain::new(crate::client::completion_recovery::decode_main_completion(&envelope,key,&identity)?);
+        if let Some(notice) = withdrawal.notice_for(assistant_id) {
+            recovered["content"] = json!(notice);
+        }
         observed.capture_owned("recovered_completion", &recovered)?;
         replace_text(&mut content,required(&recovered,"content")?.into());
         let created = final_frame["created_at"].as_u64().ok_or_else(|| super::send::refusal_trace::protocol_at!())?;

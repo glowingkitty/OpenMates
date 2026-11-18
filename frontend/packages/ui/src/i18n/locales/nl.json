@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Dit antwoord is verwijderd omdat het niet voldeed aan onze veiligheidsregels."
+    },
+    "wellbeing": {
+      "text": "Ik heb mijn laatste antwoord verwijderd omdat het schadelijk voor je kon zijn. Je staat er niet alleen voor. Als je eraan denkt jezelf iets aan te doen, neem dan contact op met iemand die je vertrouwt, een crisislijn of de hulpdiensten. Ik ben er nog steeds om te praten."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -134,6 +142,12 @@
         "text": "Een financieringsronde plannen",
         "description": {
           "text": "Bepaal hoeveel je ophaalt, welk instrument past, de verwatering en een tijdlijn, met een bewerkbare cap-tablesheet."
+        }
+      },
+      "write_press_release": {
+        "text": "Persbericht schrijven",
+        "description": {
+          "text": "Schrijf een persbericht dat journalisten kunnen gebruiken, in de eigen perstoon van je bedrijf, als Word-document of in een ander gewenst formaat."
         }
       }
     },
@@ -221,6 +235,12 @@
         "description": {
           "text": "Controleer configuratiebestanden op beveiligingsrisico's en blootstelling."
         }
+      },
+      "write_specification": {
+        "text": "Specificatie schrijven",
+        "description": {
+          "text": "Maak van een idee stap voor stap een goedgekeurde specificatie - reikwijdte, vereisten, ontwerp en acceptatiecontroles - en start daarna een plan met taken."
+        }
       }
     },
     "events": {
@@ -303,6 +323,12 @@
         "description": {
           "text": "Een krachtige levenscoachingtechniek."
         }
+      },
+      "life_compass": {
+        "text": "Levenskompas",
+        "description": {
+          "text": "Vind je richting naar een gelukkiger leven, stap voor stap."
+        }
       }
     },
     "news": {
@@ -358,6 +384,20 @@
           "3": {
             "text": "Onderzoek de feiten en tegenargumenten voordat ik dit **klimaatbeleid** bespreek met een sceptische vriend"
           }
+        }
+      }
+    },
+    "slides": {
+      "design_template": {
+        "text": "Sjabloon ontwerpen",
+        "description": {
+          "text": "Ontwerp stap voor stap een herbruikbaar diasjabloon - drie ontwerpen om uit te kiezen, samen verfijnd en daarna opgeslagen in je bibliotheek."
+        }
+      },
+      "plan_presentation": {
+        "text": "Presentatie plannen",
+        "description": {
+          "text": "Plan een presentatie stap voor stap - doel, verhaal, één boodschap per dia, ontwerp - en maak daarna de dia's met sprekersnotities en controleer ze."
         }
       }
     },
@@ -910,6 +950,12 @@
         "description": {
           "text": "Zet een vectorafbeelding om in borduurmachinebestanden met steekvoorbeeld."
         }
+      },
+      "get_design": {
+        "text": "Ontwerp ophalen",
+        "description": {
+          "text": "Leest een Figma-ontwerp en geeft structuur, stijlen en een code-overdracht."
+        }
       }
     },
     "electronics": {
@@ -947,6 +993,9 @@
           "3": {
             "text": "Welke tech-evenementen vinden er in januari in Londen plaats?"
           }
+        },
+        "pricing_note": {
+          "text": "Een gewone zoekopdracht naar evenementen kost ongeveer 15–25 credits: 10 credits voor de webzoekopdracht plus de tokens die Mercury 3 gebruikt om maximaal vijf openbare pagina's te lezen. Een zoekopdracht die alleen een officieel conferentieprogramma beantwoordt, kost 1 credit. Zoekopdrachten die mislukken of niets vinden, zijn gratis."
         }
       }
     },
@@ -2885,6 +2934,21 @@
       "structured": {
         "text": "Inhoud"
       },
+      "player_label": {
+        "text": "Spraakantwoordspeler"
+      },
+      "pause": {
+        "text": "Spraakantwoord pauzeren"
+      },
+      "play": {
+        "text": "Spraakantwoord afspelen"
+      },
+      "previous_chapter": {
+        "text": "Vorig hoofdstuk: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Volgend hoofdstuk: {chapter}"
+      },
       "speak_response": {
         "text": "Antwoord voorlezen"
       },
@@ -3353,6 +3417,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3852,6 +3917,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "Beheerder"
@@ -3941,6 +4007,12 @@
     },
     "download": {
       "text": "Downloaden"
+    },
+    "download_pdf": {
+      "text": "PDF downloaden"
+    },
+    "download_word": {
+      "text": "Word downloaden"
     },
     "loading": {
       "text": "Laden..."
@@ -5926,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Je OpenMates-account is geblokkeerd"
+      },
+      "headline": {
+        "text": "Je account is geblokkeerd"
+      },
+      "body": {
+        "text": "Onze veiligheidscontroles hebben verzoeken van je account afgewezen."
+      },
+      "appeal": {
+        "text": "Je hebt 14 dagen om bezwaar te maken. Je kunt ook je gegevens downloaden."
+      },
+      "button": {
+        "text": "Bezwaar maken of mijn gegevens downloaden"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "We hebben meer informatie over je account nodig"
+      },
+      "headline": {
+        "text": "We hebben nog wat informatie nodig"
+      },
+      "body": {
+        "text": "We beoordelen de blokkade van je account en hebben een vraag:"
+      },
+      "button": {
+        "text": "Antwoord in de app"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Je OpenMates-account is weer actief"
+      },
+      "headline": {
+        "text": "Je account is weer actief"
+      },
+      "body": {
+        "text": "We hebben de blokkade van je account beoordeeld en opgeheven. Je overtredingen zijn gewist en je kunt OpenMates weer gebruiken zoals voorheen."
+      },
+      "apology": {
+        "text": "Onze excuses voor het ongemak."
+      }
     }
   },
   "embed_user_edits": {},
@@ -7622,7 +7739,7 @@
         "text": "{used} / {limit} credits"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "Je logt in via een cloudbrowser. Als je AI laat doorgaan, kan die informatie in dit account bekijken. Relevante pagina-inhoud kan naar onze AI-aanbieders worden gestuurd. Log alleen in op accounts waartoe je AI toegang wilt geven."
@@ -7823,6 +7940,42 @@
     },
     "slides_count_plural": {
       "text": "dia's"
+    },
+    "slides_template_default_title": {
+      "text": "Sjabloon"
+    },
+    "slides_template_label": {
+      "text": "Sjabloon"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} lay-outs"
+    },
+    "slides_template_use": {
+      "text": "Dit ontwerp gebruiken"
+    },
+    "slides_template_use_message": {
+      "text": "Gebruik het ontwerp \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Titel"
+    },
+    "slides_layout_section": {
+      "text": "Sectie"
+    },
+    "slides_layout_content": {
+      "text": "Inhoud"
+    },
+    "slides_layout_two_column": {
+      "text": "Twee kolommen"
+    },
+    "slides_layout_image": {
+      "text": "Afbeelding"
+    },
+    "slides_layout_quote": {
+      "text": "Citaat"
+    },
+    "slides_layout_closing": {
+      "text": "Afsluiting"
     },
     "slides_prev": {
       "text": "Vorige dia"
@@ -8460,6 +8613,54 @@
     },
     "progress_result_one": {
       "text": "1 resultaat"
+    },
+    "slides_template_pick": {
+      "text": "Sjabloon"
+    },
+    "slides_template_picker_title": {
+      "text": "Kies een sjabloon"
+    },
+    "slides_template_builtin": {
+      "text": "Ingebouwd"
+    },
+    "slides_template_library_personal": {
+      "text": "Jouw bibliotheek"
+    },
+    "slides_template_library_team": {
+      "text": "Teambibliotheek"
+    },
+    "slides_template_updated": {
+      "text": "Bijgewerkt"
+    },
+    "slides_template_apply": {
+      "text": "Sjabloon toepassen"
+    },
+    "slides_template_apply_failed": {
+      "text": "Het sjabloon kon niet worden toegepast"
+    },
+    "slides_template_library_empty": {
+      "text": "Nog geen opgeslagen sjablonen"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -8491,55 +8692,6 @@
       },
       "remove_pending_file": {
         "text": "Bestand verwijderen"
-      }
-    },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} {type}-bijlage"
-      },
-      "embed_many": {
-        "text": "{count} {type}-bijlagen"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "afbeelding"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "website"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "kaart"
-        },
-        "code": {
-          "text": "code"
-        },
-        "document": {
-          "text": "document"
-        },
-        "sheet": {
-          "text": "spreadsheet"
-        },
-        "file": {
-          "text": "bestand"
-        },
-        "app": {
-          "text": "app"
-        },
-        "embed": {
-          "text": "ingesloten"
-        }
       }
     },
     "file_size_limits": {
@@ -8800,6 +8952,27 @@
     },
     "xlsx_feature_sheet_limit": {
       "text": "bladen na de eerste 10"
+    },
+    "guest_access_checking": {
+      "text": "We controleren of je zonder account kunt chatten…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Je bent eerder op dit apparaat ingelogd. Log in om verder te chatten."
+    },
+    "guest_access_usage_limit": {
+      "text": "De gratis berichten zonder account zijn voorlopig op. Meld je aan om verder te chatten."
+    },
+    "guest_access_unavailable": {
+      "text": "Chatten zonder account is nu niet beschikbaar. Meld je aan om te chatten."
+    },
+    "guest_access_status_unavailable": {
+      "text": "We konden niet controleren of je zonder account kunt chatten. Controleer je verbinding of meld je aan om te chatten."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Voor het versturen van bestanden heb je een account nodig. Meld je aan om dit te versturen, of verwijder het bestand om gratis te chatten."
+    },
+    "guest_send_timeout": {
+      "text": "Versturen duurt te lang, dus je bericht is niet verstuurd. Controleer je verbinding en probeer het opnieuw."
     },
     "mention_dropdown": {
       "header": {
@@ -10735,6 +10908,21 @@
         "text": "Schrijf een korte e-mail aan één investeerder, een doorstuurbare introductie voor een gemeenschappelijk contact en twee follow-ups."
       }
     },
+    "business_write_press_release": {
+      "text": "Persbericht schrijven",
+      "description": {
+        "text": "Schrijf een persbericht dat journalisten kunnen gebruiken, in de eigen perstoon van je bedrijf, als Word-document of in een ander gewenst formaat."
+      },
+      "process": {
+        "text": "- Gebruikt je opgeslagen perstoon (namen, bedrijfsomschrijving, woordvoerders, contact, toon) of stelt eerst een toon op uit eerdere persberichten, een paar vragen of neutrale standaarden\n\n- Biedt aan de stijl in je project op te slaan, zodat elk volgend persbericht hetzelfde klinkt\n\n- Vraagt alleen wat er over het nieuws nog ontbreekt, één vraag per keer, en zegt eerlijk als de nieuwswaarde zwak is\n\n- Toont kopopties, de lead en de feiten die gebruikt worden, zodat je ze kunt corrigeren voordat er iets geschreven wordt\n\n- Schrijft het persbericht met kop, plaats en datum, lead, citaten, bedrijfsomschrijving en perscontact, standaard als Word-document of op verzoek als PDF, HTML of React\n\n- Gebruikt alleen feiten die jij hebt bevestigd, verzint nooit citaten en markeert elk citaat ter goedkeuring\n\n- Controleert het resultaat en biedt een pitchmail voor journalisten, een socialmediabericht of een vertaling aan"
+      },
+      "how_to_use": {
+        "text": "- Schrijf een **persbericht** over de lancering van onze app op 18 november. Hier zijn onze laatste twee persberichten\n\n- Stel onze **perstoon** samen vanaf onze website en sla die op in dit project\n\n- Maak van deze aankondiging een **persbericht als PDF** en een korte pitchmail voor journalisten"
+      },
+      "systemprompt": {
+        "text": "Je helpt de gebruiker een persbericht te schrijven dat een journalist zo kan gebruiken: eerst echt nieuws, controleerbare feiten, een stem met naam en een contactpersoon die antwoordt. De perstoon van het bedrijf en de uitdrukkelijke wensen van de gebruiker gaan voor op algemene conventies.\n\nVolg alleen de instructies van de huidige fase. Stel per ronde één vraag met een concreet voorbeeld en een aanbeveling en wacht op het antwoord. Honoreer verzoeken om vragen over te slaan, alles in één keer te beantwoorden of meteen een concept te maken.\n\nBelangrijke richtlijnen:\n\n- Vraag nooit naar informatie die een geladen herinnering, een upload of de chat al bevat. Ga ervan uit en laat het bevestigen.\n\n- De feiten van de gebruiker zijn de enige bron. Verbeter formulering, volgorde en nadruk; verzin of overdrijf nooit cijfers, data, klanten, partners, prijzen, resultaten of namen. Vraagt de gebruiker je iets te verzinnen, weiger dan en bied een waarheidsgetrouw alternatief.\n\n- Presenteer een citaat nooit als definitief. Schrijf citaten als concepten die de genoemde persoon moet goedkeuren, en leg nooit woorden in de mond van een echte persoon buiten de organisatie van de gebruiker zonder bron.\n\n- Schrijf eenvoudig en concreet. Haal lege superlatieven en buzzwoorden weg of vervang ze door een feit.\n\n- Houd embargo- of onuitgebrachte informatie in deze chat en het project van de gebruiker; publiceer, verstuur of deel haar nooit en neem nooit contact op met journalisten of anderen. Jij schrijft concepten; de gebruiker verstuurt ze.\n\n- Word is het standaardformaat. Maak PDF, HTML of React alleen op verzoek, volgens de formaatregels van de conceptfase.\n\n- Een perstoon hoort bij één bedrijf. Raad aan hem op te slaan in de Herinneringen van het actieve project; zonder actief project bied je een persoonlijke herinnering aan die alleen wordt geladen als hij genoemd wordt. Sla pas op nadat de gebruiker akkoord is.\n\n- Zeg pas dat een herinnering is opgeslagen of bijgewerkt nadat de aanroep van het opslaan-hulpmiddel is geslaagd. Kan het beschikbare hulpmiddel niet in het project opslaan, zeg dat dan, bied een persoonlijke herinnering aan of laat weten dat de gebruiker de stijl in het tabblad Herinneringen van het project kan plakken.\n\n- Geef geen juridisch advies over openbaarmakingsplichten, beursregels of merkenrecht; zeg wanneer de gebruiker een jurist of het investor-relationsteam moet raadplegen.\n\n- Houd chatantwoorden kort. Het document draagt de inhoud.\n\n- Waarden zoals [EMAIL_1_org] of [PHONE_1_000] zijn privacyplaatshouders. De app toont op hun plek de echte gegevens van de gebruiker op het scherm en in het document. Gebruik ze ongewijzigd als de echte waarde; noem ze nooit plaatshouders, ontbrekend of ongeldig en vraag de gebruiker nooit ze te vervangen."
+      }
+    },
     "code_analyze_logs": {
       "text": "Logs analyseren",
       "description": {
@@ -10852,6 +11040,21 @@
         "text": "- als nog niet opgegeven, vraag de gebruiker om de github/gitlab repo URL\n- als nog niet opgegeven, vraag de gebruiker wat hij wil testen / wat zijn gebruiksscenario is\n- gebruik de vaardigheid om in issues te controleren of er recentelijk kritieke problemen zijn gemeld\n- als het project als kapot wordt gerapporteerd, vraag de gebruiker of hij door wil gaan met testen\n- vraag de gebruiker waar de repo gekloond en getest moet worden: nieuwe machine instellen? github codespaces? lokale machine? enz.\n- kloon de repo naar de opgegeven locatie\n- lees de map- en bestandsstructuur van het project en readme.md voor een overzicht\n- uitzoeken hoe het project getest moet worden en beginnen met testen"
       }
     },
+    "code_write_specification": {
+      "text": "Specificatie schrijven",
+      "description": {
+        "text": "Maak van een idee stap voor stap een goedgekeurde specificatie - reikwijdte, vereisten, ontwerp en acceptatiecontroles - en start daarna een plan met taken."
+      },
+      "process": {
+        "text": "- Begint bij jouw idee: voor wie het is, hoe succes eruitziet en wat wel en niet binnen de reikwijdte valt\n\n- Stelt telkens een tot drie korte vragen, elk met een aanbeveling, en slaat over wat je al hebt gezegd\n\n- Vat elke stap samen en wacht op jouw bevestiging voordat het verdergaat\n\n- Houdt een zichtbare lijst met open aannames bij, zodat er niets stilzwijgend voor jou wordt beslist\n\n- Schrijft standaard één specificatie en stelt alleen bij complexe projecten gekoppelde product-, ontwerp- en technische specificaties voor, als jij het eens bent\n\n- Voegt acceptatiecontroles toe die elke vereiste bewijzen, met tests, AI-vragen of je eigen bevestiging\n\n- Start pas een plan met taken nadat je de specificatie hebt goedgekeurd"
+      },
+      "how_to_use": {
+        "text": "- Help me een **specificatie te schrijven** voor het online bestellen van zuurdesembrood bij mijn bakkerij\n\n- Ik heb een app-idee voor het boeken van klimlessen. Laten we **de specificatie uitwerken** voordat we gaan bouwen\n\n- **Specificeer** een teamkalenderfunctie voor onze projecttool, met acceptatiecontroles"
+      },
+      "systemprompt": {
+        "text": "Je bent een rustige, ervaren productengineer die de gebruiker helpt een idee om te zetten in een specificatie die hij goedkeurt voordat er iets wordt gebouwd. De woorden van de gebruiker beslissen; jij structureert, bevraagt en stelt voor.\n\nVolg alleen de instructies van de huidige fase. Stel per beurt een tot drie korte vragen, elk met een aanbeveling en een concreet voorbeeld, en wacht op het antwoord. Vraag nooit wat de chat, een upload of het project al beantwoordt. Respecteer verzoeken om alles in één keer te beantwoorden, een vraag over te slaan of door te gaan met benoemde aannames.\n\nBelangrijke richtlijnen:\n- Sluit elke fase af met een korte samenvatting en vraag de gebruiker die te bevestigen of te corrigeren voordat je verdergaat.\n- Houd in elke samenvatting een lijst bij met de kop \"Open aannames\". Alles wat je hebt aangenomen maar de gebruiker niet heeft bevestigd, komt daar te staan; presenteer een aanname nooit als een besluit.\n- Eén specificatie is de standaard. Stel gekoppelde product-, ontwerp- en technische specificaties alleen voor bij duidelijk complexe projecten, leg in één regel uit waarom, en splits alleen als de gebruiker het eens is.\n- Vereisten zijn toetsbare uitspraken over waarneembaar gedrag met vaste id's. Geen implementatiedetails in vereisten; ontwerpbeslissingen horen in de ontwerplijst.\n- Gebruik de plans-skill specificatie voor de specificatie en de plans-skill controle voor acceptatiecontroles. Gevoelige gebieden (beveiliging, privacy, versleuteling, rechten, betalingen, migraties, exact API-gedrag) krijgen altijd een verplichte deterministische bron.\n- Plan niet, schrijf geen code en begin niet met de implementatie voordat de gebruiker de specificatie heeft goedgekeurd. Maak na goedkeuring het plan en de taken aan en leg uit wat er daarna gebeurt.\n- Houd chatantwoorden kort en helder. De embeds van specificatie en controle dragen de details.\n- Verzin nooit feiten over het bedrijf, de gebruikers of systemen van de gebruiker; vraag het, of leg een open aanname vast.\n- Waarden zoals [EMAIL_1_org] of [PHONE_1_000] zijn privacyplaatsaanduidingen. De app toont daar de echte gegevens van de gebruiker voor in de plaats. Gebruik ze ongewijzigd als de echte waarde; noem ze nooit plaatsaanduidingen, ontbrekend of ongeldig, en vraag de gebruiker nooit ze te vervangen."
+      }
+    },
     "code_write_test_debug_document": {
       "text": "Schrijven, testen, debuggen en documenteren",
       "description": {
@@ -10910,6 +11113,12 @@
       "text": "Toekomstgesprek",
       "description": {
         "text": "Een krachtige levenscoachingtechniek."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "Levenskompas",
+      "description": {
+        "text": "Vind je richting naar een gelukkiger leven, stap voor stap."
       }
     },
     "health_prepare_doctor_report": {
@@ -10973,6 +11182,24 @@
       },
       "systemprompt": {
         "text": "Je bent een neutrale coach voor burgerdiscussies en een onderzoeksassistent. Je doel is om gebruikers te helpen zich voor te bereiden op politieke, maatschappelijke, beleidsmatige, electorale, geopolitieke en andere gesprekken van algemeen belang met nauwkeurigheid, bescheidenheid en goede trouw.\n\nBegin met het begrijpen van de situatie. Reageer bij de eerste reactie van de assistent nadat deze focus is geactiveerd op het oorspronkelijke verzoek van de gebruiker met een korte contextuele intake, zelfs als de gebruiker niet expliciet om vragen heeft gevraagd. Stel één tot drie specifieke vragen over ontbrekende details, zoals de jurisdictie, het gewenste resultaat van de gebruiker en de positie of relatie van de andere persoon. Gebruik het onderwerp en andere feiten die de gebruiker al heeft verstrekt; vraag hen niet om die details te herhalen of hun verzoek opnieuw te formuleren. Als de gebruiker vraagt om met vragen te beginnen, honoreer die volgorde dan, zelfs als het onderwerp bekend is. Als alle essentiële context al is verstrekt, stel dan één vraag over de hoogste prioriteit van de gebruiker of bevestig kort de specifieke inkadering voordat je verdergaat. Wacht op het antwoord van de gebruiker voordat je overgaat tot feitelijk onderzoek, een beleidsuitleg of een volledig voorbereidingsblad, tenzij de gebruiker expliciet vraagt om een onmiddellijk onderzocht antwoord. Stop niet bij het bevestigen van de activering en maak van de intake geen lange vragenlijst.\n\nGebruik deze workflow:\n- Herformuleer het onderwerp en het gewenste resultaat van de gebruiker in neutrale taal.\n- Identificeer de belangrijkste claims die waarschijnlijk naar voren zullen komen. Maak onderscheid tussen feitelijke claims, waardeoordelen, aannames, voorspellingen en persoonlijke ervaringen.\n- Gebruik voor feitelijke of actuele claims web-search, news search en web-read wanneer nauwkeurigheid afhangt van recente of betwiste informatie. Geef de voorkeur aan primaire bronnen, officiële gegevens, verkiezingsmateriaal, wetgeving, rapporten van toezichthouders, rechtbankdocumenten, gerenommeerde journalistiek en deskundige instellingen boven samenvattingen op sociale media.\n- Evalueer bronnen op basis van actualiteit, relevantie, autoriteit, nauwkeurigheid en doel. Vermeld wanneer een bron een belangenbehartigings-, partij-, overheids-, commercieel of campagnebelang heeft.\n- Breng de sterkste versie van elk belangrijk standpunt in kaart voordat je het kritisch bekijkt. Neem punten van overeenstemming, afwegingen, onzekerheden en legitieme waarden aan elke kant op.\n- Bereid vragen voor die uitnodigen tot uitleg, termen definiëren, aannames toetsen en bewijsmateriaal naar boven halen. Vermijd instinkvragen, tenzij de gebruiker expliciet voorbereiding op een formeel debat nodig heeft.\n- Help de gebruiker bij het kiezen van rustige bewoordingen, grenzen en exit-lijnen voor gevoelige gesprekken.\n\nStandaard outputstructuur:\n\n## Discussiedoel\nVat samen waar de gebruiker zich op voorbereidt en hoe een succesvol gesprek eruit zou zien.\n\n## Belangrijke feiten om te controleren\nLijst met belangrijke feitelijke claims, het best beschikbare bewijs en eventuele onzekerheid. Geef aan wanneer meer onderzoek nodig is.\n\n## Waarschijnlijke perspectieven\nBeschrijf de sterkste argumenten en zorgen te goeder trouw van de belangrijkste zijden. Maak geen karikatuur van tegengestelde opvattingen.\n\n## Vragen om te stellen\nGeef doordachte, open vragen die definities, bewijsmateriaal, afwegingen, waarden en praktische gevolgen verduidelijken.\n\n## Claims om niet te overdrijven\nWaarschuw voor zwakke claims, verouderde feiten, claims uit één bron, misleidende inkadering of punten die nuance behoeven.\n\n## Voorgesteld gespreksplan\nGeef een kort plan voor het openen van de discussie, het constructief houden ervan, het omgaan met spanning en de opvolging.\n\nBelangrijke grenzen:\n- Schrijf geen manipulatieve propaganda, intimidatie, doxing, afdreiging of ontmenselijkende retoriek.\n- Bied geen gerichte politieke overtuigingsstrategie aan op basis van demografische, psychologische, identiteits- of kwetsbaarheidsprofielen.\n- Optimaliseer geen campagneboodschappen, kiezersbenadering, onderdrukking van de opkomst of activistische logistiek. Als het verzoek van de gebruiker overgaat in belangenbehartiging of organisatie, houd de hulp dan op een hoog niveau, rechtmatig en niet-manipulatief, of raad de Activism mate aan voor ethische organisatiestrategie.\n- Presenteer onzekere of betwiste claims niet als vaststaande feiten. Maak een duidelijk onderscheid tussen bewijs, gevolgtrekking, interpretatie en mening.\n- Ga niet uit van kwade trouw, corruptie, extremisme of kwaadaardige opzet, tenzij betrouwbaar bewijs dat kader ondersteunt.\n- Respecteer privacy. Vraag niet om onnodige persoonlijke gegevens over de gebruiker of andere betrokken personen."
+      }
+    },
+    "slides_design_template": {
+      "text": "Sjabloon ontwerpen",
+      "description": {
+        "text": "Ontwerp stap voor stap een herbruikbaar diasjabloon - drie ontwerpen om uit te kiezen, samen verfijnd en daarna opgeslagen in je bibliotheek."
+      },
+      "process": {
+        "text": "- Vraagt waarvoor het sjabloon is en bij welke merkkleuren, lettertypen of logo het moet passen\n- Toont drie duidelijk verschillende ontwerpen als sjabloonkaarten met voorbeelden van zes dia-indelingen\n- Je kiest er een met \"Dit ontwerp gebruiken\" of door de naam te noemen\n- Verfijnt kleuren, lettertypen en indelingen met je en werkt de kaart na elke wijziging bij\n- Vertelt je op Opslaan te drukken op de laatste kaart zodat die in je bibliotheek komt\n- Biedt aan een eerste presentatie te maken met je nieuwe sjabloon"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Presentatie plannen",
+      "description": {
+        "text": "Plan een presentatie stap voor stap - doel, verhaal, één boodschap per dia, ontwerp - en maak daarna de dia's met sprekersnotities en controleer ze."
+      },
+      "process": {
+        "text": "- Vraagt naar je doel, publiek, lengte en setting, met eenvoudige voorbeelden en een aanbeveling\n- Stelt een passend verhaal voor, bijvoorbeeld probleem, oplossing, demo, impact en vraag voor een pitch\n- Zet één boodschap per dia op een rij en wacht op je bevestiging voordat er iets wordt gemaakt\n- Toont passende ingebouwde ontwerpen als kaarten, gebruikt je opgeslagen sjabloon of ontwerpt samen met je een nieuw\n- Maakt de dia's met sprekersnotities op elke dia, afgestemd op de lengte van je praatje\n- Controleert het resultaat en verbetert wat je accepteert, zoals te veel tekst op een dia"
       }
     },
     "social_media_content_calendar_strategist": {
@@ -11200,22 +11427,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "Jouw AI-team"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "om dingen gedaan te krijgen"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Schrijf een document"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "Zoek evenementen"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "Bouw een web-app"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "Leg het nieuws uit"
     },
     "landing_actionable_line1": {
       "text": "Direct uitvoerbaar."
@@ -11229,35 +11456,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Natuurlijk, alsjeblieft:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Een event website-evenement in Berlijn over gedecentraliseerde rekenkracht en DePIN-onderzoek."
+      "text": "Korte talks en demo's over open-source AI-tools, met daarna tijd om mensen te ontmoeten."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Openen op event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Open evenementpagina"
     },
     "landing_actionable_event_city": {
       "text": "Berlijn"
     },
     "landing_actionable_event_country": {
       "text": "Duitsland"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Online"
@@ -11268,62 +11480,44 @@
     "landing_actionable_event_rsvps": {
       "text": "aanmeldingen"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "Je chats worden op je apparaat versleuteld voordat ze worden opgeslagen."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "Persoonlijke gegevens worden vervangen voordat de AI ze ziet."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "Bereid een e-mail voor aan"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "Ok, ik bereid een e-mail voor aan"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "Beveel plekken aan voor mijn volgende reis."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "Gepersonaliseerde antwoorden, maar alleen als je dat wilt."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "Alleen jij kunt de originelen bekijken."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "Eerdere reizen"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "Favoriete plekken"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "Jouw AI-experts, gespecialiseerd in verschillende onderwerpen."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "Geoptimaliseerde instructies, gekozen wanneer ze nodig zijn."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Toonaangevende AI-modellen, op één plek."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "Open je OpenMates-chats op de manier die je het prettigst vindt."
     }
   },
   "header": {
@@ -11344,6 +11538,26 @@
     },
     "report_issue": {
       "text": "Probleem melden"
+    }
+  },
+  "helplines": {
+    "title": {
+      "text": "Je hoeft dit niet alleen te doorstaan"
+    },
+    "call": {
+      "text": "Bellen"
+    },
+    "send_text": {
+      "text": "Sms'en"
+    },
+    "chat": {
+      "text": "Online chatten"
+    },
+    "emergency": {
+      "text": "Bel bij nood {emergency_number}"
+    },
+    "find_more": {
+      "text": "Meer hulplijnen vinden"
     }
   },
   "highlight": {
@@ -11429,6 +11643,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Dit verzoek is geweigerd. Seksuele of suggestieve beelden van minderjarigen worden nooit gemaakt."
+    },
+    "reason_intimate_real_person": {
+      "text": "Dit verzoek is geweigerd. Seksuele of intieme beelden van echte personen worden nooit gemaakt."
+    },
+    "reason_bypass": {
+      "text": "Dit verzoek is geweigerd omdat het probeerde de veiligheidsregels te omzeilen."
+    },
+    "reason_minor": {
+      "text": "Realistische beelden van minderjarigen worden niet gemaakt, en foto's van minderjarigen kunnen alleen worden bewerkt wat betreft achtergrond, licht of kleur, omdat zulke beelden misbruikt kunnen worden, bijvoorbeeld voor nepprofielen die zich voordoen als minderjarige."
+    },
+    "alternative_minor": {
+      "text": "Een duidelijk gestileerde versie is mogelijk, zoals een 3D-render, een illustratie of een cartoon, zolang de scène niet seksueel is."
+    },
+    "reason_sexual": {
+      "text": "Seksuele of expliciete beelden worden niet gemaakt."
+    },
+    "alternative_sexual": {
+      "text": "Een niet-expliciete versie van de scène is mogelijk."
+    },
+    "reason_violent": {
+      "text": "Beelden die echte personen gewond, aangevallen of op een plaats delict tonen worden niet gemaakt, omdat ze gebruikt kunnen worden om hen te schaden of te belasteren."
+    },
+    "alternative_violent": {
+      "text": "Een scène met fictieve personages in plaats van echte personen is mogelijk."
+    },
+    "reason_public_figure": {
+      "text": "Beelden van echte publieke figuren worden momenteel niet gemaakt, omdat ze gebruikt kunnen worden als deepfakes of voor valse beweringen."
+    },
+    "alternative_public_figure": {
+      "text": "Een eigen, fictief personage in dezelfde scène is mogelijk."
+    },
+    "reason_identity": {
+      "text": "Gezichten verwisselen en iemands identiteit vervangen doen we niet, omdat dit gebruikt kan worden om je voor iemand anders voor te doen."
+    },
+    "alternative_identity": {
+      "text": "Bewerkingen die de identiteit van de persoon behouden, zoals een nieuwe achtergrond, ander licht of een kunststijl, zijn mogelijk."
+    },
+    "reason_id_document": {
+      "text": "Beelden van identiteitsbewijzen zoals paspoorten, identiteitskaarten of rijbewijzen worden niet gemaakt, omdat ze gebruikt kunnen worden voor fraude."
+    },
+    "reason_hate": {
+      "text": "Beelden met haatsymbolen of beelden die mensen aanvallen om wie ze zijn worden niet gemaakt."
+    },
+    "reason_self_harm": {
+      "text": "Beelden die zelfbeschadiging tonen of aanmoedigen worden niet gemaakt."
+    },
+    "alternative_self_harm": {
+      "text": "Als je het moeilijk hebt, kan praten met iemand die je vertrouwt of met een hulplijn bij jou in de buurt helpen."
+    },
+    "reason_weapons": {
+      "text": "Beelden met instructies of bouwtekeningen voor wapens of explosieven worden niet gemaakt."
+    },
+    "reason_scam": {
+      "text": "Media voor oplichting, valse documenten of het zich voordoen als iemand anders worden niet gemaakt."
+    },
+    "alternative_scam": {
+      "text": "Een eigen ontwerp dat geen echte persoon, merk of document nabootst, is mogelijk."
+    },
+    "reason_spam": {
+      "text": "Het massaal produceren van opvulcontent of het verwijderen van AI-labels wordt niet ondersteund."
+    },
+    "alternative_spam": {
+      "text": "Een paar beelden voor een specifiek doel zijn mogelijk."
+    },
+    "reason_deceptive": {
+      "text": "Beelden die moeten doorgaan voor echte opnamen, een echte uitspraak of een officiële aanbeveling worden niet gemaakt."
+    },
+    "alternative_deceptive": {
+      "text": "Een duidelijk fictieve of getekende versie is mogelijk."
+    },
+    "reason_other": {
+      "text": "Dit verzoek kan volgens de veiligheidsregels niet worden uitgevoerd."
+    },
+    "alternative_other": {
+      "text": "Een ander onderwerp of een andere formulering kan werken."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Factuur"
@@ -11949,6 +12243,22 @@
             },
             "description": {
               "text": "We gebruiken api.video (EU-bedrijf, Frankrijk) voor het hosten en streamen van productdemovideo's en functierondleidingen op onze website en web-app. Wanneer je een video bekijkt, worden je IP-adres en basisweergavegegevens verwerkt door api.video. Er worden geen gebruikersaccount-ID's gedeeld."
+            }
+          }
+        },
+        "status_page": {
+          "heading": {
+            "text": "Statuspagina (alleen wanneer je die opent)"
+          },
+          "description": {
+            "text": "Deze aanbieder wordt alleen gebruikt wanneer je de openbare statuspagina op status.openmates.org opent. Hij wordt niet gebruikt voor je account of andere delen van OpenMates."
+          },
+          "upcloud": {
+            "heading": {
+              "text": "UpCloud (hosting van de statuspagina)"
+            },
+            "description": {
+              "text": "De openbare statuspagina status.openmates.org (een statische pagina plus een status-JSON-bestand) wordt door UpCloud Oy gehost op een server in Amsterdam, Nederland. Wanneer je de pagina opent, maakt je browser verbinding met de server van UpCloud, waardoor UpCloud je IP-adres en TLS-verbindingsmetadata verwerkt. We bewaren geen toegangslogboeken en gebruiken op deze pagina geen cookies of trackers. Dezelfde server stuurt ook geautomatiseerde testverzoeken naar OpenMates, zonder gebruikersgegevens."
             }
           }
         },
@@ -14087,6 +14397,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "via"
@@ -14294,6 +14605,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Ik kan geen propaganda, haatzaaiende inhoud, desinformatie of manipulatieve roddelbladinhoud maken. Ik leg graag uit hoe het werkt, analyseer voorbeelden, controleer beweringen of help met duidelijk gelabelde satire."
+    },
+    "illegal_category": {
+      "text": "Hierbij kan ik niet helpen: seksuele inhoud met minderjarigen, intieme beelden zonder toestemming, seksuele deepfakes van echte mensen of wapens voor massale schade."
+    },
+    "live_site_abuse": {
+      "text": "Je bent waarschijnlijk echt de eigenaar van die site, maar op live websites doe ik alleen normale acties van één gebruiker op menselijk tempo, dus ik kan geen massale of misbruikende acties uitvoeren zoals massaal reageren, aanmelden, wachtwoorden raden of overspoelen. Zulke tests draaien nu alleen op localhost, een lokale ontwikkelomgeving of een lokaal draaiende staging-kopie. Ik help je graag met het opzetten."
+    },
+    "strike_notice": {
+      "text": "Dit is waarschuwing {strike} van {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Verzekering"
@@ -14396,6 +14721,82 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Je account is geblokkeerd"
+    },
+    "appeal_button": {
+      "text": "Bezwaar maken"
+    },
+    "download_button": {
+      "text": "Mijn gegevens downloaden"
+    },
+    "explanation_label": {
+      "text": "Vertel ons wat er gebeurd is (maximaal 1.000 tekens)"
+    },
+    "consent_label": {
+      "text": "Ik ga ermee akkoord dat alleen de gemarkeerde verzoeken met de veiligheidsbeoordelaar worden gedeeld"
+    },
+    "add_photo": {
+      "text": "Foto toevoegen"
+    },
+    "photo_added": {
+      "text": "Foto bijgevoegd. Kies een andere"
+    },
+    "submit": {
+      "text": "Bezwaar versturen"
+    },
+    "sent": {
+      "text": "Je bezwaar is verzonden. Je krijgt binnen 7 dagen een beslissing."
+    },
+    "admin_title": {
+      "text": "Veiligheidsbeoordelingen"
+    },
+    "admin_restore": {
+      "text": "Herstellen"
+    },
+    "admin_delete": {
+      "text": "Verwijderen"
+    },
+    "admin_ask": {
+      "text": "Gebruiker vragen"
+    },
+    "admin_delete_confirm": {
+      "text": "Dit account verwijderen? Standaard verwijdering met volledige terugbetaling, verwijderingsmail en nalevingsregistratie."
+    },
+    "admin_empty": {
+      "text": "Geen account wacht op beoordeling."
+    },
+    "until": {
+      "text": "Account geblokkeerd tot {date}"
+    }
+  },
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} is geweigerd. {reason} Dit is waarschuwing {strike} van {max}."
+    },
+    "what_image_generate": {
+      "text": "Je afbeeldingsverzoek"
+    },
+    "what_image_edit": {
+      "text": "Je verzoek om een afbeelding te bewerken"
+    },
+    "what_video": {
+      "text": "Je videoverzoek"
+    },
+    "what_upload": {
+      "text": "Je geüploade afbeelding"
+    },
+    "suspended_until": {
+      "text": "Dit is overtreding 2 van 3. Je account is geschorst tot {date} en daarna weer actief. Een derde overtreding schorst het totdat een beheerder het heeft beoordeeld."
+    },
+    "suspended_pending_review": {
+      "text": "Dit is overtreding 3 van 3. Je account is geschorst totdat een beheerder het heeft beoordeeld. Je kunt tegen dit besluit in beroep gaan."
+    },
+    "unavailable": {
+      "text": "De veiligheidscontrole is tijdelijk niet beschikbaar, dus het verzoek kon niet worden verwerkt. Probeer het zo meteen opnieuw."
+    }
+  },
   "settings": {
     "account": {
       "username": {
@@ -19128,7 +19529,7 @@
       "text": "Geen naaktheid, geweld of gore\nin profielfoto's."
     },
     "last_warning_image_not_allowed": {
-      "text": "Laatste waarschuwing:\nGeen naaktheid, geweld of gore in profielfoto's.\nNog één overtreding en uw account wordt verwijderd."
+      "text": "Laatste waarschuwing:\nGeen expliciete seksuele inhoud of extreem geweld in profielfoto's.\nNog één overtreding en je account wordt opgeschort."
     },
     "your_account_got_deleted": {
       "text": "Uw account is verwijderd."
@@ -20749,7 +21150,7 @@
       "text": "Gratis testen"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "E-maildomein niet toegestaan."
@@ -20757,32 +21158,8 @@
     "email_ignored": {
       "text": "Dit e-mailadres kan niet worden gebruikt voor registratie. Neem contact op met de ondersteuning als u denkt dat dit een fout is."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates is momenteel een alpha-release voor vroege testers."
-    },
-    "decent_stable": {
-      "text": "Deze alpha-release is redelijk stabiel"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Echter zijn nog niet alle kernfuncties geïmplementeerd."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Verwacht hier en daar wat bugs en onthoud: AI-chatbots kunnen fouten maken."
-    },
     "view_on_github": {
       "text": "Bekijk OpenMates op GitHub"
-    },
-    "view_on_github_description": {
-      "text": "Om bugs te bespreken, functies te bespreken en op de hoogte te blijven van nieuwe releases."
-    },
-    "view_on_instagram": {
-      "text": "Bekijk OpenMates op Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "Om op de hoogte te blijven van nieuwe releases en andere updates."
-    },
-    "continue_with_alpha": {
-      "text": "Doorgaan met {version}"
     },
     "server_admin": {
       "text": "Serverbeheerder"
@@ -21542,6 +21919,7 @@
       "text": "Aangepaste kleur"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

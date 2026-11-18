@@ -30,7 +30,7 @@ const CIPHERS: &[&str] = &[
     "encrypted_icon",
     "encrypted_category",
     "encrypted_active_focus_id",
-    "encrypted_focus_phase_state",
+    "encrypted_focus_phase_state","encrypted_wellbeing_scores",
     "encrypted_auto_speak_response",
 ];
 const VERSIONS: &[&str] = &["title_v", "metadata_v"];
@@ -60,7 +60,7 @@ const PREDICATES: &[&str] = &[
     "encrypted_icon",
     "encrypted_category",
     "encrypted_active_focus_id",
-    "encrypted_focus_phase_state",
+    "encrypted_focus_phase_state","encrypted_wellbeing_scores",
     "encrypted_auto_speak_response",
 ];
 const MAX_SAFE: u64 = 9_007_199_254_740_991;

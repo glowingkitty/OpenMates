@@ -12,7 +12,9 @@ feature_overrides:
     - "platform:workflows"
     - "platform:teams"
   disabled:
-    - "app:life_coaching"
+    # Life coaching is on for dev with its Life compass focus; Crisis support is still
+    # a placeholder without instructions, so it stays off.
+    - "focus:life_coaching:crisis_support"
     - "app:plants"
 
 logging:

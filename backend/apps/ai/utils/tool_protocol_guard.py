@@ -15,6 +15,7 @@ from backend.apps.ai.llm_providers.types import StreamChunkType, UnifiedStreamCh
 from backend.apps.ai.utils.pseudo_tool_call import (
     SuppressedToolCallMarkup,
     known_tool_names,
+    normalize_tool_name,
     pseudo_tool_call_reason,
 )
 from backend.apps.ai.utils.stream_utils import PROGRESSIVE_CODE_LANGUAGES, aggregate_paragraphs
@@ -79,6 +80,45 @@ class ToolProtocolRecoveryState:
         return "error"
 
 
+# A model that sees earlier app results as ```toon blocks in chat history can
+# imitate one (app_id/skill_id fields) instead of calling the skill. Seen on dev
+# in a multi-turn Browse form chat: the user's answer needed a real Browse call,
+# so the tools-off answer-only recovery could not do the step and the turn failed.
+TOON_RESULT_RETRY_PROMPT = (
+    "Your previous reply wrote an app result block (a toon block with app_id and "
+    "skill_id) as text, so nothing was executed and the user saw no answer. The toon "
+    "blocks in this chat are past results shown to you; never write one. If the next "
+    "step needs an app skill, call it through the real tool-calling interface; "
+    "otherwise answer the user directly in prose."
+)
+
+
+_APP_VALUE = re.compile(r"(?m)^\s*app_id\s*:\s*([\w.-]+)\s*$")
+_SKILL_VALUE = re.compile(r"(?m)^\s*skill_id\s*:\s*([\w.-]+)\s*$")
+
+
+def imitated_tool_name(content: str) -> str | None:
+    """The normalized ``app-skill`` tool an imitated app result names, if any."""
+    app, skill = _APP_VALUE.search(content), _SKILL_VALUE.search(content)
+    return normalize_tool_name(f"{app.group(1)}-{skill.group(1)}") if app and skill else None
+
+
+def toon_result_retry_applies(guard: ToolProtocolGuard, available_tools: Iterable[Any] | None) -> bool:
+    """True when the imitated app result names a skill offered in this request.
+
+    The model meant to use that skill, so one retry keeps tools on. An imitated
+    result of a skill that is not offered keeps the clean answer-only recovery.
+    """
+    if guard.diagnostics.get("reason") != "toon_app_skill_fields" or not guard.imitated_tool:
+        return False
+    offered = known_tool_names(
+        str((tool.get("function") or {}).get("name") or "")
+        for tool in available_tools or []
+        if isinstance(tool, dict)
+    )
+    return guard.imitated_tool in offered
+
+
 def tool_protocol_reason(language: str, content: str) -> str | None:
     """Recognize internal app result envelopes, while preserving ordinary code."""
     if language.lower() == "tool_code":
@@ -121,6 +161,8 @@ class ToolProtocolGuard:
         self.known_tools = known_tool_names(known_tools)
         self.pseudo_tool_call = False
         self.pseudo_tool_call_diagnostics: dict[str, str | int] = {}
+        # Internal only, never logged: the app-skill an imitated result names.
+        self.imitated_tool: str | None = None
 
     def _record_pseudo_tool_call(self, reason: str, block: str) -> None:
         if not self.pseudo_tool_call:
@@ -167,6 +209,7 @@ class ToolProtocolGuard:
             if is_internal_tool_protocol(language, pending[opening_end:]):
                 self.detected = True
                 self.diagnostics = {"reason": tool_protocol_reason(language, pending[opening_end:]), "language": language.lower(), "closed": True, "body_chars": len(pending) - opening_end}
+                self.imitated_tool = imitated_tool_name(pending[opening_end:])
             else:
                 yield pending
             pending = ""
@@ -174,5 +217,6 @@ class ToolProtocolGuard:
             if is_internal_tool_protocol(language, pending):
                 self.detected = True
                 self.diagnostics = {"reason": tool_protocol_reason(language, pending), "language": language.lower(), "closed": False, "body_chars": len(pending)}
+                self.imitated_tool = imitated_tool_name(pending)
             else:
                 yield pending

@@ -17,6 +17,8 @@ from backend.core.api.app.tasks.persistence_tasks import (
 from backend.core.api.app.services.directus.team_methods import hash_id
 from backend.core.api.app.services.direct_chat_access import is_direct_chat
 
+from backend.shared.python_utils.chat_orchestration_jobs import link_spawned_chat, verified_creator_link
+
 logger = logging.getLogger(__name__)
 METADATA_BROADCAST_TIMEOUT_SECONDS = 1.0
 
@@ -188,6 +190,9 @@ async def handle_encrypted_chat_metadata(
             encrypted_chat_category = payload.get("encrypted_chat_category")  # Chat metadata category
             encrypted_chat_tags = payload.get("encrypted_chat_tags")
             encrypted_focus_phase_state = payload.get("encrypted_focus_phase_state")
+            encrypted_wellbeing_scores = payload.get("encrypted_wellbeing_scores")
+            # An explicit null clears the stored score history; an absent key leaves it.
+            wellbeing_scores_sent = "encrypted_wellbeing_scores" in payload
             encrypted_auto_speak_response = payload.get("encrypted_auto_speak_response")
             encrypted_chat_key = payload.get("encrypted_chat_key")
             # Explicit opt-in for key rotation (e.g., hidden chat hide/unhide flows).
@@ -506,7 +511,7 @@ async def handle_encrypted_chat_metadata(
             # Store encrypted chat metadata from preprocessing
             chat_update_fields = {}
             accepted_versions = None
-            if encrypted_title or encrypted_chat_summary or encrypted_auto_speak_response or encrypted_focus_phase_state:
+            if encrypted_title or encrypted_chat_summary or encrypted_auto_speak_response or encrypted_focus_phase_state or wellbeing_scores_sent:
                 accepted_versions = await allocate_chat_metadata_versions(
                     cache_service,
                     directus_service,
@@ -529,6 +534,8 @@ async def handle_encrypted_chat_metadata(
                 chat_update_fields["encrypted_chat_tags"] = encrypted_chat_tags
             if encrypted_focus_phase_state:
                 chat_update_fields["encrypted_focus_phase_state"] = encrypted_focus_phase_state
+            if wellbeing_scores_sent:
+                chat_update_fields["encrypted_wellbeing_scores"] = encrypted_wellbeing_scores
             if encrypted_auto_speak_response:
                 chat_update_fields["encrypted_auto_speak_response"] = encrypted_auto_speak_response
             if encrypted_chat_key:
@@ -556,6 +563,24 @@ async def handle_encrypted_chat_metadata(
                 chat_update_fields["parent_id"] = payload.get("parent_id")
             if payload.get("is_sub_chat") is not None:
                 chat_update_fields["is_sub_chat"] = payload.get("is_sub_chat")
+            verified_creator_chat_id = None
+            if payload.get("creator_chat_id"):
+                # Persist the creator link only for a start_chat job of this user that spawned this chat.
+                if await verified_creator_link(
+                    cache_service=cache_service, user_id=user_id, chat_id=chat_id,
+                    creator_chat_id=payload.get("creator_chat_id"),
+                    job_id=payload.get("orchestration_job_id"),
+                ):
+                    verified_creator_chat_id = payload["creator_chat_id"]
+                    chat_update_fields["creator_chat_id"] = verified_creator_chat_id
+                    await link_spawned_chat(
+                        cache_service=cache_service, user_id=user_id,
+                        creator_chat_id=verified_creator_chat_id, spawned_chat_id=chat_id, title=None,
+                    )
+                else:
+                    logger.warning(
+                        f"Ignoring creator_chat_id for chat {chat_id}: no matching start_chat orchestration job"
+                    )
             if hashed_team_id:
                 chat_update_fields["hashed_team_id"] = hashed_team_id
 
@@ -589,8 +614,10 @@ async def handle_encrypted_chat_metadata(
                         encrypted_chat_tags,
                         encrypted_auto_speak_response,
                         encrypted_focus_phase_state,
+                        encrypted_wellbeing_scores,
                         payload.get("parent_id"),
                         payload.get("is_sub_chat"),
+                        verified_creator_chat_id,
                     ))
                 )
                 if not accepted_versions:
@@ -686,6 +713,8 @@ async def handle_encrypted_chat_metadata(
                     broadcast_payload["payload"]["encrypted_chat_summary"] = encrypted_chat_summary
                 if encrypted_focus_phase_state:
                     broadcast_payload["payload"]["encrypted_focus_phase_state"] = encrypted_focus_phase_state
+                if wellbeing_scores_sent:
+                    broadcast_payload["payload"]["encrypted_wellbeing_scores"] = encrypted_wellbeing_scores
                 if encrypted_auto_speak_response:
                     broadcast_payload["payload"]["encrypted_auto_speak_response"] = encrypted_auto_speak_response
                 if encrypted_icon:

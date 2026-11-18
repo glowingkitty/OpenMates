@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
 from backend.apps.travel.providers.base_provider import BaseTransportProvider
+from backend.apps.travel.routing.planner import refine_installed_group
 from backend.shared.providers.geoapify.places import GeoapifyPlacesProvider, GEOAPIFY_SOURCE_LABEL
 
 logger = logging.getLogger(__name__)
@@ -405,6 +406,9 @@ class SearchConnectionsSkill(BaseSkill):
         "Show only direct flights",
         "Search for trains instead",
     ]
+
+    # Installed providers serve this skill; their groups get mixed routes for owned passes.
+    refine_installed_group = staticmethod(refine_installed_group)
 
     @classmethod
     def resolve_preview_metadata(cls, request: Dict[str, Any]) -> Dict[str, Any]:

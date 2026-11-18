@@ -729,6 +729,30 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         XCTAssertEqual(excludedIDs, [first.id])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.send.ownership,message-input.layout.responsive-parity
+    func testEditingStartsOnlyAfterTheLatestWindowTouchLandedOnTheEditorWithoutAClock() throws {
+        let controller = try NativeComposerController(
+            document: ComposerDocumentV1(version: 1, nodes: [.text(id: "text-1", source: "Synthetic draft")]),
+            selection: NSRange(location: 0, length: 0)
+        )
+        let adapter = makeAdapter(controller: controller)
+        let textView = try XCTUnwrap(adapter.makePlatformView() as? NativeComposerEditorTextView)
+        XCTAssertFalse(adapter.textViewShouldBeginEditing(textView), "No touch and no host request: no keyboard")
+
+        // A real tap on the editor allows editing, however long UIKit takes to act on it.
+        textView.didObserveTouchDown(inside: true)
+        XCTAssertTrue(adapter.textViewShouldBeginEditing(textView))
+        XCTAssertTrue(adapter.textViewShouldBeginEditing(textView), "Asking twice for the same tap still allows it")
+
+        // A tap on another control (follow-up chip, Send, microphone) is newer and revokes it.
+        textView.didObserveTouchDown(inside: false)
+        XCTAssertFalse(adapter.textViewShouldBeginEditing(textView))
+
+        // The host's explicit focus request always works.
+        adapter.focusRequested = true
+        XCTAssertTrue(adapter.textViewShouldBeginEditing(textView))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testPIITapHandlingDoesNotCompeteWithEditorFocusAndSelection() throws {
         let controller = try NativeComposerController(

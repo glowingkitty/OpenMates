@@ -11,6 +11,11 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 const CREATE_TIMEOUT: Duration = Duration::from_secs(45);
+/// How long the requester waits for the machine to bind a fresh placeholder.
+/// The host finds placeholders on its idle rescan (every 20 s), so this covers
+/// three rescans plus registration.
+const BIND_WAIT: Duration = Duration::from_secs(60);
+const BIND_POLL: Duration = Duration::from_secs(2);
 const MAX_NAME_BYTES: usize = 200;
 
 /// A placeholder source addressed to this device, as listed by the backend
@@ -313,7 +318,8 @@ impl Projects<'_> {
     /// `invalid_project_name`, `creation_folder_unavailable`, `identity_missing`,
     /// `target_exists` (the machine changed nothing), `creation_completion_failed`
     /// (the folder exists; the machine retries completion) or an approval code;
-    /// `source_offline` while the machine has not bound the placeholder.
+    /// `source_offline` when the machine has not bound the placeholder within
+    /// the bounded wait ([`BIND_WAIT`]).
     pub async fn create_machine_source(
         &mut self,
         selector: &str,
@@ -328,6 +334,8 @@ impl Projects<'_> {
         if !valid_name(project_name) {
             return Err(Error::Invalid("machine_source_name_invalid").into());
         }
+        self.wait_for_placeholder_binding(selector, source_id)
+            .await?;
         let proposal = WriteProposal::CreateSource {
             operation_id: operation_id.to_owned(),
             project_name: project_name.to_owned(),
@@ -343,5 +351,45 @@ impl Projects<'_> {
             .source_call(selector, Some(source_id), call, CREATE_TIMEOUT)
             .await?;
         serde_json::from_value(result).map_err(|_| RemoteOpError::Core(Error::Protocol))
+    }
+
+    /// Wait until the machine has bound the placeholder `source_id` (it then
+    /// carries a host session and key epoch), polling the source list. A
+    /// placeholder proposed a moment ago is unbound until the host's next
+    /// rescan; asking before that fails with `source_offline`. Returns early
+    /// when the source is no longer a placeholder; on timeout the caller's
+    /// request reports `source_offline` as before.
+    ///
+    /// # Errors
+    /// `Cancelled` when the operation is cancelled; listing errors.
+    pub(super) async fn wait_for_placeholder_binding(
+        &mut self,
+        selector: &str,
+        source_id: &str,
+    ) -> std::result::Result<(), RemoteOpError> {
+        self.scope()?;
+        let project = self.resolve(selector).await?;
+        let project_id = string(&project.raw, "project_id")?.to_owned();
+        let deadline = crate::platform::time::Instant::now() + BIND_WAIT;
+        loop {
+            let sources = self.list_sources_raw(&project_id).await?;
+            let bound = sources
+                .iter()
+                .find(|s| s["source_id"] == source_id)
+                .is_none_or(|s| {
+                    s["status"] != "creation_pending"
+                        || (s["source_session_id"]
+                            .as_str()
+                            .is_some_and(|v| !v.is_empty())
+                            && s["key_epoch"].as_u64().is_some())
+                });
+            if bound || crate::platform::time::Instant::now() >= deadline {
+                return Ok(());
+            }
+            crate::platform::time::sleep(BIND_POLL).await;
+            if self.operation_cancel.is_cancelled() {
+                return Err(Error::Cancelled.into());
+            }
+        }
     }
 }

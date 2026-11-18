@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from backend.apps.ai.utils import internal_decisions as _internal_decisions
+
 import json
 from pathlib import Path
 
@@ -31,7 +33,7 @@ async def test_rank_search_candidates_orders_scores_stably_and_reports_usage(mon
     captured = {}
 
     class FakeClient:
-        def __init__(self, *, secrets_manager):
+        def __init__(self, *, secrets_manager, **_kw):
             captured["secrets_manager"] = secrets_manager
 
         async def evaluate(self, *, state, questions):
@@ -47,7 +49,7 @@ async def test_rank_search_candidates_orders_scores_stably_and_reports_usage(mon
                 "usage": {"input_tokens": 321, "output_tokens": 42},
             })
 
-    monkeypatch.setattr(search_relevance, "JevDecisionClient", FakeClient)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", FakeClient)
     candidates = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
     result = await search_relevance.rank_search_candidates(
         candidates=candidates,
@@ -108,7 +110,7 @@ async def test_token_dense_candidates_partition_and_keep_global_stable_order(mon
                 key: _score(float(int(key[-3:]) % 5)) for key in questions
             }, usage={"input_tokens": 10, "output_tokens": 2})
 
-    monkeypatch.setattr(search_relevance, "JevDecisionClient", FakeClient)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", FakeClient)
     candidates = [{"id": index} for index in range(50)]
     result = await search_relevance.rank_search_candidates(
         candidates=candidates,
@@ -133,7 +135,7 @@ async def test_token_dense_candidates_partition_and_keep_global_stable_order(mon
 @pytest.mark.parametrize("failure", ["missing", "unavailable", "timeout", "invalid_score"])
 async def test_rank_search_candidates_falls_back_to_original_order(monkeypatch, failure: str) -> None:
     class FakeClient:
-        def __init__(self, *, secrets_manager):
+        def __init__(self, *, secrets_manager, **_kw):
             pass
 
         async def evaluate(self, *, state, questions):
@@ -150,7 +152,7 @@ async def test_rank_search_candidates_falls_back_to_original_order(monkeypatch, 
                 "usage": {"input_tokens": 12, "output_tokens": 3},
             })
 
-    monkeypatch.setattr(search_relevance, "JevDecisionClient", FakeClient)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", FakeClient)
     candidates = [{"id": "first"}, {"id": "second"}]
     result = await search_relevance.rank_search_candidates(
         candidates=candidates,
@@ -177,7 +179,7 @@ async def test_blank_criteria_skips_jev_and_projection_payloads_are_bounded(monk
     calls = 0
 
     class FakeClient:
-        def __init__(self, *, secrets_manager):
+        def __init__(self, *, secrets_manager, **_kw):
             pass
 
         async def evaluate(self, *, state, questions):
@@ -190,7 +192,7 @@ async def test_blank_criteria_skips_jev_and_projection_payloads_are_bounded(monk
                 "usage": {},
             })
 
-    monkeypatch.setattr(search_relevance, "JevDecisionClient", FakeClient)
+    monkeypatch.setattr(_internal_decisions, "JevDecisionClient", FakeClient)
     candidates = [{"id": 1}]
     skipped = await search_relevance.rank_search_candidates(
         candidates=candidates,

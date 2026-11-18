@@ -1,9 +1,14 @@
 /** Voice is an input mode of an ordinary encrypted chat turn. */
 import type { Message, VoiceHeardBoundary } from '../types/chat';
+import { get } from 'svelte/store';
 import { chatDB } from './db';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { getWorkspaceCacheEpoch } from './workspaceCacheLifecycle';
 import { formatVoiceArtifactReference, type VoiceArtifactReference } from './voiceCallArtifactReferences';
+import type { EarlyVoiceTurn } from './rustCore/voice/voiceTurnDelivery';
+
+/** Rust core builds send the turn through the Worker core (voiceTurn unit). */
+const VOICE_TURN_RUST_ENABLED: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
 
 export interface VoiceCallTurn {
   callId: string;
@@ -16,6 +21,8 @@ export interface VoiceCallTurn {
   isCurrent?: () => boolean;
   /** Called once the optimistic user message is visible in chat history. */
   onVisible?: () => void;
+  /** Early-end preparation of this turn by the Rust core (core builds only). */
+  early?: Promise<EarlyVoiceTurn>;
 }
 
 interface VoiceCallDeliveryFailure {
@@ -63,7 +70,11 @@ const predecessorFailureCodes = new Map([
 const deliveryErrorCodes = new Set(['immutable_chat_key_mismatch', 'message_identity_mismatch', 'preflight_mismatch',
   'recovery_key_mismatch', 'version_conflict', 'inference_commitment_mismatch', 'client_update_required',
   'durable_preflight_failed', 'preflight_expired', 'preflight_required', 'team_chat_scope_mismatch',
-  'existing_chat_metadata_forbidden', 'websocket_receipt_connection_changed', ...privacyFailureCodes.values(), ...predecessorFailureCodes.values()]);
+  'existing_chat_metadata_forbidden', 'websocket_receipt_connection_changed',
+  // Fixed refusal codes of the Rust voiceTurn unit (core builds only).
+  'voice_turn_chat_unknown', 'voice_turn_unknown', 'voice_turn_not_prepared', 'voice_turn_not_bound',
+  'voice_turn_failed', 'voice_turn_protocol', 'not_admitted', 'core_busy', 'local_session', 'disconnected', 'scope_changed',
+  ...privacyFailureCodes.values(), ...predecessorFailureCodes.values()]);
 const deliveryHttpStatuses = new Set([400, 401, 403, 404, 408, 409, 413, 422, 429, 500, 502, 503, 504]);
 const deliveryErrorModules = new Set(['services/voiceCallTurns.ts', 'services/chatSyncService.ts',
   'services/sendersChatMessages.ts', 'services/preparedPrivacyForSend.ts', 'services/preflightAcknowledgement.ts',
@@ -71,7 +82,9 @@ const deliveryErrorModules = new Set(['services/voiceCallTurns.ts', 'services/ch
   'services/fastAdmissionJournal.ts', 'services/fastAdmissionPhaseJournal.ts', 'services/savedPersonalAdmissionHistory.ts',
   'services/websocketService.ts', 'services/chatKeyWriteGuard.ts', 'services/chatKeyConsistency.ts',
   'services/encryption/ChatKeyManager.ts', 'services/db.ts', 'services/db/messageOperations.ts',
-  'services/db/chatCrudOperations.ts', 'services/db/messageJournalOperations.ts', 'utils/chatCompletionRecovery.ts']);
+  'services/db/chatCrudOperations.ts', 'services/db/messageJournalOperations.ts', 'utils/chatCompletionRecovery.ts',
+  // Core builds only: flag-off builds must not carry Rust core paths.
+  ...(VOICE_TURN_RUST_ENABLED ? ['services/rustCore/voice/voiceTurnDelivery.ts', 'services/rustCore/voice/voiceTurnClient.ts'] : [])]);
 
 /** Extract only known categories and a static repository location. The raw
  * message, stack, URL and query never enter delivery evidence. */
@@ -161,11 +174,25 @@ function deliveryFailureCode(error: unknown): string {
 /** The ordinary sender owns encryption, admission, routing, retries and responses.
  * No assistant transcript or spoken projection is ever written by this adapter.
  */
+/**
+ * Core builds: loads the call's chat into the Worker core while the call
+ * connects, so the core holds its key wrapper, messages_v and history when it
+ * builds a turn. False when the core could not admit it (the call then ends
+ * before any turn is sent). Flag-off builds keep the TypeScript send and admit nothing.
+ */
+export async function admitVoiceCallChat(chatId: string): Promise<boolean> {
+  if (!VOICE_TURN_RUST_ENABLED) return true;
+  const { admitChatInRustCoreDetailed } = await import('./rustCore/socketFrameForwarder');
+  // Waits (bounded) for the Worker core bridge of a page that is still booting.
+  return (await admitChatInRustCoreDetailed(chatId, null)).ok;
+}
+
 export async function sendVoiceCallTurn(turn: VoiceCallTurn): Promise<boolean> {
   let phase = 'validating';
   const enter = (next: string) => { phase = next; reportVoiceCallTurnDelivery(turn, next); };
   const refuse = (reason: string) => { reportVoiceCallTurnDelivery(turn, 'refused', reason); return false; };
   enter(phase);
+  let earlyHandedOff = false;
   try {
     if (!turn.callId || !turn.chatId || !turn.turnId || !turn.text.trim()) return refuse('invalid_turn');
     const identity = getWorkspaceCacheIdentity();
@@ -209,6 +236,27 @@ export async function sendVoiceCallTurn(turn: VoiceCallTurn): Promise<boolean> {
       detail: { chat_id: turn.chatId, chat: optimisticChat, newMessage: durableMessage },
     }));
     turn.onVisible?.();
+    // The chat the user is now talking in is the chat they left off in (3X228).
+    // loadChat records last_opened only when it finishes, and it returns early
+    // while call turns are in flight. Recording it at the first turn, not at
+    // bind, keeps an empty call chat (removed after hangup) out of the resume card.
+    const { userProfile } = await import('../stores/userProfile');
+    if (get(userProfile).last_opened !== turn.chatId) {
+      void chatSyncService.sendSetActiveChat(turn.chatId).catch((error: unknown) => {
+        console.error('[voiceCallTurns] Could not record the call chat as last opened:', turn.chatId, error);
+      });
+    }
+    if (VOICE_TURN_RUST_ENABLED) {
+      // The core builds the encrypted admission; the page carries its frames.
+      const { deliverVoiceTurnThroughCore } = await import('./rustCore/voice/voiceTurnDelivery');
+      earlyHandedOff = true;
+      await deliverVoiceTurnThroughCore({
+        callId: turn.callId, chatId: turn.chatId, turnId: turn.turnId, content: message.content ?? '', createdAt: message.created_at,
+        heardBoundary: turn.heardBoundary, enter, isCurrent: current,
+      }, turn.early);
+      enter('accepted');
+      return true;
+    }
     enter('canonical_sending');
     await chatSyncService.sendNewMessage(message);
     enter('receipt_reading');
@@ -221,5 +269,10 @@ export async function sendVoiceCallTurn(turn: VoiceCallTurn): Promise<boolean> {
   } catch (error) {
     reportVoiceCallTurnDelivery(turn, 'failed', `${phase}:${deliveryFailureCode(error)}`, deliveryFailureMetadata(error));
     throw error;
+  } finally {
+    // A refused turn never reaches the core send; drop its early preparation.
+    if (VOICE_TURN_RUST_ENABLED && turn.early && !earlyHandedOff) {
+      void import('./rustCore/voice/voiceTurnDelivery').then((delivery) => delivery.discardEarlyVoiceTurn(turn.early));
+    }
   }
 }

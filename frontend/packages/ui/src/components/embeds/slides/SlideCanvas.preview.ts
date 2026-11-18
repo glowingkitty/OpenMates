@@ -9,7 +9,7 @@ function props(source: string, slideIndex = 1) {
   const result = parseSlidesMarkup(source);
   if (!('deck' in result)) throw new Error(`fixture deck does not parse: ${result.reason}`);
   const { deck } = result;
-  return { slide: deck.slides[slideIndex] ?? deck.slides[0], width: deck.width, height: deck.height, template: deck.template, animated: false };
+  return { slide: deck.slides[slideIndex] ?? deck.slides[0], width: deck.width, height: deck.height, template: deck.template, animated: false, motion: false };
 }
 
 /** Notepad with a body, a visible to-do and a hidden notepad and to-do (not rendered). */

@@ -12,6 +12,7 @@ from backend.shared.python_schemas.web_browse import (
     BrowseRequest,
     owner_hash,
 )
+from backend.shared.python_utils.web_browse_llm_view import browse_result_for_model
 from backend.shared.python_utils.private_inference_logging import (
     private_inference_logging,
 )
@@ -129,11 +130,9 @@ async def execute_browser_job(
                     "run_id": run_id,
                 },
             )
-            model_payload = {
-                k: v
-                for k, v in payload.items()
-                if k not in ("screenshot_base64", "metrics", "observations")
-            }
+            # The answer turn gets the safety-scanned form view, never the
+            # screenshot bytes, metrics or other observations.
+            model_payload = browse_result_for_model(payload)
             await dispatch_async_skill_continuation(
                 cache_service=worker.cache_service,
                 async_task_id=worker.request.id,

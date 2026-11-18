@@ -597,7 +597,14 @@ def _skill_pricing(
     provider_configs: Dict[str, Dict[str, Any]],
 ) -> Optional[Dict[str, Any]]:
     if skill.pricing:
-        return skill.pricing.model_dump(exclude_none=True)
+        pricing = skill.pricing.model_dump(exclude_none=True)
+        # The model whose token price the skill charges (a public model id, never a cost), so the
+        # settings page shows that model's current rates, a temporary launch price included.
+        # Same field as frontend/packages/ui/scripts/generate-apps-metadata.js emits.
+        tokens_model = ((skill.supplier_costs or {}).get("tokens") or {}).get("model")
+        if pricing.get("tokens") and isinstance(tokens_model, str) and "/" in tokens_model:
+            pricing["tokens_model"] = tokens_model
+        return pricing
     for provider in skill.providers or []:
         provider_id = map_provider_name_to_id(provider.name, app_id)
         pricing = (provider_configs.get(provider_id) or {}).get("pricing")

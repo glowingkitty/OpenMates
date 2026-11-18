@@ -1707,12 +1707,19 @@ def require_runner():
         and json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
         == ["storage-capacity-target.spec.ts"]
     )
+    # A single-use E2B overflow runner (scripts/ci_e2b_runner.py) is a disposable
+    # sandbox like a hosted runner; ci_results admits its evidence only when
+    # GitHub's job record names the runner the coordinator registered.
+    e2b_overflow = os.environ.get(
+        "RUNNER_ENVIRONMENT"
+    ) == "self-hosted" and os.environ.get("RUNNER_NAME", "").startswith("openmates-e2b-")
     if os.environ.get("GITHUB_ACTIONS") != "true" or (
         os.environ.get("RUNNER_ENVIRONMENT") != "github-hosted"
         and not dedicated_capacity
+        and not e2b_overflow
     ):
         raise RuntimeError(
-            "Isolated stacks require GitHub-hosted or dedicated capacity runners"
+            "Isolated stacks require GitHub-hosted, dedicated capacity or E2B overflow runners"
         )
 
 
@@ -2733,6 +2740,16 @@ def main():
             # Generated secrets are replaced before logs become uploaded artifacts.
             profile = json.loads(COMPOSE_PATH.read_text())
             output = result.stdout
+            # 150 lines cover only the last seconds of a spec. API and CMS keep
+            # a longer bounded tail so a stall early in the run stays visible.
+            # HTTP client request lines dominate the API log; without them the
+            # same bound covers the whole spec instead of its last minute.
+            for service in ("api", "cms"):
+                if service in profile["services"]:
+                    longer = compose("logs", "--no-color", service, capture=True)
+                    kept = [line for line in longer.stdout.splitlines()
+                            if '"name": "httpx"' not in line][-6000:]
+                    output += f"\n==== {service} (last 6000 lines, httpx omitted) ====\n" + "\n".join(kept)
             containers = compose("ps", "-aq", capture=True).stdout.split()
             for container in containers:
                 state = subprocess.check_output(

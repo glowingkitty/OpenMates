@@ -119,6 +119,7 @@ class AskSkillRequest(BaseModel):
     # Sub-chat orchestration fields
     parent_id: Optional[str] = Field(default=None, description="The ID of the parent chat.")
     is_sub_chat: bool = Field(default=False, description="Whether this is a sub-chat.")
+    creator_chat_id: Optional[str] = Field(default=None, description="Chat that started this main chat (chat orchestration), set only from the verified server-side link.")
     budget_limit: Optional[int] = Field(default=None, description="Optional credit limit for this sub-chat subtree.")
     budget_spent: int = Field(default=0, description="Cumulative credit spent under this sub-chat subtree.")
     user_task_id: Optional[str] = Field(default=None, description="Product task ID when this ask is executing a user task.")

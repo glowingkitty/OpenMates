@@ -2,8 +2,9 @@
 
 Hybrid: the dev server prepares a briefing, the founder holds the meeting by
 voice in the Claude app, and the decisions are written back on the dev server.
-What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
-(Marketing Week / Build Week cycle, week goals, today's focus, parking lot).
+[`FOCUS.md`](../../../FOCUS.md) records the week goals, today's focus and the
+parking lot as information for the meeting; it does not restrict which work
+chats may take on.
 
 ## Flow
 1. **Every 30 minutes** `scripts/mac_reminders.py sync` copies the open
@@ -22,7 +23,7 @@ What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
      container with the Vault key) summarizes the chats — Claude Code stores only
      titles, no summaries;
    - renders `logs/daily-meetings/YYYY-MM-DD-briefing.md` (private): meeting
-     instructions for Claude, phase rules, FOCUS.md, progress, reminders, then
+     instructions for Claude, FOCUS.md, progress, reminders, then
      appendices with all reminders/chats/Tasks/commits;
    - renders it as a PDF (`scripts/daily_meeting_pdf.py`; the Claude app cannot
      fetch the long Markdown from a link) and uploads that with
@@ -31,7 +32,7 @@ What may be worked on is defined in [`FOCUS.md`](../../../FOCUS.md)
 3. **Meeting:** download the PDF from the Discord link, attach it in the
    daily-meeting chat in the Claude app and start a voice call. Claude asks
    exactly one question at a time, with a recommendation, then waits. The meeting
-   has 6 blocks and is built for ADHD: Block 1 is a check-in. Claude first sums up
+   has 7 blocks and is built for ADHD: Block 1 is a check-in. Claude first sums up
    in plain words what the commits and chats since the last meeting show
    (Appendix E and B), then asks what else the founder did that is not shown
    there, with the open reminders and Tasks (overdue and recent) as grouped
@@ -101,7 +102,7 @@ accounts (server side), plus every email found in the dev server's `.env` and in
 `logs/daily-meetings/growth-excluded-emails.txt` (one email per line; add the founder's other accounts
 there). Only SHA-256 hashes of those emails are sent. Active users come from the last session check,
 so each run stores an aggregate snapshot in `logs/daily-meetings/growth-history.json` and compares with
-the previous one. Claude reports the numbers in about one minute in Block 1's drift check and relates
+the previous one. Claude reports the numbers in about one minute in Block 2 (marketing), right after the check-in and its drift check and relates
 them to the current milestone.
 
 ## Privacy of meeting data
@@ -117,15 +118,145 @@ plus a data-gap line. Cron has a minimal PATH, so the Tasks script finds the `op
 `~/.npm-global/bin` itself and the crontab lines set that PATH. `mac_reminders.py` sets a task
 identity for the Apple no-delete guard, which otherwise refused every cron run.
 
+## Marketing and business development (Block 2, every meeting)
+Marketing is a fixed, continuous part of every meeting, not a "marketing week". Block 2 follows the
+check-in and precedes the safety net (`scripts/daily_meeting_marketing.py`; the growth numbers moved
+here from Block 1). It has five parts:
+1. **Growth numbers from production plus ONE honest sentence** (realistic and critical, on the founder's
+   side, never hype or discouraging). The briefing prints a deterministic draft, for example
+   "0 signups in 7 days: people aren't finding us yet, so outreach beats features right now."
+2. **Win counter** (messages sent, replies, posts, applications): the founder reports the new counts, the
+   decisions note records them in the `Wins:` line, the briefing sums last meeting, this week and the
+   last 14 days, so progress is visible before signups move.
+3. **Exactly 3 proposals of about 20 minutes** with a done line, for the founder's situation (at home with
+   the camera, or on the go): the least recently picked items of the menu whose prerequisites are
+   finished. The pick gets the first work slot (`Marketing pick:`). Business development (business
+   angels, partnerships, press contacts, job search) is part of the menu; business angels appear only
+   after the videos and the landing page are finished (`Marketing finished:`).
+4. **1-2 fresh ideas** per day (marketing or business development), taken, parked or dropped
+   (`Marketing ideas:`); the briefing lists the ideas of the last 14 days so none repeats. This replaces
+   the weekly marketing ideas email (the Mon/Thu `recommendations` job of the marketing automation is
+   disabled).
+5. **Style feedback loop:** every idea and text follows the style rules printed in the block. When the
+   founder says something "doesn't sound like me" or "doesn't make sense", the meeting records it in the
+   `Style feedback:` part of the decisions note and a chat adds the rule to the style guide right away.
+
+The menu and the style guides live in the **private marketing repository**, not in this repo:
+`daily-meeting/marketing-menu.md` (menu), `marketing-style.md` section "Feedback rules from the daily
+meeting" (voice rules; the entry point to the communication strategy) and `press/press-style.md` (press
+text, "Words and tone"). The briefing reads them at generation time; without the menu file it falls back to a
+neutral built-in menu and says so (a gap, never an empty list).
+
+**Idea inbox and feature priority.** New feature or optimisation ideas are captured as a Task labelled `idea`
+with one sentence; no chat starts for them that day unless urgent. Late afternoon and evening are the
+founder's time for ideas and experiments. The weekly goals block reviews the inbox. Features are no longer
+the primary factor: when one comes up it is ranked by how likely it is to gain users; only the best case
+that beats a marketing action is NOW, the rest go to the idea inbox or the side notes (triage marks
+feature-like Tasks LATER with that reason).
+
+## Marketing time, the build gate and the meta-work limit
+- **Marketing time** is 11:00-17:00 Berlin on workdays. During it no build work starts unless it has an obvious,
+  concrete link to marketing, business development or a real end-user flow problem; after 17:00 building is free.
+- **The gate** lives in the private dev connector (`broker/build_gate.py`, not in this repository): a neutral decision
+  model (Jev) judges every `start_chat` and `send_message` with a sceptical rubric (the requester may overstate
+  marketing relevance). Outcomes: pass, queue until 17:00 (sent automatically with a note) or idea inbox (an `idea`
+  Task). Release steps (pull requests, deploys, merges, releases), ops and safety fixes for live users, outages, answers to
+  a chat's question and pause/stop messages always pass; the founder overrides with `[override build gate: <reason>]`
+  (also `[override: <reason>]` or a line `override: <reason>`; a reason is required), which starts the chat at once, logged. At most 3 non-marketing build chats run
+  at once. Every decision is logged with its reason (`run/build-gate-decisions.jsonl` of the connector).
+- **Voice and meeting assistants** ask once before sending build work in marketing time: "That's build work - inbox,
+  queue for 17:00, or does it really help marketing?" (rule in the meeting script).
+- **Meta-work limit:** at most 10-15 minutes on workflow or meeting optimisation per meeting; the briefing shows a timer
+  note, more goes to the weekly goals block.
+
+## Daily limits, LATER, DROP and the decision log
+- **Limits:** at most **3 waiting chats and 3 reminders** are NOW per meeting (importance order; the briefing
+  enforces it in `Triage.cap_now`). The rest become LATER (tomorrow) in the side notes.
+- **LATER (chat):** the chat writes done / not done / next step / open decisions into its Task with the
+  `paused` label and `PAUSED <today> until <date>` (the pause convention above) and is archived (searchable,
+  reopenable). On the resume date the "Paused chats" section lists it as NOW by itself.
+- **DROP:** archive the chat or close the Task, issue or reminder; nothing is deleted. One `Dropped:` line per
+  drop in the decisions note (`- <chat|task|idea|reminder|issue> | <what> | <why> | <Task id>`); the reason is
+  required. `scripts/daily_meeting_apply.py apply` appends it to the **decision log**
+  (`logs/decision-log/dropped.jsonl` of the canonical checkout, private; `scripts/decision_log.py add|check|list`):
+  what, date, why, by whom.
+- **Re-check:** the section "Dropped before — still want it?" lists new ideas, new Tasks and waiting chats whose
+  words match a logged drop ("We dropped this on <date> because <reason>. Still want it?"). The answer goes into
+  the note (`revive: <what> | <why>`). The same `decision_log.py check "<text>"` is meant for the dev connector's
+  `start_chat` path (separate Task).
+
+## Triage: NOW, LATER, DROP
+The founder is easily pulled away by small issues, so the briefing pre-sorts **every** item (production
+and dev errors, reported issues, waiting and paused chats, Tasks, reminders, GitHub/Linear cleanup
+items) and proposes a label with a one-line reason; the founder only confirms or changes it
+(`scripts/daily_meeting_triage.py`).
+
+| Label | Rule | Where it shows |
+|---|---|---|
+| NOW | serves a current priority, or is evidence that real users are affected (production errors, unprocessed production reports, failed requests, payment or signup problems), or is a reminder due today | in its section, tagged `[NOW: reason]`; the only items the meeting discusses |
+| LATER | still useful, otherwise fits no priority; gets a proposed date (7 days, off the weekend; a paused chat's resume date; a reminder's own date) | "Side notes" at the very end |
+| DROP | fits no priority and has no reason to keep: noise, finished chat with no open question, backlog Task with no priority, issue untouched 60+ days | "Side notes": propose close or archive |
+
+Clear noise (the `Noise:` words: unused providers like Baseten, cache warnings, test timing), dev-only
+errors and dev reports without a priority are side notes automatically. A production report whose
+words overlap two or more with a recent `fix` commit is marked "likely fixed by ..." (LATER, next day)
+instead of being raised. **The priorities are read from `FOCUS.md` section `## Current priorities`**
+(`- <priority>: word, word`, then a `Noise:` line); edit that section when the priorities change.
+Without the section the built-in defaults are used and a "Triage gap" line in Side notes says so.
+Side notes are not discussed unless asked; at the end the meeting asks once "N side notes, proposals
+unchanged, confirm?". Confirming executes the proposals (LATER chat: park until the date; DROP chat:
+archive; DROP Task or issue: close). The decisions note records the labels the founder changed under
+`Triage:` and the label in front of every `Chats:` line. Nothing is hidden: LATER and DROP chats,
+Tasks and reports remain listed in the Side notes, and the no-decision check still covers them.
+
 ## Chats waiting on you
-After the alerts the briefing lists dev-server Claude Code chats whose last real message came
-from the assistant (idle at least 2 h, last 5 days; finished-work replies only within 36 h; chats
-whose Task is Done or that were dismissed in the last 14 days are skipped). Each shows what it is
-waiting for (question, blocker, done), its Task if linked, and the last reply, and opens with a one-line
-plain summary in italics (Gemini Flash: what the chat is about and what it needs from the founder; if that
-call fails the line is left out and a data gap says so). The meeting goes
-through them one at a time; answers go into the `Chats:` lines of the decisions note. Replies are
-sent by the dev-server Claude to the chat itself (`send_message`); only chats that cannot be reached get a printed reply. Data: `scripts/daily_meeting_waiting.py`.
+After the alerts the briefing lists **every** dev-server Claude Code chat whose last real message
+came from the assistant (idle at least 2 h, last 30 days; no cap and no age cut-off, also for
+finished-work replies). A chat leaves the list only when it is answered, archived, its Task is Done,
+or its Task is paused (it then shows under "Paused chats"). Each entry has a short title, how long it
+has waited, its linked Task, the one question or decision it needs in plain words ("Needs", Gemini
+Flash; if that call fails the last question of the reply is used and a data gap says so) and an
+italic one-line summary. The list is sorted by importance against the current priorities (marketing,
+agentic coding, Projects, safety; `PRIORITY_TOPICS` in `scripts/daily_meeting_paused.py`, kept in
+sync with FOCUS.md), then by Task priority, then oldest wait first. The meeting discusses the top 3
+aloud; the full list is always in the briefing. Data: `scripts/daily_meeting_waiting.py`.
+
+## Paused chats
+A fixed briefing section lists every not-done Task labelled `paused`, soonest resume date first,
+with its saved state: done, not done, next step, open decisions, resume date and reason.
+
+**Pause convention.** A chat that stops before its work is finished (usage limit, waiting for a
+date, parked in the meeting) runs, before it stops, one `openmates tasks edit <task> --add-label paused
+--description "<block>"` call with this block (the Task is created first if the chat has none):
+
+```
+PAUSED 2026-11-14 until 2026-11-20 11:00 — weekly usage used up
+Done: <what is finished and deployed>
+Not done: <what remains>
+Next step: <the exact first action when resuming>
+Open decisions: <questions for the founder, or "none">
+```
+`PAUSED <since> until <resume date> [HH:MM] — <reason>` is the first line; the four fields follow.
+The block is the saved state: the resuming chat needs nothing else. To resume, the chat (or the
+meeting) removes the label (`--remove-label paused`) and sets the Task status. Parser and checks:
+`scripts/daily_meeting_paused.py`.
+
+## One outcome per chat, nothing drops out silently
+Every chat in "Chats waiting on you" and in "Paused chats" ends the meeting in exactly one outcome,
+recorded one line per chat in the `Chats:` section of the decisions note:
+
+| Outcome | Note line | What the dev server does |
+|---|---|---|
+| answer now | `<chat> [Task] -> answer now: <reply>` | sends the reply to the chat (`send_message`) |
+| park | `-> park until YYYY-MM-DD HH:MM: <done / not done / next step / open decisions>` | writes the pause block and `paused` label into the Task |
+| reschedule | `-> reschedule to YYYY-MM-DD: <reason>` | same pause block, resume date = the new date |
+| archive | `-> archive` | archives the chat (`archive_session`) and records it in `waiting-reviewed.json` |
+| resume now | `-> resume now: <first step>` | removes the `paused` label, wakes the chat with the next step |
+
+"Keep" is not an outcome. **No-decision check:** the briefing flags (section "No decision for more
+than 7 days", and the first thing the meeting handles) every waiting chat that has waited more than
+7 days, and every paused chat whose resume date has passed, has no resume date, or has incomplete
+saved state after 7 days of pause.
 
 ## Plain-language rule
 IDs, agent names and tasks are never mentioned bare in the briefing, the meeting or the decisions
@@ -141,7 +272,7 @@ lecture. Every meeting, at the end of Block 1, it compares the commits and the c
 meeting with the current milestone, states the rough share of the work that served it, names the
 drift and where the time went, and asks exactly one question that lets the founder draw the
 conclusion. Background work the founder approved to run on its own (the Rust rewrite, migrations named
-in the phase rules or the agreed adjustments) is named separately and does not count as drift. The
+in the agreed adjustments) is named separately and does not count as drift. The
 result is the note's `Drift:` line, so the next meeting can say whether it got better or worse. Right
 after the drift share, Claude gives the production growth numbers in about one minute, with their trend,
 related to the milestone (small numbers are named as noise).
@@ -162,10 +293,48 @@ a done-when and a date) and a `Last weekly review:` line. Tasks that serve a mil
 `milestone:<name>`. The briefing shows GOALS.md, per-milestone Task progress (against a snapshot about a week
 old) and drift warnings (review overdue, high-priority Tasks without a milestone, a milestone with open
 high-priority Tasks and no movement). Every day the meeting asks which milestone today's top task serves; on
-Mondays Block 6 is the goals block (about 10 minutes, replacing the backlog cleanup; if Monday's was missed or no
+Mondays Block 7 is the goals block (about 10 minutes, replacing the backlog cleanup; if Monday's was missed or no
 review exists yet, it is due on the next meeting until a `Last weekly review:` date in the current week is recorded): on track? still the right
 milestone (the mission and goals once a quarter or when asked)? the next milestone split into 3-7 Tasks and the
 week's priority order. Data: `scripts/daily_meeting_goals.py`.
+
+## Opportunities (events and jobs, in their own chats)
+
+Events, jobs and (later) email are handled in their own dedicated chats with the founder,
+so each keeps its full context; the daily meeting only shows one line per area ("5 new
+events waiting; continue in the Events chat") plus deadlines in the next 3 days. It never
+goes through items one by one and never runs the jobs-profile setup.
+
+Shared memory: `scripts/daily_meeting_opportunities.py` keeps everything in one private
+folder on the dev host, `~/.local/state/openmates/opportunities/` (mode 0700, files 0600;
+`OPENMATES_OPPORTUNITIES_DIR` overrides it in tests). It is outside the git checkout and
+never committed:
+
+- `jobs-profile.md`: living memory (experience and CV, jobs wanted, criteria, later the
+  writing style for applications) plus a `## Search` block of `key: value` lines
+  (`queries`, `countries`, `locations`, `remote`, `employment_type`, `relevance`). It starts
+  empty; while `queries` is empty no job search runs and the Jobs chat runs the setup.
+- `events-profile.md`: interests and a `## Search` block (`queries`, `cities` with dates such
+  as `<City> from YYYY-MM-DD until YYYY-MM-DD`, `window_days`, `relevance`). Cities are
+  asked, never assumed.
+- `tracking.json`: every event and job ever found with status (`new`, `interested`,
+  `signed_up`, `applied`, `skipped`), dates, deadline, links, notes and history. Nothing is
+  shown twice.
+- `last-search.json` (counts and quality warnings of the last search) and `history/` (the
+  previous version of a file before each change).
+
+Each briefing build (cron and `meeting_refresh`) runs the searches with the dev server's
+own skills through the installed CLI, logged in as the personal dev account against the
+dev API (`openmates apps events search` with Meetup, Luma and Eventbrite;
+`openmates apps jobs search`), and appends the top 5 new events (next 14 days, per city and
+date range) and top 5 new jobs. A failed search is a data gap, never a failed briefing.
+
+The dedicated chats read and write the memory through the script's commands (`read`,
+`set-status`, `add-item`, `profile`, `summary`; see its docstring), which the private dev
+connector exposes to the Claude app. Poor results or a missing search feature become an
+OpenMates Task to improve the event or job search skill.
+
+The folder lives on the dev host disk only; no off-host backup of it is configured here.
 
 ## Improving the meeting itself
 Every meeting ends with a two-minute "improve the meeting" block: the assistant proposes one change with its

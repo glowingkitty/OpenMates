@@ -18,6 +18,8 @@ Also applies the approved retention rule (age by mtime, never while in use):
     id, e.g. ``3e82-pkgs``) untouched for CACHE_SCRATCH_MAX_AGE_DAYS and not in
     use. Shared tool caches (pip, uv, ms-playwright, ...) are never touched.
 
+Then enforces the per-category size budgets (scripts/host_disk_budgets.py).
+
 Runs as the disk coordinator's `host` cleanup kind. Outside the elected owner it
 only queues that maintenance (same handoff as docker-cleanup.sh), so cleanup
 never races admission. `--dry-run` (default without --apply) reports only.
@@ -216,7 +218,7 @@ def _candidates(tmp_root: Path, recovery_root: Path, now: float, uid: int) -> li
 def run(tmp_root: Path, recovery_root: Path, *, apply: bool, now: float | None = None,
         uid: int | None = None, in_use: list[str] | None = None,
         repository: Path | None = None, cache_root: Path | None = None,
-        cargo_paths: list[str] | None = None) -> dict:
+        cargo_paths: list[str] | None = None, budgets: bool = False) -> dict:
     now = time.time() if now is None else now
     uid = os.getuid() if uid is None else uid
     in_use = _in_use_paths(uid) if in_use is None else in_use
@@ -268,6 +270,13 @@ def run(tmp_root: Path, recovery_root: Path, *, apply: bool, now: float | None =
                 continue
         report["deleted"].append({"path": prefix, "category": category, "bytes": size})
         report["reclaimed_bytes"] += size
+    if budgets and repository is not None:
+        # Size budgets after the age rules: whatever is still over its cap goes, oldest first.
+        import host_disk_budgets  # noqa: E402 - repo-local module; main() puts scripts/ on sys.path
+
+        report["budgets"] = host_disk_budgets.enforce(repository, apply=apply, in_use=in_use, cargo=cargo,
+                                                      references=references, now=now)
+        report["reclaimed_bytes"] += report["budgets"]["reclaimed_bytes"]
     return report
 
 
@@ -301,7 +310,7 @@ def main(argv: list[str] | None = None) -> int:
     recovery = args.recovery_root or repository.parent / ".openmates-worktree-recovery"
     if args.apply and not _coordinated(repository):
         return 0
-    report = run(args.tmp_root, recovery, apply=args.apply, repository=repository)
+    report = run(args.tmp_root, recovery, apply=args.apply, repository=repository, budgets=True)
     print(json.dumps(report, indent=1))
     return 0
 

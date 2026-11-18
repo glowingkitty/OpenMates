@@ -1463,7 +1463,7 @@ fn historical_source(data: &Value, kind: &str) -> Result<String> {
                 "sheet" => "table",
                 "mermaid" => "diagram_code",
                 "diagram_html" => "html_source",
-                "deck" => "slides_markup",
+                "deck" | "template" => "slides_markup",
                 _ => return Err(super::send::refusal_trace::protocol_at!()),
             };
             data[field]

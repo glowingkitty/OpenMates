@@ -1,0 +1,29 @@
+schema_version: 1
+specification: feature.vscode-extension@1
+login:
+- id: pair-and-revoke
+  given: A user is signed in to the web app and installs the extension in VS Code or Cursor.
+  when: They run the OpenMates Sign in command, approve the shown code under Settings > Developers > Devices, and later revoke that device.
+  then: The editor appears as its own device; after revocation the extension shows signed out and its vault and SecretStorage passphrase are gone.
+- id: no-credential-entry
+  given: The extension is signed out.
+  when: Any sign-in screen is shown.
+  then: Only the pairing code is offered; no password, passkey, 2FA or recovery field exists.
+connect:
+- id: connect-and-offline
+  given: A signed-in user opens the folder "recipe-manager" that belongs to their Project "Recipe manager".
+  when: They connect the folder, ask in a web chat to rename a function, then close VS Code.
+  then: The edit happens in that chat's worktree on this machine; after closing, the Project shows the machine offline and the chat waits instead of failing.
+- id: second-host
+  given: The same folder is already served by "openmates remote-access" in a terminal.
+  when: The user connects it in VS Code.
+  then: The extension reports that another host serves this folder and does not start a second one.
+review:
+- id: diff-and-land
+  given: A chat changed two files in its worktree.
+  when: The user opens the "Chat changes" view, opens each diff and presses Land.
+  then: Both files appear in the native diff editor; after Land the changes are on the target branch and nothing was pushed.
+- id: discard
+  given: A chat changed one file the user does not want.
+  when: The user presses Discard for that chat.
+  then: Only that chat's worktree changes are removed; the target branch and other chats are unchanged.

@@ -17,7 +17,7 @@ import { installCryptoUnit } from '@openmates/ui/src/services/rustCore/crypto/cr
 import { installAuthUnit } from '@openmates/ui/src/services/rustCore/auth/authUnit';
 import { installAppsUnit } from '@openmates/ui/src/services/rustCore/apps/appsUnit';
 import { installEmbedDataUnit } from '@openmates/ui/src/services/rustCore/embeds/embedDataUnit';
-import { installEmbedWriteUnit } from '@openmates/ui/src/services/rustCore/embeds/embedWriteUnit';
+import { installEmbedWriteGuestUnit, installEmbedWriteUnit } from '@openmates/ui/src/services/rustCore/embeds/embedWriteUnit';
 import { installSearchUnit } from '@openmates/ui/src/services/rustCore/search/searchUnit';
 import { installTransferUnit } from '@openmates/ui/src/services/rustCore/transfer/transferUnit';
 import { installSyncUnit } from '@openmates/ui/src/services/rustCore/sync/syncUnit';
@@ -30,7 +30,10 @@ import { installSendPrepUnit } from '@openmates/ui/src/services/rustCore/send/se
 import { installSettingsUnit } from '@openmates/ui/src/services/rustCore/settings/settingsUnit';
 import { installComposerUnit } from '@openmates/ui/src/services/rustCore/composer/composerUnit';
 import { installDeckDocumentUnit } from '@openmates/ui/src/services/rustCore/deckDocument/deckDocumentUnit';
+import { installProjectTimelineUnit } from '@openmates/ui/src/services/rustCore/projects/projectTimelineUnit';
+import { installPresentRemoteUnit } from '@openmates/ui/src/services/rustCore/presentRemote/presentRemoteUnit';
 import { installEmbedEditUnit } from '@openmates/ui/src/services/rustCore/embeds/embedEditUnit';
+import { installVoiceTurnUnit } from '@openmates/ui/src/services/rustCore/voice/voiceTurnUnit';
 
 export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	core: installCoreUnit,
@@ -39,6 +42,7 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	apps: installAppsUnit,
 	embedData: installEmbedDataUnit,
 	embedWrite: installEmbedWriteUnit,
+	embedWriteGuest: installEmbedWriteGuestUnit,
 	search: installSearchUnit,
 	transfer: installTransferUnit,
 	sync: installSyncUnit,
@@ -52,4 +56,7 @@ export const SHARED_UNIT_INSTALLERS: UnitInstallers = Object.freeze({
 	composer: installComposerUnit,
 	deckDocument: installDeckDocumentUnit,
 	embedEdit: (context) => installEmbedEditUnit(context),
+	projectTimeline: (context) => installProjectTimelineUnit(context),
+	presentRemote: (context) => installPresentRemoteUnit(context),
+	voiceTurn: (context) => installVoiceTurnUnit(context),
 });

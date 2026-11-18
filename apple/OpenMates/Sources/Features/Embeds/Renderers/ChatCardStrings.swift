@@ -50,6 +50,7 @@ extension AppStrings {
     static var recommendationsTypeMemory: String { localized("recommendations.type_memory") }
     static var recommendationsTypeWorkflow: String { localized("recommendations.type_workflow") }
     static var recommendationsMemoryUpToDate: String { localized("memories.suggestion_up_to_date") }
+    static var recommendationsDraftFailed: String { localized("memories.suggestion_failed") }
 
     /// `HEADING_KEYS[kind][action]` in RecommendationsCard.svelte.
     static func recommendationsHeading(kind: String, action: String) -> String {
@@ -73,4 +74,18 @@ extension AppStrings {
     static var projectCreatedUndoFailed: String { localized("projects.created_project_undo_failed") }
     static var projectWorkOnLabel: String { localized("projects.work_on_label") }
     static var projectFocusNotActive: String { localized("projects.focus_not_active") }
+}
+
+// MARK: - Helpline card
+
+extension AppStrings {
+    static var helplinesTitle: String { localized("helplines.title") }
+    static var helplinesCall: String { localized("helplines.call") }
+    static var helplinesText: String { localized("helplines.send_text") }
+    static var helplinesChat: String { localized("helplines.chat") }
+    static var helplinesFindMore: String { localized("helplines.find_more") }
+
+    static func helplinesEmergency(number: String) -> String {
+        LocalizationManager.shared.text("helplines.emergency", replacements: ["emergency_number": number])
+    }
 }

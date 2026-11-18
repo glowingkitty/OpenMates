@@ -29,6 +29,29 @@ async function expectInside(page: any, outerTestId: string, innerTestId: string)
 	expect(inner!.x + inner!.width).toBeLessThanOrEqual(outer!.x + outer!.width + 1);
 }
 
+// contract-test: direct surface=gui.web assertions=app-memories.suggestions.post-processor
+test('recommendations card shows Project focus suggestions next to memories and workflows', async ({ page }, testInfo) => {
+	await openPreview(page, 'RecommendationsCard', 'variant=project_focus&width=680');
+	const card = page.getByTestId('recommendations-card');
+	await expect(card).toHaveAttribute('data-count', '3');
+	await expect(card.getByTestId('recommendation-heading')).toHaveText('New Project focus recommended');
+	await expect(card.getByTestId('recommendation-item')).toHaveAttribute('data-kind', 'focus');
+	await expect(card.getByTestId('embed-preview')).toContainText('Project focus');
+	await expect(card.getByTestId('recommendation-title')).toHaveText('New focus for this Project');
+	await expect(card.getByTestId('recommendation-action')).toHaveText('Create');
+	await testInfo.attach('project-focus-create', { body: await card.screenshot(), contentType: 'image/png' });
+	const opened = () => page.evaluate(() => (document.body.dataset.recommendationOpened ?? '').split(':')[0]);
+	await card.getByTestId('recommendation-action').click();
+	await expect.poll(opened).toBe('project-focus-preview-1');
+	await card.getByTestId('recommendation-next').click();
+	await expect(card.getByTestId('recommendation-heading')).toHaveText('New memory recommended');
+	await card.getByTestId('recommendation-next').click();
+	await expect(card.getByTestId('recommendation-heading')).toHaveText('Project focus update recommended');
+	await expect(card.getByTestId('recommendation-title')).toHaveText('Kitchen renovation planning');
+	await expect(card.getByTestId('recommendation-action')).toHaveText('Update');
+	await testInfo.attach('project-focus-update', { body: await card.screenshot(), contentType: 'image/png' });
+});
+
 for (const width of [390, 680]) {
 	// contract-test: direct surface=gui.web assertions=app-memories.suggestions.post-processor
 	test(`recommendations card pages through three items one at a time at ${width}px`, async ({ page }) => {

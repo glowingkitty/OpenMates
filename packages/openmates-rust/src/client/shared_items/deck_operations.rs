@@ -4,6 +4,7 @@
 //! outcome, element spec); `deck_apply` validates and writes them.
 
 use super::deck_markup::{ElementContent, TodoItem};
+use super::deck_theme::DeckTheme;
 use super::deck_values::ElementKind;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -180,6 +181,14 @@ pub enum DeckOperation {
     SetAllInteractiveHidden {
         /// Hidden state.
         hidden: bool,
+    },
+    /// Apply a template: replace only the deck's `template` reference and theme (slides
+    /// and elements stay). One undo step.
+    SetTheme {
+        /// `builtin:<id>` or `library:<ref>`.
+        template: String,
+        /// New theme; `None` (or a theme without valid values) removes it.
+        theme: Option<DeckTheme>,
     },
 }
 

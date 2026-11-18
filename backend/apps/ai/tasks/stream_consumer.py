@@ -17,6 +17,11 @@ from typing import Dict, Any, List, Optional, AsyncIterator, Union, Callable, Aw
 from celery.exceptions import SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED
 
+from backend.apps.ai.processing.chat_orchestration_hooks import (
+    record_spawned_chat_failed,
+    record_spawned_chat_finished,
+    record_spawned_chat_waiting,
+)
 from backend.shared.python_utils.saved_chat_turn_authority import admission_chat_id
 from backend.core.api.app.tasks import celery_config
 from backend.core.api.app.services.cache import CacheService
@@ -57,6 +62,10 @@ from backend.apps.ai.assistant_speech.projection import (
 )
 from backend.apps.ai.assistant_speech.streaming import ImmutableSpeechBoundaryTracker
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
+from backend.apps.ai.processing.wellbeing_support import (
+    card_due as wellbeing_card_due, create_card_embed as create_wellbeing_card_embed,
+    publish as publish_wellbeing,
+)
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.utils.mate_utils import MateConfig
@@ -74,6 +83,7 @@ from backend.apps.ai.sub_chat_orchestration import (
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output, STANDARDIZED_USER_ERROR_MESSAGE
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure_reason
+from backend.shared.python_utils.chat_failure_notifications import EXPECTED_REJECTIONS
 from backend.apps.ai.utils.embed_display_text import (
     EMBED_REF_SUFFIX_PATTERN as _EMBED_REF_SUFFIX_PATTERN,
     derive_display_text_from_embed_ref as _derive_display_text_from_embed_ref,
@@ -1350,6 +1360,13 @@ async def _dispatch_sub_chat_parent_continuation(
 
     research_context = pending_context.get("research_context")
     consumed_contexts = [pending_context] + ([research_context] if isinstance(research_context, dict) else [])
+    # Sub-chats can finish long after the user hung up: the call is rechecked
+    # here and an ended call continues the parent as an ordinary text turn.
+    from backend.shared.python_utils.voice_call_admission import resumed_voice_delivery
+    voice_delivery = await resumed_voice_delivery(
+        cache_service, original_request.model_dump(mode="json"),
+        user_id=original_request.user_id, chat_id=original_request.chat_id,
+    )
     continuation_request = AskSkillRequest(
         chat_id=original_request.chat_id,
         message_id=original_request.message_id,
@@ -1358,13 +1375,7 @@ async def _dispatch_sub_chat_parent_continuation(
         message_history=continuation_history,
         chat_has_title=True,
         current_chat_title=original_request.current_chat_title,
-        voice_mode=original_request.voice_mode,
-        voice_call_id=original_request.voice_call_id,
-        voice_turn_id=original_request.voice_turn_id,
-        voice_heard_boundary=original_request.voice_heard_boundary,
-        auto_speak_response=original_request.auto_speak_response,
-        assistant_speech_lazy_dispatch=original_request.assistant_speech_lazy_dispatch,
-        assistant_response_source_revision=original_request.assistant_response_source_revision,
+        **voice_delivery,
         is_incognito=original_request.is_incognito,
         is_external=original_request.is_external,
         mate_id=original_request.mate_id,
@@ -1375,6 +1386,13 @@ async def _dispatch_sub_chat_parent_continuation(
         recovery_turn_id=original_request.recovery_turn_id,
         recovery_public_key=original_request.recovery_public_key,
         chat_key_version=original_request.chat_key_version,
+        # A parent admitted under the legacy cutover identity (no sealed recovery
+        # turn) passes that admission on as the continuation's root admission;
+        # without it the worker refuses the continuation before inference.
+        root_legacy_cutover_task_id=(
+            original_request.root_legacy_cutover_task_id or original_request.legacy_cutover_task_id
+        ),
+        root_user_message_id=original_request.root_user_message_id,
         preprocessing_resume_ref=original_request.preprocessing_resume_ref,
         parent_id=original_request.parent_id,
         is_sub_chat=original_request.is_sub_chat,
@@ -2413,7 +2431,7 @@ async def _apply_diff_block_to_existing_embed(
             queue="app_docs",
             output_kind="diff", output_version=new_version,
         )
-    elif embed_type == "deck":
+    elif embed_type in ("deck", "template"):
         try:
             new_deck = normalise_slides_markup(patch_result.new_content)
         except SlidesMarkupError as exc:
@@ -2548,13 +2566,10 @@ async def _apply_diff_block_to_existing_embed(
             log_prefix=log_prefix,
         )
 
-    cached_embed["version_number"] = new_version
-    await cache_service.set_embed_in_cache(
-        embed_id=target_embed_id,
-        embed_data=cached_embed,
-        chat_id=request_data.chat_id,
-    )
-
+    # Each update_*_embed_content above caches the new encrypted content with
+    # new_version. Re-caching the dict read before the patch here would put the
+    # old content back under the new version, so the next diff or a replay from
+    # cache would start from stale content.
     embed_ref_json = json.dumps({
         "type": embed_type,
         "embed_id": target_embed_id
@@ -5972,6 +5987,14 @@ def _parse_application_preview_json_bundle_files(
     return files if has_manifest and has_source else []
 
 
+async def _with_leading_text(text: str, stream: AsyncIterator[Any]) -> AsyncIterator[Any]:
+    """Yield ``text`` (when set) before the stream; the helpline card reference opens the answer."""
+    if text:
+        yield text
+    async for item in stream:
+        yield item
+
+
 async def _with_chunks_after_closing_fence(
     stream: AsyncIterator[Any],
     chunks_after_closing_fence: Deque[str],
@@ -6492,6 +6515,22 @@ class _FirstChunkPublishBarrier:
             await self.operation()
 
 
+class _RevocationProbe:
+    """Rate-limit the synchronous Celery state (Redis GET) check on the chunk hot path."""
+
+    def __init__(self, task_id: str, interval: float = 0.25):
+        self.task_id = task_id
+        self.interval = interval
+        self._last_check = float("-inf")
+
+    def revoked(self) -> bool:
+        now = time.monotonic()
+        if now - self._last_check < self.interval:
+            return False
+        self._last_check = now
+        return celery_config.app.AsyncResult(self.task_id).state == TASK_STATE_REVOKED
+
+
 def _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides) -> bool:
     """Activation-only Focus turns have no answer/profile until their continuation."""
     if request_data.is_external or request_data.is_incognito or getattr(preprocessing_result, "routing_only", False):
@@ -6511,6 +6550,29 @@ def _should_prepare_assistant_speech(request_data, preprocessing_result, user_ov
         and _trusted_focus_override(user_overrides, relevant_focus_modes[0])
     )
     return not explicit_focus_activation
+
+
+def _build_live_answer_gate(request_data, preprocessing_result, skill_config_dict, secrets_manager, task_id, log_prefix):
+    """Live answer-safety gate: enabled only when the chat is risky (see answer_safety.is_risky_chat)."""
+    from backend.apps.ai.processing import answer_safety
+
+    thresholds = (skill_config_dict or {}).get("preprocessing_thresholds")
+    risky = False
+    if thresholds:
+        risky = answer_safety.is_risky_chat(
+            preprocessing_result,
+            float(thresholds["harmful_content_score"]), float(thresholds["misuse_risk_score"]),
+        )
+    else:
+        logger.warning(f"{log_prefix} No preprocessing thresholds in the skill config; live answer checks stay off.")
+    user_message = next((
+        msg.content for msg in reversed(request_data.message_history or [])
+        if msg.role == "user" and msg.sender_name != "async_tool_result"
+    ), "")
+    return answer_safety.LiveCheckGate(
+        risky=risky, model_id=answer_safety.load_decision_model_id() if risky else None,
+        user_message=user_message, secrets_manager=secrets_manager, task_id=task_id,
+    )
 
 
 async def _consume_main_processing_stream(
@@ -6546,6 +6608,7 @@ async def _consume_main_processing_stream(
 
     standardized_error_message = STANDARDIZED_USER_ERROR_MESSAGE
     first_chunk_barrier = _FirstChunkPublishBarrier(before_first_chunk_publish)
+    revocation_probe = _RevocationProbe(task_id)
 
     # Local flags for interruption status
     was_revoked_during_stream = False
@@ -6584,14 +6647,17 @@ async def _consume_main_processing_stream(
         return "", was_revoked_during_stream, was_soft_limited_during_stream, [], None
 
     # Check if this is a harmful content case that should be handled with a predefined response
-    if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason in ["harmful_or_illegal_detected", "misuse_detected"]:
+    if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason in ["harmful_or_illegal_detected", "misuse_detected", "request_purpose_declined"]:
         logger.info(f"{log_prefix} Detected harmful content case. Generating fake stream with predefined response.")
         
         # Get predefined response from translations in the user's detected language
         translation_service = TranslationService()
         language = preprocessing_result.output_language or "en"
         
-        if preprocessing_result.rejection_reason == "harmful_or_illegal_detected":
+        if preprocessing_result.rejection_reason == "request_purpose_declined":
+            # The preprocessor already localized the reason (and strike notice).
+            predefined_response = preprocessing_result.error_message
+        elif preprocessing_result.rejection_reason == "harmful_or_illegal_detected":
             predefined_response = translation_service.get_nested_translation("predefined_responses.harmful_or_illegal_detected", language, {})
         else:  # misuse_detected
             predefined_response = translation_service.get_nested_translation("predefined_responses.misuse_detected", language, {})
@@ -7056,13 +7122,25 @@ async def _consume_main_processing_stream(
     suggested_followup_message: Optional[str] = None
     
     chunks_after_closing_fence: Deque[str] = deque()
+    live_answer_gate = _build_live_answer_gate(
+        request_data, preprocessing_result, skill_config_dict, secrets_manager, task_id, log_prefix,
+    )
+    live_answer_withdrawal = None
+    wellbeing_assessment = await publish_wellbeing(cache_service, request_data, preprocessing_result)
+    wellbeing_card_ref = ""
+    if wellbeing_card_due(wellbeing_assessment) and directus_service and encryption_service and user_vault_key_id:
+        from backend.core.api.app.services.embed_service import EmbedService
+        wellbeing_card_ref = await create_wellbeing_card_embed(
+            EmbedService(cache_service, directus_service, encryption_service), secrets_manager,
+            request_data, preprocessing_result, assistant_message_id, user_vault_key_id,
+        )
     pre_main_scope = ai_phase_span("pre_main")
     pre_main_scope.__enter__()
     pre_main_open = True
     try:
-        async for chunk in _with_chunks_after_closing_fence(
+        async for chunk in _with_leading_text(wellbeing_card_ref, _with_chunks_after_closing_fence(
             main_processing_stream, chunks_after_closing_fence
-        ):
+        )):
             # Internal setup frames do not publish answer content. Let the
             # provider run while sealed metadata persists, then join before
             # any visible content or recovery terminal can be published.
@@ -7125,7 +7203,10 @@ async def _consume_main_processing_stream(
             if failure_reason is not None:
                 terminal_failure_reason = failure_reason
                 debug_metadata["main_processing_failure_reason"] = failure_reason
-                logger.error(
+                # An expected rejection (e.g. an anonymous user's sign-up limit) is a
+                # product outcome, not a chat failure: keep it out of ERROR monitoring.
+                logger.log(
+                    logging.WARNING if failure_reason in EXPECTED_REJECTIONS else logging.ERROR,
                     "%s Main processing ended with a classified terminal failure: reason=%s",
                     log_prefix,
                     failure_reason,
@@ -7176,7 +7257,9 @@ async def _consume_main_processing_stream(
                     deadline_seconds_for_jobs,
                 )
                 from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
-                from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+                from backend.shared.python_utils.recent_work_summary_client import (
+                    private_async_tool_history_for_handoff, seal_private_context_payload,
+                )
 
                 if cache_service is None:
                     raise RuntimeError("Same-turn completion cache unavailable")
@@ -7199,11 +7282,18 @@ async def _consume_main_processing_stream(
                     value = getattr(request_data, field, None)
                     if value:
                         request_payload[field] = value
+                checkpoint_fields = {
+                    "same_turn_request": pack_private_checkpoint(request_payload, checkpoint),
+                    "same_turn_checkpoint": {"handoff_ttl_seconds": handoff_ttl_seconds},
+                }
+                # The request copy above holds restored Project file results only
+                # as placeholders; hand their bodies over so the resume can read them.
+                private_history = private_async_tool_history_for_handoff(request_data, checkpoint_fields)
+                if private_history:
+                    checkpoint_fields["async_tool_history"] = private_history
                 sealed = await seal_private_context_payload(
                     {"user_id": request_data.user_id, "chat_id": request_data.chat_id,
-                     "message_id": request_data.message_id,
-                     "same_turn_request": pack_private_checkpoint(request_payload, checkpoint),
-                     "same_turn_checkpoint": {"handoff_ttl_seconds": handoff_ttl_seconds}},
+                     "message_id": request_data.message_id, **checkpoint_fields},
                     request_id=batch_id, ensure_turn_binding=True,
                 )
                 task_ids = chunk["task_ids"]
@@ -7212,13 +7302,17 @@ async def _consume_main_processing_stream(
                                      kwargs={"batch_id": batch_id}, countdown=deadline_seconds + 2,
                                      queue="app_ai")
                 inference_id = request_data.recovery_task_id or request_data.recovery_inference_task_id
+                # A Focus continuation runs under the admitted root's durable delivery; the
+                # recovery pause and the Stop fence must name that root, not this child task.
+                from backend.shared.python_utils.focus_continuation_history import focus_authority_root
+                authority_delivery_id = focus_authority_root(request_data, task_id)
                 await register_barrier(
                     cache_service, batch_id=batch_id,
                     user_id=request_data.user_id, chat_id=request_data.chat_id,
                     turn_id=request_data.message_id, task_ids=task_ids,
                     checkpoint_ref=sealed["agentic_context_ref"],
                     deadline=deadline, logical_task_id=assistant_message_id,
-                    source_delivery_task_id=task_id,
+                    source_delivery_task_id=authority_delivery_id,
                     recovery_inference_task_id=inference_id if request_data.recovery_preflight_id else None,
                     handoff_ttl_seconds=handoff_ttl_seconds,
                 )
@@ -7229,7 +7323,7 @@ async def _consume_main_processing_stream(
                     pause = await ChatRecoveryService(directus_service).execute(
                         "pause_inference_for_skill", {
                             "protocol_version": 1, "inference_task_id": inference_id,
-                            "delivery_task_id": task_id, "step_id": batch_id,
+                            "delivery_task_id": authority_delivery_id, "step_id": batch_id,
                             "deadline_seconds": min(90 * 60, deadline_seconds + 4 * 60),
                         },
                     )
@@ -7411,6 +7505,10 @@ async def _consume_main_processing_stream(
                 }
                 if cache_service:
                     await _publish_to_redis(cache_service, redis_channel_name, payload, log_prefix, f"Published awaiting_user_input event to '{redis_channel_name}'")
+                await record_spawned_chat_waiting(
+                    cache_service=cache_service, encryption_service=encryption_service,
+                    request_data=request_data, message_id=assistant_message_id,
+                )
                 continue
 
             # Check for cumulative LLM usage sentinel (emitted by handle_main_processing
@@ -7497,8 +7595,8 @@ async def _consume_main_processing_stream(
                 usage = chunk
                 continue
             
-            # Check for revocation BEFORE processing the chunk
-            if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+            # Check for revocation BEFORE processing the chunk (rate-limited)
+            if revocation_probe.revoked():
                 logger.warning(f"{log_prefix} Task revoked during main processing stream. Including current chunk and finalizing partial response.")
                 was_revoked_during_stream = True
                 # Include the current chunk before breaking - don't discard it
@@ -10342,6 +10440,11 @@ async def _consume_main_processing_stream(
                 if chunk:
                     final_response_chunks.append(chunk)
                     stream_chunk_count += 1
+                    # Live answer-safety check: risky chats only, capped per answer.
+                    live_answer_withdrawal = await live_answer_gate.maybe_check("".join(final_response_chunks))
+                    if live_answer_withdrawal:
+                        logger.warning(f"{log_prefix} Live answer-safety check withdrew the answer; stopping the stream.")
+                        break
 
                 # CRITICAL: Publish chunk IMMEDIATELY without buffering
                 # This ensures paragraph-by-paragraph streaming and embed placeholders show up right away
@@ -10570,6 +10673,21 @@ async def _consume_main_processing_stream(
             )
         except Exception as e:
             logger.error(f"{log_prefix} Error finalizing table embed at end-of-stream: {e}", exc_info=True)
+
+    if live_answer_withdrawal:
+        from backend.apps.ai.processing import answer_safety
+        final_response_chunks = [await answer_safety.withdraw_answer(
+            withdrawal=live_answer_withdrawal, cache_service=cache_service,
+            encryption_service=encryption_service, user_vault_key_id=user_vault_key_id,
+            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+            chat_id=request_data.chat_id, task_id=task_id, message_id=assistant_message_id,
+            language=(request_data.user_preferences or {}).get("language", "en"),
+            extra_decision_calls=live_answer_gate.calls,
+        )]
+        debug_metadata["answer_withdrawn"] = live_answer_withdrawal.reason
+    elif live_answer_gate.calls:
+        from backend.apps.ai.processing import answer_safety
+        answer_safety.log_extra_decision_calls(task_id, live_answer_gate.calls, withdrawn=False)
 
     aggregated_response = "".join(final_response_chunks)
     if authored_inline_outputs and not was_revoked_during_stream and not was_soft_limited_during_stream:
@@ -11781,7 +11899,8 @@ async def _consume_main_processing_stream(
         logger.info(f"{log_prefix} Finished consuming stream (INTERRUPTED BY SOFT LIMIT). {log_msg_suffix}")
         stream_error_message_for_log = "Stream consumption interrupted by soft time limit."
     elif terminal_failure_reason is not None:
-        logger.error(
+        logger.log(
+            logging.WARNING if terminal_failure_reason in EXPECTED_REJECTIONS else logging.ERROR,
             "%s Finished consuming stream (FAILED: %s). %s",
             log_prefix,
             terminal_failure_reason,
@@ -11793,7 +11912,10 @@ async def _consume_main_processing_stream(
 
     # Log the aggregated output (or error) using the utility from llm_utils
     try:
-        log_main_llm_stream_aggregated_output(task_id, aggregated_response, error_message=stream_error_message_for_log)
+        log_main_llm_stream_aggregated_output(
+            task_id, aggregated_response, error_message=stream_error_message_for_log,
+            expected_failure=terminal_failure_reason in EXPECTED_REJECTIONS,
+        )
     except Exception as e_log_output:
         logger.error(f"{log_prefix} Failed to log main LLM stream aggregated output: {e_log_output}", exc_info=True)
 
@@ -12096,6 +12218,16 @@ async def _consume_main_processing_stream(
         )
         if completion_timing:
             completion_timing.mark_final_marker()
+    if not (was_revoked_during_stream or was_soft_limited_during_stream):
+        if terminal_failure_applies:
+            await record_spawned_chat_failed(
+                cache_service=cache_service, encryption_service=encryption_service, request_data=request_data,
+            )
+        else:
+            await record_spawned_chat_finished(
+                cache_service=cache_service, encryption_service=encryption_service,
+                request_data=request_data, message_id=assistant_message_id,
+            )
     if project_file_finalization_started_at is not None:
         logger.info(
             "%s ai_project_file_finalization stage=total duration_ms=%.1f outcome=ok",

@@ -132,6 +132,8 @@ from backend.shared.python_utils.saved_chat_turn_authority import (
 from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
 
+from backend.core.api.app.utils.chat_id import is_valid_uuid
+
 logger = logging.getLogger(__name__)
 
 
@@ -2333,6 +2335,16 @@ async def _drain_preparation_tasks(*tasks):
         await asyncio.gather(*pending, return_exceptions=True)
 
 
+async def _settle_metadata_before_finalize(*tasks, timeout: float = 8.0) -> None:
+    """Let the background metadata write finish before finalizing; log failures."""
+    pending = [task for task in tasks if task is not None and not task.done()]
+    if pending:
+        await asyncio.wait(pending, timeout=timeout)
+    for task in tasks:
+        if task is not None and task.done() and not task.cancelled() and task.exception():
+            logger.warning("Background metadata persistence failed (%s)", type(task.exception()).__name__)
+
+
 @asynccontextmanager
 async def _overlap_preparation(operation):
     """Join a preparation write and drain it when preparation exits early."""
@@ -2790,6 +2802,9 @@ async def _async_process_ai_skill_ask_task(
 
         from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
         await require_active_voice_dispatch(cache_service_instance, request_data)
+
+        from backend.apps.ai.tasks.async_skill_continuation import claim_queued_turn_as_latest
+        await claim_queued_turn_as_latest(cache_service_instance, request_data)
 
         from backend.shared.python_utils.focus_continuation_history import bind_focus_execution
         await bind_focus_execution(cache_service_instance, request_data, task_id)
@@ -3513,7 +3528,7 @@ async def _async_process_ai_skill_ask_task(
                 encrypted_chat_key = getattr(item, "encrypted_chat_key", None)
             except Exception as exc:
                 logger.warning("[Task ID: %s] Early typing key cache unavailable (%s)", task_id, type(exc).__name__)
-            if not encrypted_chat_key:
+            if not encrypted_chat_key and is_valid_uuid(request_data.chat_id):
                 try:
                     chats = await directus_service_instance.get_items("chats", {
                         "filter[id][_eq]": request_data.chat_id,
@@ -4110,7 +4125,7 @@ async def _async_process_ai_skill_ask_task(
                             logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from cache for typing event: {e_key}")
 
                         # Fallback: If cache miss (common for new chats), try Directus directly
-                        if not encrypted_chat_key_for_typing:
+                        if not encrypted_chat_key_for_typing and is_valid_uuid(request_data.chat_id):
                             try:
                                 ds = DirectusService()
                                 chat_data = await time_pre_main("late_key_directus", ds.get_items('chats', {
@@ -4283,9 +4298,9 @@ async def _async_process_ai_skill_ask_task(
                     logger.warning("[Task ID: %s] Sealed metadata notice unavailable (%s)",
                                    task_id, type(exc).__name__)
 
-        if early_metadata_task and initial_metadata_task:
-            # New metadata generation is wholly independent of first visible
-            # output. Its sealed notification may arrive while main is streaming.
+        if initial_metadata_task:
+            # Metadata persistence never gates first visible or spoken output
+            # (text or voice). It is joined before the turn is finalized. Its sealed notification may arrive while main is streaming.
             initial_metadata_notice_task = asyncio.create_task(publish_initial_metadata_after_seal())
 
         try:
@@ -4321,8 +4336,6 @@ async def _async_process_ai_skill_ask_task(
                         completion_timing=completion_timing,
                         voice_waiting_started_at=voice_waiting_started_at,
                         owned_live_speech=_owned_live_speech.get(),
-                        before_first_chunk_publish=(publish_initial_metadata_after_seal
-                            if initial_metadata_task and not early_metadata_task else None),
                     )
                 if not revoked_in_consumer and not soft_limited_in_consumer:
                     budget_failure = _orchestration_budget_failure_result(main_processor_debug_metadata)
@@ -4334,7 +4347,7 @@ async def _async_process_ai_skill_ask_task(
                         rejection = preprocessing_result.rejection_reason
                         bounded_reason = rejection if rejection in {
                             "insufficient_credits", "harmful_or_illegal_detected", "misuse_detected",
-                            "internal_error_llm_preprocessing_failed",
+                            "request_purpose_declined", "internal_error_llm_preprocessing_failed",
                         } else "preprocessing_rejected"
                         await _cleanup_on_task_failure(
                             task_id=task_id, chat_id=request_data.chat_id, message_id=request_data.message_id,
@@ -4357,9 +4370,11 @@ async def _async_process_ai_skill_ask_task(
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
             if getattr(request_data, "_pending_async_recovery_handoff", None):
                 # Reuse the canonical atomic queue drain/transfer, including
-                # accepted followers that arrived before this source paused.
+                # accepted followers that arrived before this source paused. A Focus
+                # continuation releases the admitted root's marker, as cleanup does.
+                from backend.shared.python_utils.focus_continuation_history import focus_authority_root
                 handoff = await _handoff_queued_after_task_failure(
-                    request_data, skill_config_dict, task_id,
+                    request_data, skill_config_dict, focus_authority_root(request_data, task_id),
                     cache_service_instance, directus_service_instance,
                 )
                 if handoff is _FailureHandoffOutcome.OWNED_MARKER_CLEARED:
@@ -4527,6 +4542,7 @@ async def _async_process_ai_skill_ask_task(
                     debug_cache_task, debug_cache_started_at, wait_for_budget=False,
                     write_cancelled=debug_cache_write_cancelled,
                 )
+            await _settle_metadata_before_finalize(initial_metadata_notice_task, initial_metadata_task)
             await _drain_preparation_tasks(initial_metadata_notice_task, initial_metadata_task, early_metadata_task)
 
     if legacy_batch_proof is not None:
@@ -5055,8 +5071,10 @@ async def _async_process_ai_skill_ask_task(
             # - user_system_language: the user's UI/system language from their profile (for new chat suggestions)
             # This ensures new chat suggestions are always in the user's system language,
             # preventing a mixed-language welcome screen for multilingual users.
-            chat_output_language = preprocessing_result.output_language if preprocessing_result else "en"
             user_system_language = request_data.user_preferences.get("language", "en") if request_data.user_preferences else "en"
+            # The conversation language is also the chat metadata language; without a
+            # preprocessing detection it falls back to the displayed UI / account language.
+            chat_output_language = preprocessing_result.output_language if preprocessing_result else user_system_language
             follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
             recommendations_enabled = (request_data.user_preferences or {}).get("recommendations_enabled", True) is not False
             effective_learning_mode_context = (
@@ -5339,6 +5357,44 @@ async def _async_process_ai_skill_ask_task(
     else:
         reason = "request is external" if request_data.is_external else "no response content or soft-limited"
         logger.info(f"[Task ID: {task_id}] Skipping post-processing (reason: {reason}, task_was_soft_limited={task_was_soft_limited}, has_response={bool(aggregated_final_response)})")
+
+    # --- Answer safety: every finished answer is checked together with its request ---
+    # Runs for incognito and external requests too. Scores from the postprocessing
+    # decision call are reused; otherwise one minimal call is made. A withdrawn
+    # answer never gives the user a strike.
+    if (aggregated_final_response and not task_was_soft_limited
+            and not (main_processor_debug_metadata or {}).get("answer_withdrawn")):
+        from backend.apps.ai.processing import answer_safety
+        from backend.apps.ai.tasks.stream_consumer import _assistant_message_id as _answer_message_id
+
+        safety_user_message = next((
+            msg.content for msg in reversed(request_data.message_history or [])
+            if msg.role == "user" and msg.sender_name != "async_tool_result"
+        ), "")
+        safety_withdrawal, safety_extra_calls = await answer_safety.decide_finished_answer(
+            postprocessing_scores=postprocessing_result.answer_safety_scores if postprocessing_result else None,
+            decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
+            user_message=safety_user_message,
+            assistant_response=aggregated_final_response,
+            secrets_manager=secrets_manager,
+            task_id=task_id,
+        )
+        if safety_withdrawal and cache_service_instance:
+            aggregated_final_response = await answer_safety.withdraw_answer(
+                withdrawal=safety_withdrawal,
+                cache_service=cache_service_instance,
+                encryption_service=encryption_service_instance,
+                user_vault_key_id=user_vault_key_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                chat_id=request_data.chat_id,
+                task_id=task_id,
+                message_id=_answer_message_id(task_id, request_data),
+                language=(request_data.user_preferences or {}).get("language", "en"),
+                extra_decision_calls=safety_extra_calls,
+            )
+        else:
+            answer_safety.log_extra_decision_calls(task_id, safety_extra_calls, withdrawn=False)
 
     # Determine final status based on local flags
     final_status_message = "completed"

@@ -72,8 +72,21 @@
     enhanceError?: string;
     /** Reason shown as tooltip/accessible name while unavailable. */
     enhanceUnavailableReason?: string;
+    /**
+     * Edit mode is on: the round Edit button shows a check mark and `onEdit`
+     * must save the changes and leave edit mode (one button for every editable
+     * embed type; spec embed-user-edits.header.edit-save-button).
+     */
     editActive?: boolean;
-    /** 'close' (default) keeps Edit beside Close; 'share' shows it before Share. */
+    /** While true the check-mark button is disabled and announces that it is saving. */
+    editBusy?: boolean;
+    /**
+     * A plain on/off mode instead of an edit that is saved (the video timeline,
+     * whose changes are sent as an AI request with its own Apply): while active
+     * the button stays a filled pencil and turns the mode off.
+     */
+    editToggleOnly?: boolean;
+    /** 'share' (default, every editable embed type) shows Edit at the start of the header row; 'close' keeps it beside Close. */
     editPlacement?: 'close' | 'share';
     editTestId?: string;
     editLabel?: string;
@@ -126,7 +139,9 @@
     enhanceError,
     enhanceUnavailableReason,
     editActive = false,
-    editPlacement = 'close',
+    editBusy = false,
+    editToggleOnly = false,
+    editPlacement = 'share',
     editTestId = 'embed-edit-button',
     editLabel,
     reportInMore = false,
@@ -174,12 +189,17 @@
 </script>
 
 {#snippet editButton()}
+  {@const saveState = editActive && !editToggleOnly}
+  {@const label = !saveState ? (editLabel ?? $text('embed_user_edits.header_edit'))
+    : editBusy ? $text('embed_user_edits.header_saving') : $text('embed_user_edits.header_save')}
   <div class="button-wrapper" class:edit-active={editActive}>
     <button class="header-action" type="button" use:tooltip data-testid={editTestId}
-      onclick={onEdit} aria-label={editLabel ?? $text('diagrams.edit')}
-      aria-pressed={editActive}>
-      <span class="clickable-icon edit-icon top-button" data-testid="embed-edit-icon" aria-hidden="true"></span>
-      <span class="action-label">{editLabel ?? $text('diagrams.edit')}</span>
+      data-edit-state={saveState ? 'save' : 'edit'}
+      onclick={onEdit} aria-label={label} aria-pressed={editActive} aria-busy={editBusy}
+      disabled={saveState && editBusy}>
+      <span class="clickable-icon top-button" class:edit-icon={!saveState} class:save-icon={saveState}
+        data-testid={saveState ? 'embed-edit-save-icon' : 'embed-edit-icon'} aria-hidden="true"></span>
+      <span class="action-label">{label}</span>
     </button>
   </div>
 {/snippet}
@@ -204,7 +224,7 @@
   </div>
 {/snippet}
 
-<div class="embed-top-bar" use:headerOverlayControls>
+<div class="embed-top-bar" data-testid="embed-top-bar" use:headerOverlayControls>
   <HeaderActionMenu reportInMenu={reportInMore} leadingAction={onEdit && editPlacement === 'share' ? editButton : undefined} hasShare={showShare} responsiveAction={onEnhance ? enhanceButton : undefined} hasPriorityAction={Boolean((showPIIToggle && onTogglePII) || headerPrimaryAction)} actionCount={secondaryActionCount} forceOverflow={!!onImport}>
     {#snippet report()}
       <!-- Report Issue (always shown) -->
@@ -492,6 +512,8 @@
 <style>
   .primary-action-group { display: flex; align-items: center; gap: var(--spacing-4); }
   .edit-icon { -webkit-mask-image: url('@openmates/ui/static/icons/edit.svg'); mask-image: url('@openmates/ui/static/icons/edit.svg'); }
+  .save-icon { -webkit-mask-image: url('@openmates/ui/static/icons/check.svg'); mask-image: url('@openmates/ui/static/icons/check.svg'); }
+  .button-wrapper.edit-active button:disabled { opacity: 0.6; cursor: progress; }
   /* Pressed edit toggle: filled primary pill with a white pen; over the banner
      a stronger translucent fill plus a white ring keeps the state legible. */
   .button-wrapper.edit-active { background-color: var(--color-primary-start); }

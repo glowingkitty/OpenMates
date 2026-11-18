@@ -53,9 +53,13 @@ async def _handle_call_lifecycle(
         confirmation = {"chat_id": chat_id, "message_id": message_id, "messages_v": version}
         await cache_service.set(system_message_confirmation_cache_key(user_id, chat_id, message_id),
             confirmation, ttl=SYSTEM_MESSAGE_CONFIRMATION_TTL_SECONDS)
-        await manager.send_personal_message({"type": "system_message_confirmed", "payload": confirmation}, user_id, device_hash)
         data = {"message_id": message_id, "role": "system", "encrypted_content": content,
             "created_at": created_at, "status": message_status or "synced"}
+        # The sender's client core keeps its own chat history (it builds the
+        # AI history of the next turn), so the receipt carries the stored
+        # ciphertext row too; the cached replay marker stays version-only.
+        await manager.send_personal_message({"type": "system_message_confirmed",
+            "payload": {**confirmation, **data}}, user_id, device_hash)
         if encrypted_chat_key:
             data["encrypted_chat_key"] = encrypted_chat_key
         await manager.broadcast_to_user({"type": "new_system_message", "event": "new_system_message",
@@ -286,7 +290,14 @@ async def handle_chat_system_message_added(
                     "payload": {
                         "chat_id": chat_id,
                         "message_id": message_id,
-                        "messages_v": new_messages_v
+                        "messages_v": new_messages_v,
+                        # Stored ciphertext row for the sender's client core
+                        # history (same fields as the other-device broadcast).
+                        "role": "system",
+                        "encrypted_content": encrypted_content,
+                        "created_at": created_at,
+                        **({"user_message_id": user_message_id} if user_message_id else {}),
+                        **({"status": message_status} if message_status else {}),
                     }
                 },
                 user_id,

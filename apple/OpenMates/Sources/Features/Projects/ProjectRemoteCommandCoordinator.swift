@@ -1,5 +1,14 @@
-import CryptoKit
+// Remote command review cards (agentic coding). Validation, the acceptance
+// policy, the canonical request and digest, decision payloads, output hygiene,
+// the event reducer, the origin completion and status mapping live in the Rust
+// core (`remote_command_review`, UniFFI `view_remote_commands`). This file keeps
+// the per-card fence bookkeeping, CryptoKit/encrypt adapters and view state.
+// Web counterpart: frontend/packages/ui/src/services/browserRemoteCommandClient.ts,
+// frontend/packages/ui/src/components/projects/RemoteCommandReviewCard.svelte
+// Specification: specifications/features/app-skills/code-run/specification.yml
+// Assertions: code-run.remote.managed-jobs
 import Combine
+import CryptoKit
 import Foundation
 
 struct ProjectRemoteCommandPolicy: Decodable {
@@ -34,26 +43,46 @@ struct ProjectRemoteCommandReview: Decodable {
     let command: ProjectRemoteCommandPolicy
     let explanation: ProjectRemoteCommandExplanation
 
-    func validate() throws {
-        let identifier = try NSRegularExpression(pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-        guard protocolVersion == 1, state == "REVIEW_REQUIRED", reviewToken.count >= 32,
-              reviewExpiresAt > createdAt,
-              [executionId, chatId, projectId, sourceId].allSatisfy({
-                  identifier.firstMatch(in: $0, range: NSRange($0.startIndex..<$0.endIndex, in: $0)) != nil
-              }),
-              approvalRequirement == "one_run" || approvalRequirement == "one_run_or_preset",
-              !command.argv.isEmpty, command.argv.count <= 128,
-              command.argv.allSatisfy({ !$0.isEmpty && !$0.contains("\0") && $0.count <= 128 }),
-              !command.cwd.isEmpty, command.cwd.count <= 1024,
-              !command.cwd.hasPrefix("/"), !command.cwd.contains("\\"),
-              !command.cwd.split(separator: "/").contains(".."),
-              ["foreground", "background"].contains(command.mode),
-              ["read_only", "read_write"].contains(command.sourceAccess),
-              (100...86_400_000).contains(command.deadlineMs),
-              command.writableProfiles.count <= 32, command.credentialProfiles.count <= 32,
-              explanation.summary.count <= 16_384 else {
-            throw ProjectsWorkspaceError.invalidResponse
-        }
+}
+
+extension ProjectRemoteCommandReview {
+    /// Card view of a review the core validated (`parseRemoteCommandReview`).
+    init(record: RemoteCommandReviewRecord) {
+        protocolVersion = 1
+        executionId = record.executionId
+        chatId = record.chatId
+        projectId = record.projectId
+        sourceId = record.sourceId
+        state = "REVIEW_REQUIRED"
+        createdAt = Int(clamping: record.createdAt)
+        reviewExpiresAt = Int(clamping: record.reviewExpiresAt)
+        reviewToken = record.reviewToken
+        approvalRequirement = record.approvalRequirement
+        command = ProjectRemoteCommandPolicy(argv: record.command.argv, cwd: record.command.cwd,
+            mode: record.command.mode, sourceAccess: record.command.sourceAccess,
+            deadlineMs: Int(clamping: record.command.deadlineMs),
+            writableProfiles: record.command.writableProfiles,
+            networkProfile: record.command.networkProfile,
+            credentialProfiles: record.command.credentialProfiles)
+        explanation = ProjectRemoteCommandExplanation(summary: record.explanation.summary,
+            effects: record.explanation.effects, risks: record.explanation.risks,
+            uncertainty: record.explanation.uncertainty)
+    }
+
+    /// The record the core functions take (policy decisions run in the core).
+    var record: RemoteCommandReviewRecord {
+        RemoteCommandReviewRecord(executionId: executionId, chatId: chatId, projectId: projectId,
+            sourceId: sourceId, createdAt: UInt64(max(0, createdAt)),
+            reviewExpiresAt: UInt64(max(0, reviewExpiresAt)), reviewToken: reviewToken,
+            approvalRequirement: approvalRequirement,
+            command: RemoteCommandPolicyRecord(argv: command.argv, cwd: command.cwd,
+                mode: command.mode, sourceAccess: command.sourceAccess,
+                deadlineMs: UInt64(max(0, command.deadlineMs)),
+                writableProfiles: command.writableProfiles, networkProfile: command.networkProfile,
+                credentialProfiles: command.credentialProfiles),
+            explanation: RemoteCommandExplanationRecord(summary: explanation.summary,
+                effects: explanation.effects, risks: explanation.risks,
+                uncertainty: explanation.uncertainty))
     }
 }
 
@@ -122,11 +151,17 @@ final class ProjectRemoteCommandCoordinator: ObservableObject {
     func receiveReview(_ payload: [String: Any], accountID: String,
                        activeChatID: String,
                        validateAuthority: @MainActor () throws -> Void = {}) async throws {
-        let review = try Self.decode(ProjectRemoteCommandReview.self, payload)
-        try review.validate()
-        guard review.chatId == activeChatID,
-              review.reviewExpiresAt > Int(Date().timeIntervalSince1970),
-              entries.count < 32 else { throw ProjectsWorkspaceError.invalidContext }
+        // Validation and the acceptance policy (chat, expiry, window cap) run in the core.
+        let record: RemoteCommandReviewRecord
+        do {
+            record = try parseRemoteCommandReview(payloadJson: Self.jsonText(payload))
+        } catch { throw ProjectsWorkspaceError.invalidResponse }
+        do {
+            try checkRemoteCommandReviewAcceptable(review: record, activeChatId: activeChatID,
+                nowUnix: UInt64(max(0, Date().timeIntervalSince1970)),
+                openReviews: UInt32(entries.count))
+        } catch { throw ProjectsWorkspaceError.invalidContext }
+        let review = ProjectRemoteCommandReview(record: record)
         let fence = ProjectsWorkspaceFence(accountID: accountID)
         let requestGeneration = generation
         let context = try await contextResolver.resolve(chatID: review.chatId,
@@ -162,9 +197,8 @@ final class ProjectRemoteCommandCoordinator: ObservableObject {
         if !accepted {
             _ = try currentReview(matching: displayed, accountID: accountID,
                 activeChatID: activeChatID, allowedStatuses: ["pending"])
-            try await send("remote_command_reject", ["protocol_version": 1,
-                "execution_id": review.executionId, "chat_id": review.chatId,
-                "project_id": review.projectId, "review_token": review.reviewToken])
+            try await send("remote_command_reject",
+                try Self.jsonObject(remoteCommandRejectPayloadJson(review: review.record)))
             try await fence.check()
             try ensureActive(requestGeneration)
             _ = try currentReview(matching: displayed, accountID: accountID,
@@ -181,17 +215,14 @@ final class ProjectRemoteCommandCoordinator: ObservableObject {
         // The web approval gate is the fresh active Project focus. The source
         // host applies the command's declared read/write sandbox policy.
         let canonical = Self.canonicalPortableRequest(review)
-        let identity = Self.jsonArray(["openmates-remote-command-request-v1", canonical])
-        let digest = HMAC<SHA256>.authenticationCode(for: Data(identity.utf8), using: context.project.key)
+        // CryptoKit is the platform primitive; the digest and payload shape are core policy.
+        let keyBytes = context.project.key.withUnsafeBytes { Data($0) }
+        let digest = try remoteCommandRequestDigest(canonicalRequest: canonical, projectKey: keyBytes)
         let encrypted = try await CryptoManager.shared.encryptWithMasterKey(canonical,
             masterKey: context.project.key)
         try ensureActive(requestGeneration)
-        let payload: [String: Any] = ["protocol_version": 1,
-            "execution_id": review.executionId, "chat_id": review.chatId,
-            "project_id": review.projectId, "source_id": review.sourceId,
-            "review_token": review.reviewToken, "encrypted_request": encrypted,
-            "request_digest": Self.base64URL(Data(digest)),
-            "approval": ["kind": "one_run"]]
+        let payload = try Self.jsonObject(remoteCommandPreparePayloadJson(review: review.record,
+            encryptedRequest: encrypted, requestDigest: digest))
         try await fence.check()
         try ensureActive(requestGeneration)
         _ = try currentReview(matching: displayed, accountID: accountID,
@@ -206,7 +237,8 @@ final class ProjectRemoteCommandCoordinator: ObservableObject {
 
     func stop(_ displayed: Entry, accountID: String, activeChatID: String,
               send: @MainActor (String, [String: Any]) async throws -> Void) async throws {
-        let activeStatuses: Set<String> = ["preparing", "waiting_for_executor", "authorizing", "running"]
+        let activeStatuses = Set(["preparing", "waiting_for_executor", "authorizing", "running"]
+            .filter { remoteCommandIsStoppable(status: $0) })
         let entry = try currentReview(matching: displayed, accountID: accountID,
             activeChatID: activeChatID, allowedStatuses: activeStatuses)
         let id = displayed.id
@@ -216,9 +248,8 @@ final class ProjectRemoteCommandCoordinator: ObservableObject {
         try ensureActive(requestGeneration)
         _ = try currentReview(matching: displayed, accountID: accountID,
             activeChatID: activeChatID, allowedStatuses: activeStatuses)
-        try await send("remote_command_stop", ["protocol_version": 1,
-            "execution_id": entry.id, "chat_id": entry.review.chatId,
-            "project_id": entry.review.projectId])
+        try await send("remote_command_stop",
+            try Self.jsonObject(remoteCommandStopPayloadJson(review: entry.review.record)))
         try await fence.check()
         try ensureActive(requestGeneration)
         _ = try currentReview(matching: displayed, accountID: accountID,
@@ -270,9 +301,6 @@ final class ProjectRemoteCommandCoordinator: ObservableObject {
               event["sequence"] as? Int == sequence,
               event["event_kind"] as? String == eventKind,
               event["status"] as? String == status,
-              ["status", "output", "output_truncated", "terminal"].contains(eventKind),
-              ["authorizing", "running", "succeeded", "failed", "stopped", "timed_out"].contains(status),
-              (eventKind == "terminal") == ["succeeded", "failed", "stopped", "timed_out"].contains(status),
               let current = entries.firstIndex(where: { $0.id == id }),
               entries[current].reviewID == reviewID,
               entries[current].scope == fence.scope else { throw ProjectsWorkspaceError.invalidResponse }
@@ -283,35 +311,25 @@ final class ProjectRemoteCommandCoordinator: ObservableObject {
         guard entries[current].pendingCompletion == nil || replay else {
             throw ProjectsWorkspaceError.invalidResponse
         }
-        guard sequence > entries[current].lastSequence || replay else {
-            throw ProjectsWorkspaceError.invalidResponse
-        }
         try await checkEventFence(fence)
         try ensureActive(requestGeneration)
         if !replay {
-            if sequence != entries[current].lastSequence + 1 { entries[current].hasSequenceGap = true }
-            entries[current].lastSequence = sequence
-            entries[current].status = status
-            if eventKind == "output", let output = event["text"] as? String {
-                entries[current].latestOutput += Self.cleanTerminalText(output)
-                if entries[current].latestOutput.count > 48_000 {
-                    entries[current].latestOutput = Self.boundedOutput(entries[current].latestOutput)
-                    entries[current].upstreamTruncated = true
-                }
-            }
-            if eventKind == "output_truncated" { entries[current].upstreamTruncated = true }
+            // Kind/status pairing, sequence order, output hygiene and bounds are core policy.
+            let folded: RemoteCommandOutputRecord
+            do {
+                folded = try remoteCommandApplyEvent(state: entries[current].outputRecord,
+                    eventKind: eventKind, status: status, sequence: Int64(sequence),
+                    text: eventKind == "output" ? event["text"] as? String : nil)
+            } catch { throw ProjectsWorkspaceError.invalidResponse }
+            entries[current].apply(folded)
+        } else if sequence != entries[current].lastSequence {
+            // A replay may only repeat the sequence it already applied.
+            throw ProjectsWorkspaceError.invalidResponse
         }
         guard eventKind == "terminal", !entries[current].completionSent else { return }
         if !replay {
-            let output = Self.boundedOutput(entries[current].latestOutput)
-            let modelText = entries[current].hasSequenceGap
-                ? "[Incomplete terminal output: one or more event sequences were unavailable.]\n" + output : output
-            let truncated = entries[current].upstreamTruncated || entries[current].hasSequenceGap
-            var completion: [String: Any] = ["protocol_version": 1, "execution_id": id,
-                "chat_id": review.chatId, "project_id": review.projectId,
-                "result_status": status, "model_text": modelText,
-                "upstream_truncated": truncated]
-            if truncated { completion["omitted_chars"] = max(0, entries[current].latestOutput.count - output.count) }
+            let completion = try Self.jsonObject(remoteCommandCompletionPayloadJson(
+                review: review.record, state: entries[current].outputRecord))
             entries[current].pendingTerminalCiphertext = ciphertext
             entries[current].pendingTerminalSequence = sequence
             entries[current].pendingCompletion = completion
@@ -352,12 +370,9 @@ final class ProjectRemoteCommandCoordinator: ObservableObject {
             entries[index].errorCode = payload["code"] as? String ?? "remote_command_failed"
             return
         }
-        switch payload["state"] as? String {
-        case "WAITING_FOR_EXECUTOR": entries[index].status = "waiting_for_executor"
-        case "STOP_REQUESTED": entries[index].status = "stop_requested"
-        case "REJECTED": entries[index].status = "rejected"
-        case "TERMINAL": entries[index].status = payload["result_status"] as? String ?? "succeeded"
-        default: break
+        if let mapped = remoteCommandStatusForResponse(kind: kind, state: payload["state"] as? String,
+            resultStatus: payload["result_status"] as? String) {
+            entries[index].status = mapped
         }
     }
 
@@ -366,53 +381,41 @@ final class ProjectRemoteCommandCoordinator: ObservableObject {
     }
 
     static func canonicalPortableRequest(_ review: ProjectRemoteCommandReview) -> String {
-        let command = review.command
-        let policy = "{\"argv\":\(jsonArray(command.argv)),\"cwd\":\(jsonString(command.cwd))," +
-            "\"mode\":\(jsonString(command.mode)),\"source_access\":\(jsonString(command.sourceAccess))," +
-            "\"deadline_ms\":\(command.deadlineMs),\"writable_profiles\":\(jsonArray(command.writableProfiles))," +
-            "\"network_profile\":\(command.networkProfile.map(jsonString) ?? "null")," +
-            "\"credential_profiles\":\(jsonArray(command.credentialProfiles))}"
-        return "{\"protocol_version\":1,\"execution_id\":\(jsonString(review.executionId))," +
-            "\"chat_id\":\(jsonString(review.chatId)),\"project_id\":\(jsonString(review.projectId))," +
-            "\"source_id\":\(jsonString(review.sourceId)),\"policy\":\(policy)," +
-            "\"approval\":{\"kind\":\"one_run\"}}"
+        remoteCommandCanonicalRequest(review: review.record)
     }
 
-    private static func decode<T: Decodable>(_ type: T.Type, _ payload: [String: Any]) throws -> T {
+    /// Marshal a wire payload for the core (JSON text); the core owns its shape.
+    private static func jsonText(_ payload: [String: Any]) throws -> String {
         let data = try JSONSerialization.data(withJSONObject: payload)
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return try decoder.decode(type, from: data)
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw ProjectsWorkspaceError.invalidResponse
+        }
+        return text
     }
 
-    private static func jsonString(_ value: String) -> String {
-        let data = try! JSONSerialization.data(withJSONObject: [value], options: [.withoutEscapingSlashes])
-        let encoded = String(data: data, encoding: .utf8)!
-        return String(encoded.dropFirst().dropLast())
+    /// Decode a core-built payload for the WebSocket sender.
+    private static func jsonObject(_ text: String) throws -> [String: Any] {
+        guard let object = try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any] else {
+            throw ProjectsWorkspaceError.invalidResponse
+        }
+        return object
+    }
+}
+
+extension ProjectRemoteCommandCoordinator.Entry {
+    /// The card's output state as the core reducer takes it.
+    var outputRecord: RemoteCommandOutputRecord {
+        RemoteCommandOutputRecord(lastSequence: Int64(lastSequence), status: status,
+            latestOutput: latestOutput, hasSequenceGap: hasSequenceGap,
+            upstreamTruncated: upstreamTruncated)
     }
 
-    private static func jsonArray(_ values: [String]) -> String {
-        let data = try! JSONSerialization.data(withJSONObject: values, options: [.withoutEscapingSlashes])
-        return String(data: data, encoding: .utf8)!
-    }
-
-    private static func base64URL(_ data: Data) -> String {
-        data.base64EncodedString().replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
-    }
-
-    private static func cleanTerminalText(_ value: String) -> String {
-        value.replacingOccurrences(of: "\\u{001B}\\][^\\u{0007}\\u{001B}]*(?:\\u{0007}|\\u{001B}\\\\)",
-                                     with: "", options: .regularExpression)
-            .replacingOccurrences(of: "\\u{001B}\\[[0-?]*[ -/]*[@-~]", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "[\\u{202A}-\\u{202E}\\u{2066}-\\u{2069}\\u{0000}-\\u{001F}\\u{007F}]",
-                                  with: "", options: .regularExpression)
-    }
-
-    private static func boundedOutput(_ value: String) -> String {
-        guard value.count > 24_000 else { return value }
-        let marker = "\n\n[... terminal output omitted ...]\n\n"
-        let half = (24_000 - marker.count) / 2
-        return String(value.prefix(half)) + marker + String(value.suffix(half))
+    /// Store the core reducer's result back on the card.
+    mutating func apply(_ record: RemoteCommandOutputRecord) {
+        lastSequence = Int(clamping: record.lastSequence)
+        status = record.status
+        latestOutput = record.latestOutput
+        hasSequenceGap = record.hasSequenceGap
+        upstreamTruncated = record.upstreamTruncated
     }
 }

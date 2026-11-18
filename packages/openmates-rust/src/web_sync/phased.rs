@@ -208,6 +208,7 @@ pub fn metadata_only_chat(
         "encrypted_suggested_followup_message",
         "encrypted_active_focus_id",
         "encrypted_focus_phase_state",
+        "encrypted_wellbeing_scores",
         "encrypted_auto_speak_response",
     ] {
         put(key, Some(or_null(d(key))));

@@ -196,6 +196,13 @@ async def _async_focus_mode_auto_confirm(
         logger.warning(f"{log_prefix} Focus continuation history unavailable: {exc.code}")
         await publish_current_focus_continuation_failure(cache_service, pending_context)
         return
+    live_mock_marker = pending_context.get("live_mock_marker")
+    if isinstance(live_mock_marker, str) and live_mock_marker and message_history:
+        # Signed isolated-CI replay marker (mock_context.signed_focus_continuation_marker):
+        # the cached user turn has none, and ask_skill re-verifies it for this account.
+        latest_user = message_history[-1]
+        if latest_user.get("role") == "user" and isinstance(latest_user.get("content"), str):
+            latest_user["content"] = f"{latest_user['content']} {live_mock_marker}"
     from backend.core.api.app.services.embed_service import EmbedService
     embed_file_path_index = await resolve_continuation_embed_references(
         message_history,
@@ -286,6 +293,7 @@ async def _async_focus_mode_auto_confirm(
             "team_id_hash": pending_context.get("team_id_hash"),
             "team_workspace_type": pending_context.get("team_workspace_type", "chat"),
             "team_object_id_hash": pending_context.get("team_object_id_hash"),
+            "client_capabilities": list(pending_context.get("client_capabilities") or []),
             # Signal that this is a continuation after focus mode activation.
             # The task should NOT re-persist the user message (it's already persisted).
             # This continuation creates a SEPARATE assistant message (new task_id = new message_id).

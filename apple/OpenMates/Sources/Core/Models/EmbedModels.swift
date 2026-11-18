@@ -885,6 +885,8 @@ enum EmbedType: String, CaseIterable {
     case codeApplication = "code-application"
     case codeTestResult = "code-test-result"
     case designIconResult = "design-icon-result"
+    case designEmbroidery = "design-embroidery"
+    case slidesDeck = "slides-deck"
     case docsDoc = "docs-doc"
     case diagramsMermaid = "diagrams-mermaid"
     case mindmapsMindmap = "mindmaps-mindmap"
@@ -901,6 +903,7 @@ enum EmbedType: String, CaseIterable {
     case models3dModelResult = "models3d-model-result"
     case sheetsSheet = "sheets-sheet"
     case focusModeActivation = "focus-mode-activation"
+    case helplines = "helplines"
     case socialMediaPost = "social-media-post"
     case tasksTask = "tasks-task"
     case weatherDay = "weather-day"
@@ -996,6 +999,8 @@ enum EmbedType: String, CaseIterable {
         case "test_result": return .codeTestResult
         case "code-block", "code_embed": return .codeCode
         case "icon_result": return .designIconResult
+        case "app:design:embroidery", "embroidery": return .designEmbroidery
+        case "deck": return .slidesDeck
         case "document": return .docsDoc
         case "pcb_schematic": return .electronicsPcbSchematic
         case "component": return .electronicsComponent
@@ -1095,7 +1100,8 @@ enum EmbedType: String, CaseIterable {
         guard raw.hasPrefix("app:") else {
             switch self {
             case .codeRepo, .codeCode, .codeNotebook, .codeApplication, .codeTestResult: return "code"
-            case .designIconResult: return "design"
+            case .designIconResult, .designEmbroidery: return "design"
+            case .slidesDeck: return "slides"
             case .docsDoc: return "docs"
             case .diagramsMermaid: return "diagrams"
             case .mindmapsMindmap: return "mindmaps"
@@ -1150,6 +1156,8 @@ enum EmbedType: String, CaseIterable {
         case .codeGetDocs: return "Docs"
         case .designSearchIcons: return "Icon Search"
         case .designIconResult: return "Icon"
+        case .designEmbroidery: return "Embroidery"
+        case .slidesDeck: return "Slides"
         case .docsDoc: return "Document"
         case .diagramsMermaid: return "Diagram"
         case .mindmapsMindmap: return "Mind Map"
@@ -1213,6 +1221,7 @@ enum EmbedType: String, CaseIterable {
         case .travelPriceCalendar: return "Price Calendar"
         case .travelFlight: return "Flight"
         case .focusModeActivation: return "Focus Mode"
+        case .helplines: return "Helplines"
         case .reminderSet, .reminderList, .reminderCancel: return "Reminder"
         case .weatherForecast: return "Forecast"
         case .weatherRainRadar: return "Rain Radar"

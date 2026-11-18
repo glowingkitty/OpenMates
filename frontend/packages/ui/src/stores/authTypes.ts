@@ -26,6 +26,7 @@ export interface SessionCheckResult {
   password_fallback_available?: boolean; // Password plus email can verify this device when a passkey is unavailable.
   token_refresh_needed?: boolean;
   require_invite_code?: boolean; // Indicates if invite code is required for signup
+  account_suspension?: unknown; // Set when the account is safety-suspended (see accountSuspension store)
   ws_token?: string; // WebSocket authentication token (for Safari iOS compatibility)
   session_device_info?: { device_name: string; ip_truncated: string; country_code: string | null; city: string | null }; // Plaintext session device info for client-side encryption
   session_meta_registered?: boolean; // Whether encrypted session metadata has been registered

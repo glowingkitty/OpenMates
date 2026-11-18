@@ -37,6 +37,7 @@ from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free
 from backend.core.api.app.routes import reminder_email_preview  # noqa: E402
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import recent_work_internal  # noqa: E402
+from backend.core.api.app.routes import internal_upload_safety  # noqa: E402
 from backend.core.api.app.routes import chat_sync_feed  # noqa: E402 # Chat sync feed (architecture.sync@2)
 from backend.core.api.app.routes import internal_health  # noqa: E402
 from backend.core.api.app.routes import apps_workspace_requests, apps_workspace_recommendations, apps_workspace_public  # noqa: E402
@@ -48,6 +49,9 @@ from backend.core.api.app.routes.push import router as push_router, notification
 from backend.core.api.app.services.push_notification_service import push_notification_service  # noqa: E402
 from backend.core.api.app.routes import admin_debug  # noqa: E402 # Import admin debug router for remote debugging
 from backend.core.api.app.routes import admin_growth_metrics  # noqa: E402 # Aggregate growth counts for the daily meeting (admin API key)
+from backend.shared.python_utils.image_safety.account_suspension import AccountSuspendedError  # noqa: E402
+from backend.core.api.app.routes import safety_appeals  # noqa: E402 # User appeal of a safety suspension
+from backend.core.api.app.routes import admin_safety_reviews  # noqa: E402 # Admin review of safety-suspended accounts
 from backend.core.api.app.routes import admin_newsletter_campaigns  # noqa: E402 # Hidden admin newsletter campaign scheduler
 from backend.core.api.app.routes import admin_client_logs  # noqa: E402 # Import admin client log forwarding router
 from backend.core.api.app.routes import client_logs_ephemeral  # noqa: E402 # Import ephemeral client log forwarding (all users, anonymized)
@@ -70,6 +74,7 @@ from backend.core.api.app.routes import features  # noqa: E402 # Feature availab
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import projects  # noqa: E402 # Import projects workspace router
 from backend.core.api.app.routes import project_authoring  # noqa: E402 # Owner-scoped background Project authoring
+from backend.core.api.app.routes import project_timeline  # noqa: E402 # Project timeline read API (first-party)
 from backend.core.api.app.routes import project_commits  # noqa: E402 # Native Project commits (first-party, client-encrypted)
 from backend.core.api.app.routes import project_item_links  # noqa: E402 # Project embed adopt/rename/delete (first-party, client-encrypted)
 from backend.core.api.app.routes import embed_user_revisions  # noqa: E402 # User-made embed versions and pending chat notices (first-party, client-encrypted)
@@ -85,12 +90,14 @@ from backend.core.api.app.routes import connected_account_setup  # noqa: E402 # 
 from backend.core.api.app.routes import connected_account_actions  # noqa: E402 # Connected-account operation actions
 from backend.core.api.app.routes import connected_account_oauth  # noqa: E402 # One-time connected-account OAuth handoffs
 from backend.core.api.app.routes import provider_oauth_google_calendar  # noqa: E402 # Google Calendar connected-account OAuth adapter
+from backend.core.api.app.routes import provider_oauth_figma  # noqa: E402 # Figma connected-account OAuth adapter
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
 from backend.core.api.app.routes import learning_mode  # noqa: E402 # Account-wide Learning Mode policy endpoints
 from backend.core.api.app.routes import teams  # noqa: E402 # Teams V1 endpoints
 from backend.core.api.app.routes import workflows  # noqa: E402 # Server-side Workflows V1 endpoints
 from backend.core.api.app.routes import user_plans  # noqa: E402 # User-facing Plans V1 endpoints
 from backend.core.api.app.routes import user_specifications  # noqa: E402
+from backend.core.api.app.routes import user_checks  # noqa: E402 # Reusable mixed-source Checks (first-party, client-encrypted)
 from backend.core.api.app.routes import memory_suggestions  # noqa: E402 # Transient memory/workflow suggestion preview
 from backend.core.api.app.routes import images_enhance  # noqa: E402 # Image Enhance (first-party, carries file keys)
 from backend.core.api.app.routes import user_tasks  # noqa: E402 # User-facing Tasks V1 endpoints
@@ -1018,14 +1025,21 @@ async def lifespan(app: FastAPI):
     app.state.connection_manager = websockets.manager
     websockets.manager.storage_archive_dispatch_guard_installed = True
     compatibility_task = asyncio.create_task(runtime_proof_loop(app))
+    # Production servers still at chat-recovery epoch 0 activate epoch 1 once
+    # legacy turns drained; this enables early chat titles and sealed jobs.
+    from backend.core.api.app.services.chat_recovery_auto_cutover import run_auto_cutover
+    recovery_cutover_task = asyncio.create_task(run_auto_cutover(
+        app.state.cache_service, app.state.directus_service, websockets.manager,
+    ))
     try:
         yield  # This is where FastAPI serves requests
     finally:
-        compatibility_task.cancel()
-        try:
-            await compatibility_task
-        except asyncio.CancelledError:
-            pass
+        for startup_task in (compatibility_task, recovery_cutover_task):
+            startup_task.cancel()
+            try:
+                await startup_task
+            except asyncio.CancelledError:
+                pass
     
     # Shutdown logic
     logger.info("Shutting down application...")
@@ -1408,6 +1422,7 @@ def create_app() -> FastAPI:
     app.include_router(storage_routes.router, include_in_schema=False)  # Encrypted cold archive reads - first-party clients only
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(recent_work_internal.router, include_in_schema=False)
+    app.include_router(internal_upload_safety.router, include_in_schema=False)  # Internal upload image second opinion
     app.include_router(chat_sync_feed.internal_router, include_in_schema=False)  # Internal chat-sync commit hints
     app.include_router(internal_health.router, include_in_schema=False)
     app.include_router(apps_workspace_requests.router, include_in_schema=False)
@@ -1426,6 +1441,14 @@ def create_app() -> FastAPI:
     app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
     app.include_router(admin_debug.router, include_in_schema=False)  # Admin debug router - requires admin API key, not in public docs
     app.include_router(admin_growth_metrics.router, include_in_schema=False)  # Aggregate growth counts - admin API key, read-only
+    @app.exception_handler(AccountSuspendedError)
+    async def _account_suspended_handler(_request, exc: AccountSuspendedError):
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(status_code=403, content={"detail": exc.detail()})
+
+    app.include_router(safety_appeals.router, include_in_schema=False)  # Suspended-user appeal (appeal token)
+    app.include_router(admin_safety_reviews.router, include_in_schema=False)  # Admin safety review: restore or delete
     app.include_router(admin_newsletter_campaigns.router, include_in_schema=False)  # Admin newsletter campaign scheduler - API key admin only
     app.include_router(admin_client_logs.router, include_in_schema=False)  # Admin client log forwarding - pushes browser console logs to Loki for admin users
     app.include_router(client_logs_ephemeral.router, include_in_schema=False)  # Ephemeral client log forwarding - anonymized console logs from all users (48h retention)
@@ -1461,6 +1484,7 @@ def create_app() -> FastAPI:
     app.include_router(projects.router, include_in_schema=False)  # Projects workspace endpoints - web app only
     app.include_router(project_authoring.router, include_in_schema=False)
     app.include_router(project_commits.router, include_in_schema=False)  # Native Project commits - first-party clients only (client-encrypted)
+    app.include_router(project_timeline.router, include_in_schema=False)  # Project timeline - first-party clients only (hashes, no paths)
     app.include_router(embed_user_revisions.router, include_in_schema=False)  # User embed versions + pending notices - first-party session auth only (client-encrypted)
     app.include_router(project_item_links.router, include_in_schema=False)  # Project embed adopt/rename/delete - first-party clients only (client-encrypted)
     app.include_router(daily_inspirations_api.router, include_in_schema=False)  # User daily inspirations persistence - save/load/mark-opened for authenticated users
@@ -1475,6 +1499,7 @@ def create_app() -> FastAPI:
     app.include_router(teams.router, include_in_schema=False)  # Teams V1 can contain sensitive membership/billing context; hide until route-level developer docs are classified
     app.include_router(user_plans.router, include_in_schema=False)  # Plans carry client-side encrypted content; expose only safe metadata via developer_metadata_api
     app.include_router(user_specifications.router, include_in_schema=False)  # Encrypted first-party Project documents
+    app.include_router(user_checks.router, include_in_schema=False)  # Mixed-source Checks (first-party only)
     app.include_router(memory_suggestions.router, include_in_schema=False)  # First-party only; cleartext for one explicit action, never logged
     app.include_router(images_enhance.router, include_in_schema=False)  # Image Enhance - first-party clients only (source/result AES keys)
     app.include_router(user_tasks.router, include_in_schema=False)  # Tasks carry client-side encrypted content; expose only safe metadata via developer_metadata_api
@@ -1486,6 +1511,7 @@ def create_app() -> FastAPI:
     app.include_router(connected_account_actions.router, include_in_schema=False)  # Connected-account operation actions
     app.include_router(connected_account_oauth.router, include_in_schema=False)  # OAuth refresh-token handoffs - one-time browser encryption bridge
     app.include_router(provider_oauth_google_calendar.router, include_in_schema=False)  # Google Calendar OAuth adapter - creates one-time handoffs
+    app.include_router(provider_oauth_figma.router, include_in_schema=False)  # Figma OAuth adapter - creates one-time handoffs
     app.include_router(status_routes.router, include_in_schema=True)  # Status page API v3
     app.include_router(docs_routes.router, include_in_schema=True)  # Public docs API - serves doc tree, markdown, and search for CLI
     app.include_router(settings_software_update.router, include_in_schema=False)  # Software update settings - admin only, not in public API docs
@@ -1698,6 +1724,17 @@ def create_app() -> FastAPI:
             "apps": public_apps_health,
             "external_services": public_external_services_health,
         }
+
+    # Liveness endpoint: unlike /v1/health (a Celery-filled cache) it dispatches a no-spend
+    # probe task to the app_ai queue. Access model: PUBLIC, unauthenticated, rate-limited
+    # per IP; outcome cached 30 s with a single-flight lock so abuse cannot flood the broker.
+    @app.get("/v1/health/liveness", dependencies=[])
+    @limiter.limit("30/minute")
+    async def health_liveness(request: Request):
+        from backend.core.api.app.services.cache import CacheService
+        from backend.core.api.app.services.liveness_probe import get_liveness
+
+        return await get_liveness(CacheService())
 
     # Health history endpoint - provides historical health data for incident analysis
     # Public endpoint (no auth required) - enables status pages and monitoring

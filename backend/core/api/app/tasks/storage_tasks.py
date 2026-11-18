@@ -212,11 +212,44 @@ def archive_cold_chat(self: StorageServiceTask, *, chat_id: str) -> dict[str, An
                 }:
                     return {"chat_id_hash": hashlib.sha256(chat_id.encode()).hexdigest(),
                             "state": "deferred", "reason": reason}
+                # Deterministic integrity failure: retry a few times a day, not every sweep.
+                if not await self.cache_service.set(
+                    _warm_backoff_key(chat_id), reason, ttl=WARM_FAILURE_BACKOFF_SECONDS,
+                ):
+                    logger.warning("Could not record warm archive backoff for chat hash %s",
+                                   hashlib.sha256(chat_id.encode()).hexdigest()[:12])
                 raise
         finally:
             await self.cleanup_services()
 
     return asyncio.run(run())
+
+
+WARM_DISPATCH_BUCKET_SECONDS = 300
+WARM_FAILURE_BACKOFF_SECONDS = 6 * 3600
+_warm_dispatch_redis_warned = False
+
+
+def _warm_backoff_key(chat_id: str) -> str:
+    return f"storage:warm-backoff:{hashlib.sha256(chat_id.encode()).hexdigest()}"
+
+
+async def _claim_warm_dispatch(cache_service: Any, chat_id: str, now_timestamp: int) -> bool:
+    """Claim one dispatch per chat and 5-minute bucket; keep dispatching if Redis is down."""
+    global _warm_dispatch_redis_warned
+    digest = hashlib.sha256(chat_id.encode()).hexdigest()
+    if await cache_service.get(_warm_backoff_key(chat_id)):
+        return False
+    client = await cache_service.client
+    if client is None:
+        if not _warm_dispatch_redis_warned:
+            _warm_dispatch_redis_warned = True
+            logger.warning("Redis unavailable; warm archive dispatch is not deduplicated")
+        return True
+    bucket = now_timestamp // WARM_DISPATCH_BUCKET_SECONDS
+    return bool(await client.set(
+        f"storage:warm-dispatch:{digest}:{bucket}", "1", ex=WARM_DISPATCH_BUCKET_SECONDS, nx=True,
+    ))
 
 
 async def dispatch_due_warm_chat_archives(
@@ -245,9 +278,12 @@ async def dispatch_due_warm_chat_archives(
             raise RuntimeError("WARM_ARCHIVE_SWEEP_CURSOR_SAVE_FAILED")
     else:
         await cache_service.delete(cursor_key)
+    dispatched = 0
     for candidate_id in chat_ids:
-        dispatch(str(candidate_id))
-    return len(chat_ids)
+        if await _claim_warm_dispatch(cache_service, str(candidate_id), now_timestamp):
+            dispatch(str(candidate_id))
+            dispatched += 1
+    return dispatched
 
 
 @app.task(name="storage.advance_chat_archive", base=StorageServiceTask, bind=True)

@@ -50,7 +50,7 @@ def fake_decisions(monkeypatch):
             raise ValueError("unreadable")
         return PHOTO
 
-    monkeypatch.setattr(relevance, "JevDecisionClient", _FakeClient)
+    monkeypatch.setattr("backend.apps.ai.utils.internal_decisions.JevDecisionClient", _FakeClient)
     monkeypatch.setattr(relevance, "download_public_image", fake_download)
     return _FakeClient
 

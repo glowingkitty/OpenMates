@@ -23,10 +23,45 @@ heading_workflow_update:
   en: Workflow update recommended
   de: Aktualisierung eines Workflows empfohlen
   verified_by_human: []
+heading_focus_create:
+  context: Heading of the recommendations card when it suggests creating a new focus (reusable instructions toward a goal) for the active Project from this chat
+  en: New Project focus recommended
+  de: Neuer Projekt-Fokus empfohlen
+  verified_by_human: []
+heading_focus_update:
+  context: Heading of the recommendations card when it suggests updating an existing focus of the active Project from this chat
+  en: Project focus update recommended
+  de: Aktualisierung eines Projekt-Fokus empfohlen
+  verified_by_human: []
+focus_create_title:
+  context: Title of a recommended new Project focus when no name is known yet; a focus is a reusable instruction guide toward a goal
+  en: New focus for this Project
+  de: Neuer Fokus für dieses Projekt
+  verified_by_human: []
+focus_update_title:
+  context: Title of a recommended update to an existing Project focus when its name is not known
+  en: Focus of this Project
+  de: Fokus dieses Projekts
+  verified_by_human: []
+focus_create_summary:
+  context: One-sentence summary of a recommended new Project focus
+  en: Turn the reusable way of working from this chat into a focus that later chats in this Project can start.
+  de: Macht die wiederverwendbare Arbeitsweise aus diesem Chat zu einem Fokus, den spätere Chats in diesem Projekt starten können.
+  verified_by_human: []
+focus_update_summary:
+  context: One-sentence summary of a recommended update to an existing Project focus
+  en: Add what this chat established to the Project focus, so later chats follow it.
+  de: Ergänzt den Projekt-Fokus um das, was dieser Chat festgelegt hat, damit spätere Chats es befolgen.
+  verified_by_human: []
 type_memory:
   context: Type label of a recommendation that creates or updates a Memory
   en: Memory
   de: Erinnerung
+  verified_by_human: []
+type_focus:
+  context: Type label of a recommendation that creates or updates a focus of the active Project
+  en: Project focus
+  de: Projekt-Fokus
   verified_by_human: []
 type_workflow:
   context: Type label of a recommendation that creates or updates a Workflow

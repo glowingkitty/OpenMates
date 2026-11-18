@@ -8,13 +8,10 @@
  * (account settings decrypt, toggle, encrypt) are served by the unit.
  *
  * Engineering migration check (web lane: chatState). A logged-in account sends
- * one message (new chat), then alternating reloads render the sidebar on the
- * TypeScript sort/grouping (measurement opt-out `openmates_rust_core_chatstate=ts`)
- * and on the Rust unit. Every reload must show the chat just sent inside the
- * "today" group (the Rust arm decided that order and grouping through the
- * unit with zero failures, one shared Worker and no WASM on the page); the TS
- * arm must never load the adapter. Records reload -> sidebar-rendered latency per
- * arm (paired medians, approved not-noticeable budget, soft gate).
+ * one message (new chat), then repeated reloads render the sidebar on the Rust
+ * unit. Every reload must show the chat just sent inside the "today" group (the
+ * unit decided that order and grouping with zero failures, one shared Worker and
+ * no WASM on the page). Records the reload -> sidebar-rendered latency.
  * Runs only in the CI lane that builds the Rust core package (web-rust-core-* specs).
  */
 export {};
@@ -26,7 +23,6 @@ const { loginToTestAccount, sendMessage, deleteActiveChat, setChatSidebarOpen, s
 const { rustCoreInstances } = require('./helpers/rust-core-instances');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const CHATSTATE_OPT_OUT_KEY = 'openmates_rust_core_chatstate';
 const PAIRS = Number(process.env.CHATSTATE_PAIRS || 12);
 
 async function reloadAndRenderSidebar(page: any, chatId: string): Promise<number> {
@@ -63,33 +59,24 @@ test('chat list ordering and grouping run on the shared Rust chatState unit and 
 	const chatId: string = chatIdOf()!;
 	await expect(page.getByTestId('message-assistant').first().getByTestId('message-content')).not.toBeEmpty({ timeout: 90000 });
 
-	const samples: Record<'ts' | 'rust', Record<string, unknown>[]> = { ts: [], rust: [] };
+	const samples: Record<string, unknown>[] = [];
 	try {
-		for (let i = 0; i < PAIRS * 2; i++) {
-			const path = i % 2 === 0 ? 'ts' : 'rust';
-			await page.evaluate(([key, ts]: [string, boolean]) => { if (ts) localStorage.setItem(key, 'ts'); else localStorage.removeItem(key); },
-				[CHATSTATE_OPT_OUT_KEY, path === 'ts']);
+		for (let i = 0; i < PAIRS; i++) {
 			const renderMs = await reloadAndRenderSidebar(page, chatId);
-			await expect(page.locator(`[data-testid="chat-group"][data-group-key="today"] [data-chat-id="${chatId}"]`).first(), `${path}: the chat just sent sits in the today group`).toBeVisible();
+			await expect(page.locator(`[data-testid="chat-group"][data-group-key="today"] [data-chat-id="${chatId}"]`).first(), 'the chat just sent sits in the today group').toBeVisible();
 			const readStats = () => page.evaluate(() => (window as any).__openmatesRustChatStateStats?.() ?? null);
-			if (path === 'rust') {
-				await expect.poll(async () => (await readStats())?.calls ?? 0, { timeout: 45000 }).toBeGreaterThan(0);
-			}
+			await expect.poll(async () => (await readStats())?.calls ?? 0, { timeout: 45000 }).toBeGreaterThan(0);
 			const stats = await readStats();
-			if (path === 'rust') {
-				expect(stats.ops.sort ?? 0, 'Rust arm sorted the chat list through the unit').toBeGreaterThan(0);
-				expect(stats.ops.group ?? 0, 'Rust arm grouped the chat list through the unit').toBeGreaterThan(0);
-				for (const op of ['windowPrune', 'timelineMerge', 'timelineIndex', 'indicatorComposer', 'indicatorTitle']) {
-					await expect.poll(async () => (await readStats())?.ops?.[op] ?? 0, { message: `Rust arm decided ${op} through the unit`, timeout: 30000 }).toBeGreaterThan(0);
-				}
-				expect((await readStats()).failures, 'no chatState unit call failed').toBe(0);
-			} else {
-				expect(stats, 'TS arm never loaded the Rust chatState adapter').toBeNull();
+			expect(stats.ops.sort ?? 0, 'Rust arm sorted the chat list through the unit').toBeGreaterThan(0);
+			expect(stats.ops.group ?? 0, 'Rust arm grouped the chat list through the unit').toBeGreaterThan(0);
+			for (const op of ['windowPrune', 'timelineMerge', 'timelineIndex', 'indicatorComposer', 'indicatorTitle']) {
+				await expect.poll(async () => (await readStats())?.ops?.[op] ?? 0, { message: `Rust arm decided ${op} through the unit`, timeout: 30000 }).toBeGreaterThan(0);
 			}
+			expect((await readStats()).failures, 'no chatState unit call failed').toBe(0);
 			const instances = await rustCoreInstances(page);
-			expect(instances.wasmMainThreadInstantiations, `${path}: no WASM on the page realm`).toBe(0);
-			expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, `${path}: one shared Rust core Worker`).toBe(1);
-			samples[path].push({ renderMs, stats, ...instances });
+			expect(instances.wasmMainThreadInstantiations, 'no WASM on the page realm').toBe(0);
+			expect(instances.workers.filter((worker: { name: string }) => worker.name === 'shared.worker').length, 'one shared Rust core Worker').toBe(1);
+			samples.push({ renderMs, stats, ...instances });
 		}
 		// Private bookmark of the first reply: the unit reads the encrypted account settings, applies the
 		// toggle and re-encrypts them (master-key crypto in the Worker); the page only posts the result.
@@ -130,17 +117,13 @@ test('chat list ordering and grouping run on the shared Rust chatState unit and 
 		await page.getByTestId('project-more-button').click();
 		await page.getByTestId('project-delete-button').click();
 		await expect(page.getByTestId('workspace-detail-title')).toHaveCount(0, { timeout: 30000 });
-		expect(unitErrors, 'no chatState unit errors in either arm').toEqual([]);
+		expect(unitErrors, 'no chatState unit errors ').toEqual([]);
 	} finally {
-		await page.evaluate((key: string) => localStorage.removeItem(key), CHATSTATE_OPT_OUT_KEY);
 		await deleteActiveChat(page, log, screenshot, 'chatstate-cleanup');
 	}
 	const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
-	const rust = median(samples.rust.map((row) => Number(row.renderMs)));
-	const ts = median(samples.ts.map((row) => Number(row.renderMs)));
-	const limit = Math.max(ts * 1.1, ts + 50);
-	const metrics = { pairs: PAIRS, rustMedianMs: rust, tsMedianMs: ts, verdict: rust <= limit ? 'rust_not_worse' : 'rust_worse', samples };
-	console.log(`[web-rust-core-chatstate] ${JSON.stringify({ rustMedianMs: rust, tsMedianMs: ts, verdict: metrics.verdict })}`);
+	const rust = median(samples.map((row) => Number(row.renderMs)));
+	const metrics = { reloads: PAIRS, rustMedianMs: rust, samples };
+	console.log(`[web-rust-core-chatstate] ${JSON.stringify({ rustMedianMs: rust })}`);
 	await testInfo.attach('chatstate-reload-latency.json', { body: JSON.stringify(metrics, null, 2), contentType: 'application/json' });
-	expect.soft(rust, `reload-to-rendered sidebar: Rust ${rust} ms vs TS ${ts} ms`).toBeLessThanOrEqual(limit);
 });

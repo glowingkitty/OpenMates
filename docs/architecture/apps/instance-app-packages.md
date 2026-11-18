@@ -352,6 +352,47 @@ providers returned results, otherwise the group's `error`. The top-level `error`
 is set only when every group failed; a `success` field of the original model is
 set to `not all_failed`.
 
+**Result cache** (`backend/shared/app_packages/result_cache.py`, used by
+`provider_dispatch`). A successful provider outcome is stored in the shared cache
+under a SHA-256 of package id, package version, provider id, target app and skill
+and the contract input item (never secrets), and the same search is answered from
+there for `OPENMATES_APP_PACKAGES_RESULT_CACHE_SECONDS` (default 900; `0` turns it
+off). Repeated and follow-up questions therefore send no new upstream requests.
+Errors are never cached; a miss or an unreachable cache runs the provider. A new
+package version changes every key.
+
+**Price comparison** (`backend/shared/app_packages/price_comparison.py`, applied by
+the delegate for `shopping.search_products`). After the merge, the offers of one
+request item are compared across all its providers:
+
+1. Exact product: with `brand` and/or `model` in the request, offers whose title
+   (or `brand` field) lacks a brand token or any model token that contains a digit
+   are dropped, so `X100` keeps "Example X100" but not "X10", "X100S" or
+   accessories without the model. When no offer matches, the similar offers stay
+   and `price_comparison.exact_product_found` is `false`.
+2. Condition: `condition` `new` or `used` drops offers that state another
+   condition (`refurbished` counts as used); offers without a condition stay.
+3. Totals: an offer with numeric `price_amount` and `shipping_amount` gets
+   `total_amount`; every priced offer gets `shipping_known`.
+4. With `sort: price_asc` the delegate asks each provider for the widened pool,
+   orders the kept offers by `total_amount` (else `price_amount`), puts unpriced
+   offers and offers in a minority currency after them in their previous order,
+   and only then applies the requested limit. Photo ranking does not reorder a
+   price-ordered group.
+5. Each installed provider of a compared search runs for at most
+   `PROVIDER_SECONDS` (14 s), inside the skill's 20 s envelope. A slower provider
+   fails alone as "did not respond in time"; the other providers' offers are
+   still compared. Without this, one slow upstream would cancel the whole skill
+   and lose every shop's offers.
+
+The group carries `price_comparison` (`offers_considered`, `offers_kept`,
+`exact_product`, `exact_product_found`, `order`). Providers stay responsible for
+their own fields; the server never invents a price, shipping cost or condition.
+Shopping providers should therefore return `price_amount`, `currency`,
+`shipping_amount` (0 for free shipping, omitted when unknown), `condition`
+(`new`, `used`, `refurbished`), `seller`, `source` and `purchase_url`, and accept
+the request fields `brand`, `model`, `condition`, `location` and `radius_km`.
+
 ## Secrets
 
 A provider declaring `secrets: [api_key]` reads

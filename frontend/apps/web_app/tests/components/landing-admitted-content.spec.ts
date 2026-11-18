@@ -53,6 +53,20 @@ for (const width of [390, 1440]) {
         expect(geometry.align).toBe('center');
         expect(geometry.bottom).toBeLessThan(geometry.composerTop);
       }
+      // Press-facing copy: no removed features, no superlatives, and encryption is
+      // described as client-side (never end-to-end).
+      const misleading = /apartments|doctor appointments|Wohnungen|Arzttermine|end-to-end|Ende-zu-Ende|anonymi[sz]ation|Anonymisierung|unlike any other|Anders als andere/i;
+      for (const id of ['privacy', 'workflows', 'devices']) {
+        const section = page.getByTestId(`landing-feature-${id}`);
+        await page.getByTestId('landing-scroll-container').evaluate((element, id) => {
+          const target = element.querySelector(`#${id}`)!;
+          element.scrollTo({ top: target.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop, behavior: 'instant' });
+        }, id);
+        await expect(section.locator('.story-copy p')).toBeVisible();
+        await expect(section.locator('.story-copy p')).not.toContainText(misleading);
+      }
+      await expect(page.getByTestId('landing-feature-privacy').locator('.story-copy p')).toContainText(language === 'de' ? 'auf deinem Gerät verschlüsselt' : 'encrypted on your device');
+      await expect(page.getByTestId('landing-feature-devices').locator('.story-copy p')).toContainText('TestFlight');
       for (const id of ['privacy', 'model-choice', 'workflows']) {
         const section = page.getByTestId(`landing-feature-${id}`);
         await expect(section.getByTestId('device-screenshots')).toHaveCount(1);

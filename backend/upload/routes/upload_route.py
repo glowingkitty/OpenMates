@@ -89,7 +89,10 @@ from backend.shared.python_utils.media_encryption import (
 )
 from backend.upload.billing_payloads import build_pdf_billing_payload
 from backend.upload.s3_keys import upload_s3_prefix
+from backend.upload.services.jev_second_opinion import make_second_opinion
 from backend.upload.services.preview_generator import camera_jpeg_original_hash
+
+from backend.shared.python_utils.svg_sanitizer import SvgSanitizeError, sanitize_svg
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +165,8 @@ class FileVariantMetadata(BaseModel):
     active_region: Optional[str] = Field(None, description="S3 region that accepted this immutable variant")
     preserved_original_sha256: Optional[str] = Field(None, pattern=r"^[0-9a-f]{64}$",
         description="Server-computed SHA-256 of actual stored original bytes; matching input hash proves exact preservation")
+    sanitized: Optional[bool] = Field(None,
+        description="True when the stored SVG was cleaned of scripts and external references (slides.media.svg-declarative-animation)")
 
 
 class AIDetectionMetadata(BaseModel):
@@ -224,7 +229,7 @@ class UploadFileResponse(BaseModel):
 
 class ProfileImageUploadResponse(BaseModel):
     """Response returned after a successful profile image upload."""
-    status: str = Field(..., description="'ok' on success, 'rejected' on content safety failure, 'account_deleted' if account was deleted")
+    status: str = Field(..., description="'ok' on success, 'rejected' on content safety failure; a suspension notice is returned in detail when the strike suspended the account")
     url: Optional[str] = Field(None, description="Public S3 URL of the uploaded profile image (only on status='ok')")
     reject_count: Optional[int] = Field(None, description="Cumulative rejection count for this user (only on status='rejected')")
     detail: Optional[str] = Field(None, description="Human-readable rejection reason")
@@ -233,7 +238,7 @@ class ProfileImageUploadResponse(BaseModel):
 class TeamProfileImageUploadResponse(BaseModel):
     """Response returned after a successful team profile image upload."""
 
-    status: str = Field(..., description="'ok' on success, 'rejected' on content safety failure, 'account_deleted' if account was deleted")
+    status: str = Field(..., description="'ok' on success, 'rejected' on content safety failure; a suspension notice is returned in detail when the strike suspended the account")
     url: Optional[str] = Field(None, description="Authenticated team profile-image proxy URL")
     reject_count: Optional[int] = Field(None, description="Cumulative rejection count for this user (only on status='rejected')")
     detail: Optional[str] = Field(None, description="Human-readable rejection reason")
@@ -321,6 +326,12 @@ def _profile_image_s3_key(owner_prefix: str) -> str:
     return f"{owner_prefix}/{int(time.time())}-{uuid.uuid4().hex[:8]}.enc"
 
 
+_NON_STRIKE_REJECTION_MESSAGE = (
+    "Image rejected: explicit sexual content or extreme gore is not allowed. "
+    "This did not count as a violation."
+)
+
+
 async def _read_validate_and_scan_profile_image(
     *,
     request: Request,
@@ -369,28 +380,37 @@ async def _read_validate_and_scan_profile_image(
         raise HTTPException(status_code=422, detail=f"File rejected: threat detected ({scan_result.threat_name})")
 
     sightengine = request.app.state.sightengine
-    if sightengine.is_enabled:
-        safety_result = await sightengine.check_content_safety(file_bytes, filename=filename, content_type=content_type)
-        if not safety_result.is_safe:
-            rejection_report = await _report_content_safety_rejection_via_api(
-                core_api_url=core_api_url,
-                internal_token=internal_token,
-                user_id=user_id,
-                filename=filename,
-                rejection_reason=safety_result.reason or "content_safety_violation",
-                upload_type=rejection_upload_type,
+    safety_result = await sightengine.check_content_safety(
+        file_bytes,
+        filename=filename,
+        content_type=content_type,
+        second_opinion=make_second_opinion(core_api_url, internal_token, file_bytes),
+    )
+    if not safety_result.is_safe:
+        if safety_result.reason == "safety_service_unavailable":
+            raise HTTPException(
+                status_code=503,
+                detail={"code": "safety_service_unavailable", "message": "Safety processing failed. Try again later."},
             )
-            rejection_result = rejection_report.get("result", "tracked")
-            if rejection_result == "account_deleted":
-                return file_bytes, filename, content_type, rejection_response_class(
-                    status="account_deleted",
-                    detail="Account deleted due to repeated policy violations",
-                )
+        if not safety_result.counts_as_strike:
             return file_bytes, filename, content_type, rejection_response_class(
                 status="rejected",
-                reject_count=rejection_report.get("reject_count", 0),
-                detail="Image rejected: content violates community guidelines (nudity, violence, or gore)",
+                reject_count=0,
+                detail=_NON_STRIKE_REJECTION_MESSAGE,
             )
+        rejection_report = await _report_content_safety_rejection_via_api(
+            core_api_url=core_api_url,
+            internal_token=internal_token,
+            user_id=user_id,
+            filename=filename,
+            rejection_reason=safety_result.reason or "content_safety_violation",
+            upload_type=rejection_upload_type,
+        )
+        return file_bytes, filename, content_type, rejection_response_class(
+            status="rejected",
+            reject_count=rejection_report.get("reject_count", 0),
+            detail=rejection_report.get("warning") or _NON_STRIKE_REJECTION_MESSAGE,
+        )
     return file_bytes, filename, content_type, None
 
 
@@ -672,7 +692,7 @@ async def _report_content_safety_rejection_via_api(
         upload_type: "chat_image" or "profile_image" — used for tracking separate counters.
 
     Returns:
-        Dict with "result": "tracked" | "account_deleted" and optional "reject_count".
+        Dict with "result": "tracked" | "not_counted" | "account_suspended" and optional "reject_count".
     """
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -980,9 +1000,18 @@ async def upload_file(
                         file_bytes,
                         filename=filename,
                         content_type=content_type,
+                        second_opinion=make_second_opinion(core_api_url, internal_token, file_bytes),
                     )
 
                     if not safety_result.is_safe:
+                        if safety_result.reason == "safety_service_unavailable":
+                            raise HTTPException(
+                                status_code=503,
+                                detail={
+                                    "code": "safety_service_unavailable",
+                                    "message": "Safety processing failed. Try again later.",
+                                },
+                            )
                         logger.warning(
                             f"{log_prefix} [5/13] Duplicate image rejected by refreshed "
                             f"content safety check — reason: {safety_result.reason}"
@@ -1109,16 +1138,17 @@ async def upload_file(
     # tracking + account deletion) and return 422 to the client.
     sightengine = request.app.state.sightengine
     ai_detection_result = None
-    if is_image and sightengine.is_enabled:
+    if is_image:
         logger.info(
             f"{log_prefix} [7/13] SightEngine combined check: "
-            f"nudity/violence/gore + AI detection (single request)..."
+            f"nudity/minor/gore + AI detection (single request)..."
         )
         sightengine_start = time.monotonic()
         safety_result, ai_result = await sightengine.check_all(
             file_bytes,
             filename=filename,
             content_type=content_type,
+            second_opinion=make_second_opinion(core_api_url, internal_token, file_bytes),
         )
         sightengine_elapsed = (time.monotonic() - sightengine_start) * 1000
 
@@ -1140,7 +1170,14 @@ async def upload_file(
                     },
                 )
 
-            # Report rejection to core API (tracks reject count, handles account deletion)
+            # Only a strike-bearing refusal (sexual content involving minors) is
+            # reported as a violation; explicit content and extreme gore are
+            # refused without a strike.
+            if not safety_result.counts_as_strike:
+                raise HTTPException(
+                    status_code=422,
+                    detail={"code": "content_rejected", "message": _NON_STRIKE_REJECTION_MESSAGE},
+                )
             rejection_report = await _report_content_safety_rejection_via_api(
                 core_api_url=core_api_url,
                 internal_token=internal_token,
@@ -1149,24 +1186,14 @@ async def upload_file(
                 rejection_reason=safety_result.reason or "content_safety_violation",
                 upload_type="chat_image",
             )
-            rejection_result = rejection_report.get("result", "tracked")
             reject_count = rejection_report.get("reject_count", 0)
-
-            # If the account was deleted (repeated violations), return special status
-            if rejection_result == "account_deleted":
-                raise HTTPException(
-                    status_code=422,
-                    detail={
-                        "code": "account_deleted",
-                        "message": "Account deleted due to repeated policy violations",
-                    },
-                )
 
             raise HTTPException(
                 status_code=422,
                 detail={
                     "code": "content_rejected",
-                    "message": "Image rejected: content violates community guidelines (nudity, violence, or gore)",
+                    "message": rejection_report.get("warning")
+                    or "Image rejected: content violates community guidelines (nudity, violence, or gore)",
                     "reject_count": reject_count,
                 },
             )
@@ -1197,11 +1224,6 @@ async def upload_file(
                 f"{log_prefix} [7/13] AI detection: SightEngine returned None "
                 f"(non-fatal, upload continues with failed detection status)"
             )
-    elif is_image:
-        logger.info(
-            f"{log_prefix} [7/13] SightEngine checks: SKIPPED "
-            f"(SightEngine not configured — set SECRET__SIGHTENGINE__* to enable)"
-        )
     else:
         logger.info(f"{log_prefix} [7/13] SightEngine checks: SKIPPED (non-image file)")
 
@@ -1224,6 +1246,14 @@ async def upload_file(
     # --- 9. AES-256-GCM encryption ---
     # All three variants share the same AES key and nonce, matching generate_task.py.
     keeps_vector = is_svg_upload(content_type, file_bytes)
+    vector_bytes = file_bytes
+    vector_sanitized = False
+    if keeps_vector:
+        try:
+            vector_bytes = sanitize_svg(file_bytes)
+            vector_sanitized = True
+        except SvgSanitizeError as exc:
+            logger.warning(f"{log_prefix} SVG could not be sanitized; storing original unsanitized: {exc}")
     logger.info(f"{log_prefix} [9/13] Encrypting 3 variants with AES-256-GCM (random key per file)...")
     encrypt_start = time.monotonic()
     write_version = load_media_write_version()
@@ -1235,7 +1265,7 @@ async def upload_file(
             # An uploaded SVG keeps its vector source next to the raster
             # variants, so skills that need the drawing itself (embroidery)
             # read the exact file the user uploaded.
-            **({"vector": file_bytes} if keeps_vector else {}),
+            **({"vector": vector_bytes} if keeps_vector else {}),
         },
         write_version=write_version,
     )
@@ -1367,6 +1397,7 @@ async def upload_file(
             format="svg",
             encryption=encrypted_variants.metadata["vector"].get("encryption"),
             active_region=active_region,
+            sanitized=vector_sanitized,
         )
 
     # --- 13. Store upload record via core API (never touches Directus directly) ---
@@ -2254,57 +2285,45 @@ async def upload_profile_image(
         )
     logger.info(f"{log_prefix} [2/5] ClamAV scan: CLEAN ✓ ({scan_elapsed:.0f} ms)")
 
-    # --- 3. SightEngine content safety scan (BLOCKING) ---
+    # --- 3. Content safety (BLOCKING): Sightengine first, Jev second opinion/fallback ---
     sightengine = request.app.state.sightengine
-    if sightengine.is_enabled:
-        logger.info(
-            f"{log_prefix} [3/5] Content safety: running SightEngine nudity/violence/gore check..."
+    safety_start = time.monotonic()
+    safety_result = await sightengine.check_content_safety(
+        file_bytes,
+        filename=filename,
+        content_type=content_type,
+        second_opinion=make_second_opinion(core_api_url, internal_token, file_bytes),
+    )
+    safety_elapsed = (time.monotonic() - safety_start) * 1000
+
+    if not safety_result.is_safe:
+        logger.warning(
+            f"{log_prefix} [3/5] Content safety REJECTED — "
+            f"reason: {safety_result.reason} ({safety_elapsed:.0f} ms)"
         )
-        safety_start = time.monotonic()
-        safety_result = await sightengine.check_content_safety(
-            file_bytes,
-            filename=filename,
-            content_type=content_type,
-        )
-        safety_elapsed = (time.monotonic() - safety_start) * 1000
-
-        if not safety_result.is_safe:
-            logger.warning(
-                f"{log_prefix} [3/5] Content safety REJECTED — "
-                f"reason: {safety_result.reason} ({safety_elapsed:.0f} ms)"
+        if safety_result.reason == "safety_service_unavailable":
+            raise HTTPException(
+                status_code=503,
+                detail={"code": "safety_service_unavailable", "message": "Safety processing failed. Try again later."},
             )
-            # Report rejection to core API for per-user tracking + account deletion
-            rejection_report = await _report_content_safety_rejection_via_api(
-                core_api_url=core_api_url,
-                internal_token=internal_token,
-                user_id=user_id,
-                filename=filename,
-                rejection_reason=safety_result.reason or "content_safety_violation",
-                upload_type="profile_image",
-            )
-            rejection_result = rejection_report.get("result", "tracked")
-            reject_count = rejection_report.get("reject_count", 0)
-
-            if rejection_result == "account_deleted":
-                return ProfileImageUploadResponse(
-                    status="account_deleted",
-                    detail="Account deleted due to repeated policy violations",
-                )
-
+        if not safety_result.counts_as_strike:
             return ProfileImageUploadResponse(
-                status="rejected",
-                reject_count=reject_count,
-                detail="Image rejected: content violates community guidelines (nudity, violence, or gore)",
+                status="rejected", reject_count=0, detail=_NON_STRIKE_REJECTION_MESSAGE
             )
-        else:
-            logger.info(
-                f"{log_prefix} [3/5] Content safety: PASSED ✓ ({safety_elapsed:.0f} ms)"
-            )
-    else:
-        logger.info(
-            f"{log_prefix} [3/5] Content safety: SKIPPED "
-            f"(SightEngine not configured — set SECRET__SIGHTENGINE__* to enable)"
+        rejection_report = await _report_content_safety_rejection_via_api(
+            core_api_url=core_api_url,
+            internal_token=internal_token,
+            user_id=user_id,
+            filename=filename,
+            rejection_reason=safety_result.reason or "content_safety_violation",
+            upload_type="profile_image",
         )
+        return ProfileImageUploadResponse(
+            status="rejected",
+            reject_count=rejection_report.get("reject_count", 0),
+            detail=rejection_report.get("warning") or _NON_STRIKE_REJECTION_MESSAGE,
+        )
+    logger.info(f"{log_prefix} [3/5] Content safety: PASSED ✓ ({safety_elapsed:.0f} ms)")
 
     # --- 4. Encrypt bytes (AES-256-GCM) and upload to private S3 bucket ---
     # New profile images are encrypted server-side before S3 storage.

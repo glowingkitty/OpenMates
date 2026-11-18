@@ -160,6 +160,11 @@ export const variants = {
       } }] },
     ] },
   },
+  // A sent message that names a Project (read access) and a focus mode.
+  projectMention: {
+    ...defaultProps,
+    content: '@project:6b0c2f4e-3a91-4d2b-9c57-1f8e2a7d4c10:read @focus:code:write_specification Add a harvest log to the garden planner.',
+  },
   multilineUser: {
     ...defaultProps,
     content: 'Find **social posts** about rainy-day cafes.\nKeep the source link on its own line.\n\n\nInclude a short summary after the gap.',

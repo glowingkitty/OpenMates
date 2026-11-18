@@ -95,7 +95,7 @@ async def connect_public_https(reader, writer):
     pumps = []
     established = False
     try:
-        async with asyncio.timeout(45):
+        async with asyncio.timeout(TUNNEL_SETUP_SECONDS):
             header = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5)
             if len(header) > 8192:
                 raise ValueError("Oversized proxy request")
@@ -123,15 +123,16 @@ async def connect_public_https(reader, writer):
             await writer.drain()
             established = True
 
-            async def pump(source, destination):
-                while block := await source.read(65536):
-                    destination.write(block)
-                    await destination.drain()
+        async def pump(source, destination):
+            while block := await source.read(65536):
+                destination.write(block)
+                await destination.drain()
 
-            pumps = [
-                asyncio.create_task(pump(reader, upstream_writer)),
-                asyncio.create_task(pump(upstream_reader, writer)),
-            ]
+        pumps = [
+            asyncio.create_task(pump(reader, upstream_writer)),
+            asyncio.create_task(pump(upstream_reader, writer)),
+        ]
+        async with asyncio.timeout(TUNNEL_MAX_SECONDS):
             await asyncio.wait(pumps, return_when=asyncio.FIRST_COMPLETED)
     except Exception:
         if not established:
@@ -178,11 +179,26 @@ def observation_url(value: str) -> str:
 
 
 PROTOCOL = "preboot-v2"
+# Controls nearest the viewport fill the window, so a long product grid keeps
+# the visible offers instead of the first page-order menu entries. Links are
+# collected separately (nearest first) for source verification.
 MAX_CONTROLS = 150
+MAX_LINKS = 300
+MAX_CANDIDATES = 4000
 DOCUMENT_TEXT_LIMIT = 120000
 MAX_BATCH = 6
 SETTLE_CAP_SECONDS = 2.5
 SETTLE_QUIET_SECONDS = 0.3
+# The CONNECT header and the upstream dial must finish quickly. The tunnel
+# itself may carry a slow but live response: a sleeping site backend can take
+# close to a minute to wake, and a 45 s cap on the whole tunnel cut such a
+# request, which a form then showed as its own error page. The long cap only
+# bounds a stuck tunnel.
+TUNNEL_SETUP_SECONDS = 15
+TUNNEL_MAX_SECONDS = 600
+# Longest wait for the page's pending requests before compute pauses: a
+# request still open when the VM pauses cannot finish after the resume.
+QUIESCE_MAX_SECONDS = 60
 BLOCK_TEXT_LIMIT = 1500
 BLOCK_PATTERN = re.compile(
     r"\b(captcha|verify you are human|access denied|subscribe to (continue|read)|paywall)\b",
@@ -199,7 +215,7 @@ PRIVATE_FIELD_JS = r"""e => {
 
 SNAPSHOT = (
     r"""() => {
-  const SEL='a[href],button,input,select,textarea,[contenteditable=true],[role=button],[role=tab],[role=checkbox],[role=combobox]';
+  const SEL='a[href],button,input,select,textarea,[contenteditable=true],[role=button],[role=tab],[role=checkbox],[role=radio],[role=option],[role=switch],[role=combobox]';
   const win=e=>e.ownerDocument.defaultView;
   const rect=e=>{const r=e.getBoundingClientRect();let x=r.x,y=r.y,w=win(e);
     while(w&&w.frameElement){const f=w.frameElement.getBoundingClientRect();x+=f.x;y+=f.y;w=w.parent;}
@@ -214,7 +230,7 @@ SNAPSHOT = (
       if(h.tagName==='IFRAME'&&h.contentDocument){const f=h.getBoundingClientRect();x-=f.x+h.clientLeft;y-=f.y+h.clientTop;doc=h.contentDocument;continue;}
       return h;
     }};
-  const nodes=[],inputs=[];let captcha=false,scanned=0;
+  const candidates=[],inputs=[];let captcha=false,scanned=0;
   const bigEnough=e=>{const r=e.getBoundingClientRect();return r.width>=100&&r.height>=50;};
   const walk=root=>{
     for(const e of root.querySelectorAll('*')){
@@ -226,16 +242,32 @@ SNAPSHOT = (
         if(/recaptcha\/api2\/(anchor|bframe)|hcaptcha\.com|challenges\.cloudflare\.com|turnstile/i.test(e.src||'')&&!e.closest('.grecaptcha-badge')&&shown(e)&&bigEnough(e))captcha=true;
       } else if(e.matches('.g-recaptcha,.h-captcha,.cf-turnstile')&&shown(e)&&bigEnough(e))captcha=true;
       if(e.matches('input,textarea,[contenteditable=true]'))inputs.push(e);
-      if(nodes.length<__MAX_CONTROLS__&&e.matches(SEL)&&shown(e)&&!e.disabled&&!privateField(e))nodes.push(e);
+      if(candidates.length<__MAX_CANDIDATES__&&e.matches(SEL)&&shown(e)&&!e.disabled&&!privateField(e))candidates.push(e);
     }};
   walk(document);
+  const away=e=>{const r=rect(e);
+    return Math.max(0,-(r.y+r.h),r.y-innerHeight)+Math.max(0,-(r.x+r.w),r.x-innerWidth);};
+  const ranked=candidates.map((e,i)=>({e,i,d:away(e)})).sort((a,b)=>a.d-b.d||a.i-b.i);
+  const nodes=ranked.slice(0,__MAX_CONTROLS__).sort((a,b)=>a.i-b.i).map(c=>c.e);
+  const seenLinks=new Set();
   const buttonLike=e=>e.tagName==='INPUT'&&/^(submit|button|reset|image|checkbox|radio)$/i.test(e.type||'');
   const label=e=>(e.getAttribute('aria-label') || e.ownerDocument.querySelector(`label[for="${CSS.escape(e.id||'__none__')}"]`)?.innerText ||
-    e.innerText || (buttonLike(e)&&!/^(checkbox|radio)$/i.test(e.type)?e.value:'') || e.placeholder || e.name || e.tagName).trim().slice(0,180);
-  const signature=e=>JSON.stringify([e.tagName,label(e),e.getAttribute('href'),e.value,e.checked,e.getAttribute('aria-expanded'),e.form?.action,e.form?.method]);
+    e.closest('label')?.innerText || e.innerText || (buttonLike(e)&&!/^(checkbox|radio)$/i.test(e.type)?e.value:'') || e.placeholder || e.name || e.tagName).trim().slice(0,180);
+  const signature=e=>JSON.stringify([e.tagName,label(e),e.getAttribute('href'),e.value,e.checked,e.getAttribute('aria-checked'),e.getAttribute('aria-expanded'),e.form?.action,e.form?.method]);
+  const checkedOf=e=>{
+    if(e.tagName==='INPUT'&&/^(checkbox|radio)$/i.test(e.type))return e.checked;
+    for(const a of ['aria-checked','aria-selected','aria-pressed']){const v=e.getAttribute(a);if(v!==null)return v==='true';}
+    return undefined;};
+  const groupOf=e=>{
+    const lg=e.closest('fieldset')?.querySelector(':scope > legend')?.innerText;
+    if(lg&&lg.trim())return lg.trim().slice(0,120);
+    const g=e.closest('[role=radiogroup],[role=group]');if(!g)return undefined;
+    const ref=(g.getAttribute('aria-labelledby')||'').split(/\s+/).map(id=>id&&g.ownerDocument.getElementById(id)?.innerText).filter(Boolean).join(' ');
+    const t=(g.getAttribute('aria-label')||ref||'').trim();return t?t.slice(0,120):undefined;};
   const controls=nodes.map((e,i)=>({id:String(i),role:e.getAttribute('role')||e.tagName.toLowerCase(),label:label(e),
     kind:e.tagName==='SELECT'?'select':buttonLike(e)?'click':e.matches('input,textarea,[contenteditable=true]')?'type':'click',
     value:(e.value||'').slice(0,300),href:e.tagName==='A'?e.href:undefined,in_viewport:inView(e),
+    checked:checkedOf(e),group:groupOf(e),required:(e.required||e.getAttribute('aria-required')==='true')?true:undefined,
     options:e.tagName==='SELECT'?[...e.options].filter(o=>!o.disabled).slice(0,40).map(o=>({value:o.value,label:o.text})):undefined}));
   const tables=[...document.querySelectorAll('table')].slice(0,8).map(t=>[...t.rows].slice(0,100)
     .map(r=>[...r.cells].slice(0,20).map(c=>c.innerText.trim().slice(0,500))));
@@ -253,10 +285,13 @@ SNAPSHOT = (
   const observation={url:location.href,title:document.title,text:passages.join('\n'),document_text:text,controls,tables,dialogs,captcha,
     scroll:{y:Math.round(scrollY),height:document.documentElement.scrollHeight,viewport:innerHeight},
     has_private_input:inputs.some(e=>privateField(e)&&shown(e)&&inView(e)),
-    links:nodes.filter(e=>e.tagName==='A').map(e=>({text:label(e),url:e.href})),width:innerWidth,height:innerHeight};
+    links:ranked.filter(c=>c.e.tagName==='A'&&c.e.href&&!seenLinks.has(c.e.href)&&seenLinks.add(c.e.href))
+      .slice(0,__MAX_LINKS__).map(c=>({text:label(c.e),url:c.e.href})),width:innerWidth,height:innerHeight};
   return {nodes,signatures:nodes.map(signature),signature,rect,deepAt,observation};
 }""".replace("__PRIVATE_FIELD_PREDICATE__", PRIVATE_FIELD_JS)
     .replace("__MAX_CONTROLS__", str(MAX_CONTROLS))
+    .replace("__MAX_LINKS__", str(MAX_LINKS))
+    .replace("__MAX_CANDIDATES__", str(MAX_CANDIDATES))
     .replace("__TEXT_LIMIT__", str(DOCUMENT_TEXT_LIMIT))
 )
 
@@ -652,6 +687,25 @@ class BrowseRuntime:
             },
         }
 
+    async def quiesce(self, seconds):
+        """Wait, bounded, until the page has no pending request; reads nothing from the page.
+
+        Called before compute pauses after a run. A request still open at the
+        pause (a form loading its settings from a waking backend) cannot finish
+        after the resume, and the page then shows its own failure.
+        """
+        limit = min(max(float(seconds), 0.0), QUIESCE_MAX_SECONDS)
+        started = time.monotonic()
+        while (
+            self.in_flight > 0
+            or time.monotonic() - self.last_network < SETTLE_QUIET_SECONDS
+        ) and time.monotonic() - started < limit:
+            await asyncio.sleep(0.1)
+        return {
+            "in_flight": self.in_flight,
+            "waited": round(time.monotonic() - started, 3),
+        }
+
     async def manual(self, body):
         if self.control != "user":
             raise ValueError("Manual control is not active")
@@ -778,6 +832,8 @@ class BrowseRuntime:
             return await self.observe_page(body.get("screenshot", True) is not False)
         if op == "manual":
             return await self.manual(body)
+        if op == "quiesce":
+            return await self.quiesce(body.get("seconds", 0))
         if op == "act":
             return await self.act(body)
         raise ValueError("Unsupported operation")

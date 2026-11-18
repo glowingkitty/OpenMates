@@ -4,6 +4,7 @@ use super::super::*;
 use super::FileJobState;
 use crate::work::{
     HostedFileError, HostedFileJob, HostedFileMutation, HostedProposal, HostedResult,
+    ProjectRequesterError,
 };
 use std::time::Duration;
 
@@ -19,7 +20,7 @@ const COMMIT_MESSAGE_MAX_CHARS: usize = 200;
 /// Wire name of the read-only `snapshot` job: all text files of the Project,
 /// see [`super::snapshot`].
 const SNAPSHOT_OPERATION: &str = "snapshot";
-const OPERATIONS: [&str; 9] = [
+const OPERATIONS: [&str; 10] = [
     "list",
     "search",
     "read_text",
@@ -27,6 +28,7 @@ const OPERATIONS: [&str; 9] = [
     "update_file",
     "rename_file",
     "delete_file",
+    "apply_changes",
     COMMIT_OPERATION,
     SNAPSHOT_OPERATION,
 ];
@@ -61,6 +63,24 @@ pub(super) trait JobRunner {
     /// Read-only snapshot (decrypted text and revision) of the Project's
     /// hosted text files under `prefix`; the body of [`super::snapshot`].
     async fn snapshot(&mut self, focus: &Focus, prefix: Option<String>) -> HostedResult<Value>;
+    /// Relay the job to the remote source `source_id` (a Project folder on a
+    /// machine); `mutation` is the validated proposal of a create/update.
+    async fn execute_remote(
+        &mut self,
+        focus: &Focus,
+        source_id: &str,
+        job: &HostedFileJob,
+        mutation: Option<HostedFileMutation>,
+    ) -> std::result::Result<Value, ProjectRequesterError>;
+    /// Commit the chat's worktree on the remote source `source_id`.
+    async fn commit_remote(
+        &mut self,
+        focus: &Focus,
+        source_id: &str,
+        chat: &str,
+        operation_id: &str,
+        message: &str,
+    ) -> std::result::Result<Value, ProjectRequesterError>;
 }
 
 /// The validated one-line message of a `commit` job.
@@ -124,6 +144,42 @@ async fn commit_frames<R: JobRunner>(
             Ok(vec![result_frame(job, "completed", body)])
         }
     }
+}
+
+/// Result frames of a `commit` job of a remote source: the host commits the
+/// chat's worktree; the same waiting/failed mapping as other relayed jobs.
+async fn remote_commit_frames<R: JobRunner>(
+    runner: &mut R,
+    job: &Value,
+    focus: &Focus,
+    chat: &str,
+    source: &str,
+    remaining: Duration,
+    state: &mut FileJobState,
+) -> Result<Vec<(&'static str, Value)>> {
+    let operation = job["operation_id"].as_str().unwrap_or_default().to_owned();
+    let message = match commit_message(&job["arguments"]) {
+        Ok(message) => message,
+        Err(error) => {
+            state.finish(&operation);
+            return Ok(vec![error_frame(job, &error)]);
+        }
+    };
+    let outcome = crate::platform::time::timeout(
+        remaining,
+        runner.commit_remote(focus, source, chat, &operation, &message),
+    )
+    .await;
+    let frames = remote_frames(job, source, outcome, None, state, &operation)?;
+    if frames
+        .first()
+        .is_some_and(|(_, frame)| frame["status"] == "completed")
+    {
+        state
+            .notices
+            .push(format!("Project commit recorded on the machine: {message}"));
+    }
+    Ok(frames)
 }
 
 /// Result frames of a `snapshot` job: the bounded plaintext files.
@@ -229,6 +285,47 @@ fn job_of(event: &Value) -> Option<HostedFileJob> {
     })
 }
 
+/// A created or updated Project file stores real details, like the web's
+/// `projectFilePrivacy.restoreMutation`: the model only saw placeholders, so
+/// every string argument except `path` is restored with the chat's mappings
+/// (unknown tokens stay literal). A saved Project Memory is such a file.
+/// Reads, renames and deletes are returned unchanged.
+///
+/// # Errors
+/// `crate::privacy::restore_page` failures (conflicting or oversized mappings).
+fn restore_write(mut job: HostedFileJob, mappings: &[Value]) -> Result<HostedFileJob> {
+    let writes = matches!(job.operation.wire(), "create_file" | "update_file");
+    if !writes || mappings.is_empty() {
+        return Ok(job);
+    }
+    if let Value::Object(arguments) = &mut job.arguments {
+        for (key, value) in arguments.iter_mut() {
+            if key != "path" {
+                restore_strings(value, mappings)?;
+            }
+        }
+    }
+    Ok(job)
+}
+
+fn restore_strings(value: &mut Value, mappings: &[Value]) -> Result<()> {
+    match value {
+        Value::String(text) => *text = crate::privacy::restore_page(text, mappings)?,
+        Value::Array(items) => {
+            for item in items {
+                restore_strings(item, mappings)?;
+            }
+        }
+        Value::Object(map) => {
+            for item in map.values_mut() {
+                restore_strings(item, mappings)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 /// One-line notice of an applied write (`renamed` names both paths).
 fn applied_notice(mutation: &HostedFileMutation, created: bool) -> String {
     let path = &mutation.path;
@@ -285,19 +382,29 @@ pub(super) async fn job_frames<R: JobRunner>(
         )]);
     }
     let remaining = Duration::from_secs((expires as u64).saturating_sub(now_s));
-    if job["source_id"].as_str().is_some() {
+    let remote_source = job["source_id"].as_str().map(str::to_owned);
+    let is_commit = job["operation"] == COMMIT_OPERATION;
+    let is_snapshot = job["operation"] == SNAPSHOT_OPERATION;
+    if remote_source.is_some() && is_snapshot {
+        // Snapshots of a machine source belong to its own executor.
         return Ok(vec![result_frame(
             job,
             "waiting_for_executor",
             json!({"reason": "source_offline"}),
         )]);
     }
-    let is_commit = job["operation"] == COMMIT_OPERATION;
-    let is_snapshot = job["operation"] == SNAPSHOT_OPERATION;
     let hosted = if is_commit || is_snapshot {
         None
     } else {
         job_of(job)
+    };
+    let hosted = match hosted.map(|h| restore_write(h, &state.mappings.0)) {
+        Some(Err(error)) => {
+            state.finish(&operation);
+            return Ok(vec![error_frame(job, &HostedFileError::Core(error))]);
+        }
+        Some(Ok(h)) => Some(h),
+        None => None,
     };
     if hosted.is_none() && !is_commit && !is_snapshot {
         return Ok(Vec::new());
@@ -320,6 +427,10 @@ pub(super) async fn job_frames<R: JobRunner>(
     let Some(hosted) = hosted else {
         if is_snapshot {
             return snapshot_frames(runner, job, &focus, remaining, state).await;
+        }
+        if let Some(source) = remote_source {
+            return remote_commit_frames(runner, job, &focus, chat, &source, remaining, state)
+                .await;
         }
         return commit_frames(runner, job, &focus, chat, remaining, state).await;
     };
@@ -352,6 +463,15 @@ pub(super) async fn job_frames<R: JobRunner>(
             ),
             ("project_file_operation_reject", scope(job)),
         ]);
+    }
+    if let Some(source) = remote_source {
+        let mutation = proposal.as_ref().map(|p| p.mutation.clone());
+        let outcome = crate::platform::time::timeout(
+            remaining,
+            runner.execute_remote(&focus, &source, &hosted, mutation),
+        )
+        .await;
+        return remote_frames(job, &source, outcome, proposal.as_ref(), state, &operation);
     }
     let outcome = crate::platform::time::timeout(
         remaining,
@@ -387,6 +507,81 @@ pub(super) async fn job_frames<R: JobRunner>(
             .push(applied_notice(&proposal.mutation, created));
     }
     Ok(vec![result_frame(job, "completed", Value::Object(body))])
+}
+
+/// The result frames of a job relayed to a remote source. An offline or
+/// silent source keeps the job waiting (another executor, e.g. the web app,
+/// or a later re-offer may run it); other refusals fail it with the host code.
+fn remote_frames<T>(
+    job: &Value,
+    source: &str,
+    outcome: std::result::Result<std::result::Result<Value, ProjectRequesterError>, T>,
+    proposal: Option<&HostedProposal>,
+    state: &mut FileJobState,
+    operation: &str,
+) -> Result<Vec<(&'static str, Value)>> {
+    let output = match outcome {
+        Err(_) => {
+            state.finish(operation);
+            return Ok(vec![result_frame(
+                job,
+                "failed",
+                json!({"code": "lease_expired"}),
+            )]);
+        }
+        Ok(Err(ProjectRequesterError::Core(Error::Cancelled))) => return Err(Error::Cancelled),
+        Ok(Err(ProjectRequesterError::Remote { code, .. }))
+            if code == "source_offline" || code == "protocol_timeout" =>
+        {
+            return Ok(vec![result_frame(
+                job,
+                "waiting_for_executor",
+                json!({"reason": code}),
+            )]);
+        }
+        Ok(Err(ProjectRequesterError::Remote { code, .. })) => {
+            state.finish(operation);
+            return Ok(vec![result_frame(
+                job,
+                "failed",
+                json!({"code": remote_code(&code)}),
+            )]);
+        }
+        Ok(Err(ProjectRequesterError::Core(error))) => {
+            state.finish(operation);
+            return Ok(vec![error_frame(job, &HostedFileError::Core(error))]);
+        }
+        Ok(Ok(output)) => output,
+    };
+    state.finish(operation);
+    let mut body = match output {
+        Value::Object(map) => map,
+        other => serde_json::Map::from_iter([("value".to_owned(), other)]),
+    };
+    body.insert("source_id".into(), json!(source));
+    if let Some(proposal) = proposal {
+        body.insert("proposal_commitment".into(), json!(proposal.digest));
+        let created = body
+            .get("created")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        state
+            .notices
+            .push(applied_notice(&proposal.mutation, created));
+    }
+    Ok(vec![result_frame(job, "completed", Value::Object(body))])
+}
+
+/// A host code safe to forward as the job's failure code (bounded, ASCII).
+fn remote_code(code: &str) -> &str {
+    if !code.is_empty()
+        && code.len() <= 64
+        && code.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+    {
+        code
+    } else {
+        "remote_operation_failed"
+    }
 }
 
 impl JobRunner for Client {
@@ -447,6 +642,40 @@ impl JobRunner for Client {
             json!({"commit_id": commit.commit_id, "message": commit.message,
             "file_count": commit.files.len()}),
         )
+    }
+
+    async fn commit_remote(
+        &mut self,
+        focus: &Focus,
+        source_id: &str,
+        chat: &str,
+        operation_id: &str,
+        message: &str,
+    ) -> std::result::Result<Value, ProjectRequesterError> {
+        self.projects()
+            .with_filters(filters(focus))
+            .remote_commit_job(&focus.project_id, source_id, chat, operation_id, message)
+            .await
+    }
+
+    async fn execute_remote(
+        &mut self,
+        focus: &Focus,
+        source_id: &str,
+        job: &HostedFileJob,
+        mutation: Option<HostedFileMutation>,
+    ) -> std::result::Result<Value, ProjectRequesterError> {
+        self.projects()
+            .with_filters(filters(focus))
+            .remote_file_job(
+                &focus.project_id,
+                source_id,
+                &job.chat_id,
+                job.operation,
+                &job.arguments,
+                mutation,
+            )
+            .await
     }
 
     async fn snapshot(&mut self, focus: &Focus, prefix: Option<String>) -> HostedResult<Value> {

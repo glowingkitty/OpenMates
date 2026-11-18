@@ -17,6 +17,14 @@ vi.mock('../../stores/teamStore', () => ({ getActiveTeamContextSnapshot: () => c
 vi.mock('../../stores/userProfile', async () => ({ userProfile: (await import('svelte/store')).writable({ user_id: 'organize-test' }) }));
 vi.mock('../chatMetadataCache', () => ({ chatMetadataCache: { getDecryptedMetadata: async (chat: Chat) => ({ title: chat.title }) } }));
 vi.mock('../projectBrowserEvents', () => ({ broadcastProjectFilesChanged: vi.fn() }));
+// The chatState unit decides placement; the reference double answers the same facts.
+vi.mock('../rustCore/chatState/rustPlacement', async () => {
+  const reference = await import('../rustCore/__tests__/reference/chatProjectPlacement');
+  return {
+    rustChatsOrganizable: async (input: Parameters<typeof reference.chatsOrganizable>[0]) => reference.chatsOrganizable(input).ok,
+    rustPlacementPlan: async (input: Parameters<typeof reference.planPlacement>[0]) => reference.planPlacement(input),
+  };
+});
 import { createChatProject, invalidateChatProjectIndex, placeChatsInProject } from '../chatProjectService';
 const chat = { chat_id: 'chat-one', title: 'Launch copy', team_id: null } as Chat;
 const project = (id: string) => ({ project_id: id, name: id, projectKey: new Uint8Array(32), encrypted: {} });

@@ -712,7 +712,7 @@ async def explain_remote_command(
                     "summary": {"type": "string", "maxLength": 1200},
                     "effects": {"type": "array", "items": {"type": "string", "maxLength": 800}, "maxItems": 12},
                     "risks": {"type": "array", "items": {"type": "string", "maxLength": 800}, "maxItems": 12},
-                    "uncertainty": {"type": "string", "maxLength": 1200},
+                    "uncertainty": {"type": "array", "items": {"type": "string", "maxLength": 800}, "maxItems": 12},
                 },
                 "required": ["summary", "effects", "risks", "uncertainty"],
             },
@@ -732,7 +732,36 @@ async def explain_remote_command(
     arguments = getattr(result, "arguments", None)
     if not isinstance(arguments, dict):
         raise RemoteCommandError("command_explanation_unavailable", status_code=503)
-    return arguments
+    return normalize_remote_command_explanation(arguments)
+
+
+_EXPLANATION_LIST_FIELDS = ("effects", "risks", "uncertainty")
+_EXPLANATION_MAX_ITEMS = 12
+_EXPLANATION_MAX_TEXT = 1200
+
+
+def normalize_remote_command_explanation(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Return the review contract shape every client validates: `summary` text and
+    `effects`/`risks`/`uncertainty` as lists of text.
+
+    A model may still answer a list field with one string; that string becomes a
+    one-item list. Any other shape is refused here, because a review whose
+    explanation no client accepts can never be approved and only expires.
+    """
+    summary = arguments.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        raise RemoteCommandError("command_explanation_unavailable", status_code=503)
+    explanation: dict[str, Any] = {"summary": summary[:_EXPLANATION_MAX_TEXT]}
+    for field in _EXPLANATION_LIST_FIELDS:
+        value = arguments.get(field)
+        if value is None:
+            value = []
+        elif isinstance(value, str):
+            value = [value] if value.strip() else []
+        if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+            raise RemoteCommandError("command_explanation_unavailable", status_code=503)
+        explanation[field] = [item[:_EXPLANATION_MAX_TEXT] for item in value[:_EXPLANATION_MAX_ITEMS]]
+    return explanation
 
 
 async def _maybe_await(value: Any) -> Any:

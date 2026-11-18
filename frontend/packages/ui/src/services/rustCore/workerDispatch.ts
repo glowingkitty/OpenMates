@@ -1,4 +1,6 @@
 // Request dispatcher of the Rust core Worker; all Rust work goes through the wasm binding.
+import { socketFrameFailure, validChatAdmission, validSocketFrameSummary } from "./socketFramesProtocol";
+import type { SocketFrameFailure } from "./socketFramesProtocol";
 import { withAuthRefreshLock } from "./browserAdapters";
 import { advanceBrowserCachePlan,browserCachePlansComplete,retainedKindMatches,sameBrowserOwnedCacheIdentity,validBrowserCacheDrained,validBrowserCacheReply,validBrowserCachedMetadataRead,validBrowserIncomingCacheUpdate,validBrowserOwnedCacheStop,validBrowserRetainedRead } from './browserCacheProtocol';
 import { validBrowserSealedCredentials } from "./browserCredentialStorage";
@@ -15,6 +17,7 @@ import { OwnedSelectedCodeEmbedStore } from './selectedCodeEmbedOperation';
 import { OwnedSendOperation } from "./sendOperation";
 import { consumeWorkerMasterKey } from "./workerCredentials";
 import { runOwnedCacheRead } from "./workerOwnedCacheRead";
+import { clearSocketQueue,drainPendingSocketFrames,enqueueSocketFrames,mergeDrainedSummary } from "./workerSocketQueue";
 import type { WorkerRuntimeState } from "./workerRuntimeState";
 import { clearClient,dispose,noOwnedDriver,ownedCacheReply,project,retainOriginalClient,retireCacheMonitor,retireOriginalClient,retireRecoveryPort,runClientPhase } from "./workerRuntimeState";
 import type { CacheMonitorSlot,PreparedProfile,RustCacheMonitor,RustCachePublication,RustClient,RustFirstSessionDataHandle,RustFirstSessionReceipt,RustPreparedFirstSession,RustPreparedFirstSessionData,RustRecoveryRestoredClient } from "./workerRuntimeTypes";
@@ -77,7 +80,7 @@ export const dispatch = async (rt: WorkerRuntimeState, input: unknown) => {
     }
     if (!validRequest(input)) { clearPasswordRequest(input);clearExistingKeyRequest(input); dispose(rt); return; }
     const { id } = input;
-    const fail = (error: "cancelled" | "unavailable" | "reauthentication_required" | "session_expired" | "chat_unavailable" | "credential_conflict" | "authentication_failed" | "two_factor_required") => {
+    const fail = (error: SocketFrameFailure | "cancelled" | "unavailable" | "reauthentication_required" | "session_expired" | "chat_unavailable" | "credential_conflict" | "authentication_failed" | "two_factor_required") => {
       if (!rt.disposed) rt.endpoint.postMessage({ version: 1, id, ok: false, error });
     };
     if (input.operation === "invalidate" || input.operation === "cancel") { dispose(rt); return; }
@@ -128,6 +131,16 @@ export const dispatch = async (rt: WorkerRuntimeState, input: unknown) => {
           // Nonfinal DATA only. Never a native/Root completion or Main ACK.
           rt.endpoint.postMessage({version:1,id,ok:true,status:null});});
       }catch{if(!rt.disposed)fail('unavailable');/* All actual resources stay held on retained.codeEmbed. */}
+      return;
+    }
+    if(input.operation==='ingest_socket_frames'&&rt.client&&(rt.initialSync||rt.busy||rt.sending||rt.reading)){
+      // Busy client: keep the frames in arrival order; the next op (or ingest) applies them first.
+      try{
+        const status=project(rt, rt.client.status(input.handle,input.generation));
+        if(status.localReadOnly===true){fail('local_profile_read_only');return;}
+        if(!enqueueSocketFrames(rt,input.handle,input.generation,input.frames)){fail('unavailable');return;}
+        rt.endpoint.postMessage({version:1,id,ok:true,status,socketIngest:{queued:input.frames.length,appliedSeq:null,changedChats:[],ignored:0}});
+      }catch{clearSocketQueue(rt);fail('session_expired');}
       return;
     }
     if(rt.initialSync&&input.operation!=='status'&&!(input.operation==='read_cold_retained_saved_chat'&&input.ownedCache===true)){fail('unavailable');return;}
@@ -289,6 +302,8 @@ export const dispatch = async (rt: WorkerRuntimeState, input: unknown) => {
     rt.busy = true;
     let stoppedOriginalUpdate:(()=>boolean)|null=null;
     try {
+      await drainPendingSocketFrames(rt); // ordering contract: frames received before this op are applied first
+      if (rt.disposed) return;
       if (input.operation === "login_password") {
         const login=rt.binding.BrowserCoreClient.login_password;
         if (rt.configuration.admission!=="fresh_password" || rt.client || typeof login!=="function") {
@@ -704,6 +719,37 @@ export const dispatch = async (rt: WorkerRuntimeState, input: unknown) => {
         if (!validSavedRead(savedRead) || savedRead.chat.id !== input.chatId) throw new Error("unavailable");
         rt.endpoint.postMessage({ version: 1, id, ok: true,
           status: project(rt, owned.status(input.handle, input.generation)), savedRead });
+      } else if (input.operation === "ingest_socket_frames" || input.operation === "admit_chat") {
+        // Fixed-code failures keep the admitted client: a bad frame or an unknown chat is not a dead session.
+        if (!rt.client) { fail("session_expired"); return; }
+        const owned = rt.client;
+        const authority = project(rt, owned.status(input.handle, input.generation));
+        if (authority.localReadOnly === true) { fail("local_profile_read_only"); return; }
+        const method = input.operation === "ingest_socket_frames" ? owned.ingest_socket_frames : owned.admit_chat;
+        if (typeof method !== "function") { fail("unavailable"); return; }
+        rt.reading = owned;
+        let encoded: string;
+        try {
+          encoded = await withAuthRefreshLock(rt.locks, rt.lifetime.signal, () => input.operation === "ingest_socket_frames"
+            ? owned.ingest_socket_frames!(input.handle, input.generation, JSON.stringify(input.frames))
+            : owned.admit_chat!(input.handle, input.generation, input.chatId, input.teamId ?? undefined));
+        } catch (error) {
+          const code = socketFrameFailure(error);
+          if (code) { fail(code); return; }
+          throw error;
+        } finally { rt.reading = null; retireOriginalClient(rt, owned); }
+        if (rt.disposed) return;
+        if (typeof encoded !== "string" || encoded.length > 64 * 1024) throw new Error("unavailable");
+        const decoded: unknown = JSON.parse(encoded);
+        const status = project(rt, owned.status(input.handle, input.generation));
+        if (input.operation === "ingest_socket_frames") {
+          if (!validSocketFrameSummary(decoded)) throw new Error("unavailable");
+          rt.endpoint.postMessage({ version: 1, id, ok: true, status, socketIngest: mergeDrainedSummary(rt, decoded) });
+          await drainPendingSocketFrames(rt); // frames queued while this batch ran
+        } else {
+          if (!validChatAdmission(decoded) || decoded.chatId !== input.chatId) throw new Error("unavailable");
+          rt.endpoint.postMessage({ version: 1, id, ok: true, status, chatAdmission: decoded });
+        }
       } else if ((input.operation === "open_chat" || input.operation === "reconnect_chat")) {
         if (!rt.client) { fail("session_expired"); return; }
         const owned = rt.client;

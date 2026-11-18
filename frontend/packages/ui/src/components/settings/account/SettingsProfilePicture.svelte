@@ -8,14 +8,12 @@ before being sent to the upload server at POST /v1/upload/profile-image.
 Response handling:
   - ok            → update userProfile store with new URL, show success state
   - rejected      → show content-safety warning (3rd attempt shows final warning)
-  - account_deleted → set policy-violation lockout and logout immediately
 -->
 
 <script lang="ts">
     import { text } from '@repo/ui';
     import InputWarning from '../../common/InputWarning.svelte';
     import { userProfile, updateProfileImage } from '../../../stores/userProfile';
-    import { authStore } from '../../../stores/authStore';
     import { getUploadEndpoint, uploadEndpoints, getApiUrl } from '../../../config/api';
     import { getProfileImageBlobUrl, invalidateProfileImageCache } from '../../../services/profileImageService';
     import { prepareFileForUpload } from '../../../services/uploadPrivacy';
@@ -125,7 +123,7 @@ Response handling:
     /**
      * Upload the processed JPEG blob to the upload server.
      * Returns the new profile image URL on success.
-     * Throws on non-ok responses (after handling rejection / account_deleted states).
+     * Throws on non-ok responses (after handling the rejection state).
      */
     async function uploadBlob(blob: Blob, filename: string): Promise<string> {
         const uploadFile = await prepareFileForUpload(new File([blob], filename, { type: 'image/jpeg' }));
@@ -144,8 +142,8 @@ Response handling:
         if (data.status === 'rejected') {
             warningMessage = $text('settings.profile_image_not_allowed');
 
-            if (data.reject_count === 3) {
-                // 3rd violation — hide the upload button and show the final warning banner
+            if (data.reject_count === 1) {
+                // First strike: the next violation suspends the account, so show the last-warning banner
                 showUploadButton = false;
                 setTimeout(() => {
                     warningMessage = '';
@@ -158,15 +156,6 @@ Response handling:
             }
 
             throw new Error('Image rejected by content safety');
-        }
-
-        // 4th violation — account deleted
-        if (data.status === 'account_deleted') {
-            localStorage.setItem('policy_violation_lockout', (Date.now() + 600_000).toString());
-            sessionStorage.setItem('account_deleted', 'true');
-            window.dispatchEvent(new CustomEvent('account-deleted'));
-            authStore.logout({ skipServerLogout: true, isPolicyViolation: true });
-            throw new Error('account_deleted');
         }
 
         if (!response.ok || data.status !== 'ok') {
@@ -225,10 +214,10 @@ Response handling:
             updateProfileImage(newUrl);
             showSuccess = true;
         } catch (err) {
-            // rejection / account_deleted already handled inside uploadBlob;
+            // rejection already handled inside uploadBlob;
             // only show generic error for unexpected failures
             const msg = err instanceof Error ? err.message : String(err);
-            if (msg !== 'Image rejected by content safety' && msg !== 'account_deleted') {
+            if (msg !== 'Image rejected by content safety') {
                 warningMessage = $text('settings.account.profile_picture.upload_error');
             }
             console.error('[SettingsProfilePicture] Upload error:', err);

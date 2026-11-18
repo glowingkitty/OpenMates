@@ -29,6 +29,21 @@ vi.mock('../../services/cryptoService', () => ({
   decryptWithMasterKey: mocks.decrypt, encryptWithMasterKey: mocks.encrypt,
   getKeyFromStorage: vi.fn(async () => ({})),
 }));
+// The hydration defaults are planned by the Rust settings unit (no Worker in unit tests); this double applies the same defaults.
+vi.mock('../../services/appSettingsRequestDecisions', () => ({
+  decidePrivacyEntry: vi.fn(async (itemType: string, data: Record<string, unknown>, defaultCategories: Record<string, boolean>) => {
+    if (itemType === 'pii_detection_settings') {
+      return { kind: 'pii', masterEnabled: data.masterEnabled ?? true, enhancedEnabled: data.enhancedEnabled ?? true,
+        categories: { ...defaultCategories, ...((data.categories as Record<string, unknown> | undefined) || {}) } };
+    }
+    if (itemType === 'location_settings') return { kind: 'location', impreciseByDefault: data.impreciseByDefault ?? true };
+    if (itemType === 'personal_data_entry') {
+      return { kind: 'personal', type: data.type || 'custom', title: data.title || '', textToHide: data.textToHide || '',
+        replaceWith: data.replaceWith || '', enabled: data.enabled ?? true, addressLines: data.addressLines };
+    }
+    return { kind: 'other' };
+  }),
+}));
 vi.mock('../../services/chatSyncService', () => ({ chatSyncService: { sendStoreAppSettingsMemoriesEntry: mocks.sync } }));
 function row(data: Record<string, unknown>) {
   return { id: 'pii-settings', item_type: 'pii_detection_settings', item_key: 'hashed', item_version: 1,

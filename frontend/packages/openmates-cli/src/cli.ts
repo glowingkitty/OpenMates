@@ -14603,7 +14603,7 @@ Options:
   --version <version|tag>       Install a specific npm version or dist-tag (one-time override)
   --package-manager <name>      npm, pnpm, yarn, or bun (default: detect, then npm)
   --dry-run                     Print the package-manager command without running it
-  --channel <dev|stable|main>    Save release channel (dev uses npm alpha; stable/main uses latest)
+  --channel <dev|stable|main>    Save release channel (dev uses the npm prerelease tag; stable/main uses latest)
   --allow-downgrade             Explicitly allow installing an older version
   --verbose                     Stream package-manager output during installation
   --path <installation>         Also update this server's Caddy configuration from its installed release

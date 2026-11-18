@@ -44,19 +44,25 @@ from backend.core.api.app.services.web_browse_evidence import (
     coerce_numbers,
     drop_invalid,
     extraction_context,
+    form_view,
     json_type,
     page_text,
 )
 from backend.core.api.app.services.web_browse_pool import BrowsePool, pool_size
 from backend.shared.providers.browser_planner import BLOCK_REASONS, control_index
+from backend.shared.providers.browser_run_guard import RunGuard
 from backend.shared.providers.e2b_browser import (
     BrowserAdmissionRejected,
+    BrowserRpcUnavailable,
     BrowserUnavailable,
 )
 from backend.shared.python_schemas.web_browse import owner_hash
 from backend.shared.python_utils.private_inference_logging import (
     private_inference_logging,
 )
+
+# Bounded wait for resumed-VM ingress before the first start (see start_rpc).
+START_RETRY_SECONDS = 8
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.web_browse_service import BrowseService
@@ -178,6 +184,7 @@ class BrowseRun:
         self.rejected_notes = 0
         self.dropped_notes = 0
         self.no_progress = 0
+        self.run_guard = RunGuard()
         self.prior: str | None = None
         self.stage: dict[str, float] = {
             "startup_seconds": 0.0,
@@ -225,7 +232,9 @@ class BrowseRun:
             for _ in range(self.request.max_steps):
                 if await self.step(driver):
                     break
-            if self.status in ("completed", "no_results"):
+            if self.status in ("completed", "no_results", "needs_user"):
+                # A run that hands back to the user still reports the scanned
+                # page and its form, so the assistant can ask the next question.
                 await self.scan()
 
     # Startup -----------------------------------------------------------------
@@ -316,15 +325,27 @@ class BrowseRun:
         self, driver: Any, record: dict[str, Any], *, require_pristine: bool
     ) -> dict[str, Any]:
         started = time.monotonic()
-        with private_inference_logging():
-            reply = await driver.rpc(
-                record["provider"],
-                {
-                    "operation": "start",
-                    "url": self.request.start_url,
-                    "require_pristine": require_pristine,
-                },
-            )
+        body = {
+            "operation": "start",
+            "url": self.request.start_url,
+            "require_pristine": require_pristine,
+        }
+        # A resumed VM's ingress can still answer 502/503/504 for a moment
+        # after the metadata probe succeeded; on dev this closed the user's
+        # browser before the first page. A retry is safe: a start that did
+        # reach the runtime fails the pristine check (pooled VM, destroyed) or
+        # repeats the same navigation (fresh VM).
+        deadline = started + START_RETRY_SECONDS
+        while True:
+            try:
+                with private_inference_logging():
+                    reply = await driver.rpc(record["provider"], body)
+                break
+            except BrowserRpcUnavailable as exc:
+                if not exc.retryable or time.monotonic() >= deadline:
+                    raise
+                self.stage["start_retries"] = self.stage.get("start_retries", 0) + 1
+                await asyncio.sleep(0.5)
         self.stage["start_rpc_seconds"] = time.monotonic() - started
         require_protocol(reply)
         timings = reply.get("timings") or {}
@@ -412,6 +433,9 @@ class BrowseRun:
             self.stage["gate_seconds"] += time.monotonic() - started
         if denial:
             return self.finish("needs_user", denial)
+        mass_action = self.run_guard.check(plan["actions"], observation)
+        if mass_action:
+            return self.finish("needs_user", mass_action)
         notes = accept_notes(self.ledger, observation, plan["notes"])
         self.rejected_notes += notes.rejected + plan.get("malformed_notes", 0)
         self.dropped_notes += notes.dropped
@@ -654,9 +678,13 @@ class BrowseRun:
                     "observations": {
                         **{
                             k: self.observation.get(k)
-                            for k in ("url", "title", "tables", "links")
+                            for k in ("url", "title", "tables")
                         },
+                        # Same bound as extraction: the nearest links, not every
+                        # link the runtime collected for source verification.
+                        "links": (self.observation.get("links") or [])[:100],
                         "text": page_text(self.observation),
+                        "form": form_view(self.observation),
                     },
                 },
                 self.store.cache,

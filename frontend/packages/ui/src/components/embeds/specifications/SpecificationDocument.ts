@@ -10,7 +10,8 @@ export interface SpecRequirement {
   statement: string;
   appliesTo: string[];
   example: string;
-  proof: { state: 'passed' | 'open' | 'stale'; title: string; explanation: string };
+  /** Projection from linked Checks; stored documents carry none and read as not proven. */
+  proof?: { state: 'passed' | 'open' | 'stale'; title: string; explanation: string };
 }
 export interface SpecFlow {
   id: string;
@@ -40,6 +41,14 @@ export interface SpecChapter {
   flowIds: string[];
   modelIds: string[];
 }
+/** Link to another Specification of the same split project. */
+export interface SpecRelated {
+  title: string;
+  role: '' | SpecRole;
+  relation: string;
+}
+/** Role of a Specification when a complex project is split into linked ones. */
+export type SpecRole = 'product' | 'design' | 'technical';
 export interface SpecificationDocument {
   title: string;
   project: string;
@@ -52,6 +61,14 @@ export interface SpecificationDocument {
   requirements: SpecRequirement[];
   flows: SpecFlow[];
   models: SpecModel[];
-  previewNotice: string;
+  /** Optional note for design previews only; never set for real documents. */
+  previewNotice?: string;
   linkedChecks?: SpecCheckPreview[];
+  /** Empty for a single Specification; set when the user agreed to a split. */
+  role?: '' | SpecRole;
+  /** Assumptions the user has not confirmed yet. */
+  assumptions?: string[];
+  /** Agreed design decisions the requirements rely on. */
+  designDecisions?: string[];
+  relatedSpecifications?: SpecRelated[];
 }

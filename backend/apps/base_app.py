@@ -27,6 +27,7 @@ from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.apps.ai.processing.rate_limiting import RateLimitScheduledException
 from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 
 logger = logging.getLogger(__name__)
 
@@ -424,6 +425,11 @@ class BaseApp:
             # resolve human-readable filenames (embed_ref) to internal embed UUIDs.
             # e.g. images-view uses this to look up the embed in Redis by file_path (original filename)
             file_path_index = request_body.get("_file_path_index")
+            # The user's AI model and server settings for the skill's own LLM steps
+            # (backend/shared/python_utils/internal_llm_policy.py), injected by main_processor.
+            internal_llm_policy = request_body.get("_internal_llm_policy")
+            if not isinstance(internal_llm_policy, dict):
+                internal_llm_policy = None
             connected_account_access_tokens = request_body.get("_connected_account_access_tokens")
             secrets_manager = request_body.get("_secrets_manager")
             cache_service = request_body.get("_cache_service")
@@ -499,6 +505,7 @@ class BaseApp:
                 "cache_service": cache_service,
                 "encryption_service": encryption_service,
                 "rerank_candidates": rerank_candidates,
+                "internal_llm_policy": internal_llm_policy,
             }
             # Remove None values
             skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}
@@ -648,7 +655,9 @@ class BaseApp:
                         else:
                             # Execute method expects the Pydantic model directly (or Union type)
                             response = await skill_instance.execute(request_obj, **supported_skill_kwargs)
-                    except RequiredRecoveryOutputError:
+                    except (RequiredRecoveryOutputError, ChatRecoveryProtocolError):
+                        # Typed recovery rejections keep their status (e.g. the 409
+                        # immutable-binding refusal) so callers can classify them.
                         raise
                     except HTTPException:
                         raise
@@ -790,7 +799,7 @@ class BaseApp:
                 "message": "Request scheduled due to rate limit. I'll let you know once completed.",
                 "wait_time_seconds": rate_limit_e.wait_time
             }
-        except RequiredRecoveryOutputError:
+        except (RequiredRecoveryOutputError, ChatRecoveryProtocolError):
             raise
         except HTTPException:
             raise

@@ -518,7 +518,17 @@ skills:
       currently focused remote Project source. Remote execution requires an
       explicit one-run approval or an exact currently enabled command preset;
       never infer approval from Project write mode, chat text, or prior runs.
-      Pass remote commands as argv, never as a composed shell string. When
+      Pass remote commands as argv, never as a composed shell string. In a
+      focused cloud Project (no connected machine), run installs, builds, tests,
+      linters and dev servers with target e2b plus argv (no files, no test_run):
+      the command runs in that Project's workspace, which keeps installed
+      packages between commands of this chat, and the Project snapshot is
+      attached automatically. Start a dev server with background true and a
+      localhost ready_url. Files a command changes itself (lockfiles, generated
+      code, formatter output) are synced back to the Project as normal file
+      changes. Terminal commands are only for execution: always search, read and
+      edit Project files with the Project file tools, never with cat, head,
+      sed, tee or echo > file. When
       running E2B code the assistant is
       creating in this same turn, pass the source through files[].code plus
       entry_path; do not invent a target_embed_id from a filename. Use
@@ -776,7 +786,10 @@ skills:
           maxItems: 128
           items:
             type: string
-          description: Exact executable and arguments. Shell expansion and command composition are forbidden.
+          description: >-
+            Exact executable and arguments for a remote_source command or a cloud Project command
+            (target e2b). Never a command that only reads or edits files (cat, head, sed -i, tee,
+            echo > file): use the Project file tools for that.
         cwd:
           type: string
           default: .
@@ -788,7 +801,12 @@ skills:
         background:
           type: boolean
           default: false
-          description: Run as a finite tracked background job. Background source writes are forbidden.
+          description: >-
+            Run as a finite tracked background job. Background source writes are forbidden. For a
+            cloud Project command it starts a dev server that keeps running in the workspace; needs ready_url.
+        ready_url:
+          type: string
+          description: Cloud Project background command only, such as http://localhost:5173; the run reports when it answers.
         timeout_seconds:
           type: integer
           minimum: 1
@@ -990,9 +1008,11 @@ focuses:
     systemprompt_translation_key: focus_modes.code_project_planner.systemprompt
     preprocessor_hint: >
       Select only when the latest message, in any language, explicitly asks the
-      assistant to create a plan, roadmap, specification or task breakdown for a
-      software project, feature, app, migration or multi-step implementation
-      before coding. Prefer this over the generic plan focus for software work.
+      assistant to create a plan, roadmap or task breakdown for a software
+      project, feature, app, migration or multi-step implementation before
+      coding. Prefer this over the generic plan focus for software work. When
+      the user asks to write or work out a Specification, spec, PRD or
+      requirements, prefer the Write specification focus instead.
       Do not select when planning words appear incidentally, for a single code
       question, or when the user asks to write or fix code directly.
     systemprompt: |

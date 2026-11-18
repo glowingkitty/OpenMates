@@ -227,17 +227,6 @@ extension AppStrings {
     static var signupAgreeTo: String { LocalizationManager.shared.text("signup.agree_to") }
     static var signupEnterUsername: String { LocalizationManager.shared.text("signup.enter_username") }
     static var signupCreateAccount: String { LocalizationManager.shared.text("signup.create_new_account") }
-    static var signupAlphaDescription: String { LocalizationManager.shared.text("signup.is_alpha_disclaimer") }
-    static var signupAlphaStable: String { LocalizationManager.shared.text("signup.decent_stable") }
-    static var signupAlphaIncomplete: String { LocalizationManager.shared.text("signup.not_all_core_features_implemented") }
-    static var signupAlphaBugs: String { LocalizationManager.shared.text("signup.expect_bugs_and_missing_features") }
-    static var signupGitHub: String { LocalizationManager.shared.text("signup.view_on_github") }
-    static var signupGitHubDescription: String { LocalizationManager.shared.text("signup.view_on_github_description") }
-    static var signupInstagram: String { LocalizationManager.shared.text("signup.view_on_instagram") }
-    static var signupInstagramDescription: String { LocalizationManager.shared.text("signup.view_on_instagram_description") }
-    static var signupContinueWithAlpha: String {
-        LocalizationManager.shared.text("signup.continue_with_alpha", replacements: ["version": signupVersionTitle])
-    }
     static var signupAdvantages: [String] {
         ["signup.advantage_no_ads", "signup.advantage_no_subscription", "signup.advantage_privacy_focus", "signup.advantage_pay_per_use"]
             .map { LocalizationManager.shared.text($0) }

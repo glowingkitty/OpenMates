@@ -102,3 +102,51 @@ future_speaking.description:
   verified_by_human:
     - en
     - de
+life_compass:
+  context: Focus mode display name for life_compass in life_coaching app
+  en: Life compass
+  de: Lebenskompass
+  zh: 人生指南针
+  es: Brújula vital
+  fr: Boussole de vie
+  pt: Bússola de vida
+  ru: Жизненный компас
+  ja: 人生のコンパス
+  ko: 인생 나침반
+  it: Bussola della vita
+  tr: Hayat pusulası
+  vi: La bàn cuộc sống
+  id: Kompas hidup
+  pl: Kompas życiowy
+  nl: Levenskompas
+  ar: بوصلة الحياة
+  hi: जीवन कम्पास
+  th: เข็มทิศชีวิต
+  cs: Životní kompas
+  sv: Livskompass
+  he: מצפן לחיים
+  verified_by_human: []
+life_compass.description:
+  context: Focus mode description for life_compass
+  en: Find your direction toward a happier life, one small step at a time.
+  de: Finde deine Richtung zu einem glücklicheren Leben, einen kleinen Schritt nach dem anderen.
+  zh: 一步一个脚印，找到通往更幸福生活的方向。
+  es: Encuentra tu rumbo hacia una vida más feliz, paso a paso.
+  fr: Trouvez votre direction vers une vie plus heureuse, un petit pas à la fois.
+  pt: Encontre sua direção para uma vida mais feliz, um pequeno passo de cada vez.
+  ru: Найдите своё направление к более счастливой жизни, шаг за шагом.
+  ja: 小さな一歩ずつ、より幸せな人生への方向を見つけましょう。
+  ko: 작은 한 걸음씩, 더 행복한 삶을 향한 방향을 찾아보세요.
+  it: Trova la tua direzione verso una vita più felice, un piccolo passo alla volta.
+  tr: Daha mutlu bir hayata giden yönünü, küçük adımlarla bul.
+  vi: Tìm hướng đi đến một cuộc sống hạnh phúc hơn, từng bước nhỏ một.
+  id: Temukan arahmu menuju hidup yang lebih bahagia, selangkah kecil demi selangkah.
+  pl: Znajdź swój kierunek ku szczęśliwszemu życiu, małymi krokami.
+  nl: Vind je richting naar een gelukkiger leven, stap voor stap.
+  ar: اعثر على اتجاهك نحو حياة أسعد، خطوة صغيرة في كل مرة.
+  hi: एक-एक छोटे कदम से, अधिक खुशहाल जीवन की ओर अपनी दिशा खोजें।
+  th: ค้นหาทิศทางสู่ชีวิตที่มีความสุขมากขึ้น ทีละก้าวเล็ก ๆ
+  cs: Najděte svůj směr ke šťastnějšímu životu, krok za krokem.
+  sv: Hitta din riktning mot ett lyckligare liv, ett litet steg i taget.
+  he: מצאו את הכיוון שלכם לחיים מאושרים יותר, צעד קטן בכל פעם.
+  verified_by_human: []

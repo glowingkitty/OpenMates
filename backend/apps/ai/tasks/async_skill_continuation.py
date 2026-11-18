@@ -31,6 +31,7 @@ from backend.apps.ai.utils.embeds_map_view import (
 )
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
+from backend.shared.python_utils.queued_turn_marker import is_queued_turn_pending, queued_turn_pending_key
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,10 @@ def _fit_private_async_tool_history(payload: dict[str, Any], private_fields: fro
         if len(history) <= 1:
             raise RuntimeError("Current private Project result exceeds transient handoff budget")
         history.pop(0)
+        # The expired result reaches the model as the unavailable placeholder; say so.
+        logger.warning("Expired an older private Project tool result from the continuation "
+                       "handoff (%d byte budget, %d result(s) kept)",
+                       PRIVATE_ASYNC_CONTEXT_BUDGET_BYTES, len(history))
 
 
 def _project_file_reference_preview(
@@ -96,6 +101,19 @@ def async_skill_completion_key(task_id: str) -> str:
 def async_skill_latest_user_turn_key(user_id: str, chat_id: str) -> str:
     """Return the current user-turn fence for one chat."""
     return f"{ASYNC_SKILL_LATEST_USER_TURN_KEY_PREFIX}:{user_id}:{chat_id}"
+
+
+async def claim_queued_turn_as_latest(cache_service: Any, request: Any) -> bool:
+    """Make a dispatched queued follow-up the latest user turn exactly once."""
+    if not await is_queued_turn_pending(cache_service, request.user_id, request.chat_id, request.message_id):
+        return False
+    marker = queued_turn_pending_key(request.user_id, request.chat_id, request.message_id)
+    await cache_service.set(
+        async_skill_latest_user_turn_key(request.user_id, request.chat_id),
+        request.message_id, ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+    )
+    await cache_service.delete(marker)
+    return True
 
 
 def async_skill_deferred_completion_key(task_id: str) -> str:
@@ -147,10 +165,15 @@ async def _prepare_async_recovery_handoff(
     """Pause only the verified source delivery before offering Project work."""
     from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
     from backend.apps.ai.tasks.same_turn_skill_barrier import _set_once
+    from backend.shared.python_utils.focus_continuation_history import focus_authority_root
 
     inference_id = request.resolved_recovery_inference_task_id()
     if not source_delivery_id or directus is None or not inference_id:
         raise RuntimeError("Async recovery handoff lacks source authority")
+    # The logical assistant message stays this execution's; the durable delivery and the chat
+    # marker belong to the admitted root, which a Focus continuation runs under.
+    logical_message_id = request.continuation_message_id or source_delivery_id
+    source_delivery_id = focus_authority_root(request, source_delivery_id)
     if await cache.get_active_ai_task(request.chat_id) != source_delivery_id:
         raise RuntimeError("Async recovery source no longer owns the chat")
     seconds = max(1, min(int(ttl_seconds), 90 * 60))
@@ -159,7 +182,7 @@ async def _prepare_async_recovery_handoff(
         "message_id": request.message_id, "inference_task_id": inference_id,
         "preflight_id": request.recovery_preflight_id, "turn_id": request.recovery_turn_id,
         "producer_id": producer_id, "source_delivery_id": source_delivery_id,
-        "logical_message_id": request.continuation_message_id or source_delivery_id,
+        "logical_message_id": logical_message_id,
         "delivery_id": str(uuid.uuid5(uuid.UUID(inference_id), f"async:{producer_id}")),
         "step_id": f"async:{producer_id}", "deadline": time.time() + seconds,
         "claimed": False,
@@ -814,6 +837,13 @@ async def dispatch_async_skill_continuation(
         recovery_turn_id=original_request.recovery_turn_id,
         recovery_public_key=original_request.recovery_public_key,
         chat_key_version=original_request.chat_key_version,
+        # A parent admitted under the legacy cutover identity (no sealed recovery
+        # turn) passes that admission on as the continuation's root admission;
+        # without it the worker refuses the continuation before inference.
+        root_legacy_cutover_task_id=(
+            original_request.root_legacy_cutover_task_id or original_request.legacy_cutover_task_id
+        ),
+        root_user_message_id=original_request.root_user_message_id,
         user_preferences=original_request.user_preferences,
         app_settings_memories_metadata=original_request.app_settings_memories_metadata,
         mentioned_settings_memories_cleartext=original_request.mentioned_settings_memories_cleartext,

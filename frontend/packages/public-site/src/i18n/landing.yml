@@ -20,10 +20,7 @@ copy:
     openExample: Open example chat
     privacyTitle1: Privacy & safety
     privacyTitle2: by design
-    privacyBody: 'The most useful AI? Privacy? Safety? Sovereignty? You can have them all: using OpenMates. With features
-      like automatic sensitive data anonymization, encrypted chats, minimal data processing, multiple layers of AI safety
-      and no AI model training on your data. Powered by the leading AI models from Mistral, Anthropic, OpenAI, Google, Deepseek
-      & more - without ecosystem lock in.'
+    privacyBody: 'The most useful AI? Privacy? Safety? Sovereignty? You can have them all: using OpenMates. With features like automatic replacement of personal details before the AI sees them, chats encrypted on your device before they are stored, minimal data processing, multiple layers of AI safety and no AI model training on your data. Powered by the leading AI models from Mistral, Anthropic, OpenAI, Google, Deepseek & more - without ecosystem lock in.'
     privacyLink: Learn more about privacy & encryption
     safetyLink: Learn more about AI safety
     modelChoiceTitle1: No ecosystem
@@ -34,17 +31,11 @@ copy:
       by Anthropic, OpenAI, Google, Deepseek & more.
     workflowTitle1: Workflow automation
     workflowTitle2: for everyone
-    workflowBody: What if you wouldn’t have to search for apartments, but your AI team mates would search for them every hour
-      & tell you when they find good fits? Or what if you wouldn’t have to spend hours every month to check out the most interesting
-      upcoming events? And what, if setting up these and other workflows would be simple and only take seconds? See for yourself,
-      with the workflows feature in OpenMates.
+    workflowBody: What if you didn’t have to check the news on a topic you care about every morning, but your AI team mates did it for you & sent you a short summary? Or what if you didn’t have to spend hours every month finding the most interesting upcoming events? And what if setting up these and other workflows were simple and only took seconds? See for yourself, with the workflows feature in OpenMates.
     exploreWorkflows: Explore workflows in OpenMates
     devicesTitle1: A consistent experience,
     devicesTitle2: across your devices
-    devicesBody: Unlike any other AI agents software, OpenMates prioritizes a coherent design across your devices. This means
-      you can access all your chats, app skills, workflows and more - on the platform of your choice. From the web app to
-      the native apps for Mac, iPad, iPhone and Apple Watch - and even from your terminal and from inside your code. With
-      native apps for Android devices & other platforms following.
+    devicesBody: OpenMates is designed to look and work the same across your devices. This means you can access all your chats, app skills, workflows and more - on the platform of your choice. From the web app to the native apps for Mac, iPad, iPhone and Apple Watch (currently in beta via Apple TestFlight) - and even from your terminal and from inside your code. Native apps for Android devices & other platforms are planned.
     startWebApp: Start using the web app
     testflight: Sign up for testing the apps via Apple TestFlight
     developers: Learn more about OpenMates for developers
@@ -103,10 +94,7 @@ copy:
     openExample: Beispielchat öffnen
     privacyTitle1: Privatsphäre & Sicherheit
     privacyTitle2: von Anfang an
-    privacyBody: Die nützlichste KI? Privatsphäre? Sicherheit? Souveränität? Mit OpenMates kannst du alles haben. Mit Funktionen
-      wie der automatischen Anonymisierung sensibler Daten, verschlüsselten Chats, sparsamer Datenverarbeitung, mehreren Schutzebenen
-      für KI und ohne KI-Modelltraining mit deinen Daten. Unterstützt von führenden KI-Modellen von Mistral, Anthropic, OpenAI,
-      Google, Deepseek & weiteren Anbietern - ohne Bindung an ein Ökosystem.
+    privacyBody: Die nützlichste KI? Privatsphäre? Sicherheit? Souveränität? Mit OpenMates kannst du alles haben. Mit Funktionen wie dem automatischen Ersetzen persönlicher Angaben, bevor die KI sie sieht, Chats, die auf deinem Gerät verschlüsselt werden, bevor sie gespeichert werden, sparsamer Datenverarbeitung, mehreren Schutzebenen für KI und ohne KI-Modelltraining mit deinen Daten. Unterstützt von führenden KI-Modellen von Mistral, Anthropic, OpenAI, Google, Deepseek & weiteren Anbietern - ohne Bindung an ein Ökosystem.
     privacyLink: Mehr über Privatsphäre & Verschlüsselung
     safetyLink: Mehr über KI-Sicherheit
     modelChoiceTitle1: Ohne Bindung an ein
@@ -118,17 +106,11 @@ copy:
       Anbietern.
     workflowTitle1: Automatisierte Workflows
     workflowTitle2: für alle
-    workflowBody: Was wäre, wenn du nicht selbst nach Wohnungen suchen müsstest, sondern deine KI-Teamkollegen jede Stunde
-      für dich suchen und dich informieren, sobald sie passende Angebote finden? Oder wenn du nicht jeden Monat Stunden damit
-      verbringen müsstest, die interessantesten kommenden Veranstaltungen herauszusuchen? Und wenn du diese und andere Workflows
-      ganz einfach in wenigen Sekunden einrichten könntest? Überzeuge dich selbst mit der Workflow-Funktion in OpenMates.
+    workflowBody: Was wäre, wenn du nicht jeden Morgen selbst die Nachrichten zu einem Thema durchgehen müsstest, das dich interessiert, sondern deine KI-Teamkollegen das für dich übernehmen und dir eine kurze Zusammenfassung schicken? Oder wenn du nicht jeden Monat Stunden damit verbringen müsstest, die interessantesten kommenden Veranstaltungen herauszusuchen? Und wenn du diese und andere Workflows ganz einfach in wenigen Sekunden einrichten könntest? Überzeuge dich selbst mit der Workflow-Funktion in OpenMates.
     exploreWorkflows: Workflows in OpenMates entdecken
     devicesTitle1: Ein einheitliches Erlebnis
     devicesTitle2: auf deinen Geräten
-    devicesBody: Anders als andere Software für KI-Agenten legt OpenMates besonderen Wert auf ein einheitliches Design auf
-      all deinen Geräten. So kannst du auf der Plattform deiner Wahl auf all deine Chats, App-Funktionen, Workflows und mehr
-      zugreifen. Von der Web-App über native Apps für Mac, iPad, iPhone und Apple Watch bis hin zum Terminal und direkt aus
-      deinem Code. Native Apps für Android-Geräte & weitere Plattformen folgen.
+    devicesBody: OpenMates ist so gestaltet, dass es auf all deinen Geräten gleich aussieht und funktioniert. So kannst du auf der Plattform deiner Wahl auf all deine Chats, App-Funktionen, Workflows und mehr zugreifen. Von der Web-App über native Apps für Mac, iPad, iPhone und Apple Watch (derzeit als Beta über Apple TestFlight) bis hin zum Terminal und direkt aus deinem Code. Native Apps für Android-Geräte & weitere Plattformen sind geplant.
     startWebApp: Web-App starten
     testflight: Für App-Tests über Apple TestFlight anmelden
     developers: Mehr über OpenMates für Entwickler

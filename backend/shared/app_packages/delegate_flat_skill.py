@@ -215,7 +215,11 @@ class InstalledProviderFlatSkill(InstalledProviderSkill):
         providers = self._providers()
         # Context kwargs (user, chat, services) are not part of the public tool input.
         names = self._input_names()
-        raw = {key: value for key, value in kwargs.items() if key in names}
+        # The overlay may add a provider selector to the tool schema; a request model
+        # that does not declare it would reject it, so it is passed on separately below.
+        declared = models.request_model.model_fields if models.request_model is not None else names
+        raw = {key: value for key, value in kwargs.items()
+               if key in names and (key not in PROVIDER_SELECTOR_FIELDS or key in declared)}
         if not providers:
             return build_flat_response(error_group(None, UNAVAILABLE_ERROR), providers, models)
         contract_input, error = validate_request_item(models.request_model, raw)

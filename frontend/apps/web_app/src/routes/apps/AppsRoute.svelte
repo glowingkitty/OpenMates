@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { Header, Settings, NotificationStack, Login, text, authStore, userProfile, setAuthenticatedState, panelState, settingsDeepLink, isInSignupProcess, currentSignupStep, STEP_ALPHA_DISCLAIMER, focusTrap } from '@repo/ui';
+  import { Header, Settings, NotificationStack, Login, text, authStore, userProfile, setAuthenticatedState, panelState, settingsDeepLink, isInSignupProcess, currentSignupStep, STEP_BASICS, focusTrap } from '@repo/ui';
   import { loginInterfaceOpen } from '@repo/ui/stores/uiStateStore';
   import AppsWorkspace from '@repo/ui/components/apps/AppsWorkspace.svelte';
   import { readAppsWorkspaceRoute, withAppsWorkspaceOrigin } from '@repo/ui/utils/appsWorkspaceRoute';
@@ -26,7 +26,7 @@
     }
     void goto(`/${target}`, { noScroll: true, keepFocus: true });
   }
-  function signup(): void { rememberAuthReturn(); currentSignupStep.set(STEP_ALPHA_DISCLAIMER); isInSignupProcess.set(true); loginInterfaceOpen.set(true); }
+  function signup(): void { rememberAuthReturn(); currentSignupStep.set(STEP_BASICS); isInSignupProcess.set(true); loginInterfaceOpen.set(true); }
   function login(): void { rememberAuthReturn(); isInSignupProcess.set(false); loginInterfaceOpen.set(true); }
   function closeAuth(): void { authReturnHash = null; loginInterfaceOpen.set(false); isInSignupProcess.set(false); }
   function handleLoginSuccess(event: CustomEvent<{ user?: { id?: string }; inSignupFlow?: boolean }>): void {

@@ -30,15 +30,25 @@ except ModuleNotFoundError:
 GIB = 1024**3
 GRANT_SECONDS = 300
 CLEANUP_BACKOFF = 300
-RECOVERY_MARGIN = 2 * GIB
+# No extra margin under pressure: the 10 GiB floor is the only line (TASK-7646).
+RECOVERY_MARGIN = 0
 MIN_INODES = 10000
 KINDS = ("managed", "worktrees", "docker", "proof", "host")
 # Proactive maintenance by the elected service: every enabled kind runs at least
 # every PROACTIVE_INTERVAL, and every PROACTIVE_PRESSURE_INTERVAL once usage
 # reaches PROACTIVE_PERCENT, so capacity recovers before work has to wait.
-PROACTIVE_INTERVAL = 6 * 3600
+# Hourly, so the category budgets (host_disk_budgets.py) hold; from 75% every 30 min (TASK-7646).
+PROACTIVE_INTERVAL = 3600
 PROACTIVE_PRESSURE_INTERVAL = 1800
-PROACTIVE_PERCENT = 80
+PROACTIVE_PERCENT = 75
+# A threaded wait whose owner process exited (the chat checkpointed and yielded) is
+# "parked": the service never grants it, because nobody would claim the grant. Each
+# tick checks whether capacity would admit it and then sets PARKED_READY_REASON, so
+# the chat lifecycle (scripts/claude_chat_waiters.py) reopens the chat, which retries
+# the step, re-attaches to the same request and is granted. A parked wait older than
+# PARKED_WAIT_EXPIRY is cancelled: its chat never came back (TASK-662).
+PARKED_READY_REASON = "Ready: capacity is available; the owning chat must retry its step to claim it"
+PARKED_WAIT_EXPIRY = 24 * 3600
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS repositories (
  path TEXT PRIMARY KEY, enabled INTEGER NOT NULL, maintenance TEXT NOT NULL);

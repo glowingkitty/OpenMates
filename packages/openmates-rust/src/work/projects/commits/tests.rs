@@ -80,6 +80,28 @@ fn wire_encrypts_message_and_paths_and_keeps_only_pointers_in_clear() {
 }
 
 #[test]
+fn manifest_v2_carries_embed_ids_and_legacy_path_maps_still_decode() {
+    let decoded = commit_decode(&stored(vec![file(FILE_A, "src/a.rs", 2)]), &KEY).unwrap();
+    assert_eq!(decoded.files[0].target_id.as_deref(), Some(FILE_A));
+    // Commits written before manifest v2 hold a flat {hash: path} map.
+    let mut legacy = stored(vec![file(FILE_A, "src/a.rs", 2)]);
+    legacy["encrypted_paths"] = json!(enc(&json!({hash(FILE_A): "src/a.rs"}).to_string()));
+    let decoded = commit_decode(&legacy, &KEY).unwrap();
+    assert_eq!(decoded.files[0].path.as_deref(), Some("src/a.rs"));
+    assert_eq!(decoded.files[0].target_id, None);
+    // A target id that does not hash to its entry is dropped, never trusted.
+    let mut forged = stored(vec![file(FILE_A, "src/a.rs", 2)]);
+    forged["encrypted_paths"] = json!(enc(
+        &json!({"paths": {hash(FILE_A): "src/a.rs"}, "targets": {hash(FILE_A): FILE_B}})
+            .to_string()
+    ));
+    assert_eq!(
+        commit_decode(&forged, &KEY).unwrap().files[0].target_id,
+        None
+    );
+}
+
+#[test]
 fn input_validation_rejects_empty_duplicate_and_zero_version() {
     for bad in [
         ProjectCommitCreate {
@@ -231,6 +253,8 @@ async fn restore_plan_marks_changed_unchanged_and_unlinked_files() {
         ),
         (None, None)
     );
+    // The unlinked file still names its embed through the encrypted manifest.
+    assert_eq!(plan.files[1].committed_target_id.as_deref(), Some(FILE_B));
 }
 
 #[tokio::test]

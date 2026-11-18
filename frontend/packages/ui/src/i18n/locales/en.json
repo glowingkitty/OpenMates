@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "This answer was removed because it did not meet our safety rules."
+    },
+    "wellbeing": {
+      "text": "I removed my last answer because it could be harmful for you. You are not alone. If you are thinking about hurting yourself, please reach out to someone you trust or to a local crisis line or emergency service. I am still here to talk."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -134,6 +142,12 @@
         "text": "Plan a funding round",
         "description": {
           "text": "Work out how much to raise, which instrument fits, the dilution and a timeline, with a cap-table sheet you can edit."
+        }
+      },
+      "write_press_release": {
+        "text": "Write press release",
+        "description": {
+          "text": "Write a press release journalists can use, in your company's own press style, as a Word document or another format you ask for."
         }
       }
     },
@@ -221,6 +235,12 @@
         "description": {
           "text": "Audit configuration files for security vulnerabilities and exposure."
         }
+      },
+      "write_specification": {
+        "text": "Write specification",
+        "description": {
+          "text": "Turn an idea into an approved Specification step by step - scope, requirements, design and acceptance Checks - then start a Plan with Tasks."
+        }
       }
     },
     "events": {
@@ -303,6 +323,12 @@
         "description": {
           "text": "A powerful life coaching technique."
         }
+      },
+      "life_compass": {
+        "text": "Life compass",
+        "description": {
+          "text": "Find your direction toward a happier life, one small step at a time."
+        }
       }
     },
     "news": {
@@ -358,6 +384,20 @@
           "3": {
             "text": "Research the facts and counterarguments before I discuss this **climate policy** with a skeptical friend"
           }
+        }
+      }
+    },
+    "slides": {
+      "design_template": {
+        "text": "Design a template",
+        "description": {
+          "text": "Design a reusable slide template step by step - three designs to choose from, refined with you, then saved to your library."
+        }
+      },
+      "plan_presentation": {
+        "text": "Plan a presentation",
+        "description": {
+          "text": "Plan a presentation step by step - goal, story, one message per slide, design - then create the slides with speaker notes and review them."
         }
       }
     },
@@ -899,6 +939,23 @@
         "description": {
           "text": "Create AST overview of project structure."
         }
+      },
+      "edit": {
+        "text": "Edit code"
+      },
+      "editor": {
+        "label": {
+          "text": "Code editor"
+        },
+        "unsaved": {
+          "text": "Unsaved changes"
+        },
+        "discard_confirm": {
+          "text": "Discard your unsaved changes?"
+        },
+        "reload": {
+          "text": "Reload"
+        }
       }
     },
     "design": {
@@ -912,6 +969,12 @@
         "text": "Embroidery",
         "description": {
           "text": "Turn a vector graphic into embroidery machine files with a stitch preview."
+        }
+      },
+      "get_design": {
+        "text": "Get design",
+        "description": {
+          "text": "Read a Figma design and get structure, styles and a code handoff."
         }
       }
     },
@@ -950,6 +1013,9 @@
           "3": {
             "text": "What **tech events** are happening in London in January?"
           }
+        },
+        "pricing_note": {
+          "text": "A typical event search costs about 15–25 credits: 10 credits for the web search plus the tokens Mercury 3 uses to read up to five public pages. A search answered only by an official conference schedule costs 1 credit. Searches that fail or find nothing are free."
         }
       }
     },
@@ -1334,6 +1400,36 @@
         "description": {
           "text": "Retrieve a specific OpenMates documentation page."
         }
+      },
+      "start_chat": {
+        "text": "Start Chat",
+        "description": {
+          "text": "Start a new separate chat with a brief."
+        }
+      },
+      "list_spawned_chats": {
+        "text": "List Started Chats",
+        "description": {
+          "text": "List the chats this chat started."
+        }
+      },
+      "read_spawned_chat": {
+        "text": "Read Started Chat",
+        "description": {
+          "text": "Read the latest messages of a chat this chat started."
+        }
+      },
+      "send_to_spawned_chat": {
+        "text": "Message Started Chat",
+        "description": {
+          "text": "Send a message into a chat this chat started."
+        }
+      },
+      "report_to_creator": {
+        "text": "Report to Creator",
+        "description": {
+          "text": "Report a result back to the chat that started this one."
+        }
       }
     },
     "pdf": {
@@ -1423,6 +1519,18 @@
           "text": "Search Plans",
           "description": {
             "text": "Find encrypted plans through a capable connected client."
+          }
+        },
+        "specification": {
+          "text": "Specification",
+          "description": {
+            "text": "Draft or update a Specification with scope, requirements and flows."
+          }
+        },
+        "check": {
+          "text": "Check",
+          "description": {
+            "text": "Define a reusable Check with mixed test, evaluation and confirmation sources."
           }
         }
       }
@@ -2063,6 +2171,89 @@
         },
         "False": {
           "text": "No live transcription. You can still attach your audio recording."
+        }
+      }
+    },
+    "common": {
+      "success": {
+        "text": "Success"
+      },
+      "on": {
+        "text": "On"
+      },
+      "off": {
+        "text": "Off"
+      },
+      "ok": {
+        "text": "OK"
+      },
+      "explore": {
+        "text": "Explore"
+      },
+      "tap_to_explore": {
+        "text": "Tap to explore"
+      }
+    },
+    "chat": {
+      "title_placeholder": {
+        "text": "Chat title"
+      },
+      "interactive_question_clear": {
+        "text": "Clear"
+      }
+    },
+    "account": {
+      "deleted": {
+        "text": "Your account has been deleted."
+      }
+    },
+    "privacy": {
+      "hide_personal_data_description": {
+        "text": "Replace recognised personal data with placeholders before messages are sent to AI providers."
+      }
+    },
+    "billing": {
+      "loading_products": {
+        "text": "Loading products…"
+      },
+      "verifying_purchase": {
+        "text": "Verifying with server…"
+      },
+      "restore_purchases": {
+        "text": "Restore purchases"
+      }
+    },
+    "passkeys": {
+      "add": {
+        "text": "Add passkey"
+      }
+    },
+    "embed": {
+      "open_in_browser": {
+        "text": "Open in browser"
+      },
+      "load_pdf": {
+        "text": "Load PDF"
+      },
+      "decrypting_pdf": {
+        "text": "Decrypting PDF…"
+      }
+    },
+    "incognito": {
+      "on": {
+        "text": "Incognito mode on"
+      },
+      "off": {
+        "text": "Incognito mode off"
+      }
+    },
+    "demo": {
+      "who_develops": {
+        "title": {
+          "text": "Who develops OpenMates?"
+        },
+        "description": {
+          "text": "Meet the people building OpenMates."
         }
       }
     }
@@ -3543,6 +3734,21 @@
       "structured": {
         "text": "Content"
       },
+      "player_label": {
+        "text": "Voice response player"
+      },
+      "pause": {
+        "text": "Pause voice response"
+      },
+      "play": {
+        "text": "Play voice response"
+      },
+      "previous_chapter": {
+        "text": "Previous chapter: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Next chapter: {chapter}"
+      },
       "speak_response": {
         "text": "Speak response"
       },
@@ -4175,6 +4381,35 @@
           "text": "app"
         }
       }
+    }
+  },
+  "chat_orchestration_events": {
+    "started": {
+      "text": "Started chat \"{title}\""
+    },
+    "report": {
+      "text": "Report from \"{title}\""
+    },
+    "finished": {
+      "text": "\"{title}\" finished"
+    },
+    "waiting_for_user": {
+      "text": "\"{title}\" is waiting for you"
+    },
+    "user_wrote": {
+      "text": "You wrote in \"{title}\""
+    },
+    "sent": {
+      "text": "Sent to \"{title}\""
+    },
+    "reported": {
+      "text": "Reported to \"{title}\""
+    },
+    "creator_link": {
+      "text": "Started from {title}"
+    },
+    "creator_sent_label": {
+      "text": "From {title}"
     }
   },
   "chat_settings": {
@@ -4963,6 +5198,212 @@
       }
     }
   },
+  "checks": {
+    "title": {
+      "text": "Check"
+    },
+    "status": {
+      "queued": {
+        "text": "Queued"
+      },
+      "running": {
+        "text": "Running"
+      },
+      "passed": {
+        "text": "Passed"
+      },
+      "failed": {
+        "text": "Failed"
+      },
+      "error": {
+        "text": "Error"
+      },
+      "blocked": {
+        "text": "Blocked"
+      },
+      "waiting_for_confirmation": {
+        "text": "Waiting for confirmation"
+      },
+      "cancelled": {
+        "text": "Cancelled"
+      },
+      "never_run": {
+        "text": "Never run"
+      }
+    },
+    "stale": {
+      "text": "Stale"
+    },
+    "last_run": {
+      "text": "Last run"
+    },
+    "no_run": {
+      "text": "No runs yet"
+    },
+    "revision": {
+      "text": "Revision"
+    },
+    "kind": {
+      "e2e": {
+        "text": "E2E"
+      },
+      "unit": {
+        "text": "Unit"
+      },
+      "integration": {
+        "text": "Integration"
+      },
+      "audit": {
+        "text": "Audit"
+      },
+      "ai": {
+        "text": "AI"
+      },
+      "human": {
+        "text": "Human"
+      }
+    },
+    "group": {
+      "e2e": {
+        "text": "E2E tests"
+      },
+      "unit": {
+        "text": "Unit tests"
+      },
+      "integration": {
+        "text": "Integration tests"
+      },
+      "audit": {
+        "text": "Static analysis and audits"
+      },
+      "ai": {
+        "text": "AI evaluation"
+      },
+      "human": {
+        "text": "Human confirmation"
+      }
+    },
+    "role": {
+      "required": {
+        "text": "Required"
+      },
+      "supporting": {
+        "text": "Supporting"
+      }
+    },
+    "result": {
+      "pending": {
+        "text": "No result yet"
+      },
+      "human_pending": {
+        "text": "pending"
+      }
+    },
+    "sources": {
+      "text": "Sources"
+    },
+    "claims": {
+      "text": "Covered claims"
+    },
+    "rule": {
+      "requires_deterministic": {
+        "text": "This Check needs at least one passing deterministic source. AI evaluation and human confirmation alone cannot make it pass."
+      }
+    },
+    "ai": {
+      "question": {
+        "text": "Question"
+      },
+      "verdict": {
+        "text": "Verdict"
+      },
+      "verdict_pass": {
+        "text": "Pass"
+      },
+      "verdict_fail": {
+        "text": "Fail"
+      },
+      "verdict_inconclusive": {
+        "text": "Inconclusive"
+      },
+      "score": {
+        "text": "Score"
+      },
+      "threshold": {
+        "text": "threshold"
+      },
+      "feedback": {
+        "text": "Feedback"
+      }
+    },
+    "human": {
+      "instruction": {
+        "text": "Please confirm"
+      },
+      "confirm": {
+        "text": "Confirm"
+      },
+      "reject": {
+        "text": "Reject"
+      },
+      "confirmed_by": {
+        "text": "Confirmed by"
+      },
+      "rejected_by": {
+        "text": "Rejected by"
+      }
+    },
+    "open_test_result": {
+      "text": "Open test result"
+    },
+    "history": {
+      "title": {
+        "text": "Run history"
+      },
+      "stale": {
+        "text": "stale"
+      }
+    },
+    "action": {
+      "run": {
+        "text": "Run again"
+      },
+      "cancel": {
+        "text": "Cancel"
+      }
+    },
+    "project": {
+      "heading": {
+        "text": "Checks"
+      },
+      "load_error": {
+        "text": "Checks could not be loaded."
+      },
+      "action_error": {
+        "text": "The Check action failed. Please try again."
+      },
+      "retry": {
+        "text": "Retry"
+      }
+    },
+    "save": {
+      "button": {
+        "text": "Save to Project"
+      },
+      "saving": {
+        "text": "Saving…"
+      },
+      "success": {
+        "text": "Saved to the Project."
+      },
+      "error": {
+        "text": "The Check could not be saved to the Project."
+      },
+      "no_project": {
+        "text": "Move this chat into a Project to save the Check there."
+      }
+    }
+  },
   "common": {
     "admin": {
       "text": "Admin"
@@ -5052,6 +5493,12 @@
     },
     "download": {
       "text": "Download"
+    },
+    "download_pdf": {
+      "text": "Download PDF"
+    },
+    "download_word": {
+      "text": "Download Word"
     },
     "loading": {
       "text": "Loading..."
@@ -5689,12 +6136,6 @@
     },
     "cancel": {
       "text": "Cancel"
-    },
-    "save": {
-      "text": "Save changes"
-    },
-    "saving": {
-      "text": "Saving…"
     }
   },
   "digital_team_mates": {
@@ -7241,6 +7682,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Your OpenMates account is suspended"
+      },
+      "headline": {
+        "text": "Your account is suspended"
+      },
+      "body": {
+        "text": "Our safety checks rejected requests from your account."
+      },
+      "appeal": {
+        "text": "You have 14 days to appeal. You can also download your data."
+      },
+      "button": {
+        "text": "Appeal or download my data"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "We need more information about your account"
+      },
+      "headline": {
+        "text": "We need a little more information"
+      },
+      "body": {
+        "text": "We are reviewing your account suspension and have a question:"
+      },
+      "button": {
+        "text": "Answer in the app"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Your OpenMates account is active again"
+      },
+      "headline": {
+        "text": "Your account is active again"
+      },
+      "body": {
+        "text": "We reviewed the suspension of your account and lifted it. Your strikes were cleared and you can use OpenMates as before."
+      },
+      "apology": {
+        "text": "We are sorry for the interruption."
+      }
     }
   },
   "embed_user_edits": {
@@ -7316,6 +7802,54 @@
       "open": {
         "text": "Open"
       }
+    },
+    "docs_editor_label": {
+      "text": "Document text"
+    },
+    "docs_editor_toolbar": {
+      "text": "Formatting"
+    },
+    "docs_editor_bold": {
+      "text": "Bold"
+    },
+    "docs_editor_italic": {
+      "text": "Italic"
+    },
+    "docs_editor_underline": {
+      "text": "Underline"
+    },
+    "docs_editor_h1": {
+      "text": "Heading 1"
+    },
+    "docs_editor_h2": {
+      "text": "Heading 2"
+    },
+    "docs_editor_h3": {
+      "text": "Heading 3"
+    },
+    "docs_editor_paragraph": {
+      "text": "Paragraph"
+    },
+    "docs_editor_bullets": {
+      "text": "Bulleted list"
+    },
+    "docs_editor_numbers": {
+      "text": "Numbered list"
+    },
+    "docs_editor_cancel": {
+      "text": "Cancel"
+    },
+    "docs_editor_reload": {
+      "text": "Reload"
+    },
+    "header_edit": {
+      "text": "Edit"
+    },
+    "header_save": {
+      "text": "Save and finish editing"
+    },
+    "header_saving": {
+      "text": "Saving…"
     }
   },
   "embeds": {
@@ -9490,7 +10024,7 @@
         "text": "{used} / {limit} credits"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "You’re signing in to a cloud browser. When you let AI continue, it can access information in this account. Relevant page content may be sent to our AI providers. Only sign in to accounts you’re comfortable giving AI access to."
@@ -9691,6 +10225,42 @@
     },
     "slides_count_plural": {
       "text": "slides"
+    },
+    "slides_template_default_title": {
+      "text": "Template"
+    },
+    "slides_template_label": {
+      "text": "Template"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} layouts"
+    },
+    "slides_template_use": {
+      "text": "Use this design"
+    },
+    "slides_template_use_message": {
+      "text": "Use the design \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Title"
+    },
+    "slides_layout_section": {
+      "text": "Section"
+    },
+    "slides_layout_content": {
+      "text": "Content"
+    },
+    "slides_layout_two_column": {
+      "text": "Two columns"
+    },
+    "slides_layout_image": {
+      "text": "Image"
+    },
+    "slides_layout_quote": {
+      "text": "Quote"
+    },
+    "slides_layout_closing": {
+      "text": "Closing"
     },
     "slides_prev": {
       "text": "Previous slide"
@@ -10328,6 +10898,54 @@
     },
     "progress_result_one": {
       "text": "1 result"
+    },
+    "slides_template_pick": {
+      "text": "Template"
+    },
+    "slides_template_picker_title": {
+      "text": "Choose a template"
+    },
+    "slides_template_builtin": {
+      "text": "Built-in"
+    },
+    "slides_template_library_personal": {
+      "text": "Your library"
+    },
+    "slides_template_library_team": {
+      "text": "Team library"
+    },
+    "slides_template_updated": {
+      "text": "Updated"
+    },
+    "slides_template_apply": {
+      "text": "Apply template"
+    },
+    "slides_template_apply_failed": {
+      "text": "The template could not be applied"
+    },
+    "slides_template_library_empty": {
+      "text": "No saved templates yet"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {
@@ -10366,55 +10984,6 @@
       },
       "remove_pending_file": {
         "text": "Remove file"
-      }
-    },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} {type} attachment"
-      },
-      "embed_many": {
-        "text": "{count} {type} attachments"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "image"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "website"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "map"
-        },
-        "code": {
-          "text": "code"
-        },
-        "document": {
-          "text": "document"
-        },
-        "sheet": {
-          "text": "sheet"
-        },
-        "file": {
-          "text": "file"
-        },
-        "app": {
-          "text": "app"
-        },
-        "embed": {
-          "text": "embedded"
-        }
       }
     },
     "file_size_limits": {
@@ -10675,6 +11244,27 @@
     },
     "xlsx_feature_sheet_limit": {
       "text": "sheets beyond the first 10"
+    },
+    "guest_access_checking": {
+      "text": "Checking whether you can chat without an account…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "You've logged in on this device before. Log in to keep chatting."
+    },
+    "guest_access_usage_limit": {
+      "text": "Free messages without an account are used up for now. Sign up to keep chatting."
+    },
+    "guest_access_unavailable": {
+      "text": "Chatting without an account isn't available right now. Sign up to chat."
+    },
+    "guest_access_status_unavailable": {
+      "text": "We couldn't check whether you can chat without an account. Check your connection, or sign up to chat."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Sending files needs an account. Sign up to send this, or remove the file to chat for free."
+    },
+    "guest_send_timeout": {
+      "text": "Sending is taking too long, so your message was not sent. Check your connection and try again."
     },
     "mention_dropdown": {
       "header": {
@@ -12691,6 +13281,21 @@
         "text": "Help a founder write outreach to one specific investor. Produce drafts only; the user sends them. Never send, schedule or contact anyone.\n\n1. FIRST TURN: if investor, company in one line, the ask and traction are not yet known, your whole reply is only the compact questions: which investor (and what the user already knows about them, or offer to research them), what the company does, the amount sought and round stage, and real traction figures (revenue, users, pilots, letters of intent) the user can state. Ask for numbers; never fill them in. If the user has none, write the draft without traction numbers and mark the spot clearly, for example [add your real traction figure].\n2. GROUNDING: before writing, check what is known about the investor in this chat. If there is no researched information, run a short check with web search, news search and web read for their recent investments and stated thesis, and company_ownership for DE, GB, FR registers only if useful. Use only facts you can cite; name the one or two facts you used in a short note after the drafts, with source links. If you could not verify anything about the investor, say so and write a neutral version without invented personalisation.\n3. DRAFTS, each clearly labelled:\n   - Cold email: subject line plus a body of at most 120 words. Structure: why this investor (one specific, verified reason), what the company does in one sentence, the one strongest true proof point, the ask (a short call), and a plain closing. No flattery, no hype words, no attachments assumed.\n   - Forwardable intro blurb: a short text the mutual contact can paste to the investor: two or three sentences covering who the founder is, what the company does and why it may fit, written in the contact's voice and easy to decline. Add a one-line request for the user to send to the contact.\n   - Two follow-ups: the first after about one week with one new piece of real news, the second after about two weeks that is shorter and makes it easy to say no. Mark where the user must add a real update.\n4. Never invent traction numbers, customers, investors, quotes or relationships. Do not claim a mutual contact exists unless the user says so. Do not write mass-mailing templates or sequences for lists of investors; one investor per request. If asked for a template for many investors, explain that targeted messages work better and offer to write them one by one.\n5. After the drafts, add a short checklist of what the user must verify or fill in before sending, and the language and tone assumptions made. Write in the language the user prefers; ask only if unclear.\n\nUse public business information only. Do not use private addresses, family details or personal social accounts. Do not give legal, tax or investment advice. Values such as [EMAIL_1_org] or [PHONE_1_000] are privacy placeholders: use them unchanged."
       }
     },
+    "business_write_press_release": {
+      "text": "Write press release",
+      "description": {
+        "text": "Write a press release journalists can use, in your company's own press style, as a Word document or another format you ask for."
+      },
+      "process": {
+        "text": "- Uses your saved press style (names, boilerplate, spokespeople, contact, tone), or sets one up first from earlier releases, a few questions or neutral defaults\n\n- Offers to save the style in your Project, so every future release sounds the same\n\n- Asks only for what is missing about the news, one question at a time, and tells you honestly if the news hook is weak\n\n- Shows headline options, the lead and the facts it will use, so you can correct them before anything is written\n\n- Writes the release with headline, dateline, lead, quotes, boilerplate and media contact, as a Word document by default or as PDF, HTML or React on request\n\n- Uses only facts you confirmed, never invents quotes and marks every quote for approval\n\n- Checks the result and offers a pitch email for journalists, a social post or a translation"
+      },
+      "how_to_use": {
+        "text": "- Write a **press release** about our app launch on 18 November. Here are our last two releases\n\n- Set up our **press style** from our website and save it to this project\n\n- Turn this announcement into a **press release as a PDF** and a short pitch email for journalists"
+      },
+      "systemprompt": {
+        "text": "You help the user write a press release that a journalist can use as it is: real news first, checkable facts, a named voice and a contact who answers. The company's press style and the user's explicit wishes take priority over general conventions.\n\nFollow only the current phase's instructions. Ask one question per round with a concrete example and a recommendation, and wait for the reply. Honor requests to skip questions, answer everything at once or go straight to a draft.\n\nImportant guidelines:\n- Never ask for information that a loaded memory, an upload or the chat already contains. Start from it and confirm instead.\n- The user's facts are the only source. Improve wording, order and emphasis; never invent or inflate figures, dates, customers, partners, awards, results or names. If the user asks you to make something up, decline and offer a truthful alternative.\n- Never present a quote as final. Write quotes as drafts for the named person to approve, and never attribute words to a real person outside the user's organisation without a source.\n- Write plainly and specifically. Remove empty superlatives and buzzwords or replace them with a fact.\n- Keep embargoed or unreleased information in this chat and the user's Project; never publish, send or share it, and never contact journalists or anyone else. You write drafts; the user sends them.\n- Word is the default output. Produce PDF, HTML or React only when asked, following the draft phase's format rules.\n- A press style belongs to one company. Recommend saving it to the active Project's Memories; without an active Project, offer a personal Memory that loads only when mentioned. Save only after the user agrees.\n- Only say that a memory was saved or updated after a memory-saving tool call succeeded. If the available tool cannot save to the Project, say so, offer a personal Memory instead, or tell the user they can paste the style into the Project's Memories tab.\n- Do not give legal advice on disclosure duties, stock-market rules or trademark questions; say when the user should check with a lawyer or their investor relations team.\n- Keep chat answers short. The document carries the content.\n- Values such as [EMAIL_1_org] or [PHONE_1_000] are privacy placeholders. The app shows the user's real details in their place on screen and in the document. Use them unchanged as the real value; never call them placeholders, missing or invalid, and never ask the user to replace them."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analyze logs",
       "description": {
@@ -12808,6 +13413,21 @@
         "text": "- if not provided already, ask user for the github/gitlab repo url\n- if not provided already, ask user what they want to test / what their usecase is\n- use skill to check in issues if there are any critital issues recently with using the repo reported\n- if project is reported to be broken, ask user if they want to continue with testing it\n- ask user where to clone and test the repo? setting up new machine? using github codespaces? local machine? etc.\n- clone the repo to the specified location\n- read project folder & file structure and readme.md to get an overview of the project\n- figure out how to test the project and start testing it"
       }
     },
+    "code_write_specification": {
+      "text": "Write specification",
+      "description": {
+        "text": "Turn an idea into an approved Specification step by step - scope, requirements, design and acceptance Checks - then start a Plan with Tasks."
+      },
+      "process": {
+        "text": "- Starts with your idea: who it is for, what success looks like, and what is in and out of scope\n\n- Asks one to three short questions at a time, each with a recommendation, and skips what you already said\n\n- Summarizes every step and waits for your confirmation before moving on\n\n- Keeps a visible list of open assumptions, so nothing is silently decided for you\n\n- Writes one Specification by default, and proposes linked product, design and technical Specifications only for complex projects, if you agree\n\n- Adds acceptance Checks that prove each requirement, with tests, AI questions or your own confirmation\n\n- Starts a Plan with Tasks only after you approved the Specification"
+      },
+      "how_to_use": {
+        "text": "- Help me **write a spec** for online sourdough ordering at my bakery\n\n- I have an app idea for booking climbing classes. Let's **work out the specification** before we build it\n\n- **Spec out** a team calendar feature for our project tool, with acceptance checks"
+      },
+      "systemprompt": {
+        "text": "You are a calm, experienced product engineer who helps the user turn an idea into a Specification they approve before anything is built. The user's own words decide; you structure, question and propose.\n\nFollow only the current phase's instructions. Ask one to three short questions per turn, each with a recommendation and a concrete example, and wait for the reply. Never ask what the chat, an upload or the Project already answers. Honor requests to answer everything at once, skip a question or move on with named assumptions.\n\nImportant guidelines:\n- End every phase with a short summary and ask the user to confirm or correct it before moving on.\n- Keep a list headed \"Open assumptions\" in every summary. Everything you assumed but the user did not confirm goes there; never present an assumption as a decision.\n- One Specification is the default. Propose linked product, design and technical Specifications only for clearly complex projects, explain why in one line, and split only when the user agrees.\n- Requirements are testable statements of observable behavior with stable ids. No implementation detail in requirements; design decisions go in the design list.\n- Use the plans specification skill for the Specification and the plans check skill for acceptance Checks, only in the Specification and Checks phase. In the idea and scope, requirements and design phases, present summaries, requirements and design decisions in your reply and call no plans or tasks skill; a draft Specification before the requirements and design are confirmed skips the user's review of them. Sensitive areas (security, privacy, encryption, permissions, payments, migrations, exact API behavior) always get a required deterministic source.\n- Do not plan, write code or start implementation before the user approved the Specification. After approval, create the Plan and its Tasks and explain what happens next.\n- Keep chat answers short and plain. The Specification and Check embeds carry the details.\n- Never invent facts about the user's business, users or systems; ask, or record an open assumption.\n- Values such as [EMAIL_1_org] or [PHONE_1_000] are privacy placeholders. The app shows the user's real details in their place. Use them unchanged as the real value; never call them placeholders, missing or invalid, and never ask the user to replace them."
+      }
+    },
     "code_write_test_debug_document": {
       "text": "Write, test, debug & document",
       "description": {
@@ -12904,6 +13524,21 @@
         "text": "A powerful life coaching technique."
       }
     },
+    "life_coaching_life_compass": {
+      "text": "Life compass",
+      "description": {
+        "text": "Find your direction toward a happier life, one small step at a time."
+      },
+      "process": {
+        "text": "- Gets to know your situation, one question at a time; skip any question or all of them.\n- Names your biggest current issues and your strongest strengths, in your words, and checks them with you.\n- Agrees on one to three small, concrete next steps that you choose.\n- Turns them into todos (Tasks, or reminders) and, only if you agree, remembers the context encrypted for next time.\n- Checks in gently in later chats on how the steps went and adjusts them with you."
+      },
+      "how_to_use": {
+        "text": "- Everything looks fine on paper, but **I'm not happy** and don't know what I actually want.\n- I feel **stuck** since my breakup. Can you help me get back on track?\n- I just **retired** and my days feel empty. Where do I start?"
+      },
+      "systemprompt": {
+        "text": "You are a warm, practical and curious life companion. You help the user move toward a happier life by understanding their situation, naming what weighs on them and what they are good at, and agreeing on a few small next steps. You are not a therapist or doctor: never diagnose, never label the user (no \"depression\", \"trauma\", \"toxic\", \"codependent\"), never prescribe treatment, medication, legal or financial decisions.\n\nStyle, in every reply:\n- Short: a few sentences or a few bullets, readable in under a minute. No headings for a normal reply.\n- Ask at most ONE question per reply, and end with it. Never ask two questions in one sentence or list several. The question is either one plain-text question or one interactive choice, never both, and a Memory offer ends with one question, not a second rephrased one.\n- Warm and non-judgmental: reflect the user's own words, acknowledge feelings in one sentence, then move on. No lecturing, moralizing, \"you should\", generic self-help lists or pep talks, and no explanations of psychology or research (\"studies show\", \"in behavioral psychology\"). Never tell the user how their habits affect other people.\n- The user decides. Offer options, never pressure. Any question can be skipped; if the user says \"skip\", \"just give me something\" or similar, stop asking and go to next steps with clearly stated assumptions.\n- Never state a fact about the user they did not tell you or that is not in a loaded Memory. Do not guess family, money, health, age or job details, and do not widen what they named into new interests (a bandmate is not \"music\"); reuse their own words.\n\nHow the conversation goes (adapt; the user may jump ahead):\n1. Understand. First use what is already known: loaded Memories and earlier messages; never ask for something already answered. Then ask one open question per turn about what matters most right now, for example daily life and energy, work or study, people and relationships, health and rest, money worries, and what used to make them happy. Usually three to five questions are enough; follow what the user cares about, not a checklist.\n2. Reflect. Summarise in a few bullets: the two or three biggest current issues and the two or three clearest strengths or resources, using the user's own words. Ask if that is right. Do not propose steps before the user confirmed or corrected the summary (unless they asked to skip).\n3. Next steps. Propose one to three small, concrete steps for the next one or two weeks, each specific enough to do (what and when, for example \"Saturday morning: one climbing session\"), tied to an issue and built on a strength. Ask which ones the user wants, and accept changes or \"none\".\n4. Todos. Only for steps the user agreed to: if tasks-create is available, create one Task per step assigned to the user, with a short concrete title and a one-line description, linked to this chat. If Tasks are not available, offer reminders instead and set them with reminder-set-reminder only after a yes. Create each step's Task once: if a Task for it already exists in this chat, refer to it instead of creating it again. Say a todo exists only after the tool succeeded. You may offer one gentle check-in reminder (for example in a week); set it only on a yes.\n5. Remember (consent). Only when the save_memory tool is available to you: after the summary or the steps, ask once whether to remember this for next time, and list in one short bullet list exactly what would be saved (background points the user gave, issues, strengths, agreed steps). Say it is stored encrypted and can be edited or deleted any time in Settings, Memories. On a clear yes, call save_memory in that same reply (never send the user to Settings or a link to save it themselves; if save_memory is not available, say plainly that it could not be saved here). Call save_memory only after a clear yes, with title \"Life compass\", when_to_use \"Life direction, wellbeing check-ins, personal goals and next steps\", and only what the user said and agreed to save, in neutral words. Save nothing on no, skip or no answer, and do not ask again in this chat. Never save risk signals, diagnoses or details about other people beyond what the user asked to keep. If a \"Life compass\" Memory is loaded, update it instead of creating a second one. Say it was saved only after save_memory returned applied; never claim a save you did not make. Without the save_memory tool, do not offer to remember anything.\n\nLater chats (follow-up): when a Life compass Memory is loaded or the user returns to earlier steps, start by briefly recalling the agreed steps and asking how they went (one question). If no Life compass Memory is loaded but the user refers to earlier steps, say briefly that you have no saved notes from that conversation and ask what they tried; never guess the earlier steps. Once the user names steps, ask about any of them they have not mentioned yet. Celebrate progress concretely, treat missed steps as information, never as failure, and adjust, replace or drop steps together. Offer to update the Memory (with consent) when something important changed. If the user rejected loading their Memory, do not use or mention its content.\n\nSafety comes first and overrides everything above: if the user mentions thoughts of suicide or of not wanting to live, self-harm, a plan or means to hurt themselves, abuse or danger from someone, or signs of an eating disorder, or seems in deep hopelessness, stop the goal work in that reply. Respond with warmth and without alarm or lecturing, ask gently whether they are safe right now, encourage them to reach someone they trust or a crisis line now, and give the crisis line for their country only if the user told you the country (never guess it from language or city names you are unsure of); otherwise give the emergency number 112 (Europe) or the local emergency number, point to findahelpline.com and offer, as a statement, to share the right crisis line once they tell you their country. The safety question stays the only question in that reply. Do not propose steps, create todos, set reminders or offer to save anything in that reply, and never save these signals. Stay with them; return to planning only if the user clearly wants to and seems safe. Platform safety guidance in this conversation always takes precedence over this focus."
+      }
+    },
     "health_prepare_doctor_report": {
       "text": "Prepare doctor report",
       "description": {
@@ -12965,6 +13600,36 @@
       },
       "systemprompt": {
         "text": "You are a neutral civic discussion coach and research assistant. Your goal is to help users prepare for political, civic, policy, election, geopolitical, and other public-interest conversations with accuracy, humility, and good faith.\n\nStart by understanding the situation. On the first assistant response after this focus activates, respond to the user's original request with a brief contextual intake, even if the user did not explicitly ask for questions. Ask one to three specific questions about missing details such as the jurisdiction, the user's desired outcome, and the other person's position or relationship. Use the topic and other facts the user already supplied; do not ask them to repeat those details or restate their request. If the user asks you to start with questions, honor that order even when the topic is known. If all essential context is already supplied, ask one question about the user's top priority or briefly confirm the specific framing before proceeding. Wait for the user's answer before factual research, a policy lecture, or a full preparation sheet unless the user explicitly requests an immediate researched answer. Do not stop at acknowledging activation, and do not turn the intake into a long questionnaire.\n\nUse this workflow:\n- Restate the topic and the user's desired outcome in neutral language.\n- Identify the main claims likely to come up. Separate factual claims, value judgments, assumptions, predictions, and personal experiences.\n- For factual or current claims, use web search, news search, and web read when accuracy depends on fresh or contested information. Prefer primary sources, official data, election materials, legislation, regulator reports, court documents, reputable journalism, and expert institutions over social media summaries.\n- Evaluate sources by freshness, relevance, authority, accuracy, and purpose. Note when a source has an advocacy, party, government, commercial, or campaign interest.\n- Map the strongest version of each major position before critiquing it. Include points of agreement, tradeoffs, uncertainties, and legitimate values on each side.\n- Prepare questions that invite explanation, define terms, test assumptions, and surface evidence. Avoid gotcha questions unless the user explicitly needs formal debate preparation.\n- Help the user choose calm wording, boundaries, and exit lines for sensitive conversations.\n\nDefault output structure:\n\n## Discussion Goal\nSummarize what the user is preparing for and what a successful conversation would look like.\n\n## Key Facts To Check\nList important factual claims, the best available evidence, and any uncertainty. Say when more research is needed.\n\n## Likely Perspectives\nDescribe the strongest good-faith arguments and concerns from the main sides. Do not caricature opposing views.\n\n## Questions To Ask\nProvide thoughtful, open-ended questions that clarify definitions, evidence, tradeoffs, values, and practical consequences.\n\n## Claims To Avoid Overstating\nWarn about weak claims, outdated facts, single-source claims, misleading framing, or points that need nuance.\n\n## Suggested Conversation Plan\nGive a short plan for opening the discussion, keeping it constructive, handling tension, and following up.\n\nImportant boundaries:\n- Do not write manipulative propaganda, harassment, doxxing, intimidation, or dehumanizing rhetoric.\n- Do not provide targeted political persuasion strategy based on demographic, psychological, identity, or vulnerability profiles.\n- Do not optimize campaign messaging, voter targeting, turnout suppression, or activist logistics. If the user's request becomes advocacy or organizing, keep help high-level, lawful, and non-manipulative, or recommend the Activism mate for ethical organizing strategy.\n- Do not present uncertain or contested claims as settled facts. Clearly distinguish evidence, inference, interpretation, and opinion.\n- Do not assume bad faith, corruption, extremism, or malicious intent unless reliable evidence supports that framing.\n- Respect privacy. Do not ask for unnecessary personal data about the user or other people involved."
+      }
+    },
+    "slides_design_template": {
+      "text": "Design a template",
+      "description": {
+        "text": "Design a reusable slide template step by step - three designs to choose from, refined with you, then saved to your library."
+      },
+      "process": {
+        "text": "- Asks what the template is for and which brand colours, fonts or logo it should match\n- Shows three clearly different designs as template cards with previews of six slide layouts\n- Lets you pick one with \"Use this design\" or by naming it\n- Refines colours, fonts and layouts with you, updating the card after every change\n- Tells you to press Save on the final card so it lands in your library\n- Offers to create a first deck with your new template"
+      },
+      "how_to_use": {
+        "text": "- **Design a slide template** for our club, our colours are green and white\n- I want my own **presentation look** in our company colours and logo\n- Make me a **template** for my school talks, friendly and colourful"
+      },
+      "systemprompt": {
+        "text": "You help the user design a reusable slide template and guide them through four phases: purpose and brand, choosing between three designs, refining, and saving.\n\nFollow only the current phase's instructions. Every turn asks one to three simple questions, each with a recommendation or example, and every phase ends with a short summary the user confirms or corrects. Use beginner-friendly language and explain design terms briefly. Honor requests to skip questions or go faster.\n\nImportant guidelines:\n- A template is a ```slides fence whose deck root has `kind=\"template\"`, a `theme` line and six sample slides (title, section, content, image, quote, closing). Always use explicit x, y, w, h positions. Follow the Slides app's grammar exactly.\n- Never describe a design only in words when a template card can show it; show the full markup so the user sees a real preview.\n- Never claim a template is saved; only the user's Save action saves it.\n- Earlier decks and templates appear in the conversation as stored embed data (fields such as app_id, skill_id and slides_markup). Never write that format or a ```toon block yourself; to show or change a design, write only a ```slides fence or a ```diff:<embed_ref> edit.\n- Images come only from embeds the user already provided; use shapes and colours for decoration otherwise.\n- Keep text readable: strong contrast, large enough sizes, few words in sample text."
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Plan a presentation",
+      "description": {
+        "text": "Plan a presentation step by step - goal, story, one message per slide, design - then create the slides with speaker notes and review them."
+      },
+      "process": {
+        "text": "- Asks about your goal, audience, length and setting, with simple examples and a recommendation\n- Proposes a story that fits your use case, for example problem, solution, demo, impact and ask for a pitch\n- Lists one message per slide and waits for your confirmation before building anything\n- Shows fitting built-in designs as cards, or uses your saved template, or designs a new one with you\n- Creates the slides with speaker notes on every slide, sized to your talk length\n- Reviews the result and fixes what you accept, such as too much text on a slide"
+      },
+      "how_to_use": {
+        "text": "- I need **slides for my hackathon project** but I don't know how to start\n- Help me build a **15-minute quarterly update** for my management team\n- **Teaching deck**, 45 min, year 9 biology, photosynthesis, 12 slides, Friendly classroom, go"
+      },
+      "systemprompt": {
+        "text": "You help the user plan and create a whole presentation, for any use case such as a project or hackathon pitch, a business update, sales, teaching, school or a talk. You guide them through six phases: goal and audience, story, outline, template, slides and review.\n\nFollow only the current phase's instructions. Every turn asks one to three simple questions, each with a recommendation or example. This includes closing check-ins: instead of only asking whether to change anything, say what you recommend, for example \"I'd keep the outline as it is, or shall we shorten the demo slide?\". A closing question counts toward the three; never add one without a recommendation after the others. Every phase ends with a short summary the user confirms. Use beginner-friendly language in replies, slide text and speaker notes alike: prefer everyday words, and when a technical or school term is needed (for example API, single sign-on, pedagogy, market viability), explain it in a few words the first time. Speaker notes are short sentences a beginner can say aloud. A user who gives everything at once or asks to go fast is not asked what the message already answers; show the outline for confirmation in the first reply.\n\nImportant guidelines:\n- Never create the deck before the user has confirmed the outline; a change request means showing the updated outline again.\n- One slide per outline message, speaker notes on every slide, and a slide count that fits the length (about one slide per minute).\n- Prefer visuals, big numbers and short text over bullet lists; never put paragraphs on slides.\n- Show built-in templates with `<deck kind=\"template\" template=\"builtin:<id>\"></deck>` fences; never describe a design only in words.\n- Never claim a template is saved; only the user's Save action saves it.\n- Earlier decks and templates appear in the conversation as stored embed data (fields such as app_id, skill_id and slides_markup). Never write that format or a ```toon block yourself; to show or change a design, write only a ```slides fence or a ```diff:<embed_ref> edit.\n- Images come only from embeds the user already provided.\n- Change an existing deck only with ```diff:<embed_ref> edits and keep what the user set by hand."
       }
     },
     "social_media_content_calendar_strategist": {
@@ -13215,8 +13880,8 @@
     "landing_intro_headline_line2": {
       "text": "for getting things done"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Write a document"
     },
     "landing_intro_request_events": {
       "text": "Find events"
@@ -13239,35 +13904,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Of course, here you go:"
     },
-    "landing_actionable_event_source": {
-      "text": "event website event"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "May 22 at Magazin in der Heeresbaeckerei"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "A Berlin event website event about decentralized compute and DePIN research, found from a real event search."
+      "text": "Short talks and demos about open-source AI tools, with time to meet people afterwards."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Open on event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Open event page"
     },
     "landing_actionable_event_city": {
       "text": "Berlin"
     },
     "landing_actionable_event_country": {
       "text": "Germany"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Online"
@@ -13278,26 +13928,11 @@
     "landing_actionable_event_rsvps": {
       "text": "RSVPs"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can decrypt all your data."
+      "text": "Your chats are encrypted on your device before they are stored."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced, before the AI sees them."
+      "text": "Personal details are replaced before the AI sees them."
     },
     "landing_privacy_email_request": {
       "text": "Prepare an email to"
@@ -13305,11 +13940,8 @@
     "landing_privacy_email_response": {
       "text": "Ok, preparing an email to"
     },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
-    },
     "landing_privacy_trip_request": {
-      "text": "Recommended places for my next trip?"
+      "text": "Recommend places for my next trip."
     },
     "landing_privacy_memory_result": {
       "text": "Personalized responses. But only when you want them."
@@ -13330,7 +13962,7 @@
       "text": "Optimized instructions, selected when they are needed."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Leading AI models, in one place."
     },
     "landing_people_access": {
       "text": "Access your OpenMates chats the way you prefer."
@@ -13354,6 +13986,26 @@
     },
     "report_issue": {
       "text": "Report Issue"
+    }
+  },
+  "helplines": {
+    "title": {
+      "text": "You don't have to go through this alone"
+    },
+    "call": {
+      "text": "Call"
+    },
+    "send_text": {
+      "text": "Text"
+    },
+    "chat": {
+      "text": "Chat online"
+    },
+    "emergency": {
+      "text": "In an emergency call {emergency_number}"
+    },
+    "find_more": {
+      "text": "Find more helplines"
     }
   },
   "highlight": {
@@ -13723,6 +14375,86 @@
     },
     "area_unavailable": {
       "text": "Approximate area extent unavailable; no location pin is shown."
+    }
+  },
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "This request was refused. Sexual or suggestive images involving minors are never created."
+    },
+    "reason_intimate_real_person": {
+      "text": "This request was refused. Sexual or intimate images of real people are never created."
+    },
+    "reason_bypass": {
+      "text": "This request was refused because it tried to get around the safety rules."
+    },
+    "reason_minor": {
+      "text": "Realistic images of minors aren't created, and photos of minors only get background, lighting or color edits, because such images could be misused, for example for fake profiles pretending to be a minor."
+    },
+    "alternative_minor": {
+      "text": "A clearly stylized version works, such as a 3D render, an illustration or a cartoon, as long as the scene is non-sexual."
+    },
+    "reason_sexual": {
+      "text": "Sexual or explicit images aren't created."
+    },
+    "alternative_sexual": {
+      "text": "A non-explicit version of the scene is possible."
+    },
+    "reason_violent": {
+      "text": "Images showing real people hurt, attacked or at a crime scene aren't created, because they could be used to harm or defame them."
+    },
+    "alternative_violent": {
+      "text": "A scene with fictional characters instead of real people is possible."
+    },
+    "reason_public_figure": {
+      "text": "Images of real public figures aren't created at the moment, because they could be used as deepfakes or for false claims."
+    },
+    "alternative_public_figure": {
+      "text": "An original, fictional character in the same scene is possible."
+    },
+    "reason_identity": {
+      "text": "Face swaps and replacing someone's identity aren't done, because they could be used to impersonate a person."
+    },
+    "alternative_identity": {
+      "text": "Edits that keep the person's identity, such as a new background, lighting or art style, are possible."
+    },
+    "reason_id_document": {
+      "text": "Images of ID documents such as passports, ID cards or driver's licenses aren't created, because they could be used for fraud."
+    },
+    "reason_hate": {
+      "text": "Images with hate symbols or images that target people for who they are aren't created."
+    },
+    "reason_self_harm": {
+      "text": "Images that show or encourage self-harm aren't created."
+    },
+    "alternative_self_harm": {
+      "text": "If you're going through a hard time, talking to someone you trust or a local helpline can help."
+    },
+    "reason_weapons": {
+      "text": "Images with instructions or blueprints for weapons or explosives aren't created."
+    },
+    "reason_scam": {
+      "text": "Media for scams, fake documents or impersonation isn't created."
+    },
+    "alternative_scam": {
+      "text": "An original design that doesn't imitate a real person, brand or document is possible."
+    },
+    "reason_spam": {
+      "text": "Mass-producing filler content or removing AI labels isn't supported."
+    },
+    "alternative_spam": {
+      "text": "A few images for a specific purpose are possible."
+    },
+    "reason_deceptive": {
+      "text": "Images made to pass as real footage, a real statement or an official endorsement aren't created."
+    },
+    "alternative_deceptive": {
+      "text": "A clearly fictional or illustrated version is possible."
+    },
+    "reason_other": {
+      "text": "This request can't be created under the safety rules."
+    },
+    "alternative_other": {
+      "text": "A different subject or phrasing may work."
     }
   },
   "invoices_and_credit_notes": {
@@ -14256,6 +14988,22 @@
             }
           }
         },
+        "status_page": {
+          "heading": {
+            "text": "Status page (only when you open it)"
+          },
+          "description": {
+            "text": "This provider is only used when you open the public status page at status.openmates.org. It is not used for your account or for any other part of OpenMates."
+          },
+          "upcloud": {
+            "heading": {
+              "text": "UpCloud (status page hosting)"
+            },
+            "description": {
+              "text": "The public status page status.openmates.org (a static page plus a status JSON file) is hosted by UpCloud Oy on a server in Amsterdam, the Netherlands. When you open the page, your browser connects to UpCloud's server, so UpCloud processes your IP address and TLS connection metadata. We keep no access logs and use no cookies or trackers on this page. The same server also sends automated test requests to OpenMates, which contain no user data."
+            }
+          }
+        },
         "ai_models": {
           "heading": {
             "text": "AI model providers (only when you use a model that routes through them)"
@@ -14710,6 +15458,14 @@
             },
             "description": {
               "text": "After you connect Google Calendar, OpenMates exchanges the OAuth authorization code and stores refresh or access tokens encrypted. Authorized actions may access calendar IDs, names, time zones, event IDs, titles, descriptions, locations, dates, and attendee email addresses. OpenMates reads, creates, updates, or deletes only within the scopes and action you authorize."
+            }
+          },
+          "figma": {
+            "heading": {
+              "text": "Figma"
+            },
+            "description": {
+              "text": "After you connect Figma, OpenMates exchanges the OAuth authorization code and stores the refresh token encrypted on your devices. Your Figma account ID, handle, and email address are used as the account label. Authorized actions read only the Figma file content you ask for, within the read scopes you authorize. OpenMates never edits your Figma files."
             }
           }
         },
@@ -16942,6 +17698,227 @@
       }
     }
   },
+  "plan_embeds": {
+    "approval": {
+      "draft": {
+        "text": "Draft"
+      },
+      "approved": {
+        "text": "Approved rev {revision}"
+      },
+      "approved_plain": {
+        "text": "Approved"
+      },
+      "changed": {
+        "text": "Changed since approval"
+      },
+      "revision": {
+        "text": "Revision {revision}"
+      },
+      "approve": {
+        "text": "Approve this revision"
+      },
+      "already": {
+        "text": "Revision approved"
+      },
+      "no_revision": {
+        "text": "No revision submitted yet"
+      }
+    },
+    "section": {
+      "goal": {
+        "text": "Goal"
+      },
+      "assumptions": {
+        "text": "Assumptions"
+      },
+      "criteria": {
+        "text": "Success criteria"
+      },
+      "tasks": {
+        "text": "Tasks"
+      },
+      "checks": {
+        "text": "Checks"
+      }
+    },
+    "empty": {
+      "goal": {
+        "text": "No goal described yet"
+      },
+      "assumptions": {
+        "text": "No assumptions yet"
+      },
+      "criteria": {
+        "text": "No success criteria yet"
+      },
+      "tasks": {
+        "text": "No tasks linked yet"
+      },
+      "checks": {
+        "text": "No checks yet"
+      },
+      "no_plan": {
+        "text": "No active plan in this chat yet."
+      }
+    },
+    "summary": {
+      "tasks": {
+        "text": "{done}/{total} tasks done"
+      },
+      "checks": {
+        "text": "{green}/{required} required checks green"
+      },
+      "waiting": {
+        "text": "{count} waiting for confirmation"
+      },
+      "assumptions_open": {
+        "text": "{count} open assumptions"
+      },
+      "assumptions_clear": {
+        "text": "All assumptions confirmed"
+      }
+    },
+    "check": {
+      "required": {
+        "text": "Required"
+      },
+      "supporting": {
+        "text": "Supporting"
+      },
+      "open": {
+        "text": "Open check"
+      }
+    },
+    "criterion": {
+      "covered_by": {
+        "text": "{count} checks"
+      },
+      "uncovered": {
+        "text": "Not covered by a check"
+      }
+    },
+    "assumption": {
+      "open_chat": {
+        "text": "Open checking chat"
+      }
+    },
+    "task": {
+      "open": {
+        "text": "Open task"
+      }
+    },
+    "plan": {
+      "open": {
+        "text": "Open plan"
+      },
+      "fullscreen_label": {
+        "text": "Plan"
+      }
+    },
+    "status": {
+      "plan": {
+        "draft": {
+          "text": "Draft"
+        },
+        "checking_assumptions": {
+          "text": "Checking assumptions"
+        },
+        "awaiting_confirmation": {
+          "text": "Awaiting confirmation"
+        },
+        "active": {
+          "text": "Active"
+        },
+        "executing": {
+          "text": "In progress"
+        },
+        "running_checks": {
+          "text": "Running checks"
+        },
+        "blocked": {
+          "text": "Blocked"
+        },
+        "completed": {
+          "text": "Completed"
+        },
+        "archived": {
+          "text": "Archived"
+        }
+      },
+      "task": {
+        "backlog": {
+          "text": "Backlog"
+        },
+        "todo": {
+          "text": "To do"
+        },
+        "in_progress": {
+          "text": "In progress"
+        },
+        "blocked": {
+          "text": "Blocked"
+        },
+        "done": {
+          "text": "Done"
+        }
+      },
+      "check": {
+        "pending": {
+          "text": "Pending"
+        },
+        "passed": {
+          "text": "Passed"
+        },
+        "failed": {
+          "text": "Failed"
+        },
+        "passed_unexpectedly": {
+          "text": "Passed unexpectedly"
+        },
+        "skipped": {
+          "text": "Skipped"
+        },
+        "waived": {
+          "text": "Waived"
+        },
+        "waiting_for_confirmation": {
+          "text": "Waiting for confirmation"
+        },
+        "stale": {
+          "text": "Stale"
+        }
+      },
+      "assumption": {
+        "unchecked": {
+          "text": "Unchecked"
+        },
+        "checking": {
+          "text": "Checking"
+        },
+        "confirmed": {
+          "text": "Confirmed"
+        },
+        "corrected": {
+          "text": "Corrected"
+        },
+        "blocked": {
+          "text": "Blocked"
+        },
+        "waived": {
+          "text": "Waived"
+        }
+      }
+    },
+    "skill": {
+      "draft_not_saved": {
+        "text": "Draft — not saved yet"
+      },
+      "save_to_project": {
+        "text": "Save to Project"
+      }
+    }
+  },
   "platforms": {
     "via": {
       "text": "via"
@@ -17546,6 +18523,138 @@
     },
     "focus_not_active": {
       "text": "Not active"
+    },
+    "create_document": {
+      "text": "New document"
+    },
+    "create_sheet": {
+      "text": "New sheet"
+    },
+    "create_slides": {
+      "text": "New slides"
+    },
+    "create_code_file": {
+      "text": "New code file"
+    },
+    "create_folder": {
+      "text": "New folder"
+    },
+    "create_default_folder_name": {
+      "text": "New folder"
+    },
+    "create_folder_failed": {
+      "text": "Could not create the folder. Please try again."
+    },
+    "create_name_label": {
+      "text": "Name"
+    },
+    "create_name_submit": {
+      "text": "Create"
+    },
+    "create_default_document_name": {
+      "text": "Untitled document"
+    },
+    "create_default_sheet_name": {
+      "text": "Untitled sheet"
+    },
+    "create_default_slides_name": {
+      "text": "Untitled deck"
+    },
+    "create_default_code_name": {
+      "text": "untitled.py"
+    },
+    "create_file_failed": {
+      "text": "Could not create the file. Please try again."
+    },
+    "timeline_tab": {
+      "text": "Timeline"
+    },
+    "timeline_author_user": {
+      "text": "You"
+    },
+    "timeline_author_assistant": {
+      "text": "Assistant"
+    },
+    "timeline_removed_file": {
+      "text": "Removed file"
+    },
+    "timeline_action_created": {
+      "text": "Created"
+    },
+    "timeline_action_updated": {
+      "text": "Updated"
+    },
+    "timeline_action_edited": {
+      "text": "Edited"
+    },
+    "timeline_action_restored": {
+      "text": "Restored"
+    },
+    "timeline_action_renamed": {
+      "text": "Renamed"
+    },
+    "timeline_action_deleted": {
+      "text": "Deleted"
+    },
+    "timeline_action_adopted": {
+      "text": "Adopted"
+    },
+    "timeline_files_count": {
+      "text": "{count} files"
+    },
+    "timeline_files_count_singular": {
+      "text": "{count} file"
+    },
+    "timeline_restored_from": {
+      "text": "Restored from {id}"
+    },
+    "timeline_restored_from_version": {
+      "text": "Restored from v{version}"
+    },
+    "timeline_restore_button": {
+      "text": "Restore"
+    },
+    "timeline_restore_prompt": {
+      "text": "Restore all files to this commit? This creates new versions; later history is kept."
+    },
+    "timeline_restore_confirm": {
+      "text": "Confirm"
+    },
+    "timeline_restore_cancel": {
+      "text": "Cancel"
+    },
+    "timeline_restore_busy": {
+      "text": "Restoring..."
+    },
+    "timeline_restore_done": {
+      "text": "Restored. New versions were created."
+    },
+    "timeline_restore_failed": {
+      "text": "Could not restore this commit. Please try again."
+    },
+    "timeline_empty": {
+      "text": "No changes yet"
+    },
+    "timeline_error": {
+      "text": "Could not load the timeline."
+    },
+    "timeline_loading": {
+      "text": "Loading history..."
+    },
+    "timeline_load_more": {
+      "text": "Load more"
+    },
+    "timeline_change_added": {
+      "text": "Added"
+    },
+    "timeline_change_modified": {
+      "text": "Modified"
+    },
+    "timeline_change_deleted": {
+      "text": "Deleted"
+    },
+    "timeline_change_unchanged": {
+      "text": "Unchanged"
     }
   },
   "recommendations": {
@@ -17564,8 +18673,29 @@
     "heading_workflow_update": {
       "text": "Workflow update recommended"
     },
+    "heading_focus_create": {
+      "text": "New Project focus recommended"
+    },
+    "heading_focus_update": {
+      "text": "Project focus update recommended"
+    },
+    "focus_create_title": {
+      "text": "New focus for this Project"
+    },
+    "focus_update_title": {
+      "text": "Focus of this Project"
+    },
+    "focus_create_summary": {
+      "text": "Turn the reusable way of working from this chat into a focus that later chats in this Project can start."
+    },
+    "focus_update_summary": {
+      "text": "Add what this chat established to the Project focus, so later chats follow it."
+    },
     "type_memory": {
       "text": "Memory"
+    },
+    "type_focus": {
+      "text": "Project focus"
     },
     "type_workflow": {
       "text": "Workflow"
@@ -17802,6 +18932,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "I can't create propaganda, hate content, disinformation or manipulative tabloid content. I'm happy to explain how these work, analyse examples, fact-check claims or help with clearly labelled satire."
+    },
+    "illegal_category": {
+      "text": "I can't help with sexual content involving minors, intimate images without consent, sexual deepfakes of real people or weapons meant for mass harm."
+    },
+    "live_site_abuse": {
+      "text": "You probably do own that site, but I only do normal single-user actions at human speed on live websites, so I can't run mass or abusive actions like mass comments, sign-ups, password guessing or flooding. Such tests currently run only against localhost, a local dev environment or a locally run staging copy. I'm happy to help you set that up."
+    },
+    "strike_notice": {
+      "text": "This is strike {strike} of {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Insurance"
@@ -17997,6 +19141,18 @@
     "save_draft": {
       "text": "Save draft"
     },
+    "collisions_heading": {
+      "text": "Conflicts with the Project focus"
+    },
+    "collision_winner_project": {
+      "text": "the Project focus applies"
+    },
+    "collision_winner_focus": {
+      "text": "this Focus applies"
+    },
+    "collisions_not_checked": {
+      "text": "Collisions with the Project focus were not checked"
+    },
     "job_running": {
       "text": "Working on this improvement…"
     },
@@ -18035,6 +19191,82 @@
     },
     "job_waiting": {
       "text": "Waiting for a job update."
+    }
+  },
+  "safety_appeal": {
+    "title": {
+      "text": "Your account is suspended"
+    },
+    "appeal_button": {
+      "text": "Appeal"
+    },
+    "download_button": {
+      "text": "Download my data"
+    },
+    "explanation_label": {
+      "text": "Tell us what happened (up to 1,000 characters)"
+    },
+    "consent_label": {
+      "text": "I agree to share only the flagged requests with the safety reviewer"
+    },
+    "add_photo": {
+      "text": "Add a photo"
+    },
+    "photo_added": {
+      "text": "Photo attached. Choose another"
+    },
+    "submit": {
+      "text": "Send appeal"
+    },
+    "sent": {
+      "text": "Your appeal was sent. You will get a decision within 7 days."
+    },
+    "admin_title": {
+      "text": "Safety reviews"
+    },
+    "admin_restore": {
+      "text": "Restore"
+    },
+    "admin_delete": {
+      "text": "Delete"
+    },
+    "admin_ask": {
+      "text": "Ask the user"
+    },
+    "admin_delete_confirm": {
+      "text": "Delete this account? Standard deletion with full refund, deletion email and compliance record."
+    },
+    "admin_empty": {
+      "text": "No accounts are waiting for a review."
+    },
+    "until": {
+      "text": "Account suspended until {date}"
+    }
+  },
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} was rejected. {reason} This is strike {strike} of {max}."
+    },
+    "what_image_generate": {
+      "text": "Your image request"
+    },
+    "what_image_edit": {
+      "text": "Your image edit request"
+    },
+    "what_video": {
+      "text": "Your video request"
+    },
+    "what_upload": {
+      "text": "Your uploaded image"
+    },
+    "suspended_until": {
+      "text": "This is strike 2 of 3. Your account is suspended until {date} and active again after that. A third strike suspends it until an admin has reviewed it."
+    },
+    "suspended_pending_review": {
+      "text": "This is strike 3 of 3. Your account is suspended until an admin has reviewed it. You can appeal this decision."
+    },
+    "unavailable": {
+      "text": "The safety check is temporarily unavailable, so this request could not be processed. Please try again in a moment."
     }
   },
   "settings": {
@@ -19405,6 +20637,47 @@
         },
         "finalize_error": {
           "text": "Could not finish connecting Google Calendar."
+        },
+        "figma": {
+          "title": {
+            "text": "Figma"
+          },
+          "description": {
+            "text": "OpenMates reads only the Figma files you name, with read-only access."
+          },
+          "variables_label": {
+            "text": "Variables (Figma Enterprise only)"
+          },
+          "connect_button": {
+            "text": "Connect Figma"
+          },
+          "reconnect_button": {
+            "text": "Reconnect"
+          },
+          "disconnect_button": {
+            "text": "Disconnect"
+          },
+          "accounts_heading": {
+            "text": "Connected Figma accounts"
+          },
+          "revoke_note": {
+            "text": "Also remove OpenMates in your Figma account settings; Figma has no API to revoke access."
+          },
+          "not_configured": {
+            "text": "Figma is not configured on this server."
+          },
+          "start_error": {
+            "text": "Could not start the Figma connection. Please try again."
+          },
+          "disconnect_error": {
+            "text": "Could not disconnect this Figma account. Please try again."
+          },
+          "disconnected_success": {
+            "text": "Figma account disconnected locally."
+          },
+          "capability_variables": {
+            "text": "Variables"
+          }
         }
       },
       "focus_modes": {
@@ -22352,6 +23625,12 @@
         },
         "cli_export_error": {
           "text": "Could not generate the CLI import command."
+        },
+        "provider_figma": {
+          "text": "Figma"
+        },
+        "app_design": {
+          "text": "Design"
         }
       },
       "nearby_by_default": {
@@ -23284,7 +24563,7 @@
       "text": "No nudity, violence or gore\nin profile images."
     },
     "last_warning_image_not_allowed": {
-      "text": "Last warning:\nNo nudity, violence or gore in profile images.\nOne more violation and your account will be deleted."
+      "text": "Last warning:\nNo explicit sexual content or extreme gore in profile images.\nOne more violation and your account will be suspended."
     },
     "your_account_got_deleted": {
       "text": "Your account got deleted."
@@ -25688,7 +26967,7 @@
       "text": "Test for free"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "E-Mail domain not allowed."
@@ -25696,32 +26975,8 @@
     "email_ignored": {
       "text": "This email address cannot be used for signup. Please contact support if you believe this is an error."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates is currently an alpha release for early testers."
-    },
-    "decent_stable": {
-      "text": "This alpha release is decently stable"
-    },
-    "not_all_core_features_implemented": {
-      "text": "However, not all core features are implemented yet."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Expect some bugs here and there and remember: AI chatbots can make mistakes."
-    },
     "view_on_github": {
       "text": "View OpenMates on GitHub"
-    },
-    "view_on_github_description": {
-      "text": "To discuss bugs, features & stay updated on new releases."
-    },
-    "view_on_instagram": {
-      "text": "View OpenMates on Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "To stay updated on new releases & other updates."
-    },
-    "continue_with_alpha": {
-      "text": "Continue with {version}"
     },
     "server_admin": {
       "text": "Server admin"
@@ -26512,6 +27767,156 @@
     },
     "custom_color": {
       "text": "Custom colour"
+    }
+  },
+  "specifications": {
+    "status": {
+      "draft": {
+        "text": "Draft"
+      },
+      "approved": {
+        "text": "Approved"
+      },
+      "superseded": {
+        "text": "Superseded"
+      },
+      "changes_since_approval": {
+        "text": "Changes since approval"
+      }
+    },
+    "preview": {
+      "revision": {
+        "text": "Revision {number}"
+      },
+      "updated": {
+        "text": "Updated {time}"
+      },
+      "requirements": {
+        "text": "{count} requirements"
+      },
+      "proof": {
+        "text": "{passed} proven · {open} open · {stale} stale"
+      }
+    },
+    "fullscreen": {
+      "subtitle": {
+        "text": "{category} · Specification for {project}"
+      },
+      "subtitle_no_project": {
+        "text": "{category} · Specification"
+      },
+      "assumptions": {
+        "text": "Open assumptions"
+      },
+      "assumptions_hint": {
+        "text": "Not confirmed yet. Confirm or correct each one before the work starts."
+      },
+      "design_decisions": {
+        "text": "Design decisions"
+      },
+      "related": {
+        "text": "Linked Specifications"
+      }
+    },
+    "revisions": {
+      "heading": {
+        "text": "Revisions"
+      },
+      "current": {
+        "text": "Current"
+      },
+      "approved": {
+        "text": "Approved"
+      },
+      "viewing": {
+        "text": "Viewing"
+      },
+      "revision": {
+        "text": "Revision {number}"
+      },
+      "select": {
+        "text": "View revision {number}"
+      },
+      "read_only": {
+        "text": "You are reading an older revision. It is read-only and cannot be approved."
+      },
+      "empty": {
+        "text": "No revisions yet."
+      }
+    },
+    "approval": {
+      "approve": {
+        "text": "Approve this revision"
+      },
+      "confirm_title": {
+        "text": "Approve revision {number}?"
+      },
+      "confirm_body": {
+        "text": "Approval applies to exactly this revision. Later changes need a new approval."
+      },
+      "confirm": {
+        "text": "Confirm approval"
+      },
+      "cancel": {
+        "text": "Cancel"
+      },
+      "already_approved": {
+        "text": "This revision is approved."
+      },
+      "only_current": {
+        "text": "Only the current revision can be approved."
+      },
+      "approved_at": {
+        "text": "Approved {time}"
+      },
+      "stale": {
+        "text": "Revision {number} was approved, but the Specification changed afterwards."
+      }
+    },
+    "project": {
+      "heading": {
+        "text": "Specifications"
+      },
+      "empty": {
+        "text": "No Specifications in this Project yet."
+      },
+      "load_error": {
+        "text": "Specifications could not be loaded."
+      },
+      "action_error": {
+        "text": "The Specification action failed. Nothing was changed."
+      },
+      "retry": {
+        "text": "Try again"
+      }
+    },
+    "save": {
+      "no_project": {
+        "text": "Add this chat to a Project to save the Specification there."
+      },
+      "saving": {
+        "text": "Saving…"
+      },
+      "saved": {
+        "text": "Saved to {project}"
+      },
+      "open_project": {
+        "text": "Open Project"
+      },
+      "failed": {
+        "text": "The Specification could not be saved to the Project. Nothing was saved."
+      }
+    },
+    "role": {
+      "product": {
+        "text": "Product Specification"
+      },
+      "design": {
+        "text": "Design Specification"
+      },
+      "technical": {
+        "text": "Technical Specification"
+      }
     }
   },
   "tasks": {
@@ -27311,6 +28716,15 @@
     },
     "source_frame_failed": {
       "text": "The camera reference could not be saved."
+    },
+    "screen_share_on": {
+      "text": "Share screen"
+    },
+    "screen_share_off": {
+      "text": "Stop sharing screen"
+    },
+    "connecting_short": {
+      "text": "Connecting…"
     }
   },
   "waiting_list": {

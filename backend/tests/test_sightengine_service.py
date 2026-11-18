@@ -158,6 +158,7 @@ class TestApiCallShape:
     became private, those URLs returned 404 to Sightengine's fetch servers.
     """
 
+    # contract-test: infrastructure
     @pytest.mark.asyncio
     async def test_check_all_posts_bytes_not_url(self, enabled_service):
         """check_all() must POST bytes via files={media: ...}, no url= param."""
@@ -197,6 +198,7 @@ class TestApiCallShape:
         # Confirm method is POST (not GET)
         assert not mock_client.get.called, "Must use POST, not GET"
 
+    # contract-test: infrastructure
     @pytest.mark.asyncio
     async def test_check_content_safety_posts_bytes(self, enabled_service):
         """check_content_safety() (legacy) also sends bytes, not a URL."""
@@ -219,6 +221,7 @@ class TestApiCallShape:
         assert "url" not in kwargs.get("data", {})
         assert kwargs["files"]["media"][2] == "image/jpeg"
 
+    # contract-test: infrastructure
     @pytest.mark.asyncio
     async def test_check_image_posts_bytes(self, enabled_service):
         """check_image() (legacy AI detection) also sends bytes, not a URL."""
@@ -243,20 +246,18 @@ class TestApiCallShape:
 # ===========================================================================
 
 class TestSafetyThresholds:
-    """Each of the eight moderated score types must trigger rejection."""
+    """Explicit sexual scores and extreme gore must trigger refusal (no strike); see test_upload_safety_policy.py."""
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("field,threshold,kwarg", [
         # (score_field_name, rejection_threshold, kwargs key for _safe_response)
-        ("sexual_activity", 0.31, "sexual_activity"),
-        ("sexual_display",  0.31, "sexual_display"),
-        ("erotica",         0.41, "erotica"),
-        ("sextoy",          0.31, "sextoy"),
-        ("suggestive",      0.61, "suggestive"),
-        ("weapon",          0.51, "weapon"),
-        ("gore",            0.31, "gore"),
-        ("blood",           0.41, "blood"),
+        ("sexual_activity", 0.9, "sexual_activity"),
+        ("sexual_display",  0.9, "sexual_display"),
+        ("erotica",         0.9, "erotica"),
+        ("sextoy",          0.9, "sextoy"),
+        ("gore",            0.95, "gore"),
     ])
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.upload-agreed-lines
     async def test_score_above_threshold_rejects(self, enabled_service, field, threshold, kwarg):
         """A score above the threshold must produce is_safe=False."""
         resp_body = _safe_response(**{kwarg: threshold})
@@ -275,7 +276,56 @@ class TestSafetyThresholds:
             f"Expected rejection for {kwarg}={threshold} but got is_safe=True"
         )
         assert safety_result.reason is not None
+        assert not safety_result.counts_as_strike
 
+    # contract-test: direct surface=rest_api assertions=safety-strikes.upload-agreed-lines
+    @pytest.mark.asyncio
+    async def test_weapon_and_suggestive_scores_are_allowed(self, enabled_service):
+        mock_resp = _make_mock_response(_safe_response(weapon=0.99, suggestive=0.95))
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client.post = AsyncMock(return_value=mock_resp)
+            mock_client_cls.return_value = mock_client
+
+            safety_result, _ = await enabled_service.check_all(DUMMY_IMAGE)
+
+        assert safety_result.is_safe
+
+    # contract-test: direct surface=rest_api assertions=safety-strikes.upload-agreed-lines
+    @pytest.mark.asyncio
+    async def test_minor_plus_sexual_is_strike(self, enabled_service):
+        main = _make_mock_response(_safe_response(sexual_display=0.7))
+        faces = _make_mock_response({"status": "success", "faces": [{"attributes": {"minor": 0.95}}]})
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client.post = AsyncMock(side_effect=[main, faces])
+            mock_client_cls.return_value = mock_client
+
+            safety_result, _ = await enabled_service.check_all(DUMMY_IMAGE)
+
+        assert not safety_result.is_safe and safety_result.counts_as_strike
+        assert mock_client.post.call_count == 2
+
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.upload-agreed-lines
+    @pytest.mark.asyncio
+    async def test_clean_image_takes_single_call(self, enabled_service):
+        mock_resp = _make_mock_response(_safe_response())
+        with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client.post = AsyncMock(return_value=mock_resp)
+            mock_client_cls.return_value = mock_client
+
+            await enabled_service.check_all(DUMMY_IMAGE)
+
+        assert mock_client.post.call_count == 1
+
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.upload-agreed-lines
     @pytest.mark.asyncio
     async def test_all_scores_below_threshold_allows(self, enabled_service):
         """Clean image (all scores below threshold) must pass."""
@@ -297,12 +347,13 @@ class TestSafetyThresholds:
 
 
 # ===========================================================================
-# 3. Fail-open behaviour — API errors must never block uploads
+# 3. Sightengine unavailable — strict Jev fallback; none available -> refusal without strike
 # ===========================================================================
 
 class TestFailOpen:
-    """Sightengine outages / errors must never prevent legitimate uploads."""
+    """Sightengine outages go to the strict second opinion; with none, refuse without a strike."""
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.upload-agreed-lines
     @pytest.mark.asyncio
     async def test_http_500_fails_open(self, enabled_service):
         """HTTP 500 from Sightengine → is_safe=True (allow upload)."""
@@ -317,10 +368,12 @@ class TestFailOpen:
 
             safety_result, ai_result = await enabled_service.check_all(DUMMY_IMAGE)
 
-        assert safety_result.is_safe
-        assert safety_result.error is not None
+        assert not safety_result.is_safe
+        assert safety_result.reason == "safety_service_unavailable"
+        assert not safety_result.counts_as_strike
         assert ai_result is None
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.upload-agreed-lines
     @pytest.mark.asyncio
     async def test_media_error_400_fails_open(self, enabled_service):
         """Sightengine media_error 400 must not block legitimate uploads."""
@@ -338,10 +391,12 @@ class TestFailOpen:
 
             safety_result, ai_result = await enabled_service.check_all(DUMMY_IMAGE)
 
-        assert safety_result.is_safe
-        assert safety_result.error == "API error 400"
+        assert not safety_result.is_safe
+        assert safety_result.reason == "safety_service_unavailable"
+        assert not safety_result.counts_as_strike
         assert ai_result is None
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.upload-agreed-lines
     @pytest.mark.asyncio
     async def test_timeout_fails_open(self, enabled_service):
         """Network timeout → is_safe=True (allow upload)."""
@@ -356,10 +411,12 @@ class TestFailOpen:
 
             safety_result, ai_result = await enabled_service.check_all(DUMMY_IMAGE)
 
-        assert safety_result.is_safe
-        assert safety_result.error == "timeout"
+        assert not safety_result.is_safe
+        assert safety_result.reason == "safety_service_unavailable"
+        assert not safety_result.counts_as_strike
         assert ai_result is None
 
+    # contract-test: supporting surface=rest_api assertions=safety-strikes.upload-agreed-lines
     @pytest.mark.asyncio
     async def test_non_success_status_in_json_fails_open(self, enabled_service):
         """Sightengine returning status!=success in JSON body → fail open."""
@@ -377,8 +434,9 @@ class TestFailOpen:
 
             safety_result, ai_result = await enabled_service.check_all(DUMMY_IMAGE)
 
-        assert safety_result.is_safe
-        assert safety_result.error == "image unavailable"
+        assert not safety_result.is_safe
+        assert safety_result.reason == "safety_service_unavailable"
+        assert not safety_result.counts_as_strike
         assert ai_result is None
 
 
@@ -389,24 +447,28 @@ class TestFailOpen:
 class TestDisabledState:
     """When credentials are absent every method must skip cleanly."""
 
+    # contract-test: infrastructure
     @pytest.mark.asyncio
     async def test_check_all_skips_when_disabled(self, disabled_service):
-        """check_all() must return (safe=True, None) without any HTTP call."""
+        """check_all() makes no HTTP call; with no second opinion it refuses without a strike."""
         with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             safety_result, ai_result = await disabled_service.check_all(DUMMY_IMAGE)
             mock_client_cls.assert_not_called()
 
-        assert safety_result.is_safe
+        assert not safety_result.is_safe
+        assert safety_result.reason == "safety_service_unavailable"
         assert ai_result is None
 
+    # contract-test: infrastructure
     @pytest.mark.asyncio
     async def test_check_content_safety_skips_when_disabled(self, disabled_service):
         with patch("backend.upload.services.sightengine_service.create_http_client") as mock_client_cls:
             result = await disabled_service.check_content_safety(DUMMY_IMAGE)
             mock_client_cls.assert_not_called()
 
-        assert result.is_safe
+        assert not result.is_safe and not result.counts_as_strike
 
+    # contract-test: infrastructure
     def test_is_enabled_false_by_default(self):
         from backend.upload.services.sightengine_service import SightEngineService
         svc = SightEngineService()
@@ -437,6 +499,7 @@ class TestHealthCheckProbe:
     to avoid triggering unrelated task package imports.
     """
 
+    # contract-test: infrastructure
     def test_health_check_image_constant_is_valid_jpeg(self):
         """SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES must be a valid 8×8 JPEG.
 
@@ -459,18 +522,21 @@ class TestHealthCheckProbe:
             "Sightengine rejects images smaller than 8px"
         )
 
+    # contract-test: infrastructure
     def test_health_check_image_constant_is_bytes(self):
         """The constant must be a bytes object (not str or None)."""
         # If base64.b64decode raised at module load, _HEALTH_CHECK_TASKS_AVAILABLE
         # would be False and this class would be skipped. This test documents intent.
         assert isinstance(_hct.SIGHTENGINE_HEALTH_CHECK_IMAGE_BYTES, bytes)
 
+    # contract-test: infrastructure
     def test_cerebras_health_check_uses_production_model(self, monkeypatch):
         """Cerebras health checks should not probe preview app models by default."""
         monkeypatch.delenv("CEREBRAS_HEALTH_CHECK_MODEL_ID", raising=False)
 
         assert _hct._get_cheapest_model_for_server("cerebras") == "cerebras/gpt-oss-120b"
 
+    # contract-test: infrastructure
     def test_provider_health_checks_omit_duplicate_google_ai_studio_probe(self):
         provider_ids = ["anthropic", "google", "google_ai_studio", "openai"]
 
@@ -480,11 +546,13 @@ class TestHealthCheckProbe:
             "openai",
         ]
 
+    # contract-test: infrastructure
     def test_provider_health_checks_keep_ai_studio_without_canonical_google(self):
         provider_ids = ["anthropic", "google_ai_studio", "openai"]
 
         assert _hct._get_active_provider_health_ids(provider_ids) == provider_ids
 
+    # contract-test: infrastructure
     def test_provider_health_cache_outlives_probe_interval(self):
         assert (
             _hct.PROVIDER_HEALTH_CHECK_CACHE_TTL
@@ -492,11 +560,13 @@ class TestHealthCheckProbe:
         )
         assert _hct.HEALTH_CHECK_CACHE_TTL == 10 * 60
 
+    # contract-test: infrastructure
     def test_provider_health_checks_run_every_thirty_minutes(self):
         schedule = _hct.app.conf.beat_schedule["health-check-all-providers"]["schedule"]
 
         assert schedule.total_seconds() == 30 * 60
 
+    # contract-test: infrastructure
     @pytest.mark.anyio
     async def test_cerebras_health_check_calls_client_directly(self):
         calls = []
@@ -517,6 +587,7 @@ class TestHealthCheckProbe:
         assert response_time_ms is not None
         assert calls[0]["model_id"] == "gpt-oss-120b"
 
+    # contract-test: infrastructure
     @pytest.mark.asyncio
     async def test_health_check_uses_post_with_files_not_get_with_url(self):
         """
@@ -568,6 +639,7 @@ class TestHealthCheckProbe:
         # Verify GET was never called
         mock_client.get.assert_not_called()
 
+    # contract-test: infrastructure
     @pytest.mark.asyncio
     async def test_health_check_skipped_when_no_credentials(self):
         """Health check must return skipped (not unhealthy) if credentials absent."""
@@ -587,6 +659,7 @@ class TestHealthCheckProbe:
 
         assert result["status"] == "skipped"
 
+    # contract-test: infrastructure
     @pytest.mark.asyncio
     async def test_health_check_returns_healthy_on_200(self):
         """A 200 response from Sightengine must produce status=healthy."""
@@ -614,6 +687,7 @@ class TestHealthCheckProbe:
 
         assert result["status"] == "healthy"
 
+    # contract-test: infrastructure
     @pytest.mark.asyncio
     async def test_health_check_skips_on_usage_limit(self):
         """Sightengine quota exhaustion should be explicit, not a service outage."""

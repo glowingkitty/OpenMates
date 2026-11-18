@@ -37,6 +37,8 @@ from defusedxml.common import DefusedXmlException
 
 from backend.shared.python_utils.llm_stream_usage import stream_usage_tokens
 
+from backend.shared.python_utils.internal_llm_policy import DEFAULT_POLICY, InternalLlmPolicy
+
 logger = logging.getLogger(__name__)
 
 # Ordered: the first model that produces a valid drawing answers, later ones are fallbacks.
@@ -147,6 +149,9 @@ class VectorReview:
     feedback: Optional[str] = None
     input_tokens: int = 0
     unmet: tuple[str, ...] = ()
+    # The model that judged the draft: Jev, or the user's saved complex model (internal_llm_policy).
+    model_id: str = VECTOR_REVIEW_MODEL
+    output_tokens: int = 0
 
 
 @dataclass
@@ -294,10 +299,11 @@ def build_request_message(
 
 async def review_with_jev(
     *, svg: str, prompt: str, requirements: Sequence[str], is_modification: bool,
-    secrets_manager: Any, task_id: str,
+    secrets_manager: Any, task_id: str, policy: Optional[InternalLlmPolicy] = None,
 ) -> VectorReview:
-    """Ask Jev, per stated requirement, whether the rendered draft fulfils it."""
-    from backend.shared.providers.typesafe.client import DecisionProviderError, JevDecisionClient
+    """Ask Jev (or the user's saved complex model), per stated requirement, whether the draft fulfils it."""
+    from backend.apps.ai.utils.internal_decisions import decision_client_for_policy, review_model_of
+    from backend.shared.providers.typesafe.client import DecisionProviderError
     from backend.shared.providers.typesafe.models import NoulAnswer
 
     reference = str(uuid4())
@@ -319,9 +325,9 @@ async def review_with_jev(
         }
         for key in keyed
     }
-    client = JevDecisionClient(
-        secrets_manager=secrets_manager, max_retries=1,
-        telemetry_task_id=task_id, telemetry_purpose="vector_graphic_review",
+    client = decision_client_for_policy(
+        policy, secrets_manager=secrets_manager, needs_images=True, max_retries=1,
+        task_id=task_id, purpose="vector_graphic_review",
     )
     try:
         response = await client.evaluate_with_images(
@@ -331,6 +337,7 @@ async def review_with_jev(
         logger.warning("[%s] Vector review unavailable: %s", task_id, exc)
         return VectorReview(accepted=True, status="unavailable")
     input_tokens = response.usage.input_tokens
+    judged = {"model_id": review_model_of(client, VECTOR_REVIEW_MODEL), "output_tokens": response.usage.output_tokens}
     # Only a clear "no" rejects a draft; an unsure reviewer never forces a redraw.
     unmet = tuple(
         text for key, text in keyed.items()
@@ -340,14 +347,16 @@ async def review_with_jev(
         feedback = "these requirements are not met by the rendered result: " + "; ".join(
             f"({index}) {text}" for index, text in enumerate(unmet, start=1)
         )
-        return VectorReview(accepted=False, status="rejected", feedback=feedback, input_tokens=input_tokens, unmet=unmet)
-    return VectorReview(accepted=True, status="accepted", input_tokens=input_tokens)
+        return VectorReview(accepted=False, status="rejected", feedback=feedback, input_tokens=input_tokens, unmet=unmet,
+                            **judged)
+    return VectorReview(accepted=True, status="accepted", input_tokens=input_tokens, **judged)
 
 
 async def _stream_draft(
     *, stream_fn: StreamFunction, task_id: str, model_id: str, messages: list[dict[str, Any]],
     reasoning: str, secrets_manager: Any, on_draft: Optional[DraftCallback], stage: str, attempt: int,
     system_prompt: str = SYSTEM_PROMPT, report_partial: bool = True,
+    stream_options: Optional[dict[str, Any]] = None,
 ) -> tuple[str, int, int]:
     """Stream one author call; return its text and reported token usage."""
     text = ""
@@ -358,7 +367,7 @@ async def _stream_draft(
         task_id=task_id, model_id=model_id, system_prompt=system_prompt, message_history=messages,
         temperature=VECTOR_AUTHOR_TEMPERATURE, secrets_manager=secrets_manager,
         max_tokens=VECTOR_AUTHOR_MAX_OUTPUT_TOKENS, requested_reasoning_level=reasoning,
-        private_logging=True,
+        private_logging=True, **(stream_options or {}),
     ):
         if not isinstance(chunk, str):
             if (tokens := stream_usage_tokens(chunk)) is not None:
@@ -384,6 +393,7 @@ async def author_svg(
     stream_fn: Optional[StreamFunction] = None, review_fn: Optional[ReviewFunction] = None,
     script_fn: Optional[ScriptFunction] = None,
     models: Sequence[str] = VECTOR_AUTHOR_MODELS, max_attempts: int = MAX_CORRECTION_ROUNDS + 1,
+    policy: Optional[InternalLlmPolicy] = None,
 ) -> VectorAuthorResult:
     """Write (or modify) an SVG, check it against the requirements and correct it within the limit."""
     if stream_fn is None:
@@ -411,7 +421,12 @@ async def author_svg(
             engine=engine, unmet_requirements=unmet, script=script, sandbox_seconds=sandbox_seconds,
         )
 
-    for model_id in models:
+    policy = policy or DEFAULT_POLICY
+    # The user's saved complex model, or the defaults minus every model the user turned off.
+    routes = policy.author_routes(models, required_inputs=("text", "image") if reference_images else ("text",),
+                                  task_id=task_id)
+    for route in routes:
+        model_id = route.model_id
         messages: list[dict[str, Any]] = [request]
         best: Optional[tuple[str, Optional[str], tuple[str, ...]]] = None
         review_status = "skipped"
@@ -426,6 +441,7 @@ async def author_svg(
                     reasoning=reasoning, secrets_manager=secrets_manager, on_draft=on_draft,
                     stage=stage, attempt=attempt,
                     system_prompt=SCRIPT_SYSTEM_PROMPT if scripted else SYSTEM_PROMPT, report_partial=not scripted,
+                    stream_options=policy.stream_options(route),
                 )
                 usage.append(VectorUsage(stage, model_id, input_tokens, output_tokens))
                 svg: Optional[str] = None
@@ -458,10 +474,11 @@ async def author_svg(
                     outcome = await review(
                         svg=svg, prompt=prompt, requirements=requirements,
                         is_modification=bool(source_svgs or reference_images or source_script),
-                        secrets_manager=secrets_manager, task_id=task_id,
+                        secrets_manager=secrets_manager, task_id=task_id, policy=policy,
                     )
                     if outcome.input_tokens:
-                        usage.append(VectorUsage("review", VECTOR_REVIEW_MODEL, outcome.input_tokens, 0))
+                        usage.append(VectorUsage("review", outcome.model_id, outcome.input_tokens,
+                                                 outcome.output_tokens))
                     review_status = outcome.status
                     if outcome.accepted:
                         return result(svg, model_id, attempt, review_status, script)
@@ -486,4 +503,6 @@ async def author_svg(
             # A provider failure moves on to the next configured author model.
             logger.warning("[%s] Vector author model %s failed: %s", task_id, model_id, exc)
             failures.append(f"{model_id}: {exc}")
-    raise VectorAuthorError("; ".join(failures) or "no vector author model configured")
+    raise VectorAuthorError("; ".join(failures) or (
+        "every drawing model is turned off in the user's AI settings" if not routes
+        else "no vector author model configured"))

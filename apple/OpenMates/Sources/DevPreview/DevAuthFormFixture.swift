@@ -137,7 +137,6 @@ private struct DevAuthHeaderFixture: View {
         }
         .task {
             await signup.loadRequirements()
-            signup.continueFromDisclaimer()
         }
         .onDisappear { signup.cancel() }
     }

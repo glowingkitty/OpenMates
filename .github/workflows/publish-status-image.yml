@@ -1,0 +1,102 @@
+name: Publish Status Image
+
+# Builds the status server image (deployment/status_server/Dockerfile): Gatus,
+# Caddy and the status agent in one image for status.openmates.org. Pushes to
+# dev and main publish ghcr.io/glowingkitty/openmates-status:<branch> and
+# :sha-<commit>. The image runs only on the separate status server; it holds
+# no secrets (setup.sh writes them from Vault on the server).
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'deployment/status_server/**'
+      - 'scripts/tests/test_status_agent_*.py'
+      - '.github/workflows/publish-status-image.yml'
+  push:
+    branches: [main, dev]
+    paths:
+      - 'deployment/status_server/**'
+      - 'scripts/tests/test_status_agent_*.py'
+      - '.github/workflows/publish-status-image.yml'
+
+concurrency:
+  group: publish-status-image-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/glowingkitty/openmates-status
+  PUBLISH: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') }}
+
+jobs:
+  build:
+    if: ${{ github.event_name != 'pull_request' || github.head_ref != 'dev' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Status agent tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest==8.4.2 pyyaml==6.0.3
+          python -m pytest -q scripts/tests/test_status_agent_alerts.py scripts/tests/test_status_agent_modules.py scripts/tests/test_status_server_setup.py
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build image for the smoke test
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: deployment/status_server
+          platforms: linux/amd64
+          load: true
+          tags: openmates-status:smoke
+          cache-from: type=gha,scope=status-image
+          cache-to: type=gha,scope=status-image,mode=max
+
+      - name: Smoke test (page, status.json, Gatus on loopback only)
+        run: |
+          printf '%s\n' GATUS_EXTERNAL_TOKEN=ci-smoke-token DISCORD_WEBHOOK_URL= STATUS_DOMAIN=localhost \
+            SYNTHETIC_PROBES=off AI_WORKER_CHECK_ENABLED=false > smoke.env
+          docker run -d --name status-smoke --env-file smoke.env -p 127.0.0.1:18443:443 \
+            -p 127.0.0.1:18081:8080 openmates-status:smoke
+          for i in $(seq 1 60); do curl -fs http://127.0.0.1:18081/health >/dev/null && break; sleep 2; done
+          curl -fsk https://localhost:18443/ | grep -q "OpenMates Status"
+          for i in $(seq 1 60); do curl -fsk https://localhost:18443/data/status.json -o status.json && break; sleep 3; done
+          python3 -c "import json; d=json.load(open('status.json')); assert d['components'] and 'overall' in d; print('status.json ok:', d['overall'])"
+          test "$(docker exec status-smoke id -u)" != 0
+          docker logs status-smoke 2>&1 | tail -20
+          docker rm -f status-smoke
+
+      - name: Log in to GHCR
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish image
+        if: env.PUBLISH == 'true'
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: deployment/status_server
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha,scope=status-image
+          tags: |
+            ${{ env.IMAGE }}:${{ github.ref_name }}
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/glowingkitty/OpenMates
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=OpenMates external status monitor (status.openmates.org)

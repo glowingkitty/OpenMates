@@ -8,11 +8,17 @@
 //! byte parity is proven by `embed_read_ts_vectors.json`
 //! (generated from those TS sources). Spec: specifications feature.chats.
 pub mod admission;
+pub mod body_enforce;
+pub mod body_policy;
+pub mod carousel_runs;
 pub mod link;
 pub mod patch;
+pub mod progress;
 mod sender;
 pub mod status;
 
+#[cfg(test)]
+mod body_enforce_tests;
 #[cfg(test)]
 mod embed_read_tests;
 #[cfg(test)]

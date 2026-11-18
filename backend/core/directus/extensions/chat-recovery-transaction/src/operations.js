@@ -73,7 +73,7 @@ const MESSAGE_FIELDS = new Set([
   'user_message_id',
 ]);
 const CHAT_METADATA_FIELDS = new Set([
-  'encrypted_title', 'encrypted_chat_key', 'encrypted_active_focus_id',
+  'encrypted_title', 'encrypted_chat_key', 'encrypted_active_focus_id', 'encrypted_wellbeing_scores',
   'encrypted_chat_summary', 'encrypted_share_cta_text', 'encrypted_chat_tags',
   'encrypted_follow_up_request_suggestions', 'encrypted_top_recommended_apps_for_chat',
   'encrypted_recommendations', 'encrypted_icon', 'encrypted_category',
@@ -2167,6 +2167,18 @@ const isEmptyDraftShell = (chat) => Number(chat.messages_v ?? 0) === 0
   && Number(chat.title_v ?? 0) === 0
   && Number(chat.metadata_v ?? 0) === 0
   && chat.last_message_timestamp == null;
+const CALL_LIFECYCLE_MESSAGE_RE = /^(?:00000000-voice-call-[a-f0-9]{32}-started|ffffffff-voice-call-[a-f0-9]{32}-ended)$/;
+// A voice call commits its own "started" system message right after the key
+// shell is registered. That must not turn the shell into a "real" chat that
+// the first turn's metadata would overwrite: only lifecycle messages exist.
+async function isCallLifecycleOnlyShell(trx, chat) {
+  if (Number(chat.title_v ?? 0) !== 0 || Number(chat.metadata_v ?? 0) !== 0) return false;
+  const version = Number(chat.messages_v ?? 0);
+  if (version === 0) return chat.last_message_timestamp == null;
+  const rows = await trx(MESSAGES).where({ chat_id: chat.id }).select(['client_message_id', 'role']);
+  return rows.length === version && rows.every((row) => row.role === 'system'
+    && CALL_LIFECYCLE_MESSAGE_RE.test(String(row.client_message_id ?? '')));
+}
 const hashIdentifier = (value) => createHash('sha256').update(value).digest('hex');
 
 function parsePreflightData(raw, operation = 'prepare_preflight') {
@@ -2469,15 +2481,16 @@ async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLoc
     if (chat) {
       if (chatMetadata) {
         if (directChat) fail(409, 'existing_chat_metadata_forbidden');
-        if (!isEmptyDraftShell(chat) || !canCompleteChatMetadata(chat, chatMetadata)) {
+        if (!(isEmptyDraftShell(chat) || await isCallLifecycleOnlyShell(trx, chat))
+          || !canCompleteChatMetadata(chat, chatMetadata)) {
           fail(409, 'existing_chat_metadata_forbidden');
         }
         const metadataCompletion = missingChatMetadata(chat, chatMetadata);
         if (Object.keys(metadataCompletion).length > 0) {
           timing?.enter('chat_metadata_update');
           const scope = teamHash
-            ? { id: chatId, hashed_team_id: teamHash, messages_v: 0 }
-            : { id: chatId, hashed_user_id: ownerHash, messages_v: 0 };
+            ? { id: chatId, hashed_team_id: teamHash, messages_v: chat.messages_v ?? 0 }
+            : { id: chatId, hashed_user_id: ownerHash, messages_v: chat.messages_v ?? 0 };
           if (await trx(CHATS).where(scope).update(metadataCompletion) !== 1) fail(409, 'version_conflict');
           chat = { ...chat, ...metadataCompletion };
         }
@@ -4928,6 +4941,7 @@ async function listPendingOutputs(database, raw) {
       'target_chat_id', 'turn_id', 'subject_id', 'output_kind', 'output_version',
       'chat_key_version', 'message_role', 'payload_storage']);
   const available = [];
+  const origins = await originDevicesByTurn(database, ownerHash, rows);
   for (const row of rows) {
     try {
       const root = await authorizedOutputChat(database, row.root_chat_id, ownerHash, false);
@@ -4936,7 +4950,7 @@ async function listPendingOutputs(database, raw) {
       if ((root.hashed_team_id || null) !== (row.root_hashed_team_id || null)
         || (target.hashed_team_id || null) !== (root.hashed_team_id || null)) continue;
       const { id, created_at: _createdAt, ...metadata } = row;
-      available.push({ record_id: id, ...metadata });
+      available.push({ record_id: id, ...metadata, origin_device_hash: origins.get(row.turn_id) || null });
     } catch (error) {
       if (!(error instanceof ProtocolError) || error.code !== 'chat_not_found') throw error;
     }
@@ -5447,6 +5461,7 @@ async function listAvailableJobs(database, raw, now) {
       'chat_key_version',
       'state',
       'created_at',
+      'preflight_id',
     ]);
   // A reconnect must also learn that a completed answer is still leased by its
   // previous connection. Keep those jobs out of claimable delivery, but expose
@@ -5457,8 +5472,29 @@ async function listAvailableJobs(database, raw, now) {
     .andWhere('lease_expires_at', '>', now)
     .orderBy('created_at', 'asc').orderBy('id', 'asc')
     .limit(MAX_AVAILABLE_JOBS)
-    .select(['id', 'chat_id', 'turn_id', 'inference_task_id', 'assistant_message_id', 'chat_key_version', 'state', 'created_at']);
-  return { jobs: rows.map(availableJobMetadata), pending_jobs: leased.map(availableJobMetadata) };
+    .select(['id', 'chat_id', 'turn_id', 'inference_task_id', 'assistant_message_id', 'chat_key_version', 'state', 'created_at', 'preflight_id']);
+  const origins = await originDevicesByPreflight(database, ownerHash, [...rows, ...leased]);
+  const withOrigin = (row) => ({ ...availableJobMetadata(row), origin_device_hash: origins.get(row.preflight_id) || null });
+  return { jobs: rows.map(withOrigin), pending_jobs: leased.map(withOrigin) };
+}
+
+// The device that started a turn (its preflight) stays its persister while it is
+// connected (feature.chats recovery_takeover). The API strips this server-derived
+// hash before offering work and holds other devices back until the origin leaves.
+async function originDevicesByPreflight(database, ownerHash, rows) {
+  const ids = [...new Set(rows.map((row) => row.preflight_id).filter(Boolean))];
+  if (!ids.length) return new Map();
+  const preflights = await database(PREFLIGHTS).where({ hashed_user_id: ownerHash }).whereIn('id', ids)
+    .select(['id', 'device_hash']);
+  return new Map(preflights.map((row) => [row.id, row.device_hash || null]));
+}
+
+async function originDevicesByTurn(database, ownerHash, rows) {
+  const turnIds = [...new Set(rows.map((row) => row.turn_id).filter(Boolean))];
+  if (!turnIds.length) return new Map();
+  const preflights = await database(PREFLIGHTS).where({ hashed_user_id: ownerHash }).whereIn('turn_id', turnIds)
+    .select(['turn_id', 'device_hash']);
+  return new Map(preflights.map((row) => [row.turn_id, row.device_hash || null]));
 }
 
 function activeJob(row, ownerHash, now) {

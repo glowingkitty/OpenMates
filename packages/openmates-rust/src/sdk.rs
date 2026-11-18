@@ -187,8 +187,14 @@ impl OpenMates {
         let cancel = self.operation_cancel.clone();
         crate::work::Projects::api_key(self, cancel)
     }
+    pub fn specifications(&mut self) -> crate::work::Specifications<'_> {
+        crate::work::Specifications::api_key(self)
+    }
     pub fn plans(&mut self) -> crate::work::Plans<'_> {
         crate::work::Plans::api_key(self)
+    }
+    pub fn checks(&mut self) -> crate::work::Checks<'_> {
+        crate::work::Checks::api_key(self)
     }
     pub fn tasks(&mut self) -> crate::work::Tasks<'_> {
         crate::work::Tasks::api_key(self)

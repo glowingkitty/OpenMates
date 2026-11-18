@@ -307,6 +307,7 @@ class EmbedTypeDefinition(BaseModel):
     child_type: Optional[str] = Field(default=None, description="Child embed type ID (for composite embeds)")
     child_frontend_type: Optional[str] = Field(default=None, description="Frontend type string for child embeds (e.g., 'web-website')")
     groupable: Optional[bool] = Field(default=False, description="Whether this embed type can be grouped in the TipTap editor")
+    answer_card: Optional[bool] = Field(default=False, description="True when the skill embed itself is the result the user asked for (e.g. a drafted Specification): its card stays visible in the answer even while the used-skill container is collapsed")
     preview_component: Optional[str] = Field(default=None, description="Path to Svelte preview component relative to embeds/ dir")
     fullscreen_component: Optional[str] = Field(default=None, description="Path to Svelte fullscreen component relative to embeds/ dir (null if no fullscreen)")
     child_preview_component: Optional[str] = Field(default=None, description="Preview component path for child embeds")
@@ -379,6 +380,12 @@ class AppInstructionDefinition(BaseModel):
         description="List of embed type IDs (from this app's embed_types) that trigger this instruction. "
                     "When the preprocessor's relevant_embedded_previews matches any of these, the instruction "
                     "is injected regardless of skill preselection. When None, standard skill gating applies."
+    )
+    for_skills: Optional[List[str]] = Field(
+        default=None,
+        description="Skill IDs of this app (e.g. ['browse']). When set, the instruction is injected only "
+                    "when one of these skills is preselected for the turn, so detailed operating guidance "
+                    "for one skill does not load for every use of the app.",
     )
 
 class AppYAML(BaseModel):

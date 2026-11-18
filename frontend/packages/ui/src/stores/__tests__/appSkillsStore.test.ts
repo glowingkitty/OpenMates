@@ -140,8 +140,9 @@ describe("appSkillsStore", () => {
     });
     const skill = appSkillsStore.getState().apps.events?.skills.find((s) => s.id === "search") as any;
     expect(skill).toMatchObject({
-      name_translation_key: "events.search",
-      description_translation_key: "events.search.description",
+      // Same keys as generated metadata, so .pricing_note and .how_to_use.N resolve.
+      name_translation_key: "app_skills.events.search",
+      description_translation_key: "app_skills.events.search.description",
       icon_image: "search.svg",
       providers: ["Example Events"],
     });

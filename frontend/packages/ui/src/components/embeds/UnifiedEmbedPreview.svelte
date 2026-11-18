@@ -53,7 +53,7 @@
   import { resolveEmbed, decodeToonContent, requestEmbedFromServerOnce } from '../../services/embedResolver';
   import { CONTENT_EMBED_CATALOG } from '../../data/embedRegistry.generated';
   import { EMBED_PREVIEW_PRESENTATION_CONTEXT, getStandalonePreviewPresentation, type EmbedPreviewPresentationContext } from '../../types/embedPreviewPresentation';
-  import { savedEmbedIds, loadEmbedSaved, SAVEABLE_EMBED_APP_IDS } from '../../services/savedEmbedService';
+  import { savedEmbedIds, loadEmbedSaved, isSaveableEmbed } from '../../services/savedEmbedService';
   
   /**
    * Props interface for unified embed preview
@@ -205,7 +205,7 @@
 
   let isSavedEmbed = $derived($savedEmbedIds.has(id));
   $effect(() => {
-    if (id && appId && (SAVEABLE_EMBED_APP_IDS as readonly string[]).includes(appId)) void loadEmbedSaved(id);
+    if (id && appId && isSaveableEmbed(appId, skillId)) void loadEmbedSaved(id);
   });
 
   // Stale-embed recovery: if still "processing" after STALE_CHECK_MS, send a

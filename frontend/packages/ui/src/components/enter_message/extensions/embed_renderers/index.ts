@@ -12,6 +12,7 @@ import { PdfRenderer } from "./PdfRenderer";
 import { RecordingRenderer } from "./RecordingRenderer";
 import { AppSkillUseRenderer } from "./AppSkillUseRenderer";
 import { FocusModeActivationRenderer } from "./FocusModeActivationRenderer";
+import { HelplinesRenderer } from "./HelplinesRenderer";
 import { EmbedsMapViewRenderer } from "./EmbedsMapViewRenderer";
 import { SubChatBatchRenderer } from "./SubChatBatchRenderer";
 import { MapLocationRenderer } from "./MapLocationRenderer";
@@ -27,6 +28,7 @@ const rendererInstances: Record<string, EmbedRenderer> = {
   GroupRenderer: new GroupRenderer(),
   AppSkillUseRenderer: new AppSkillUseRenderer(),
   FocusModeActivationRenderer: new FocusModeActivationRenderer(),
+  HelplinesRenderer: new HelplinesRenderer(),
   EmbedsMapViewRenderer: new EmbedsMapViewRenderer(),
   SubChatBatchRenderer: new SubChatBatchRenderer(),
   ImageRenderer: new ImageRenderer(),

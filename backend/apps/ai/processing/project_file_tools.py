@@ -146,6 +146,27 @@ def build_project_source_routing_context(
     return sorted(routing_sources, key=lambda source: source["source_id"])
 
 
+def default_operation_source_id(
+    sources: list[dict[str, Any]],
+    required_capability: str,
+) -> str | None:
+    """The source a Project file operation goes to when the model names none.
+
+    Tool contract (``source_id`` description below): omitting it selects hosted
+    storage, or the Project's only configured remote source. A Project created on
+    the user's machine has exactly that one source, so its files land in the
+    machine folder instead of hosted storage. With no or several remote sources,
+    or when the only one lacks the capability, the operation stays hosted.
+    ``sources`` is the routing context from ``build_project_source_routing_context``.
+    """
+    if len(sources) != 1:
+        return None
+    source = sources[0]
+    if required_capability not in set(source.get("capabilities") or []):
+        return None
+    return str(source["source_id"])
+
+
 def build_project_file_tools() -> list[dict[str, Any]]:
     path_property = {
         "type": "string",
@@ -350,15 +371,33 @@ def build_project_focus_prompt(
     sources: list[dict[str, Any]] | None = None,
 ) -> str:
     instruction = str(focus.get("instruction") or "").strip()
+    if default_operation_source_id(sources or [], "write_request") is not None:
+        # projects.creation.machine-folder: the Project's files live only in a
+        # machine folder, and an application_preview block would store them as
+        # hosted Project files instead, so new apps go through the file tools.
+        new_application = (
+            "This Project's files live in a folder on the user's machine. When the user asks for a new "
+            "runnable web application, do not emit an application_preview block; create each of its files "
+            "with the Project file tools in the application's folder (web-app/ unless Project creation "
+            "named another subfolder), so they land in that folder. "
+        )
+    else:
+        new_application = (
+            "When the user asks for a new runnable web application, emit it once as one application_preview "
+            "block: its files are stored as Project files in the application's folder (web-app/ unless Project "
+            "creation named another subfolder) and the chat shows the runnable preview. Do not create those same "
+            "files with the Project file tools; use the tools for every later change to them. "
+            "Run installs, builds, tests, linters and dev servers as code-run commands (target e2b with argv) in "
+            "this Project's cloud workspace; files a command changes are synced back as normal file changes. "
+        )
     prompt = (
         "An authorized Project focus is active for this chat. Use the Project file tools when the "
         "request requires inspecting or changing Project files. Read a file before updating it and "
         "use the exact expected_base returned by the read. Change, rename or delete Project files only with "
         "the Project file tools; a raw diff block in the reply that targets a Project file is not applied. "
-        "When the user asks for a new runnable web application, emit it once as one application_preview "
-        "block: its files are stored as Project files in the application's folder (web-app/ unless Project "
-        "creation named another subfolder) and the chat shows the runnable preview. Do not create those same "
-        "files with the Project file tools; use the tools for every later change to them. "
+        "Terminal commands are only for work that needs execution; never use them to read or edit files "
+        "(no cat, head, sed, tee or echo > file). "
+        f"{new_application}"
         "Never invent, weaken, or change Project "
         "authority, write policy, approval, or source readiness. A pending client operation means "
         "wait for its continuation; do not poll or claim that a file changed until its result arrives.\n\n"

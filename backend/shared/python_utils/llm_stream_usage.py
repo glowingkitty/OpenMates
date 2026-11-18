@@ -4,7 +4,8 @@ Architecture: App skill authors (vector images, images.modify, composed videos) 
     for billing; providers report usage in different shapes, and a shape that is not read is billed as zero.
 Shapes: OpenAI and Anthropic style objects carry ``input_tokens`` / ``output_tokens``. Google objects carry
     ``prompt_token_count`` / ``candidates_token_count`` plus ``thoughts_token_count``; Google bills thinking
-    tokens as output, so they are added to the output count.
+    tokens as output, so they are added to the output count. OpenAI chat-completions style objects (Mistral,
+    Inception) carry ``prompt_tokens`` / ``completion_tokens``; their completion count includes reasoning tokens.
 Tests: backend/tests/test_llm_stream_usage.py
 """
 
@@ -27,4 +28,6 @@ def stream_usage_tokens(chunk: Any) -> Optional[tuple[int, int]]:
     if hasattr(chunk, "prompt_token_count") and hasattr(chunk, "candidates_token_count"):
         return (_count(chunk, "prompt_token_count"),
                 _count(chunk, "candidates_token_count") + _count(chunk, "thoughts_token_count"))
+    if hasattr(chunk, "prompt_tokens") and hasattr(chunk, "completion_tokens"):
+        return _count(chunk, "prompt_tokens"), _count(chunk, "completion_tokens")
     return None

@@ -148,6 +148,19 @@ extension EnvironmentValues {
     }
 }
 
+private struct ComposerRowActionsInsetKey: EnvironmentKey {
+    static var defaultValue: CGFloat { 0 }
+}
+
+extension EnvironmentValues {
+    /// Trailing space the editor leaves for inline actions (mic, submit) in a
+    /// single-row composer so typed text never runs under them.
+    var composerRowActionsInset: CGFloat {
+        get { self[ComposerRowActionsInsetKey.self] }
+        set { self[ComposerRowActionsInsetKey.self] = newValue }
+    }
+}
+
 /// Hosts supply expansion and focus actions; the field owns the sticky control
 /// and native editor lane from its single measured overflow state.
 struct ComposerFullscreenControlHandler: @unchecked Sendable {
@@ -173,6 +186,7 @@ extension EnvironmentValues {
 struct OMMessageInputField<ActionButtons: View>: View {
     @Environment(\.composerFieldMaximumHeight) private var maximumFieldHeight
     @Environment(\.composerFullscreen) private var fullscreen
+    @Environment(\.composerRowActionsInset) private var rowActionsInset
     @Environment(\.composerFullscreenControlHandler) private var fullscreenControl
     @Environment(\.workspacePromptEditorIdentifier) private var editorIdentifier
     @Environment(\.workspacePromptEditorEditable) private var workspaceEditorEditable
@@ -206,8 +220,17 @@ struct OMMessageInputField<ActionButtons: View>: View {
     // fit that lane instead of introducing a blank row above the document.
     private var topReservedHeight: CGFloat { 0 }
     private var controlVisible: Bool {
+        // A short landscape viewport can be shorter than the control's top
+        // inset plus size; the topTrailing overlay would then cover the
+        // Send/mic action row, so the control only shows when it fits above it.
         fullscreenControl.isVisible(compact: compact, fullscreen: fullscreen,
-            contentOverflows: nativeContentOverflows)
+            contentOverflows: nativeContentOverflows && controlFitsAboveActionRow)
+    }
+    // Uses the host's height cap, not the measured editor, so the control's
+    // own lane reservation can never feed back into its visibility.
+    private var controlFitsAboveActionRow: Bool {
+        maximumUnscrolledEditorHeight >= MessageComposerMetric.expandControlTopInset
+            + MessageComposerMetric.expandControlSize
     }
     private var reservesControlLane: Bool { controlVisible }
     private var maximumUnscrolledEditorHeight: CGFloat {
@@ -323,6 +346,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
                 )
                 .frame(height: editorViewportHeight)
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                .padding(.trailing, rowActionsInset)
                 .accessibilityIdentifier(editorIdentifier)
                 .overlay(alignment: compact ? .center : .topLeading) {
                     if MessageComposerPresentation.showsPlaceholder(

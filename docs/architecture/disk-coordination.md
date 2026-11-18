@@ -31,6 +31,18 @@ and grant, and reconciles uncertain starts instead of blindly resending. Human
 pauses, deletion, archive, ownership changes and competing Task edits are preserved.
 Other Task/CI events cannot wake a chat still waiting for disk capacity.
 
+A threaded wait whose owner process exited (the chat checkpointed and yielded)
+is *parked*: the service never grants it, since nobody would claim the grant.
+Each tick still checks it against capacity; once it would be admitted the request
+keeps state `waiting` with reason `Ready: capacity is available; …` and one
+`parked_ready` event. The Claude chat lifecycle (`scripts/claude_chat_waiters.py`)
+then wakes or reopens the owning chat, which retries the step, re-attaches to
+the same request and is granted on the next tick. A parked wait older than 24
+hours is cancelled (`parked_expired`, reason `Stalled: …`) so stale tickets no
+longer hold the pressure flag on. See
+`docs/architecture/infrastructure/dev-host-resources.md` ("Waiting on background
+work").
+
 The existing 30 GiB floor has a 2 GiB recovery margin after pressure. Worktrees
 retain their 85% ceiling; CI publication retains its absolute floor. Free inodes
 have a separate 10,000 floor. Zero-progress cleanup backs off for five minutes;

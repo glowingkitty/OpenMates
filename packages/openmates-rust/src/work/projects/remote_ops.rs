@@ -41,6 +41,26 @@ pub(super) enum WriteProposal {
         operation_id: String,
         project_name: String,
     },
+    /// An assistant `create_file` / `update_file` on the source (host
+    /// `source_host/writes.rs`); digest `projectFileMutationDigest`.
+    #[cfg(all(feature = "workflow-yaml", unix))]
+    FileMutation(FileMutationProposal),
+}
+
+/// A file mutation inside a [`WriteProposal`]; `Debug` never shows the path or
+/// the file text (they are user content).
+#[cfg(all(feature = "workflow-yaml", unix))]
+#[derive(Clone)]
+pub(super) struct FileMutationProposal(pub(super) super::HostedFileMutation);
+
+#[cfg(all(feature = "workflow-yaml", unix))]
+impl std::fmt::Debug for FileMutationProposal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FileMutationProposal")
+            .field("operation", &self.0.operation.wire())
+            .field("operation_id", &self.0.operation_id)
+            .finish_non_exhaustive()
+    }
 }
 
 /// One sealed relay call: operation, arguments, required source capability
@@ -60,6 +80,8 @@ impl WriteProposal {
             Self::Command { operation_id, .. }
             | Self::Git { operation_id, .. }
             | Self::CreateSource { operation_id, .. } => operation_id,
+            #[cfg(all(feature = "workflow-yaml", unix))]
+            Self::FileMutation(mutation) => &mutation.0.operation_id,
         }
     }
     /// HMAC-SHA256(projectKey, JSON tuple), lower-case hex, byte-identical to
@@ -105,6 +127,15 @@ impl WriteProposal {
                 operation_id,
                 project_name
             ]),
+            // The hosted proposal commitment, which the host recomputes
+            // byte-identically (`source_host/writes.rs::digest`).
+            #[cfg(all(feature = "workflow-yaml", unix))]
+            Self::FileMutation(mutation) => {
+                return mutation
+                    .0
+                    .digest(key, project, chat)
+                    .map_err(|_| Error::Invalid("invalid_file_mutation"));
+            }
         };
         let mut mac = <Hmac<Sha256> as Mac>::new_from_slice(key).map_err(|_| Error::Crypto)?;
         mac.update(tuple.to_string().as_bytes());
@@ -120,7 +151,9 @@ impl WriteProposal {
             Self::CreateSource {
                 operation_id,
                 project_name,
-            } => json!({"chat_id":chat,"create":{"operation_id":operation_id,"project_name":project_name}}),
+            } => {
+                json!({"chat_id":chat,"create":{"operation_id":operation_id,"project_name":project_name}})
+            }
             Self::Command {
                 operation_id,
                 argv,
@@ -145,8 +178,32 @@ impl WriteProposal {
                 }
                 json!({"chat_id":chat,"git":git})
             }
+            #[cfg(all(feature = "workflow-yaml", unix))]
+            Self::FileMutation(mutation) => {
+                json!({"chat_id":chat,"mutation":host_mutation(&mutation.0)})
+            }
         }
     }
+}
+
+/// The mutation as the host's `writes::validate` accepts it: a create carries
+/// `expected_base: null` and `content`, an update `expected_base` and `patch`;
+/// absent fields are omitted, never sent as `null`.
+#[cfg(all(feature = "workflow-yaml", unix))]
+fn host_mutation(mutation: &super::HostedFileMutation) -> Value {
+    let mut wire = json!({
+        "operation": mutation.operation.wire(),
+        "operation_id": mutation.operation_id,
+        "path": mutation.path,
+        "expected_base": mutation.expected_base,
+    });
+    if let Some(content) = &mutation.content {
+        wire["content"] = json!(content);
+    }
+    if let Some(patch) = &mutation.patch {
+        wire["patch"] = json!(patch);
+    }
+    wire
 }
 
 /// A command to run in the chat worktree (or the live source root when the

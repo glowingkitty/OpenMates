@@ -377,6 +377,7 @@ function buildLocalConnectorSummary(row: EncryptedConnectedAccountRow): Connecte
 function appIdForProvider(providerId: string): string {
 	if (providerId === 'google_calendar') return 'calendar';
 	if (providerId === 'revolut_business') return 'finance';
+	if (providerId === 'figma') return 'design';
 	return providerId;
 }
 
@@ -413,6 +414,7 @@ function normalizeConnectedAccountProviderId(providerId: string): string {
 
 function normalizeConnectedAccountAppId(appId: string): string {
 	if (appId === 'google_calendar') return 'calendar';
+	if (appId === 'figma') return 'design';
 	return appId;
 }
 

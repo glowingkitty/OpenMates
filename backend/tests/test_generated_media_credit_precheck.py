@@ -14,6 +14,13 @@ from backend.apps.music.tasks import generate_task as music_task_module
 from backend.shared.python_utils.image_safety import PipelineDecision
 
 
+class _AvailableStorage:
+    """Object storage that reports itself available, so the task reaches its credit step."""
+
+    async def check_availability(self):
+        return "available"
+
+
 class _FakeTask:
     request = SimpleNamespace(id="task-generated-media-1")
 
@@ -22,11 +29,14 @@ class _FakeTask:
         self._cache_service = object()
         self._directus_service = object()
         self._encryption_service = object()
-        self._s3_service = object()
+        self._s3_service = _AvailableStorage()
         self.initialized = False
         self.cleaned = False
 
     async def initialize_services(self):
+        self.initialized = True
+
+    async def initialize_core_services(self):
         self.initialized = True
 
     async def cleanup_services(self):
@@ -38,6 +48,7 @@ class _AllowingImageSafetyPipeline:
         return PipelineDecision(allowed=True)
 
 
+# contract-test: supporting surface=rest_api assertions=billing.credits.personal-chat-admission
 @pytest.mark.asyncio
 async def test_image_generate_precheck_blocks_paid_provider_call(monkeypatch):
     provider_mock = AsyncMock()
@@ -69,6 +80,7 @@ async def test_image_generate_precheck_blocks_paid_provider_call(monkeypatch):
     assert task.cleaned is True
 
 
+# contract-test: supporting surface=rest_api assertions=billing.credits.personal-chat-admission
 @pytest.mark.asyncio
 async def test_music_generate_precheck_blocks_paid_provider_call(monkeypatch):
     provider_mock = AsyncMock()

@@ -21,6 +21,8 @@ from backend.core.api.app.services.connected_account_operation_journal import (
 )
 from backend.core.api.app.services.token_broker import TokenBrokerService
 from backend.shared.providers.google_calendar.client import GoogleCalendarClient
+from backend.shared.providers.google_calendar.errors import GoogleCalendarProviderError
+from backend.shared.providers.google_calendar.event_body import EventInputError, create_body, patch_body
 from backend.shared.providers.google_calendar.oauth import exchange_google_refresh_token
 
 router = APIRouter(prefix="/v1/connected-accounts/actions", tags=["Connected Account Actions"])
@@ -304,10 +306,40 @@ async def _execute_calendar_undo_event(
     calendar_id: str,
     event_id: str,
 ) -> dict[str, str]:
+    """Undo one journaled Calendar mutation without overwriting newer edits."""
+
+    try:
+        return await _run_calendar_undo_event(
+            calendar_client=calendar_client, event=event, calendar_id=calendar_id, event_id=event_id,
+        )
+    except GoogleCalendarProviderError as error:
+        if error.code == "google_calendar_conflict":
+            raise HTTPException(status_code=409, detail={
+                "error": "calendar_undo_conflict",
+                "message": "The event changed after this action, so undo would overwrite newer edits.",
+            }) from error
+        if error.reconnect_required:
+            raise HTTPException(status_code=409, detail={"error": "connected_account_reconnect_required"}) from error
+        if error.code in {"google_calendar_not_found", "google_calendar_gone"}:
+            raise HTTPException(status_code=409, detail={"error": "calendar_undo_target_missing"}) from error
+        raise HTTPException(status_code=502, detail={"error": error.code}) from error
+    except EventInputError as error:
+        raise HTTPException(status_code=422, detail="Connected-account undo snapshot is invalid") from error
+
+
+async def _run_calendar_undo_event(
+    *,
+    calendar_client: GoogleCalendarClient,
+    event: dict[str, Any],
+    calendar_id: str,
+    event_id: str,
+) -> dict[str, str]:
     undo_type = str(event.get("undo_type") or "")
     if undo_type == "delete_created_event":
-        await calendar_client.delete_event(calendar_id=calendar_id, event_id=event_id)
-        return {"calendar_id": calendar_id, "event_id": event_id, "status": "deleted"}
+        result = await calendar_client.delete_event(
+            calendar_id=calendar_id, event_id=event_id, etag=event.get("etag") or None,
+        )
+        return {"calendar_id": calendar_id, "event_id": event_id, "status": result["status"]}
 
     snapshot = event.get("snapshot") if isinstance(event.get("snapshot"), dict) else {}
     title = str(snapshot.get("title") or snapshot.get("summary") or "")
@@ -315,29 +347,42 @@ async def _execute_calendar_undo_event(
     end = str(snapshot.get("end") or "")
     if not title or not start or not end:
         raise HTTPException(status_code=422, detail="Connected-account undo snapshot is incomplete")
+    attendees = snapshot.get("attendees") if isinstance(snapshot.get("attendees"), list) else None
 
     if undo_type == "restore_updated_event":
-        updated = await calendar_client.update_event(
-            calendar_id=calendar_id,
-            event_id=event_id,
-            title=title,
-            start=start,
-            end=end,
-            location=snapshot.get("location"),
-            description=snapshot.get("description"),
-            attendees=snapshot.get("attendees") if isinstance(snapshot.get("attendees"), list) else None,
+        applied_etag = event.get("applied_etag")
+        if not applied_etag:
+            # Journal entries from before etag tracking cannot prove the event is unchanged.
+            raise HTTPException(status_code=409, detail={"error": "calendar_undo_conflict"})
+        changed = set(event.get("changed_fields") or ["title", "start", "end", "location", "description"])
+        current = await calendar_client.get_event_raw(calendar_id=calendar_id, event_id=event_id)
+        body = patch_body(
+            current=current,
+            title=title if "title" in changed else None,
+            start=start if "start" in changed or "end" in changed else None,
+            end=end if "start" in changed or "end" in changed else None,
+            timezone_name=snapshot.get("timezone"),
+            location=str(snapshot.get("location") or "") if "location" in changed else None,
+            description=str(snapshot.get("description") or "") if "description" in changed else None,
+            attendees=(attendees or []) if "attendees" in changed else None,
+        )
+        updated = await calendar_client.patch_event(
+            calendar_id=calendar_id, event_id=event_id, body=body, etag=str(applied_etag),
         )
         return {"calendar_id": calendar_id, "event_id": updated.id or event_id, "status": "restored"}
 
     if undo_type == "recreate_deleted_event":
-        recreated = await calendar_client.create_event(
+        recreated, _existed = await calendar_client.create_event(
             calendar_id=calendar_id,
-            title=title,
-            start=start,
-            end=end,
-            location=snapshot.get("location"),
-            description=snapshot.get("description"),
-            attendees=snapshot.get("attendees") if isinstance(snapshot.get("attendees"), list) else None,
+            body=create_body(
+                title=title,
+                start=start,
+                end=end,
+                timezone_name=snapshot.get("timezone"),
+                location=snapshot.get("location"),
+                description=snapshot.get("description"),
+                attendees=attendees,
+            ),
         )
         return {"calendar_id": calendar_id, "event_id": recreated.id or event_id, "status": "recreated"}
 

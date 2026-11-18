@@ -204,6 +204,7 @@ def test_direct_admin_report_rejects_before_attachment_or_http(
         "urlopen",
         lambda *args, **kwargs: attempted.append(True),
     )
+    monkeypatch.setattr(report_module, "brevo_urlopen", lambda *args, **kwargs: attempted.append(True))
     with pytest.raises(ValueError, match="retired_test_inbox"):
         report_module._send_brevo_email(
             api_key="placeholder",
@@ -233,6 +234,7 @@ def test_daily_runner_cannot_bypass_guard_through_internal_queue(monkeypatch):
     monkeypatch.setattr(
         runner.urllib.request, "urlopen", lambda *args, **kwargs: attempts.append(True)
     )
+    monkeypatch.setattr(runner, "brevo_urlopen", lambda *args, **kwargs: attempts.append(True))
     assert not notifier._send_via_brevo("Test", "Test")
     assert not notifier._send_via_internal_api("dispatch-test-summary-email", {})
     assert not attempts

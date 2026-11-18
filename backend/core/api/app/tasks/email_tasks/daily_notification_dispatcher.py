@@ -148,7 +148,7 @@ class BackupReminderHandler(NotificationHandler):
     FIRST_REMINDER_DAYS = 3
 
     def should_send(self, user: dict[str, Any], now_utc: datetime) -> bool:
-        created_at = _parse_iso_datetime(user.get("date_created"))
+        created_at = _parse_iso_datetime(user.get("signup_started_at"))
         if not created_at:
             return False
 
@@ -243,7 +243,7 @@ HANDLERS: list[NotificationHandler] = [
 # Fields fetched per user in the paginated sweep.
 # Extend this list if a new handler needs additional fields.
 _USER_FIELDS = (
-    "id,date_created,last_access,language,darkmode,"
+    "id,signup_started_at,last_access,language,darkmode,"
     "vault_key_id,encrypted_email_address,"
     "email_notifications_enabled,email_notification_preferences,"
     # Backup reminder fields
@@ -292,7 +292,7 @@ async def _async_run_daily_notifications(task: BaseServiceTask) -> dict:
                 params={
                     "fields": _USER_FIELDS,
                     "filter": {"status": {"_eq": "active"}},
-                    "sort": "date_created",
+                    "sort": "signup_started_at",
                     "page": page,
                     "limit": USER_PAGE_SIZE,
                 },

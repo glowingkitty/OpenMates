@@ -25,7 +25,8 @@ FILTER = re.compile(r"[A-Za-z0-9_]+(?:::[A-Za-z0-9_]+)*")
 ALL = "all"
 MAX_FAILURE_LINES = 40
 MAX_LINE = 300
-TEST_FLAGS = ["--locked", "--lib", "--bins", "--tests"]
+# --no-fail-fast: a failing test binary must not hide the results of the others.
+TEST_FLAGS = ["--locked", "--no-fail-fast", "--lib", "--bins", "--tests"]
 # Features a single-crate run must enable so it compiles what the shipping
 # binaries compile: the CLI builds the SDK with `workflow-yaml`, which gates the
 # remote-access host modules and their tests.

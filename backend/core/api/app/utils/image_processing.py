@@ -20,6 +20,7 @@ from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 import datetime
+from backend.shared.python_utils.svg_sanitizer import SvgSanitizeError, sanitize_svg
 
 try:
     import c2pa
@@ -28,6 +29,14 @@ except ImportError:
     HAS_C2PA = False
 
 logger = logging.getLogger(__name__)
+
+
+def is_sanitized_svg(svg_bytes: bytes) -> bool:
+    """True when the bytes are already the output of sanitize_svg (cleaning is idempotent)."""
+    try:
+        return sanitize_svg(svg_bytes) == svg_bytes
+    except SvgSanitizeError:
+        return False
 
 # Cache for C2PA credentials to avoid re-generating
 _C2PA_CERTS: Optional[Tuple[bytes, bytes, Any]] = None
@@ -310,7 +319,7 @@ def process_svg_for_storage(
     Unlike raster images, SVGs are XML text and cannot be processed by PIL directly.
     This function produces two variants:
 
-    1. 'original': The raw SVG bytes, stored as-is (image/svg+xml).
+    1. 'original': The SVG bytes cleaned by sanitize_svg (image/svg+xml).
        This is the canonical vector asset — infinitely scalable, downloadable.
 
     2. 'preview_webp': A rasterized WEBP preview generated via cairosvg.
@@ -330,6 +339,12 @@ def process_svg_for_storage(
     Returns:
         Dict with keys 'original' (SVG bytes) and 'preview_webp' (WEBP bytes).
     """
+    # Clean the stored SVG (slides.media.svg-declarative-animation); an
+    # unparsable SVG is kept as uploaded and the client shows its still picture.
+    try:
+        svg_bytes = sanitize_svg(svg_bytes)
+    except SvgSanitizeError as exc:
+        logger.warning(f"SVG could not be sanitized; storing original unsanitized: {exc}")
     results: Dict[str, bytes] = {"original": svg_bytes}
 
     try:

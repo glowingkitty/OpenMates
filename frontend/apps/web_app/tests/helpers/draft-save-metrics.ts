@@ -10,7 +10,7 @@
  * kept for continuity), the first save and the median of the later saves
  * separately, the pending_sync_changes size around the saves, per-save Rust stage
  * timings (rustDraftRoute.ts mark) and the route marker (`rust-local`/`rust-synced`
- * on the Rust arm, `ts-<code>` or none on TS).
+ * on the Rust arm, `rust-failed-<code>` on a refused save).
  * The editor is cleared afterwards so the seeded chat keeps no draft.
  */
 export {};

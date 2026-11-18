@@ -45,6 +45,7 @@ import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { promptChatErrorReportConsent } from "./chatErrorReportConsent";
 import type { Chat, Message } from "../types/chat";
 import { get } from "svelte/store";
+import { locale } from "svelte-i18n";
 import { authStore } from "../stores/authStore";
 import { modelRoutingRestrictionsForTurn, type ModelRoutingRestrictions } from "./modelRoutingRestrictions";
 import { initializeServerStatus, serverStatusStore } from "../stores/serverStatusStore";
@@ -72,7 +73,7 @@ import { getActiveTeamContextSnapshot } from "../stores/teamStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { ordinaryTeamPreflightStorageKey, retainOrReuseOrdinaryTeamPreflight } from "./ordinaryTeamPreflightRetry";
 import { PreflightRejectionError, isPreflightAcknowledgementTimeout, waitForPreflightAcknowledgement, recoverTimedOutAdmission } from "./preflightAcknowledgement";
-import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, hasRecoveryBoundPersonalChatMessage, markPersonalChatTurnLegacy, type PersonalChatTurn } from "./personalChatTurnBarrier";
+import { observePersonalChatCanonicalVersion, awaitPersonalChatPredecessor, bindPersonalChatTurn, failPersonalChatTurn, reservePersonalChatTurn, admitPersonalChatTurn, hasRecoveryBoundPersonalChatMessage, markPersonalChatTurnLegacy, type PersonalChatTurn } from "./personalChatTurnBarrier";
 import { isDraftContextDispatchActive, reserveDraftContextDispatch } from "./draftContextDispatchBarrier";
 /** Build-time opt-in to the shared Rust core `sendPrep` unit (default off). */
 const RUST_SEND_PREP_BUILD: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === "1";
@@ -893,7 +894,9 @@ export function shouldSkipClientCodeBlockExtraction(language: string, content: s
 webSocketService.addEventListener("message", (event) => {
   const frame = (event as CustomEvent).detail;
   if (!["new_chat_message", "chat_message_added", "chat_message_confirmed", "message_deleted",
-    "call_message_confirmed", "call_message_changed", "system_message_confirmed"].includes(frame?.type)) return;
+    "call_message_confirmed", "call_message_changed", "system_message_confirmed",
+    // Queueing, editing and steering a queued follow-up advance messages_v without a new row.
+    "message_queued", "queued_message_status", "queued_message_updated"].includes(frame?.type)) return;
   const payload = frame.payload;
   // Call and system receipts must include a server-issued chat version; a
   // call's per-message `revision` is not a substitute for messages_v.
@@ -1300,11 +1303,26 @@ async function hasRetainedFastAdmission(chatId: string, messageId: string): Prom
 	return isRetainedFastAdmissionSnapshot(snapshot, chatId, messageId);
 }
 
+/** Calendar and design accounts share one turn context: directory entries and token-ref inputs concatenate. */
+function mergeConnectedAccountSendContexts(
+	contexts: Array<Awaited<ReturnType<typeof buildConnectedAccountSendContext>>>,
+): Awaited<ReturnType<typeof buildConnectedAccountSendContext>> {
+	const present = contexts.filter((context): context is NonNullable<typeof context> => !!context);
+	if (present.length === 0) return undefined;
+	return {
+		directory: present.flatMap((context) => context.directory ?? []),
+		tokenRefs: present.flatMap((context) => context.tokenRefs ?? []),
+		tokenRefInputs: present.flatMap((context) => context.tokenRefInputs ?? []),
+	};
+}
+
 async function loadPostAdmissionConnectedAccounts(message: Message): Promise<PreparedConnectedAccountSendContext | undefined> {
 	const rows = await listConnectedAccounts();
-	const context = await buildConnectedAccountSendContext({
+	const calendarContext = await buildConnectedAccountSendContext({
 		rows, appId: "calendar", defaultAllowedActions: ["read"],
 	});
+	const designContext = await buildConnectedAccountSendContext({ rows, appId: "design" });
+	const context = mergeConnectedAccountSendContexts([calendarContext, designContext]);
 	return prepareConnectedAccountSendContext({
 		chatId: message.chat_id, messageId: message.message_id, context,
 	});
@@ -1381,6 +1399,9 @@ async function dispatchFastPersonalTurn(input: {
 			chat_has_title: (chat.title_v ?? 0) > 0,
 			current_chat_title_v: chat.title_v ?? 0,
 			current_chat_metadata_v: chat.metadata_v ?? chat.title_v ?? 0,
+			// A creator-sent message (spawned chat brief or follow-up) names its job so the
+			// server does not classify it as typed by the user.
+			...(message.orchestration_job_id ? { orchestration_job_id: message.orchestration_job_id } : {}),
 		},
 	};
 	const expectedMessagesVersion = predecessorVersion ?? preflightExpectedMessagesVersion(chat.messages_v);
@@ -1575,6 +1596,11 @@ async function dispatchFastPersonalTurn(input: {
 		// consume context only then; a rejected frame cannot publish a phase.
 		void admissionAck.then(async (ack) => {
 			if (ack.state === 'LEGACY') markPersonalChatTurnLegacy(personalTurn);
+			// The server committed this turn's user row at expected+1: a follow-up may
+			// now be admitted at once and waits server-side as Queued
+			// (feature.chat-queued-followups admission.synced). Legacy turns keep
+			// waiting for terminal persistence.
+			else admitPersonalChatTurn(personalTurn, Number(admission.expected_messages_v) + 1);
 			recordSendPreparationPhase('admission_ack');
 			initialChatHistoryGate.acknowledge(message.chat_id, message.message_id, admission.turn_id as string, contextWorkspace);
 			await publishPostAdmissionContext({
@@ -1617,6 +1643,17 @@ async function dispatchFastPersonalTurn(input: {
 		const status = await recordMessageDispatchFailure(serviceInstance, message, true);
 		if (status !== "waiting_for_internet") throw error;
 	}
+}
+
+/** Creator link fields of a spawned chat, sent on the storage package; the server verifies the start_chat job. */
+function orchestrationMetadata(
+	chat: { creator_chat_id?: string | null } | null | undefined,
+	message: { orchestration_job_id?: string },
+): Record<string, string> {
+	return {
+		...(chat?.creator_chat_id ? { creator_chat_id: chat.creator_chat_id } : {}),
+		...(chat?.creator_chat_id && message.orchestration_job_id ? { orchestration_job_id: message.orchestration_job_id } : {}),
+	};
 }
 
 export async function sendNewMessageImpl(
@@ -2457,6 +2494,7 @@ export async function sendNewMessageImpl(
 			team_member_mentions?: string[];
 			created_at: number;
 			sender_name?: string;
+			orchestration_job_id?: string;
 			category?: string;
 			model_name?: string;
 			chat_has_title?: boolean;
@@ -2475,6 +2513,7 @@ export async function sendNewMessageImpl(
 		};
 		encrypted_chat_key?: string | null; // CRITICAL: Include key for device sync broadcast
 		is_incognito?: boolean;
+		ui_language?: string;
 		embeds?: EmbedForServer[];
 		message_history?: Message[];
 		encrypted_suggestion_to_delete?: string | null;
@@ -2511,6 +2550,9 @@ export async function sendNewMessageImpl(
 		...(message.preserve_draft === true ? { preserve_draft: true } : {}),
 		chat_id: message.chat_id,
 		parent_id: chat?.parent_id || null,
+		// The interface language the user reads; Automatic mode never rewrites the
+		// account language, so chat titles and summaries follow this instead.
+		ui_language: get(locale) || undefined,
 		broadcast: ((message as unknown) as Record<string, unknown>).broadcast as boolean || false,
 		message: {
 			message_id: message.message_id,
@@ -2520,6 +2562,7 @@ export async function sendNewMessageImpl(
 			content: contentForServer,
 			created_at: message.created_at,
 			sender_name: message.sender_name, // Include for cache but not critical for AI
+			...(message.orchestration_job_id ? { orchestration_job_id: message.orchestration_job_id } : {}),
 			chat_has_title: chatHasTitle, // ZERO-KNOWLEDGE: Send true if chat already has a title (title_v > 0), false if new
 			current_chat_title_v: chat?.title_v || 0,
 			current_chat_metadata_v: chat?.metadata_v ?? chat?.title_v ?? 0,
@@ -3328,6 +3371,16 @@ export async function sendNewMessageImpl(
 					Number(preflightPayload.expected_messages_v) + 1,
 				);
 				holdAdmissionUntil?.(admissionCompleted);
+				if (usesPersonalRecovery) {
+					// The versioned confirmation commits this user row at expected+1: a
+					// follow-up may be admitted at once and waits server-side as Queued
+					// (feature.chat-queued-followups admission.synced). Legacy turns keep
+					// waiting for terminal persistence.
+					const committedVersion = Number(preflightPayload.expected_messages_v) + 1;
+					void admissionCompleted.then(() => {
+						if (!personalTurn.legacy) admitPersonalChatTurn(personalTurn, committedVersion);
+					});
+				}
 			} catch (error) {
 				await updateMessageStatusForSendRetry(serviceInstance, message, "failed");
 				throw error;
@@ -4028,6 +4081,8 @@ export async function sendEncryptedStoragePackage(
 				last_edited_overall_timestamp: number;
 			};
 			task_id?: string;
+			creator_chat_id?: string;
+			orchestration_job_id?: string;
 		}
 		const metadataPayload: MetadataPayload = {
 			chat_id,
@@ -4045,7 +4100,10 @@ export async function sendEncryptedStoragePackage(
 				title_v: chat.title_v || 0, // Use title_v from updated chat (should be incremented)
 				last_edited_overall_timestamp: user_message.created_at
 			},
-			task_id
+			task_id,
+			// Creator link of a spawned chat: the server stores it after verifying the start_chat job.
+			// It must not go into the first-message preflight metadata, whose fields are a fixed set.
+			...orchestrationMetadata(chat, user_message)
 		};
 		if (
 			encryptedChatKey &&

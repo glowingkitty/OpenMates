@@ -1,0 +1,177 @@
+schema_version: 1
+id: feature.focus-modes.trip-planning
+version: 1
+status: draft
+title: Trip planning focus mode
+summary: A focus mode that turns a few candidate places, or just a vibe, budget and dates, into a short compared
+  shortlist and then a clear day-by-day trip with connections, stays, costs and weather, one question at a time,
+  with stays compared across providers, booking todos with deadlines and trip preferences saved only with consent.
+
+inherits: [feature.focus-modes@2]
+scope:
+  includes:
+  - Travel Trip planning focus (runtime id travel-trip_planning) with its activation hint, phases, examples and
+    instructions.
+  - Destination comparison on total cost, travel time, weather and fit, narrowed to a short shortlist.
+  - Connections per candidate and per leg of a multi-city trip through the existing connection search, including
+    mixed routes for an owned pass (feature.app-skill.travel-search).
+  - Stays (hotels and hostels) through the existing stay search and its operator-installed providers, with
+    duplicate detection across providers and a per-property price comparison. This comparison is part of the stay
+    search itself and also applies outside the focus.
+  - Weather from the existing forecast for near dates and a new typical-weather (climate) outlook for later dates,
+    used to adjust the plan.
+  - A day-by-day itinerary with existing embeds (map, connection, stay and weather cards).
+  - Booking todos with deadlines and consent-gated trip preference Memories.
+  excludes:
+  - Booking, payment, ticket issuance or account access at any provider; the user books through the provider links.
+  - Visa, health, insurance or legal advice beyond pointing to official sources.
+  - New storage, routes or memory types; a dedicated itinerary embed type; a stored travel-pass setting.
+  - Naming or documenting individual operator-installed providers in public contracts.
+assertions:
+- id: trip-planning.activation
+  type: behavior
+  must: A natural request to plan a trip, holiday or weekend away, or to choose between places to go, proposes Trip
+    planning with the shared countdown; naming it (@focus or "turn on Trip planning") activates it at once. A single
+    lookup (one connection, one hotel search, one forecast) keeps the normal path without a focus proposal.
+  depends_on:
+  - examples.activation
+- id: trip-planning.pacing
+  type: behavior
+  must: Each reply asks at most one question and first uses what is already known (the message, earlier turns,
+    approved Memories). The brief needs origin, dates or a date window, travellers and either candidate places or a
+    vibe; budget and pace are asked only when they change the result, and the user can skip any question or ask for
+    a proposal right away. Options are shown as a shortlist of at most three, each with a one-line reason, never as
+    an unranked list.
+  depends_on:
+  - examples.pacing
+- id: trip-planning.destination-comparison
+  type: behavior
+  must: With several candidate places, or candidates the assistant proposes from a vibe, budget and dates, the focus
+    compares at most three at a time on estimated total cost (transport, stays and a stated daily spend), door-to-door
+    travel time, expected weather and fit with what the user said, in one compact table with the recommended choice
+    first and why. Every price and time comes from a search result in this chat or is marked as an estimate with its
+    basis; missing data is shown as unknown, never filled in. The user narrows, swaps or adds candidates and the
+    comparison updates; a multi-city trip is compared as a route, not as separate places.
+  depends_on:
+  - examples.destination_comparison
+- id: trip-planning.connections
+  type: behavior
+  must: The focus searches connections for each shortlisted candidate from the user's origin and for every leg of a
+    multi-city trip, in travel order, through the existing connection search with the user's dates, travellers and
+    any owned pass the user named, so pass-covered and paid parts follow the mixed-route rules of
+    feature.app-skill.travel-search. For each leg it shows at most three options (fastest, cheapest, best balance)
+    as connection cards; when no provider covers a leg it says so and does not invent a connection or fare.
+  depends_on:
+  - examples.connections
+- id: trip-planning.stays-duplicates
+  type: behavior
+  must: A stay search whose providers return the same property more than once shows it as one property with all of
+    its offers. Results are the same property only when their names match after normalization and either their
+    coordinates lie within 150 meters or their street addresses match; a name match alone, a nearby property with a
+    different name, or a different room type at another address is never merged. Uncertain matches stay separate.
+    Each merged offer keeps its provider attribution and link.
+  depends_on:
+  - examples.stays_duplicates
+- id: trip-planning.stays-price-comparison
+  type: behavior
+  must: For each property the offers are compared on the total price for the whole stay including taxes and fees,
+    in the request currency, and on cancellation terms (free cancellation until a stated date and time, partly
+    refundable, non-refundable or unknown). An offer whose total excludes or does not state taxes and fees is labelled
+    so and never ranked as cheaper than an offer with a known full total; offers in another currency are not
+    converted silently. The property card shows the lowest known full total and the number of offers; its details
+    list every offer. Hostels show the bed or room type each price is for.
+  depends_on:
+  - examples.stays_price_comparison
+- id: trip-planning.weather-sources
+  type: behavior
+  must: For travel days within the reliable forecast range (up to 7 days ahead) the focus uses the forecast; for later
+    days it uses the typical weather for that place and time of year from multi-year historical data, labelled as
+    typical and not a forecast, with its date range and source. Between 8 and 14 days it may show both, with the
+    forecast labelled low confidence. When a trip moves into forecast range in a later turn, the forecast replaces
+    the typical weather.
+  depends_on:
+  - examples.weather_sources
+- id: trip-planning.weather-adjustments
+  type: behavior
+  must: Weather changes the plan visibly. A day with likely heavy rain gets an indoor alternative for its outdoor
+    item; heat, storm, heavy snow or thunderstorm risk on a travel day is flagged on that leg with the expected effect
+    (possible delays or cancellations, a buffer or earlier connection suggested) and any official weather warning the
+    source provides. Typical weather can only support a general hint ("often rainy in November"), never a
+    disruption warning for a specific day.
+  depends_on:
+  - examples.weather_adjustments
+- id: trip-planning.itinerary
+  type: behavior
+  must: Once the user has chosen destinations, legs and stays, the focus shows one itinerary in day order with each
+    day's place, legs with times, stay, main activities and weather, followed by a cost summary (transport, stays,
+    stated daily spend, total, unknown items listed separately). It uses the existing embeds (a map of the stops,
+    the chosen connection and stay cards, weather cards) and invents no times, prices or addresses. Later changes
+    produce an updated itinerary rather than a partial patch.
+  depends_on:
+  - examples.itinerary
+- id: trip-planning.booking-todos
+  type: behavior
+  must: After the itinerary the assistant offers booking todos and creates them only on a yes. Each todo names one
+    booking (a leg or a stay) with its provider link and a deadline from the source (the free-cancellation deadline,
+    an offer expiry or the departure) or, when the source states none, a date the user chose. Where Tasks are
+    available each becomes a Task assigned to the user; elsewhere a reminder is offered. The assistant says a todo
+    exists only after the skill succeeded.
+  depends_on:
+  - examples.booking_todos
+- id: trip-planning.memory-consent
+  type: privacy
+  must: Before saving trip preferences (for example home station or airport, owned passes, stay type, budget style,
+    pace, transport the user avoids) the assistant lists exactly what it would save and saves only after a clear
+    yes, through the existing assistant memory write, client-encrypted and editable like any other Memory. Trip
+    dates, destinations, fellow travellers' details and booking references are not saved as preferences. Later trip
+    chats use approved preferences without asking again.
+  depends_on:
+  - examples.memory_consent
+- id: trip-planning.bounded-and-neutral
+  type: invariant
+  must: A comparison round runs at most one connection, one stay and one weather search per candidate or leg, and the
+    assistant asks before searching more than three candidates or legs at once. Results from operator-installed
+    providers are attributed by provider name inside the result cards only; the focus never books, logs in, pays or
+    contacts a provider, and a missing provider yields an explicit unavailable note instead of guessed data.
+  depends_on:
+  - examples.bounded_and_neutral
+applies_to:
+  rest_api:
+    required: true
+    role: Existing inference, skill, memory and task paths; the new typical-weather skill uses the existing app skill
+      route with the usual authentication, rate and credit limits. No other new route.
+  cli:
+    required: true
+    parity: semantic
+    role: Real dev CLI chats prove the flow, comparison, todos, memory consent and weather adjustments; stay offers and
+      typical weather render through the generic embed output.
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web:
+        required: true
+      apple:
+        required: false
+        role: Apple shows the focus through the shared catalog; merged stay offers and the typical-weather card follow
+          as an Apple parity lane.
+examples:
+  file: examples.yml
+  required_groups:
+  - activation
+  - pacing
+  - destination_comparison
+  - connections
+  - stays_duplicates
+  - stays_price_comparison
+  - weather_sources
+  - weather_adjustments
+  - itinerary
+  - booking_todos
+  - memory_consent
+  - bounded_and_neutral

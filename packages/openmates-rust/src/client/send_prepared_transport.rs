@@ -72,6 +72,9 @@ impl Client {
         }
         if options.project_file_jobs && PROJECT_FILE_JOBS_AVAILABLE {
             self.extra_socket_capabilities.push(PROJECT_FILE_JOBS_CAPABILITY);
+            // A file-job client also runs the turn's commands on a machine source.
+            self.extra_socket_capabilities
+                .push(crate::client::remote_command_jobs::REMOTE_COMMAND_JOBS_CAPABILITY);
         }
         if options.memory_write_jobs {
             self.extra_socket_capabilities.push(MEMORY_WRITE_JOBS_CAPABILITY);

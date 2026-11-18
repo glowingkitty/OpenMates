@@ -7,6 +7,7 @@ import base64
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from decimal import Decimal
+import json
 import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -56,6 +57,10 @@ class MemoryStore:
 
     async def save(self, record, **kwargs):
         self.records[record["session_id"]] = deepcopy(record)
+
+    async def open_session_ids(self, user_id):
+        live = [r for r in self.records.values() if r["user_id"] == user_id and r["status"] not in ("closed", "expired")]
+        return [r["session_id"] for r in sorted(live, key=lambda r: -r["last_activity"])]
 
     async def load_result(self, run_id, user_id):
         value = self.results.get((run_id, user_id))
@@ -435,6 +440,65 @@ async def test_empty_pool_does_not_cold_start_or_hold_customer_funds(
     assert not record.get("accounting_pending")
     assert "create" not in service.driver.calls and "resume" not in service.driver.calls
     assert result.metrics["charged_credits"] == 0
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.lifecycle
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failures, completes", [(1, True), (99, False)])
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.lifecycle
+async def test_pooled_start_waits_out_a_brief_ingress_502_after_resume(
+    service, monkeypatch, failures, completes
+):
+    """On dev a resumed pool VM answered the first start with 502 and the
+    user's browser closed before the form loaded; a brief 502 is retried."""
+    import backend.core.api.app.services.web_browse_run as module
+    from backend.shared.providers.e2b_browser import BrowserRpcUnavailable
+
+    monkeypatch.setattr(module, "pool_size", lambda: 3)
+    monkeypatch.setattr(module, "START_RETRY_SECONDS", 8 if completes else 0.2)
+
+    class Pool:
+        def __init__(self, *args):
+            pass
+
+        async def claim(self, sid, callback):
+            provider = {
+                "sandbox_id": "prepared-vm",
+                "token": "private-token",
+                "traffic_access_token": "private-ingress",
+                "cpu_count": 2,
+                "memory_mb": 4096,
+                "created_at": time.time() - 3600,
+                "running_since": None,
+                "provider_deadline": time.time() - 10,
+                "pool_assigned": True,
+                "pool_verified": False,
+            }
+            await callback(provider)
+            return provider
+
+    monkeypatch.setattr(module, "BrowsePool", Pool)
+    original_rpc = service.driver.rpc
+    left = {"starts": failures}
+
+    async def rpc(provider, body):
+        if body.get("operation") == "start" and left["starts"] > 0:
+            left["starts"] -= 1
+            raise BrowserRpcUnavailable(retryable=True, status_code=502)
+        reply = await original_rpc(provider, body)
+        return {**reply, "pristine": True} if body.get("require_pristine") else reply
+
+    service.driver.rpc = rpc
+    result = await run(service)
+    record = service.store.records[result.session_id]
+    if completes:
+        assert result.status == "completed" and record["provider"]["pool_verified"]
+        assert result.metrics["start_retries"] == 1
+        assert "kill" not in service.driver.calls
+    else:
+        # A lasting ingress failure still destroys the unverified VM.
+        assert result.status == "cancelled" and record["provider"] is None
+        assert "kill" in service.driver.calls
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.private-storage-and-api,web-browse.exclusive-takeover
@@ -1025,6 +1089,19 @@ async def test_distinct_followup_keeps_original_result_after_browser_close(servi
     )
     assert job.dispatch_required is False
     assert service.driver.calls == calls
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.embed-and-observation,web-browse.lifecycle
+async def test_closed_browser_reads_as_closed_without_live_state(service):
+    first = await run(service)
+    await service.control(first.session_id, "owner", BrowseControl(operation="close"))
+    state = await service.state(first.session_id, "owner")
+    assert state["status"] == "closed"
+    assert state["steps"] == []
+    with pytest.raises(HTTPException) as exc:
+        await service.frame(first.session_id, "owner")
+    assert exc.value.status_code == 410
 
 
 # contract-test: supporting surface=rest_api assertions=web-browse.session-and-run,web-browse.control-loop
@@ -1944,3 +2021,139 @@ async def test_prices_copied_as_shown_still_complete_a_number_schema(service):
     result = await run(service, arguments(output_schema=SHOP_SCHEMA))
     assert result.status == "completed"
     assert result.data == {"products": [{"name": "Kit A", "price": 20}]}
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.form-with-user,web-browse.cost-accounting
+@pytest.mark.asyncio
+@pytest.mark.parametrize("quiesce", ["settled", "still_loading", "unavailable"])
+# contract-test: supporting surface=rest_api assertions=web-browse.lifecycle,web-browse.form-with-user,web-browse.cost-accounting
+async def test_finished_run_lets_pending_page_requests_finish_before_pausing(
+    service, monkeypatch, quiesce
+):
+    # A request still open at the pause (a form loading its settings from a
+    # waking backend) cannot finish after the resume; the wait is bounded and a
+    # failed wait never keeps paid compute running.
+    import backend.core.api.app.services.web_browse_service as module
+
+    monkeypatch.setattr(module, "QUIESCE_SECONDS", 0.2)
+    original_rpc = service.driver.rpc
+
+    async def rpc(provider, body):
+        if body.get("operation") == "quiesce":
+            service.driver.calls.append(deepcopy(body))
+            assert body["seconds"] <= module.QUIESCE_ROUND_SECONDS
+            if quiesce == "unavailable":
+                raise BrowserUnavailable("The browser connection is unavailable.")
+            if quiesce == "still_loading":
+                await asyncio.sleep(0.05)
+                return {"in_flight": 1, "waited": 0.05}
+            return {"in_flight": 0, "waited": 0.4}
+        return await original_rpc(provider, body)
+
+    service.driver.rpc = rpc
+    result = await run(service)
+    record = service.store.records[result.session_id]
+    calls = service.driver.calls
+    waits = [i for i, c in enumerate(calls) if isinstance(c, dict) and c["operation"] == "quiesce"]
+    assert result.status == "completed" and waits
+    assert calls[-1] == "pause" and max(waits) < calls.index("pause")
+    assert len(waits) == 1 if quiesce != "still_loading" else len(waits) >= 2
+    assert record["status"] == "paused" and record["provider"]["running_since"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user,web-browse.cost-accounting
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user,web-browse.cost-accounting
+async def test_followup_without_a_cap_keeps_the_sessions_larger_cap(service):
+    # A form session starts with a larger cap; later turns pass only the session
+    # id and must continue against that cap, not be refused for the default.
+    result = await run(service, arguments(max_credits=1000))
+    followup = BrowseRequest(task="Fill the next field", session_id=result.session_id)
+    assert "max_credits" not in followup.model_fields_set
+    again = await run(service, followup, message_id="next-field")
+    assert again.status == "completed" and again.session_id == result.session_id
+    record = service.store.records[result.session_id]
+    assert record["max_credits"] == 1000
+    # The queued worker rebuilds the request from the record; the cap stays unset.
+    assert "max_credits" not in BrowseRequest.model_validate(record["request"]).model_fields_set
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user,web-browse.session-and-run
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.form-with-user,web-browse.session-and-run
+async def test_followup_without_session_or_address_continues_this_chats_browser(service):
+    # Real form run: on a later turn the model dropped session_id and gave no
+    # start_url; the call must continue the chat's live browser, not fail 422.
+    other = await run(service, chat_id="other-chat", message_id="other")
+    mine = await run(service, arguments(max_credits=1000))
+    followup = BrowseRequest(task="Select 10-30 h per week")
+    again = await run(service, followup, message_id="later-turn")
+    assert again.session_id == mine.session_id != other.session_id
+    assert service.store.records[mine.session_id]["max_credits"] == 1000
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.session-and-run
+async def test_followup_without_session_or_address_in_a_chat_without_a_browser_still_needs_an_address(service):
+    await run(service, chat_id="other-chat", message_id="other")
+    with pytest.raises(HTTPException) as exc:
+        await run(service, BrowseRequest(task="Continue"), message_id="no-browser")
+    assert exc.value.status_code == 422
+
+
+def wallet_refusal(max_quotable):
+    body = json.dumps(
+        {"detail": {"code": "reservation_budget_exceeded", "max_quotable_credits": max_quotable}}
+    )
+    return HTTPException(402, f"Internal API error: {body}")
+
+
+def reserve_calls(service):
+    return [
+        call.kwargs["payload"]["quoted_credits"]
+        for call in service.app._make_internal_api_request.await_args_list
+        if call.args[1] == "/internal/billing/reserve"
+    ]
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.form-with-user
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting,web-browse.form-with-user
+async def test_a_wallet_below_the_cap_holds_what_it_can_and_the_window_stops_there(service):
+    # Real form run: a 1000-credit session cap with 875 quotable credits refused
+    # every later Browse call; the window now holds 875 and is bounded by it.
+    first = True
+
+    async def internal(method, path, payload=None, **kwargs):
+        nonlocal first
+        if path == "/internal/billing/reserve" and first:
+            first = False
+            raise wallet_refusal(875)
+        return {}
+
+    service.app._make_internal_api_request.side_effect = internal
+    result = await run(service, arguments(max_credits=1000))
+    assert result.status == "completed"
+    assert reserve_calls(service) == [1000, 875]
+    record = service.store.records[result.session_id]
+    assert record["reservation"] is None and record["reserved_ceiling"] is None
+    assert record["max_credits"] == 1000
+    held = {**record, "reserved_ceiling": 875, "charged_credits": 0}
+    assert service.remaining_usd(held) <= Decimal(875) / 2000
+
+
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=web-browse.cost-accounting
+async def test_a_wallet_that_cannot_hold_a_useful_window_still_refuses(service):
+    async def internal(method, path, payload=None, **kwargs):
+        if path == "/internal/billing/reserve":
+            raise wallet_refusal(5)
+        return {}
+
+    service.app._make_internal_api_request.side_effect = internal
+    with pytest.raises(HTTPException) as exc:
+        await run(service)
+    assert exc.value.status_code == 402
+    assert reserve_calls(service) == [250]

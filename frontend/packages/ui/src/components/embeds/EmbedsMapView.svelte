@@ -39,13 +39,22 @@
 
   let resolutionMarker: HTMLSpanElement;
   let diagnosticHidden = $state(false);
+  // While the hosting message still streams, its results-view refs are incomplete;
+  // the admin render diagnostic waits for the finished message instead of flashing.
+  let hostStreaming = $state(false);
   // Collapse the node view and legacy code-fence shell, not just its contents.
   onMount(() => {
     const target = resolutionMarker?.parentElement;
     const pre = target?.closest('pre');
     target?.classList.add('results-view-mount');
     pre?.classList.add('results-view-protocol-host');
+    const messageHost = target?.closest<HTMLElement>('[data-streaming]');
+    const readStreaming = () => { hostStreaming = messageHost?.dataset.streaming === 'true'; };
+    readStreaming();
+    const streamingObserver = messageHost ? new MutationObserver(readStreaming) : null;
+    if (messageHost) streamingObserver?.observe(messageHost, { attributes: true, attributeFilter: ['data-streaming'] });
     return () => {
+      streamingObserver?.disconnect();
       target?.classList.remove('results-view-mount');
       pre?.classList.remove('results-view-protocol-host');
     };
@@ -1258,7 +1267,7 @@
   {/each}
 {/snippet}
 
-<span bind:this={resolutionMarker} hidden data-result-view-visible={eligibleEntries.length > 0 || (!isLoading && $userProfile.is_admin === true && !diagnosticHidden) ? "true" : "false"} data-testid="embeds-map-view-resolution" data-loading={isLoading ? 'true' : 'false'}></span>
+<span bind:this={resolutionMarker} hidden data-result-view-visible={eligibleEntries.length > 0 || (!isLoading && !hostStreaming && $userProfile.is_admin === true && !diagnosticHidden) ? "true" : "false"} data-testid="embeds-map-view-resolution" data-loading={isLoading ? 'true' : 'false'}></span>
 {#if eligibleEntries.length > 0 || pendingCount > 0}
 <section class="embeds-results-view embeds-map-view" class:fullscreen class:list-only={visualTabs.length === 0} data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} data-loading={isLoading ? 'true' : 'false'} aria-label={title}>
   <header class="map-view-toolbar">
@@ -1522,7 +1531,7 @@
   </div>
   {/if}
 </section>
-{:else if !isLoading && $userProfile.is_admin === true && !diagnosticHidden}
+{:else if !isLoading && !hostStreaming && $userProfile.is_admin === true && !diagnosticHidden}
   <div class="results-view-admin-error" role="alert" data-testid="results-view-admin-error">
     <strong>Map/calendar view could not be rendered.</strong>
     {#if embedRefs.length === 0 && sourceRefs.length === 0}

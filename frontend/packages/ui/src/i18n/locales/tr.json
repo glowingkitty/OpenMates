@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Bu yanıt güvenlik kurallarımıza uymadığı için kaldırıldı."
+    },
+    "wellbeing": {
+      "text": "Son yanıtımı sana zarar verebileceği için kaldırdım. Yalnız değilsin. Kendine zarar vermeyi düşünüyorsan lütfen güvendiğin biriyle, yerel bir kriz hattıyla veya acil servislerle iletişime geç. Hâlâ burada seninle konuşabilirim."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -134,6 +142,12 @@
         "text": "Yatırım turu planla",
         "description": {
           "text": "Ne kadar fon toplanacağını, hangi aracın uygun olduğunu, hisse seyrelmesini ve zaman çizelgesini düzenlenebilir bir hisse tablosuyla hesaplayın."
+        }
+      },
+      "write_press_release": {
+        "text": "Basın bülteni yaz",
+        "description": {
+          "text": "Gazetecilerin kullanabileceği bir basın bülteni yazın; şirketinizin kendi basın üslubuyla, Word belgesi veya istediğiniz başka bir biçimde."
         }
       }
     },
@@ -221,6 +235,12 @@
         "description": {
           "text": "Güvenlik açıkları ve maruz kalma riskleri için yapılandırma dosyalarını denetleyin."
         }
+      },
+      "write_specification": {
+        "text": "Spesifikasyon yaz",
+        "description": {
+          "text": "Bir fikri adım adım onaylı bir spesifikasyona dönüştür - kapsam, gereksinimler, tasarım ve kabul kontrolleri - ardından görevleri olan bir plan başlat."
+        }
       }
     },
     "events": {
@@ -303,6 +323,12 @@
         "description": {
           "text": "Güçlü bir yaşam koçluğu tekniği."
         }
+      },
+      "life_compass": {
+        "text": "Hayat pusulası",
+        "description": {
+          "text": "Daha mutlu bir hayata giden yönünü, küçük adımlarla bul."
+        }
       }
     },
     "news": {
@@ -358,6 +384,20 @@
           "3": {
             "text": "Bu **iklim politikasını** şüpheci bir arkadaşımla tartışmadan önce gerçekleri ve karşı argümanları araştır"
           }
+        }
+      }
+    },
+    "slides": {
+      "design_template": {
+        "text": "Şablon tasarla",
+        "description": {
+          "text": "Yeniden kullanılabilir bir slayt şablonunu adım adım tasarlayın - seçebileceğiniz üç tasarım, sizinle birlikte iyileştirilir ve kitaplığınıza kaydedilir."
+        }
+      },
+      "plan_presentation": {
+        "text": "Sunum planla",
+        "description": {
+          "text": "Bir sunumu adım adım planlayın - hedef, hikâye, slayt başına bir mesaj, tasarım - sonra konuşmacı notlu slaytları oluşturup gözden geçirin."
         }
       }
     },
@@ -910,6 +950,12 @@
         "description": {
           "text": "Bir vektör grafiği, dikiş önizlemeli nakış makinesi dosyalarına dönüştürün."
         }
+      },
+      "get_design": {
+        "text": "Tasarımı al",
+        "description": {
+          "text": "Bir Figma tasarımını okuyup yapı, stiller ve kod aktarımı sağlar."
+        }
       }
     },
     "electronics": {
@@ -947,6 +993,9 @@
           "3": {
             "text": "Ocak ayında Londra'da hangi teknoloji etkinlikleri var?"
           }
+        },
+        "pricing_note": {
+          "text": "Tipik bir etkinlik araması yaklaşık 15–25 kredi tutar: web araması için 10 kredi artı Mercury 3'ün en fazla beş herkese açık sayfayı okumak için kullandığı tokenler. Yalnızca resmi bir konferans programının yanıtladığı arama 1 kredi tutar. Başarısız olan veya hiçbir şey bulamayan aramalar ücretsizdir."
         }
       }
     },
@@ -2885,6 +2934,21 @@
       "structured": {
         "text": "İçerik"
       },
+      "player_label": {
+        "text": "Sesli yanıt oynatıcısı"
+      },
+      "pause": {
+        "text": "Sesli yanıtı duraklat"
+      },
+      "play": {
+        "text": "Sesli yanıtı oynat"
+      },
+      "previous_chapter": {
+        "text": "Önceki bölüm: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Sonraki bölüm: {chapter}"
+      },
       "speak_response": {
         "text": "Yanıtı seslendir"
       },
@@ -3353,6 +3417,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3852,6 +3917,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "Yönetici"
@@ -3941,6 +4007,12 @@
     },
     "download": {
       "text": "İndir"
+    },
+    "download_pdf": {
+      "text": "PDF indir"
+    },
+    "download_word": {
+      "text": "Word indir"
     },
     "loading": {
       "text": "Yükleniyor..."
@@ -5926,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "OpenMates hesabın askıya alındı"
+      },
+      "headline": {
+        "text": "Hesabın askıya alındı"
+      },
+      "body": {
+        "text": "Güvenlik kontrollerimiz hesabından gelen istekleri reddetti."
+      },
+      "appeal": {
+        "text": "İtiraz etmek için 14 günün var. Verilerini de indirebilirsin."
+      },
+      "button": {
+        "text": "İtiraz et veya verilerimi indir"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Hesabın hakkında daha fazla bilgiye ihtiyacımız var"
+      },
+      "headline": {
+        "text": "Biraz daha bilgiye ihtiyacımız var"
+      },
+      "body": {
+        "text": "Hesabının askıya alınmasını inceliyoruz ve bir sorumuz var:"
+      },
+      "button": {
+        "text": "Uygulamada yanıtla"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "OpenMates hesabın yeniden aktif"
+      },
+      "headline": {
+        "text": "Hesabın yeniden aktif"
+      },
+      "body": {
+        "text": "Hesabının askıya alınmasını inceledik ve kaldırdık. İhlallerin silindi ve OpenMates'i eskisi gibi kullanabilirsin."
+      },
+      "apology": {
+        "text": "Yaşattığımız kesinti için üzgünüz."
+      }
     }
   },
   "embed_user_edits": {},
@@ -7622,7 +7739,7 @@
         "text": "{used} / {limit} kredi"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "Bulut tarayıcısında giriş yapıyorsunuz. Yapay zekânın devam etmesine izin verirseniz bu hesaptaki bilgilere erişebilir. İlgili sayfa içeriği yapay zekâ sağlayıcılarımıza gönderilebilir. Yalnızca yapay zekâya erişim vermek istediğiniz hesaplara giriş yapın."
@@ -7823,6 +7940,42 @@
     },
     "slides_count_plural": {
       "text": "slayt"
+    },
+    "slides_template_default_title": {
+      "text": "Şablon"
+    },
+    "slides_template_label": {
+      "text": "Şablon"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} düzen"
+    },
+    "slides_template_use": {
+      "text": "Bu tasarımı kullan"
+    },
+    "slides_template_use_message": {
+      "text": "\"{title}\" tasarımını kullan"
+    },
+    "slides_layout_title": {
+      "text": "Başlık"
+    },
+    "slides_layout_section": {
+      "text": "Bölüm"
+    },
+    "slides_layout_content": {
+      "text": "İçerik"
+    },
+    "slides_layout_two_column": {
+      "text": "İki sütun"
+    },
+    "slides_layout_image": {
+      "text": "Görsel"
+    },
+    "slides_layout_quote": {
+      "text": "Alıntı"
+    },
+    "slides_layout_closing": {
+      "text": "Kapanış"
     },
     "slides_prev": {
       "text": "Önceki slayt"
@@ -8460,6 +8613,54 @@
     },
     "progress_result_one": {
       "text": "1 sonuç"
+    },
+    "slides_template_pick": {
+      "text": "Şablon"
+    },
+    "slides_template_picker_title": {
+      "text": "Şablon seç"
+    },
+    "slides_template_builtin": {
+      "text": "Yerleşik"
+    },
+    "slides_template_library_personal": {
+      "text": "Kitaplığın"
+    },
+    "slides_template_library_team": {
+      "text": "Takım kitaplığı"
+    },
+    "slides_template_updated": {
+      "text": "Güncellendi"
+    },
+    "slides_template_apply": {
+      "text": "Şablonu uygula"
+    },
+    "slides_template_apply_failed": {
+      "text": "Şablon uygulanamadı"
+    },
+    "slides_template_library_empty": {
+      "text": "Henüz kayıtlı şablon yok"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -8491,55 +8692,6 @@
       },
       "remove_pending_file": {
         "text": "Dosyayı kaldır"
-      }
-    },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} {type} eki"
-      },
-      "embed_many": {
-        "text": "{count} {type} eki"
-      },
-      "type": {
-        "audio": {
-          "text": "ses"
-        },
-        "image": {
-          "text": "görsel"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "web sitesi"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "harita"
-        },
-        "code": {
-          "text": "kod"
-        },
-        "document": {
-          "text": "belge"
-        },
-        "sheet": {
-          "text": "elektronik tablo"
-        },
-        "file": {
-          "text": "dosya"
-        },
-        "app": {
-          "text": "uygulama"
-        },
-        "embed": {
-          "text": "gömülü"
-        }
       }
     },
     "file_size_limits": {
@@ -8800,6 +8952,27 @@
     },
     "xlsx_feature_sheet_limit": {
       "text": "ilk 10 sayfadan sonraki sayfalar"
+    },
+    "guest_access_checking": {
+      "text": "Hesap olmadan sohbet edip edemeyeceğiniz kontrol ediliyor…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Bu cihazda daha önce giriş yaptınız. Sohbete devam etmek için giriş yapın."
+    },
+    "guest_access_usage_limit": {
+      "text": "Hesapsız ücretsiz mesajlar şimdilik tükendi. Sohbete devam etmek için kaydolun."
+    },
+    "guest_access_unavailable": {
+      "text": "Şu anda hesap olmadan sohbet edilemiyor. Sohbet etmek için kaydolun."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Hesap olmadan sohbet edip edemeyeceğiniz kontrol edilemedi. Bağlantınızı kontrol edin veya sohbet etmek için kaydolun."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Dosya göndermek için hesap gerekir. Göndermek için kaydolun veya ücretsiz sohbet için dosyayı kaldırın."
+    },
+    "guest_send_timeout": {
+      "text": "Gönderim çok uzun sürdü, mesajınız gönderilmedi. Bağlantınızı kontrol edip tekrar deneyin."
     },
     "mention_dropdown": {
       "header": {
@@ -10735,6 +10908,21 @@
         "text": "Bir yatırımcıya kısa bir e-posta, ortak tanıdık için iletilebilir bir tanıtım metni ve iki takip mesajı taslağı hazırlayın."
       }
     },
+    "business_write_press_release": {
+      "text": "Basın bülteni yaz",
+      "description": {
+        "text": "Gazetecilerin kullanabileceği bir basın bülteni yazın; şirketinizin kendi basın üslubuyla, Word belgesi veya istediğiniz başka bir biçimde."
+      },
+      "process": {
+        "text": "- Kayıtlı basın üslubunuzu (isimler, kurum tanıtımı, sözcüler, iletişim, ton) kullanır; yoksa önce eski bültenlerden, birkaç sorudan veya nötr varsayılanlardan bir üslup oluşturur\n\n- Sonraki her bültenin aynı tonda olması için üslubu projenize kaydetmeyi önerir\n\n- Haberle ilgili yalnızca eksik olanı sorar, her seferinde tek soru, ve haber değeri zayıfsa bunu dürüstçe söyler\n\n- Herhangi bir şey yazılmadan önce düzeltebilmeniz için başlık seçeneklerini, girişi ve kullanılacak bilgileri gösterir\n\n- Başlık, yer ve tarih satırı, giriş, alıntılar, kurum tanıtımı ve basın iletişim bilgisiyle bülteni yazar; varsayılan olarak Word belgesi, isterseniz PDF, HTML veya React\n\n- Yalnızca sizin onayladığınız bilgileri kullanır, asla alıntı uydurmaz ve her alıntıyı onay için işaretler\n\n- Sonucu kontrol eder; gazetecilere tanıtım e-postası, sosyal medya gönderisi veya çeviri önerir"
+      },
+      "how_to_use": {
+        "text": "- 18 Kasım'daki uygulama lansmanımız için bir **basın bülteni** yaz. İşte son iki bültenimiz\n\n- Web sitemizden **basın üslubumuzu** oluştur ve bu projeye kaydet\n\n- Bu duyuruyu **PDF basın bültenine** ve gazetecilere kısa bir tanıtım e-postasına dönüştür"
+      },
+      "systemprompt": {
+        "text": "Kullanıcının, bir gazetecinin olduğu gibi kullanabileceği bir basın bülteni yazmasına yardım ediyorsun: önce gerçek haber, doğrulanabilir bilgiler, adı belli bir ses ve yanıt veren bir iletişim kişisi. Şirketin basın üslubu ve kullanıcının açık istekleri genel kuralların önüne geçer.\n\nYalnızca geçerli aşamanın talimatlarını izle. Her turda somut bir örnek ve bir öneriyle tek soru sor ve yanıtı bekle. Soruları atlama, her şeyi tek seferde yanıtlama veya doğrudan taslağa geçme isteklerine uy.\n\nÖnemli kurallar:\n\n- Yüklü bir anının, bir yüklemenin veya sohbetin zaten içerdiği bilgiyi asla sorma. Ondan yola çık ve onaylat.\n\n- Tek kaynak kullanıcının bilgileridir. İfadeyi, sırayı ve vurguyu iyileştir; rakamları, tarihleri, müşterileri, ortakları, ödülleri, sonuçları veya isimleri asla uydurma ya da şişirme. Kullanıcı bir şey uydurmanı isterse reddet ve doğru bir alternatif sun.\n\n- Bir alıntıyı asla kesin olarak sunma. Alıntıları, adı geçen kişinin onaylayacağı taslak olarak yaz ve kullanıcının kurumu dışındaki gerçek bir kişiye kaynaksız söz atfetme.\n\n- Sade ve somut yaz. Boş üstünlük sıfatlarını ve moda sözcükleri çıkar ya da bir bilgiyle değiştir.\n\n- Ambargolu veya henüz yayımlanmamış bilgiyi bu sohbette ve kullanıcının projesinde tut; asla yayımlama, gönderme ya da paylaşma, gazetecilerle veya başkasıyla iletişime geçme. Sen taslak yazarsın; göndermek kullanıcıya aittir.\n\n- Varsayılan çıktı Word'dür. PDF, HTML veya React'i yalnızca istenirse, taslak aşamasının biçim kurallarına göre üret.\n\n- Bir basın üslubu tek bir şirkete aittir. Etkin projenin Anılar bölümüne kaydetmeyi öner; etkin proje yoksa yalnızca anıldığında yüklenen kişisel bir anı öner. Yalnızca kullanıcı kabul ettikten sonra kaydet.\n\n- Bir anının kaydedildiğini veya güncellendiğini yalnızca kaydetme aracı çağrısı başarılı olduktan sonra söyle. Mevcut araç projeye kaydedemiyorsa bunu söyle, kişisel bir anı öner veya kullanıcının üslubu projenin Anılar sekmesine yapıştırabileceğini belirt.\n\n- Bilgilendirme yükümlülükleri, borsa kuralları veya marka konularında hukuki tavsiye verme; kullanıcının ne zaman bir avukata veya yatırımcı ilişkileri ekibine danışması gerektiğini söyle.\n\n- Sohbet yanıtlarını kısa tut. İçeriği belge taşır.\n\n- [EMAIL_1_org] veya [PHONE_1_000] gibi değerler gizlilik yer tutucularıdır. Uygulama, ekranda ve belgede onların yerinde kullanıcının gerçek bilgilerini gösterir. Bunları değiştirmeden gerçek değer olarak kullan; asla yer tutucu, eksik veya geçersiz deme ve kullanıcıdan değiştirmesini isteme."
+      }
+    },
     "code_analyze_logs": {
       "text": "Logları analiz et",
       "description": {
@@ -10852,6 +11040,21 @@
         "text": "- henüz sağlanmadıysa, kullanıcıdan github/gitlab repo URL'sini isteyin\n- henüz sağlanmadıysa, kullanıcıya ne test etmek istediğini / kullanım durumunun ne olduğunu sorun\n- repo kullanımıyla ilgili yakın zamanda bildirilen kritik sorunların olup olmadığını issues'ta kontrol etmek için beceriyi kullanın\n- proje bozuk olarak raporlanmışsa, kullanıcıya test etmeye devam etmek isteyip istemediğini sorun\n- kullanıcıya repoyu nereye klonlayıp test edeceğini sorun: yeni makine kurulumu? github codespaces? yerel makine? vb.\n- repoyu belirtilen konuma klonlayın\n- projeye genel bakış elde etmek için proje klasör ve dosya yapısını ve readme.md'yi okuyun\n- projeyi nasıl test edeceğinizi bulun ve test etmeye başlayın"
       }
     },
+    "code_write_specification": {
+      "text": "Spesifikasyon yaz",
+      "description": {
+        "text": "Bir fikri adım adım onaylı bir spesifikasyona dönüştür - kapsam, gereksinimler, tasarım ve kabul kontrolleri - ardından görevleri olan bir plan başlat."
+      },
+      "process": {
+        "text": "- Fikrinle başlar: kimin için olduğu, başarının nasıl göründüğü ve neyin kapsam içinde, neyin dışında olduğu\n\n- Her seferinde bir ila üç kısa soru sorar, her biri bir öneriyle gelir ve zaten söylediklerini atlar\n\n- Her adımı özetler ve devam etmeden önce onayını bekler\n\n- Açık varsayımların görünür bir listesini tutar, böylece hiçbir şey senin yerine sessizce kararlaştırılmaz\n\n- Varsayılan olarak tek bir spesifikasyon yazar; bağlantılı ürün, tasarım ve teknik spesifikasyonları yalnızca karmaşık projelerde, sen kabul edersen önerir\n\n- Her gereksinimi kanıtlayan kabul kontrolleri ekler: testler, yapay zekâ soruları veya kendi onayın\n\n- Spesifikasyonu onayladıktan sonra görevleri olan bir plan başlatır"
+      },
+      "how_to_use": {
+        "text": "- Fırınımda ekşi mayalı ekmeğin çevrimiçi siparişi için **spesifikasyon yazmama** yardım et\n\n- Tırmanış derslerini rezerve etmek için bir uygulama fikrim var. Yapmadan önce **spesifikasyonu netleştirelim**\n\n- Proje aracımız için kabul kontrolleriyle birlikte bir ekip takvimi özelliğinin **spesifikasyonunu çıkar**"
+      },
+      "systemprompt": {
+        "text": "Sen sakin, deneyimli bir ürün mühendisisin; kullanıcının bir fikri, herhangi bir şey inşa edilmeden önce onaylayacağı bir spesifikasyona dönüştürmesine yardım ediyorsun. Kullanıcının kendi sözleri belirleyicidir; sen yapılandırır, soru sorar ve öneride bulunursun.\n\nYalnızca mevcut aşamanın yönergelerini izle. Her turda bir ila üç kısa soru sor; her biri bir öneri ve somut bir örnekle gelsin; yanıtı bekle. Sohbetin, bir yüklemenin veya projenin zaten yanıtladığı şeyi asla sorma. Her şeyi bir kerede yanıtlama, bir soruyu atlama veya adı konmuş varsayımlarla ilerleme isteklerine uy.\n\nÖnemli yönergeler:\n- Her aşamayı kısa bir özetle bitir ve devam etmeden önce kullanıcıdan onaylamasını veya düzeltmesini iste.\n- Her özette \"Açık varsayımlar\" başlıklı bir liste tut. Senin varsaydığın ama kullanıcının onaylamadığı her şey oraya girer; bir varsayımı asla karar gibi sunma.\n- Varsayılan tek bir spesifikasyondur. Bağlantılı ürün, tasarım ve teknik spesifikasyonları yalnızca açıkça karmaşık projelerde öner, nedenini tek satırda açıkla ve yalnızca kullanıcı kabul ederse böl.\n- Gereksinimler, kararlı kimlikleri olan, gözlemlenebilir davranışa dair test edilebilir ifadelerdir. Gereksinimlerde uygulama ayrıntısı olmaz; tasarım kararları tasarım listesine girer.\n- Spesifikasyon için plans spesifikasyon becerisini, kabul kontrolleri için plans kontrol becerisini kullan. Hassas alanlar (güvenlik, gizlilik, şifreleme, izinler, ödemeler, geçişler, tam API davranışı) her zaman zorunlu bir deterministik kaynak alır.\n- Kullanıcı spesifikasyonu onaylamadan önce planlama yapma, kod yazma veya uygulamaya başlama. Onaydan sonra planı ve görevlerini oluştur ve sonrasında ne olacağını açıkla.\n- Sohbet yanıtlarını kısa ve sade tut. Ayrıntıları spesifikasyon ve kontrol gömmeleri taşır.\n- Kullanıcının işi, kullanıcıları veya sistemleri hakkında asla bilgi uydurma; sor ya da açık bir varsayım olarak kaydet.\n- [EMAIL_1_org] veya [PHONE_1_000] gibi değerler gizlilik yer tutucularıdır. Uygulama onların yerinde kullanıcının gerçek bilgilerini gösterir. Bunları değiştirmeden gerçek değer olarak kullan; asla yer tutucu, eksik veya geçersiz diye adlandırma ve kullanıcıdan değiştirmesini isteme."
+      }
+    },
     "code_write_test_debug_document": {
       "text": "Yaz, test et, hata ayıkla ve belgele",
       "description": {
@@ -10910,6 +11113,12 @@
       "text": "Gelecek konuşması",
       "description": {
         "text": "Güçlü bir yaşam koçluğu tekniği."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "Hayat pusulası",
+      "description": {
+        "text": "Daha mutlu bir hayata giden yönünü, küçük adımlarla bul."
       }
     },
     "health_prepare_doctor_report": {
@@ -10973,6 +11182,24 @@
       },
       "systemprompt": {
         "text": "Tarafsız bir sivil tartışma koçu ve araştırma asistanısınız. Amacınız; kullanıcıların siyasi, sivil, politika, seçim, jeopolitik ve diğer kamu yararını ilgilendiren görüşmelere doğruluk, alçakgönüllülük ve iyi niyetle hazırlanmalarına yardımcı olmaktır.\n\nDurumu anlayarak başlayın. Bu odak etkinleştirildikten sonraki ilk asistan yanıtında, kullanıcı açıkça soru sormanızı istememiş olsa bile, kullanıcının orijinal isteğine kısa bir bağlamsal alımla yanıt verin. Yargı yetkisi, kullanıcının arzuladığı sonuç ve diğer kişinin konumu veya ilişkisi gibi eksik ayrıntılar hakkında bir ila üç spesifik soru sorun. Kullanıcının halihazırda sağladığı konuyu ve diğer gerçekleri kullanın; onlardan bu ayrıntıları tekrarlamalarını veya isteklerini yeniden belirtmelerini istemeyin. Kullanıcı sizden sorularla başlamanızı isterse, konu bilinse bile bu sıraya uyun. Gerekli tüm bağlam zaten sağlanmışsa, devam etmeden önce kullanıcının en önemli önceliği hakkında bir soru sorun veya belirli çerçeveyi kısaca onaylayın. Kullanıcı açıkça anında araştırılmış bir yanıt talep etmedikçe; olgusal araştırma, politika dersi veya tam bir hazırlık sayfası sunmadan önce kullanıcının yanıtını bekleyin. Sadece etkinleştirmeyi onaylamakla yetinmeyin ve alım sürecini uzun bir ankete dönüştürmeyin.\n\nBu iş akışını kullanın:\n- Konuyu ve kullanıcının arzu ettiği sonucu tarafsız bir dille yeniden ifade edin.\n- Ortaya çıkması muhtemel ana iddiaları belirleyin. Olgusal iddiaları, değer yargılarını, varsayımları, tahminleri ve kişisel deneyimleri birbirinden ayırın.\n- Olgusal veya güncel iddialar için, doğruluğun taze veya tartışmalı bilgilere bağlı olduğu durumlarda web-search, haber araması ve web-read kullanın. Sosyal medya özetleri yerine birincil kaynakları, resmi verileri, seçim materyallerini, mevzuatı, düzenleyici raporlarını, mahkeme belgelerini, saygın gazeteciliği ve uzman kuruluşları tercih edin.\n- Kaynakları güncellik, alaka düzeyi, yetkinlik, doğruluk ve amaç bakımından değerlendirin. Bir kaynağın savunuculuk, parti, hükümet, ticari veya kampanya çıkarı olduğunda bunu belirtin.\n- Her bir ana görüşü eleştirmeden önce o görüşün en güçlü versiyonunu haritalandırın. Her iki taraftaki uzlaşı noktalarını, ödünleşimleri, belirsizlikleri ve meşru değerleri dahil edin.\n- Açıklama bekleyen, terimleri tanımlayan, varsayımları test eden ve kanıtları ortaya çıkaran sorular hazırlayın. Kullanıcı açıkça resmi bir münazara hazırlığına ihtiyaç duymadıkça tuzak sorulardan kaçının.\n- Kullanıcının hassas konuşmalar için sakin ifadeler, sınırlar ve çıkış cümleleri seçmesine yardımcı olun.\n\nVarsayılan çıktı yapısı:\n\n## Tartışma Hedefi\nKullanıcının neye hazırlandığını ve başarılı bir görüşmenin nasıl görüneceğini özetleyin.\n\n## Kontrol Edilecek Temel Gerçekler\nÖnemli olgusal iddiaları, mevcut en iyi kanıtları ve her türlü belirsizliği listeleyin. Daha fazla araştırma gerektiğinde bunu belirtin.\n\n## Muhtemel Bakış Açıları\nAna tarafların en güçlü iyi niyetli argümanlarını ve endişelerini tanımlayın. Karşıt görüşleri karikatürize etmeyin.\n\n## Sorulacak Sorular\nTanımları, kanıtları, ödünleşimleri, değerleri ve pratik sonuçları netleştiren düşünceli, açık uçlu sorular sunun.\n\n## Abartılmasından Kaçınılması Gereken İddialar\nZayıf iddialar, güncelliğini yitirmiş gerçekler, tek kaynaklı iddialar, yanıltıcı çerçevelemeler veya nüans gerektiren noktalar hakkında uyarıda bulunun.\n\n## Önerilen Görüşme Planı\nTartışmayı başlatmak, yapıcı tutmak, gerginliği yönetmek ve takipte kalmak için kısa bir plan sunun.\n\nÖnemli sınırlar:\n- Manipülatif propaganda, taciz, ifşa (doxxing), yıldırma veya insanlıktan çıkarıcı söylemler yazmayın.\n- Demografik, psikolojik, kimlik veya savunmasızlık profillerine dayalı hedefli siyasi ikna stratejisi sunmayın.\n- Kampanya mesajlarını, seçmen hedeflemeyi, katılımı engellemeyi veya aktivist lojistiğini optimize etmeyin. Kullanıcının isteği savunuculuk veya örgütlenmeye dönüşürse, yardımı üst düzey, yasal ve manipülatif olmayan bir seviyede tutun veya etik örgütlenme stratejisi için Activism mate'i önerin.\n- Belirsiz veya tartışmalı iddiaları kesinleşmiş gerçekler olarak sunmayın. Kanıt, çıkarım, yorum ve görüşü net bir şekilde birbirinden ayırın.\n- Güvenilir kanıtlar bu çerçeveyi desteklemedikçe kötü niyet, yolsuzluk, aşırılık veya kötü niyetli amaç varsaymayın.\n- Gizliliğe saygı gösterin. Kullanıcı veya dahil olan diğer kişiler hakkında gereksiz kişisel veriler istemeyin."
+      }
+    },
+    "slides_design_template": {
+      "text": "Şablon tasarla",
+      "description": {
+        "text": "Yeniden kullanılabilir bir slayt şablonunu adım adım tasarlayın - seçebileceğiniz üç tasarım, sizinle birlikte iyileştirilir ve kitaplığınıza kaydedilir."
+      },
+      "process": {
+        "text": "- Şablonun ne için olduğunu ve hangi marka renkleri, yazı tipleri veya logoyla uyumlu olması gerektiğini sorar\n- Belirgin şekilde farklı üç tasarımı altı slayt düzeni önizlemesiyle şablon kartları olarak gösterir\n- \"Bu tasarımı kullan\" ile veya adını söyleyerek birini seçersiniz\n- Renkleri, yazı tiplerini ve düzenleri sizinle iyileştirir, her değişiklikten sonra kartı günceller\n- Kitaplığınıza girmesi için son kartta Kaydet'e basmanızı söyler\n- Yeni şablonunuzla ilk sunumu oluşturmayı önerir"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Sunum planla",
+      "description": {
+        "text": "Bir sunumu adım adım planlayın - hedef, hikâye, slayt başına bir mesaj, tasarım - sonra konuşmacı notlu slaytları oluşturup gözden geçirin."
+      },
+      "process": {
+        "text": "- Hedefinizi, dinleyicinizi, süreyi ve ortamı basit örnekler ve bir öneriyle sorar\n- Kullanımınıza uygun bir hikâye önerir, örneğin bir sunum için sorun, çözüm, demo, etki ve talep\n- Slayt başına bir mesaj listeler ve bir şey oluşturmadan önce onayınızı bekler\n- Uygun yerleşik tasarımları kart olarak gösterir, kayıtlı şablonunuzu kullanır veya sizinle yeni bir tane tasarlar\n- Konuşma sürenize uygun, her slaytta konuşmacı notları olan slaytlar oluşturur\n- Sonucu gözden geçirir ve bir slaytta fazla metin gibi kabul ettiğiniz noktaları düzeltir"
       }
     },
     "social_media_content_calendar_strategist": {
@@ -11200,22 +11427,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "Yapay zekâ ekibin"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "işlerini halletmek için"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Belge yaz"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "Etkinlik bul"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "Web uygulaması yap"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "Haberleri açıkla"
     },
     "landing_actionable_line1": {
       "text": "Uygulanabilir."
@@ -11229,35 +11456,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Elbette, işte burada:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Merkeziyetsiz bilişim ve DePIN araştırmaları üzerine Berlin'de bir event website etkinliği."
+      "text": "Açık kaynaklı yapay zekâ araçları üzerine kısa konuşmalar ve demolar; sonrasında insanlarla tanışma zamanı."
     },
     "landing_actionable_event_open_provider": {
-      "text": "event website'da aç"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Etkinlik sayfasını aç"
     },
     "landing_actionable_event_city": {
       "text": "Berlin"
     },
     "landing_actionable_event_country": {
       "text": "Almanya"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Çevrim içi"
@@ -11268,62 +11480,44 @@
     "landing_actionable_event_rsvps": {
       "text": "katılımcı"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "Sohbetlerin saklanmadan önce cihazında şifrelenir."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "Kişisel bilgiler, yapay zekâ görmeden önce değiştirilir."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "E-posta hazırla, alıcı"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "Tamam, e-posta hazırlıyorum, alıcı"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "Bir sonraki seyahatim için yerler öner."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "Kişiselleştirilmiş yanıtlar, ama yalnızca sen istediğinde."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "Orijinalleri yalnızca sen görebilirsin."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "Önceki seyahatler"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "Favori yerler"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "Farklı konularda uzmanlaşmış yapay zekâ uzmanların."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "Optimize edilmiş talimatlar, gerektiğinde seçilir."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Önde gelen yapay zekâ modelleri, tek bir yerde."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "OpenMates sohbetlerine istediğin şekilde eriş."
     }
   },
   "header": {
@@ -11344,6 +11538,26 @@
     },
     "report_issue": {
       "text": "Sorun bildir"
+    }
+  },
+  "helplines": {
+    "title": {
+      "text": "Bununla tek başına uğraşmak zorunda değilsin"
+    },
+    "call": {
+      "text": "Ara"
+    },
+    "send_text": {
+      "text": "SMS gönder"
+    },
+    "chat": {
+      "text": "Çevrimiçi sohbet"
+    },
+    "emergency": {
+      "text": "Acil durumda {emergency_number} numarasını ara"
+    },
+    "find_more": {
+      "text": "Daha fazla yardım hattı bul"
     }
   },
   "highlight": {
@@ -11429,6 +11643,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Bu istek reddedildi. Reşit olmayanları içeren cinsel veya müstehcen görseller asla oluşturulmaz."
+    },
+    "reason_intimate_real_person": {
+      "text": "Bu istek reddedildi. Gerçek kişilerin cinsel veya mahrem görselleri asla oluşturulmaz."
+    },
+    "reason_bypass": {
+      "text": "Bu istek, güvenlik kurallarını aşmaya çalıştığı için reddedildi."
+    },
+    "reason_minor": {
+      "text": "Reşit olmayanların gerçekçi görselleri oluşturulmaz ve reşit olmayanların fotoğraflarında yalnızca arka plan, ışık veya renk düzenlemesi yapılabilir; çünkü bu tür görseller kötüye kullanılabilir, örneğin reşit olmayan biri gibi davranan sahte profiller için."
+    },
+    "alternative_minor": {
+      "text": "Sahnenin cinsel olmaması koşuluyla, 3D render, illüstrasyon veya çizgi film gibi açıkça stilize bir sürüm mümkündür."
+    },
+    "reason_sexual": {
+      "text": "Cinsel veya açık içerikli görseller oluşturulmaz."
+    },
+    "alternative_sexual": {
+      "text": "Sahnenin açık içerik barındırmayan bir sürümü mümkündür."
+    },
+    "reason_violent": {
+      "text": "Gerçek kişileri yaralı, saldırıya uğramış veya suç mahallinde gösteren görseller oluşturulmaz; çünkü bunlar onlara zarar vermek veya onları itibarsızlaştırmak için kullanılabilir."
+    },
+    "alternative_violent": {
+      "text": "Gerçek kişiler yerine kurgusal karakterlerle bir sahne mümkündür."
+    },
+    "reason_public_figure": {
+      "text": "Gerçek kamu figürlerinin görselleri şu an için oluşturulmaz; çünkü deepfake olarak veya yanlış iddialar için kullanılabilirler."
+    },
+    "alternative_public_figure": {
+      "text": "Aynı sahnede özgün, kurgusal bir karakter mümkündür."
+    },
+    "reason_identity": {
+      "text": "Yüz değiştirme ve bir kişinin kimliğini değiştirme işlemleri yapılmaz; çünkü bir kişiyi taklit etmek için kullanılabilirler."
+    },
+    "alternative_identity": {
+      "text": "Yeni bir arka plan, farklı ışık veya sanat stili gibi kişinin kimliğini koruyan düzenlemeler mümkündür."
+    },
+    "reason_id_document": {
+      "text": "Pasaport, kimlik kartı veya ehliyet gibi kimlik belgelerinin görselleri oluşturulmaz; çünkü dolandırıcılık için kullanılabilirler."
+    },
+    "reason_hate": {
+      "text": "Nefret sembolleri içeren veya insanları kimlikleri nedeniyle hedef alan görseller oluşturulmaz."
+    },
+    "reason_self_harm": {
+      "text": "Kendine zarar vermeyi gösteren veya teşvik eden görseller oluşturulmaz."
+    },
+    "alternative_self_harm": {
+      "text": "Zor bir dönemden geçiyorsan, güvendiğin biriyle ya da bulunduğun yerdeki bir yardım hattıyla konuşmak yardımcı olabilir."
+    },
+    "reason_weapons": {
+      "text": "Silah veya patlayıcılara ilişkin talimatlar ya da planlar içeren görseller oluşturulmaz."
+    },
+    "reason_scam": {
+      "text": "Dolandırıcılık, sahte belgeler veya taklit amaçlı medya oluşturulmaz."
+    },
+    "alternative_scam": {
+      "text": "Gerçek bir kişiyi, markayı veya belgeyi taklit etmeyen özgün bir tasarım mümkündür."
+    },
+    "reason_spam": {
+      "text": "Dolgu içeriklerin toplu üretimi veya yapay zeka etiketlerinin kaldırılması desteklenmez."
+    },
+    "alternative_spam": {
+      "text": "Belirli bir amaç için birkaç görsel mümkündür."
+    },
+    "reason_deceptive": {
+      "text": "Gerçek görüntü, gerçek bir açıklama veya resmi bir onay gibi görünmesi amaçlanan görseller oluşturulmaz."
+    },
+    "alternative_deceptive": {
+      "text": "Açıkça kurgusal veya çizim olduğu belli bir sürüm mümkündür."
+    },
+    "reason_other": {
+      "text": "Bu istek güvenlik kuralları gereği oluşturulamaz."
+    },
+    "alternative_other": {
+      "text": "Farklı bir konu veya farklı bir ifade işe yarayabilir."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Fatura"
@@ -11949,6 +12243,22 @@
             },
             "description": {
               "text": "Web sitemizde ve web uygulamamızda gösterilen ürün demo ve özellik tanıtım videolarını barındırmak ve yayın yapmak için api.video (AB şirketi, Fransa) kullanıyoruz. Bir video izlediğinde, IP adresin ve temel izleme verilerin api.video tarafından işlenir. Kullanıcı hesabı tanımlayıcıları paylaşılmaz."
+            }
+          }
+        },
+        "status_page": {
+          "heading": {
+            "text": "Durum sayfası (yalnızca açtığında)"
+          },
+          "description": {
+            "text": "Bu sağlayıcı yalnızca status.openmates.org adresindeki herkese açık durum sayfasını açtığında kullanılır. Hesabın için veya OpenMates'in başka bir bölümü için kullanılmaz."
+          },
+          "upcloud": {
+            "heading": {
+              "text": "UpCloud (durum sayfası barındırma)"
+            },
+            "description": {
+              "text": "Herkese açık durum sayfası status.openmates.org (statik bir sayfa ve bir durum JSON dosyası), Hollanda'nın Amsterdam kentindeki bir sunucuda UpCloud Oy tarafından barındırılır. Sayfayı açtığında tarayıcın UpCloud'un sunucusuna bağlanır; bu nedenle UpCloud IP adresini ve TLS bağlantı meta verilerini işler. Erişim günlüğü tutmayız ve bu sayfada çerez veya izleyici kullanmayız. Aynı sunucu ayrıca OpenMates'e kullanıcı verisi içermeyen otomatik test istekleri gönderir."
             }
           }
         },
@@ -14087,6 +14397,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "aracılığıyla"
@@ -14294,6 +14605,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Propaganda, nefret içeriği, dezenformasyon veya manipülatif magazin içeriği oluşturamam. Nasıl çalıştıklarını açıklayabilir, örnekleri analiz edebilir, iddiaları doğrulayabilir veya açıkça belirtilmiş hiciv için yardımcı olabilirim."
+    },
+    "illegal_category": {
+      "text": "Reşit olmayanları içeren cinsel içerik, rızasız mahrem görüntüler, gerçek kişilerin cinsel deepfake'leri veya kitlesel zarar silahları konusunda yardımcı olamam."
+    },
+    "live_site_abuse": {
+      "text": "Muhtemelen siteye gerçekten sahipsin, ancak canlı sitelerde yalnızca insan hızında normal tek kullanıcı eylemleri yapıyorum; bu yüzden toplu yorum, toplu kayıt, parola tahmini veya sel gibi toplu ya da kötüye kullanım eylemleri yapamam. Bu tür testler şu an yalnızca localhost, yerel geliştirme ortamı veya yerelde çalışan bir staging kopyasında yapılıyor. Kurmana yardımcı olurum."
+    },
+    "strike_notice": {
+      "text": "Bu, {max} ihlalin {strike}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Sigorta"
@@ -14396,6 +14721,82 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Hesabın askıya alındı"
+    },
+    "appeal_button": {
+      "text": "İtiraz et"
+    },
+    "download_button": {
+      "text": "Verilerimi indir"
+    },
+    "explanation_label": {
+      "text": "Ne olduğunu anlat (en fazla 1.000 karakter)"
+    },
+    "consent_label": {
+      "text": "Yalnızca işaretlenen isteklerin güvenlik incelemecisiyle paylaşılmasını kabul ediyorum"
+    },
+    "add_photo": {
+      "text": "Fotoğraf ekle"
+    },
+    "photo_added": {
+      "text": "Fotoğraf eklendi. Başka birini seç"
+    },
+    "submit": {
+      "text": "İtirazı gönder"
+    },
+    "sent": {
+      "text": "İtirazın gönderildi. 7 gün içinde bir karar alacaksın."
+    },
+    "admin_title": {
+      "text": "Güvenlik incelemeleri"
+    },
+    "admin_restore": {
+      "text": "Geri yükle"
+    },
+    "admin_delete": {
+      "text": "Sil"
+    },
+    "admin_ask": {
+      "text": "Kullanıcıya sor"
+    },
+    "admin_delete_confirm": {
+      "text": "Bu hesap silinsin mi? Tam iade, silme e-postası ve uyumluluk kaydı ile standart silme."
+    },
+    "admin_empty": {
+      "text": "İnceleme bekleyen hesap yok."
+    },
+    "until": {
+      "text": "Hesap {date} tarihine kadar askıda"
+    }
+  },
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} reddedildi. {reason} Bu, {max} ihlalin {strike}."
+    },
+    "what_image_generate": {
+      "text": "Görsel isteğiniz"
+    },
+    "what_image_edit": {
+      "text": "Görsel düzenleme isteğiniz"
+    },
+    "what_video": {
+      "text": "Video isteğiniz"
+    },
+    "what_upload": {
+      "text": "Yüklediğiniz görsel"
+    },
+    "suspended_until": {
+      "text": "Bu, 3 ihlalden 2.'sidir. Hesabın {date} tarihine kadar askıya alındı ve sonrasında yeniden etkin olacak. Üçüncü bir ihlal, hesabı bir yönetici inceleyene kadar askıya alır."
+    },
+    "suspended_pending_review": {
+      "text": "Bu, 3 ihlalden 3.'südür. Hesabın bir yönetici inceleyene kadar askıya alındı. Bu karara itiraz edebilirsin."
+    },
+    "unavailable": {
+      "text": "Güvenlik kontrolü geçici olarak kullanılamıyor, bu yüzden istek işlenemedi. Lütfen birazdan tekrar deneyin."
+    }
+  },
   "settings": {
     "account": {
       "username": {
@@ -19128,7 +19529,7 @@
       "text": "Profil resimlerinde çıplaklık, şiddet\nveya kan içeriklerine izin verilmez."
     },
     "last_warning_image_not_allowed": {
-      "text": "Son uyarı:\nProfil resimlerinde çıplaklık, şiddet veya kan içeriklerine izin verilmez.\nBir ihlal daha ve hesabınız silinecek."
+      "text": "Son uyarı:\nProfil resimlerinde açık cinsel içeriğe veya aşırı kanlı şiddete izin verilmez.\nBir ihlal daha ve hesabınız askıya alınacak."
     },
     "your_account_got_deleted": {
       "text": "Hesabınız silindi."
@@ -20749,7 +21150,7 @@
       "text": "Ücretsiz dene"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "E-posta etki alanına izin verilmiyor."
@@ -20757,32 +21158,8 @@
     "email_ignored": {
       "text": "Bu e-posta adresi kayıt için kullanılamaz. Bunun bir hata olduğunu düşünüyorsanız lütfen destekle iletişime geçin."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates şu anda erken test kullanıcıları için bir alfa sürümüdür."
-    },
-    "decent_stable": {
-      "text": "Bu alfa sürümü oldukça kararlı"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Ancak, henüz tüm temel özellikler uygulanmadı."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Burada ve orada bazı hatalar bekleyin ve unutmayın: AI sohbet robotları hata yapabilir."
-    },
     "view_on_github": {
       "text": "GitHub'da OpenMates'i görüntüle"
-    },
-    "view_on_github_description": {
-      "text": "Hataları tartışmak, özellikler hakkında konuşmak ve yeni sürümlerden haberdar olmak için."
-    },
-    "view_on_instagram": {
-      "text": "Instagram'da OpenMates'i görüntüle"
-    },
-    "view_on_instagram_description": {
-      "text": "Yeni sürümler ve diğer güncellemeler hakkında bilgi almak için."
-    },
-    "continue_with_alpha": {
-      "text": "{version} ile devam et"
     },
     "server_admin": {
       "text": "Sunucu yöneticisi"
@@ -21542,6 +21919,7 @@
       "text": "Özel renk"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

@@ -27,9 +27,15 @@ export interface EmbedWriteClient {
 	close(): void;
 }
 
-export async function openEmbedWriteClient(core: SharedRustCore, masterKey: CryptoKey, signal?: AbortSignal): Promise<EmbedWriteClient> {
-	if (core.generation === null) throw new Error('not_bound');
-	const raw = await core.openUnit('embedWrite', { signal });
+/**
+ * Opens the unit. A master key opens it in the current generation; `null` opens
+ * the signed-out guest (local-only) unit outside any generation, with no key.
+ */
+export async function openEmbedWriteClient(core: SharedRustCore, masterKey: CryptoKey | null, signal?: AbortSignal): Promise<EmbedWriteClient> {
+	if (masterKey !== null && core.generation === null) throw new Error('not_bound');
+	const raw = masterKey === null
+		? await core.openUnit('embedWriteGuest', { signal, unbound: true })
+		: await core.openUnit('embedWrite', { signal });
 	const unit = createUnitPort<EmbedWriteProtocol>(raw);
 	const stopCrashWatch = core.onCrash(() => unit.close());
 	const close = () => {
@@ -39,7 +45,7 @@ export async function openEmbedWriteClient(core: SharedRustCore, masterKey: Cryp
 		unit.close();
 	};
 	try {
-		await unit.request('init', { masterKey }, { signal });
+		await unit.request('init', masterKey === null ? { localOnly: true } : { masterKey }, { signal });
 	} catch (error) {
 		close();
 		throw error;

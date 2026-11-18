@@ -98,6 +98,9 @@ async def test_denied_pages_and_failed_extractions_only_reduce_the_results(fake_
     assert [row["source_page_url"] for row in outcome.results] == ["https://a.example.org/1"]
     assert fake_web["queries"] == [("voice mask buy price", "de", "de")]
     assert sorted(fake_web["pages"]) == ["https://a.example.org/1", "https://c.example.org/3"]
+    # Usage for billing: the answered search plus the tokens of the page whose extraction succeeded.
+    assert outcome.usage == {"web_search_requests": 1, "model": "inception/mercury-3",
+                             "input_tokens": 100, "output_tokens": 20}
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
@@ -146,6 +149,7 @@ async def test_unavailable_web_search_is_a_warning_without_results(monkeypatch):
     monkeypatch.setattr(extraction, "search_web", search)
     outcome = await web_source.run_web_source(extraction.KIND_EVENT, {"query": "conferences"}, None)
     assert outcome.results == [] and outcome.error == "Web search is unavailable."
+    assert outcome.usage["web_search_requests"] == 0 and outcome.usage["input_tokens"] == 0
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.web-source

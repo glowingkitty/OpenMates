@@ -9,11 +9,11 @@ use super::deck_markup::{DeckModel, ElementContent, ElementModel, SlideModel, To
 use super::deck_operations::{DeckOperation, DeckOutcome, ElementSpec, TextStyle};
 use super::deck_store::{
     DeckRoots, KEY_ITEMS, SlideRefs, get_array, get_map, insert_element, insert_slide, raw_ids,
-    read_model, set_optional, slide_refs, write_content,
+    read_model, set_optional, slide_refs, write_content, write_theme,
 };
 use super::deck_values::{
     ElementKind, GEOMETRY, MAX_ELEMENTS_PER_SLIDE, MAX_SLIDES, clamp_box, clean_attribute,
-    clean_item_label, clean_label, clean_layout, clean_note_text, clean_notes,
+    clean_item_label, clean_label, clean_layout, clean_note_text, clean_notes, is_valid_template,
 };
 use regex::Regex;
 use std::collections::{BTreeMap, HashSet};
@@ -239,6 +239,36 @@ pub(crate) fn apply_operation(
             }
             let refs = ctx.refs(txn, &slide_id)?;
             set_optional(txn, &refs.slide, "layout", layout.as_deref());
+            Ok(DeckOutcome::Applied)
+        }
+        DeckOperation::SetTheme { template, theme } => {
+            if !is_valid_template(&template) {
+                return Err(DeckError::invalid("template", "not a template reference"));
+            }
+            let theme = match theme {
+                None => None,
+                Some(theme) => {
+                    if theme.entries().is_empty() {
+                        None
+                    } else {
+                        // Unlike markup input, an operation refuses invalid values: a
+                        // silent drop would hide a UI bug.
+                        Some(
+                            theme
+                                .cleaned()
+                                .filter(|c| c.entries().len() == theme.entries().len())
+                                .ok_or_else(|| {
+                                    DeckError::invalid("theme", "not a safe font or hex colour")
+                                })?,
+                        )
+                    }
+                }
+            };
+            if model.template == template && model.theme == theme {
+                return Ok(DeckOutcome::Unchanged);
+            }
+            ctx.roots.meta.insert(txn, "template", template);
+            write_theme(txn, &ctx.roots.meta, theme.as_ref());
             Ok(DeckOutcome::Applied)
         }
         DeckOperation::SetSpeakerNotes { slide_id, notes } => {

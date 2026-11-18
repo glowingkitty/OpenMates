@@ -24,15 +24,30 @@
     type UserPlanViewModel,
   } from '../../services/userPlanService';
   import { text } from '@repo/ui';
+  import PlanGoalSection from '../embeds/plans/PlanGoalSection.svelte';
+  import PlanTasksList from '../embeds/plans/PlanTasksList.svelte';
+  import PlanApprovalBar from '../embeds/plans/PlanApprovalBar.svelte';
+  import { derivePlanApproval, type PlanLinkedTask } from '../embeds/plans/planEmbedModel';
 
   let {
     planId,
     previewPlan = null,
     previewDetailState = null,
+    tasks = [],
+    revisionId = null,
+    revisionNumber = null,
+    onApproveRevision,
+    onOpenTask,
   }: {
     planId: string;
     previewPlan?: UserPlanViewModel | null;
     previewDetailState?: UserPlanDetailState | null;
+    /** Tasks linked to this Plan; the parent maps Task view models. */
+    tasks?: PlanLinkedTask[];
+    revisionId?: string | null;
+    revisionNumber?: number | null;
+    onApproveRevision?: (revisionId: string) => void;
+    onOpenTask?: (taskId: string) => void;
   } = $props();
   let plan = $state<UserPlanViewModel | null>(null);
   let detailState = $state<UserPlanDetailState>({ criteria: [], verifications: [], assumptions: [], referencePatterns: [] });
@@ -49,6 +64,7 @@
   let domainLabel = $derived($text('navigation.plans'));
   let unresolvedAssumptions = $derived(detailState.assumptions.filter((item) => !['confirmed', 'waived'].includes(item.status)).length);
   let uncoveredCriteria = $derived(detailState.criteria.filter((item) => item.required && item.coverageStatus !== 'covered' && item.verificationIds.length === 0).length);
+  let approval = $derived(plan ? derivePlanApproval({ plan, revisionId, revisionNumber }) : null);
   let failedChecks = $derived(detailState.verifications.filter((item) => item.status === 'failed').length);
   onMount(() => {
     if (previewPlan) {
@@ -239,6 +255,8 @@
   {#if plan}
     <WorkspaceDetailHeader title={plan.title || $text('common.detail_untitled', { values: { item: domainLabel } })} description={plan.summary || plan.goal || ''} category="productivity" icon="list-checks" writable={true} onSaveTitle={saveTitle} onSaveDescription={saveDescription} />
     <div class="plan-body">
+      {#if approval}<PlanApprovalBar {approval} {onApproveRevision} />{/if}
+      <PlanGoalSection goal={plan.goal} />
       <section class="plan-overview" data-testid="plan-detail-overview">
         <article data-testid="plan-assumption-summary"><strong>{unresolvedAssumptions}</strong><span>open assumptions</span></article>
         <article data-testid="plan-criteria-summary"><strong>{uncoveredCriteria}</strong><span>uncovered criteria</span></article>
@@ -250,6 +268,8 @@
       {:else if isDetailLoading}
         <div class="state" data-testid="plan-detail-state-loading">Loading plan details...</div>
       {:else}
+        <PlanTasksList {tasks} {onOpenTask} />
+
         <section class="plan-section" data-testid="plan-assumptions-section">
           <div class="section-heading"><p>Assumptions</p><span>{detailState.assumptions.length}</span></div>
           <form class="inline-form" onsubmit={(event) => { event.preventDefault(); void handleAddAssumption(); }}>

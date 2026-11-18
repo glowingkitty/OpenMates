@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Det här svaret togs bort eftersom det inte uppfyllde våra säkerhetsregler."
+    },
+    "wellbeing": {
+      "text": "Jag tog bort mitt senaste svar eftersom det kunde skada dig. Du är inte ensam. Om du tänker på att skada dig själv, kontakta någon du litar på, en lokal krislinje eller räddningstjänsten. Jag finns kvar om du vill prata."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -134,6 +142,12 @@
         "text": "Planera en finansieringsrunda",
         "description": {
           "text": "Räkna ut hur mycket du ska ta in, vilket instrument som passar, utspädningen och en tidsplan, med ett redigerbart cap table-ark."
+        }
+      },
+      "write_press_release": {
+        "text": "Skriv pressmeddelande",
+        "description": {
+          "text": "Skriv ett pressmeddelande som journalister kan använda, i företagets egen pressstil, som Word-dokument eller i ett annat format du ber om."
         }
       }
     },
@@ -221,6 +235,12 @@
         "description": {
           "text": "Granska konfigurationsfiler för säkerhetsbrister och exponering."
         }
+      },
+      "write_specification": {
+        "text": "Skriv specifikation",
+        "description": {
+          "text": "Gör en idé till en godkänd specifikation steg för steg - omfattning, krav, design och acceptanskontroller - och starta sedan en plan med uppgifter."
+        }
       }
     },
     "events": {
@@ -303,6 +323,12 @@
         "description": {
           "text": "En kraftfull livscoachingteknik."
         }
+      },
+      "life_compass": {
+        "text": "Livskompass",
+        "description": {
+          "text": "Hitta din riktning mot ett lyckligare liv, ett litet steg i taget."
+        }
       }
     },
     "news": {
@@ -358,6 +384,20 @@
           "3": {
             "text": "Undersök fakta och motargument innan jag diskuterar denna **klimatpolitik** med en skeptisk vän"
           }
+        }
+      }
+    },
+    "slides": {
+      "design_template": {
+        "text": "Designa en mall",
+        "description": {
+          "text": "Designa steg för steg en återanvändbar bildmall - tre designer att välja mellan, finslipade tillsammans med dig och sedan sparade i ditt bibliotek."
+        }
+      },
+      "plan_presentation": {
+        "text": "Planera en presentation",
+        "description": {
+          "text": "Planera en presentation steg för steg - mål, berättelse, ett budskap per bild, design - och skapa sedan bilderna med talaranteckningar och granska dem."
         }
       }
     },
@@ -910,6 +950,12 @@
         "description": {
           "text": "Gör om en vektorgrafik till filer för broderimaskiner med förhandsvisning av stygnen."
         }
+      },
+      "get_design": {
+        "text": "Hämta design",
+        "description": {
+          "text": "Läser en Figma-design och ger struktur, stilar och kodöverlämning."
+        }
       }
     },
     "electronics": {
@@ -947,6 +993,9 @@
           "3": {
             "text": "Vilka tech-evenemang äger rum i London i januari?"
           }
+        },
+        "pricing_note": {
+          "text": "En vanlig evenemangssökning kostar omkring 15–25 krediter: 10 krediter för webbsökningen plus de tokens som Mercury 3 använder för att läsa upp till fem offentliga sidor. En sökning som bara besvaras av ett officiellt konferensschema kostar 1 kredit. Sökningar som misslyckas eller inte hittar något är gratis."
         }
       }
     },
@@ -2885,6 +2934,21 @@
       "structured": {
         "text": "Innehåll"
       },
+      "player_label": {
+        "text": "Spelare för röstsvar"
+      },
+      "pause": {
+        "text": "Pausa röstsvaret"
+      },
+      "play": {
+        "text": "Spela upp röstsvaret"
+      },
+      "previous_chapter": {
+        "text": "Föregående kapitel: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Nästa kapitel: {chapter}"
+      },
       "speak_response": {
         "text": "Läs upp svaret"
       },
@@ -3353,6 +3417,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3852,6 +3917,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "Admin"
@@ -3941,6 +4007,12 @@
     },
     "download": {
       "text": "Ladda ned"
+    },
+    "download_pdf": {
+      "text": "Ladda ned PDF"
+    },
+    "download_word": {
+      "text": "Ladda ned Word"
     },
     "loading": {
       "text": "Laddar..."
@@ -5926,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Ditt OpenMates-konto är avstängt"
+      },
+      "headline": {
+        "text": "Ditt konto är avstängt"
+      },
+      "body": {
+        "text": "Våra säkerhetskontroller avvisade förfrågningar från ditt konto."
+      },
+      "appeal": {
+        "text": "Du har 14 dagar på dig att överklaga. Du kan också ladda ner dina data."
+      },
+      "button": {
+        "text": "Överklaga eller ladda ner mina data"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Vi behöver mer information om ditt konto"
+      },
+      "headline": {
+        "text": "Vi behöver lite mer information"
+      },
+      "body": {
+        "text": "Vi granskar avstängningen av ditt konto och har en fråga:"
+      },
+      "button": {
+        "text": "Svara i appen"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Ditt OpenMates-konto är aktivt igen"
+      },
+      "headline": {
+        "text": "Ditt konto är aktivt igen"
+      },
+      "body": {
+        "text": "Vi har granskat avstängningen av ditt konto och hävt den. Dina överträdelser har rensats och du kan använda OpenMates som förut."
+      },
+      "apology": {
+        "text": "Vi ber om ursäkt för avbrottet."
+      }
     }
   },
   "embed_user_edits": {},
@@ -7622,7 +7739,7 @@
         "text": "{used} / {limit} krediter"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "Du loggar in i en molnwebbläsare. När du låter AI fortsätta kan den läsa information i kontot. Relevant sidinnehåll kan skickas till våra AI-leverantörer. Logga bara in på konton som du vill ge AI åtkomst till."
@@ -7823,6 +7940,42 @@
     },
     "slides_count_plural": {
       "text": "bilder"
+    },
+    "slides_template_default_title": {
+      "text": "Mall"
+    },
+    "slides_template_label": {
+      "text": "Mall"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} layouter"
+    },
+    "slides_template_use": {
+      "text": "Använd den här designen"
+    },
+    "slides_template_use_message": {
+      "text": "Använd designen \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Titel"
+    },
+    "slides_layout_section": {
+      "text": "Avsnitt"
+    },
+    "slides_layout_content": {
+      "text": "Innehåll"
+    },
+    "slides_layout_two_column": {
+      "text": "Två kolumner"
+    },
+    "slides_layout_image": {
+      "text": "Bild"
+    },
+    "slides_layout_quote": {
+      "text": "Citat"
+    },
+    "slides_layout_closing": {
+      "text": "Avslutning"
     },
     "slides_prev": {
       "text": "Föregående bild"
@@ -8460,6 +8613,54 @@
     },
     "progress_result_one": {
       "text": "1 resultat"
+    },
+    "slides_template_pick": {
+      "text": "Mall"
+    },
+    "slides_template_picker_title": {
+      "text": "Välj en mall"
+    },
+    "slides_template_builtin": {
+      "text": "Inbyggda"
+    },
+    "slides_template_library_personal": {
+      "text": "Ditt bibliotek"
+    },
+    "slides_template_library_team": {
+      "text": "Teambibliotek"
+    },
+    "slides_template_updated": {
+      "text": "Uppdaterad"
+    },
+    "slides_template_apply": {
+      "text": "Använd mall"
+    },
+    "slides_template_apply_failed": {
+      "text": "Mallen kunde inte användas"
+    },
+    "slides_template_library_empty": {
+      "text": "Inga sparade mallar än"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -8491,55 +8692,6 @@
       },
       "remove_pending_file": {
         "text": "Ta bort fil"
-      }
-    },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} {type}-bilaga"
-      },
-      "embed_many": {
-        "text": "{count} {type}-bilagor"
-      },
-      "type": {
-        "audio": {
-          "text": "ljud"
-        },
-        "image": {
-          "text": "bild"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "webbplats"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "karta"
-        },
-        "code": {
-          "text": "kod"
-        },
-        "document": {
-          "text": "dokument"
-        },
-        "sheet": {
-          "text": "kalkylblad"
-        },
-        "file": {
-          "text": "fil"
-        },
-        "app": {
-          "text": "app"
-        },
-        "embed": {
-          "text": "inbäddad"
-        }
       }
     },
     "file_size_limits": {
@@ -8800,6 +8952,27 @@
     },
     "xlsx_feature_sheet_limit": {
       "text": "blad efter de första 10"
+    },
+    "guest_access_checking": {
+      "text": "Kontrollerar om du kan chatta utan konto …"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Du har loggat in på den här enheten tidigare. Logga in för att fortsätta chatta."
+    },
+    "guest_access_usage_limit": {
+      "text": "De gratis meddelandena utan konto är slut för tillfället. Registrera dig för att fortsätta chatta."
+    },
+    "guest_access_unavailable": {
+      "text": "Det går inte att chatta utan konto just nu. Registrera dig för att chatta."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Vi kunde inte kontrollera om du kan chatta utan konto. Kontrollera anslutningen eller registrera dig för att chatta."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Det krävs ett konto för att skicka filer. Registrera dig för att skicka den, eller ta bort filen för att chatta gratis."
+    },
+    "guest_send_timeout": {
+      "text": "Det tar för lång tid att skicka, så ditt meddelande skickades inte. Kontrollera anslutningen och försök igen."
     },
     "mention_dropdown": {
       "header": {
@@ -10735,6 +10908,21 @@
         "text": "Skriv ett kort mejl till en investerare, en vidarebefordringsbar introduktion för en gemensam kontakt och två uppföljningar."
       }
     },
+    "business_write_press_release": {
+      "text": "Skriv pressmeddelande",
+      "description": {
+        "text": "Skriv ett pressmeddelande som journalister kan använda, i företagets egen pressstil, som Word-dokument eller i ett annat format du ber om."
+      },
+      "process": {
+        "text": "- Använder din sparade pressstil (namn, företagsbeskrivning, talespersoner, kontakt, ton) eller skapar först en utifrån tidigare meddelanden, några frågor eller neutrala standardvärden\n\n- Erbjuder sig att spara stilen i ditt projekt så att alla framtida pressmeddelanden låter likadant\n\n- Frågar bara efter det som saknas om nyheten, en fråga i taget, och säger ärligt om nyhetsvinkeln är svag\n\n- Visar rubrikförslag, ingressen och de fakta som ska användas, så att du kan rätta dem innan något skrivs\n\n- Skriver pressmeddelandet med rubrik, ort och datum, ingress, citat, företagsbeskrivning och presskontakt, som standard som Word-dokument eller som PDF, HTML eller React på begäran\n\n- Använder bara fakta som du har bekräftat, hittar aldrig på citat och markerar varje citat för godkännande\n\n- Kontrollerar resultatet och erbjuder ett pitchmejl till journalister, ett inlägg för sociala medier eller en översättning"
+      },
+      "how_to_use": {
+        "text": "- Skriv ett **pressmeddelande** om lanseringen av vår app den 18 november. Här är våra två senaste meddelanden\n\n- Skapa vår **pressstil** utifrån vår webbplats och spara den i det här projektet\n\n- Gör om det här tillkännagivandet till ett **pressmeddelande som PDF** och ett kort pitchmejl till journalister"
+      },
+      "systemprompt": {
+        "text": "Du hjälper användaren att skriva ett pressmeddelande som en journalist kan använda som det är: verklig nyhet först, kontrollerbara fakta, en namngiven röst och en kontakt som svarar. Företagets pressstil och användarens uttryckliga önskemål går före allmänna konventioner.\n\nFölj bara instruktionerna för den aktuella fasen. Ställ en fråga per runda med ett konkret exempel och en rekommendation, och vänta på svar. Följ önskemål om att hoppa över frågor, svara på allt på en gång eller gå direkt till ett utkast.\n\nViktiga riktlinjer:\n\n- Fråga aldrig efter information som ett laddat minne, en uppladdning eller chatten redan innehåller. Utgå från den och be om bekräftelse.\n\n- Användarens fakta är den enda källan. Förbättra formuleringar, ordning och betoning; hitta aldrig på eller blås upp siffror, datum, kunder, partner, utmärkelser, resultat eller namn. Om användaren ber dig hitta på något, avböj och erbjud ett sanningsenligt alternativ.\n\n- Presentera aldrig ett citat som slutgiltigt. Skriv citat som utkast som den namngivna personen ska godkänna, och lägg aldrig ord i munnen på en verklig person utanför användarens organisation utan källa.\n\n- Skriv enkelt och konkret. Ta bort tomma superlativ och modeord eller byt ut dem mot ett faktum.\n\n- Håll embargobelagd eller opublicerad information i den här chatten och användarens projekt; publicera, skicka eller dela den aldrig och kontakta aldrig journalister eller någon annan. Du skriver utkast; användaren skickar dem.\n\n- Word är standardformatet. Skapa PDF, HTML eller React bara på begäran, enligt utkastfasens formatregler.\n\n- En pressstil tillhör ett företag. Rekommendera att spara den i det aktiva projektets Minnen; utan aktivt projekt, erbjud ett personligt minne som bara laddas när det nämns. Spara först när användaren går med på det.\n\n- Säg att ett minne har sparats eller uppdaterats först efter att anropet till sparverktyget lyckats. Om det tillgängliga verktyget inte kan spara i projektet, säg det, erbjud ett personligt minne eller berätta att användaren kan klistra in stilen under fliken Minnen i projektet.\n\n- Ge inga juridiska råd om upplysningsskyldighet, börsregler eller varumärkesfrågor; säg när användaren bör kontrollera med en jurist eller sitt investerarrelationsteam.\n\n- Håll chattsvaren korta. Dokumentet bär innehållet.\n\n- Värden som [EMAIL_1_org] eller [PHONE_1_000] är sekretessplatshållare. Appen visar användarens riktiga uppgifter i deras ställe på skärmen och i dokumentet. Använd dem oförändrade som det verkliga värdet; kalla dem aldrig platshållare, saknade eller ogiltiga och be aldrig användaren ersätta dem."
+      }
+    },
     "code_analyze_logs": {
       "text": "Analysera loggar",
       "description": {
@@ -10852,6 +11040,21 @@
         "text": "- om inte redan angett, be användaren om github/gitlab repo URL\n- om inte redan angett, fråga användaren vad de vill testa / vad deras användningsfall är\n- använd kompetensen för att kontrollera issues om det finns nyligen rapporterade kritiska problem med att använda repot\n- om projektet rapporterats som trasigt, fråga användaren om de vill fortsätta med testningen\n- fråga användaren var repot ska klonas och testas: ny maskin? github codespaces? lokal maskin? osv.\n- klona repot till den angivna platsen\n- läs projektets mapp- och filstruktur samt readme.md för att få en översikt av projektet\n- ta reda på hur projektet ska testas och börja testa det"
       }
     },
+    "code_write_specification": {
+      "text": "Skriv specifikation",
+      "description": {
+        "text": "Gör en idé till en godkänd specifikation steg för steg - omfattning, krav, design och acceptanskontroller - och starta sedan en plan med uppgifter."
+      },
+      "process": {
+        "text": "- Börjar med din idé: vem den är till för, hur framgång ser ut och vad som ingår och inte ingår\n\n- Ställer en till tre korta frågor åt gången, var och en med en rekommendation, och hoppar över det du redan sagt\n\n- Sammanfattar varje steg och väntar på din bekräftelse innan det går vidare\n\n- För en synlig lista över öppna antaganden, så att inget avgörs tyst åt dig\n\n- Skriver en specifikation som standard och föreslår länkade produkt-, design- och tekniska specifikationer bara för komplexa projekt, om du håller med\n\n- Lägger till acceptanskontroller som bevisar varje krav, med tester, AI-frågor eller din egen bekräftelse\n\n- Startar en plan med uppgifter först när du har godkänt specifikationen"
+      },
+      "how_to_use": {
+        "text": "- Hjälp mig **skriva en specifikation** för onlinebeställning av surdegsbröd i mitt bageri\n\n- Jag har en appidé för att boka klättringskurser. Låt oss **ta fram specifikationen** innan vi bygger\n\n- **Specificera** en teamkalenderfunktion för vårt projektverktyg, med acceptanskontroller"
+      },
+      "systemprompt": {
+        "text": "Du är en lugn, erfaren produktingenjör som hjälper användaren att göra en idé till en specifikation som användaren godkänner innan något byggs. Användarens egna ord avgör; du strukturerar, frågar och föreslår.\n\nFölj bara den aktuella fasens instruktioner. Ställ en till tre korta frågor per tur, var och en med en rekommendation och ett konkret exempel, och vänta på svaret. Fråga aldrig om sådant som chatten, en uppladdning eller projektet redan besvarar. Respektera önskemål om att svara på allt på en gång, hoppa över en fråga eller gå vidare med namngivna antaganden.\n\nViktiga riktlinjer:\n- Avsluta varje fas med en kort sammanfattning och be användaren bekräfta eller rätta den innan du går vidare.\n- Ha en lista med rubriken \"Öppna antaganden\" i varje sammanfattning. Allt du antagit men användaren inte bekräftat hamnar där; presentera aldrig ett antagande som ett beslut.\n- En specifikation är standard. Föreslå länkade produkt-, design- och tekniska specifikationer bara för tydligt komplexa projekt, förklara varför på en rad och dela bara om användaren håller med.\n- Krav är testbara påståenden om observerbart beteende med stabila id:n. Inga implementationsdetaljer i kraven; designbeslut hör hemma i designlistan.\n- Använd plans-färdigheten specifikation för specifikationen och plans-färdigheten kontroll för acceptanskontroller. Känsliga områden (säkerhet, integritet, kryptering, behörigheter, betalningar, migreringar, exakt API-beteende) får alltid en obligatorisk deterministisk källa.\n- Planera inte, skriv ingen kod och påbörja ingen implementation innan användaren har godkänt specifikationen. Skapa efter godkännandet planen och dess uppgifter och förklara vad som händer sedan.\n- Håll chattsvaren korta och enkla. Specifikations- och kontrollinbäddningarna bär detaljerna.\n- Hitta aldrig på fakta om användarens verksamhet, användare eller system; fråga, eller notera ett öppet antagande.\n- Värden som [EMAIL_1_org] eller [PHONE_1_000] är integritetsplatshållare. Appen visar användarens riktiga uppgifter i deras ställe. Använd dem oförändrade som det riktiga värdet; kalla dem aldrig platshållare, saknade eller ogiltiga och be aldrig användaren ersätta dem."
+      }
+    },
     "code_write_test_debug_document": {
       "text": "Skriv, testa, felsök och dokumentera",
       "description": {
@@ -10910,6 +11113,12 @@
       "text": "Framtidsamtal",
       "description": {
         "text": "En kraftfull livscoachingteknik."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "Livskompass",
+      "description": {
+        "text": "Hitta din riktning mot ett lyckligare liv, ett litet steg i taget."
       }
     },
     "health_prepare_doctor_report": {
@@ -10973,6 +11182,24 @@
       },
       "systemprompt": {
         "text": "Du är en neutral coach för samhällsdiskussioner och forskningsassistent. Ditt mål är att hjälpa användare att förbereda sig för politiska, medborgerliga, geopolitiska och andra samtal av allmänt intresse med noggrannhet, ödmjukhet och god tro.\n\nBörja med att förstå situationen. Vid det första assistentsvaret efter att detta fokus aktiveras, svara på användarens ursprungliga begäran med en kortfattad kontextuell genomgång, även om användaren inte uttryckligen bad om frågor. Ställ en till tre specifika frågor om saknade detaljer såsom jurisdiktion, användarens önskade resultat och den andra personens position eller relation. Använd ämnet och andra fakta som användaren redan har angett; be dem inte att upprepa dessa detaljer eller formulera om sin begäran. Om användaren ber dig att börja med frågor, respektera den ordningen även när ämnet är känt. Om allt väsentligt sammanhang redan har angetts, ställ en fråga om användarens högsta prioritet eller bekräfta kortfattat den specifika inramningen innan du fortsätter. Vänta på användarens svar innan faktasökning, en genomgång av policyer eller ett fullständigt förberedelseblad, såvida inte användaren uttryckligen begär ett omedelbart efterforskat svar. Stanna inte vid att bekräfta aktiveringen, och förvandla inte genomgången till ett långt frågeformulär.\n\nAnvänd detta arbetsflöde:\n- Återge ämnet och användarens önskade resultat på ett neutralt språk.\n- Identifiera de huvudsakliga påståenden som sannolikt kommer att dyka upp. Separera faktapåståenden, värdeomdömen, antaganden, förutsägelser och personliga erfarenheter.\n- För faktiska eller aktuella påståenden, använd web-search, news search och web-read när noggrannheten beror på färsk eller omstridd information. Föredra primärkällor, officiella data, valmaterial, lagstiftning, myndighetsrapporter, domstolsdokument, välrenommerad journalistik och expertinstitutioner framför sammanfattningar från sociala medier.\n- Utvärdera källor utifrån aktualitet, relevans, auktoritet, noggrannhet och syfte. Notera när en källa har ett intresse kopplat till opinionsbildning, partipolitik, myndigheter, kommersiella intressen eller valkampanjer.\n- Kartlägg den starkaste versionen av varje större ståndpunkt innan du kritiserar den. Inkludera punkter där man är överens, avvägningar, osäkerheter och legitima värderingar på varje sida.\n- Förbered frågor som bjuder in till förklaring, definierar termer, prövar antaganden och lyfter fram bevis. Undvik \"gotcha\"-frågor (fällor) såvida inte användaren uttryckligen behöver formell debattförberedelse.\n- Hjälp användaren att välja lugna formuleringar, gränssättningar och avslutningsrepliker för känsliga samtal.\n\nStandardstruktur för utdata:\n\n## Diskussionsmål\nSammanfatta vad användaren förbereder sig för och hur ett framgångsrikt samtal skulle se ut.\n\n## Viktiga fakta att kontrollera\nLista viktiga faktapåståenden, de bästa tillgängliga bevisen och eventuell osäkerhet. Ange när mer forskning behövs.\n\n## Sannolika perspektiv\nBeskriv de starkaste argumenten och farhågorna från de huvudsakliga sidorna framförda i god tro. Karikera inte motstridiga åsikter.\n\n## Frågor att ställa\nGe genomtänkta, öppna frågor som klargör definitioner, bevis, avvägningar, värderingar och praktiska konsekvenser.\n\n## Påståenden att undvika att överdriva\nVarna för svaga påståenden, föråldrade fakta, påståenden från enstaka källor, vilseledande inramning eller punkter som behöver nyanseras.\n\n## Föreslagen samtalsplan\nGe en kort plan för att öppna diskussionen, hålla den konstruktiv, hantera spänningar och följa upp.\n\nViktiga gränser:\n- Skriv inte manipulativ propaganda, trakasserier, doxxing, hot eller dehumaniserande retorik.\n- Tillhandahåll inte riktade politiska övertalningsstrategier baserade på demografiska, psykologiska, identitets- eller sårbarhetsprofiler.\n- Optimera inte kampanjbudskap, väljaridentifiering, undertryckande av valdeltagande eller aktivistlogistik. Om användarens begäran övergår i opinionsbildning eller organisering, håll hjälpen på en övergripande, laglig och icke-manipulativ nivå, eller rekommendera Activism mate för etisk organiseringsstrategi.\n- Presentera inte osäkra eller omstridda påståenden som fastställda fakta. Skilj tydligt mellan bevis, slutledning, tolkning och åsikt.\n- Utgå inte från ond tro, korruption, extremism eller illvilliga avsikter såvida inte tillförlitliga bevis stöder den inramningen.\n- Respektera integriteten. Be inte om onödiga personuppgifter om användaren eller andra inblandade personer."
+      }
+    },
+    "slides_design_template": {
+      "text": "Designa en mall",
+      "description": {
+        "text": "Designa steg för steg en återanvändbar bildmall - tre designer att välja mellan, finslipade tillsammans med dig och sedan sparade i ditt bibliotek."
+      },
+      "process": {
+        "text": "- Frågar vad mallen ska användas till och vilka varumärkesfärger, typsnitt eller logotyp den ska matcha\n- Visar tre tydligt olika designer som mallkort med förhandsvisningar av sex bildlayouter\n- Du väljer en med \"Använd den här designen\" eller genom att nämna den\n- Finslipar färger, typsnitt och layouter med dig och uppdaterar kortet efter varje ändring\n- Säger åt dig att trycka på Spara på det slutliga kortet så att det hamnar i ditt bibliotek\n- Erbjuder att skapa en första presentation med din nya mall"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Planera en presentation",
+      "description": {
+        "text": "Planera en presentation steg för steg - mål, berättelse, ett budskap per bild, design - och skapa sedan bilderna med talaranteckningar och granska dem."
+      },
+      "process": {
+        "text": "- Frågar om ditt mål, din publik, längd och sammanhang, med enkla exempel och en rekommendation\n- Föreslår en berättelse som passar, till exempel problem, lösning, demo, effekt och önskemål för en pitch\n- Listar ett budskap per bild och väntar på din bekräftelse innan något byggs\n- Visar passande inbyggda designer som kort, använder din sparade mall eller designar en ny med dig\n- Skapar bilderna med talaranteckningar på varje bild, anpassade efter längden på ditt föredrag\n- Granskar resultatet och åtgärdar det du godkänner, som för mycket text på en bild"
       }
     },
     "social_media_content_calendar_strategist": {
@@ -11200,22 +11427,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "Ditt AI-team"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "för att få saker gjorda"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Skriv ett dokument"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "Hitta evenemang"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "Bygg en webbapp"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "Förklara nyheterna"
     },
     "landing_actionable_line1": {
       "text": "Handlingsbart."
@@ -11229,35 +11456,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Självklart, här är det:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Ett event website-evenemang i Berlin om decentraliserad databehandling och DePIN-forskning."
+      "text": "Korta föredrag och demos om AI-verktyg med öppen källkod, med tid att träffa folk efteråt."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Öppna på event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Öppna eventsidan"
     },
     "landing_actionable_event_city": {
       "text": "Berlin"
     },
     "landing_actionable_event_country": {
       "text": "Tyskland"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Online"
@@ -11268,62 +11480,44 @@
     "landing_actionable_event_rsvps": {
       "text": "anmälningar"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "Dina chattar krypteras på din enhet innan de lagras."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "Personuppgifter ersätts innan AI:n ser dem."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "Förbered ett mejl till"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "Ok, jag förbereder ett mejl till"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "Rekommendera platser för min nästa resa."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "Personliga svar, men bara när du vill."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "Bara du kan se originalen."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "Tidigare resor"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "Favoritplatser"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "Dina AI-experter, specialiserade på olika ämnen."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "Optimerade instruktioner, valda när de behövs."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Ledande AI-modeller på ett ställe."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "Kom åt dina OpenMates-chattar på det sätt du föredrar."
     }
   },
   "header": {
@@ -11344,6 +11538,26 @@
     },
     "report_issue": {
       "text": "Rapportera problem"
+    }
+  },
+  "helplines": {
+    "title": {
+      "text": "Du behöver inte gå igenom det här ensam"
+    },
+    "call": {
+      "text": "Ring"
+    },
+    "send_text": {
+      "text": "Skicka SMS"
+    },
+    "chat": {
+      "text": "Chatta online"
+    },
+    "emergency": {
+      "text": "Vid nödsituation, ring {emergency_number}"
+    },
+    "find_more": {
+      "text": "Hitta fler hjälplinjer"
     }
   },
   "highlight": {
@@ -11429,6 +11643,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Den här begäran avslogs. Sexuella eller antydande bilder med minderåriga skapas aldrig."
+    },
+    "reason_intimate_real_person": {
+      "text": "Den här begäran avslogs. Sexuella eller intima bilder av verkliga personer skapas aldrig."
+    },
+    "reason_bypass": {
+      "text": "Den här begäran avslogs eftersom den försökte kringgå säkerhetsreglerna."
+    },
+    "reason_minor": {
+      "text": "Realistiska bilder av minderåriga skapas inte, och foton av minderåriga får bara ändras i bakgrund, ljus eller färg, eftersom sådana bilder kan missbrukas, till exempel för falska profiler som utger sig för att vara minderåriga."
+    },
+    "alternative_minor": {
+      "text": "En tydligt stiliserad version är möjlig, till exempel som 3D-rendering, illustration eller tecknad serie, så länge scenen inte är sexuell."
+    },
+    "reason_sexual": {
+      "text": "Sexuella eller explicita bilder skapas inte."
+    },
+    "alternative_sexual": {
+      "text": "En icke-explicit version av scenen är möjlig."
+    },
+    "reason_violent": {
+      "text": "Bilder som visar verkliga personer skadade, attackerade eller på en brottsplats skapas inte, eftersom de kan användas för att skada eller smäda dem."
+    },
+    "alternative_violent": {
+      "text": "En scen med fiktiva figurer i stället för verkliga personer är möjlig."
+    },
+    "reason_public_figure": {
+      "text": "Bilder av verkliga offentliga personer skapas för närvarande inte, eftersom de kan användas som deepfakes eller för falska påståenden."
+    },
+    "alternative_public_figure": {
+      "text": "En egen, fiktiv figur i samma scen är möjlig."
+    },
+    "reason_identity": {
+      "text": "Ansiktsbyten och utbyte av någons identitet görs inte, eftersom de kan användas för att utge sig för att vara en annan person."
+    },
+    "alternative_identity": {
+      "text": "Ändringar som bevarar personens identitet, till exempel en ny bakgrund, annat ljus eller en konststil, är möjliga."
+    },
+    "reason_id_document": {
+      "text": "Bilder av id-handlingar som pass, id-kort eller körkort skapas inte, eftersom de kan användas för bedrägeri."
+    },
+    "reason_hate": {
+      "text": "Bilder med hatsymboler eller bilder som riktar sig mot människor på grund av vilka de är skapas inte."
+    },
+    "reason_self_harm": {
+      "text": "Bilder som visar eller uppmuntrar till självskada skapas inte."
+    },
+    "alternative_self_harm": {
+      "text": "Om du går igenom en svår tid kan det hjälpa att prata med någon du litar på eller med en lokal stödlinje."
+    },
+    "reason_weapons": {
+      "text": "Bilder med instruktioner eller ritningar för vapen eller sprängämnen skapas inte."
+    },
+    "reason_scam": {
+      "text": "Medier för bedrägerier, falska dokument eller identitetsstöld skapas inte."
+    },
+    "alternative_scam": {
+      "text": "En egen design som inte imiterar en verklig person, ett varumärke eller ett dokument är möjlig."
+    },
+    "reason_spam": {
+      "text": "Massproduktion av utfyllnadsinnehåll eller borttagning av AI-märkning stöds inte."
+    },
+    "alternative_spam": {
+      "text": "Några få bilder för ett specifikt syfte är möjliga."
+    },
+    "reason_deceptive": {
+      "text": "Bilder som ska framstå som äkta material, ett äkta uttalande eller ett officiellt stöd skapas inte."
+    },
+    "alternative_deceptive": {
+      "text": "En tydligt fiktiv eller tecknad version är möjlig."
+    },
+    "reason_other": {
+      "text": "Den här begäran kan inte skapas enligt säkerhetsreglerna."
+    },
+    "alternative_other": {
+      "text": "Ett annat motiv eller en annan formulering kan fungera."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Faktura"
@@ -11949,6 +12243,22 @@
             },
             "description": {
               "text": "Vi använder api.video (EU-företag, Frankrike) för att vara värd för och strömma produktdemo- och funktionsgenomgångsvideor som visas på vår webbplats och webbapp. När du tittar på ett videoklipp behandlas din IP-adress och grundläggande visningsdata av api.video. Inga användarkonto-identifierare delas."
+            }
+          }
+        },
+        "status_page": {
+          "heading": {
+            "text": "Statussida (endast när du öppnar den)"
+          },
+          "description": {
+            "text": "Den här leverantören används bara när du öppnar den publika statussidan på status.openmates.org. Den används inte för ditt konto eller någon annan del av OpenMates."
+          },
+          "upcloud": {
+            "heading": {
+              "text": "UpCloud (värd för statussidan)"
+            },
+            "description": {
+              "text": "Den publika statussidan status.openmates.org (en statisk sida plus en JSON-fil med status) drivs av UpCloud Oy på en server i Amsterdam, Nederländerna. När du öppnar sidan ansluter din webbläsare till UpClouds server, så UpCloud behandlar din IP-adress och metadata för TLS-anslutningen. Vi sparar inga åtkomstloggar och använder inga cookies eller spårare på sidan. Samma server skickar också automatiska testförfrågningar till OpenMates som inte innehåller några användardata."
             }
           }
         },
@@ -14087,6 +14397,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "via"
@@ -14294,6 +14605,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Jag kan inte skapa propaganda, hatinnehåll, desinformation eller manipulativt skvallerpressinnehåll. Jag förklarar gärna hur det fungerar, analyserar exempel, faktagranskar eller hjälper till med tydligt märkt satir."
+    },
+    "illegal_category": {
+      "text": "Jag kan inte hjälpa till med sexuellt innehåll med minderåriga, intima bilder utan samtycke, sexuella deepfakes av verkliga personer eller massförstörelsevapen."
+    },
+    "live_site_abuse": {
+      "text": "Du äger säkert den sajten, men på live-sajter gör jag bara normala handlingar för en enskild användare i mänskligt tempo, så jag kan inte köra massiva eller missbrukande handlingar som massor av kommentarer, registreringar, lösenordsgissning eller översvämning. Sådana tester körs för närvarande bara mot localhost, en lokal utvecklingsmiljö eller en lokalt körd staging-kopia. Jag hjälper dig gärna att sätta upp det."
+    },
+    "strike_notice": {
+      "text": "Det här är överträdelse {strike} av {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Försäkring"
@@ -14396,6 +14721,82 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Ditt konto är avstängt"
+    },
+    "appeal_button": {
+      "text": "Överklaga"
+    },
+    "download_button": {
+      "text": "Ladda ner mina data"
+    },
+    "explanation_label": {
+      "text": "Berätta vad som hände (upp till 1 000 tecken)"
+    },
+    "consent_label": {
+      "text": "Jag samtycker till att endast de flaggade förfrågningarna delas med säkerhetsgranskaren"
+    },
+    "add_photo": {
+      "text": "Lägg till ett foto"
+    },
+    "photo_added": {
+      "text": "Foto bifogat. Välj ett annat"
+    },
+    "submit": {
+      "text": "Skicka överklagan"
+    },
+    "sent": {
+      "text": "Din överklagan har skickats. Du får ett beslut inom 7 dagar."
+    },
+    "admin_title": {
+      "text": "Säkerhetsgranskningar"
+    },
+    "admin_restore": {
+      "text": "Återställ"
+    },
+    "admin_delete": {
+      "text": "Ta bort"
+    },
+    "admin_ask": {
+      "text": "Fråga användaren"
+    },
+    "admin_delete_confirm": {
+      "text": "Ta bort det här kontot? Standardborttagning med full återbetalning, borttagningsmejl och efterlevnadspost."
+    },
+    "admin_empty": {
+      "text": "Inga konton väntar på granskning."
+    },
+    "until": {
+      "text": "Kontot är avstängt till {date}"
+    }
+  },
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} avvisades. {reason} Det här är överträdelse {strike} av {max}."
+    },
+    "what_image_generate": {
+      "text": "Din bildbegäran"
+    },
+    "what_image_edit": {
+      "text": "Din begäran om bildredigering"
+    },
+    "what_video": {
+      "text": "Din videobegäran"
+    },
+    "what_upload": {
+      "text": "Din uppladdade bild"
+    },
+    "suspended_until": {
+      "text": "Det här är överträdelse 2 av 3. Ditt konto är avstängt till {date} och aktivt igen efter det. En tredje överträdelse stänger av det tills en administratör har granskat det."
+    },
+    "suspended_pending_review": {
+      "text": "Det här är överträdelse 3 av 3. Ditt konto är avstängt tills en administratör har granskat det. Du kan överklaga beslutet."
+    },
+    "unavailable": {
+      "text": "Säkerhetskontrollen är tillfälligt otillgänglig, så begäran kunde inte behandlas. Försök igen om en stund."
+    }
+  },
   "settings": {
     "account": {
       "username": {
@@ -19128,7 +19529,7 @@
       "text": "Ingen nakenhet, våld eller blodbad\ni profilbilder."
     },
     "last_warning_image_not_allowed": {
-      "text": "Sista varningen:\nIngen nakenhet, våld eller blodbad i profilbilder.\nYtterligare en överträdelse och ditt konto raderas."
+      "text": "Sista varningen:\nInget explicit sexuellt innehåll eller extremt våld i profilbilder.\nYtterligare en överträdelse och ditt konto stängs av tillfälligt."
     },
     "your_account_got_deleted": {
       "text": "Ditt konto har raderats."
@@ -20749,7 +21150,7 @@
       "text": "Testa gratis"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "E-postdomän är inte tillåten."
@@ -20757,32 +21158,8 @@
     "email_ignored": {
       "text": "Den här e-postadressen kan inte användas för registrering. Kontakta support om du tror att detta är ett fel."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates är för närvarande en alfaversion för tidiga testare."
-    },
-    "decent_stable": {
-      "text": "Den här alfaversionen är ganska stabil"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Alla kärnfunktioner är dock inte implementerade ännu."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Förvänta dig några buggar här och där och kom ihåg: AI-chatbotar kan göra misstag."
-    },
     "view_on_github": {
       "text": "Visa OpenMates på GitHub"
-    },
-    "view_on_github_description": {
-      "text": "För att diskutera buggar, funktioner och hålla dig uppdaterad om nya versioner."
-    },
-    "view_on_instagram": {
-      "text": "Visa OpenMates på Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "För att hålla dig uppdaterad om nya versioner och andra uppdateringar."
-    },
-    "continue_with_alpha": {
-      "text": "Fortsätt med {version}"
     },
     "server_admin": {
       "text": "Serveradministratör"
@@ -21542,6 +21919,7 @@
       "text": "Anpassad färg"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

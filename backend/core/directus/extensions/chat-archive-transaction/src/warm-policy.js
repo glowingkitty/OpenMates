@@ -87,6 +87,9 @@ export async function policyCandidates(trx, now, { afterChatId = null, limit = 1
   };
 }
 
+// Directus orders with the database collation; the archive contract is bytewise (matches JS compare).
+const BYTE_ORDER_ID = 'client_message_id COLLATE "C"';
+const byteOrderId = (trx) => trx.raw(BYTE_ORDER_ID);
 const pos = (row) => [Number(row.created_at), String(row.client_message_id)];
 const cmp = (left, right) => left[0] - right[0]
   || (left[1] < right[1] ? -1 : left[1] > right[1] ? 1 : 0);
@@ -136,7 +139,7 @@ async function recentMainRank(trx, chat) {
 async function latestSegmentEnd(trx, chatId) {
   const previous = await trx('chat_message_archive_segments').where({ chat_id: chatId })
     .whereIn('state', ['verified', 'reader_active', 'pruned'])
-    .orderBy('end_timestamp', 'desc').orderBy('end_message_id', 'desc')
+    .orderBy('end_timestamp', 'desc').orderBy(trx.raw('end_message_id COLLATE "C"'), 'desc')
     .select('end_timestamp', 'end_message_id').first();
   return previous ? [Number(previous.end_timestamp), String(previous.end_message_id)] : null;
 }
@@ -190,7 +193,7 @@ export async function policyBoundary(trx, chat, data = {}, now = Math.floor(Date
     if (messageCount <= policy.messages && totalBytes <= policy.bytes) return defer('within_warm_limits');
     const newest = await trx('messages').where({ chat_id: chat.id })
       .select(messageProjection(trx)).orderBy('created_at', 'desc')
-      .orderBy('client_message_id', 'desc').limit(Math.min(MAX_NEWEST_WINDOW, policy.messages + 1));
+      .orderBy(byteOrderId(trx), 'desc').limit(Math.min(MAX_NEWEST_WINDOW, policy.messages + 1));
     if (!Array.isArray(newest) || newest.length < Math.min(messageCount, policy.messages + 1)
       || newest.some(row => !canonical(row))) return defer('unsupported_or_incomplete_newest_window');
     let kept = 0;
@@ -209,9 +212,9 @@ export async function policyBoundary(trx, chat, data = {}, now = Math.floor(Date
   // the largest previous segment. Hot canonical rows remain eligible; copied
   // but unpruned overlap is fenced by source validation and reader de-duplication.
   let candidates = trx('messages').where({ chat_id: chat.id }).whereRaw("NOT EXISTS (SELECT 1 FROM chat_message_archive_pages p WHERE p.chat_id = messages.chat_id AND p.message_ids::jsonb @> jsonb_build_array(messages.client_message_id))");
-  if (eligibleEnd) candidates = candidates.whereRaw('(created_at, client_message_id) <= (?, ?)', eligibleEnd);
+  if (eligibleEnd) candidates = candidates.whereRaw('(created_at, client_message_id COLLATE "C") <= (?, ?::text COLLATE "C")', eligibleEnd);
   const prefix = await candidates.select(messageProjection(trx))
-    .orderBy('created_at').orderBy('client_message_id').limit(MAX_CANDIDATE_PREFIX);
+    .orderBy('created_at').orderBy(byteOrderId(trx)).limit(MAX_CANDIDATE_PREFIX);
   if (!Array.isArray(prefix) || !prefix.length) return defer('no_new_prefix');
   if (prefix.some(row => !canonical(row))) return defer('unsupported_canonical_ciphertext');
   for (let index = 1; index < prefix.length; index++) {

@@ -19,7 +19,7 @@
   import SlidesEditorToolbar from './SlidesEditorToolbar.svelte';
   import SlidesEditorStrip from './SlidesEditorStrip.svelte';
   import EmbedIconButton from '../shared/EmbedIconButton.svelte';
-  import { getTemplate, placeElements } from './slidesTemplates';
+  import { placeElements, readThemeValue, resolveTemplate } from './slidesTemplates';
   import { escapeInlineText } from './slidesEditorText';
   import { effectiveTextStyle, isTypingTarget, toRenderSlide, type CanvasBox } from './slidesEditorView';
   import {
@@ -49,9 +49,17 @@
     initialSlideId?: string;
     /** Element to select first (preview and test states). */
     initialElementId?: string;
+    /**
+     * Show the toolbar's own Done check. The fullscreen hides it and uses its
+     * header check-mark button instead (one Edit/Save button for every editable
+     * embed), which calls the exported `done()`.
+     */
+    showDone?: boolean;
+    /** True while Done commits the deck; bound by the fullscreen to show its header button busy. */
+    finishing?: boolean;
   }
 
-  let { markup, onSave, onExit, initialSlideId, initialElementId }: Props = $props();
+  let { markup, onSave, onExit, initialSlideId, initialElementId, showDone = true, finishing = $bindable(false) }: Props = $props();
 
   /** Arrow-key step in canvas units (Shift: larger). */
   const NUDGE = 10;
@@ -67,7 +75,6 @@
   let currentId = $state('');
   let selectedId = $state<string | null>(null);
   let typingId = $state<string | null>(null);
-  let finishing = $state(false);
   /** Saving the edited deck on Done: 'failed' keeps the editor open with a retry. */
   let saveState = $state<'idle' | 'saving' | 'failed'>('idle');
   /** Operations run one after another so the core sees them in the user's order. */
@@ -75,7 +82,9 @@
 
   let slides = $derived(view?.slides ?? []);
   let current = $derived(slides.find((slide) => slide.id === currentId) ?? slides[0] ?? null);
-  let template = $derived(getTemplate(view?.template ?? ''));
+  /** The core's DeckView gains `theme`; read it defensively until every core build has it. */
+  let theme = $derived(readThemeValue((view as { theme?: unknown } | null)?.theme));
+  let template = $derived(resolveTemplate(view?.template ?? '', theme));
   /** The deck differs from what was opened exactly when the core has an undo step. */
   let dirty = $derived(view?.can_undo ?? false);
   let placedCurrent = $derived(
@@ -371,7 +380,8 @@
     }
   }
 
-  async function done() {
+  /** Commit open text, save the edited deck as the next version when it changed, then leave edit mode. */
+  export async function done(): Promise<void> {
     if (finishing) return;
     finishing = true;
     // Commit an open text box or notes field first (their blur sends the operation).
@@ -434,7 +444,9 @@
         {/if}
       </div>
     {/if}
-    <EmbedIconButton icon="check" primary label={$text('common.done')} testId="slides-editor-done" disabled={finishing} onclick={done} />
+    {#if showDone}
+      <EmbedIconButton icon="check" primary label={$text('common.done')} testId="slides-editor-done" disabled={finishing} onclick={done} />
+    {/if}
   {/snippet}
 
   {#if status === 'loading' || status === 'error'}
@@ -485,6 +497,7 @@
         width={view.canvas_width}
         height={view.canvas_height}
         template={view.template}
+        {theme}
         {selectedId}
         {typingId}
         onSelect={select}
@@ -515,6 +528,7 @@
         width={view.canvas_width}
         height={view.canvas_height}
         template={view.template}
+        {theme}
         currentId={current.id}
         onOpen={openSlide}
         onAdd={addSlide}

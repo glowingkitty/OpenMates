@@ -2,7 +2,8 @@
 // Guards all login profile hydration paths used by authenticated UI services.
 // Every successful user-data path must copy the backend id into userProfile.user_id.
 // Without it, chat model preferences and other user-scoped features silently skip sync.
-// This static contract covers duplicated success-path profile objects across components.
+// This static contract covers duplicated success-path profile objects across components,
+// both named `userProfileData` objects and inline `updateProfile({ ... })` calls.
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -19,7 +20,7 @@ describe("login profile hydration", () => {
   it.each(components)("maps the authenticated user id in every $path profile update", ({ path, expectedProfileBlocks }) => {
     const componentSource = readFileSync(new URL(path, import.meta.url), "utf8");
     const profileBlocks = Array.from(
-      componentSource.matchAll(/const userProfileData = \{([\s\S]*?)\n\s*\};/g),
+      componentSource.matchAll(/(?:const userProfileData = |updateProfile\()\{([\s\S]*?)\n\s*\}\)?;/g),
     );
 
     expect(profileBlocks).toHaveLength(expectedProfileBlocks);

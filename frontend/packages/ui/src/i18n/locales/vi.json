@@ -78,6 +78,14 @@
       }
     }
   },
+  "answer_safety": {
+    "illegal": {
+      "text": "Câu trả lời này đã bị gỡ vì không đáp ứng quy tắc an toàn của chúng tôi."
+    },
+    "wellbeing": {
+      "text": "Mình đã gỡ câu trả lời trước vì nó có thể gây hại cho bạn. Bạn không đơn độc. Nếu bạn đang nghĩ đến việc làm hại bản thân, hãy liên hệ người bạn tin tưởng, đường dây hỗ trợ khủng hoảng hoặc dịch vụ khẩn cấp tại địa phương. Mình vẫn ở đây để trò chuyện."
+    }
+  },
   "app_focus_modes": {
     "books": {
       "book_recommendations": {
@@ -134,6 +142,12 @@
         "text": "Lập kế hoạch vòng gọi vốn",
         "description": {
           "text": "Tính cần huy động bao nhiêu, công cụ nào phù hợp, mức pha loãng và lộ trình, kèm bảng cổ phần có thể chỉnh sửa."
+        }
+      },
+      "write_press_release": {
+        "text": "Viết thông cáo báo chí",
+        "description": {
+          "text": "Viết thông cáo báo chí mà nhà báo có thể dùng ngay, theo phong cách báo chí riêng của công ty bạn, dưới dạng tài liệu Word hoặc định dạng khác bạn yêu cầu."
         }
       }
     },
@@ -221,6 +235,12 @@
         "description": {
           "text": "Kiểm tra các tệp cấu hình để phát hiện các lỗ hổng bảo mật và lộ lọt thông tin."
         }
+      },
+      "write_specification": {
+        "text": "Viết đặc tả",
+        "description": {
+          "text": "Biến một ý tưởng thành đặc tả đã được duyệt từng bước - phạm vi, yêu cầu, thiết kế và các kiểm tra nghiệm thu - rồi bắt đầu một kế hoạch với các tác vụ."
+        }
       }
     },
     "events": {
@@ -303,6 +323,12 @@
         "description": {
           "text": "Kỹ thuật huấn luyện cuộc sống mạnh mẽ."
         }
+      },
+      "life_compass": {
+        "text": "La bàn cuộc sống",
+        "description": {
+          "text": "Tìm hướng đi đến một cuộc sống hạnh phúc hơn, từng bước nhỏ một."
+        }
       }
     },
     "news": {
@@ -358,6 +384,20 @@
           "3": {
             "text": "Nghiên cứu dữ kiện và phản biện trước khi tôi thảo luận **chính sách khí hậu** này với một người bạn hoài nghi"
           }
+        }
+      }
+    },
+    "slides": {
+      "design_template": {
+        "text": "Thiết kế mẫu",
+        "description": {
+          "text": "Thiết kế từng bước một mẫu trang chiếu có thể dùng lại - ba thiết kế để chọn, cùng bạn tinh chỉnh, rồi lưu vào thư viện của bạn."
+        }
+      },
+      "plan_presentation": {
+        "text": "Lên kế hoạch bài thuyết trình",
+        "description": {
+          "text": "Lên kế hoạch bài thuyết trình từng bước - mục tiêu, câu chuyện, mỗi trang một thông điệp, thiết kế - rồi tạo các trang chiếu có ghi chú người thuyết trình và xem lại."
         }
       }
     },
@@ -910,6 +950,12 @@
         "description": {
           "text": "Chuyển đồ họa vector thành tệp cho máy thêu kèm bản xem trước mũi thêu."
         }
+      },
+      "get_design": {
+        "text": "Lấy thiết kế",
+        "description": {
+          "text": "Đọc thiết kế Figma và lấy cấu trúc, kiểu dáng và bàn giao mã."
+        }
       }
     },
     "electronics": {
@@ -947,6 +993,9 @@
           "3": {
             "text": "Sự kiện công nghệ nào diễn ra ở London vào tháng Giêng?"
           }
+        },
+        "pricing_note": {
+          "text": "Một lần tìm sự kiện thông thường tốn khoảng 15–25 credit: 10 credit cho tìm kiếm web cộng với token mà Mercury 3 dùng để đọc tối đa năm trang công khai. Lần tìm chỉ được trả lời bằng lịch hội nghị chính thức tốn 1 credit. Lần tìm thất bại hoặc không có kết quả thì miễn phí."
         }
       }
     },
@@ -2885,6 +2934,21 @@
       "structured": {
         "text": "Nội dung"
       },
+      "player_label": {
+        "text": "Trình phát phản hồi bằng giọng nói"
+      },
+      "pause": {
+        "text": "Tạm dừng phản hồi bằng giọng nói"
+      },
+      "play": {
+        "text": "Phát phản hồi bằng giọng nói"
+      },
+      "previous_chapter": {
+        "text": "Chương trước: {chapter}"
+      },
+      "next_chapter": {
+        "text": "Chương tiếp theo: {chapter}"
+      },
       "speak_response": {
         "text": "Đọc câu trả lời"
       },
@@ -3353,6 +3417,7 @@
       }
     }
   },
+  "chat_orchestration_events": {},
   "chat_settings": {},
   "chats": {
     "chat": {
@@ -3852,6 +3917,7 @@
       }
     }
   },
+  "checks": {},
   "common": {
     "admin": {
       "text": "Quản trị"
@@ -3941,6 +4007,12 @@
     },
     "download": {
       "text": "Tải xuống"
+    },
+    "download_pdf": {
+      "text": "Tải xuống PDF"
+    },
+    "download_word": {
+      "text": "Tải xuống Word"
     },
     "loading": {
       "text": "Đang tải..."
@@ -5926,6 +5998,51 @@
       "open_team": {
         "text": "Open Team settings"
       }
+    },
+    "safety_account_suspended": {
+      "subject": {
+        "text": "Tài khoản OpenMates của bạn đã bị tạm khóa"
+      },
+      "headline": {
+        "text": "Tài khoản của bạn đã bị tạm khóa"
+      },
+      "body": {
+        "text": "Hệ thống kiểm tra an toàn của chúng tôi đã từ chối các yêu cầu từ tài khoản của bạn."
+      },
+      "appeal": {
+        "text": "Bạn có 14 ngày để khiếu nại. Bạn cũng có thể tải dữ liệu của mình."
+      },
+      "button": {
+        "text": "Khiếu nại hoặc tải dữ liệu của tôi"
+      }
+    },
+    "safety_more_information": {
+      "subject": {
+        "text": "Chúng tôi cần thêm thông tin về tài khoản của bạn"
+      },
+      "headline": {
+        "text": "Chúng tôi cần thêm một chút thông tin"
+      },
+      "body": {
+        "text": "Chúng tôi đang xem xét việc tạm khóa tài khoản của bạn và có một câu hỏi:"
+      },
+      "button": {
+        "text": "Trả lời trong ứng dụng"
+      }
+    },
+    "safety_account_restored": {
+      "subject": {
+        "text": "Tài khoản OpenMates của bạn đã hoạt động trở lại"
+      },
+      "headline": {
+        "text": "Tài khoản của bạn đã hoạt động trở lại"
+      },
+      "body": {
+        "text": "Chúng tôi đã xem xét việc tạm khóa tài khoản của bạn và đã gỡ bỏ. Các vi phạm đã được xóa và bạn có thể dùng OpenMates như trước."
+      },
+      "apology": {
+        "text": "Chúng tôi xin lỗi vì sự gián đoạn."
+      }
     }
   },
   "embed_user_edits": {},
@@ -7622,7 +7739,7 @@
         "text": "{used} / {limit} tín dụng"
       },
       "continue_message": {
-        "text": "Continue the Browse task using the existing session_id {session}. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
+        "text": "Continue the Browse task using the existing session_id {session}. I may have typed or clicked in the page while I had control, so first observe the current page with Browse in that session, say what is now filled and then go on with the next step. Use max_credits {limit}, the original task and safety approvals; do not create a new browser session."
       },
       "sign_in_notice": {
         "text": "Bạn đang đăng nhập trong trình duyệt đám mây. Khi cho AI tiếp tục, AI có thể truy cập thông tin trong tài khoản này. Nội dung trang liên quan có thể được gửi đến nhà cung cấp AI của chúng tôi. Chỉ đăng nhập tài khoản mà bạn sẵn sàng cho AI truy cập."
@@ -7823,6 +7940,42 @@
     },
     "slides_count_plural": {
       "text": "trang chiếu"
+    },
+    "slides_template_default_title": {
+      "text": "Mẫu"
+    },
+    "slides_template_label": {
+      "text": "Mẫu"
+    },
+    "slides_template_layouts_count": {
+      "text": "{count} bố cục"
+    },
+    "slides_template_use": {
+      "text": "Dùng thiết kế này"
+    },
+    "slides_template_use_message": {
+      "text": "Dùng thiết kế \"{title}\""
+    },
+    "slides_layout_title": {
+      "text": "Tiêu đề"
+    },
+    "slides_layout_section": {
+      "text": "Phần"
+    },
+    "slides_layout_content": {
+      "text": "Nội dung"
+    },
+    "slides_layout_two_column": {
+      "text": "Hai cột"
+    },
+    "slides_layout_image": {
+      "text": "Hình ảnh"
+    },
+    "slides_layout_quote": {
+      "text": "Trích dẫn"
+    },
+    "slides_layout_closing": {
+      "text": "Kết thúc"
     },
     "slides_prev": {
       "text": "Trang chiếu trước"
@@ -8460,6 +8613,54 @@
     },
     "progress_result_one": {
       "text": "1 kết quả"
+    },
+    "slides_template_pick": {
+      "text": "Mẫu"
+    },
+    "slides_template_picker_title": {
+      "text": "Chọn mẫu"
+    },
+    "slides_template_builtin": {
+      "text": "Có sẵn"
+    },
+    "slides_template_library_personal": {
+      "text": "Thư viện của bạn"
+    },
+    "slides_template_library_team": {
+      "text": "Thư viện nhóm"
+    },
+    "slides_template_updated": {
+      "text": "Đã cập nhật"
+    },
+    "slides_template_apply": {
+      "text": "Áp dụng mẫu"
+    },
+    "slides_template_apply_failed": {
+      "text": "Không thể áp dụng mẫu"
+    },
+    "slides_template_library_empty": {
+      "text": "Chưa có mẫu nào được lưu"
+    },
+    "slides_remote_open": {
+      "text": "Remote"
+    },
+    "slides_presenting_elsewhere": {
+      "text": "Being presented on another device"
+    },
+    "slides_remote_not_presenting": {
+      "text": "Not presenting right now"
+    },
+    "slides_remote_show_notes": {
+      "text": "Show notes"
+    },
+    "slides_remote_hide_notes": {
+      "text": "Hide notes"
+    },
+    "slides_remote_slides": {
+      "text": "Slides"
+    },
+    "slides_remote_close": {
+      "text": "Close remote"
     }
   },
   "embeds_input": {},
@@ -8491,55 +8692,6 @@
       },
       "remove_pending_file": {
         "text": "Xóa tệp"
-      }
-    },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} tệp đính kèm {type}"
-      },
-      "embed_many": {
-        "text": "{count} tệp đính kèm {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "âm thanh"
-        },
-        "image": {
-          "text": "hình ảnh"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "trang web"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "bản đồ"
-        },
-        "code": {
-          "text": "mã"
-        },
-        "document": {
-          "text": "tài liệu"
-        },
-        "sheet": {
-          "text": "bảng tính"
-        },
-        "file": {
-          "text": "tệp"
-        },
-        "app": {
-          "text": "ứng dụng"
-        },
-        "embed": {
-          "text": "nhúng"
-        }
       }
     },
     "file_size_limits": {
@@ -8800,6 +8952,27 @@
     },
     "xlsx_feature_sheet_limit": {
       "text": "các trang tính sau 10 trang đầu"
+    },
+    "guest_access_checking": {
+      "text": "Đang kiểm tra xem bạn có thể trò chuyện không cần tài khoản…"
+    },
+    "guest_access_logged_in_before": {
+      "text": "Bạn đã từng đăng nhập trên thiết bị này. Hãy đăng nhập để tiếp tục trò chuyện."
+    },
+    "guest_access_usage_limit": {
+      "text": "Tin nhắn miễn phí không cần tài khoản tạm thời đã hết. Hãy đăng ký để tiếp tục trò chuyện."
+    },
+    "guest_access_unavailable": {
+      "text": "Hiện không thể trò chuyện mà không có tài khoản. Hãy đăng ký để trò chuyện."
+    },
+    "guest_access_status_unavailable": {
+      "text": "Không thể kiểm tra xem bạn có thể trò chuyện không cần tài khoản. Hãy kiểm tra kết nối hoặc đăng ký để trò chuyện."
+    },
+    "guest_access_file_requires_account": {
+      "text": "Gửi tệp cần có tài khoản. Hãy đăng ký để gửi, hoặc xóa tệp để trò chuyện miễn phí."
+    },
+    "guest_send_timeout": {
+      "text": "Việc gửi mất quá nhiều thời gian nên tin nhắn chưa được gửi. Hãy kiểm tra kết nối và thử lại."
     },
     "mention_dropdown": {
       "header": {
@@ -10735,6 +10908,21 @@
         "text": "Soạn email ngắn cho một nhà đầu tư, đoạn giới thiệu có thể chuyển tiếp cho người quen chung và hai email nhắc lại."
       }
     },
+    "business_write_press_release": {
+      "text": "Viết thông cáo báo chí",
+      "description": {
+        "text": "Viết thông cáo báo chí mà nhà báo có thể dùng ngay, theo phong cách báo chí riêng của công ty bạn, dưới dạng tài liệu Word hoặc định dạng khác bạn yêu cầu."
+      },
+      "process": {
+        "text": "- Dùng phong cách báo chí bạn đã lưu (tên, giới thiệu công ty, người phát ngôn, liên hệ, giọng văn) hoặc tạo trước một phong cách từ các thông cáo cũ, vài câu hỏi hay mặc định trung tính\n\n- Đề nghị lưu phong cách vào dự án của bạn để mọi thông cáo sau này đều cùng một giọng\n\n- Chỉ hỏi những gì còn thiếu về tin tức, mỗi lần một câu, và nói thẳng nếu điểm tin chưa đủ mạnh\n\n- Cho xem các phương án tiêu đề, đoạn dẫn và các dữ kiện sẽ dùng để bạn chỉnh sửa trước khi viết\n\n- Viết thông cáo với tiêu đề, địa điểm và ngày, đoạn dẫn, trích dẫn, giới thiệu công ty và đầu mối truyền thông, mặc định là tài liệu Word, hoặc PDF, HTML, React nếu bạn muốn\n\n- Chỉ dùng dữ kiện bạn đã xác nhận, không bao giờ bịa trích dẫn và đánh dấu mọi trích dẫn để chờ duyệt\n\n- Kiểm tra kết quả và đề xuất email giới thiệu cho nhà báo, bài đăng mạng xã hội hoặc bản dịch"
+      },
+      "how_to_use": {
+        "text": "- Viết một **thông cáo báo chí** về buổi ra mắt app của chúng tôi vào ngày 18 tháng 11. Đây là hai thông cáo gần nhất\n\n- Tạo **phong cách báo chí** của chúng tôi từ website và lưu vào dự án này\n\n- Biến thông báo này thành **thông cáo báo chí dạng PDF** và một email giới thiệu ngắn gửi nhà báo"
+      },
+      "systemprompt": {
+        "text": "Bạn giúp người dùng viết thông cáo báo chí mà nhà báo có thể dùng nguyên văn: trước hết là tin thật, dữ kiện kiểm chứng được, một tiếng nói có tên và một đầu mối liên hệ có phản hồi. Phong cách báo chí của công ty và yêu cầu rõ ràng của người dùng được ưu tiên hơn quy ước chung.\n\nChỉ làm theo hướng dẫn của giai đoạn hiện tại. Mỗi lượt hỏi một câu, kèm ví dụ cụ thể và một đề xuất, rồi chờ trả lời. Làm theo yêu cầu bỏ qua câu hỏi, trả lời một lần hoặc chuyển thẳng sang bản nháp.\n\nNguyên tắc quan trọng:\n\n- Không bao giờ hỏi thông tin mà ký ức đã tải, tệp tải lên hoặc cuộc trò chuyện đã có. Hãy dựa vào đó và nhờ người dùng xác nhận.\n\n- Dữ kiện của người dùng là nguồn duy nhất. Hãy cải thiện cách diễn đạt, thứ tự và điểm nhấn; không bao giờ bịa hay thổi phồng số liệu, ngày tháng, khách hàng, đối tác, giải thưởng, kết quả hay tên. Nếu người dùng yêu cầu bịa, hãy từ chối và đề xuất phương án trung thực.\n\n- Không bao giờ trình bày một trích dẫn như bản cuối. Viết trích dẫn dưới dạng bản nháp để người được nêu tên duyệt, và không bao giờ gán lời cho người thật ngoài tổ chức của người dùng khi không có nguồn.\n\n- Viết giản dị và cụ thể. Bỏ các so sánh nhất rỗng và từ thời thượng hoặc thay bằng một dữ kiện.\n\n- Giữ thông tin đang cấm công bố hoặc chưa phát hành trong cuộc trò chuyện này và dự án của người dùng; không bao giờ đăng, gửi hay chia sẻ, và không bao giờ liên hệ nhà báo hay bất kỳ ai khác. Bạn viết bản nháp; người dùng là người gửi.\n\n- Word là định dạng mặc định. Chỉ tạo PDF, HTML hoặc React khi được yêu cầu, theo quy tắc định dạng của giai đoạn soạn nháp.\n\n- Một phong cách báo chí thuộc về một công ty. Đề nghị lưu vào Ký ức của dự án đang dùng; nếu không có dự án đang dùng, đề nghị một ký ức cá nhân chỉ được tải khi được nhắc đến. Chỉ lưu sau khi người dùng đồng ý.\n\n- Chỉ nói rằng ký ức đã được lưu hoặc cập nhật sau khi lệnh gọi công cụ lưu thành công. Nếu công cụ hiện có không lưu được vào dự án, hãy nói rõ, đề nghị ký ức cá nhân hoặc cho biết người dùng có thể dán phong cách vào tab Ký ức của dự án.\n\n- Không đưa ra lời khuyên pháp lý về nghĩa vụ công bố thông tin, quy định thị trường chứng khoán hay nhãn hiệu; hãy nói khi nào người dùng nên hỏi luật sư hoặc bộ phận quan hệ nhà đầu tư.\n\n- Giữ câu trả lời trong chat ngắn gọn. Tài liệu mới là nơi chứa nội dung.\n\n- Các giá trị như [EMAIL_1_org] hay [PHONE_1_000] là ký hiệu giữ chỗ quyền riêng tư. Ứng dụng hiển thị thông tin thật của người dùng ở vị trí đó trên màn hình và trong tài liệu. Hãy dùng chúng nguyên trạng như giá trị thật; không bao giờ gọi chúng là ký hiệu giữ chỗ, bị thiếu hay không hợp lệ, và không bảo người dùng thay thế."
+      }
+    },
     "code_analyze_logs": {
       "text": "Phân tích nhật ký",
       "description": {
@@ -10852,6 +11040,21 @@
         "text": "- nếu chưa được cung cấp, yêu cầu người dùng URL kho lưu trữ github/gitlab\n- nếu chưa được cung cấp, hỏi người dùng muốn kiểm tra gì / trường hợp sử dụng của họ là gì\n- sử dụng kỹ năng để kiểm tra issues xem có vấn đề nghiêm trọng nào được báo cáo gần đây không\n- nếu dự án được báo cáo là bị hỏng, hỏi người dùng có muốn tiếp tục kiểm tra không\n- hỏi người dùng sẽ clone và kiểm tra kho lưu trữ ở đâu: máy mới? github codespaces? máy cục bộ? v.v.\n- clone kho lưu trữ đến vị trí đã chỉ định\n- đọc cấu trúc thư mục và tệp của dự án và readme.md để có cái nhìn tổng quan\n- tìm hiểu cách kiểm tra dự án và bắt đầu kiểm tra"
       }
     },
+    "code_write_specification": {
+      "text": "Viết đặc tả",
+      "description": {
+        "text": "Biến một ý tưởng thành đặc tả đã được duyệt từng bước - phạm vi, yêu cầu, thiết kế và các kiểm tra nghiệm thu - rồi bắt đầu một kế hoạch với các tác vụ."
+      },
+      "process": {
+        "text": "- Bắt đầu từ ý tưởng của bạn: dành cho ai, thành công trông như thế nào, điều gì nằm trong và ngoài phạm vi\n\n- Mỗi lần hỏi một đến ba câu ngắn, kèm đề xuất cho từng câu, và bỏ qua những gì bạn đã nói\n\n- Tóm tắt từng bước và chờ bạn xác nhận trước khi đi tiếp\n\n- Giữ một danh sách giả định còn mở luôn hiển thị, để không có gì bị quyết định thay bạn một cách âm thầm\n\n- Mặc định viết một đặc tả, và chỉ đề xuất các đặc tả liên kết về sản phẩm, thiết kế và kỹ thuật cho dự án phức tạp, nếu bạn đồng ý\n\n- Thêm các kiểm tra nghiệm thu chứng minh từng yêu cầu, bằng kiểm thử, câu hỏi cho AI hoặc xác nhận của chính bạn\n\n- Chỉ bắt đầu kế hoạch với các tác vụ sau khi bạn đã duyệt đặc tả"
+      },
+      "how_to_use": {
+        "text": "- Giúp tôi **viết đặc tả** cho việc đặt bánh mì men chua trực tuyến ở tiệm bánh của tôi\n\n- Tôi có ý tưởng ứng dụng đặt lớp leo núi. Hãy **làm rõ đặc tả** trước khi xây dựng\n\n- **Đặc tả** tính năng lịch nhóm cho công cụ dự án của chúng tôi, kèm các kiểm tra nghiệm thu"
+      },
+      "systemprompt": {
+        "text": "Bạn là một kỹ sư sản phẩm điềm tĩnh, giàu kinh nghiệm, giúp người dùng biến một ý tưởng thành đặc tả mà họ duyệt trước khi xây dựng bất cứ thứ gì. Lời của chính người dùng quyết định; bạn cấu trúc, đặt câu hỏi và đề xuất.\n\nChỉ làm theo hướng dẫn của giai đoạn hiện tại. Mỗi lượt đặt một đến ba câu hỏi ngắn, mỗi câu kèm đề xuất và một ví dụ cụ thể, rồi chờ phản hồi. Không bao giờ hỏi điều mà cuộc trò chuyện, tệp tải lên hoặc dự án đã trả lời. Tôn trọng yêu cầu trả lời tất cả cùng lúc, bỏ qua một câu hỏi hoặc tiếp tục với các giả định đã nêu rõ.\n\nNguyên tắc quan trọng:\n- Kết thúc mỗi giai đoạn bằng một bản tóm tắt ngắn và yêu cầu người dùng xác nhận hoặc chỉnh sửa trước khi đi tiếp.\n- Giữ trong mỗi bản tóm tắt một danh sách có tiêu đề \"Giả định còn mở\". Mọi điều bạn giả định mà người dùng chưa xác nhận đều ở đó; không bao giờ trình bày một giả định như một quyết định.\n- Mặc định là một đặc tả. Chỉ đề xuất các đặc tả liên kết về sản phẩm, thiết kế và kỹ thuật cho dự án rõ ràng phức tạp, giải thích lý do trong một dòng, và chỉ tách khi người dùng đồng ý.\n- Yêu cầu là các phát biểu có thể kiểm thử về hành vi quan sát được, với mã định danh ổn định. Không đưa chi tiết triển khai vào yêu cầu; các quyết định thiết kế thuộc về danh sách thiết kế.\n- Dùng kỹ năng đặc tả của plans cho đặc tả và kỹ năng kiểm tra của plans cho các kiểm tra nghiệm thu. Các lĩnh vực nhạy cảm (bảo mật, quyền riêng tư, mã hóa, quyền hạn, thanh toán, di chuyển dữ liệu, hành vi API chính xác) luôn có một nguồn xác định bắt buộc.\n- Không lập kế hoạch, viết mã hay bắt đầu triển khai trước khi người dùng duyệt đặc tả. Sau khi duyệt, tạo kế hoạch và các tác vụ của nó rồi giải thích điều gì xảy ra tiếp theo.\n- Giữ câu trả lời trong chat ngắn gọn và đơn giản. Phần nhúng đặc tả và kiểm tra mang các chi tiết.\n- Không bao giờ bịa thông tin về doanh nghiệp, người dùng hay hệ thống của người dùng; hãy hỏi, hoặc ghi lại một giả định còn mở.\n- Các giá trị như [EMAIL_1_org] hoặc [PHONE_1_000] là chỗ giữ chỗ quyền riêng tư. Ứng dụng hiển thị thông tin thật của người dùng thay cho chúng. Dùng chúng nguyên vẹn như giá trị thật; không bao giờ gọi chúng là chỗ giữ chỗ, thiếu hay không hợp lệ, và không bao giờ yêu cầu người dùng thay thế."
+      }
+    },
     "code_write_test_debug_document": {
       "text": "Viết, kiểm tra, gỡ lỗi và tài liệu hóa",
       "description": {
@@ -10910,6 +11113,12 @@
       "text": "Nói về tương lai",
       "description": {
         "text": "Kỹ thuật huấn luyện cuộc sống mạnh mẽ."
+      }
+    },
+    "life_coaching_life_compass": {
+      "text": "La bàn cuộc sống",
+      "description": {
+        "text": "Tìm hướng đi đến một cuộc sống hạnh phúc hơn, từng bước nhỏ một."
       }
     },
     "health_prepare_doctor_report": {
@@ -10973,6 +11182,24 @@
       },
       "systemprompt": {
         "text": "Bạn là một huấn luyện viên thảo luận dân sự và trợ lý nghiên cứu trung lập. Mục tiêu của bạn là giúp người dùng chuẩn bị cho các cuộc đối thoại về chính trị, dân sự, chính sách, bầu cử, địa chính trị và các vấn đề công ích khác với sự chính xác, khiêm tốn và thiện chí.\n\nBắt đầu bằng cách thấu hiểu tình huống. Trong phản hồi đầu tiên của trợ lý sau khi tiêu điểm này được kích hoạt, hãy phản hồi yêu cầu ban đầu của người dùng bằng một bước tiếp nhận ngữ cảnh ngắn gọn, ngay cả khi người dùng không yêu cầu đặt câu hỏi một cách rõ ràng. Hãy đặt từ một đến ba câu hỏi cụ thể về các chi tiết còn thiếu như khu vực tài phán, kết quả mong muốn của người dùng và vị thế hoặc mối quan hệ của đối phương. Sử dụng chủ đề và các dữ kiện khác mà người dùng đã cung cấp; không yêu cầu họ lặp lại các chi tiết đó hoặc trình bày lại yêu cầu của mình. Nếu người dùng yêu cầu bạn bắt đầu bằng các câu hỏi, hãy tôn trọng thứ tự đó ngay cả khi đã biết chủ đề. Nếu tất cả ngữ cảnh thiết yếu đã được cung cấp, hãy đặt một câu hỏi về ưu tiên hàng đầu của người dùng hoặc xác nhận ngắn gọn khung nội dung cụ thể trước khi tiếp tục. Hãy đợi câu trả lời của người dùng trước khi thực hiện nghiên cứu thực tế, đưa ra bài giảng về chính sách hoặc bảng chuẩn bị đầy đủ, trừ khi người dùng yêu cầu rõ ràng một câu trả lời đã được nghiên cứu ngay lập tức. Không dừng lại ở việc xác nhận kích hoạt và không biến bước tiếp nhận thành một bảng câu hỏi dài dòng.\n\nSử dụng quy trình làm việc này:\n- Phát biểu lại chủ đề và kết quả mong muốn của người dùng bằng ngôn ngữ trung lập.\n- Xác định các tuyên bố chính có khả năng xuất hiện. Phân tách các tuyên bố thực tế, phán đoán giá trị, giả định, dự đoán và trải nghiệm cá nhân.\n- Đối với các tuyên bố thực tế hoặc hiện tại, hãy sử dụng web-search, news search và web-read khi tính chính xác phụ thuộc vào thông tin mới hoặc gây tranh cãi. Ưu tiên các nguồn sơ cấp, dữ liệu chính thức, tài liệu bầu cử, luật pháp, báo cáo của cơ quan quản lý, tài liệu tòa án, báo chí uy tín và các tổ chức chuyên gia hơn là các bản tóm tắt trên mạng xã hội.\n- Đánh giá các nguồn theo độ mới, mức độ liên quan, thẩm quyền, độ chính xác và mục đích. Lưu ý khi một nguồn có lợi ích vận động, đảng phái, chính phủ, thương mại hoặc chiến dịch.\n- Phác thảo phiên bản mạnh mẽ nhất của mỗi lập trường chính trước khi phê bình nó. Bao gồm các điểm đồng thuận, sự đánh đổi, những điều không chắc chắn và các giá trị chính đáng của mỗi bên.\n- Chuẩn bị các câu hỏi mời gọi sự giải thích, định nghĩa các thuật ngữ, kiểm tra các giả định và đưa ra bằng chứng. Tránh các câu hỏi \"bẫy\" trừ khi người dùng yêu cầu rõ ràng việc chuẩn bị cho một cuộc tranh luận chính thức.\n- Giúp người dùng chọn cách diễn đạt bình tĩnh, các ranh giới và các câu kết thúc cho các cuộc trò chuyện nhạy cảm.\n\nCấu trúc đầu ra mặc định:\n\n## Discussion Goal\nTóm tắt những gì người dùng đang chuẩn bị và một cuộc trò chuyện thành công sẽ trông như thế nào.\n\n## Key Facts To Check\nLiệt kê các tuyên bố thực tế quan trọng, bằng chứng tốt nhất hiện có và bất kỳ sự không chắc chắn nào. Cho biết khi nào cần nghiên cứu thêm.\n\n## Likely Perspectives\nMô tả các lập luận và mối quan tâm thiện chí mạnh mẽ nhất từ các bên chính. Không biếm họa các quan điểm đối lập.\n\n## Questions To Ask\nCung cấp các câu hỏi mở, sâu sắc nhằm làm rõ các định nghĩa, bằng chứng, sự đánh đổi, giá trị và hệ quả thực tế.\n\n## Claims To Avoid Overstating\nWarn về các tuyên bố yếu, sự thật lỗi thời, tuyên bố từ một nguồn duy nhất, cách đóng khung gây hiểu lầm hoặc các điểm cần sự sắc thái.\n\n## Suggested Conversation Plan\nĐưa ra một kế hoạch ngắn gọn để mở đầu cuộc thảo luận, giữ cho nó mang tính xây dựng, xử lý căng thẳng và theo dõi sau đó.\n\nCác ranh giới quan trọng:\n- KHÔNG viết tuyên truyền thao túng, quấy rối, doxxing, đe dọa hoặc ngôn từ hạ thấp nhân phẩm.\n- KHÔNG cung cấp chiến lược thuyết phục chính trị có mục tiêu dựa trên hồ sơ nhân khẩu học, tâm lý, danh tính hoặc các điểm yếu.\n- KHÔNG tối ưu hóa thông điệp chiến dịch, nhắm mục tiêu cử tri, ngăn chặn cử tri đi bầu hoặc hậu cần cho nhà hoạt động. Nếu yêu cầu của người dùng trở thành vận động hoặc tổ chức, hãy giữ sự trợ giúp ở mức khái quát, hợp pháp và không thao túng, hoặc đề xuất trợ lý Activism mate để có chiến lược tổ chức đạo đức.\n- KHÔNG trình bày các tuyên bố không chắc chắn hoặc gây tranh cãi như những sự thật đã ngã ngũ. Phân biệt rõ ràng giữa bằng chứng, suy luận, diễn giải và ý kiến.\n- KHÔNG giả định ác ý, tham nhũng, cực đoan hoặc ý đồ xấu trừ khi có bằng chứng đáng tin cậy hỗ trợ cách đóng khung đó.\n- Tôn trọng quyền riêng tư. KHÔNG yêu cầu dữ liệu cá nhân không cần thiết về người dùng hoặc những người khác có liên quan."
+      }
+    },
+    "slides_design_template": {
+      "text": "Thiết kế mẫu",
+      "description": {
+        "text": "Thiết kế từng bước một mẫu trang chiếu có thể dùng lại - ba thiết kế để chọn, cùng bạn tinh chỉnh, rồi lưu vào thư viện của bạn."
+      },
+      "process": {
+        "text": "- Hỏi mẫu dùng để làm gì và cần khớp với màu thương hiệu, phông chữ hay logo nào\n- Hiển thị ba thiết kế khác biệt rõ rệt dưới dạng thẻ mẫu kèm bản xem trước sáu bố cục trang chiếu\n- Bạn chọn một thiết kế bằng \"Dùng thiết kế này\" hoặc bằng cách nêu tên\n- Cùng bạn tinh chỉnh màu sắc, phông chữ và bố cục, cập nhật thẻ sau mỗi thay đổi\n- Nhắc bạn nhấn Lưu trên thẻ cuối cùng để thẻ được đưa vào thư viện\n- Đề nghị tạo bản trình chiếu đầu tiên với mẫu mới của bạn"
+      }
+    },
+    "slides_plan_presentation": {
+      "text": "Lên kế hoạch bài thuyết trình",
+      "description": {
+        "text": "Lên kế hoạch bài thuyết trình từng bước - mục tiêu, câu chuyện, mỗi trang một thông điệp, thiết kế - rồi tạo các trang chiếu có ghi chú người thuyết trình và xem lại."
+      },
+      "process": {
+        "text": "- Hỏi về mục tiêu, khán giả, thời lượng và bối cảnh, kèm ví dụ đơn giản và một đề xuất\n- Đề xuất câu chuyện phù hợp, ví dụ vấn đề, giải pháp, demo, tác động và lời đề nghị cho một buổi pitch\n- Liệt kê mỗi trang một thông điệp và chờ bạn xác nhận trước khi tạo bất cứ thứ gì\n- Hiển thị các thiết kế có sẵn phù hợp dưới dạng thẻ, dùng mẫu bạn đã lưu hoặc cùng bạn thiết kế mẫu mới\n- Tạo các trang chiếu có ghi chú người thuyết trình trên mỗi trang, vừa với thời lượng bài nói\n- Xem lại kết quả và sửa những gì bạn đồng ý, chẳng hạn quá nhiều chữ trên một trang"
       }
     },
     "social_media_content_calendar_strategist": {
@@ -11200,22 +11427,22 @@
   },
   "guest_onboarding": {
     "landing_intro_headline_line1": {
-      "text": "Simply ask"
+      "text": "Đội ngũ AI của bạn"
     },
     "landing_intro_headline_line2": {
-      "text": "your AI team mates"
+      "text": "để hoàn thành mọi việc"
     },
-    "landing_intro_request_doctor": {
-      "text": "Find doctor appointments"
+    "landing_intro_request_document": {
+      "text": "Viết tài liệu"
     },
     "landing_intro_request_events": {
-      "text": "Find events"
+      "text": "Tìm sự kiện"
     },
     "landing_intro_request_web_app": {
-      "text": "Build a web app"
+      "text": "Xây dựng ứng dụng web"
     },
     "landing_intro_request_news": {
-      "text": "Explain the news"
+      "text": "Giải thích tin tức"
     },
     "landing_actionable_line1": {
       "text": "Có thể hành động."
@@ -11229,35 +11456,20 @@
     "landing_actionable_event_assistant_message": {
       "text": "Tất nhiên, đây nhé:"
     },
-    "landing_actionable_event_source": {
-      "text": "Event preview"
-    },
     "landing_actionable_event_title": {
-      "text": "DEPIN DAY BERLIN"
-    },
-    "landing_actionable_event_meta": {
-      "text": "Today at 19:00 near Kreuzberg"
+      "text": "Open Source AI Night"
     },
     "landing_actionable_event_detail": {
-      "text": "Một sự kiện event website tại Berlin về điện toán phi tập trung và nghiên cứu DePIN."
+      "text": "Các bài nói ngắn và demo về công cụ AI mã nguồn mở, sau đó có thời gian gặp gỡ mọi người."
     },
     "landing_actionable_event_open_provider": {
-      "text": "Mở trên event website"
-    },
-    "landing_actionable_event_venue": {
-      "text": "Magazin in der Heeresbaeckerei"
-    },
-    "landing_actionable_event_address": {
-      "text": "Koepenicker Strasse 16-17"
+      "text": "Mở trang sự kiện"
     },
     "landing_actionable_event_city": {
       "text": "Berlin"
     },
     "landing_actionable_event_country": {
       "text": "Đức"
-    },
-    "landing_actionable_event_organizer": {
-      "text": "Fluence"
     },
     "landing_actionable_event_online": {
       "text": "Trực tuyến"
@@ -11268,62 +11480,44 @@
     "landing_actionable_event_rsvps": {
       "text": "người tham dự"
     },
-    "landing_actionable_event_tag_language": {
-      "text": "German"
-    },
-    "landing_actionable_event_tag_level": {
-      "text": "Beginner friendly"
-    },
-    "landing_actionable_event_chip_day": {
-      "text": "Today"
-    },
-    "landing_actionable_event_chip_time": {
-      "text": "19:00"
-    },
-    "landing_actionable_event_chip_place": {
-      "text": "Kreuzberg"
-    },
     "landing_privacy_saved_data": {
-      "text": "Only your devices can unlock your saved data."
+      "text": "Cuộc trò chuyện của bạn được mã hóa trên thiết bị của bạn trước khi được lưu trữ."
     },
     "landing_privacy_pii": {
-      "text": "Personal details are replaced before AI processing."
+      "text": "Thông tin cá nhân được thay thế trước khi AI nhìn thấy."
     },
     "landing_privacy_email_request": {
-      "text": "Prepare an email to"
+      "text": "Soạn một email gửi đến"
     },
     "landing_privacy_email_response": {
-      "text": "Ok, preparing an email to"
-    },
-    "landing_privacy_memory": {
-      "text": "Choose which memories can personalize this response."
+      "text": "Ok, đang soạn email gửi đến"
     },
     "landing_privacy_trip_request": {
-      "text": "Recommend places for my next trip."
+      "text": "Gợi ý địa điểm cho chuyến đi tiếp theo của tôi."
     },
     "landing_privacy_memory_result": {
-      "text": "Personalized responses, but only when you want them."
+      "text": "Câu trả lời được cá nhân hóa, nhưng chỉ khi bạn muốn."
     },
     "landing_privacy_originals": {
-      "text": "Only you can view the originals."
+      "text": "Chỉ bạn mới xem được bản gốc."
     },
     "landing_privacy_previous_trips": {
-      "text": "Previous trips"
+      "text": "Các chuyến đi trước"
     },
     "landing_privacy_favorite_places": {
-      "text": "Favorite places"
+      "text": "Địa điểm yêu thích"
     },
     "landing_mates_experts": {
-      "text": "Your AI experts, specialized for different topics."
+      "text": "Các chuyên gia AI của bạn, mỗi người chuyên về một chủ đề khác nhau."
     },
     "landing_mates_focus_modes": {
-      "text": "Optimized instructions, selected when they are needed."
+      "text": "Các hướng dẫn được tối ưu hóa, được chọn khi cần."
     },
     "landing_people_models": {
-      "text": "All the best AI models, in one place."
+      "text": "Các mô hình AI hàng đầu, tại một nơi."
     },
     "landing_people_access": {
-      "text": "Access your OpenMates chats the way you prefer."
+      "text": "Truy cập các cuộc trò chuyện OpenMates theo cách bạn thích."
     }
   },
   "header": {
@@ -11344,6 +11538,26 @@
     },
     "report_issue": {
       "text": "Báo cáo sự cố"
+    }
+  },
+  "helplines": {
+    "title": {
+      "text": "Bạn không phải một mình vượt qua chuyện này"
+    },
+    "call": {
+      "text": "Gọi"
+    },
+    "send_text": {
+      "text": "Nhắn tin"
+    },
+    "chat": {
+      "text": "Trò chuyện trực tuyến"
+    },
+    "emergency": {
+      "text": "Trong trường hợp khẩn cấp, hãy gọi {emergency_number}"
+    },
+    "find_more": {
+      "text": "Tìm thêm đường dây hỗ trợ"
     }
   },
   "highlight": {
@@ -11429,6 +11643,86 @@
     }
   },
   "home_listing": {},
+  "image_safety": {
+    "reason_child_sexual": {
+      "text": "Yêu cầu này đã bị từ chối. Hình ảnh khiêu dâm hoặc gợi dục liên quan đến trẻ vị thành niên sẽ không bao giờ được tạo."
+    },
+    "reason_intimate_real_person": {
+      "text": "Yêu cầu này đã bị từ chối. Hình ảnh khiêu dâm hoặc riêng tư của người thật sẽ không bao giờ được tạo."
+    },
+    "reason_bypass": {
+      "text": "Yêu cầu này đã bị từ chối vì cố vượt qua các quy tắc an toàn."
+    },
+    "reason_minor": {
+      "text": "Hình ảnh chân thực của trẻ vị thành niên không được tạo, và ảnh của trẻ vị thành niên chỉ được chỉnh nền, ánh sáng hoặc màu sắc, vì những hình ảnh này có thể bị lạm dụng, ví dụ cho hồ sơ giả mạo là trẻ vị thành niên."
+    },
+    "alternative_minor": {
+      "text": "Có thể tạo phiên bản được cách điệu rõ ràng, chẳng hạn như ảnh dựng 3D, minh họa hoặc hoạt hình, miễn là cảnh không mang tính tình dục."
+    },
+    "reason_sexual": {
+      "text": "Hình ảnh khiêu dâm hoặc nhạy cảm lộ liễu không được tạo."
+    },
+    "alternative_sexual": {
+      "text": "Có thể tạo phiên bản không lộ liễu của cảnh này."
+    },
+    "reason_violent": {
+      "text": "Hình ảnh cho thấy người thật bị thương, bị tấn công hoặc ở hiện trường vụ án không được tạo, vì chúng có thể bị dùng để gây hại hoặc bôi nhọ họ."
+    },
+    "alternative_violent": {
+      "text": "Có thể tạo cảnh với nhân vật hư cấu thay vì người thật."
+    },
+    "reason_public_figure": {
+      "text": "Hiện tại hình ảnh của nhân vật của công chúng thật không được tạo, vì chúng có thể bị dùng làm deepfake hoặc cho các tuyên bố sai sự thật."
+    },
+    "alternative_public_figure": {
+      "text": "Có thể dùng một nhân vật hư cấu độc đáo trong cùng cảnh."
+    },
+    "reason_identity": {
+      "text": "Việc hoán đổi khuôn mặt và thay thế danh tính của ai đó không được thực hiện, vì chúng có thể bị dùng để mạo danh một người."
+    },
+    "alternative_identity": {
+      "text": "Có thể chỉnh sửa mà vẫn giữ nguyên danh tính của người đó, chẳng hạn đổi nền, ánh sáng hoặc phong cách nghệ thuật."
+    },
+    "reason_id_document": {
+      "text": "Hình ảnh giấy tờ tùy thân như hộ chiếu, căn cước hoặc bằng lái xe không được tạo, vì chúng có thể bị dùng để lừa đảo."
+    },
+    "reason_hate": {
+      "text": "Hình ảnh có biểu tượng thù ghét hoặc nhắm vào con người vì danh tính của họ không được tạo."
+    },
+    "reason_self_harm": {
+      "text": "Hình ảnh thể hiện hoặc cổ xúy hành vi tự làm hại bản thân không được tạo."
+    },
+    "alternative_self_harm": {
+      "text": "Nếu bạn đang trải qua giai đoạn khó khăn, trò chuyện với người bạn tin tưởng hoặc gọi đường dây hỗ trợ tại địa phương có thể giúp ích."
+    },
+    "reason_weapons": {
+      "text": "Hình ảnh có hướng dẫn hoặc bản vẽ chế tạo vũ khí hoặc chất nổ không được tạo."
+    },
+    "reason_scam": {
+      "text": "Nội dung phục vụ lừa đảo, giấy tờ giả hoặc mạo danh không được tạo."
+    },
+    "alternative_scam": {
+      "text": "Có thể tạo thiết kế độc đáo không bắt chước người thật, thương hiệu hay giấy tờ thật."
+    },
+    "reason_spam": {
+      "text": "Không hỗ trợ sản xuất hàng loạt nội dung rác hoặc gỡ bỏ nhãn AI."
+    },
+    "alternative_spam": {
+      "text": "Có thể tạo một vài hình ảnh cho một mục đích cụ thể."
+    },
+    "reason_deceptive": {
+      "text": "Hình ảnh được làm ra để giả làm cảnh quay thật, phát ngôn thật hoặc sự chứng thực chính thức không được tạo."
+    },
+    "alternative_deceptive": {
+      "text": "Có thể tạo phiên bản rõ ràng là hư cấu hoặc minh họa."
+    },
+    "reason_other": {
+      "text": "Yêu cầu này không thể được tạo theo các quy tắc an toàn."
+    },
+    "alternative_other": {
+      "text": "Một chủ đề hoặc cách diễn đạt khác có thể được."
+    }
+  },
   "invoices_and_credit_notes": {
     "invoice": {
       "text": "Hóa đơn"
@@ -11949,6 +12243,22 @@
             },
             "description": {
               "text": "Chúng tôi sử dụng api.video (công ty EU, Pháp) để lưu trữ và phát trực tuyến các video demo sản phẩm và hướng dẫn tính năng được hiển thị trên trang web và ứng dụng web của chúng tôi. Khi bạn xem video, địa chỉ IP và dữ liệu xem cơ bản của bạn được xử lý bởi api.video. Không có mã định danh tài khoản người dùng nào được chia sẻ."
+            }
+          }
+        },
+        "status_page": {
+          "heading": {
+            "text": "Trang trạng thái (chỉ khi bạn mở)"
+          },
+          "description": {
+            "text": "Nhà cung cấp này chỉ được sử dụng khi bạn mở trang trạng thái công khai tại status.openmates.org. Nó không được dùng cho tài khoản của bạn hay bất kỳ phần nào khác của OpenMates."
+          },
+          "upcloud": {
+            "heading": {
+              "text": "UpCloud (lưu trữ trang trạng thái)"
+            },
+            "description": {
+              "text": "Trang trạng thái công khai status.openmates.org (một trang tĩnh cùng một tệp JSON trạng thái) được UpCloud Oy lưu trữ trên máy chủ tại Amsterdam, Hà Lan. Khi bạn mở trang, trình duyệt kết nối tới máy chủ của UpCloud, nên UpCloud xử lý địa chỉ IP và siêu dữ liệu kết nối TLS của bạn. Chúng tôi không lưu nhật ký truy cập và không dùng cookie hay trình theo dõi trên trang này. Cùng máy chủ đó cũng gửi các yêu cầu kiểm tra tự động tới OpenMates, không chứa dữ liệu người dùng."
             }
           }
         },
@@ -14087,6 +14397,7 @@
       }
     }
   },
+  "plan_embeds": {},
   "platforms": {
     "via": {
       "text": "qua"
@@ -14294,6 +14605,20 @@
       }
     }
   },
+  "request_purpose": {
+    "harmful_purpose": {
+      "text": "Mình không thể tạo nội dung tuyên truyền, thù hận, thông tin sai lệch hay tin lá cải thao túng. Mình có thể giải thích cách chúng hoạt động, phân tích ví dụ, kiểm chứng thông tin hoặc giúp viết châm biếm được ghi rõ."
+    },
+    "illegal_category": {
+      "text": "Mình không thể giúp với nội dung tình dục liên quan đến trẻ vị thành niên, ảnh riêng tư không có sự đồng ý, deepfake tình dục về người thật hoặc vũ khí gây hại hàng loạt."
+    },
+    "live_site_abuse": {
+      "text": "Có thể bạn đúng là chủ trang đó, nhưng trên các trang đang hoạt động mình chỉ thực hiện thao tác bình thường của một người dùng với tốc độ con người, nên không thể chạy hành động hàng loạt hoặc lạm dụng như bình luận, đăng ký hàng loạt, đoán mật khẩu hay làm quá tải. Các bài kiểm tra này hiện chỉ chạy trên localhost, môi trường dev cục bộ hoặc bản staging chạy cục bộ. Mình sẵn lòng giúp bạn thiết lập."
+    },
+    "strike_notice": {
+      "text": "Đây là lần vi phạm thứ {strike} trên {max}."
+    }
+  },
   "result_embed": {
     "insurance": {
       "text": "Bảo hiểm"
@@ -14396,6 +14721,82 @@
     }
   },
   "rules": {},
+  "safety_appeal": {
+    "title": {
+      "text": "Tài khoản của bạn đã bị tạm khóa"
+    },
+    "appeal_button": {
+      "text": "Khiếu nại"
+    },
+    "download_button": {
+      "text": "Tải dữ liệu của tôi"
+    },
+    "explanation_label": {
+      "text": "Hãy cho chúng tôi biết đã xảy ra chuyện gì (tối đa 1.000 ký tự)"
+    },
+    "consent_label": {
+      "text": "Tôi đồng ý chỉ chia sẻ các yêu cầu bị gắn cờ với người kiểm duyệt an toàn"
+    },
+    "add_photo": {
+      "text": "Thêm ảnh"
+    },
+    "photo_added": {
+      "text": "Đã đính kèm ảnh. Chọn ảnh khác"
+    },
+    "submit": {
+      "text": "Gửi khiếu nại"
+    },
+    "sent": {
+      "text": "Khiếu nại của bạn đã được gửi. Bạn sẽ nhận được quyết định trong vòng 7 ngày."
+    },
+    "admin_title": {
+      "text": "Xem xét an toàn"
+    },
+    "admin_restore": {
+      "text": "Khôi phục"
+    },
+    "admin_delete": {
+      "text": "Xóa"
+    },
+    "admin_ask": {
+      "text": "Hỏi người dùng"
+    },
+    "admin_delete_confirm": {
+      "text": "Xóa tài khoản này? Xóa theo quy trình chuẩn, hoàn tiền đầy đủ, gửi email xóa và lưu hồ sơ tuân thủ."
+    },
+    "admin_empty": {
+      "text": "Không có tài khoản nào đang chờ xem xét."
+    },
+    "until": {
+      "text": "Tài khoản bị tạm khóa đến {date}"
+    }
+  },
+  "safety_strikes": {
+    "warning": {
+      "text": "{what} đã bị từ chối. {reason} Đây là lần vi phạm thứ {strike} trên {max}."
+    },
+    "what_image_generate": {
+      "text": "Yêu cầu tạo hình ảnh của bạn"
+    },
+    "what_image_edit": {
+      "text": "Yêu cầu chỉnh sửa hình ảnh của bạn"
+    },
+    "what_video": {
+      "text": "Yêu cầu tạo video của bạn"
+    },
+    "what_upload": {
+      "text": "Hình ảnh bạn đã tải lên"
+    },
+    "suspended_until": {
+      "text": "Đây là vi phạm thứ 2 trên 3. Tài khoản của bạn bị tạm ngưng đến {date} và sẽ hoạt động lại sau đó. Vi phạm thứ ba sẽ tạm ngưng tài khoản cho đến khi quản trị viên xem xét."
+    },
+    "suspended_pending_review": {
+      "text": "Đây là vi phạm thứ 3 trên 3. Tài khoản của bạn bị tạm ngưng cho đến khi quản trị viên xem xét. Bạn có thể khiếu nại quyết định này."
+    },
+    "unavailable": {
+      "text": "Kiểm tra an toàn tạm thời không khả dụng nên yêu cầu này chưa thể được xử lý. Vui lòng thử lại sau một lát."
+    }
+  },
   "settings": {
     "account": {
       "username": {
@@ -19128,7 +19529,7 @@
       "text": "Không có khỏa thân, bạo lực hoặc nội dung rùng rợn\ntrong ảnh hồ sơ."
     },
     "last_warning_image_not_allowed": {
-      "text": "Cảnh báo cuối cùng:\nKhông có khỏa thân, bạo lực hoặc nội dung rùng rợn trong ảnh hồ sơ.\nThêm một vi phạm nữa và tài khoản của bạn sẽ bị xóa."
+      "text": "Cảnh báo cuối cùng:\nKhông dùng nội dung tình dục lộ liễu hoặc cực kỳ máu me trong ảnh hồ sơ.\nThêm một vi phạm nữa và tài khoản của bạn sẽ bị tạm ngưng."
     },
     "your_account_got_deleted": {
       "text": "Tài khoản của bạn đã bị xóa."
@@ -20749,7 +21150,7 @@
       "text": "Dùng thử miễn phí"
     },
     "version_title": {
-      "text": "v0.30"
+      "text": "v0.31"
     },
     "domain_not_allowed": {
       "text": "Tên miền e-mail không được phép."
@@ -20757,32 +21158,8 @@
     "email_ignored": {
       "text": "Địa chỉ e-mail này không thể được sử dụng để đăng ký. Vui lòng liên hệ với bộ phận hỗ trợ nếu bạn tin rằng đây là một lỗi."
     },
-    "is_alpha_disclaimer": {
-      "text": "OpenMates hiện đang là phiên bản alpha dành cho những người dùng thử nghiệm sớm."
-    },
-    "decent_stable": {
-      "text": "Phiên bản alpha này khá ổn định"
-    },
-    "not_all_core_features_implemented": {
-      "text": "Tuy nhiên, chưa phải tất cả các tính năng cốt lõi đã được triển khai."
-    },
-    "expect_bugs_and_missing_features": {
-      "text": "Hãy mong đợi một số lỗi ở đây và đó và nhớ rằng: chatbot AI có thể mắc lỗi."
-    },
     "view_on_github": {
       "text": "Xem OpenMates trên GitHub"
-    },
-    "view_on_github_description": {
-      "text": "Để thảo luận về lỗi, tính năng và cập nhật về các phiên bản mới."
-    },
-    "view_on_instagram": {
-      "text": "Xem OpenMates trên Instagram"
-    },
-    "view_on_instagram_description": {
-      "text": "Để cập nhật về các phiên bản mới và các cập nhật khác."
-    },
-    "continue_with_alpha": {
-      "text": "Tiếp tục với {version}"
     },
     "server_admin": {
       "text": "Quản trị viên máy chủ"
@@ -21542,6 +21919,7 @@
       "text": "Màu tuỳ chỉnh"
     }
   },
+  "specifications": {},
   "tasks": {},
   "team_mates": {
     "team_mates": {

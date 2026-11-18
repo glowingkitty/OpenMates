@@ -307,6 +307,7 @@ struct ProjectsWorkspaceView: View {
 
                 }
                 .workspacePromptBackground(active: homePromptActive, identifier: "project-home-prompt-backdrop",
+                    activeOpacity: 1,
                     onDismiss: { homePromptDismissID = UUID() })
 
                 projectHomeComposer(availableHeight: max(118, geometry.size.height - keyboardOverlap))
@@ -438,7 +439,8 @@ struct ProjectsWorkspaceView: View {
             onSubmit: { _ in requestProjectCreation() },
             onMic: { showVoiceUnavailable = true },
             onActiveChanged: { homePromptActive = $0 }, dismissRequestID: homePromptDismissID,
-            availableHeight: availableHeight
+            availableHeight: availableHeight,
+            collapsible: false
         )
     }
 
@@ -568,6 +570,7 @@ struct ProjectsWorkspaceView: View {
                             case .overview: overviewPanel(project, width: panelWidth)
                             case .files: filesPanel(project, compact: compact)
                             case .tasks: tasksPanel(project)
+                            case .timeline: timelinePanel(project)
                             }
                         }
                         .frame(width: panelWidth)
@@ -765,7 +768,7 @@ struct ProjectsWorkspaceView: View {
                 Button {
                     selectedTab = tab
                 } label: {
-                    Icon(tab == .overview ? "project" : tab == .files ? "files" : "projectmanagement", size: 21)
+                    Icon(tab == .overview ? "project" : tab == .files ? "files" : tab == .timeline ? "time" : "projectmanagement", size: 21)
                         .foregroundStyle(selectedTab == tab ? Color.fontButton : Color.fontSecondary)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44.8)
@@ -777,10 +780,20 @@ struct ProjectsWorkspaceView: View {
                 .accessibilityIdentifier("project-tab-\(tab.rawValue)")
             }
         }
-        .frame(width: 220)
+        .frame(width: 290)
         .background(Color.grey0, in: Capsule())
         .offset(y: 14)
         .zIndex(2)
+    }
+
+    private func timelinePanel(_ project: ProjectWorkspaceProject) -> some View {
+        #if DEBUG
+        let loader: ProjectTimelineLoading = previewInitialTab == .timeline ? ProjectTimelinePreviewLoader() : CoreProjectTimeline()
+        #else
+        let loader: ProjectTimelineLoading = CoreProjectTimeline()
+        #endif
+        return ProjectTimelineView(model: ProjectTimelineModel(loader: loader, projectId: project.id, teamId: project.teamId))
+            .id(project.id)
     }
 
     private func overviewPanel(_ project: ProjectWorkspaceProject, width: CGFloat) -> some View {
@@ -1300,6 +1313,16 @@ struct ProjectsWorkspaceView: View {
     }
 
     private func fileActions(_ project: ProjectWorkspaceProject, compact: Bool) -> some View {
+        VStack(spacing: 0) {
+            fileActionsMenu(project, compact: compact)
+            if showCreateMenu, !store.remoteMetadataOnly,
+               project.permissions.manageOwnItems || project.permissions.manageAnyItems { createFileEntries(compact: compact) }
+        }
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+    }
+
+    private func fileActionsMenu(_ project: ProjectWorkspaceProject, compact: Bool) -> some View {
         Group {
             if showCreateMenu {
                 if compact {
@@ -1326,6 +1349,19 @@ struct ProjectsWorkspaceView: View {
         }
         .background(Color.grey10)
         .clipShape(RoundedRectangle(cornerRadius: .radius5))
+    }
+
+    /// Web: ProjectCreateFileEntries under the Create menu (root and folder).
+    private func createFileEntries(compact: Bool) -> some View {
+        ProjectCreateFileEntries(stacked: compact, busy: store.isSaving) { kind, name in
+            guard let item = await store.createFile(kind: kind, name: name, folderID: currentFolderID) else {
+                return false
+            }
+            showCreateMenu = false
+            onOpenEmbed(item)
+            return true
+        }
+        .background(Color.grey10)
     }
 
     private func fileActionTray(_ project: ProjectWorkspaceProject, height: CGFloat) -> some View {

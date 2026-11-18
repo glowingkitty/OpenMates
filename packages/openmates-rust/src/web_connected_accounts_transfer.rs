@@ -43,11 +43,15 @@ fn plan(facts: &Map<String, Value>) -> Result<Value, Fail> {
     let app_id = if !nullish(app.as_ref()) {
         if is_str(app.as_ref(), "google_calendar") {
             json!({"value": "calendar"})
+        } else if is_str(app.as_ref(), "figma") {
+            json!({"value": "design"})
         } else {
             json!({"from": "permissions"})
         }
     } else if is_str(provider, "google_calendar") {
         json!({"value": "calendar"})
+    } else if is_str(provider, "figma") {
+        json!({"value": "design"})
     } else {
         json!({"from": "provider"})
     };

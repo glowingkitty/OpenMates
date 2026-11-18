@@ -866,6 +866,18 @@ fn prepared_task_and_source_lanes_invalidate_inventory_proof() {
     assert!(!client.chat_inventory_is_current(&issued).unwrap());
 }
 
+#[test]
+fn source_host_socket_declares_remote_command_jobs_only_when_commands_are_enabled() {
+    let mut client = guard_client();
+    client.session.as_mut().unwrap().ws_token = Some("synthetic-token".into());
+    let off = client.prepare_source_host_socket_for(false).unwrap();
+    let on = client.prepare_source_host_socket_for(true).unwrap();
+    let off = super::transport::source_socket_uri_for_test(&off);
+    let on = super::transport::source_socket_uri_for_test(&on);
+    assert!(off.contains("client_capabilities=&"), "{off}");
+    assert!(on.contains("client_capabilities=remote_command_jobs&"), "{on}");
+}
+
 #[tokio::test]
 async fn legacy_completion_jobs_api_keeps_its_existing_discovery_mode() {
     tokio::time::timeout(Duration::from_secs(5), async {

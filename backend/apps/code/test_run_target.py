@@ -40,7 +40,10 @@ async def resolve_test_run_target(
     source_id = spec.source_id
     if focus and isinstance(focus.get("project_id"), str):
         project_id = project_id or focus["project_id"]
-    if spec.target is None and source_id is None and focus and project_id == focus.get("project_id"):
+    # An explicit remote_source without a source_id targets the focus Project's
+    # connected run source, exactly like the default (the model often names the
+    # target but not the ids).
+    if spec.target in (None, "remote_source") and source_id is None and focus and project_id == focus.get("project_id"):
         team_id = focus.get("team_id") if isinstance(focus.get("team_id"), str) else None
         sources = await directus_service.project.list_sources(project_id, user_id, team_id=team_id)
         source_id = pick_remote_run_source(sources)

@@ -12,7 +12,7 @@ import { awaitBrowserRead } from './existingSavedChatIO';
 const DATABASE='chats_db',STORE='chats',MAX_BYTES=256*1024;
 const CIPHERS=['encrypted_title','encrypted_chat_summary','encrypted_share_cta_text','encrypted_chat_tags',
  'encrypted_follow_up_request_suggestions','encrypted_suggested_followup_message','encrypted_icon','encrypted_category',
- 'encrypted_active_focus_id','encrypted_focus_phase_state','encrypted_auto_speak_response'];
+ 'encrypted_active_focus_id','encrypted_focus_phase_state','encrypted_wellbeing_scores','encrypted_auto_speak_response'];
 const WRITES=[...CIPHERS,'title_v','metadata_v'];
 const COMPARE=['id','chat_id','user_id','team_id','hashed_team_id','chat_visibility','encrypted_chat_key','key_version','key_fingerprint',
  'title_v','metadata_v','messages_v','created_at','updated_at','last_edited_overall_timestamp','pinned',...CIPHERS];

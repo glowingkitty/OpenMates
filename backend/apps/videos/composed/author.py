@@ -50,6 +50,7 @@ from backend.apps.videos.composed.prompt import (
 )
 from backend.apps.videos.composed.rounds import RoundFailed, SandboxRunner, SessionFactory, default_session_factory
 from backend.shared.providers.e2b_remotion_renderer import MAX_INPUT_BYTES, MAX_INPUTS, SOURCE_FILENAME
+from backend.shared.python_utils.internal_llm_policy import DEFAULT_POLICY, InternalLlmPolicy
 from backend.shared.python_utils.llm_stream_usage import stream_usage_tokens
 
 logger = logging.getLogger(__name__)
@@ -116,7 +117,7 @@ def _previews(request: ComposedRequest) -> list[Optional[bytes]]:
 
 
 async def _stream(*, stream_fn: StreamFunction, task_id: str, model_id: str, messages: list[dict[str, Any]],
-                  secrets_manager: Any) -> tuple[str, int, int]:
+                  secrets_manager: Any, stream_options: Optional[dict[str, Any]] = None) -> tuple[str, int, int]:
     """Run one author call; return its text and reported token usage."""
     text = ""
     input_tokens = output_tokens = 0
@@ -124,7 +125,7 @@ async def _stream(*, stream_fn: StreamFunction, task_id: str, model_id: str, mes
         task_id=task_id, model_id=model_id, system_prompt=SYSTEM_PROMPT, message_history=messages,
         temperature=COMPOSE_AUTHOR_TEMPERATURE, secrets_manager=secrets_manager,
         max_tokens=COMPOSE_AUTHOR_MAX_OUTPUT_TOKENS, requested_reasoning_level=COMPOSE_AUTHOR_REASONING,
-        private_logging=True,
+        private_logging=True, **(stream_options or {}),
     ):
         if isinstance(chunk, str):
             text += chunk
@@ -139,7 +140,7 @@ async def compose_video(
     stream_fn: Optional[StreamFunction] = None, session_factory: Optional[SessionFactory] = None,
     models: Sequence[str] = COMPOSE_AUTHOR_MODELS, max_attempts: int = MAX_CORRECTION_ROUNDS + 1,
     on_audio: Optional[KindsCallback] = None, afford_audio: Optional[AudioAfford] = None,
-    audio_generate: Callable[..., Awaitable[Any]] = generate_audio,
+    audio_generate: Callable[..., Awaitable[Any]] = generate_audio, policy: Optional[InternalLlmPolicy] = None,
 ) -> ComposedVideo:
     """Write a composition, render it in the sandbox and correct it from build or render errors.
 
@@ -148,6 +149,10 @@ async def compose_video(
     """
     instructions = _validate_request(request)
     previews = _previews(request)
+    policy = policy or DEFAULT_POLICY
+    has_pictures = any(preview is not None for preview in previews)
+    routes = policy.author_routes(models, required_inputs=("text", "image") if has_pictures else ("text",),
+                                  task_id=task_id)
     if stream_fn is None:
         from backend.apps.ai.utils.llm_utils import call_main_llm_stream
         stream_fn = call_main_llm_stream
@@ -174,7 +179,8 @@ async def compose_video(
     runner = SandboxRunner(session_factory or default_session_factory(secrets_manager), request.inputs, audio)
     try:
         calls = 0  # one budget for the whole request: first try plus corrections, across every model
-        for model_id in models:
+        for route in routes:
+            model_id = route.model_id
             messages: list[dict[str, Any]] = [first]
             while calls < max_attempts:
                 calls += 1
@@ -184,7 +190,7 @@ async def compose_video(
                 try:
                     text, input_tokens, output_tokens = await _stream(
                         stream_fn=stream_fn, task_id=task_id, model_id=model_id, messages=messages,
-                        secrets_manager=secrets_manager,
+                        secrets_manager=secrets_manager, stream_options=policy.stream_options(route),
                     )
                 except (RuntimeError, ConnectionError, TimeoutError, ValueError) as exc:
                     logger.warning("[%s] Composed-video author %s failed: %s", task_id, model_id, exc)
@@ -228,9 +234,11 @@ async def compose_video(
                 break
     finally:
         await runner.close()
-    if not models:
-        raise ComposeFailure("author_unavailable", "no composed-video author model is configured")
-    if provider_failures == len(models):
+    if not routes:
+        raise ComposeFailure("author_unavailable", "every video authoring model is turned off in the user's AI "
+                                                   "settings" if models else
+                             "no composed-video author model is configured")
+    if provider_failures == len(routes):
         raise ComposeFailure("author_unavailable", "; ".join(failures))
     code = "render_failed" if last_stage == "render" else "no_valid_composition"
     raise ComposeFailure(code, "; ".join(failures))

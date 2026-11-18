@@ -13,6 +13,7 @@ from urllib.parse import quote
 import asyncio
 from datetime import timedelta
 from celery.schedules import crontab
+from backend.core.api.app.tasks import celery_pool_startup as _pool_startup
 
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
@@ -195,6 +196,7 @@ TASK_CONFIG = [
     {'name': 'user_init',   'module': 'backend.core.api.app.tasks.user_cache_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.persistence_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.team_auto_topup_task'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.safety_review_tasks'},
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
     {'name': 'app_ai_routing', 'module': 'backend.apps.ai.tasks.stage_one_task'},
     {'name': 'app_code',    'module': 'backend.apps.web.tasks'},  # Browse shares the existing E2B execution worker
@@ -238,6 +240,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_archive_task'},  # Tasks V1 completed-task archival
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.project_file_operation_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.remote_command_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.bank_transfer_expiry_task'},  # beat: expire-stale-bank-transfers
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
     {'name': 'email',       'module': 'backend.core.api.app.tasks.operational_monitoring_tasks'},  # Daily operational report
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.newsletter_campaign_task'},  # Scheduled newsletter campaign sender
@@ -1096,6 +1099,7 @@ def init_worker_process(*args, **kwargs):
     PERFORMANCE OPTIMIZATION: For app-ai-worker, pre-warms AI provider clients to eliminate
     cold-start delay on the first AI request after a restart.
     """
+    init_started_at = time.monotonic()
     setup_celery_logging()
     logger.info("Worker process initializing...")
 
@@ -1185,6 +1189,9 @@ def init_worker_process(*args, **kwargs):
     asyncio.run(prewarm_ai_services())
 
     logger.info("Worker process initialized with JSON logging and sensitive data filtering")
+    _pool_startup.report_child_init_duration(
+        time.monotonic() - init_started_at, _POOL_PROC_ALIVE_TIMEOUT_SECONDS,
+    )
 
 # Dynamically generate task routes from TASK_CONFIG
 # Note: Task names can be explicitly set (e.g., "apps.ai.tasks.skill_ask") which may not match module path patterns
@@ -1264,6 +1271,7 @@ _EXPLICIT_TASK_ROUTES = {
     "apps.ai.tasks.stage_one": "app_ai_routing",
     "apps.ai.tasks.rate_limit_followup": "app_ai",
     "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
+    "apps.ai.tasks.chat_orchestration_interpretation": "app_ai",
     "runtime_health.worker_probe": "app_ai",
     "runtime_health.chat_plumbing_probe": "app_ai",
     "runtime_health.scheduler_heartbeat": "health_check",
@@ -1476,6 +1484,21 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'safety-review-reminder-hourly': {
+        'task': 'safety.remind_stale_reviews',
+        'schedule': crontab(minute=20),
+        'options': {'queue': 'persistence'},
+    },
+    'safety-auto-restore-unappealed-daily': {
+        'task': 'safety.auto_restore_unappealed',
+        'schedule': crontab(hour=5, minute=10),
+        'options': {'queue': 'persistence'},
+    },
+    'safety-purge-closed-cases-daily': {
+        'task': 'safety.purge_closed_cases',
+        'schedule': crontab(hour=5, minute=40),
+        'options': {'queue': 'persistence'},
+    },
     'refill-blank-browser-pool': {
         'task': 'web.browse.refill',
         'schedule': timedelta(seconds=15),
@@ -1866,3 +1889,9 @@ if (archive_feature_enabled("EMBED_VERSION_ARCHIVE_COPY_ENABLED")
         'options': {'queue': 'persistence', 'expires': 1500},
     }
 app.conf.timezone = 'UTC'
+
+# Pool children must finish worker_process_init before Celery's start-up
+# allowance or the parent SIGKILLs them (prod outage 2026-11-14, TASK-832).
+_POOL_PROC_ALIVE_TIMEOUT_SECONDS = _pool_startup.apply_pool_startup_settings(app)
+signals.worker_init.connect(_pool_startup.surface_pool_kill_reasons, weak=False)
+signals.after_setup_logger.connect(_pool_startup.surface_pool_kill_reasons, weak=False)

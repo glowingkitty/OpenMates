@@ -43,18 +43,18 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
-    import { markChatRead, markReadIfLatestReplySeen, hasUnread, hasUnreadRust, RUST_READ_STATE } from '../services/chatReadState';
+    import { markChatRead, markReadIfLatestReplySeen, hasUnreadRust } from '../services/chatReadState';
     import { unreadMessagesStore } from '../stores/unreadMessagesStore';
     import ContinueCardUnreadBadge from './workspace/ContinueCardUnreadBadge.svelte';
     import { isChatMetadataTurnCurrent, getChatMetadataTurnKey } from '../services/lateChatMetadataGuard';
     import { chatNavigationReader } from '../services/chatNavigationReader';
     import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
     import { fetchAuthenticatedChatMessageWindow } from '../services/authenticatedChatMessageWindow';
-    import { readRustChatHistoryWindow } from '../services/rustCore/activeChatRustHistory';
+    import { readRustChatHistoryPage, readRustChatHistoryWindow } from '../services/rustCore/activeChatRustHistory';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { VisibleMessageReceipts } from '../services/visibleMessageReceipts';
     import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
-    import { recordRecentReplayDiagnostic, getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, reconcileRecentChatMessages, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
+    import { recordRecentReplayDiagnostic, getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
     import { chatAllowsComposerGhostSuggestion, decryptComposerGhostSuggestion, type ComposerGhostSuggestion } from '../services/composerGhostSuggestion';
@@ -82,6 +82,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { installWorkflowSidePanelE2EHook } from './workflows/workflowSidePanelE2EHook';
     import { workflowSidePanel, closeWorkflowSidePanel } from '../stores/workflowSidePanelStore';
     import type { AudioWaveformData } from '../utils/audioWaveform';
+    import type { SavedReadCursor } from '../services/rustCore/savedReadProtocol';
     import Model3DResultEmbedFullscreen from './embeds/models3d/Model3DResultEmbedFullscreen.svelte';
     import { resolveRegistryKey, hasFullscreenComponent, loadFullscreenComponent } from '../services/embedFullscreenResolver';
     import { CHUNK_ERROR_MESSAGE, forcePageReload, isChunkLoadError, logChunkLoadError } from '../utils/chunkErrorHandler';
@@ -96,7 +97,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         isLoggingOut, 
         forcedLogoutInProgress,
         isSignupPath,
-        STEP_ALPHA_DISCLAIMER,
         STEP_BASICS,
         STEP_CONFIRM_EMAIL,
         STEP_SECURE_ACCOUNT,
@@ -119,8 +119,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { projectFileProgressKey, projectFileProgressMatchesChat, type ProjectFileProgress, type ProjectFileProgressPhase } from '../services/projectFileProgress';
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
-    import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
-    import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
+        import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
     import { getMatesById } from '../data/matesMetadata';
     import { mateDisplayName } from '../utils/mateDisplayName';
     import { matchesProcessingFeedbackTerminal } from './activeChatProcessingFeedback';
@@ -134,6 +133,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
+    import { SEND_CHAT_MESSAGE_EVENT } from './embeds/slides/slidesTemplateUse';
     import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { reminderContext } from '../stores/reminderContextStore';
     import {
@@ -277,6 +277,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     const ON_DEMAND_MESSAGE_LOAD_POLL_DELAY_MS = 500;
     const E2E_DRAFT_FLUSH_TIMEOUT_MS = 10_000;
     const MESSAGE_WINDOW_LIMIT = 30;
+    /** Rust page cap (wasm bound); the Rust older page is shorter than the TS window. */
+    const RUST_OLDER_PAGE_LIMIT = 20;
+    /** Opaque Rust cursor of the first displayed row when the window came from Rust. */
+    let rustWindowStartCursor: SavedReadCursor | null = null;
     const EMBED_ID_IN_REF_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
     function extractPlainIdeaBucketText(markdown: string): string | null {
         const matches = [...markdown.matchAll(/----- Idea \d+ -----\r?\n([\s\S]*?)\r?\n-----------------/g)];
@@ -367,7 +371,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         flushCurrentDraft?: () => Promise<void> | void;
         flushCurrentDraftLocally: () => Promise<boolean>;
         prepareVoiceCallDraft?: (chatId: string) => Promise<boolean>;
-        sendCurrentMessage: () => Promise<void> | void;
+        sendCurrentMessage: (testMockMarker?: string) => Promise<void> | void;
         getTextContent: () => string;
         hasMeaningfulDraftForChat: (chatId: string) => boolean;
         hasLiveUserEditForChat: (chatId: string) => boolean;
@@ -820,13 +824,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // Step sequences for signup status bar (must match Signup.svelte)
     // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
     const fullStepSequence = [
-        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
+        STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
     const passkeyStepSequence = [
-        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
+        STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
@@ -2595,7 +2599,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
     }
 
-    async function handleFollowUpSuggestionClick(suggestion: string) {
+    async function handleFollowUpSuggestionClick(suggestion: string, testMockMarker?: string) {
         console.debug('[ActiveChat] Follow-up suggestion quick-send:', suggestion);
         dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
 
@@ -2608,7 +2612,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             await messageInputFieldRef.clearMessageField(false);
             messageInputFieldRef.setSuggestionText(suggestion);
             await tick();
-            messageInputFieldRef.sendCurrentMessage();
+            messageInputFieldRef.sendCurrentMessage(testMockMarker);
         }
     }
 
@@ -5511,16 +5515,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
           return [...responses].some((id) => !questions.has(id));
       });
       let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
-      function pruneCurrentDecryptedMessageWindow(messages: ChatMessageModel[]): ChatMessageModel[] {
-        const prunedWindow = pruneDecryptedMessageWindow(messages, {
-            compressionCheckpoints: currentCompressionCheckpoints,
-        });
-        if (prunedWindow.prunedCount > 0) {
-            console.debug(`[ActiveChat] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active window`);
-        }
-        return prunedWindow.messages;
-      }
-      // Flag on: the chatState unit prunes the window (no TypeScript fallback); the callers await it.
+      // The chatState unit prunes the window; the callers await it.
       async function pruneCurrentDecryptedMessageWindowRust(messages: ChatMessageModel[]): Promise<ChatMessageModel[]> {
         const rust = await import('../services/rustCore/chatState/rustTransitions');
         const prunedWindow = await rust.rustPruneWindow(messages, { compressionCheckpoints: currentCompressionCheckpoints });
@@ -6498,12 +6493,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         ))
     );
 
-    // Flag on: the chatState unit decides the composer indicator; the page resolves its state into the
+    // The chatState unit decides the composer indicator; the page resolves its state into the
     // request (buildComposerIndicatorInput) and localises the answer in the deriveds below.
-    const RUST_CHAT_TRANSITIONS: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
-        && !(typeof localStorage !== 'undefined' && localStorage.getItem('openmates_rust_core_chatstate') === 'ts');
     let rustComposerIndicator = $state<{ lines: IndicatorLine[]; statusType: 'typing' | 'processing' | null }>({ lines: [], statusType: null });
-    if (RUST_CHAT_TRANSITIONS) $effect(() => {
+    $effect(() => {
         void _aiTaskStateTrigger;
         const typing = currentTypingStatus;
         const state = {
@@ -6525,137 +6518,18 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         return () => { stale = true; };
     });
 
-    let typingIndicatorLines = $derived((() => {
-        // _aiTaskStateTrigger is a top-level reactive variable.
-        // Its change will trigger re-evaluation of this derived value.
+    let typingIndicatorLines = $derived.by(() => {
+        // _aiTaskStateTrigger is a top-level reactive variable; its change re-evaluates this value.
         void _aiTaskStateTrigger;
-
-        if (RUST_CHAT_TRANSITIONS) return rustComposerIndicator.lines.map((line) => localizeIndicatorLine(line, $text));
-
-        if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) {
-            return [$text(`embeds.projects.progress.${projectFileProgressKey(projectFileProgress)}`)];
-        }
-
-        if (typingStatusIsTerminal) return [];
-        
-        // The accepted-turn selection is composer-only. Once exact typing metadata
-        // arrives, it replaces selection there even while centered step cards remain.
-        // Require an accepted turn: two missing chat IDs also compare equal on the landing page.
-        if (processingFeedbackTurn && processingFeedbackTurn.chatId === currentChat?.chat_id && !typingStatusMatchesProcessingFeedback) {
-            return [$text(processingFeedbackTurn.explicitMateCategory
-                ? 'enter_message.status.selecting_model'
-                : 'enter_message.status.selecting_mate_and_model')];
-        }
-
-        // When the centered indicator is active (processingPhase is not null),
-        // hide the bottom typing indicator to avoid duplicate text.
-        // The centered overlay handles sending, processing steps, and typing phases.
-        // Exception: 'compressing' phase shows the shimmer in the bottom indicator
-        // since there is no centered overlay for compression.
-        if (processingPhase !== null && processingPhase.phase !== 'compressing' && !typingStatusMatchesProcessingFeedback) {
-            if (currentChat?.is_anonymous) {
-                return processingPhase.statusLines;
-            }
-            return [];
-        }
-        
-        // Show "Compressing chat..." shimmer during chat compression
-        if (processingPhase?.phase === 'compressing') {
-            return processingPhase.statusLines;
-        }
-        
-        // Show detailed AI typing indicator once streaming has started
-        // (processingPhase is null, meaning the centered indicator has faded out,
-        //  but aiTypingStore still shows isTyping = true during streaming)
-        if (
-            currentTypingStatus?.isTyping
-            && currentTypingStatus.chatId === currentChat?.chat_id
-            && currentTypingStatus.category
-            && (!processingFeedbackTurn || typingStatusMatchesProcessingFeedback)
-        ) {
-            const mateName = mateDisplayName(currentTypingStatus.category, $text);
-            const modelName = currentTypingStatus.modelName || ''; 
-            const providerName = currentTypingStatus.providerName || '';
-            const serverRegion = currentTypingStatus.serverRegion || '';
-            
-            // Get region flag for display — must match all region values in backend/providers/*.yml
-            const getRegionFlag = (region: string): string => {
-                switch (region) {
-                    case 'EU': return '🇪🇺';
-                    case 'US': return '🇺🇸';
-                    case 'APAC': return '🌏';
-                    case 'global': return '🌐';
-                    case 'Local': return '🏠';
-                    default: return '';
-                }
-            };
-            
-            // Build multi-line indicator matching the centered overlay format:
-            //   Line 1: "{mate} is typing..." or "{mate} is thinking..." for reasoning models
-            //   Line 2: "Powered by {model_name}" (if available)
-            //   Line 3: "via {provider} {flag}" (if available)
-            // Check if the current model is a reasoning/thinking model (same logic as Chat.svelte)
-            const isReasoningModelForIndicator = (() => {
-                if (!modelName) return false;
-                const model = modelsMetadata.find(m => m.name === modelName || m.id === modelName);
-                return model?.reasoning === true;
-            })();
-            const primaryLine = isReasoningModelForIndicator
-                ? $text('enter_message.is_thinking').replace('{mate}', mateName)
-                : $text('enter_message.is_typing').replace('{mate}', mateName);
-            const lines: string[] = [primaryLine];
-            
-            // Line 2: "Powered by {model_name}" — convert technical IDs to human-readable names
-            const displayModelName = modelName ? getModelDisplayName(modelName) : '';
-            if (displayModelName) {
-                lines.push(`Powered by ${displayModelName}`);
-            }
-            
-            // Line 3: "via {provider} {flag}" — with country flag at the bottom
-            if (providerName) {
-                const regionFlag = serverRegion ? getRegionFlag(serverRegion) : '';
-                const providerLine = regionFlag ? `via ${providerName} ${regionFlag}` : `via ${providerName}`;
-                lines.push(providerLine);
-            }
-            
-            console.debug('[ActiveChat] AI typing indicator lines:', lines);
-            return lines;
-        }
-        console.debug('[ActiveChat] Typing indicator: no status to show');
-        return []; // No indicator
-    })());
+        return rustComposerIndicator.lines.map((line) => localizeIndicatorLine(line, $text));
+    });
 
     // Track the current status type for CSS styling (shimmer animation) on the BOTTOM indicator.
     // Returns: 'typing' | null
     // 'sending', 'processing', and 'waiting_for_user' are no longer shown at the bottom.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
-
-        if (RUST_CHAT_TRANSITIONS) return rustComposerIndicator.statusType;
-
-        if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) return 'processing';
-
-        if (typingStatusIsTerminal) return null;
-        
-        
-        if (processingFeedbackTurn && processingFeedbackTurn.chatId === currentChat?.chat_id) {
-            return typingStatusMatchesProcessingFeedback ? 'typing' : 'processing';
-        }
-
-        // When centered indicator is active, bottom shows nothing
-        // Exception: 'compressing' phase shows as 'typing' shimmer at the bottom
-        if (processingPhase !== null && processingPhase.phase !== 'compressing') {
-            return currentChat?.is_anonymous ? 'typing' : null;
-        }
-        
-        if (processingPhase?.phase === 'compressing') return 'typing';
-        
-        // During streaming, show the typing shimmer
-        if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id) {
-            return 'typing';
-        }
-        
-        return null;
+        return rustComposerIndicator.statusType;
     });
 
 
@@ -7180,7 +7054,25 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             existingMessage.thinking_signature !== updatedFinalMessage.thinking_signature ||
                             existingMessage.thinking_token_count !== updatedFinalMessage.thinking_token_count ||
                             existingMessage.has_thinking !== updatedFinalMessage.has_thinking;
-                        if (shouldSaveFinalMessage) {
+                        // The final chunk's content is authoritative for this message id. A
+                        // reply finished by async skill continuations reuses the id of an
+                        // earlier segment that a fallback may already have stored as
+                        // 'synced'; the duplicate policy then refuses equal-status rows with
+                        // different content, the short segment stays the local copy and the
+                        // next turn's history (built from it) drops the real reply.
+                        const replacesStaleSegment =
+                            !!existingMessage &&
+                            existingMessage.role === 'assistant' &&
+                            existingMessage.status === updatedFinalMessage.status &&
+                            existingMessage.content !== updatedFinalMessage.content &&
+                            !shouldUseAnonymousStorage(updatedFinalMessage);
+                        if (replacesStaleSegment) {
+                            const replaced = await chatDB.replaceMessageById(
+                                $state.snapshot(updatedFinalMessage) as ChatMessageModel,
+                                { allowedExistingStatuses: ['streaming', 'synced'], expectedExistingRole: 'assistant' },
+                            );
+                            console.info(`[ActiveChat] Final AI message ${updatedFinalMessage.message_id} replaced a stale local segment: ${replaced}`);
+                        } else if (shouldSaveFinalMessage) {
                             await saveMessageToCurrentStorage(updatedFinalMessage);
                         } else {
                             console.debug('[ActiveChat] Final AI message already persisted, skipping save');
@@ -7458,7 +7350,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // the follow-up reply then counts as a single new unread message.
         if (!newChat && currentChat?.chat_id === message.chat_id && $authStore.isAuthenticated
             && !isPublicChat(message.chat_id)
-            && (RUST_READ_STATE ? await hasUnreadRust(message.chat_id, currentChat.unread_count) : hasUnread(message.chat_id, currentChat.unread_count))) {
+            && await hasUnreadRust(message.chat_id, currentChat.unread_count)) {
             currentChat = { ...currentChat, unread_count: 0 };
             void markChatRead(message.chat_id, 'follow-up sent').catch((error) =>
                 console.error('[ActiveChat] Error marking chat read on send:', error));
@@ -8374,7 +8266,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS.has(inspiration.feature?.feature_id ?? '')
             )) {
                 console.debug('[ActiveChat] Guest clicked authenticated-only feature inspiration – opening signup interface');
-                currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+                currentSignupStep.set(STEP_BASICS);
                 isInSignupProcess.set(true);
                 loginInterfaceOpen.set(true);
                 if ($panelState.isActivityHistoryOpen) {
@@ -8398,12 +8290,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
-        // Unauthenticated users: open the signup screen (alpha disclaimer step) so they
+        // Unauthenticated users: open the signup screen (basics step) so they
         // can register and then start using inspirations.
         // Same pattern as handleOpenSignupInterface (message-input signup button).
         if (!$authStore.isAuthenticated) {
             console.debug('[ActiveChat] Guest clicked inspiration banner – opening signup interface');
-            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            currentSignupStep.set(STEP_BASICS);
             isInSignupProcess.set(true);
             loginInterfaceOpen.set(true);
             if ($panelState.isActivityHistoryOpen) {
@@ -9595,9 +9487,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
                 // Refresh same-ID edits/status changes as well as membership. A full
                 // latest window is authoritative; a partial page retains older rows.
-                const reconciledMessages = RUST_CHAT_TRANSITIONS
-                    ? await (await import('../services/rustCore/chatState/rustTransitions')).rustReconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore)
-                    : reconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore);
+                const reconciledMessages = await (await import('../services/rustCore/chatState/rustTransitions')).rustReconcileRecentChatMessages(currentMessages, freshMessages, freshHasMoreBefore);
                 if (JSON.stringify(currentMessages) !== JSON.stringify(reconciledMessages)) {
                     console.info(`[ActiveChat] handleChatUpdated: Message set changed after IndexedDB reload (${currentMessages.length} → ${freshMessages.length}). Updating display.`);
                     currentMessages = reconciledMessages;
@@ -10004,13 +9894,24 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (!windowStartMessage?.created_at || !windowStartMessage.message_id) return;
             const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
             let windowRevision = getRecentChatRevision(openedChatId);
-            let olderWindow = await chatDB.getMessageWindowForChat(openedChatId, {
+            // Rust-owned chats page older through the Rust core, chained from the opaque cursor of
+            // the displayed Rust window. TS (IndexedDB, then the TS server fetch) stays ONLY when
+            // Rust refuses the chat (RustHistoryRefusal: team_chat, shared_chat, unsynced_chat,
+            // local_fixture_chat), no Rust source is installed, or no matching Rust cursor is known.
+            const rustStartCursor = rustWindowStartCursor?.messageId === windowStartMessage.message_id
+                && rustWindowStartCursor.createdAt === windowStartMessage.created_at ? rustWindowStartCursor : null;
+            const rustOlderWindow = import.meta.env.VITE_OPENMATES_RUST_CORE !== '1' || !rustStartCursor ? null
+                : await readRustChatHistoryPage(currentChat, { activeTeamId: get(activeTeamId),
+                    selector: { direction: 'before', cursor: rustStartCursor, limit: RUST_OLDER_PAGE_LIMIT,
+                        respectCompressionBoundary: !!latestCheckpoint } });
+            if (rustOlderWindow?.startCursorRef !== undefined && currentChat?.chat_id === openedChatId) rustWindowStartCursor = rustOlderWindow.startCursorRef;
+            let olderWindow = rustOlderWindow ?? await chatDB.getMessageWindowForChat(openedChatId, {
                 direction: 'before',
                 beforeTimestamp: windowStartMessage.created_at,
                 beforeMessageId: windowStartMessage.message_id,
                 compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
             });
-            if (olderWindow.messages.length === 0) {
+            if (!rustOlderWindow && olderWindow.messages.length === 0) {
                 olderWindow = await fetchAuthenticatedMessageWindow(openedChatId, {
                     direction: 'before',
                     beforeTimestamp: windowStartMessage.created_at,
@@ -10029,13 +9930,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 ...olderWindow.messages.filter((message) => !existingIds.has(message.message_id)),
                 ...currentMessages,
             ];
-            if (RUST_CHAT_TRANSITIONS) {
-                const prunedRows = await pruneCurrentDecryptedMessageWindowRust(olderWindowRows);
-                if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch() || windowRevision !== getRecentChatRevision(openedChatId)) return;
-                currentMessages = prunedRows;
-            } else {
-                currentMessages = pruneCurrentDecryptedMessageWindow(olderWindowRows);
-            }
+            const prunedRows = await pruneCurrentDecryptedMessageWindowRust(olderWindowRows);
+            if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch() || windowRevision !== getRecentChatRevision(openedChatId)) return;
+            currentMessages = prunedRows;
             currentMessageWindowHasMoreBefore = olderWindow.hasMoreBefore;
             chatHistoryRef?.updateMessages(currentMessages);
             cacheDisplayedChatWindow(openedChatId, openedEpoch, windowRevision);
@@ -10905,6 +10802,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         .catch((rustError: unknown) => { rustOwnedHistory = true; messageLoadFailed = true; throw rustError; });
                     rustOwnedHistory ||= !!rustRead;
                     const rustWindow = rustRead?.window ?? null;
+                    rustWindowStartCursor = rustWindow?.startCursorRef ?? null;
                     // A Rust cache-first page reconciles exactly like the TS IndexedDB window,
                     // with the Rust server read as the background repair.
                     const rustReconcile = rustRead?.reconcile ?? null;
@@ -11068,8 +10966,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     left.created_at - right.created_at || left.message_id.localeCompare(right.message_id),
                 );
                 currentMessageWindowHasMoreBefore = repairedWindow.hasMoreBefore;
-                const prunedMergedMessages = RUST_CHAT_TRANSITIONS ? await pruneCurrentDecryptedMessageWindowRust(mergedMessages) : pruneCurrentDecryptedMessageWindow(mergedMessages);
-                if (RUST_CHAT_TRANSITIONS && (!isCurrentLoadTarget() || currentChat?.chat_id !== repairChatId)) return;
+                // A Rust reconcile page carries the opaque cursor of its first row; the merged window starts there.
+                if (repairedWindow.startCursorRef) rustWindowStartCursor = repairedWindow.startCursorRef;
+                const prunedMergedMessages = await pruneCurrentDecryptedMessageWindowRust(mergedMessages);
+                if ((!isCurrentLoadTarget() || currentChat?.chat_id !== repairChatId)) return;
                 currentMessages = prunedMergedMessages;
                 chatLoadState = 'ready';
                 chatHistoryRef?.updateMessages(currentMessages);
@@ -11254,9 +11154,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
-        // Flag on: prune with the chatState unit before the revision guard so nothing awaits between the guard and the commit.
+        // Prune with the chatState unit before the revision guard so nothing awaits between the guard and the commit.
         let rustPrunedNewMessages: ChatMessageModel[] | null = null;
-        if (RUST_CHAT_TRANSITIONS && currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous) {
+        if (currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous) {
             rustPrunedNewMessages = await pruneCurrentDecryptedMessageWindowRust(newMessages);
         }
         if (thisLoadRevision !== getRecentChatRevision(chat.chat_id)) {
@@ -11271,11 +11171,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
-        currentMessages = RUST_CHAT_TRANSITIONS
-            ? (rustPrunedNewMessages ?? newMessages)
-            : currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous
-            ? pruneCurrentDecryptedMessageWindow(newMessages)
-            : newMessages;
+        currentMessages = rustPrunedNewMessages ?? newMessages;
         // Commit the canonical window to ChatHistory before the follow-up
         // metadata awaits below. Its same-chat prop effect deliberately keeps
         // an already rendered document until updateMessages is called.
@@ -12151,9 +12047,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
         // Listen for event to open signup interface from message input button
         const handleOpenSignupInterface = () => {
-            console.debug("[ActiveChat] Opening signup interface (alpha disclaimer) from message input button");
-            // Set signup state directly to alpha disclaimer
-            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            console.debug("[ActiveChat] Opening signup interface from message input button");
+            // Set signup state directly to the first signup step
+            currentSignupStep.set(STEP_BASICS);
             isInSignupProcess.set(true);
             loginInterfaceOpen.set(true);
             
@@ -12237,6 +12133,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             activeChatStore.clearActiveChat();
         };
         
+        // A slide template's "Use this design" asks to send a message into this chat.
+        const handleSendChatMessageEvent = (event: Event) => {
+            const detail = (event as CustomEvent<{ message?: string; testMockMarker?: string }>).detail;
+            if (detail?.message) void handleFollowUpSuggestionClick(detail.message, detail.testMockMarker);
+        };
+        window.addEventListener(SEND_CHAT_MESSAGE_EVENT, handleSendChatMessageEvent);
         window.addEventListener('openLoginInterface', handleOpenLoginInterface);
         window.addEventListener('openSignupInterface', handleOpenSignupInterface);
         
@@ -13448,9 +13350,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     direction: 'latest',
                     compressedUpToTimestamp: latestCheckpoint?.compressed_up_to_timestamp,
                 });
-                const preserveExpanded = RUST_CHAT_TRANSITIONS
-                    ? await (await import('../services/rustCore/chatState/rustTransitions')).rustPreserveExpandedWindow(currentMessages, messageWindow.messages)
-                    : shouldPreserveExpandedMessageWindow(currentMessages, messageWindow.messages);
+                const preserveExpanded = await (await import('../services/rustCore/chatState/rustTransitions')).rustPreserveExpandedWindow(currentMessages, messageWindow.messages);
                 currentMessages = preserveExpanded
                     ? currentMessages
                     : messageWindow.messages;
@@ -13983,6 +13883,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             window.removeEventListener('language-changed', handleLanguageChange);
             window.removeEventListener('language-changed-complete', handleLanguageChange);
             // Remove login interface event listeners
+            window.removeEventListener(SEND_CHAT_MESSAGE_EVENT, handleSendChatMessageEvent);
             window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListenerCallback);
             window.removeEventListener('openSignupInterface', handleOpenSignupInterface as EventListenerCallback);
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListenerCallback);
@@ -14072,9 +13973,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     bind:this={activeChatContainerEl}
 >
     {#if !showChat}
-        <!-- Signup status bar - only show during signup process, not on basics or alpha disclaimer steps -->
+        <!-- Signup status bar - only show during signup process, not on the basics step -->
         <!-- Moved to be a child of active-chat-container for better positioning with gradient -->
-        {#if $isInSignupProcess && $currentSignupStep !== STEP_BASICS && $currentSignupStep !== STEP_ALPHA_DISCLAIMER}
+        {#if $isInSignupProcess && $currentSignupStep !== STEP_BASICS}
             <div class="status-wrapper" transition:fade={fadeParams}>
                 <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} isSelfHosted={isSelfHosted} />
             </div>

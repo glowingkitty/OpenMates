@@ -44,8 +44,8 @@ async def test_native_boundary_requires_later_voiced_input_to_resume(isolated):
         return base64.b64encode(b"\x00\x01" * (size // 2)).decode()
 
     await fixture.send_audio(voiced(3200))
-    first = [await fixture.receive() for _ in range(3)]
-    assert [event["type"] for event in first] == ["turn.start", "transcription.text.delta", "turn.end"]
+    first = [await fixture.receive() for _ in range(4)]
+    assert [event["type"] for event in first] == ["turn.start", "transcription.text.delta", "turn.eager_end", "turn.end"]
     assert first[1]["text"] == "How do I make"
     # Even a long silent microphone interval cannot fabricate the continuation.
     await fixture.send_audio(base64.b64encode(bytes(320_000)).decode())
@@ -53,8 +53,8 @@ async def test_native_boundary_requires_later_voiced_input_to_resume(isolated):
     await fixture.send_audio(voiced(28_798))
     assert fixture._events.empty()
     await fixture.send_audio(voiced(2))
-    second = [await fixture.receive() for _ in range(3)]
-    assert [event["type"] for event in second] == ["turn.start", "transcription.text.delta", "turn.end"]
+    second = [await fixture.receive() for _ in range(4)]
+    assert [event["type"] for event in second] == ["turn.start", "transcription.text.delta", "turn.eager_end", "turn.end"]
     assert second[1]["text"] == "ramen?"
     await fixture.send_audio(voiced(32000))
     assert fixture._events.empty()
@@ -64,8 +64,8 @@ async def test_native_boundary_requires_later_voiced_input_to_resume(isolated):
 async def test_large_startup_batch_still_requires_a_later_voiced_chunk(isolated):
     fixture = IsolatedVoxtralVoiceFixture()
     await fixture.send_audio(base64.b64encode(b"\x00\x01" * 16000).decode())
-    assert [await fixture.receive() for _ in range(3)][1]["text"] == "How do I make"
+    assert [await fixture.receive() for _ in range(4)][1]["text"] == "How do I make"
     await fixture.send_audio(base64.b64encode(bytes(3200)).decode())
     assert fixture._events.empty()
     await fixture.send_audio(base64.b64encode(b"\x00\x01").decode())
-    assert [await fixture.receive() for _ in range(3)][1]["text"] == "ramen?"
+    assert [await fixture.receive() for _ in range(4)][1]["text"] == "ramen?"

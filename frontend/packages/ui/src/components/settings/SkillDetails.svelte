@@ -94,6 +94,33 @@
      *
      * Only used when hasModels is false.
      */
+    /** The model a skill's token price follows (`pricing.tokens_model`), from the bound model catalog. */
+    function tokensModel(pricing: SkillPricing | undefined): AIModelMetadata | undefined {
+        const ref = pricing?.tokens_model;
+        return ref ? modelsMetadata.find(m => `${m.provider_id}/${m.id}` === ref) : undefined;
+    }
+
+    /**
+     * Input/output tokens per credit charged now: the referenced model's current rates (a temporary
+     * launch price included), else the skill's own catalog rates.
+     */
+    function currentTokenRates(pricing: SkillPricing): { input?: number; output?: number } {
+        const model = tokensModel(pricing);
+        return {
+            input: model?.pricing?.input_tokens_per_credit ?? pricing.tokens?.input?.per_credit_unit,
+            output: model?.pricing?.output_tokens_per_credit ?? pricing.tokens?.output?.per_credit_unit,
+        };
+    }
+
+    /** Note shown while the referenced model's temporary price applies to this skill's tokens. */
+    let temporaryTokenPriceNote = $derived.by(() => {
+        const active = tokensModel(skill?.pricing)?.active_temporary_price;
+        if (!active) return '';
+        return active.expires_on
+            ? `${$text('settings.ai_ask.ai_ask_model_details.promotion_until')} ${active.expires_on} (UTC).`
+            : $text('settings.ai_ask.ai_ask_model_details.promotion_no_end');
+    });
+
     function formatPricing(pricing: SkillPricing | undefined, cachePricing?: SkillMetadata['cache_pricing']): string | string[] {
         // Never show "Free" - if no pricing provided, default to 1 credit per request
         // This should not happen in practice since metadata generation always sets pricing
@@ -105,11 +132,16 @@
         // per_credit_unit means "tokens per credit" (e.g., 700 means 700 tokens per 1 credit)
         if (pricing.tokens) {
             const tokenParts: string[] = [];
-            if (pricing.tokens.input) {
+            // A per-unit price charged next to the tokens (e.g. "10 credits / web search") comes first.
+            if (pricing.per_unit) {
+                tokenParts.push(`${pricing.per_unit.credits} ${$text('common.credits')} / ${pricing.per_unit.unit_name || 'request'}`);
+            }
+            const rates = currentTokenRates(pricing);
+            if (rates.input) {
                 tokenParts.push(
                     $text('settings.app_store.skills.pricing.tokens_per_credit')
                         .replace('{credits}', '1')
-                        .replace('{tokens}', formatTokensPerCredit(pricing.tokens.input.per_credit_unit))
+                        .replace('{tokens}', formatTokensPerCredit(rates.input))
                         .replace('{direction}', $text('settings.app_store.skills.pricing.input'))
                 );
             }
@@ -130,11 +162,11 @@
                     }
                 }
             }
-            if (pricing.tokens.output) {
+            if (rates.output) {
                 tokenParts.push(
                     $text('settings.app_store.skills.pricing.tokens_per_credit')
                         .replace('{credits}', '1')
-                        .replace('{tokens}', formatTokensPerCredit(pricing.tokens.output.per_credit_unit))
+                        .replace('{tokens}', formatTokensPerCredit(rates.output))
                         .replace('{direction}', $text('settings.app_store.skills.pricing.output'))
                 );
             }
@@ -431,6 +463,11 @@
                             {$text('settings.app_store.skills.pricing.token_usage_note')}
                         </SettingsInfoBox>
                     {/if}
+                    {#if temporaryTokenPriceNote}
+                        <SettingsInfoBox type="info">
+                            <span data-testid="skill-temporary-price-note">{temporaryTokenPriceNote}</span>
+                        </SettingsInfoBox>
+                    {/if}
                     {#if pricingNote}
                         <SettingsInfoBox type="info">
                             <span data-testid="skill-pricing-note">{pricingNote}</span>
@@ -549,6 +586,11 @@
                     {#if skill?.pricing?.tokens}
                         <SettingsInfoBox type="info">
                             {$text('settings.app_store.skills.pricing.token_usage_note')}
+                        </SettingsInfoBox>
+                    {/if}
+                    {#if temporaryTokenPriceNote}
+                        <SettingsInfoBox type="info">
+                            <span data-testid="skill-temporary-price-note">{temporaryTokenPriceNote}</span>
                         </SettingsInfoBox>
                     {/if}
                     {#if pricingNote}
@@ -806,6 +848,8 @@
     }
     
     .how-to-use-scroll-container {
+        /* The card row scrolls inside the panel; it never widens the panel itself. */
+        contain: inline-size;
         overflow-x: auto;
         overflow-y: hidden;
         padding-bottom: 0.5rem;

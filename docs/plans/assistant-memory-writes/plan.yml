@@ -417,8 +417,12 @@ implementation_state:
   subject_commit: 770d4acf0b519b4bb2f0a41344c88be93fb516c8
 approvals:
   specification:
-    status: pending
-    reason: Amends approved feature.app-memories; the draft change is presented for approval after deployment.
+    status: approved
+    approved_at: '2026-11-13'
+    reason: The user approved the feature.app-memories v5 amendment (assistant-written personal Memories with Undo, Memories
+      anonymized on send, no same-turn repeat in recommendations); fingerprint b557cb8693c2bfb0. Dev had meanwhile published a
+      draft v5 with the press-release work's Project Memory load-mode changes, so the amendment ships as v6 on top of it and
+      the Specification stays draft until the combined v6 is approved.
   plan:
     status: approved
     approved_at: '2026-11-10'

@@ -1,0 +1,11 @@
+# Alerts when no production backup succeeded for 26 hours.
+[Unit]
+Description=OpenMates production backup staleness watchdog
+
+[Service]
+Type=oneshot
+User=superdev
+Group=superdev
+EnvironmentFile=/home/superdev/.config/openmates-backup/backup.env
+ExecStart=/home/superdev/openmates-backup/openmates-prod-backup-watchdog.sh
+TimeoutStartSec=2min

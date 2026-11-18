@@ -1,0 +1,4020 @@
+schema_version: 1
+cadence: daily
+date: '2026-11-17'
+generated_at: '2026-11-18T00:20:46+00:00'
+range:
+  since: '2026-11-17T00:00:00+00:00'
+  until: '2026-11-18T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 45
+  section_counts:
+    features: 13
+    bug_fixes: 29
+    improvements: 0
+    docs: 1
+    tests: 2
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 24
+  dev_only_items: 45
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: focus:code:write_specification
+    kind: platform
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: admin_config
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:events:search
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:events
+    source: backend/apps/events/app.yml
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  - id: skill:travel:get_flight
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:travel
+    source: backend/apps/travel/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat(meeting): marketing-time build gate rule for assistants, meta-work limit and timer note'
+    section: features
+    commits:
+    - a7f8dc1ef4
+    authored_at: '2026-11-17T15:18:12+00:00'
+    changed_paths:
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    - scripts/tests/test_decision_log.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(safety): wellbeing support with helpline card, answer withdrawal replacement, harmful-purpose strikes and
+      suspension/appeal screens'
+    section: features
+    commits:
+    - c2236dc810
+    authored_at: '2026-11-17T15:10:42+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HelplineCardView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ChatCardStrings.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/answer_safety.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/queued_steering.py
+    - backend/apps/ai/processing/request_purpose_policy.py
+    - backend/apps/ai/processing/wellbeing_level.py
+    - backend/apps/ai/processing/wellbeing_questions.py
+    - backend/apps/ai/processing/wellbeing_support.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/replace_withdrawn_message_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/web_browse_run.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-sync/src/operations.js
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/setup/migrate_chat_sync_feed.sql
+    - backend/scripts/decision_bench/wellbeing.py
+    - backend/shared/providers/browser_run_guard.py
+    - backend/shared/providers/throughline/__init__.py
+    - backend/shared/providers/throughline/client.py
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/shared/python_utils/chat_failure_notifications.py
+    - backend/tests/fixtures/chat_sync_feed_schema.sql
+    - backend/tests/test_answer_safety.py
+    - backend/tests/test_chat_metadata_permissions.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - backend/tests/test_live_site_guard.py
+    - backend/tests/test_native_chats_api.py
+    - backend/tests/test_request_purpose_strikes.py
+    - backend/tests/test_wellbeing_level.py
+    - backend/tests/test_wellbeing_pipeline.py
+    - config/sdk-capabilities.json
+    - docs/migration/rust/shared-client.yml
+    - docs/plans/safety-decisions-build/wellbeing-contract.md
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/tests/components/helpline-card.spec.ts
+    - frontend/apps/web_app/tests/components/safety-appeal.spec.ts
+    - frontend/apps/web_app/tests/safety-suspension-real.spec.ts
+    - frontend/apps/web_app/tests/wellbeing-helpline-real.spec.ts
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/embeds/wellbeing/HelplineCard.preview.ts
+    - frontend/packages/ui/src/components/embeds/wellbeing/HelplineCard.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/HelplinesRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/index.ts
+    - frontend/packages/ui/src/components/safety/AccountSuspended.preview.ts
+    - frontend/packages/ui/src/components/safety/AccountSuspended.svelte
+    - frontend/packages/ui/src/components/safety/SafetyAppealForm.preview.ts
+    - frontend/packages/ui/src/components/safety/SafetyAppealForm.svelte
+    - frontend/packages/ui/src/components/settings/SettingsServer.svelte
+    - frontend/packages/ui/src/components/settings/account/SettingsProfilePicture.svelte
+    - frontend/packages/ui/src/components/settings/server/SettingsSafetyReviews.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/components/signup/steps/profilepicture/ProfilePictureBottomContent.svelte
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/safety_appeal.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/rustCore/browserMetadataCacheIO.ts
+    - frontend/packages/ui/src/services/rustCore/ownedLocalReadProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/sync/rustChatSyncPolicy.ts
+    - frontend/packages/ui/src/services/safetyAppealApi.ts
+    - frontend/packages/ui/src/stores/accountSuspension.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authTypes.ts
+    - frontend/packages/ui/src/types/helplines.ts
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/answer_withdrawal.rs
+    - packages/openmates-rust/src/client/browser_cache_header.rs
+    - packages/openmates-rust/src/client/browser_cache_metadata.rs
+    - packages/openmates-rust/src/client/browser_metadata_bootstrap_policy.rs
+    - packages/openmates-rust/src/client/focus.rs
+    - packages/openmates-rust/src/client/frame_ingest.rs
+    - packages/openmates-rust/src/client/message_actions.rs
+    - packages/openmates-rust/src/client/message_actions_tests.rs
+    - packages/openmates-rust/src/client/send_turn_runtime.rs
+    - packages/openmates-rust/src/client/send_turn_stages.rs
+    - packages/openmates-rust/src/client/wellbeing.rs
+    - packages/openmates-rust/src/client/wellbeing_tests.rs
+    - packages/openmates-rust/src/view_model/socket_frames.rs
+    - packages/openmates-rust/src/web_sync/merge.rs
+    - packages/openmates-rust/src/web_sync/phased.rs
+    - packages/openmates-rust/src/web_sync/ts_vectors.json
+    - packages/openmates-rust/tests/fixtures/browser-metadata-only-header.json
+    - scripts/ci_coverage_manifest.json
+    - scripts/safety_suspension_web_real_test.py
+    - scripts/wellbeing_helpline_web_real_test.py
+    - shared/config/embed_types.yml
+    - specifications/features.yml
+    - specifications/features/answer-safety-check/examples.yml
+    - specifications/features/answer-safety-check/specification.yml
+    - specifications/features/safety-strikes/examples.yml
+    - specifications/features/safety-strikes/specification.yml
+    - specifications/features/wellbeing-support/examples.yml
+    - specifications/features/wellbeing-support/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:ios, platform:macos, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(meeting): daily limits (3 chats, 3 reminders), LATER archive with resume, DROP decision log with re-check'
+    section: features
+    commits:
+    - d802990d24
+    authored_at: '2026-11-17T14:59:39+00:00'
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_apply.py
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_triage.py
+    - scripts/decision_log.py
+    - scripts/tests/test_decision_log.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(meeting): Marketing and business development block (win counter, 3 proposals, daily ideas, style feedback
+      loop), idea inbox, feature priority rule'
+    section: features
+    commits:
+    - 0114108512
+    authored_at: '2026-11-17T14:51:32+00:00'
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_marketing.py
+    - scripts/daily_meeting_triage.py
+    - scripts/tests/test_daily_meeting_freshness.py
+    - scripts/tests/test_daily_meeting_goals.py
+    - scripts/tests/test_daily_meeting_growth.py
+    - scripts/tests/test_daily_meeting_marketing.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(meeting): NOW/LATER/DROP triage of every briefing item, Side notes at the end, priorities read from FOCUS.md'
+    section: features
+    commits:
+    - f55a6f83b0
+    authored_at: '2026-11-17T14:37:40+00:00'
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_paused.py
+    - scripts/daily_meeting_triage.py
+    - scripts/daily_meeting_waiting.py
+    - scripts/tests/test_daily_meeting_waiting.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(meeting): briefing lists every waiting chat, a Paused chats section, one outcome per chat and a 7-day no-decision
+      check'
+    section: features
+    commits:
+    - 17c7cb9035
+    authored_at: '2026-11-17T13:34:46+00:00'
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_paused.py
+    - scripts/daily_meeting_waiting.py
+    - scripts/tests/test_daily_meeting_waiting.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(ai): Gemini Decision 1 answers the relevance judges first, with Jev as automatic fallback, chosen by a per-task
+      benchmark'
+    section: features
+    commits:
+    - cc436131d6
+    authored_at: '2026-11-17T12:28:41+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/utils/internal_decisions.py
+    - backend/providers/google.yml
+    - backend/scripts/benchmark_gemini_decision_jev.py
+    - backend/scripts/decision_bench/__init__.py
+    - backend/scripts/decision_bench/app_focus_routing.py
+    - backend/scripts/decision_bench/browse_control.py
+    - backend/scripts/decision_bench/image_safety_images.py
+    - backend/scripts/decision_bench/image_safety_prompts.py
+    - backend/scripts/decision_bench/postprocess_judge.py
+    - backend/scripts/decision_bench/preprocess_routing.py
+    - backend/scripts/decision_bench/prompt_injection.py
+    - backend/scripts/decision_bench/relevance_judges.py
+    - backend/scripts/decision_bench/voice_turn.py
+    - backend/shared/providers/google/decisions.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/providers/typesafe/routing.py
+    - backend/tests/test_gemini_decision_routing.py
+    - docs/architecture/ai/ai-model-selection.md
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(host): hourly per-category disk budgets enforced oldest first, from 75% at 80% of each cap (TASK-7646 steps
+      4-5)'
+    section: features
+    commits:
+    - d58b444d32
+    authored_at: '2026-11-17T11:17:26+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/disk_coordinator_state.py
+    - scripts/docker-cleanup.sh
+    - scripts/host-disk-root-setup.sh
+    - scripts/host_disk_budgets.py
+    - scripts/host_disk_cleanup.py
+    - scripts/host_disk_root.py
+    - scripts/host_disk_usage.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_host_disk_budgets.py
+    - scripts/tests/test_host_disk_root.py
+    - scripts/tests/test_host_disk_usage.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(host): hourly disk size log per category and disk alerts at 75% and 85% naming the largest growers (TASK-7646
+      step 2)'
+    section: features
+    commits:
+    - 44b839e34c
+    authored_at: '2026-11-17T10:59:08+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/host-disk-usage-setup.sh
+    - scripts/host_disk_root.py
+    - scripts/host_disk_usage.py
+    - scripts/host_resources.py
+    - scripts/tests/test_host_disk_usage.py
+    - scripts/tests/test_host_resources.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(host): weekly root cleanup removes orphaned Docker layers, oversized container logs and old journal (TASK-7646
+      step 1)'
+    section: features
+    commits:
+    - 04a18dac67
+    authored_at: '2026-11-17T10:49:51+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/host-disk-root-setup.sh
+    - scripts/host_disk_root.py
+    - scripts/tests/test_host_disk_root.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(voice): voice turns built by the Rust core; reply versions and row times match the server'
+    section: features
+    commits:
+    - 01ac4eee8e
+    authored_at: '2026-11-17T03:37:59+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/call_message_completed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py
+    - backend/tests/test_call_cleanup_admission.py
+    - backend/tests/test_call_message_completed_handler.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - config/sdk-capabilities.json
+    - docs/migration/rust/capabilities.yml
+    - docs/migration/rust/overview.yml
+    - docs/migration/rust/shared-client.yml
+    - docs/migration/rust/web-app-curated.yml
+    - docs/migration/rust/web-app.yml
+    - frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallEarlyTurns.test.ts
+    - frontend/packages/ui/src/services/rustCore/host/sharedWorkerProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/socketFrameForwarder.ts
+    - frontend/packages/ui/src/services/rustCore/voice/__tests__/voiceTurnDelivery.test.ts
+    - frontend/packages/ui/src/services/rustCore/voice/__tests__/voiceTurnUnit.test.ts
+    - frontend/packages/ui/src/services/rustCore/voice/voiceTurnClient.ts
+    - frontend/packages/ui/src/services/rustCore/voice/voiceTurnDelivery.ts
+    - frontend/packages/ui/src/services/rustCore/voice/voiceTurnProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/voice/voiceTurnUnit.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallEarlyTurns.ts
+    - frontend/packages/ui/src/services/voiceCallTurns.ts
+    - packages/openmates-browser-bindings/src/browser.rs
+    - packages/openmates-browser-bindings/src/browser_voice_turn.rs
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/frame_ingest.rs
+    - packages/openmates-rust/src/client/frame_ingest_tests.rs
+    - packages/openmates-rust/src/client/send.rs
+    - packages/openmates-rust/src/client/send_prepared_turn.rs
+    - packages/openmates-rust/src/client/send_turn_stages.rs
+    - packages/openmates-rust/src/client/voice_turn.rs
+    - packages/openmates-rust/src/client/voice_turn_public.rs
+    - packages/openmates-rust/src/client/voice_turn_tests.rs
+    - specifications/features.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(focus): layered focus modes over the Project focus; collision precedence, detection and note (focus-modes
+      v3 draft)'
+    section: features
+    commits:
+    - 53e9829d12
+    authored_at: '2026-11-17T03:08:13+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_layering.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/code/focus_modes/write-specification/SKILL.md
+    - backend/core/api/app/services/project_authoring_service.py
+    - backend/shared/python_utils/focus_mode_skill_loader.py
+    - backend/tests/test_focus_layering.py
+    - backend/tests/test_focus_mode_routing.py
+    - backend/tests/test_project_authoring.py
+    - backend/tests/test_project_focus_authoring_collisions.py
+    - frontend/apps/web_app/tests/components/agent-context-message.spec.ts
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - frontend/packages/ui/src/components/AgentContextMessage.preview.ts
+    - frontend/packages/ui/src/components/AgentContextMessage.svelte
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/rules.yml
+    - frontend/packages/ui/src/services/projectAuthoringClientService.ts
+    - frontend/packages/ui/src/utils/agentContextEvents.ts
+    - scripts/project_layered_focus_web_real_test.py
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/focus-modes/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:code, platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(code-run): cloud Project commands run in a per-Project E2B workspace; command-changed files sync back as
+      diffs'
+    section: features
+    commits:
+    - 3b2bfc8aa5
+    authored_at: '2026-11-17T02:47:14+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/orchestration_skill_gate.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/apps/ai/processing/project_test_snapshot.py
+    - backend/apps/code/app.yml
+    - backend/apps/code/cloud_command.py
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/cloud_command_execution.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_file_operation_handlers.py
+    - backend/core/api/app/services/project_file_operation_service.py
+    - backend/shared/providers/e2b_project_workspace.py
+    - backend/tests/test_cloud_project_commands.py
+    - backend/tests/test_orchestration_skill_gate.py
+    - config/sdk-capabilities.json
+    - docs/migration/rust/sdk.yml
+    - docs/plans/cloud-project-commands/plan.yml
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/client/project_file_job_frames.rs
+    - packages/openmates-rust/src/generated/metadata.json
+    - packages/openmates-rust/src/work/projects/hosted.rs
+    - packages/openmates-rust/src/work/projects/hosted/api.rs
+    - packages/openmates-rust/src/work/projects/hosted/apply_changes.rs
+    - packages/openmates-rust/src/work/projects/hosted/apply_changes_tests.rs
+    - packages/openmates-rust/src/work/projects/hosted/job.rs
+    - specifications/features/app-skills/code-run/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:code, embed:code:run, skill:code:run'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix(safety): safety strikes suspend accounts instead of deleting them; upload images follow the agreed lines'
+    section: bug_fixes
+    commits:
+    - 355ed3882e
+    authored_at: '2026-11-17T13:58:05+00:00'
+    changed_paths:
+    - backend/apps/images/tasks/generate_task.py
+    - backend/core/api/app/routes/admin_safety_reviews.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_ws.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/internal_upload_safety.py
+    - backend/core/api/app/routes/safety_appeals.py
+    - backend/core/api/app/schemas/auth.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/email_sender_profiles.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/safety_account_restored_email_task.py
+    - backend/core/api/app/tasks/email_tasks/safety_review_email_task.py
+    - backend/core/api/app/tasks/safety_review_tasks.py
+    - backend/core/api/main.py
+    - backend/core/api/templates/email/safety-account-restored.mjml
+    - backend/core/api/templates/email/safety-account-suspended.mjml
+    - backend/core/api/templates/email/safety-more-information.mjml
+    - backend/core/directus/schemas/safety_appeals.yml
+    - backend/core/directus/schemas/users.yml
+    - backend/shared/python_utils/image_safety/account_suspension.py
+    - backend/shared/python_utils/image_safety/safety_review.py
+    - backend/shared/python_utils/image_safety/strike_counter.py
+    - backend/shared/python_utils/image_safety/strike_policy.py
+    - backend/shared/python_utils/live_email_policy.py
+    - backend/tests/test_safety_appeals.py
+    - backend/tests/test_safety_strikes.py
+    - backend/tests/test_sightengine_service.py
+    - backend/tests/test_upload_safety_policy.py
+    - backend/upload/routes/upload_route.py
+    - backend/upload/services/jev_second_opinion.py
+    - backend/upload/services/sightengine_service.py
+    - backend/upload/services/upload_safety_policy.py
+    - docs/plans/safety-architecture-proposal/report.md
+    - docs/plans/safety-decisions-build/plan.yml
+    - docs/plans/safety-decisions-build/wellbeing-contract.md
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/answer_safety.yml
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/helplines.yml
+    - frontend/packages/ui/src/i18n/sources/request_purpose.yml
+    - frontend/packages/ui/src/i18n/sources/safety_appeal.yml
+    - frontend/packages/ui/src/i18n/sources/safety_strikes.yml
+    - specifications/features/safety-strikes/examples.yml
+    - specifications/features/safety-strikes/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:images'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): sub-chat parent and async-skill continuations keep the parent turn''s legacy admission, so the parent
+      answers after its sub-chats (TASK-2749)'
+    section: bug_fixes
+    commits:
+    - 575cce0203
+    authored_at: '2026-11-17T12:34:22+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): an anonymous user''s sign-up limit logs at WARNING, not ERROR, so the prod chat-failure check stops reporting
+      it'
+    section: bug_fixes
+    commits:
+    - c2d0aabe51
+    authored_at: '2026-11-17T11:30:05+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(life_coaching): Life compass reuses the user''s own words instead of widening them into new interests'
+    section: bug_fixes
+    commits:
+    - 3e034fc62c
+    authored_at: '2026-11-17T11:24:22+00:00'
+    changed_paths:
+    - backend/apps/life_coaching/focus_modes/life-compass/SKILL.md
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/focus_modes/life_coaching_life_compass.yml
+    - scripts/life_compass_persona_real_test.py
+    - scripts/life_compass_personas.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:life_coaching'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(host): one 10 GiB disk floor without percent ceiling, and reservations sized from measured use (TASK-7646
+      step 3)'
+    section: bug_fixes
+    commits:
+    - ccdd3204a8
+    authored_at: '2026-11-17T11:03:38+00:00'
+    changed_paths:
+    - scripts/ci_results.py
+    - scripts/ci_source.py
+    - scripts/disk_coordinator_state.py
+    - scripts/resource_budget.py
+    - scripts/sessions.py
+    - scripts/tests/test_disk_admission_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(client-core): a read that meets a brief 503 waits and is sent again instead of failing the turn'
+    section: bug_fixes
+    commits:
+    - a5cd4aff31
+    authored_at: '2026-11-17T10:18:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - packages/openmates-rust/src/client/rate_limited_read.rs
+    - packages/openmates-rust/src/client/rate_limited_read_tests.rs
+    - packages/openmates-rust/src/client/transport.rs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(code): a failed test run shows the assistant why it failed even after long install output'
+    section: bug_fixes
+    commits:
+    - 39d34a4b69
+    authored_at: '2026-11-17T09:15:44+00:00'
+    changed_paths:
+    - backend/shared/providers/e2b_test_runner.py
+    - backend/tests/test_code_test_run.py
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web-browse): a wallet below the session cap holds what it can instead of refusing Browse'
+    section: bug_fixes
+    commits:
+    - 9df937401a
+    authored_at: '2026-11-17T08:41:27+00:00'
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/tests/test_web_browse_service.py
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web): a reply whose render plan was in flight during a chat view reset renders instead of staying empty'
+    section: bug_fixes
+    commits:
+    - 5bd4fd0e1c
+    authored_at: '2026-11-17T08:22:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/renderPlanBranchAsync.test.ts
+    - frontend/packages/ui/src/services/rustCore/parse/renderPlanBranch.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web-browse): a follow-up Browse call without a session or address continues the chat''s live browser'
+    section: bug_fixes
+    commits:
+    - c4f7cdfe1a
+    authored_at: '2026-11-17T07:59:49+00:00'
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/tests/test_web_browse_service.py
+    - frontend/apps/web_app/tests/web-browse-form-real.spec.ts
+    - specifications/features/app-skills/web-browse/examples.yml
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(client-core): a rate-limited read waits and is sent again instead of failing the turn offline'
+    section: bug_fixes
+    commits:
+    - f8cc6e2bbf
+    authored_at: '2026-11-17T07:20:23+00:00'
+    changed_paths:
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/rate_limited_read.rs
+    - packages/openmates-rust/src/client/rate_limited_read_tests.rs
+    - packages/openmates-rust/src/client/transport.rs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web-browse): Browse stays offered for a whole form; the real form proof covers fields the user types and fields
+      left empty'
+    section: bug_fixes
+    commits:
+    - e3e85a6b24
+    authored_at: '2026-11-17T07:05:38+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/browse_routing.py
+    - backend/tests/test_web_browse_form_with_user.py
+    - frontend/apps/web_app/tests/web-browse-form-real.spec.ts
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(recovery): an acknowledged app card advances to its sealed fuller manifest, so a CLI turn no longer fails
+      replaying it'
+    section: bug_fixes
+    commits:
+    - d9350393db
+    authored_at: '2026-11-17T06:29:00+00:00'
+    changed_paths:
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web-browse): form turns continue the session without naming a cap'
+    section: bug_fixes
+    commits:
+    - 2ae081c7bf
+    authored_at: '2026-11-17T06:24:23+00:00'
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(code-run): an identical cloud command that already succeeded in the turn is not run again'
+    section: bug_fixes
+    commits:
+    - 8d1cbfa8b4
+    authored_at: '2026-11-17T05:53:29+00:00'
+    changed_paths:
+    - backend/apps/code/cloud_command_repeat.py
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/cloud_command_execution.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/tests/test_cloud_project_commands.py
+    - specifications/features/app-skills/code-run/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code, embed:code:run, skill:code:run'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web-browse): a follow-up turn without a cap continues against the session''s established cap'
+    section: bug_fixes
+    commits:
+    - 13fa08ce8b
+    authored_at: '2026-11-17T05:41:00+00:00'
+    changed_paths:
+    - backend/apps/web/skills/browse_skill.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/tests/test_web_browse_service.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:web, embed:web:browse, skill:web:browse'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web-browse): a form session starts with a cap for the whole form; a reached cap is reported plainly'
+    section: bug_fixes
+    commits:
+    - c001e8492b
+    authored_at: '2026-11-17T05:11:30+00:00'
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - frontend/apps/web_app/tests/web-browse-form-real.spec.ts
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(code-run): snapshot pause names the paused call so the model repeats the cloud command; real proof counts
+      terminal cards by embed'
+    section: bug_fixes
+    commits:
+    - e3861fc795
+    authored_at: '2026-11-17T05:08:32+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/project_test_snapshot.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_file_operation_handlers.py
+    - backend/tests/test_cloud_project_commands.py
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(code-run): cloud command results name the command; real CLI proof names the model on every turn and runs on
+      the host'
+    section: bug_fixes
+    commits:
+    - 04d19f9fc7
+    authored_at: '2026-11-17T03:49:39+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/cloud_command_execution.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/tests/test_cloud_project_commands.py
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - scripts/agentic_app_real_test.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web-browse): slow page responses survive the browser tunnel; pending requests finish before the pause'
+    section: bug_fixes
+    commits:
+    - 953076aa61
+    authored_at: '2026-11-17T03:46:53+00:00'
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/shared/providers/web_browse_runtime.py
+    - backend/tests/test_web_browse_runtime_v2.py
+    - backend/tests/test_web_browse_service.py
+    - backend/tests/test_web_browse_transport.py
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web-browse): form ticks are field preparation; Let AI continue re-observes the page first'
+    section: bug_fixes
+    commits:
+    - abeb752111
+    authored_at: '2026-11-17T03:01:45+00:00'
+    changed_paths:
+    - backend/shared/providers/browser_planner.py
+    - backend/tests/test_web_browse_models.py
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(scripts): Discord pushes keep NAME=... placeholders, SSH public keys and sha- image tags'
+    section: bug_fixes
+    commits:
+    - 463f5e40c7
+    authored_at: '2026-11-17T02:33:06+00:00'
+    changed_paths:
+    - scripts/agent_question.py
+    - scripts/tests/test_agent_question.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): an imitated app result for an offered skill gets one retry with tools'
+    section: bug_fixes
+    commits:
+    - 41c77b0b62
+    authored_at: '2026-11-17T02:21:05+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/utils/tool_protocol_guard.py
+    - backend/tests/test_answer_recovery_integration.py
+    - backend/tests/test_tool_protocol_guard.py
+    - frontend/apps/web_app/tests/web-browse-form-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(shopping): a slow provider no longer cancels the whole price comparison'
+    section: bug_fixes
+    commits:
+    - 715d8cbee9
+    authored_at: '2026-11-17T01:58:59+00:00'
+    changed_paths:
+    - backend/shared/app_packages/delegate_skill.py
+    - backend/shared/app_packages/price_comparison.py
+    - backend/shared/app_packages/provider_dispatch.py
+    - backend/tests/test_app_packages_price_comparison.py
+    - docs/architecture/apps/instance-app-packages.md
+    - specifications/features/app-skills/shopping-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(apple): Projects composer matches web; call receipts and unknown frames; TestFlight build 13 metadata'
+    section: bug_fixes
+    commits:
+    - bbf1482f15
+    authored_at: '2026-11-17T01:53:53+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/PrivacyInfo.xcprivacy
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallController.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallAppFactory.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspacePromptComposerView.swift
+    - apple/OpenMatesTests/NativeVoiceCallRootAdmissionTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallTests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/ProjectREADMEUITests.swift
+    - apple/OpenMatesUITests/WorkspaceContinuationLayoutUITests.swift
+    - apple/project.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web-browse): one unparsable extraction reply gets a single metered repair'
+    section: bug_fixes
+    commits:
+    - 2f9285d318
+    authored_at: '2026-11-17T01:20:29+00:00'
+    changed_paths:
+    - backend/shared/providers/browser_models.py
+    - backend/tests/test_web_browse_models.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(shopping): no nearby offer still lists the closest offers with prices'
+    section: bug_fixes
+    commits:
+    - 7d56c30e76
+    authored_at: '2026-11-17T01:17:53+00:00'
+    changed_paths:
+    - backend/apps/shopping/app.yml
+    - frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:shopping'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(web-browse): a resumed browser''s first start waits out a brief ingress 502'
+    section: bug_fixes
+    commits:
+    - a0eb75da3f
+    authored_at: '2026-11-17T00:51:09+00:00'
+    changed_paths:
+    - backend/core/api/app/services/web_browse_run.py
+    - backend/tests/test_web_browse_service.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix(ai): photo turns keep near-threshold skills and routing logs show the request shape'
+    section: bug_fixes
+    commits:
+    - c2daf0db15
+    authored_at: '2026-11-17T00:49:07+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/tests/test_preprocessor_jev.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs(dev-host): busy-chat send_message escalation (queue, interrupt, risky-step wait)'
+    section: docs
+    commits:
+    - 26b2fb51ee
+    authored_at: '2026-11-17T13:04:54+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'chore(testing): real-inference runs top up a low personal dev test account before they start'
+    section: tests
+    commits:
+    - c7117a6054
+    authored_at: '2026-11-17T10:26:50+00:00'
+    changed_paths:
+    - .claude/rules/testing.md
+    - docs/contributing/guides/testing.md
+    - scripts/dev_test_account.py
+    - scripts/tests/test_dev_test_account.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(apple): Info.plist parity test expects the merged camera usage string'
+    section: tests
+    commits:
+    - 7879c465c1
+    authored_at: '2026-11-17T05:42:42+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'feat(meeting): marketing-time build gate rule for assistants, meta-work limit and timer note'
+    commits:
+    - a7f8dc1ef4
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(safety): wellbeing support with helpline card, answer withdrawal replacement, harmful-purpose strikes and
+      suspension/appeal screens'
+    commits:
+    - c2236dc810
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'feat(meeting): daily limits (3 chats, 3 reminders), LATER archive with resume, DROP decision log with re-check'
+    commits:
+    - d802990d24
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(meeting): Marketing and business development block (win counter, 3 proposals, daily ideas, style feedback
+      loop), idea inbox, feature priority rule'
+    commits:
+    - 0114108512
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(meeting): NOW/LATER/DROP triage of every briefing item, Side notes at the end, priorities read from FOCUS.md'
+    commits:
+    - f55a6f83b0
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(safety): safety strikes suspend accounts instead of deleting them; upload images follow the agreed lines'
+    commits:
+    - 355ed3882e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+  - title: 'feat(meeting): briefing lists every waiting chat, a Paused chats section, one outcome per chat and a 7-day no-decision
+      check'
+    commits:
+    - 17c7cb9035
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs(dev-host): busy-chat send_message escalation (queue, interrupt, risky-step wait)'
+    commits:
+    - 26b2fb51ee
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai): sub-chat parent and async-skill continuations keep the parent turn''s legacy admission, so the parent
+      answers after its sub-chats (TASK-2749)'
+    commits:
+    - 575cce0203
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat(ai): Gemini Decision 1 answers the relevance judges first, with Jev as automatic fallback, chosen by a per-task
+      benchmark'
+    commits:
+    - cc436131d6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix(ai): an anonymous user''s sign-up limit logs at WARNING, not ERROR, so the prod chat-failure check stops reporting
+      it'
+    commits:
+    - c2d0aabe51
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(life_coaching): Life compass reuses the user''s own words instead of widening them into new interests'
+    commits:
+    - 3e034fc62c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+  - title: 'feat(host): hourly per-category disk budgets enforced oldest first, from 75% at 80% of each cap (TASK-7646 steps
+      4-5)'
+    commits:
+    - d58b444d32
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(host): one 10 GiB disk floor without percent ceiling, and reservations sized from measured use (TASK-7646
+      step 3)'
+    commits:
+    - ccdd3204a8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(host): hourly disk size log per category and disk alerts at 75% and 85% naming the largest growers (TASK-7646
+      step 2)'
+    commits:
+    - 44b839e34c
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(host): weekly root cleanup removes orphaned Docker layers, oversized container logs and old journal (TASK-7646
+      step 1)'
+    commits:
+    - 04a18dac67
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore(testing): real-inference runs top up a low personal dev test account before they start'
+    commits:
+    - c7117a6054
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(client-core): a read that meets a brief 503 waits and is sent again instead of failing the turn'
+    commits:
+    - a5cd4aff31
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(code): a failed test run shows the assistant why it failed even after long install output'
+    commits:
+    - 39d34a4b69
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(web-browse): a wallet below the session cap holds what it can instead of refusing Browse'
+    commits:
+    - 9df937401a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(web): a reply whose render plan was in flight during a chat view reset renders instead of staying empty'
+    commits:
+    - 5bd4fd0e1c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(web-browse): a follow-up Browse call without a session or address continues the chat''s live browser'
+    commits:
+    - c4f7cdfe1a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix(client-core): a rate-limited read waits and is sent again instead of failing the turn offline'
+    commits:
+    - f8cc6e2bbf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(web-browse): Browse stays offered for a whole form; the real form proof covers fields the user types and fields
+      left empty'
+    commits:
+    - e3e85a6b24
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(recovery): an acknowledged app card advances to its sealed fuller manifest, so a CLI turn no longer fails
+      replaying it'
+    commits:
+    - d9350393db
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(web-browse): form turns continue the session without naming a cap'
+    commits:
+    - 2ae081c7bf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix(code-run): an identical cloud command that already succeeded in the turn is not run again'
+    commits:
+    - 8d1cbfa8b4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'test(apple): Info.plist parity test expects the merged camera usage string'
+    commits:
+    - 7879c465c1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix(web-browse): a follow-up turn without a cap continues against the session''s established cap'
+    commits:
+    - 13fa08ce8b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+  - title: 'fix(web-browse): a form session starts with a cap for the whole form; a reached cap is reported plainly'
+    commits:
+    - c001e8492b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix(code-run): snapshot pause names the paused call so the model repeats the cloud command; real proof counts
+      terminal cards by embed'
+    commits:
+    - e3861fc795
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(code-run): cloud command results name the command; real CLI proof names the model on every turn and runs on
+      the host'
+    commits:
+    - 04d19f9fc7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'fix(web-browse): slow page responses survive the browser tunnel; pending requests finish before the pause'
+    commits:
+    - 953076aa61
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(voice): voice turns built by the Rust core; reply versions and row times match the server'
+    commits:
+    - 01ac4eee8e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat(focus): layered focus modes over the Project focus; collision precedence, detection and note (focus-modes
+      v3 draft)'
+    commits:
+    - 53e9829d12
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix(web-browse): form ticks are field preparation; Let AI continue re-observes the page first'
+    commits:
+    - abeb752111
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(code-run): cloud Project commands run in a per-Project E2B workspace; command-changed files sync back as
+      diffs'
+    commits:
+    - 3b2bfc8aa5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'fix(scripts): Discord pushes keep NAME=... placeholders, SSH public keys and sha- image tags'
+    commits:
+    - 463f5e40c7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai): an imitated app result for an offered skill gets one retry with tools'
+    commits:
+    - 41c77b0b62
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix(shopping): a slow provider no longer cancels the whole price comparison'
+    commits:
+    - 715d8cbee9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(apple): Projects composer matches web; call receipts and unknown frames; TestFlight build 13 metadata'
+    commits:
+    - bbf1482f15
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix(web-browse): one unparsable extraction reply gets a single metered repair'
+    commits:
+    - 2f9285d318
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(shopping): no nearby offer still lists the closest offers with prices'
+    commits:
+    - 7d56c30e76
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+  - title: 'fix(web-browse): a resumed browser''s first start waits out a brief ingress 502'
+    commits:
+    - a0eb75da3f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix(ai): photo turns keep near-threshold skills and routing logs show the request shape'
+    commits:
+    - c2daf0db15
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat(safety): wellbeing support with helpline card, answer withdrawal replacement, harmful-purpose strikes and
+      suspension/appeal screens'
+    commits:
+    - c2236dc810
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'feat(ai): Gemini Decision 1 answers the relevance judges first, with Jev as automatic fallback, chosen by a per-task
+      benchmark'
+    commits:
+    - cc436131d6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix(web-browse): form turns continue the session without naming a cap'
+    commits:
+    - 2ae081c7bf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'fix(web-browse): a form session starts with a cap for the whole form; a reached cap is reported plainly'
+    commits:
+    - c001e8492b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'feat(voice): voice turns built by the Rust core; reply versions and row times match the server'
+    commits:
+    - 01ac4eee8e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat(code-run): cloud Project commands run in a per-Project E2B workspace; command-changed files sync back as
+      diffs'
+    commits:
+    - 3b2bfc8aa5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'fix(shopping): no nearby offer still lists the closest offers with prices'
+    commits:
+    - 7d56c30e76
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat(safety): wellbeing support with helpline card, answer withdrawal replacement, harmful-purpose strikes and
+      suspension/appeal screens'
+    commits:
+    - c2236dc810
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(safety): safety strikes suspend accounts instead of deleting them; upload images follow the agreed lines'
+    commits:
+    - 355ed3882e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    newsletter_ready: false
+  - title: 'fix(ai): sub-chat parent and async-skill continuations keep the parent turn''s legacy admission, so the parent
+      answers after its sub-chats (TASK-2749)'
+    commits:
+    - 575cce0203
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat(ai): Gemini Decision 1 answers the relevance judges first, with Jev as automatic fallback, chosen by a per-task
+      benchmark'
+    commits:
+    - cc436131d6
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(ai): an anonymous user''s sign-up limit logs at WARNING, not ERROR, so the prod chat-failure check stops reporting
+      it'
+    commits:
+    - c2d0aabe51
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(life_coaching): Life compass reuses the user''s own words instead of widening them into new interests'
+    commits:
+    - 3e034fc62c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    newsletter_ready: false
+  - title: 'fix(client-core): a read that meets a brief 503 waits and is sent again instead of failing the turn'
+    commits:
+    - a5cd4aff31
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(code): a failed test run shows the assistant why it failed even after long install output'
+    commits:
+    - 39d34a4b69
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(web): a reply whose render plan was in flight during a chat view reset renders instead of staying empty'
+    commits:
+    - 5bd4fd0e1c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(web-browse): a follow-up Browse call without a session or address continues the chat''s live browser'
+    commits:
+    - c4f7cdfe1a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix(web-browse): Browse stays offered for a whole form; the real form proof covers fields the user types and fields
+      left empty'
+    commits:
+    - e3e85a6b24
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(web-browse): form turns continue the session without naming a cap'
+    commits:
+    - 2ae081c7bf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix(code-run): an identical cloud command that already succeeded in the turn is not run again'
+    commits:
+    - 8d1cbfa8b4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix(web-browse): a follow-up turn without a cap continues against the session''s established cap'
+    commits:
+    - 13fa08ce8b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    - id: embed:web:browse
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    - id: skill:web:browse
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:web
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix(web-browse): a form session starts with a cap for the whole form; a reached cap is reported plainly'
+    commits:
+    - c001e8492b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix(code-run): snapshot pause names the paused call so the model repeats the cloud command; real proof counts
+      terminal cards by embed'
+    commits:
+    - e3861fc795
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(code-run): cloud command results name the command; real CLI proof names the model on every turn and runs on
+      the host'
+    commits:
+    - 04d19f9fc7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'feat(voice): voice turns built by the Rust core; reply versions and row times match the server'
+    commits:
+    - 01ac4eee8e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat(focus): layered focus modes over the Project focus; collision precedence, detection and note (focus-modes
+      v3 draft)'
+    commits:
+    - 53e9829d12
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat(code-run): cloud Project commands run in a per-Project E2B workspace; command-changed files sync back as
+      diffs'
+    commits:
+    - 3b2bfc8aa5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix(ai): an imitated app result for an offered skill gets one retry with tools'
+    commits:
+    - 41c77b0b62
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix(apple): Projects composer matches web; call receipts and unknown frames; TestFlight build 13 metadata'
+    commits:
+    - bbf1482f15
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix(shopping): no nearby offer still lists the closest offers with prices'
+    commits:
+    - 7d56c30e76
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    newsletter_ready: false
+  - title: 'fix(ai): photo turns keep near-threshold skills and routing logs show the request shape'
+    commits:
+    - c2daf0db15
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: a7f8dc1ef4899b5d2b7023b2a9a0c197919cda86
+    short_sha: a7f8dc1ef4
+    authored_at: '2026-11-17T15:18:12+00:00'
+    subject: 'feat(meeting): marketing-time build gate rule for assistants, meta-work limit and timer note'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    - scripts/tests/test_decision_log.py
+    related_feature_ids: []
+  - sha: c2236dc810d164a90ecaf290b3f6429c73c273b3
+    short_sha: c2236dc810
+    authored_at: '2026-11-17T15:10:42+00:00'
+    subject: 'feat(safety): wellbeing support with helpline card, answer withdrawal replacement, harmful-purpose strikes and
+      suspension/appeal screens'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/HelplineCardView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/ChatCardStrings.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - backend/apps/ai/base_instructions.yml
+    - backend/apps/ai/processing/answer_safety.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/queued_steering.py
+    - backend/apps/ai/processing/request_purpose_policy.py
+    - backend/apps/ai/processing/wellbeing_level.py
+    - backend/apps/ai/processing/wellbeing_questions.py
+    - backend/apps/ai/processing/wellbeing_support.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/replace_withdrawn_message_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/web_browse_run.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-sync/src/operations.js
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/directus/setup/migrate_chat_sync_feed.sql
+    - backend/scripts/decision_bench/wellbeing.py
+    - backend/shared/providers/browser_run_guard.py
+    - backend/shared/providers/throughline/__init__.py
+    - backend/shared/providers/throughline/client.py
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/shared/python_utils/chat_failure_notifications.py
+    - backend/tests/fixtures/chat_sync_feed_schema.sql
+    - backend/tests/test_answer_safety.py
+    - backend/tests/test_chat_metadata_permissions.py
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - backend/tests/test_live_site_guard.py
+    - backend/tests/test_native_chats_api.py
+    - backend/tests/test_request_purpose_strikes.py
+    - backend/tests/test_wellbeing_level.py
+    - backend/tests/test_wellbeing_pipeline.py
+    - config/sdk-capabilities.json
+    - docs/migration/rust/shared-client.yml
+    - docs/plans/safety-decisions-build/wellbeing-contract.md
+    - frontend/apps/web_app/src/routes/+layout.svelte
+    - frontend/apps/web_app/tests/components/helpline-card.spec.ts
+    - frontend/apps/web_app/tests/components/safety-appeal.spec.ts
+    - frontend/apps/web_app/tests/safety-suspension-real.spec.ts
+    - frontend/apps/web_app/tests/wellbeing-helpline-real.spec.ts
+    - frontend/packages/ui/scripts/generate-embed-registry.js
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/embeds/wellbeing/HelplineCard.preview.ts
+    - frontend/packages/ui/src/components/embeds/wellbeing/HelplineCard.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/HelplinesRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/index.ts
+    - frontend/packages/ui/src/components/safety/AccountSuspended.preview.ts
+    - frontend/packages/ui/src/components/safety/AccountSuspended.svelte
+    - frontend/packages/ui/src/components/safety/SafetyAppealForm.preview.ts
+    - frontend/packages/ui/src/components/safety/SafetyAppealForm.svelte
+    - frontend/packages/ui/src/components/settings/SettingsServer.svelte
+    - frontend/packages/ui/src/components/settings/account/SettingsProfilePicture.svelte
+    - frontend/packages/ui/src/components/settings/server/SettingsSafetyReviews.svelte
+    - frontend/packages/ui/src/components/settings/settingsRoutes.ts
+    - frontend/packages/ui/src/components/signup/steps/profilepicture/ProfilePictureBottomContent.svelte
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/safety_appeal.yml
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/rustCore/browserMetadataCacheIO.ts
+    - frontend/packages/ui/src/services/rustCore/ownedLocalReadProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/sync/rustChatSyncPolicy.ts
+    - frontend/packages/ui/src/services/safetyAppealApi.ts
+    - frontend/packages/ui/src/stores/accountSuspension.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authTypes.ts
+    - frontend/packages/ui/src/types/helplines.ts
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/answer_withdrawal.rs
+    - packages/openmates-rust/src/client/browser_cache_header.rs
+    - packages/openmates-rust/src/client/browser_cache_metadata.rs
+    - packages/openmates-rust/src/client/browser_metadata_bootstrap_policy.rs
+    - packages/openmates-rust/src/client/focus.rs
+    - packages/openmates-rust/src/client/frame_ingest.rs
+    - packages/openmates-rust/src/client/message_actions.rs
+    - packages/openmates-rust/src/client/message_actions_tests.rs
+    - packages/openmates-rust/src/client/send_turn_runtime.rs
+    - packages/openmates-rust/src/client/send_turn_stages.rs
+    - packages/openmates-rust/src/client/wellbeing.rs
+    - packages/openmates-rust/src/client/wellbeing_tests.rs
+    - packages/openmates-rust/src/view_model/socket_frames.rs
+    - packages/openmates-rust/src/web_sync/merge.rs
+    - packages/openmates-rust/src/web_sync/phased.rs
+    - packages/openmates-rust/src/web_sync/ts_vectors.json
+    - packages/openmates-rust/tests/fixtures/browser-metadata-only-header.json
+    - scripts/ci_coverage_manifest.json
+    - scripts/safety_suspension_web_real_test.py
+    - scripts/wellbeing_helpline_web_real_test.py
+    - shared/config/embed_types.yml
+    - specifications/features.yml
+    - specifications/features/answer-safety-check/examples.yml
+    - specifications/features/answer-safety-check/specification.yml
+    - specifications/features/safety-strikes/examples.yml
+    - specifications/features/safety-strikes/specification.yml
+    - specifications/features/wellbeing-support/examples.yml
+    - specifications/features/wellbeing-support/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - platform:ios
+    - platform:macos
+    - skill:ai:ask
+  - sha: d802990d24db37ee364932fb9dd9827cd8cc3c3b
+    short_sha: d802990d24
+    authored_at: '2026-11-17T14:59:39+00:00'
+    subject: 'feat(meeting): daily limits (3 chats, 3 reminders), LATER archive with resume, DROP decision log with re-check'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_apply.py
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_triage.py
+    - scripts/decision_log.py
+    - scripts/tests/test_decision_log.py
+    related_feature_ids: []
+  - sha: 011410851281d527ab90269c49a19cab5695db5c
+    short_sha: 0114108512
+    authored_at: '2026-11-17T14:51:32+00:00'
+    subject: 'feat(meeting): Marketing and business development block (win counter, 3 proposals, daily ideas, style feedback
+      loop), idea inbox, feature priority rule'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_marketing.py
+    - scripts/daily_meeting_triage.py
+    - scripts/tests/test_daily_meeting_freshness.py
+    - scripts/tests/test_daily_meeting_goals.py
+    - scripts/tests/test_daily_meeting_growth.py
+    - scripts/tests/test_daily_meeting_marketing.py
+    related_feature_ids: []
+  - sha: f55a6f83b0d2887ec2c8405a4df6abbf3e1e6350
+    short_sha: f55a6f83b0
+    authored_at: '2026-11-17T14:37:40+00:00'
+    subject: 'feat(meeting): NOW/LATER/DROP triage of every briefing item, Side notes at the end, priorities read from FOCUS.md'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_paused.py
+    - scripts/daily_meeting_triage.py
+    - scripts/daily_meeting_waiting.py
+    - scripts/tests/test_daily_meeting_waiting.py
+    related_feature_ids: []
+  - sha: 355ed3882e10b91f68f558ad9c97d1fc6ab72d45
+    short_sha: 355ed3882e
+    authored_at: '2026-11-17T13:58:05+00:00'
+    subject: 'fix(safety): safety strikes suspend accounts instead of deleting them; upload images follow the agreed lines'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/images/tasks/generate_task.py
+    - backend/core/api/app/routes/admin_safety_reviews.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_ws.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/internal_upload_safety.py
+    - backend/core/api/app/routes/safety_appeals.py
+    - backend/core/api/app/schemas/auth.py
+    - backend/core/api/app/services/billing_service.py
+    - backend/core/api/app/services/email_sender_profiles.py
+    - backend/core/api/app/services/email_template.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/email_tasks/__init__.py
+    - backend/core/api/app/tasks/email_tasks/safety_account_restored_email_task.py
+    - backend/core/api/app/tasks/email_tasks/safety_review_email_task.py
+    - backend/core/api/app/tasks/safety_review_tasks.py
+    - backend/core/api/main.py
+    - backend/core/api/templates/email/safety-account-restored.mjml
+    - backend/core/api/templates/email/safety-account-suspended.mjml
+    - backend/core/api/templates/email/safety-more-information.mjml
+    - backend/core/directus/schemas/safety_appeals.yml
+    - backend/core/directus/schemas/users.yml
+    - backend/shared/python_utils/image_safety/account_suspension.py
+    - backend/shared/python_utils/image_safety/safety_review.py
+    - backend/shared/python_utils/image_safety/strike_counter.py
+    - backend/shared/python_utils/image_safety/strike_policy.py
+    - backend/shared/python_utils/live_email_policy.py
+    - backend/tests/test_safety_appeals.py
+    - backend/tests/test_safety_strikes.py
+    - backend/tests/test_sightengine_service.py
+    - backend/tests/test_upload_safety_policy.py
+    - backend/upload/routes/upload_route.py
+    - backend/upload/services/jev_second_opinion.py
+    - backend/upload/services/sightengine_service.py
+    - backend/upload/services/upload_safety_policy.py
+    - docs/plans/safety-architecture-proposal/report.md
+    - docs/plans/safety-decisions-build/plan.yml
+    - docs/plans/safety-decisions-build/wellbeing-contract.md
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/answer_safety.yml
+    - frontend/packages/ui/src/i18n/sources/email/main.yml
+    - frontend/packages/ui/src/i18n/sources/helplines.yml
+    - frontend/packages/ui/src/i18n/sources/request_purpose.yml
+    - frontend/packages/ui/src/i18n/sources/safety_appeal.yml
+    - frontend/packages/ui/src/i18n/sources/safety_strikes.yml
+    - specifications/features/safety-strikes/examples.yml
+    - specifications/features/safety-strikes/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:images
+  - sha: 17c7cb9035ede0936de3b344334e5515b0698c08
+    short_sha: 17c7cb9035
+    authored_at: '2026-11-17T13:34:46+00:00'
+    subject: 'feat(meeting): briefing lists every waiting chat, a Paused chats section, one outcome per chat and a 7-day no-decision
+      check'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/daily-meeting-and-orchestration/SKILL.md
+    - docs/contributing/guides/daily-meeting.md
+    - scripts/daily_meeting_briefing.py
+    - scripts/daily_meeting_context.py
+    - scripts/daily_meeting_paused.py
+    - scripts/daily_meeting_waiting.py
+    - scripts/tests/test_daily_meeting_waiting.py
+    related_feature_ids: []
+  - sha: 26b2fb51ee7afe661ac3537a2371a876ed6c91e2
+    short_sha: 26b2fb51ee
+    authored_at: '2026-11-17T13:04:54+00:00'
+    subject: 'docs(dev-host): busy-chat send_message escalation (queue, interrupt, risky-step wait)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    related_feature_ids: []
+  - sha: 575cce02033b903517d9ad2d218bbe07ead9f929
+    short_sha: 575cce0203
+    authored_at: '2026-11-17T12:34:22+00:00'
+    subject: 'fix(ai): sub-chat parent and async-skill continuations keep the parent turn''s legacy admission, so the parent
+      answers after its sub-chats (TASK-2749)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids:
+    - app:ai
+  - sha: cc436131d6b3f8d49bb1a07e8f6a6b86cf3220e5
+    short_sha: cc436131d6
+    authored_at: '2026-11-17T12:28:41+00:00'
+    subject: 'feat(ai): Gemini Decision 1 answers the relevance judges first, with Jev as automatic fallback, chosen by a
+      per-task benchmark'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/utils/internal_decisions.py
+    - backend/providers/google.yml
+    - backend/scripts/benchmark_gemini_decision_jev.py
+    - backend/scripts/decision_bench/__init__.py
+    - backend/scripts/decision_bench/app_focus_routing.py
+    - backend/scripts/decision_bench/browse_control.py
+    - backend/scripts/decision_bench/image_safety_images.py
+    - backend/scripts/decision_bench/image_safety_prompts.py
+    - backend/scripts/decision_bench/postprocess_judge.py
+    - backend/scripts/decision_bench/preprocess_routing.py
+    - backend/scripts/decision_bench/prompt_injection.py
+    - backend/scripts/decision_bench/relevance_judges.py
+    - backend/scripts/decision_bench/voice_turn.py
+    - backend/shared/providers/google/decisions.py
+    - backend/shared/providers/typesafe/client.py
+    - backend/shared/providers/typesafe/routing.py
+    - backend/tests/test_gemini_decision_routing.py
+    - docs/architecture/ai/ai-model-selection.md
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - skill:ai:ask
+  - sha: c2d0aabe5108312e0fcbe67929536b1389e4e0cf
+    short_sha: c2d0aabe51
+    authored_at: '2026-11-17T11:30:05+00:00'
+    subject: 'fix(ai): an anonymous user''s sign-up limit logs at WARNING, not ERROR, so the prod chat-failure check stops
+      reporting it'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/tests/test_stream_consumer_recovery.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 3e034fc62c968900ae4eb590682e4b395ed114a2
+    short_sha: 3e034fc62c
+    authored_at: '2026-11-17T11:24:22+00:00'
+    subject: 'fix(life_coaching): Life compass reuses the user''s own words instead of widening them into new interests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/life_coaching/focus_modes/life-compass/SKILL.md
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/focus_modes/life_coaching_life_compass.yml
+    - scripts/life_compass_persona_real_test.py
+    - scripts/life_compass_personas.py
+    related_feature_ids:
+    - app:life_coaching
+  - sha: d58b444d325721c6a9614143268724b323929ae0
+    short_sha: d58b444d32
+    authored_at: '2026-11-17T11:17:26+00:00'
+    subject: 'feat(host): hourly per-category disk budgets enforced oldest first, from 75% at 80% of each cap (TASK-7646 steps
+      4-5)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/disk_coordinator_state.py
+    - scripts/docker-cleanup.sh
+    - scripts/host-disk-root-setup.sh
+    - scripts/host_disk_budgets.py
+    - scripts/host_disk_cleanup.py
+    - scripts/host_disk_root.py
+    - scripts/host_disk_usage.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_host_disk_budgets.py
+    - scripts/tests/test_host_disk_root.py
+    - scripts/tests/test_host_disk_usage.py
+    related_feature_ids: []
+  - sha: ccdd3204a8461d5ca840d0a1cf25a8f100744166
+    short_sha: ccdd3204a8
+    authored_at: '2026-11-17T11:03:38+00:00'
+    subject: 'fix(host): one 10 GiB disk floor without percent ceiling, and reservations sized from measured use (TASK-7646
+      step 3)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/ci_results.py
+    - scripts/ci_source.py
+    - scripts/disk_coordinator_state.py
+    - scripts/resource_budget.py
+    - scripts/sessions.py
+    - scripts/tests/test_disk_admission_policy.py
+    related_feature_ids: []
+  - sha: 44b839e34c1f862134b2ea33ef41c1e1c5e10b73
+    short_sha: 44b839e34c
+    authored_at: '2026-11-17T10:59:08+00:00'
+    subject: 'feat(host): hourly disk size log per category and disk alerts at 75% and 85% naming the largest growers (TASK-7646
+      step 2)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/host-disk-usage-setup.sh
+    - scripts/host_disk_root.py
+    - scripts/host_disk_usage.py
+    - scripts/host_resources.py
+    - scripts/tests/test_host_disk_usage.py
+    - scripts/tests/test_host_resources.py
+    related_feature_ids: []
+  - sha: 04a18dac67f749ae7e55bc07b0364f805a332c3e
+    short_sha: 04a18dac67
+    authored_at: '2026-11-17T10:49:51+00:00'
+    subject: 'feat(host): weekly root cleanup removes orphaned Docker layers, oversized container logs and old journal (TASK-7646
+      step 1)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/dev-host-resources.md
+    - scripts/host-disk-root-setup.sh
+    - scripts/host_disk_root.py
+    - scripts/tests/test_host_disk_root.py
+    related_feature_ids: []
+  - sha: c7117a605453f7bd4a315c28b92ebc1cbbaa33c9
+    short_sha: c7117a6054
+    authored_at: '2026-11-17T10:26:50+00:00'
+    subject: 'chore(testing): real-inference runs top up a low personal dev test account before they start'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/testing.md
+    - docs/contributing/guides/testing.md
+    - scripts/dev_test_account.py
+    - scripts/tests/test_dev_test_account.py
+    related_feature_ids: []
+  - sha: a5cd4aff317e72b97ac8831c0953a58877a673aa
+    short_sha: a5cd4aff31
+    authored_at: '2026-11-17T10:18:37+00:00'
+    subject: 'fix(client-core): a read that meets a brief 503 waits and is sent again instead of failing the turn'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - packages/openmates-rust/src/client/rate_limited_read.rs
+    - packages/openmates-rust/src/client/rate_limited_read_tests.rs
+    - packages/openmates-rust/src/client/transport.rs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 39d34a4b69bf2fc45020ac964825e87522adf1a9
+    short_sha: 39d34a4b69
+    authored_at: '2026-11-17T09:15:44+00:00'
+    subject: 'fix(code): a failed test run shows the assistant why it failed even after long install output'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/e2b_test_runner.py
+    - backend/tests/test_code_test_run.py
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 9df937401a3e35d339d9811afd87943e69e6a378
+    short_sha: 9df937401a
+    authored_at: '2026-11-17T08:41:27+00:00'
+    subject: 'fix(web-browse): a wallet below the session cap holds what it can instead of refusing Browse'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/tests/test_web_browse_service.py
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 5bd4fd0e1ce684885a20a5629eb3a8a1d3bc97fb
+    short_sha: 5bd4fd0e1c
+    authored_at: '2026-11-17T08:22:51+00:00'
+    subject: 'fix(web): a reply whose render plan was in flight during a chat view reset renders instead of staying empty'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/renderPlanBranchAsync.test.ts
+    - frontend/packages/ui/src/services/rustCore/parse/renderPlanBranch.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids: []
+  - sha: c4f7cdfe1a6ba533d5a925252c9e2ebf1890804d
+    short_sha: c4f7cdfe1a
+    authored_at: '2026-11-17T07:59:49+00:00'
+    subject: 'fix(web-browse): a follow-up Browse call without a session or address continues the chat''s live browser'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/tests/test_web_browse_service.py
+    - frontend/apps/web_app/tests/web-browse-form-real.spec.ts
+    - specifications/features/app-skills/web-browse/examples.yml
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: f8cc6e2bbfcff95d93a6cf8bebe6ae38ac6888e8
+    short_sha: f8cc6e2bbf
+    authored_at: '2026-11-17T07:20:23+00:00'
+    subject: 'fix(client-core): a rate-limited read waits and is sent again instead of failing the turn offline'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/rate_limited_read.rs
+    - packages/openmates-rust/src/client/rate_limited_read_tests.rs
+    - packages/openmates-rust/src/client/transport.rs
+    related_feature_ids: []
+  - sha: e3e85a6b24a326b45b24a2a90d764a6f0fd1cdb4
+    short_sha: e3e85a6b24
+    authored_at: '2026-11-17T07:05:38+00:00'
+    subject: 'fix(web-browse): Browse stays offered for a whole form; the real form proof covers fields the user types and
+      fields left empty'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/browse_routing.py
+    - backend/tests/test_web_browse_form_with_user.py
+    - frontend/apps/web_app/tests/web-browse-form-real.spec.ts
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+  - sha: d9350393db10f45093fc3ff300785badba3e9d45
+    short_sha: d9350393db
+    authored_at: '2026-11-17T06:29:00+00:00'
+    subject: 'fix(recovery): an acknowledged app card advances to its sealed fuller manifest, so a CLI turn no longer fails
+      replaying it'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/extensions/embed-version-transaction/src/operations.js
+    - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 2ae081c7bfd32fcc13e117e18454ed146a64871c
+    short_sha: 2ae081c7bf
+    authored_at: '2026-11-17T06:24:23+00:00'
+    subject: 'fix(web-browse): form turns continue the session without naming a cap'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:web
+  - sha: 8d1cbfa8b440f89c8b96b43a166a30c07ce177bf
+    short_sha: 8d1cbfa8b4
+    authored_at: '2026-11-17T05:53:29+00:00'
+    subject: 'fix(code-run): an identical cloud command that already succeeded in the turn is not run again'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/cloud_command_repeat.py
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/cloud_command_execution.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/tests/test_cloud_project_commands.py
+    - specifications/features/app-skills/code-run/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:code
+    - embed:code:run
+    - skill:code:run
+  - sha: 7879c465c1243c1843bfc9cafdec1be9ad33d3c8
+    short_sha: 7879c465c1
+    authored_at: '2026-11-17T05:42:42+00:00'
+    subject: 'test(apple): Info.plist parity test expects the merged camera usage string'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/ChatManagementSharingParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 13fa08ce8bd86c9b8ccc56b3ef14f7e7a10a25a0
+    short_sha: 13fa08ce8b
+    authored_at: '2026-11-17T05:41:00+00:00'
+    subject: 'fix(web-browse): a follow-up turn without a cap continues against the session''s established cap'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/web/skills/browse_skill.py
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/tests/test_web_browse_service.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:web
+    - embed:web:browse
+    - skill:web:browse
+  - sha: c001e8492bd8345d61c0879ffa45238905c1fe15
+    short_sha: c001e8492b
+    authored_at: '2026-11-17T05:11:30+00:00'
+    subject: 'fix(web-browse): a form session starts with a cap for the whole form; a reached cap is reported plainly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/web/app.yml
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - frontend/apps/web_app/tests/web-browse-form-real.spec.ts
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:web
+  - sha: e3861fc795f4d7d38e9f8e0caecd4dcbf7f4160c
+    short_sha: e3861fc795
+    authored_at: '2026-11-17T05:08:32+00:00'
+    subject: 'fix(code-run): snapshot pause names the paused call so the model repeats the cloud command; real proof counts
+      terminal cards by embed'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/project_test_snapshot.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_file_operation_handlers.py
+    - backend/tests/test_cloud_project_commands.py
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 04d19f9fc7985f1e859d2671bcdf883f22de747b
+    short_sha: 04d19f9fc7
+    authored_at: '2026-11-17T03:49:39+00:00'
+    subject: 'fix(code-run): cloud command results name the command; real CLI proof names the model on every turn and runs
+      on the host'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/cloud_command_execution.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/tests/test_cloud_project_commands.py
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - scripts/agentic_app_real_test.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:code
+  - sha: 953076aa614d0aa25244cd1086837fc3fb8f97a4
+    short_sha: 953076aa61
+    authored_at: '2026-11-17T03:46:53+00:00'
+    subject: 'fix(web-browse): slow page responses survive the browser tunnel; pending requests finish before the pause'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/web_browse_service.py
+    - backend/shared/providers/web_browse_runtime.py
+    - backend/tests/test_web_browse_runtime_v2.py
+    - backend/tests/test_web_browse_service.py
+    - backend/tests/test_web_browse_transport.py
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 01ac4eee8eb977f9277974ef6cbf8cac9d5b50ab
+    short_sha: 01ac4eee8e
+    authored_at: '2026-11-17T03:37:59+00:00'
+    subject: 'feat(voice): voice turns built by the Rust core; reply versions and row times match the server'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/call_message_completed_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_recovery_job_handlers.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/system_message_handler.py
+    - backend/tests/test_call_cleanup_admission.py
+    - backend/tests/test_call_message_completed_handler.py
+    - backend/tests/test_chat_recovery_websocket_handlers.py
+    - config/sdk-capabilities.json
+    - docs/migration/rust/capabilities.yml
+    - docs/migration/rust/overview.yml
+    - docs/migration/rust/shared-client.yml
+    - docs/migration/rust/web-app-curated.yml
+    - docs/migration/rust/web-app.yml
+    - frontend/apps/web_app/src/lib/rustCore/shared/sharedWorkerUnits.ts
+    - frontend/apps/web_app/tests/voice-call.spec.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
+    - frontend/packages/ui/src/services/__tests__/voiceCallEarlyTurns.test.ts
+    - frontend/packages/ui/src/services/rustCore/host/sharedWorkerProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/socketFrameForwarder.ts
+    - frontend/packages/ui/src/services/rustCore/voice/__tests__/voiceTurnDelivery.test.ts
+    - frontend/packages/ui/src/services/rustCore/voice/__tests__/voiceTurnUnit.test.ts
+    - frontend/packages/ui/src/services/rustCore/voice/voiceTurnClient.ts
+    - frontend/packages/ui/src/services/rustCore/voice/voiceTurnDelivery.ts
+    - frontend/packages/ui/src/services/rustCore/voice/voiceTurnProtocol.ts
+    - frontend/packages/ui/src/services/rustCore/voice/voiceTurnUnit.ts
+    - frontend/packages/ui/src/services/voiceCall.ts
+    - frontend/packages/ui/src/services/voiceCallEarlyTurns.ts
+    - frontend/packages/ui/src/services/voiceCallTurns.ts
+    - packages/openmates-browser-bindings/src/browser.rs
+    - packages/openmates-browser-bindings/src/browser_voice_turn.rs
+    - packages/openmates-rust/src/client.rs
+    - packages/openmates-rust/src/client/frame_ingest.rs
+    - packages/openmates-rust/src/client/frame_ingest_tests.rs
+    - packages/openmates-rust/src/client/send.rs
+    - packages/openmates-rust/src/client/send_prepared_turn.rs
+    - packages/openmates-rust/src/client/send_turn_stages.rs
+    - packages/openmates-rust/src/client/voice_turn.rs
+    - packages/openmates-rust/src/client/voice_turn_public.rs
+    - packages/openmates-rust/src/client/voice_turn_tests.rs
+    - specifications/features.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    related_feature_ids: []
+  - sha: 53e9829d12dd5ae50a811f0ca232aa5fb1ee1a8e
+    short_sha: 53e9829d12
+    authored_at: '2026-11-17T03:08:13+00:00'
+    subject: 'feat(focus): layered focus modes over the Project focus; collision precedence, detection and note (focus-modes
+      v3 draft)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_layering.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/code/focus_modes/write-specification/SKILL.md
+    - backend/core/api/app/services/project_authoring_service.py
+    - backend/shared/python_utils/focus_mode_skill_loader.py
+    - backend/tests/test_focus_layering.py
+    - backend/tests/test_focus_mode_routing.py
+    - backend/tests/test_project_authoring.py
+    - backend/tests/test_project_focus_authoring_collisions.py
+    - frontend/apps/web_app/tests/components/agent-context-message.spec.ts
+    - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
+    - frontend/packages/ui/src/components/AgentContextMessage.preview.ts
+    - frontend/packages/ui/src/components/AgentContextMessage.svelte
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/sources/rules.yml
+    - frontend/packages/ui/src/services/projectAuthoringClientService.ts
+    - frontend/packages/ui/src/utils/agentContextEvents.ts
+    - scripts/project_layered_focus_web_real_test.py
+    - specifications/features/focus-modes/examples.yml
+    - specifications/features/focus-modes/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:code
+    - platform:projects
+  - sha: abeb752111b110a400030cf478d08c68a0e10457
+    short_sha: abeb752111
+    authored_at: '2026-11-17T03:01:45+00:00'
+    subject: 'fix(web-browse): form ticks are field preparation; Let AI continue re-observes the page first'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/browser_planner.py
+    - backend/tests/test_web_browse_models.py
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - specifications/features/app-skills/web-browse/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: 3b2bfc8aa5901a9c0fb97aa5233f73260926c99f
+    short_sha: 3b2bfc8aa5
+    authored_at: '2026-11-17T02:47:14+00:00'
+    subject: 'feat(code-run): cloud Project commands run in a per-Project E2B workspace; command-changed files sync back as
+      diffs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/orchestration_skill_gate.py
+    - backend/apps/ai/processing/project_file_tools.py
+    - backend/apps/ai/processing/project_test_snapshot.py
+    - backend/apps/code/app.yml
+    - backend/apps/code/cloud_command.py
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/cloud_command_execution.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_file_operation_handlers.py
+    - backend/core/api/app/services/project_file_operation_service.py
+    - backend/shared/providers/e2b_project_workspace.py
+    - backend/tests/test_cloud_project_commands.py
+    - backend/tests/test_orchestration_skill_gate.py
+    - config/sdk-capabilities.json
+    - docs/migration/rust/sdk.yml
+    - docs/plans/cloud-project-commands/plan.yml
+    - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-rust/src/client/project_file_job_frames.rs
+    - packages/openmates-rust/src/generated/metadata.json
+    - packages/openmates-rust/src/work/projects/hosted.rs
+    - packages/openmates-rust/src/work/projects/hosted/api.rs
+    - packages/openmates-rust/src/work/projects/hosted/apply_changes.rs
+    - packages/openmates-rust/src/work/projects/hosted/apply_changes_tests.rs
+    - packages/openmates-rust/src/work/projects/hosted/job.rs
+    - specifications/features/app-skills/code-run/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:code
+    - embed:code:run
+    - skill:code:run
+  - sha: 463f5e40c750f5aa0a5c6baae52708112cae6b7a
+    short_sha: 463f5e40c7
+    authored_at: '2026-11-17T02:33:06+00:00'
+    subject: 'fix(scripts): Discord pushes keep NAME=... placeholders, SSH public keys and sha- image tags'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/agent_question.py
+    - scripts/tests/test_agent_question.py
+    related_feature_ids: []
+  - sha: 41c77b0b62f8ce41cea808cab8521f36742a5364
+    short_sha: 41c77b0b62
+    authored_at: '2026-11-17T02:21:05+00:00'
+    subject: 'fix(ai): an imitated app result for an offered skill gets one retry with tools'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/utils/tool_protocol_guard.py
+    - backend/tests/test_answer_recovery_integration.py
+    - backend/tests/test_tool_protocol_guard.py
+    - frontend/apps/web_app/tests/web-browse-form-real.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 715d8cbee957aed96d89a39e141127ca5457a18b
+    short_sha: 715d8cbee9
+    authored_at: '2026-11-17T01:58:59+00:00'
+    subject: 'fix(shopping): a slow provider no longer cancels the whole price comparison'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/app_packages/delegate_skill.py
+    - backend/shared/app_packages/price_comparison.py
+    - backend/shared/app_packages/provider_dispatch.py
+    - backend/tests/test_app_packages_price_comparison.py
+    - docs/architecture/apps/instance-app-packages.md
+    - specifications/features/app-skills/shopping-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/features.md
+    - specifications/generated/features.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: bbf1482f155153689aaf413481fb3cfd72ff80a9
+    short_sha: bbf1482f15
+    authored_at: '2026-11-17T01:53:53+00:00'
+    subject: 'fix(apple): Projects composer matches web; call receipts and unknown frames; TestFlight build 13 metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/Info.plist
+    - apple/OpenMates/Resources/PrivacyInfo.xcprivacy
+    - apple/OpenMates/Sources/Core/VoiceCall/NativeVoiceCallController.swift
+    - apple/OpenMates/Sources/Features/Projects/ProjectsWorkspaceView.swift
+    - apple/OpenMates/Sources/Features/VoiceCall/NativeVoiceCallAppFactory.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Shared/Components/WorkspacePromptComposerView.swift
+    - apple/OpenMatesTests/NativeVoiceCallRootAdmissionTests.swift
+    - apple/OpenMatesTests/NativeVoiceCallTests.swift
+    - apple/OpenMatesUITests/DevComponentPreviewUITests.swift
+    - apple/OpenMatesUITests/ProjectREADMEUITests.swift
+    - apple/OpenMatesUITests/WorkspaceContinuationLayoutUITests.swift
+    - apple/project.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2f9285d31837586c8a53db8dead073d95c0cf17f
+    short_sha: 2f9285d318
+    authored_at: '2026-11-17T01:20:29+00:00'
+    subject: 'fix(web-browse): one unparsable extraction reply gets a single metered repair'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/providers/browser_models.py
+    - backend/tests/test_web_browse_models.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 7d56c30e7617434d76872698612d9bc50fc32476
+    short_sha: 7d56c30e76
+    authored_at: '2026-11-17T01:17:53+00:00'
+    subject: 'fix(shopping): no nearby offer still lists the closest offers with prices'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/shopping/app.yml
+    - frontend/apps/web_app/tests/shopping-price-compare-real.spec.ts
+    related_feature_ids:
+    - app:shopping
+  - sha: a0eb75da3fd9e81eef904873f2c8ec6eed1bc74a
+    short_sha: a0eb75da3f
+    authored_at: '2026-11-17T00:51:09+00:00'
+    subject: 'fix(web-browse): a resumed browser''s first start waits out a brief ingress 502'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/web_browse_run.py
+    - backend/tests/test_web_browse_service.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: c2daf0db1533a4bb091adb05062773ef281492f5
+    short_sha: c2daf0db15
+    authored_at: '2026-11-17T00:49:07+00:00'
+    subject: 'fix(ai): photo turns keep near-threshold skills and routing logs show the request shape'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/tests/test_preprocessor_jev.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+llm_summary:
+  overview: OpenMates focused on significant safety infrastructure, AI routing optimizations, and expanding cloud-based project
+    execution capabilities. Work continued on migrating voice and project logic to the Rust core, alongside new automated
+    wellbeing support systems and refined host resource management.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates is developing a wellbeing support system featuring helpline cards, harmful-purpose strikes, and a formal
+      account suspension/appeal interface.
+    evidence:
+      commits:
+      - c2236dc810
+      - 355ed3882e
+    release_status: dev_only
+  - text: AI routing was optimized to use Gemini Decision 1 for relevance judging with Jev as a fallback, while sub-chat logic
+      was refined to ensure parent turns answer after their sub-chats.
+    evidence:
+      commits:
+      - cc436131d6
+      - 575cce0203
+      - c2daf0db15
+      - 41c77b0b62
+    release_status: dev_only
+  - text: Cloud Project commands now run in dedicated E2B workspaces with automated file diff syncing, supported by new layered
+      focus modes for project-specific tasks.
+    evidence:
+      commits:
+      - 3b2bfc8aa5
+      - 8d1cbfa8b4
+      - e3861fc795
+      - 04d19f9fc7
+      - 53e9829d12
+    release_status: dev_only
+  - text: The web browsing skill received multiple reliability updates, including better session cap management for forms
+      and improved handling of slow page responses.
+    evidence:
+      commits:
+      - 9df937401a
+      - c4f7cdfe1a
+      - e3e85a6b24
+      - 2ae081c7bf
+      - 13fa08ce8b
+      - c001e8492b
+      - 953076aa61
+    release_status: dev_only
+  - text: Voice turn construction is being moved into the Rust core to align reply versions and timing with the server, alongside
+      UI refinements for the Apple platform composers.
+    evidence:
+      commits:
+      - 01ac4eee8e
+      - bbf1482f15
+    release_status: dev_only
+  - text: Updates to shopping and life coaching include more resilient price comparison providers and refined interest tracking
+      in the Life Compass.
+    evidence:
+      commits:
+      - 3e034fc62c
+      - 715d8cbee9
+      - 7d56c30e76
+    release_status: dev_only
+  internal_progress:
+  - text: The daily meeting automation now includes triage for every briefing item (NOW/LATER/DROP), a marketing and business
+      development block with idea tracking, and enforced daily limits on chats and reminders.
+    evidence:
+      commits:
+      - a7f8dc1ef4
+      - d802990d24
+      - 0114108512
+      - f55a6f83b0
+      - 17c7cb9035
+    release_status: dev_only
+  - text: Host infrastructure added hourly disk budgets per category, automated cleanup of orphaned Docker layers, and disk
+      usage alerts at 75% and 85% thresholds.
+    evidence:
+      commits:
+      - d58b444d32
+      - ccdd3204a8
+      - 44b839e34c
+      - 04a18dac67
+    release_status: dev_only
+  - text: Development scripts were updated to top up test accounts before inference runs and preserve specific placeholders
+      during Discord pushes.
+    evidence:
+      commits:
+      - c7117a6054
+      - 463f5e40c7
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: New wellbeing support and account suspension systems.
+      evidence:
+        commits:
+        - c2236dc810
+        - 355ed3882e
+      reason: Major safety and wellbeing features are currently in development and not yet released to the main branch.
+    - text: Cloud Project workspaces and layered focus modes.
+      evidence:
+        commits:
+        - 3b2bfc8aa5
+        - 53e9829d12
+      reason: Project-related features are currently disabled in the platform configuration.
+    - text: Native Apple platform updates and Rust-core voice turns.
+      evidence:
+        commits:
+        - 01ac4eee8e
+        - bbf1482f15
+      reason: iOS and macOS platforms are currently disabled in the platform configuration.
+    rationale: All changes from this period are currently in the development branch (dev_only) and have not been merged to
+      main. Additionally, several major features involve platforms or apps that are explicitly disabled in the current configuration.
+  social_video_recommendations:
+  - idea: Demonstrate the new wellbeing support flow, showing how the assistant provides helpline cards and how the account
+      appeal process looks.
+    priority: medium
+    reason: This provides a concrete visual story about user safety and platform responsibility.
+    evidence:
+      commits:
+      - c2236dc810
+  quality_notes:
+  - Extensive real-world integration testing was added for safety suspensions, wellbeing helplines, and cloud project commands.
+  - Reliability improvements were implemented for web browsing to handle transient 502/503 errors and rate limits.
+  validation_warnings: []

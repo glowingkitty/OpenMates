@@ -313,17 +313,27 @@ impl Projects<'_> {
         let mut approval = None;
         if let Some((chat, proposal)) = &call.write {
             let digest = proposal.digest(&project.key, &project_id, chat)?;
-            let route = self.path(&format!("/v1/projects/{project_id}/write-approvals"), &[]);
-            self.backend
-                .request(
-                    Method::POST,
-                    &route,
-                    Some(
-                        json!({"chat_id":chat,"operation_id":proposal.operation_id(),"proposal_digest":digest}),
-                    ),
-                    None,
-                )
+            // The server stores approvals only for `always_ask` Projects and
+            // rejects them otherwise (PROJECT_WRITE_APPROVAL_NOT_REQUIRED);
+            // `apply_and_show` writes are authorized by the relay without one.
+            let settings_route = self.path(&format!("/v1/projects/{project_id}/settings"), &[]);
+            let settings = self
+                .backend
+                .request(Method::GET, &settings_route, None, None)
                 .await?;
+            if settings["settings"]["write_mode"] == "always_ask" {
+                let route = self.path(&format!("/v1/projects/{project_id}/write-approvals"), &[]);
+                self.backend
+                    .request(
+                        Method::POST,
+                        &route,
+                        Some(
+                            json!({"chat_id":chat,"operation_id":proposal.operation_id(),"proposal_digest":digest}),
+                        ),
+                        None,
+                    )
+                    .await?;
+            }
             approval = Some((proposal.operation_id().to_owned(), digest));
         }
         let mut session_id = source["source_session_id"]

@@ -84,6 +84,11 @@ on:
         description: Run the web app with the Rust client core on for any e2e or component spec ('true' or 'false')
         type: string
         default: 'false'
+      runner_label:
+        description: Job-unique label of a coordinator-registered single-use E2B runner (empty for GitHub-hosted)
+        type: string
+        required: false
+        default: ''
 permissions:
   actions: read
   contents: read
@@ -91,7 +96,7 @@ permissions:
 jobs:
   test:
     if: github.event_name == 'workflow_dispatch' && !startsWith(inputs.mode, 'apple-')
-    runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || (inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
+    runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || inputs.runner_label != '' && fromJSON(format('["openmates-e2b","{0}"]', inputs.runner_label)) || (inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
     timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-') || inputs.web_rust_core == 'true') && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:

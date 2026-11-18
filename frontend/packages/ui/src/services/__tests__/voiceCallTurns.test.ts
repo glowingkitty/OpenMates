@@ -1,14 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../workspaceQueryCache', () => ({ getWorkspaceCacheIdentity: () => mocks.identity }));
 vi.mock('../workspaceCacheLifecycle', () => ({ getWorkspaceCacheEpoch: () => mocks.epoch }));
-const mocks = vi.hoisted(() => ({ identity:'owner-1',epoch:1,connected:true, send:vi.fn(), row:vi.fn(), save:vi.fn(), updateChat:vi.fn(), event:vi.fn() }));
+const mocks = vi.hoisted(() => ({ identity:'owner-1',epoch:1,connected:true, send:vi.fn(), setActive:vi.fn(), row:vi.fn(), save:vi.fn(), updateChat:vi.fn(), event:vi.fn() }));
 vi.mock('../db', () => ({chatDB:{getMessage:mocks.row,saveMessage:mocks.save,updateChat:mocks.updateChat,getChat:vi.fn(async()=>({chat_id:'chat-1',team_id:null,messages_v:3}))}}));
+vi.mock('../../stores/userProfile', async () => {
+  const { writable } = await import('svelte/store');
+  return { userProfile: writable({ last_opened: null }) };
+});
 vi.mock('../chatSyncService', () => ({chatSyncService:{
-  get webSocketConnected_FOR_SENDERS_ONLY() { return mocks.connected; }, sendNewMessage:mocks.send, dispatchEvent:mocks.event,
+  get webSocketConnected_FOR_SENDERS_ONLY() { return mocks.connected; }, sendNewMessage:mocks.send, dispatchEvent:mocks.event, sendSetActiveChat:mocks.setActive,
 }}));
 import { createVoiceCallSendDiagnostics, sendVoiceCallTurn } from '../voiceCallTurns';
 const turn = {callId:'call-1',chatId:'chat-1',turnId:'turn-1',text:'Explain this image',createdAt:1700000000};
-beforeEach(()=>{mocks.identity='owner-1';mocks.epoch=1;mocks.connected=true;mocks.save.mockReset().mockResolvedValue(undefined);mocks.event.mockClear();mocks.updateChat.mockReset().mockResolvedValue(undefined);mocks.send.mockReset().mockResolvedValue(undefined);mocks.row.mockReset().mockResolvedValue({status:'sending'});});
+beforeEach(()=>{mocks.identity='owner-1';mocks.epoch=1;mocks.connected=true;mocks.save.mockReset().mockResolvedValue(undefined);mocks.event.mockClear();mocks.setActive.mockReset().mockResolvedValue(undefined);mocks.updateChat.mockReset().mockResolvedValue(undefined);mocks.send.mockReset().mockResolvedValue(undefined);mocks.row.mockReset().mockResolvedValue({status:'sending'});});
 
 // contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission,video-call.privacy
 it.each(['predecessor_wait', 'journal_read', 'reply_discovery'] as const)('identifies the fixed predecessor substage %s', stage => {
@@ -65,6 +69,14 @@ describe('canonical call turn adapter',()=>{
     for(const field of ['voice_call_id','voice_turn_id','voice_mode','auto_speak','preserve_draft']) expect(mocks.save.mock.calls[0][0]).not.toHaveProperty(field);
     expect(mocks.send.mock.calls[0][0]).not.toHaveProperty('model');
     expect(mocks.send.mock.calls[0][0]).not.toHaveProperty('provider');
+  });
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.fixed-binding
+  it('records the call chat as last opened once a turn is saved, so it leads the resume card (3X228)',async()=>{
+    expect(await sendVoiceCallTurn(turn)).toBe(true);
+    expect(mocks.setActive).toHaveBeenCalledExactlyOnceWith('chat-1');
+    mocks.connected=false;mocks.setActive.mockClear();
+    expect(await sendVoiceCallTurn(turn)).toBe(false);
+    expect(mocks.setActive).not.toHaveBeenCalled();
   });
   // contract-test: supporting surface=gui.web assertions=video-call.chat.typed-input,video-call.audio.complete-turn-admission
   it('keeps draft acceptance false before connection, on send error, or when canonical admission fails',async()=>{

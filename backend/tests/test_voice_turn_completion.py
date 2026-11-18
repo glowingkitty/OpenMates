@@ -58,3 +58,68 @@ async def test_empty_or_oversized_text_is_not_clipped_into_a_different_request(t
     with patch(f"{MODULE}.JevDecisionClient") as client:
         assert await classify_voice_turn_completion(text, None) == "uncertain"
         client.assert_not_called()
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.complete-turn-admission
+async def test_providers_race_in_parallel_and_first_valid_verdict_wins():
+    import asyncio
+    import time
+    delays = {"typesafe": 0.4, "openrouter": 0.05}
+    cancelled = []
+
+    def make(**kwargs):
+        provider = kwargs["provider"]
+
+        async def evaluate(**_):
+            try:
+                await asyncio.sleep(delays[provider])
+            except asyncio.CancelledError:
+                cancelled.append(provider)
+                raise
+            return decision("complete" if provider == "openrouter" else "incomplete")
+        client = type("C", (), {})()
+        client.evaluate = evaluate
+        return client
+
+    with patch(f"{MODULE}.JevDecisionClient", side_effect=make):
+        started = time.monotonic()
+        assert await classify_voice_turn_completion("Hello there", None) == "complete"
+        assert time.monotonic() - started < 0.3
+    assert cancelled == ["typesafe"]
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.complete-turn-admission
+async def test_failed_provider_falls_through_to_the_other_in_parallel():
+    import asyncio
+
+    def make(**kwargs):
+        async def evaluate(**_):
+            if kwargs["provider"] == "typesafe":
+                raise RuntimeError("down")
+            await asyncio.sleep(0.05)
+            return decision("complete")
+        client = type("C", (), {})()
+        client.evaluate = evaluate
+        return client
+
+    with patch(f"{MODULE}.JevDecisionClient", side_effect=make):
+        assert await classify_voice_turn_completion("Hello there", None) == "complete"
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.audio.complete-turn-admission
+async def test_hard_deadline_returns_unavailable_with_explicit_warning(caplog):
+    import asyncio
+    import time
+
+    def make(**_):
+        async def evaluate(**_):
+            await asyncio.sleep(5)
+        client = type("C", (), {})()
+        client.evaluate = evaluate
+        return client
+
+    with patch(f"{MODULE}.JevDecisionClient", side_effect=make):
+        started = time.monotonic()
+        assert await classify_voice_turn_completion("Hello there", None, timeout=0.2) == "unavailable"
+        assert time.monotonic() - started < 0.5
+    assert "VOICE_COMPLETION_CHECK timeout" in caplog.text

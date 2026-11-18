@@ -10,13 +10,13 @@ flag:
   flag_off_behavior: original TypeScript path, byte-identical build output (guarded in CI)
 summary:
   total: 21
-  done: 7
-  partial: 9
-  missing: 5
-  percent: 33.3
+  done: 10
+  partial: 7
+  missing: 4
+  percent: 47.6
 worker_namespaces_installed_not_progress:
-  installed: 18
-  total: 19
+  installed: 17
+  total: 23
   note: 'Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs.'
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
   web-rust-core-chat.spec.ts, web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts,
@@ -24,8 +24,8 @@ e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-
   web-rust-core-continue-carousel.spec.ts, web-rust-core-crypto.spec.ts, web-rust-core-drafts.spec.ts, web-rust-core-embeds.spec.ts,
   web-rust-core-memory-level.spec.ts, web-rust-core-persist.spec.ts, web-rust-core-profile.spec.ts, web-rust-core-projects-flow.spec.ts,
   web-rust-core-projects-remote-sources.spec.ts, web-rust-core-reload-memory.spec.ts, web-rust-core-search.spec.ts,
-  web-rust-core-send-bench.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts, web-rust-core-workflow-side-panel.spec.ts,
-  web-rust-core-ws.spec.ts]
+  web-rust-core-send-bench.spec.ts, web-rust-core-send-prep.spec.ts, web-rust-core-sync.spec.ts, web-rust-core-transfer.spec.ts,
+  web-rust-core-workflow-side-panel.spec.ts, web-rust-core-ws.spec.ts]
 lanes:
   file: web-lanes.yml
   plan: web-lanes.md
@@ -108,30 +108,39 @@ units:
   typescript_fallback: none declared (4 files)
   unit_tests: [embedTransientWorker.test.ts, childRevision.test.ts, embedContentEdit.test.ts, embedEditSession.test.ts,
     embedEditUnit.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, embedWriteBinding.test.ts, messageEmbedVersion.test.ts,
-    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts]
+    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts, rustStreamedEmbedWriteGuest.test.ts]
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: [packages/openmates-rust/src/toon_decode_ts_vectors.json]
   open_gaps: [Embed RSS +1..+77 MB vs TypeScript in the embeds bench (noisy); see performance-history.yml.]
   spec_assertions: [chats.persistence.client-encrypted, chats.rendering.assistant-document-convergence]
   spec_gaps: ['Embed resolve, version reconstruction and TOON decode behavior have no assertion.']
 - namespace: embedWrite
-  status: installed
+  status: planned
   pre_bind: false
-  installer: frontend/packages/ui/src/services/rustCore/embeds/embedWriteUnit.ts
-  what_moved: One installer call = one Rust embed write session (`BrowserEmbedWriter`) under the bound generation,
-    next to the Worker-side `chats_db` rows it writes. Rust owns key choice, every ciphertext, row/payload shapes
-    and the revision-history decisions (embedWriteAdapter.ts sequences them); this unit persists the prepared rows
-    (embe...
-  typescript_fallback: none declared (4 files)
-  unit_tests: [embedTransientWorker.test.ts, childRevision.test.ts, embedContentEdit.test.ts, embedEditSession.test.ts,
-    embedEditUnit.test.ts, embedKeyResolution.test.ts, embedUnits.test.ts, embedWriteBinding.test.ts, messageEmbedVersion.test.ts,
-    messageParentIds.test.ts, readOps.test.ts, rustRecoveredChildRevision.test.ts]
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
   e2e_specs: [web-rust-core-embeds.spec.ts]
   vectors: []
   open_gaps: [Streamed write is wired for send_embed_data only.]
   spec_assertions: [chats.persistence.client-encrypted, chats.streaming.ordered-final]
   spec_gaps: ['Streamed embed write ordering and key resolution (master/chat wrapper, legacy child inheritance)
       have no assertion.']
+- namespace: embedWriteGuest
+  status: planned
+  pre_bind: true
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
+  e2e_specs: []
+  vectors: []
+  open_gaps: [No web-rust-core spec yet; anonymous-child-embeds.spec.ts (guest result card survives reload) covers
+      the flow outside the web-rust-core set., 'Guest result cards are not carried over to the account on signup
+      (no master wrapper, never uploaded).']
+  spec_assertions: [billing.anonymous.local-only-content]
+  spec_gaps: [Signup promotion of local-only guest embeds has no assertion.]
 - namespace: chatState
   status: installed
   pre_bind: true
@@ -241,7 +250,7 @@ units:
   pre_bind: false
   installer: frontend/packages/ui/src/services/rustCore/drafts/draftsUnit.ts
   what_moved: 'Draft policy (encryption, versioning, closed IndexedDB predicates, durable encrypted sync intent,
-    readback) is shared Rust (`prepare_local_draft_with_preview`, `remote_payload`, `acknowledge_transport`). This
+    readback) is shared Rust (`prepare_local_draft_with_options`, `remote_payload`, `acknowledge_transport`). This
     unit only marshals: it runs the Rust calls on the ADMITTED client of the bound history `core` lease (borrowed
     via core...'
   typescript_fallback: not declared in unit sources
@@ -362,3 +371,46 @@ units:
     embed-user-edits.event.chat-notice, embed-user-edits.event.project-edit-reaches-chat, embed-user-edits.event.collapse]
   spec_gaps: ['The Worker''s Enhance run (one run per image in the Worker realm, frame wake-up, rejoin after a page
       reload) has no assertion.']
+- namespace: projectTimeline
+  status: planned
+  pre_bind: false
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
+  e2e_specs: []
+  vectors: []
+  open_gaps: [No flag-on web-rust-core spec yet for the Project Timeline tab., Commit restore is not served by the
+      unit; the core restore needs the native hosted-file writer (workflow-yaml + unix) which has no wasm32 build.,
+    'Timeline file rows open the file''s folder in the Files tab, not the file viewer.']
+  spec_assertions: []
+  spec_gaps: ['The Timeline tab load, load-more and file-open behavior has no assertion.']
+- namespace: presentRemote
+  status: planned
+  pre_bind: false
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
+  e2e_specs: []
+  vectors: []
+  open_gaps: [No flag-on web-rust-core spec yet; slides-present-remote.spec.ts covers the remote flow once the web
+      UI lane lands.]
+  spec_assertions: [slides.present.remote-relay-private, slides.present.remote-one-core]
+  spec_gaps: []
+- namespace: voiceTurn
+  status: planned
+  pre_bind: false
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
+  e2e_specs: []
+  vectors: []
+  open_gaps: ['No web-rust-core spec; voice-call.spec.ts (e2e jobs build with the core on) covers call turns, the
+      likely-end hint, its withdrawal and the early-prep reuse.', 'Only voice-call turns use the unit; text-chat
+      send still runs through the TypeScript sender (sendersChatMessages.ts), whose voice branch stays until text
+      send moves to the core.', The flag-off TypeScript voice path (chatSyncService.sendNewMessage) remains until
+      the web flip.]
+  spec_assertions: [video-call.audio.complete-turn-admission, chats.send.immediate-admission]
+  spec_gaps: []

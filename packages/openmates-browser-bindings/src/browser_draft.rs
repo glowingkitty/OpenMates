@@ -50,16 +50,17 @@ impl BrowserDraftWriteHandle {
             .map(|s| s.to_string())
             .map_err(draft_refusal)
     }
-    /// `update_draft` ciphertext payload for the page's existing socket. Refused
-    /// for a local-only profile (no server authority).
-    pub fn remote_payload(&self, client: &BrowserCoreClient) -> Result<String, JsValue> {
+    /// `update_draft` ciphertext payload for the page's existing socket, or
+    /// `undefined` for a local-only (offline) profile: the write is saved locally
+    /// with its encrypted intent queued, and nothing may be published yet.
+    pub fn remote_payload(&self, client: &BrowserCoreClient) -> Result<Option<String>, JsValue> {
         let status = client.status(&self.handle, self.generation)?;
         if status.principal() != self.owner {
             return Err(JsValue::from_str("session_expired"));
         }
         self.resource
-            .remote_payload(&client.client)
-            .map(|s| s.to_string())
+            .remote_payload_if_admitted(&client.client)
+            .map(|s| s.map(|s| s.to_string()))
             .map_err(draft_refusal)
     }
     /// The page's socket delivered `remote_payload` (or took over its replay):
@@ -161,6 +162,10 @@ fn draft_refusal(error: openmates_sdk::Error) -> JsValue {
             code: "browser_draft_existing_personal_required",
             ..
         } => "browser_draft_existing_personal_required",
+        Error::Unavailable {
+            code: "existing_chat_required",
+            ..
+        } => "existing_chat_required",
         Error::Forbidden => "browser_draft_forbidden",
         Error::Invalid(_) => "invalid_request",
         Error::Crypto => "crypto",
@@ -213,6 +218,64 @@ impl BrowserCoreClient {
                 Some(&preview),
                 scope,
                 now as u64,
+                |plan| draft_effect(&effect, plan),
+            )
+            .await
+            .map_err(draft_refusal)?;
+        let status = self.status(handle, generation)?;
+        if status.principal() != owner {
+            return Err(JsValue::from_str("session_expired"));
+        }
+        Ok(BrowserDraftWriteHandle {
+            resource,
+            handle: handle.into(),
+            generation,
+            owner: owner.into(),
+        })
+    }
+    /// `prepare_local_draft_with_preview` with the explicit team (`team_id`, a
+    /// non-empty string or undefined for a personal chat) and `create_chat`
+    /// (create the chats row when it is absent). Refusals use `draft_refusal`.
+    #[allow(clippy::too_many_arguments)] // Positional wasm-bindgen ABI.
+    pub async fn prepare_local_draft_with_options(
+        &mut self,
+        handle: &str,
+        generation: f64,
+        owner: &str,
+        chat_id: &str,
+        markdown: String,
+        preview: String,
+        scope: &str,
+        now: f64,
+        team_id: Option<String>,
+        create_chat: bool,
+        effect: js_sys::Function,
+    ) -> Result<BrowserDraftWriteHandle, JsValue> {
+        let markdown = Zeroizing::new(markdown);
+        let preview = Zeroizing::new(preview);
+        let status = self.status(handle, generation)?;
+        if status.principal() != owner
+            || !now.is_finite()
+            || now.fract() != 0.0
+            || now < 0.0
+            || now > 9_007_199_254_740_991.0
+        {
+            return Err(JsValue::from_str("invalid_request"));
+        }
+        let options = openmates_sdk::client::BrowserDraftOptions {
+            team_id,
+            create_chat,
+        };
+        let resource = self
+            .client
+            .prepare_browser_draft_with_options_io_json(
+                owner,
+                chat_id,
+                &markdown,
+                Some(&preview),
+                scope,
+                now as u64,
+                &options,
                 |plan| draft_effect(&effect, plan),
             )
             .await

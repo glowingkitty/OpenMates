@@ -77,6 +77,8 @@ COPY shared /shared
 COPY shared/events/openmates_events.yml /app/shared/events/openmates_events.yml
 COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.yml
 COPY frontend/packages/ui/src/i18n /app/frontend/packages/ui/src/i18n
+# Image/video safety checks read the policy text (image_safety/policy.py).
+COPY docs/architecture/image-safety-policy.md /app/docs/architecture/image-safety-policy.md
 
 # Create logs directory
 RUN mkdir -p /app/logs && chmod 777 /app/logs

@@ -95,7 +95,9 @@ final class NativeComposerDraftEditUITests: XCTestCase {
                        "Fallback processing must not add an unsolicited welcome composer paragraph")
         let input = app.textViews["message-editor"].firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 5))
-        guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
+        // A text-free attachment draft shows the compact draft summary while the
+        // retained editor stays off-screen; a user restores it by tapping the summary.
+        guard restoreDraftFromSummary(in: app) else { return }
         input.typeText("Synthetic attachment draft text")
         func assertSaved(expectsExpandedEditor: Bool = true) {
             let saved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
@@ -136,8 +138,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(greeting.waitForExistence(timeout: 5))
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         assertSaved(expectsExpandedEditor: false)
-        app.buttons["message-draft-summary"].tap()
-        guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
+        guard restoreDraftFromSummary(in: app) else { return }
         XCTAssertTrue((input.value as? String ?? "").contains("Synthetic attachment draft text and later text"))
         assertSaved()
         XCTAssertFalse(greeting.exists)
@@ -156,8 +157,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(greeting.waitForExistence(timeout: 5))
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         assertSaved(expectsExpandedEditor: false)
-        app.buttons["message-draft-summary"].tap()
-        guard RealAccountUITestSupport.focusForTextEntry(input, in: app, identifier: "message-editor") else { return }
+        guard restoreDraftFromSummary(in: app) else { return }
         XCTAssertTrue((input.value as? String ?? "").contains("Synthetic attachment draft text and later text"))
         assertSaved()
         let longSuffix = String(repeating: " synthetic long draft", count: 12)
@@ -220,7 +220,9 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertEqual(cancel.frame.width, field.frame.width, accuracy: 1)
         XCTAssertEqual(cancel.frame.minX, field.frame.minX, accuracy: 1)
         XCTAssertTrue(backdrop.exists, "Expansion keeps the whole transcript suppressed even after keyboard blur")
-        XCTAssertGreaterThanOrEqual(backdrop.frame.height, 48,
+        // 48pt lane; half a point absorbs accessibility frame rounding
+        // (CI measured 47.999999999999986 for an exact 48pt lane).
+        XCTAssertGreaterThanOrEqual(backdrop.frame.height, 47.5,
                                     "Expanded editing must retain an actual outside tap lane")
         backdrop.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
         XCTAssertTrue(backdrop.waitForNonExistence(timeout: 5))
@@ -229,7 +231,16 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         let summary = app.buttons["message-draft-summary"]
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
         XCTAssertTrue(summary.label.contains(shortDraft))
-        XCTAssertFalse(editor.exists, "The retained editor is hidden from accessibility while its summary is visible")
+        // The summary and the editor's accessibility switch over in one 0.25 s
+        // animation; judge the retained editor once that transition settled.
+        let editorHidden = editor.waitForNonExistence(timeout: 3)
+        if !editorHidden {
+            let diagnostic = XCTAttachment(string: editor.debugDescription)
+            diagnostic.name = "Retained editor still exposed beside summary"
+            diagnostic.lifetime = .keepAlways
+            add(diagnostic)
+        }
+        XCTAssertTrue(editorHidden, "The retained editor is hidden from accessibility while its summary is visible")
         XCTAssertFalse(app.buttons["send-button"].exists)
         XCTAssertFalse(app.buttons["composer-attachment-toggle"].exists)
         XCTAssertTrue(app.buttons["record-audio-button"].isHittable)
@@ -276,7 +287,7 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(summary.label.contains("Synthetic chat image draft"))
         XCTAssertFalse(app.buttons["send-button"].exists)
         XCTAssertFalse(app.buttons["composer-attachment-toggle"].exists)
-        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
         app.buttons["record-audio-button"].tap()
         let recording = element(in: app, identifier: "record-overlay")
         XCTAssertTrue(recording.waitForExistence(timeout: 5))
@@ -507,9 +518,19 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         let suggestion = try NativeUITestElementResolution.requireVisible(suggestions, in: app, timeout: 5)
         suggestion.tap()
 
-        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: fullscreen)
-        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.keyboards.firstMatch)
-        waitForExpectations(timeout: 8)
+        let closed = XCTWaiter.wait(for: [
+            XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: fullscreen),
+            XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.keyboards.firstMatch)
+        ], timeout: 8)
+        if closed != .completed {
+            // Focus-origin phases (editor-focus vs ChatView focus) for the failure report.
+            let outcome = element(in: app, identifier: "composer-send-fixture-outcome")
+            let probe = XCTAttachment(string: "outcome=\(outcome.value as? String ?? "missing")")
+            probe.name = "Follow-up focus phases"
+            probe.lifetime = .keepAlways
+            add(probe)
+        }
+        XCTAssertEqual(closed, .completed, "An accepted follow-up closes the composer and dismisses the keyboard")
         attachScreenshot(name: "Accepted follow-up closes composer and keyboard")
     }
 
@@ -522,10 +543,10 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         ]
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
         app.launch()
-        let banner = element(in: app, identifier: "streaming-banner")
+        // The standalone streaming banner was removed from the native chat (the
+        // web shows processing state in the message and the composer Stop action).
         let stop = app.buttons["stop-processing-button"]
-        XCTAssertTrue(banner.waitForExistence(timeout: 12))
-        XCTAssertTrue(stop.waitForExistence(timeout: 5))
+        XCTAssertTrue(stop.waitForExistence(timeout: 12))
         XCTAssertTrue(stop.isHittable)
         let recover = app.buttons["composer-processing-recover"]
         XCTAssertTrue(recover.waitForExistence(timeout: 5))
@@ -533,7 +554,6 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         recover.tap()
 
         expectation(for: NSPredicate(format: "value == %@", "completed"), evaluatedWith: recover)
-        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: banner)
         expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: stop)
         waitForExpectations(timeout: 8)
         XCTAssertEqual(recover.value as? String, "completed", "Synthetic recovery action receipt")
@@ -552,7 +572,6 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertTrue(send.waitForExistence(timeout: 5))
         XCTAssertTrue(send.isEnabled)
         XCTAssertTrue(send.isHittable)
-        XCTAssertFalse(banner.exists)
         XCTAssertFalse(stop.exists)
         attachScreenshot(name: "Authoritative processing completion restores composer after stale replay")
     }
@@ -620,5 +639,23 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    /// Restores a compact draft the way a user does: one tap on the visible
+    /// summary. The retained editor is off-screen until then, so the test never
+    /// taps the editor's stale coordinates (that would land outside and collapse it).
+    private func restoreDraftFromSummary(in app: XCUIApplication,
+                                         file: StaticString = #filePath, line: UInt = #line) -> Bool {
+        let summary = app.buttons["message-draft-summary"]
+        guard summary.waitForExistence(timeout: 5) else {
+            XCTFail("A saved draft must show the compact draft summary", file: file, line: line); return false
+        }
+        summary.tap()
+        let focused = app.textViews.matching(NSPredicate(
+            format: "identifier == %@ AND hasKeyboardFocus == true", "message-editor")).firstMatch
+        guard focused.waitForExistence(timeout: 5) else {
+            XCTFail("Tapping the draft summary must focus the restored editor", file: file, line: line); return false
+        }
+        return true
     }
 }

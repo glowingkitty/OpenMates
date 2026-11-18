@@ -1001,7 +1001,15 @@ export async function writeLegacyEmbed(database, raw) {
             hashed_embed_id: sha256(keyOwner), hashed_user_id: actor,
           }).forShare();
           const fullSnapshot = typeof history?.encrypted_snapshot === 'string' && history.encrypted_snapshot;
-          if (!history || (childHead
+          // A root generated-application parent is a manifest of child file
+          // embeds; each version replaces the whole manifest (a fuller file
+          // list, a newer screenshot) and has no history kind, so no prior
+          // history row can exist. The exact sealed next-version output and
+          // both wrappers below still gate it; the previous ACK stays bound to
+          // the superseded ciphertext.
+          const applicationParent = !childHead && embed.parent_embed_id == null
+            && embed.app_id === 'code' && embed.skill_id === 'application';
+          if ((!applicationParent && !history) || (applicationParent ? false : childHead
             // Child image versions are full-replacement snapshots.
             ? !fullSnapshot || (currentVersion === 1 && history.encrypted_patch != null)
             : currentVersion === 1

@@ -65,12 +65,14 @@ enum ProjectWorkspaceTab: String, CaseIterable, Identifiable {
     case overview
     case files
     case tasks
+    case timeline
     var id: String { rawValue }
     @MainActor var title: String {
         switch self {
         case .overview: AppStrings.projectOverview
         case .files: AppStrings.projectFiles
         case .tasks: AppStrings.projectTasks
+        case .timeline: AppStrings.localized("projects.timeline_tab")
         }
     }
 }

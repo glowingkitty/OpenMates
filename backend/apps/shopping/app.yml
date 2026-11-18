@@ -3,7 +3,7 @@ description_translation_key: shopping.description
 icon_image: |
   shopping.svg
 category: lifestyle
-last_updated: "2026-02-22"
+last_updated: "2026-11-17"
 instructions:
   - tool_phase_only: false
     instruction: |
@@ -16,6 +16,33 @@ instructions:
       separately from products meeting every stated requirement. A brand establishes only the brand;
       identify a seller or manufacturer only when explicitly returned. Do not infer exact identity or
       fibre percentages from titles or scores.
+  - tool_phase_only: false
+    instruction: |
+      **Product from a photo or description: identify, then compare prices**
+      1. Identify first. For a photo, read the visible evidence: printed brand or logo, model text,
+         shape, colour, materials and included accessories. Name an exact model only when the evidence
+         or the user's words support it; otherwise give the most likely model, say what is uncertain
+         (for example two similar models) and search for the most likely one.
+      2. Search with the identified product: brand + model + short product type in `query`, and set
+         `brand` and `model` (the model number when known) so offers for other models and accessories
+         are dropped. Pass an uploaded photo in `reference_images`.
+      3. "Where can I buy it", "cheapest", "best deal": one request with `sort: price_asc` and
+         `condition: any` (or `new` when the user wants new), `country` where the user lives (DE when
+         unknown and the user writes German). Offers come back cheapest first by total price including
+         shipping.
+      4. "Used", "second-hand", "nearby": `condition: used`, `location` = the postal code or city the
+         user named, `radius_km` (25 when not given). Without a location, search used offers in the
+         country and ask for a postal code or city at the end. When no returned offer is within the
+         radius, say so in one sentence, then still list the closest returned offers (price, shipping,
+         total, condition and location) as in step 5. Web results never replace returned offers, and
+         an answer about offers always shows their prices.
+      5. Answer with the identified product first, then the cheapest offers as a compact bulleted list,
+         not a table (links inside tables are not clickable): one bullet per offer that starts with the
+         offer as an inline embed reference, `[shop: short title](embed:<embed_ref>)`, which opens the
+         offer card with its shop link, then item price, shipping, total and condition. Write "+ shipping" when `shipping_known` is false. Keep used offers apart from
+         new ones and name the cheapest overall. Use only returned prices, shipping costs, conditions and
+         links; never invent them. When `price_comparison.exact_product_found` is false, say that no
+         offer named the exact product and that the listed ones are similar. Prices can change.
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search_products
@@ -143,11 +170,57 @@ skills:
                   filter visual matches; preserves structured product and price results. An empty
                   array leaves normal search behavior unchanged. No raw image URLs or base64.
                   Inspect visual_evaluation and visual_match for unavailable comparisons.
+              brand:
+                x-ui:
+                  basic: true
+                type: string
+                maxLength: 80
+                description: >
+                  Brand of one exact product to compare prices for, e.g. "Sony". Offers whose title
+                  lacks the brand are dropped. Omit for open product discovery.
+              model:
+                x-ui:
+                  basic: true
+                type: string
+                maxLength: 120
+                description: >
+                  Model of one exact product, ideally its model number, e.g. "WH-1000XM5". Offers whose title
+                  lacks a model token with a digit are dropped, so accessories and neighbouring models do
+                  not appear as the cheapest offer. Omit when unknown.
+              condition:
+                x-ui:
+                  basic: true
+                type: string
+                enum:
+                  - any
+                  - new
+                  - used
+                default: any
+                description: >
+                  Offer condition: "used" for second-hand or "used nearby" questions, "new" when the user
+                  wants new, otherwise "any".
+              location:
+                x-ui:
+                  basic: true
+                type: string
+                maxLength: 120
+                description: >
+                  Postal code or city for nearby (pickup) offers, e.g. "10115" or "Berlin". Only when the
+                  user names a place or asks for offers near them.
+              radius_km:
+                x-ui:
+                  basic: false
+                type: integer
+                minimum: 1
+                maximum: 200
+                description: Search radius around `location` in km (default 25).
               sort:
                 x-ui:
                   basic: false
                 type: string
-                description: Requested result ordering when product search becomes available.
+                description: >
+                  Result order. "price_asc" returns offers from all shops cheapest first by total price
+                  including shipping; use it for "cheapest", "best price" and "where can I buy it".
                 enum:
                   - relevance
                   - price_asc

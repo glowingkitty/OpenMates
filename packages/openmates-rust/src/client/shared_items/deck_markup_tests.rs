@@ -198,3 +198,12 @@ fn refuses_non_normalised_notepad_bodies_and_hidden_values() {
         );
     }
 }
+
+/// The blank deck the web Projects Create menu stores ("New slides"): the editor must open it.
+#[test]
+fn blank_project_deck_opens() {
+    let blank = "<deck title=\"Launch &amp; &#x27;deck&#x27;\" aspect=\"16:9\" template=\"builtin:plain\">\n  <slide id=\"s1\" layout=\"title\">\n    <text id=\"e1\" role=\"title\">Launch &amp; 'deck'</text>\n  </slide>\n</deck>\n";
+    let model = parse_deck_markup(blank).expect("blank Project deck is normalised");
+    assert_eq!(model.slides.len(), 1);
+    assert_eq!(serialise_deck_markup(&model), blank);
+}

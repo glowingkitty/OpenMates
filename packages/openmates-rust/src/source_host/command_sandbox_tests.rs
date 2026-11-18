@@ -10,6 +10,7 @@ fn plan() -> ConfinementPlan {
     ConfinementPlan {
         root: PathBuf::from("/home/dev/.openmates/worktrees/src/chat"),
         cwd: PathBuf::from("/home/dev/.openmates/worktrees/src/chat/app"),
+        root_read_only: false,
         git: GitAccess {
             read_only: vec![PathBuf::from("/home/dev/repo/.git")],
             writable: vec![

@@ -1,4 +1,5 @@
 // playwright-account: not_required reason=isolated_component_preview
+// proof-video: not_required reason=visual_smoke_not_needed
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 import type { Page } from '@playwright/test';
@@ -15,7 +16,7 @@ async function open(page: Page, path: string, variant?: string, width = '900') {
 
 test.describe('test result preview card', () => {
 	// contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence
-	test('browser run shows the preview frame image with status and counts', async ({ page }) => {
+	test('browser run shows the preview frame image with status and counts', async ({ page }, testInfo) => {
 		await open(page, PREVIEW);
 		const frame = page.getByTestId('test-result-preview-frame');
 		await expect(frame).toBeVisible({ timeout: 30_000 });
@@ -25,6 +26,29 @@ test.describe('test result preview card', () => {
 		await expect(page.getByTestId('test-result-preview-status')).toHaveAttribute('data-status', 'passed');
 		await expect(page.getByTestId('test-result-preview-counts')).toContainText('4');
 		await expect(page.getByTestId('test-result-preview-stale')).toHaveCount(0);
+		// The title names the test; the execution target ("e2b") is never the title.
+		await expect(page.getByTestId('test-result-preview-title')).toHaveText('Signing in opens the dashboard');
+		// The compact card keeps its 24px text inset (the arrow clearance is for wide cards only).
+		const compact = await page.getByTestId('test-result-preview').boundingBox();
+		const compactTitle = await page.getByTestId('test-result-preview-title').boundingBox();
+		expect(compact && compactTitle && compactTitle.x - compact.x <= 30, 'compact card keeps its text width').toBe(true);
+		await testInfo.attach('test-result-preview-card', {
+			body: await page.getByTestId('test-result-preview').screenshot(),
+			contentType: 'image/png'
+		});
+		// Grouped results render the card wide with carousel arrows 10px from its
+		// bottom corners (36px): title and counts start clear of them.
+		await page.addStyleTag({ content: '[data-testid="embed-preview"] { width: 900px !important; height: 520px !important; max-width: none !important; }' });
+		const card = await page.getByTestId('test-result-preview').boundingBox();
+		expect(card && card.width > 800, 'wide card rendered').toBe(true);
+		for (const id of ['test-result-preview-title', 'test-result-preview-counts']) {
+			const text = await page.getByTestId(id).boundingBox();
+			expect(card && text && text.x - card.x >= 46 && card.x + card.width - (text.x + text.width) >= 46, `${id} clears the carousel arrows`).toBe(true);
+		}
+		await testInfo.attach('test-result-preview-card-wide', {
+			body: await page.getByTestId('test-result-preview').screenshot(),
+			contentType: 'image/png'
+		});
 	});
 
 	// contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence
@@ -97,11 +121,29 @@ test.describe('test result fullscreen', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence
-	test('browser failed step shows its error and failed status', async ({ page }) => {
+	test('browser failed step shows its error and failed status', async ({ page }, testInfo) => {
 		await open(page, FULLSCREEN, 'browserFailed', '1100');
 		const last = page.getByTestId('test-result-step-3');
 		await expect(last).toHaveAttribute('data-status', 'failed');
 		await expect(last).toContainText('Expected element');
+		// A step with a status line and an error grows to fit them: the global
+		// button height must not clip or centre its text.
+		// Row and parts are measured in one frame: the fullscreen opens with an animation.
+		const parts = await last.evaluate((row) => {
+			const r = row.getBoundingClientRect();
+			return ['.tr-step-name', '.tr-step-status', '.tr-step-error'].map((selector) => {
+				const p = row.querySelector(selector)!.getBoundingClientRect();
+				return { selector, top: p.top - r.top, bottom: r.bottom - p.bottom, left: p.left - r.left };
+			});
+		});
+		for (const part of parts) {
+			expect(part.top >= 0 && part.bottom >= -0.5, `${part.selector} stays inside its step row`).toBe(true);
+			expect(part.left <= 48, `${part.selector} is left-aligned`).toBe(true);
+		}
+		await testInfo.attach('test-result-timeline-failed-step', {
+			body: await page.getByTestId('test-result-timeline').screenshot(),
+			contentType: 'image/png'
+		});
 	});
 
 	// contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence

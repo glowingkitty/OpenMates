@@ -8,6 +8,7 @@ const OWNER = 'a'.repeat(64);
 const TEAM = 'b'.repeat(64);
 const SOURCE_FIELDS = ['id', 'chat_id', 'client_message_id', 'created_at', 'encrypted_content'];
 
+const collatedSql = [];
 // contract-test: supporting surface=rest_api assertions=storage.compression.incremental-archive,storage.integrity.observable-reconcilable
 test('archive progress pages UUID cursors and honors due-state feature gates', async () => {
   const initial = seed();
@@ -139,11 +140,22 @@ function fakeDatabase(initial) {
           if (sql.startsWith('(last_timestamp, last_message_id)'))
             return add('and', (row) => row.last_timestamp > args[0]
               || (row.last_timestamp === args[0] && row.last_message_id >= args[1]));
+          const bound = sql.match(/^client_message_id COLLATE "C" (<=|>) \?::text COLLATE "C"$/);
+          if (bound) {
+            collatedSql.push(sql);
+            return add('and', (row) => compare(row.client_message_id, bound[1], args[0]));
+          }
           throw new Error(`unsupported whereRaw ${sql}`);
         },
         forUpdate() { return query; },
         forShare() { return query; },
         orderBy(field, direction = 'asc') { order.push([field, direction]); return query; },
+        orderByRaw(sql) {
+          assert.equal(sql, 'client_message_id COLLATE "C"');
+          collatedSql.push(sql);
+          order.push(['client_message_id', 'asc']);
+          return query;
+        },
         async limit(value) { return structuredClone(selected().slice(0, value)); },
         select(fields) { projection = Array.isArray(fields) ? fields : [fields]; return query; },
         count() { count = true; return query; },
@@ -488,6 +500,10 @@ test('source_page enforces twenty-row cursor windows inside the exact manifest',
   assert.equal(first.messages[19].client_message_id, 'm20');
   const second = await page({ after_timestamp: 20, after_message_id: 'm20' });
   assert.deepEqual(second.messages.map(row => row.client_message_id), ['m21', 'm22', 'm23', 'm24', 'm25']);
+  // Regression (TASK-4777): ordering and cursor/segment bounds use the bytewise C collation.
+  assert.ok(collatedSql.includes('client_message_id COLLATE "C"'));
+  assert.ok(collatedSql.some(sql => sql.includes('> ?::text COLLATE "C"')));
+  assert.ok(collatedSql.some(sql => sql.includes('<= ?::text COLLATE "C"')));
 });
 
 // contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs,storage.compression.incremental-archive

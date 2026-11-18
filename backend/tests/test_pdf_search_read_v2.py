@@ -145,7 +145,7 @@ async def test_search_reranks_with_jev_and_survives_outage(monkeypatch):
     plain = await skill.execute(REF, "alpha", **_kwargs())
     assert [m["page_num"] for m in plain["matches"]] == [1, 2]
 
-    async def fake_rerank(self, query, candidates, pages_text, secrets_manager):
+    async def fake_rerank(self, query, candidates, pages_text, secrets_manager, policy=None):
         return {1: 0.0, 2: 1.0}
 
     monkeypatch.setattr(SearchSkill, "_jev_relevance", fake_rerank)
@@ -169,7 +169,7 @@ async def test_server_side_callers_can_widen_the_reranked_head_but_not_past_the_
     skill = _search(monkeypatch, pages)
     seen = []
 
-    async def record(self, query, candidates, pages_text, secrets_manager):
+    async def record(self, query, candidates, pages_text, secrets_manager, policy=None):
         seen.append(len(candidates))
         return None
 

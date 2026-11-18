@@ -8,7 +8,7 @@ goal: >
   sessions, Jev control, DeepSeek via Together and Gemini 3.8 Flash fallback,
   screenshot embeds and user takeover; deploy and test the regular skill and
   embeds first, then workflow support, and report performance, cost and reliability.
-specifications: [feature.app-skill.web-browse@1]
+specifications: [feature.app-skill.web-browse@2]
 decisions:
   - 'On 2026-10-27 the user answered "Yes, continue with the embeds." to the explicit Rust SDK gate deferral question. Proceed with web embeds after the verified CLI/npm/pip evidence; Rust SDK parity remains deferred and is not claimed as implemented or verified.'
   - The user explicitly authorized implementation from the clarified design on 2026-10-26; no additional design approval round is required.
@@ -19,6 +19,7 @@ decisions:
   - On 2026-10-26 the user set a browser startup target below three seconds, acceptable below four and a hard ceiling around four to five. Measure provisioning separately from page loading, queueing and inference.
   - The user explicitly approved a prepared paused pool conditional on no cross-user cache or login access. Each public blank VM is claimed atomically for one owner and chat for its entire lifetime, never recycled after any claim, and destroyed on a failed handoff. No template may contain user state. Pool preparation overhead is absorbed by the platform; the existing user tariff applies only after the admitted ownership resume.
   - 'On 2026-11-11 the user approved the reworked architecture ("Sounds good. Let us implement this updated architecture and test it out with multiple example user flows"): single start call, batched act-and-observe steps, a planner with quoted evidence that survives navigation, per-value verification with partial results, pause when a run finishes, a live step list that never waits on the run, and crawler exclusions applied to page and frame navigations. Contract: v2-design.md. Acceptance uses real chats on dev, including a multi-page product search (psilocybin grow kits, with the check-your-local-law notice in the answer).'
+  - 'On 2026-11-16 the owner asked for a "fill a form with the user" flow tested on a real JavaScript form: Browse starts on its own, the assistant asks one question per turn and fills each answer in the same live session, and never submits without a summary and explicit confirmation. Implemented as deterministic routing (form link with work-through wording, or a recent Browse turn), a scanned form-field view in results (also for needs_user), restoring the user-given start address over its redacted observation and refusing redacted navigation, planner form rules, and skill-gated assistant guidance (app instruction for_skills). Requirement web-browse.form-with-user is a draft awaiting owner approval.'
 scope:
   - Regular callable skill, authenticated session controls, encrypted results, scoped provider calls and bounded usage ledger.
   - Screenshot preview and fullscreen watch, manual input, sign-in notice, AI continuation and lifecycle controls.
