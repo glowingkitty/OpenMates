@@ -307,6 +307,7 @@ class EmbedTypeDefinition(BaseModel):
     child_type: Optional[str] = Field(default=None, description="Child embed type ID (for composite embeds)")
     child_frontend_type: Optional[str] = Field(default=None, description="Frontend type string for child embeds (e.g., 'web-website')")
     groupable: Optional[bool] = Field(default=False, description="Whether this embed type can be grouped in the TipTap editor")
+    answer_card: Optional[bool] = Field(default=False, description="True when the skill embed itself is the result the user asked for (e.g. a drafted Specification): its card stays visible in the answer even while the used-skill container is collapsed")
     preview_component: Optional[str] = Field(default=None, description="Path to Svelte preview component relative to embeds/ dir")
     fullscreen_component: Optional[str] = Field(default=None, description="Path to Svelte fullscreen component relative to embeds/ dir (null if no fullscreen)")
     child_preview_component: Optional[str] = Field(default=None, description="Preview component path for child embeds")

@@ -10,6 +10,7 @@ import FocusModeActivationEmbed from './embeds/focus_mode/FocusModeActivationEmb
 import { embedRenderers } from './enter_message/extensions/embed_renderers';
 import type { EmbedRenderer } from './enter_message/extensions/embed_renderers/types';
 import { locale, waitLocale } from 'svelte-i18n';
+import { specificationSkillContent } from './embeds/specifications/SpecificationSkillEmbedPreview.preview';
 
 // The generic preview route has no language control; keep this local to its
 // explicit German fixture so translated summary width can be measured.
@@ -31,6 +32,14 @@ const skill = (app: string) => {
   embedStore.registerStaticEmbed({ embedId: id, type: 'app-skill-use', appId: app,
     content: JSON.stringify({ type: 'app_skill_use', title: 'Local result', status: 'finished' }) });
   return { type: 'app-skill-use', id, app_id: app, skill_id: app === 'code' ? 'get_docs' : app === 'ai' ? 'ask' : 'search', contentRef: `embed:${id}`, status: 'finished' };
+};
+// A drafted Specification is the requested result (answer_card): its card stays
+// visible below the collapsed "Used the Plans app" summary.
+const specificationSkill = () => {
+  const id = 'preview-activity-plans-specification';
+  embedStore.registerStaticEmbed({ embedId: id, type: 'app-skill-use', appId: 'plans',
+    content: JSON.stringify({ ...specificationSkillContent, app_id: 'plans', skill_id: 'specification', status: 'finished' }) });
+  return { type: 'app-skill-use', id, app_id: 'plans', skill_id: 'specification', contentRef: `embed:${id}`, status: 'finished' };
 };
 const focus = { type: 'focus-mode-activation', id: 'preview-completed-focus', app_id: 'web', focus_id: 'web-research', focus_mode_name: 'Deep research', status: 'finished' };
 const batch = { type: 'sub-chat-batch', id: 'preview-completed-batch', parentChatId: 'demo-activity-completed-parent', status: 'finished',
@@ -138,6 +147,7 @@ export const variants = {
   thinking: { document: doc({ type: 'app-skill-use-group', id: 'preview-thinking-skills', groupedItems: [skill('web'), skill('news'), skill('images')] }), appIds: ['web', 'news', 'images'], thinkingContent: Array.from({ length: 18 }, (_, i) => `Reasoning line ${i + 1}.`).join('\n\n') },
   streamingThinking: { document: doc({ type: 'app-skill-use-group', id: 'preview-thinking-skills', groupedItems: [skill('web'), skill('news'), skill('images')] }), appIds: ['web', 'news', 'images'], thinkingContent: Array.from({ length: 18 }, (_, i) => `Reasoning line ${i + 1}.`).join('\n\n'), thinkingStreaming: true, active: true },
   multiple: { document: doc(skill('web'), skill('news'), skill('images')), appIds: ['web', 'news', 'images'] },
+  specificationAnswerCard: { document: doc(skill('projects'), specificationSkill()), appIds: ['projects', 'plans'] },
   gradients: { document: doc(skill('code'), skill('events'), skill('ai')), appIds: ['code', 'events', 'ai'] },
   fourApps: { document: doc(...fourApps.map(skill)), appIds: fourApps },
   manyApps: { document: doc(...manyApps.map(skill)), appIds: manyApps },

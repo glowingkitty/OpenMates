@@ -20,6 +20,7 @@ embed_types:
     backend_type: app_skill_use
     has_children: false
     groupable: false
+    answer_card: true
     preview_component: plans/PlanCreateEmbedPreview.svelte
     fullscreen_component: plans/PlanCreateEmbedFullscreen.svelte
     icon: planning
@@ -32,6 +33,7 @@ embed_types:
     backend_type: app_skill_use
     has_children: false
     groupable: false
+    answer_card: true
     preview_component: specifications/SpecificationSkillEmbedPreview.svelte
     fullscreen_component: specifications/SpecificationSkillEmbedFullscreen.svelte
     icon: planning
@@ -44,6 +46,7 @@ embed_types:
     backend_type: app_skill_use
     has_children: false
     groupable: false
+    answer_card: true
     preview_component: checks/CheckSkillEmbedPreview.svelte
     fullscreen_component: checks/CheckSkillEmbedFullscreen.svelte
     icon: planning

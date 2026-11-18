@@ -451,6 +451,24 @@ function buildContentEmbedCatalog(allEmbedTypes) {
 }
 
 /**
+ * Build the "app:<app_id>:<skill_id>" keys of skill embeds marked answer_card:
+ * the skill embed itself is the result the user asked for, so its card stays
+ * visible in the answer while the used-skill container is collapsed.
+ *
+ * @param {Array<Object>} allEmbedTypes - All embed type definitions
+ * @returns {string[]} Sorted registry keys
+ */
+function buildAnswerCardSkills(allEmbedTypes) {
+  const keys = new Set();
+  for (const def of allEmbedTypes) {
+    if (def.answer_card && def.category === "app-skill-use" && def.app_id && def.skill_id) {
+      keys.add(`app:${def.app_id}:${def.skill_id}`);
+    }
+  }
+  return [...keys].sort();
+}
+
+/**
  * Build the groupable types set for the TipTap editor.
  *
  * @param {Array<Object>} allEmbedTypes - All embed type definitions
@@ -612,6 +630,7 @@ function generateTypeScript(maps) {
     rendererMap,
     embedMetadataMap,
     groupableTypes,
+    answerCardSkills,
     contentEmbedCatalog,
     previewComponentPresentation,
     contentTypeInterfaces,
@@ -801,6 +820,15 @@ function generateTypeScript(maps) {
   );
   lines.push(``);
 
+  lines.push(`/**`);
+  lines.push(` * Skill embeds whose own card is the requested result (answer_card in app.yml).`);
+  lines.push(` * They stay visible in the answer while the used-skill container is collapsed.`);
+  lines.push(` */`);
+  lines.push(
+    `export const EMBED_ANSWER_CARD_SKILLS: string[] = ${JSON.stringify(answerCardSkills, null, 2)};`,
+  );
+  lines.push(``);
+
   // Content Type Contracts — TypeScript interfaces generated from content_fields in app.yml
   if (contentTypeInterfaces && contentTypeInterfaces.interfaces.length > 0) {
     lines.push(
@@ -904,6 +932,7 @@ function main() {
   const rendererMap = buildRendererMap(allEmbedTypes);
   const embedMetadataMap = buildEmbedMetadataMap(allEmbedTypes);
   const groupableTypes = buildGroupableTypes(allEmbedTypes);
+  const answerCardSkills = buildAnswerCardSkills(allEmbedTypes);
   const contentEmbedCatalog = buildContentEmbedCatalog(allEmbedTypes);
   const previewComponentPresentation = buildPreviewComponentPresentation(componentMaps, contentEmbedCatalog);
   const contentTypeInterfaces = buildContentTypeInterfaces(allEmbedTypes);
@@ -923,6 +952,7 @@ function main() {
     rendererMap,
     embedMetadataMap,
     groupableTypes,
+    answerCardSkills,
     contentEmbedCatalog,
     previewComponentPresentation,
     contentTypeInterfaces,

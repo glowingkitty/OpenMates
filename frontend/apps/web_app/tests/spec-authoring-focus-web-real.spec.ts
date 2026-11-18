@@ -32,6 +32,7 @@ const proofContract = defineVideoProof({
     { id: 'focus-active', text: 'The Write specification focus is active and asks about the idea and its scope.', checkpoint: '01-focus-active-scope-questions', devices: ['web-laptop'] },
     { id: 'phase-confirmed', text: 'Each phase ends with a summary, open assumptions and a confirmation question.', checkpoint: '02-requirements-or-design', devices: ['web-laptop'] },
     { id: 'spec-drafted', text: 'The Specification and its acceptance Checks appear as embeds before any Plan.', checkpoint: '03-specification-and-checks', devices: ['web-laptop'] },
+    { id: 'spec-card-visible', text: 'The Specification card is visible in the answer without expanding the used-app summary, also at phone width.', checkpoint: '03b-specification-card-phone', devices: ['web-laptop'] },
     { id: 'spec-readable', text: 'The Specification opens as a readable document.', checkpoint: '04-specification-fullscreen', devices: ['web-laptop'] },
     { id: 'plan-and-tasks', text: 'After approval the Plan and its Tasks are created.', checkpoint: '05-plan-and-tasks', devices: ['web-laptop'] },
   ],
@@ -39,6 +40,7 @@ const proofContract = defineVideoProof({
     { id: 'spec_focus.active', checkpoint: '01-focus-active-scope-questions', visual: 'The focus bar for Write specification is activated above the first reply.', devices: ['web-laptop'] },
     { id: 'spec_focus.phase_summary', checkpoint: '02-requirements-or-design', visual: 'The reply lists requirements or design decisions and asks the user to confirm.', devices: ['web-laptop'] },
     { id: 'spec_focus.spec_and_checks', checkpoint: '03-specification-and-checks', visual: 'A Specification embed and at least one Check embed are visible, with no Plan yet.', devices: ['web-laptop'] },
+    { id: 'spec_focus.spec_card_visible', checkpoint: '03b-specification-card-phone', visual: 'At phone width the Specification card shows in the answer below a collapsed used-app summary.', devices: ['web-laptop'] },
     { id: 'spec_focus.spec_fullscreen', checkpoint: '04-specification-fullscreen', visual: 'The Specification fullscreen shows requirements with ids.', devices: ['web-laptop'] },
     { id: 'spec_focus.plan_tasks', checkpoint: '05-plan-and-tasks', visual: 'A Plan embed and created Tasks follow the approval message.', devices: ['web-laptop'] },
   ],
@@ -185,8 +187,11 @@ test.describe('Write specification focus guides an idea to an approved Spec, Pla
     let approvedAt = -1;
     let specShown = false;
     for (let turn = 1; turn <= MAX_TURNS; turn += 1) {
+      // XUDR8: the drafted Specification must be visible in the answer without
+      // expanding "Used the Plans app", so count it in the collapsed view first.
+      const specCount = await page.getByTestId('assistant-activity-answer-cards')
+        .getByTestId(PLANS_EMBED_TESTIDS.specification).count();
       await expandActivity(page);
-      const specCount = await plansEmbed(page, 'specification').count();
       const lastText = (await page.getByTestId('message-assistant').last().textContent()) ?? '';
       if (specCount > 0 && !specShown) {
         specShown = true;
@@ -195,6 +200,11 @@ test.describe('Write specification focus guides an idea to an approved Spec, Pla
         await expect(plansEmbed(page, 'check').first(), 'acceptance Checks are drafted with the Specification')
           .toBeVisible({ timeout: 30_000 });
         await shot(page, testInfo, '03-specification-and-checks');
+        const viewport = page.viewportSize();
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.getByTestId('assistant-activity-answer-cards').last().scrollIntoViewIfNeeded();
+        await shot(page, testInfo, '03b-specification-card-phone');
+        if (viewport) await page.setViewportSize(viewport);
         await plansEmbed(page, 'specification').last().click();
         await page.waitForTimeout(2_000);
         await shot(page, testInfo, '04-specification-fullscreen');
