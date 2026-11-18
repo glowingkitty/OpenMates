@@ -37,18 +37,23 @@ phases:
   - id: gather
     title: Collect your details
     instructions: |
-      First use what already exists: a loaded career profile or other loaded
-      memories, an uploaded CV (PDF or Word document) and earlier messages in
-      this chat. Read an uploaded PDF with the PDF read skill before asking
-      anything. Never ask for something these sources already answer.
+      First use what already exists: a loaded master CV memory (see the master
+      CV format below), a loaded career profile or other loaded memories, an
+      uploaded CV (PDF or Word document) and earlier messages in this chat.
+      Read an uploaded PDF with the PDF read skill before asking anything.
+      Never ask for something these sources already answer. A loaded master CV
+      is the starting point for every CV, including one for a specific
+      employer or posting; ask only what it does not cover.
 
       Then ask only for what is missing, one question per round, each with a
       short example and a recommendation. Start with the target: which kind of
       role, which country and which language the CV is for. Then cover, as
       needed: contact details the user wants shown, work history (title,
       employer, place, start and end month and year, what they did and
-      achieved), education, skills, languages and anything else relevant such
-      as projects, volunteering or certificates.
+      achieved, with results), education, skills, languages and anything else
+      relevant such as projects, volunteering, talks or certificates. Keep
+      every relevant entry, even if it will not appear in this CV, so a master
+      CV can be saved later without losing anything.
 
       Honor requests to skip remaining questions, to answer everything at once
       or to proceed with what is available. Do not press for a photo, date of
@@ -64,7 +69,9 @@ phases:
     instructions: |
       Present a compact outline of the facts the CV will contain: contact line,
       each position with title, employer, place and dates, education, skills
-      and languages. Mark anything unclear, missing or inconsistent, such as
+      and languages. For a CV aimed at a specific employer or posting, also
+      show which master CV entries you selected, in which order, and which you
+      left out. Mark anything unclear, missing or inconsistent, such as
       overlapping dates, a gap without explanation or a missing end date. Ask
       the user to confirm or correct it. A request to skip this check and
       proceed also counts as confirmation. Do not repeat intake questions.
@@ -86,6 +93,19 @@ phases:
       where a strong bullet needs a number the user did not give, write it
       without the number and ask for it afterwards.
 
+      Style: if a style note is loaded in the master CV memory, apply it
+      exactly (column, font, heading style, date format, section order) so
+      every CV looks the same. If there is none, choose a plain default, state
+      it in one line and keep it for the whole chat.
+
+      Tailoring: for a specific employer or posting, start from the master CV.
+      Select the entries that matter for the role, order them by relevance
+      within the section order of the style note, and shorten or drop the rest.
+      Do not rewrite the CV from scratch and do not change facts. Cover a gap
+      or break with a short honest line in neutral wording (for example a year
+      range, "Independent projects", "Parental leave"); never hide it with
+      invented activity.
+
       After the document, add a short note: assumptions made, facts still
       missing that would strengthen it, and up to three specific questions.
     requirements:
@@ -102,10 +122,28 @@ phases:
       named; ask whether they have them instead.
       Apply the user's change requests by updating the same document. Offer,
       without pushing: tailoring the CV to a specific job posting, a version in
-      another language, and searching for matching jobs. If no career profile
-      memory exists yet, or the existing one is out of date, ask once whether
-      to save or update it so the user does not have to repeat these details;
-      save only after the user agrees.
+      another language, and searching for matching jobs.
+
+      If no master CV memory exists yet, or the existing one is out of date,
+      ask once whether to save or update it so the user does not have to repeat
+      these details; save only after the user agrees, and not at all if the
+      user asked to skip it. Save it as a structured master CV in the format
+      below, merging new facts into the existing entries instead of replacing
+      the memory, and keep the stored style note.
+
+      Master CV format (Markdown, editable by the user):
+      - A heading `Master CV` with the update month, then a short `Profile`
+        line (target roles, countries, CV languages).
+      - A `Style note` section: one column, font, heading style, date format and
+        section order, one short line each.
+      - One entry per job, project, education, skill, language, volunteering and
+        talk, under its own section. Each entry has dates (month and year),
+        title and organization or place, what the user did, what they achieved
+        and the results with numbers only if the user gave them. Keep every
+        relevant entry, including ones left out of the latest CV.
+      - Contact details only if the user wants them kept. Never store a photo,
+        date of birth, nationality, marital status, identity numbers, bank
+        details or health information.
     requirements:
       - id: check_reported
         text: A plain structure check of the generated CV has been reported and the user's requested changes have been applied.
@@ -126,7 +164,8 @@ source_hash: null
 - Writes a one-column CV as an editable Word document, following the conventions of the target country
 - Uses only facts you confirmed and never invents numbers, dates or skills
 - Checks the structure for machine readability and tells you plainly what passes
-- Offers to tailor it to a job posting and to save your career profile for next time
+- Offers to tailor it to a job posting and to save a master CV with your CV style for next time
+- Builds a CV for a specific employer from your master CV: picks and orders the relevant entries, adds a short honest line for gaps and keeps every CV in the same look
 
 ## How to use
 
@@ -151,5 +190,7 @@ Important guidelines:
 - When asked whether screening software can read the CV, do not answer with a plain yes and do not name software products as compatible. Say which structural points of this document follow the guidance and that reading still differs between systems.
 - Do not ask for or store identity numbers, bank details, health information or other sensitive data a CV does not need.
 - Keep chat answers short. The document carries the content.
+- Keep the master CV complete and structured: one entry per job, project, education, skill, language, volunteering and talk, with dates, actions and results. Update it by merging, never by dropping entries, and reuse the stored style note so every CV has the same layout.
+- For a specific employer or posting, start from the master CV, select and order the relevant entries and use a short neutral line for gaps. Never invent facts to fit a posting.
 - Only say that a memory was saved or updated after a memory-saving tool call succeeded. If no such tool is available, say so and point the user to the memory suggestion shown under the answer.
 - Values such as [EMAIL_1_org] or [PHONE_1_000] are privacy placeholders. The app shows the user's real details in their place on screen and in the document. Use them unchanged as the real value; never call them placeholders, missing or invalid, and never ask the user to replace them.
