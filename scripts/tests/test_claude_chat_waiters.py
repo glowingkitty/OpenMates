@@ -358,9 +358,12 @@ def test_a_usage_checked_timer_sleeps_an_hour_while_usage_is_used_up(tmp_path):
     cw.add(src.state, CHAT, "timer", "Usage has reset.", now=NOW, at=NOW + HOUR, usage_check=True)
     found = cw.collect(src, NOW + HOUR + 1)
     assert not found[CHAT][0].ready and found[CHAT][0].timeout_at == NOW + 2 * HOUR + 1
-    src.usage = lambda: (3.0, reset)
+    calls = []
+    src.usage = lambda: calls.append(1) or (3.0, reset)
+    cw.add(src.state, OTHER, "timer", "Usage has reset too.", now=NOW, at=NOW + HOUR, usage_check=True)
     found = cw.collect(src, NOW + 2 * HOUR + 2)
     assert found[CHAT][0].ready and "weekly usage is 3%" in found[CHAT][0].ready_text
+    assert found[OTHER][0].ready and len(calls) == 1  # one usage read for all due timers
 
 
 def test_a_timer_needs_a_time_with_zone(tmp_path):

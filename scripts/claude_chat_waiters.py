@@ -241,6 +241,7 @@ def settle_timers(state: Path, now: float, usage: Callable[[], tuple[float, date
     path = state / "registered.json"
     data = _read_json(path)
     changed = False
+    read: list = []  # one usage read per cycle, however many timers are due (the endpoint rate-limits)
     for key, entry in data.items():
         if entry["kind"] != "timer" or entry.get("fired_at") or now < entry["timeout_at"]:
             continue
@@ -248,7 +249,14 @@ def settle_timers(state: Path, now: float, usage: Callable[[], tuple[float, date
             import claude_usage_guard  # noqa: E402  (sibling script)
 
             try:
-                used, resets = (usage or weekly_usage)()
+                if not read:
+                    try:
+                        read.append((usage or weekly_usage)())
+                    except claude_usage_guard.UsageUnavailable as error:
+                        read.append(error)
+                if isinstance(read[0], Exception):
+                    raise read[0]
+                used, resets = read[0]
             except claude_usage_guard.UsageUnavailable as error:
                 entry["usage_note"] = f"weekly usage could not be read ({error}); check /usage before working"
             else:
