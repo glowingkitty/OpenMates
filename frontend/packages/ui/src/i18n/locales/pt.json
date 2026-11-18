@@ -8721,55 +8721,6 @@
         "text": "Remover arquivo"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} anexo de {type}"
-      },
-      "embed_many": {
-        "text": "{count} anexos de {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "áudio"
-        },
-        "image": {
-          "text": "imagem"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "site"
-        },
-        "video": {
-          "text": "vídeo"
-        },
-        "map": {
-          "text": "mapa"
-        },
-        "code": {
-          "text": "código"
-        },
-        "document": {
-          "text": "documento"
-        },
-        "sheet": {
-          "text": "planilha"
-        },
-        "file": {
-          "text": "arquivo"
-        },
-        "app": {
-          "text": "app"
-        },
-        "embed": {
-          "text": "incorporado"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "O tamanho total do arquivo excederia o limite de {size}MB. Tamanho atual: {current}MB, Tentativa de adicionar: {attempted}MB"

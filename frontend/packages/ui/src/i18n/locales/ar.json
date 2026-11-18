@@ -8694,55 +8694,6 @@
         "text": "إزالة الملف"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": "، "
-      },
-      "embed_one": {
-        "text": "{count} مرفق {type}"
-      },
-      "embed_many": {
-        "text": "{count} مرفقات {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "صوتي"
-        },
-        "image": {
-          "text": "صورة"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "موقع ويب"
-        },
-        "video": {
-          "text": "فيديو"
-        },
-        "map": {
-          "text": "خريطة"
-        },
-        "code": {
-          "text": "كود"
-        },
-        "document": {
-          "text": "مستند"
-        },
-        "sheet": {
-          "text": "جدول بيانات"
-        },
-        "file": {
-          "text": "ملف"
-        },
-        "app": {
-          "text": "تطبيق"
-        },
-        "embed": {
-          "text": "مضمن"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "سيؤدي إجمالي حجم الملف إلى تجاوز حد {size} ميجابايت. الحجم الحالي: {current} ميجابايت، محاولة الإضافة: {attempted} ميجابايت"

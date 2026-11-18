@@ -10927,55 +10927,6 @@
         "text": "Datei entfernen"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} {type}-Anhang"
-      },
-      "embed_many": {
-        "text": "{count} {type}-Anhänge"
-      },
-      "type": {
-        "audio": {
-          "text": "Audio"
-        },
-        "image": {
-          "text": "Bild"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "Website"
-        },
-        "video": {
-          "text": "Video"
-        },
-        "map": {
-          "text": "Karten"
-        },
-        "code": {
-          "text": "Code"
-        },
-        "document": {
-          "text": "Dokument"
-        },
-        "sheet": {
-          "text": "Tabellen"
-        },
-        "file": {
-          "text": "Datei"
-        },
-        "app": {
-          "text": "App"
-        },
-        "embed": {
-          "text": "eingebettet"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "Gesamtdateigröße würde {size}MB Limit überschreiten. Aktuelle Größe: {current}MB, Versuchte Hinzufügung: {attempted}MB"

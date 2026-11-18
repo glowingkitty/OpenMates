@@ -20,7 +20,7 @@ export {
 } from './drafts/draftCore';
 
 // Re-export save/trigger/flush functions
-export { triggerSaveDraft, flushSaveDraft, flushSaveDraftAndWaitForIdle, saveDraftDebounced, protectEmptyRecordingDraft } from './drafts/draftSave';
+export { triggerSaveDraft, flushSaveDraft, flushSaveDraftAndWaitForIdle, saveDraftDebounced, protectEmptyRecordingDraft, generateDraftPreview } from './drafts/draftSave';
 
 // Note: WebSocket handlers (register/unregister) are typically internal
 // and called by initialize/cleanup, so they might not need to be exported directly

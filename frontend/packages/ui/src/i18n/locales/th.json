@@ -8694,55 +8694,6 @@
         "text": "ลบไฟล์"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "ไฟล์แนบ{type} {count} รายการ"
-      },
-      "embed_many": {
-        "text": "ไฟล์แนบ{type} {count} รายการ"
-      },
-      "type": {
-        "audio": {
-          "text": "เสียง"
-        },
-        "image": {
-          "text": "รูปภาพ"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "เว็บไซต์"
-        },
-        "video": {
-          "text": "วิดีโอ"
-        },
-        "map": {
-          "text": "แผนที่"
-        },
-        "code": {
-          "text": "โค้ด"
-        },
-        "document": {
-          "text": "เอกสาร"
-        },
-        "sheet": {
-          "text": "สเปรดชีต"
-        },
-        "file": {
-          "text": "ไฟล์"
-        },
-        "app": {
-          "text": "แอป"
-        },
-        "embed": {
-          "text": "แบบฝัง"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "ขนาดไฟล์รวมจะเกินขีดจำกัด {size}MB ขนาดปัจจุบัน: {current}MB พยายามเพิ่ม: {attempted}MB"

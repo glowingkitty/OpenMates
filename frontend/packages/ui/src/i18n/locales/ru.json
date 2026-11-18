@@ -8694,55 +8694,6 @@
         "text": "Удалить файл"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} вложение: {type}"
-      },
-      "embed_many": {
-        "text": "{count} вложений: {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "аудио"
-        },
-        "image": {
-          "text": "изображение"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "сайт"
-        },
-        "video": {
-          "text": "видео"
-        },
-        "map": {
-          "text": "карта"
-        },
-        "code": {
-          "text": "код"
-        },
-        "document": {
-          "text": "документ"
-        },
-        "sheet": {
-          "text": "таблица"
-        },
-        "file": {
-          "text": "файл"
-        },
-        "app": {
-          "text": "приложение"
-        },
-        "embed": {
-          "text": "встроенный"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "Общий размер файла превысит лимит {size}МБ. Текущий размер: {current}МБ, Попытка добавить: {attempted}МБ"

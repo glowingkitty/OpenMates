@@ -8694,55 +8694,6 @@
         "text": "Bestand verwijderen"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} {type}-bijlage"
-      },
-      "embed_many": {
-        "text": "{count} {type}-bijlagen"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "afbeelding"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "website"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "kaart"
-        },
-        "code": {
-          "text": "code"
-        },
-        "document": {
-          "text": "document"
-        },
-        "sheet": {
-          "text": "spreadsheet"
-        },
-        "file": {
-          "text": "bestand"
-        },
-        "app": {
-          "text": "app"
-        },
-        "embed": {
-          "text": "ingesloten"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "Totale bestandsgrootte zou de limiet van {size}MB overschrijden. Huidige grootte: {current}MB, Poging om toe te voegen: {attempted}MB"

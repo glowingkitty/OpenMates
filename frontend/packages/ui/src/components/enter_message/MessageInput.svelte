@@ -36,7 +36,8 @@
         triggerSaveDraft,
         flushSaveDraft,
         flushSaveDraftAndWaitForIdle,
-        protectEmptyRecordingDraft
+        protectEmptyRecordingDraft,
+        generateDraftPreview
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
     import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
@@ -726,10 +727,13 @@
 
     interface DraftPreviewParts {
         embeds: Array<{ kind: DraftEmbedKind; count: number }>;
-        text: string;
+        /** One-line preview in document order; embeds appear as tokens such as "[Image]" (same as the chat list). */
+        summary: string;
     }
 
-    const EMPTY_DRAFT_PREVIEW_PARTS: DraftPreviewParts = { embeds: [], text: '' };
+    const EMPTY_DRAFT_PREVIEW_PARTS: DraftPreviewParts = { embeds: [], summary: '' };
+    // Long enough to fill the widest composer line; CSS ellipsis shortens the rest.
+    const DRAFT_PREVIEW_MAX_CHARS = 400;
 
     let hasEmbedContent = $state(false);
     let draftPreviewParts = $state<DraftPreviewParts>(EMPTY_DRAFT_PREVIEW_PARTS);
@@ -850,23 +854,6 @@
         return 'embed';
     }
 
-    function formatDraftEmbedSummaryPart(kind: DraftEmbedKind, count: number): string {
-        const key = count === 1 ? 'enter_message.draft_summary.embed_one' : 'enter_message.draft_summary.embed_many';
-        return $text(key, {
-            values: {
-                count,
-                type: $text(`enter_message.draft_summary.type.${kind}`),
-            },
-        });
-    }
-
-    function formatDraftPreviewSummary(parts: DraftPreviewParts): string {
-        const embedSummary = parts.embeds.map(({ kind, count }) => formatDraftEmbedSummaryPart(kind, count));
-        return [...embedSummary, parts.text]
-            .filter(Boolean)
-            .join($text('enter_message.draft_summary.separator'));
-    }
-
     function buildDraftPreviewState(editor: Editor | null | undefined): {
         parts: DraftPreviewParts;
         hasEmbedContent: boolean;
@@ -913,11 +900,14 @@
             return true;
         });
 
+        const embeds = embedOrder.map((kind) => ({ kind, count: embedCounts.get(kind) ?? 0 }));
+        // Embed drafts reuse the chat-list preview walk so "[Image] describe it"
+        // keeps the composed order; text-only drafts keep their plain text.
+        const summary = hasEmbedContent
+            ? generateDraftPreview('', DRAFT_PREVIEW_MAX_CHARS, editor.getJSON())
+            : textContent;
         return {
-            parts: {
-                embeds: embedOrder.map((kind) => ({ kind, count: embedCounts.get(kind) ?? 0 })),
-                text: textContent,
-            },
+            parts: { embeds, summary },
             hasEmbedContent,
             hasSignupRequiredEmbed,
         };
@@ -935,7 +925,7 @@
         setPendingAnonymousFileAttachment(previewState.hasSignupRequiredEmbed);
     }
 
-    let draftPreviewSummary = $derived(formatDraftPreviewSummary(draftPreviewParts));
+    let draftPreviewSummary = $derived(draftPreviewParts.summary);
     let hasDraftPreviewEmbeds = $derived(draftPreviewParts.embeds.some(({ count }) => count > 0));
     let hasSendableDraft = $derived(hasContent || hasEmbedContent || hasDraftPreviewEmbeds);
     let locallyDismissedGhostKey = $state<string | null>(null);
@@ -959,9 +949,9 @@
         setSuggestionText(acceptedText);
     }
 
-    // Draft preview mode is only for text drafts. Embed-only drafts must keep the
-    // editor visible so audio/file preview controls remain reachable after blur.
-    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !recordingLayoutActive && !forceDraftActionsVisible && !anonymousUsageExhausted);
+    // Every inactive draft, with or without embeds, collapses into the one-line
+    // summary (4L9S5); focusing restores the rendered embeds and their controls.
+    let isDraftPreview = $derived(!!draftPreviewSummary && hasSendableDraft && !isMessageFieldFocused && !isFullscreen && !recordingLayoutActive && !forceDraftActionsVisible && !anonymousUsageExhausted);
     // A live call transcript always opens the full composer so it stays readable (3RZXL).
     let isInlineCompact = $derived(inlineCompact && !isFullscreen && !recordingShowsDraft && !callLiveTranscript && (recordingLayoutActive || (!shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI)));
 

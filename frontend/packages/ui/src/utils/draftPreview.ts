@@ -3,6 +3,7 @@ import { convertMentionSyntaxToDisplayName } from "./mentionDisplay";
 /** Turn serialized embed references in saved draft previews into readable labels. */
 const EMBED_LABELS: Record<string, string> = {
   image: "Image",
+  "images-image": "Image",
   audio: "Audio",
   "audio-recording": "Audio",
   recording: "Recording",
@@ -18,6 +19,11 @@ const EMBED_LABELS: Record<string, string> = {
   code: "Code",
   "code-code": "Code",
   "code-code-group": "Code",
+  "sheets-sheet": "Sheet",
+  "docs-doc": "Document",
+  "mail-email": "Email",
+  "mindmaps-mindmap": "Mind map",
+  "diagrams-html": "Diagram",
 };
 
 export function draftEmbedLabel(type: string): string {

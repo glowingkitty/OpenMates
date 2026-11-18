@@ -8694,55 +8694,6 @@
         "text": "移除文件"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": "，"
-      },
-      "embed_one": {
-        "text": "{count} 个{type}附件"
-      },
-      "embed_many": {
-        "text": "{count} 个{type}附件"
-      },
-      "type": {
-        "audio": {
-          "text": "音频"
-        },
-        "image": {
-          "text": "图片"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "网站"
-        },
-        "video": {
-          "text": "视频"
-        },
-        "map": {
-          "text": "地图"
-        },
-        "code": {
-          "text": "代码"
-        },
-        "document": {
-          "text": "文档"
-        },
-        "sheet": {
-          "text": "表格"
-        },
-        "file": {
-          "text": "文件"
-        },
-        "app": {
-          "text": "应用"
-        },
-        "embed": {
-          "text": "嵌入式"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "总文件大小将超过 {size}MB 限制。 当前大小：{current}MB，尝试添加：{attempted}MB"

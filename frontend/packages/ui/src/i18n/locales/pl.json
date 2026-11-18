@@ -8694,55 +8694,6 @@
         "text": "Usuń plik"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} załącznik {type}"
-      },
-      "embed_many": {
-        "text": "{count} załączników {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "obraz"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "strona internetowa"
-        },
-        "video": {
-          "text": "wideo"
-        },
-        "map": {
-          "text": "mapa"
-        },
-        "code": {
-          "text": "kod"
-        },
-        "document": {
-          "text": "dokument"
-        },
-        "sheet": {
-          "text": "arkusz"
-        },
-        "file": {
-          "text": "plik"
-        },
-        "app": {
-          "text": "aplikacja"
-        },
-        "embed": {
-          "text": "osadzony"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "Całkowity rozmiar pliku przekroczyłby limit {size}MB. Bieżący rozmiar: {current}MB, Próba dodania: {attempted}MB"

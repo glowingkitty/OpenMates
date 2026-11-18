@@ -390,6 +390,7 @@
         "components/composer-send-readiness.spec.ts",
         "components/message-input-minimized-send.spec.ts",
         "components/message-input-guest-states.spec.ts",
+        "components/message-input-embed-draft-minimized.spec.ts",
         "components/message-input-image-send.spec.ts",
         "components/composer-ghost-suggestion.spec.ts",
         "components/workflow-prompt-composer.spec.ts",

@@ -10986,55 +10986,6 @@
         "text": "Remove file"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} {type} attachment"
-      },
-      "embed_many": {
-        "text": "{count} {type} attachments"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "image"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "website"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "map"
-        },
-        "code": {
-          "text": "code"
-        },
-        "document": {
-          "text": "document"
-        },
-        "sheet": {
-          "text": "sheet"
-        },
-        "file": {
-          "text": "file"
-        },
-        "app": {
-          "text": "app"
-        },
-        "embed": {
-          "text": "embedded"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "Total file size would exceed {size}MB limit. Current size: {current}MB, Attempted to add: {attempted}MB"

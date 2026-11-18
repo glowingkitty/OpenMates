@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.message-input
-version: 12
-status: approved
+version: 13
+status: draft
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
   recording controls, contextual suggestions, and send/start-new-chat handoff while preserving privacy, accessibility,
@@ -299,9 +299,10 @@ assertions:
 - id: message-input.drafts.preview-persistence
   type: behavior
   must: Meaningful text or embed content updates draft state against the current or temporary chat id; after blur,
-    an inactive text-only draft may collapse into a single-line localized preview that shortens overflow with an
-    ellipsis without discarding the full draft; embed drafts keep controls visible; and empty composer content does
-    not create a sendable draft.
+    every inactive draft, with or without embeds, collapses into a single-line preview that shortens overflow with an
+    ellipsis without discarding the full draft; embeds appear in that line in document order as the same type tokens
+    the chat list uses (such as [Image] or [Sheet]); focusing the composer restores the rendered embeds and their
+    controls; and empty composer content does not create a sendable draft.
   depends_on:
   - models.DraftState
   - models.ComposerState.has_content

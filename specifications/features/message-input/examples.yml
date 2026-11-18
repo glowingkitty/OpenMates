@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.message-input@12
+specification: feature.message-input@13
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -79,6 +79,20 @@ drafts:
     draft_saved_for_chat_id: draft-chat-1
     draft_preview_summary_contains: Remember to compare flights
     editor_can_collapse_to_preview: true
+- id: embed-draft-preview-after-blur
+  given:
+    currentChatId: draft-chat-1
+    text: Describe this photo
+    embeds:
+    - image
+  actions:
+  - save_draft
+  - blur_message_editor
+  - focus_message_editor
+  expect:
+    draft_preview_summary_contains: '[Image] Describe this photo'
+    editor_can_collapse_to_preview: true
+    focus_restores_rendered_embeds: true
 - id: long-inactive-draft-preview-shortens-with-ellipsis
   given:
     currentChatId: draft-chat-1

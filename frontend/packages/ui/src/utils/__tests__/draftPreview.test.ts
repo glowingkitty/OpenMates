@@ -29,6 +29,12 @@ describe("formatDraftPreview", () => {
     expect(formatDraftPreview(preview)).toBe("Look at this [Image] and [Audio]");
   });
 
+  // contract-test: supporting surface=gui.web assertions=drafts.draft-only.presentation,message-input.drafts.preview-persistence
+  it("labels app embed types with short readable names", () => {
+    const preview = '```json\n{"type":"sheets-sheet","embed_id":"s-1"}\n``` ```json\n{"type":"images-image","embed_id":"i-1"}\n``` ```json\n{"type":"docs-doc","embed_id":"d-1"}\n```';
+    expect(formatDraftPreview(preview)).toBe("[Sheet] [Image] [Document]");
+  });
+
   // contract-test: supporting surface=gui.web assertions=drafts.draft-only.presentation
   it("recovers the label from a preview truncated inside an embed reference", () => {
     expect(formatDraftPreview('```json {"type": "image", "embed_id": "900f821a-b9f7-4a00-84...')).toBe("[Image]");

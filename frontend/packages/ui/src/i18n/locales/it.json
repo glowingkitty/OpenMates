@@ -8721,55 +8721,6 @@
         "text": "Rimuovi file"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} allegato {type}"
-      },
-      "embed_many": {
-        "text": "{count} allegati {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "immagine"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "sito web"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "mappa"
-        },
-        "code": {
-          "text": "codice"
-        },
-        "document": {
-          "text": "documento"
-        },
-        "sheet": {
-          "text": "foglio di calcolo"
-        },
-        "file": {
-          "text": "file"
-        },
-        "app": {
-          "text": "app"
-        },
-        "embed": {
-          "text": "incorporato"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "La dimensione totale del file supererebbe il limite di {size}MB. Dimensione attuale: {current}MB, Tentativo di aggiungere: {attempted}MB"

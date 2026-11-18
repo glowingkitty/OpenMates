@@ -265,7 +265,7 @@ function processMarkdownForPreview(markdown: string): string {
   return displayText;
 }
 
-function generateDraftPreview(
+export function generateDraftPreview(
   markdown: string,
   maxLength: number = 100,
   tiptapJSON?: unknown,

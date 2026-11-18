@@ -8694,55 +8694,6 @@
         "text": "파일 제거"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{type} 첨부 {count}개"
-      },
-      "embed_many": {
-        "text": "{type} 첨부 {count}개"
-      },
-      "type": {
-        "audio": {
-          "text": "오디오"
-        },
-        "image": {
-          "text": "이미지"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "웹사이트"
-        },
-        "video": {
-          "text": "비디오"
-        },
-        "map": {
-          "text": "지도"
-        },
-        "code": {
-          "text": "코드"
-        },
-        "document": {
-          "text": "문서"
-        },
-        "sheet": {
-          "text": "스프레드시트"
-        },
-        "file": {
-          "text": "파일"
-        },
-        "app": {
-          "text": "앱"
-        },
-        "embed": {
-          "text": "임베드"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "전체 파일 크기가 {size}MB 제한을 초과합니다. 현재 크기: {current}MB, 추가 시도: {attempted}MB"

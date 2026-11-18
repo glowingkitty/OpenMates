@@ -8694,55 +8694,6 @@
         "text": "Xóa tệp"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} tệp đính kèm {type}"
-      },
-      "embed_many": {
-        "text": "{count} tệp đính kèm {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "âm thanh"
-        },
-        "image": {
-          "text": "hình ảnh"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "trang web"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "bản đồ"
-        },
-        "code": {
-          "text": "mã"
-        },
-        "document": {
-          "text": "tài liệu"
-        },
-        "sheet": {
-          "text": "bảng tính"
-        },
-        "file": {
-          "text": "tệp"
-        },
-        "app": {
-          "text": "ứng dụng"
-        },
-        "embed": {
-          "text": "nhúng"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "Tổng kích thước tệp sẽ vượt quá giới hạn {size}MB. Kích thước hiện tại: {current}MB, Đã thử thêm: {attempted}MB"

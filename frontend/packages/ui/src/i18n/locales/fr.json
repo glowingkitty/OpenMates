@@ -8721,55 +8721,6 @@
         "text": "Supprimer le fichier"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} pièce jointe {type}"
-      },
-      "embed_many": {
-        "text": "{count} pièces jointes {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "image"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "site web"
-        },
-        "video": {
-          "text": "vidéo"
-        },
-        "map": {
-          "text": "carte"
-        },
-        "code": {
-          "text": "code"
-        },
-        "document": {
-          "text": "document"
-        },
-        "sheet": {
-          "text": "feuille de calcul"
-        },
-        "file": {
-          "text": "fichier"
-        },
-        "app": {
-          "text": "app"
-        },
-        "embed": {
-          "text": "intégré"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "La taille totale des fichiers dépasserait la limite de {size} Mo. Taille actuelle : {current} Mo, Tentative d'ajout : {attempted} Mo"

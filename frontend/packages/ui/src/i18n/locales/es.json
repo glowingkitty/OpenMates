@@ -8721,55 +8721,6 @@
         "text": "Quitar archivo"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} adjunto de {type}"
-      },
-      "embed_many": {
-        "text": "{count} adjuntos de {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "imagen"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "sitio web"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "mapa"
-        },
-        "code": {
-          "text": "código"
-        },
-        "document": {
-          "text": "documento"
-        },
-        "sheet": {
-          "text": "hoja de cálculo"
-        },
-        "file": {
-          "text": "archivo"
-        },
-        "app": {
-          "text": "app"
-        },
-        "embed": {
-          "text": "incrustado"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "El tamaño total del archivo excedería el límite de {size}MB. Tamaño actual: {current}MB, Intentó agregar: {attempted}MB"

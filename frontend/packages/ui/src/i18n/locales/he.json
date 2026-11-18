@@ -8694,55 +8694,6 @@
         "text": "הסר קובץ"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "קובץ {type} מצורף {count}"
-      },
-      "embed_many": {
-        "text": "{count} קבצי {type} מצורפים"
-      },
-      "type": {
-        "audio": {
-          "text": "שמע"
-        },
-        "image": {
-          "text": "תמונה"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "אתר"
-        },
-        "video": {
-          "text": "וידאו"
-        },
-        "map": {
-          "text": "מפה"
-        },
-        "code": {
-          "text": "קוד"
-        },
-        "document": {
-          "text": "מסמך"
-        },
-        "sheet": {
-          "text": "גיליון"
-        },
-        "file": {
-          "text": "קובץ"
-        },
-        "app": {
-          "text": "אפליקציה"
-        },
-        "embed": {
-          "text": "מוטמע"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "גודל הקבצים הכולל יעלה על המגבלה של {size}MB. גודל נוכחי: {current}MB, ניסיון להוסיף: {attempted}MB"

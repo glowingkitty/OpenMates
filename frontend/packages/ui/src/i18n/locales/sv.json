@@ -8694,55 +8694,6 @@
         "text": "Ta bort fil"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} {type}-bilaga"
-      },
-      "embed_many": {
-        "text": "{count} {type}-bilagor"
-      },
-      "type": {
-        "audio": {
-          "text": "ljud"
-        },
-        "image": {
-          "text": "bild"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "webbplats"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "karta"
-        },
-        "code": {
-          "text": "kod"
-        },
-        "document": {
-          "text": "dokument"
-        },
-        "sheet": {
-          "text": "kalkylblad"
-        },
-        "file": {
-          "text": "fil"
-        },
-        "app": {
-          "text": "app"
-        },
-        "embed": {
-          "text": "inbäddad"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "Total filstorlek skulle överskrida {size}MB-gränsen. Nuvarande storlek: {current}MB, Försökte lägga till: {attempted}MB"

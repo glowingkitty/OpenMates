@@ -8694,55 +8694,6 @@
         "text": "Odebrat soubor"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} příloha {type}"
-      },
-      "embed_many": {
-        "text": "{count} příloh {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "obrázek"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "web"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "mapa"
-        },
-        "code": {
-          "text": "kód"
-        },
-        "document": {
-          "text": "dokument"
-        },
-        "sheet": {
-          "text": "tabulka"
-        },
-        "file": {
-          "text": "soubor"
-        },
-        "app": {
-          "text": "aplikace"
-        },
-        "embed": {
-          "text": "vložený"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "Celková velikost souboru by překročila limit {size}MB. Aktuální velikost: {current}MB, Pokus o přidání: {attempted}MB"

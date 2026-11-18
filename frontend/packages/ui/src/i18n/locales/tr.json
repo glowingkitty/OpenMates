@@ -8694,55 +8694,6 @@
         "text": "Dosyayı kaldır"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} {type} eki"
-      },
-      "embed_many": {
-        "text": "{count} {type} eki"
-      },
-      "type": {
-        "audio": {
-          "text": "ses"
-        },
-        "image": {
-          "text": "görsel"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "web sitesi"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "harita"
-        },
-        "code": {
-          "text": "kod"
-        },
-        "document": {
-          "text": "belge"
-        },
-        "sheet": {
-          "text": "elektronik tablo"
-        },
-        "file": {
-          "text": "dosya"
-        },
-        "app": {
-          "text": "uygulama"
-        },
-        "embed": {
-          "text": "gömülü"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "Toplam dosya boyutu {size}MB limitini aşacaktır. Mevcut boyut: {current}MB, Eklenmeye çalışılan: {attempted}MB"

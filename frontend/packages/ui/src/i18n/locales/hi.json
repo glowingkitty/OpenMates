@@ -8694,55 +8694,6 @@
         "text": "फ़ाइल हटाएँ"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} {type} अटैचमेंट"
-      },
-      "embed_many": {
-        "text": "{count} {type} अटैचमेंट"
-      },
-      "type": {
-        "audio": {
-          "text": "ऑडियो"
-        },
-        "image": {
-          "text": "छवि"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "वेबसाइट"
-        },
-        "video": {
-          "text": "वीडियो"
-        },
-        "map": {
-          "text": "मानचित्र"
-        },
-        "code": {
-          "text": "कोड"
-        },
-        "document": {
-          "text": "दस्तावेज़"
-        },
-        "sheet": {
-          "text": "स्प्रेडशीट"
-        },
-        "file": {
-          "text": "फ़ाइल"
-        },
-        "app": {
-          "text": "ऐप"
-        },
-        "embed": {
-          "text": "एम्बेडेड"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "कुल फ़ाइल आकार {size}MB सीमा से अधिक होगा। वर्तमान आकार: {current}MB, जोड़ने का प्रयास: {attempted}MB"

@@ -8694,55 +8694,6 @@
         "text": "ファイルを削除"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": "、"
-      },
-      "embed_one": {
-        "text": "{count} 件の{type}添付"
-      },
-      "embed_many": {
-        "text": "{count} 件の{type}添付"
-      },
-      "type": {
-        "audio": {
-          "text": "音声"
-        },
-        "image": {
-          "text": "画像"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "ウェブサイト"
-        },
-        "video": {
-          "text": "動画"
-        },
-        "map": {
-          "text": "地図"
-        },
-        "code": {
-          "text": "コード"
-        },
-        "document": {
-          "text": "ドキュメント"
-        },
-        "sheet": {
-          "text": "スプレッドシート"
-        },
-        "file": {
-          "text": "ファイル"
-        },
-        "app": {
-          "text": "アプリ"
-        },
-        "embed": {
-          "text": "埋め込み"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "合計ファイルサイズが{size}MBの制限を超えています。現在のサイズ：{current}MB、追加しようとしたサイズ：{attempted}MB"

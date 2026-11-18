@@ -8694,55 +8694,6 @@
         "text": "Hapus file"
       }
     },
-    "draft_summary": {
-      "separator": {
-        "text": ", "
-      },
-      "embed_one": {
-        "text": "{count} lampiran {type}"
-      },
-      "embed_many": {
-        "text": "{count} lampiran {type}"
-      },
-      "type": {
-        "audio": {
-          "text": "audio"
-        },
-        "image": {
-          "text": "gambar"
-        },
-        "pdf": {
-          "text": "PDF"
-        },
-        "website": {
-          "text": "situs web"
-        },
-        "video": {
-          "text": "video"
-        },
-        "map": {
-          "text": "peta"
-        },
-        "code": {
-          "text": "kode"
-        },
-        "document": {
-          "text": "dokumen"
-        },
-        "sheet": {
-          "text": "spreadsheet"
-        },
-        "file": {
-          "text": "file"
-        },
-        "app": {
-          "text": "aplikasi"
-        },
-        "embed": {
-          "text": "tersemat"
-        }
-      }
-    },
     "file_size_limits": {
       "total_exceeded": {
         "text": "Ukuran total file akan melebihi batas {size}MB. Ukuran saat ini: {current}MB, Mencoba menambahkan: {attempted}MB"
