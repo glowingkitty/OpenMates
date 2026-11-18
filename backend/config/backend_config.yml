@@ -33,6 +33,20 @@ feature_overrides:
     # Guided Write specification drafts Specifications/Checks and hands off a Plan
     # with Tasks, so it stays off while those surfaces are disabled here.
     - "focus:code:write_specification"
+    # Prepared for a later release; remain available through backend_config.dev.yml
+    # (which does not list them) and are switched on here when released.
+    # Cross-chat orchestration: a chat starting and coordinating other main chats.
+    - "skill:openmates:start-chat"
+    - "skill:openmates:list-spawned-chats"
+    - "skill:openmates:read-spawned-chat"
+    - "skill:openmates:send-to-spawned-chat"
+    - "skill:openmates:report-to-creator"
+    # Slides template designer and presentation planner.
+    - "embed:slides:template"
+    - "focus:slides:design_template"
+    - "focus:slides:plan_presentation"
+    # Figma connected-account design reading.
+    - "skill:design:get_design"
     # Placeholder app folders without implemented runtime behavior yet
     - "app:life_coaching"
     - "app:plants"
