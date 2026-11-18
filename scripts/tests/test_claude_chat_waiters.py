@@ -329,3 +329,43 @@ def test_a_parked_wait_older_than_a_day_is_cancelled_as_stalled(parked):
     c.tick(recovery_margin=0)
     after = c.get(row["id"])
     assert after["state"] == "cancelled" and after["reason"].startswith("Stalled")
+
+
+# ---------------------------------------------------------------------------
+# Timer waiters (TASK-9844): wake a chat at a time, e.g. after the weekly usage reset.
+# ---------------------------------------------------------------------------
+
+
+def test_a_timer_lets_the_chat_stop_then_reopens_it_once_when_due(tmp_path):
+    src = sources(tmp_path)
+    key = cw.add(src.state, CHAT, "timer", "Usage has reset. Continue the job search.", now=NOW, at=NOW + 3 * HOUR)
+    found = cw.collect(src, NOW + 60)
+    assert not found[CHAT][0].blocks_stop(NOW + 60) and not found[CHAT][0].stalled(NOW + 60)
+    assert not found[CHAT][0].ready
+    found = cw.collect(src, NOW + 3 * HOUR + 1)
+    rec = Recorder()
+    delivered, _ = rec.run(found, {}, {CHAT: {"state": "stopped"}}, src.state, now=NOW + 3 * HOUR + 1)
+    assert "Continue the job search" in rec.resumed[0][1] and delivered == {f"reg:{key}"}
+    assert cw.collect(src, NOW + 4 * HOUR) == {}  # fired once, then removed
+
+
+def test_a_usage_checked_timer_sleeps_an_hour_while_usage_is_used_up(tmp_path):
+    from datetime import datetime, timezone
+
+    reset = datetime.fromtimestamp(NOW + 7 * 24 * HOUR, timezone.utc)
+    src = sources(tmp_path)
+    src.usage = lambda: (99.0, reset)
+    cw.add(src.state, CHAT, "timer", "Usage has reset.", now=NOW, at=NOW + HOUR, usage_check=True)
+    found = cw.collect(src, NOW + HOUR + 1)
+    assert not found[CHAT][0].ready and found[CHAT][0].timeout_at == NOW + 2 * HOUR + 1
+    src.usage = lambda: (3.0, reset)
+    found = cw.collect(src, NOW + 2 * HOUR + 2)
+    assert found[CHAT][0].ready and "weekly usage is 3%" in found[CHAT][0].ready_text
+
+
+def test_a_timer_needs_a_time_with_zone(tmp_path):
+    with pytest.raises(ValueError):
+        cw.add(tmp_path, CHAT, "timer", "x")
+    with pytest.raises(ValueError):
+        cw.parse_at("2026-11-20T10:05:00", False)
+    assert cw.parse_at("2026-11-20T10:05:00+00:00", False) == (1795169100.0, False)
