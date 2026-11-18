@@ -51,6 +51,7 @@ def promote(api, deployment, version, output, checker=verify):
     receipt = {"deployment": deployment, "expected_version": version,
                "started_at": datetime.now(timezone.utc).isoformat(), "result": "failed"}
     previous = None
+    deployment_id = None
     changed = False
     try:
         if not version.strip():
@@ -61,6 +62,10 @@ def promote(api, deployment, version, output, checker=verify):
         target = api.get(f"/v13/deployments/{deployment}")
         if target.get("projectId") != api.project or target.get("target") != "production" or target.get("readyState") != "READY":
             raise RuntimeError("Expected a Ready production deployment in the existing web app project")
+        # The CLI takes the deployment host name; the alias read-back reports the
+        # deployment id, so every comparison and alias write uses the id.
+        deployment_id = target["id"]
+        receipt["deployment_id"] = deployment_id
         previous = api.current()
         receipt["previous_deployment"] = previous
         staged = checker("https://" + target["url"], output / "before", version)
@@ -71,8 +76,8 @@ def promote(api, deployment, version, output, checker=verify):
         # A lost response may follow a successful alias write. Reconcile the
         # actual alias in the failure path even when this call raises.
         changed = True
-        api.alias(deployment)
-        if api.current() != deployment:
+        api.alias(deployment_id)
+        if api.current() != deployment_id:
             raise RuntimeError("Production alias does not identify the reviewed deployment")
         live = checker("https://app.openmates.org", output / "after", version)
         if live["result"] != "passed":
@@ -83,7 +88,7 @@ def promote(api, deployment, version, output, checker=verify):
         # Never overwrite a concurrent operator's new alias.
         if changed and previous:
             try:
-                if api.current() == deployment:
+                if api.current() == deployment_id:
                     api.alias(previous)
                     receipt["rollback"] = "restored" if api.current() == previous else "failed"
             except Exception as rollback_error:

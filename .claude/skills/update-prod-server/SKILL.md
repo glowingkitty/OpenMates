@@ -462,7 +462,14 @@ previous web app as still live and stop.
    not changed: read `<out>/before/receipt.json` (per-view `failure`, `version`,
    `errors`) and the failure screenshots, report the cause and that the previous
    web app is still live, and do not retry with another method.
-4. Confirm `https://app.openmates.org` shows the expected version and report
+4. If it raises "Production alias does not identify the reviewed deployment",
+   do not re-run blindly: read `<out>/receipt.json` (`deployment_id`,
+   `previous_deployment`, `rollback`), query the live alias and
+   `https://app.openmates.org/_app/version.json`, and report plainly whether
+   production serves the new or the previous web app. The after-promotion live
+   check did not run in that case, so run the browser check on the live origin
+   before calling the release done.
+5. Confirm `https://app.openmates.org` shows the expected version and report
    the receipt path. A rollback or failed check fails the release; never retry
    by assigning the alias another way. Also check whether `openmates-website`
    changed; promote it only through its own configured flow.

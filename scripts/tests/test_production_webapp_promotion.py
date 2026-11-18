@@ -44,7 +44,7 @@ class FakeVercel:
     def get(self, path):
         if path.startswith('/v9/projects/'):
             return {'autoAssignCustomDomains': self.automatic}
-        return {'projectId': self.project, 'target': 'production', 'readyState': 'READY',
+        return {'id': 'dpl_' + path.rsplit('/', 1)[-1], 'projectId': self.project, 'target': 'production', 'readyState': 'READY',
                 'url': 'open-mates-webapp-reviewed.vercel.app'}
 
     def current(self):
@@ -66,9 +66,9 @@ def test_browser_checks_surround_the_only_promotion(tmp_path):
 
     result = promote(api, 'candidate', 'version', tmp_path / 'proof', check)
     assert result['result'] == 'passed'
-    assert api.writes == ['candidate']
+    assert api.writes == ['dpl_candidate']
     assert calls == [('https://open-mates-webapp-reviewed.vercel.app', 'previous', 'version'),
-                     ('https://app.openmates.org', 'candidate', 'version')]
+                     ('https://app.openmates.org', 'dpl_candidate', 'version')]
 
 
 # contract-test: tooling
@@ -85,7 +85,7 @@ def test_post_promotion_failure_restores_previous_deployment(tmp_path):
     checks = iter([{'result': 'passed'}, {'result': 'failed'}])
     with pytest.raises(RuntimeError, match='Live production'):
         promote(api, 'candidate', 'version', tmp_path / 'proof', lambda *args: next(checks))
-    assert api.writes == ['candidate', 'previous']
+    assert api.writes == ['dpl_candidate', 'previous']
     receipt = json.loads((tmp_path / 'proof/receipt.json').read_text())
     assert receipt['result'] == 'failed' and receipt['rollback'] == 'restored'
 
@@ -95,13 +95,13 @@ def test_lost_alias_response_is_reconciled_and_restored(tmp_path):
     class LostResponse(FakeVercel):
         def alias(self, deployment):
             super().alias(deployment)
-            if deployment == 'candidate':
+            if deployment == 'dpl_candidate':
                 raise TimeoutError('response lost after the alias changed')
 
     api = LostResponse()
     with pytest.raises(TimeoutError):
         promote(api, 'candidate', 'version', tmp_path / 'proof', lambda *args: {'result': 'passed'})
-    assert api.writes == ['candidate', 'previous'] and api.current() == 'previous'
+    assert api.writes == ['dpl_candidate', 'previous'] and api.current() == 'previous'
 
 
 # contract-test: tooling
@@ -137,7 +137,7 @@ def test_failed_live_check_does_not_roll_back_another_operators_release(tmp_path
 
     with pytest.raises(RuntimeError, match='Live production'):
         promote(api, 'candidate', 'version', tmp_path / 'proof', check)
-    assert api.writes == ['candidate'] and api.current() == 'another-release'
+    assert api.writes == ['dpl_candidate'] and api.current() == 'another-release'
 
 
 # contract-test: tooling
@@ -167,3 +167,21 @@ def test_update_skill_uses_full_sha_as_expected_version_and_reports_failed_candi
     assert '--expected-version <FULL_MERGE_SHA>' in step
     assert 'userFacing' not in step
     assert 'Candidate failed its browser check' in step and 'before/receipt.json' in step
+
+
+# contract-test: tooling
+def test_hostname_argument_is_resolved_to_the_deployment_id_for_alias_and_readback(tmp_path):
+    api = FakeVercel()
+    result = promote(api, 'open-mates-webapp-reviewed.vercel.app', 'version', tmp_path / 'proof',
+                     lambda *args: {'result': 'passed'})
+    assert result['result'] == 'passed'
+    assert api.writes == ['dpl_open-mates-webapp-reviewed.vercel.app']
+    assert result['deployment_id'] == api.current()
+
+
+# contract-test: tooling
+def test_update_skill_handles_alias_readback_failure():
+    skill = (Path(__file__).resolve().parents[2] / '.claude/skills/update-prod-server/SKILL.md').read_text()
+    step = skill.split('### Final step: promote the production web app', 1)[1].split('Close the prod master', 1)[0]
+    assert 'Production alias does not identify the reviewed deployment' in step
+    assert '_app/version.json' in step
