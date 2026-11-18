@@ -1,5 +1,6 @@
 /** Voice is an input mode of an ordinary encrypted chat turn. */
 import type { Message, VoiceHeardBoundary } from '../types/chat';
+import { get } from 'svelte/store';
 import { chatDB } from './db';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { getWorkspaceCacheEpoch } from './workspaceCacheLifecycle';
@@ -235,6 +236,16 @@ export async function sendVoiceCallTurn(turn: VoiceCallTurn): Promise<boolean> {
       detail: { chat_id: turn.chatId, chat: optimisticChat, newMessage: durableMessage },
     }));
     turn.onVisible?.();
+    // The chat the user is now talking in is the chat they left off in (3X228).
+    // loadChat records last_opened only when it finishes, and it returns early
+    // while call turns are in flight. Recording it at the first turn, not at
+    // bind, keeps an empty call chat (removed after hangup) out of the resume card.
+    const { userProfile } = await import('../stores/userProfile');
+    if (get(userProfile).last_opened !== turn.chatId) {
+      void chatSyncService.sendSetActiveChat(turn.chatId).catch((error: unknown) => {
+        console.error('[voiceCallTurns] Could not record the call chat as last opened:', turn.chatId, error);
+      });
+    }
     if (VOICE_TURN_RUST_ENABLED) {
       // The core builds the encrypted admission; the page carries its frames.
       const { deliverVoiceTurnThroughCore } = await import('./rustCore/voice/voiceTurnDelivery');

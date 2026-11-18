@@ -7,7 +7,7 @@ import { writeFile } from 'node:fs/promises';
 import { clickChatTarget, scrollChatHistoryToStart } from './helpers/chat-scroll';
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing shared helpers use CommonJS. */
 const { expect, test } = require('./helpers/cookie-audit');
-const { loginToTestAccount, waitForChatReady } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, waitForChatReady } = require('./helpers/chat-test-helpers');
 const { naturalProjectName } = require('./helpers/project-names');
 const USER_SPEECH = 'How do I make ramen?';
 const ASSISTANT_SPEECH = 'For ramen, simmer the broth and cook the noodles.';
@@ -1113,6 +1113,19 @@ async function chooseAppsHome(page: Page): Promise<void> {
 }
 
 /** Meaningful drafts and ordinary conversation history must survive call end. */
+/** A call chat with a turn is recorded as last opened, so it leads "Continue where you left off" (3X228). */
+async function expectCallChatLastOpened(page: Page, chatId: string): Promise<void> {
+  await expect.poll(()=>page.evaluate(async()=>{
+    const db=await new Promise<IDBDatabase>((resolve,reject)=>{
+      const request=indexedDB.open('user_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+    });
+    try { return await new Promise<string>((resolve,reject)=>{
+      const request=db.transaction('user_data','readonly').objectStore('user_data').get('last_opened');
+      request.onsuccess=()=>resolve(String(request.result??''));request.onerror=()=>reject(request.error);
+    }); } finally { db.close(); }
+  }),{message:'The voice call chat must become last_opened'}).toBe(chatId);
+}
+
 async function assertCallChatPreserved(page: Page, chatId: string): Promise<void> {
   expect((await evidence(page)).sent.filter(frame=>frame.type==='delete_empty_call_chat'&&frame.chatId===chatId)).toHaveLength(0);
   expect(await page.evaluate(async id=>{
@@ -2490,6 +2503,9 @@ test.describe('Voice mode through ordinary chat', () => {
     });
     const resumedAt=await page.evaluate(()=>performance.now());
     await playNativeVoiceFixture(page);
+    // The first admitted turn makes the call chat the resume chat (3X228).
+    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1,{timeout:60_000});
+    await expectCallChatLastOpened(page,voiceFrames(await evidence(page),'start')[0].chatId!);
     await waitForSpokenAssistant(page);
     // Unspoken words render translucent during playback, then the whole reply
     // becomes fully visible once speech finishes.
@@ -2568,7 +2584,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-phone.png')});
     await page.getByTestId('voice-call-hangup').click();await expect(page.getByTestId('voice-call-ended')).toHaveCount(1);
     await assertVoiceInputCleanup(page);await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
-    await assertCallChatPreserved(page,chatId);
+    await assertCallChatPreserved(page,chatId);await expectCallChatLastOpened(page,chatId);
     await evictOwnedCallRows(page,chatId,ready.callId!,messageIds);await page.reload();await waitForChatReady(page);
     await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
     await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
@@ -2578,6 +2594,10 @@ test.describe('Voice mode through ordinary chat', () => {
     // expose the ordinary recording control before checking audio ownership.
     await page.getByTestId('message-editor').click();
     await expect(page.getByTestId('record-audio-button')).toBeEnabled();
+    // Back on the new-chat screen the call chat is the first resume card.
+    await startNewChat(page,()=>{});
+    await expect(page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first())
+      .toHaveAttribute('data-chat-id',chatId);
   });
 
   // contract-test: direct surface=gui.web assertions=video-call.privacy,video-call.audio.single-owner,video-call.audio.spoken-rich-response,assistant-speech.playback.live-call-streaming,assistant-speech.on-demand.generate-missing-only,assistant-speech.lifecycle.disable-delete-invalidate
