@@ -1803,7 +1803,7 @@ Report a problem with optional diagnostic context and get a stable confirmation.
 | Apple | partial 5/8 | 5 pass · 0 fail · 0 not run · 3 no test | [ChatFlowParityUITests.swift](../../apple/OpenMatesUITests/ChatFlowParityUITests.swift)<br>[SettingsFullParityUITests.swift](../../apple/OpenMatesUITests/SettingsFullParityUITests.swift)<br>1 unit test file(s), e.g. [SettingsFullParityTests.swift](../../apple/OpenMatesTests/SettingsFullParityTests.swift) |
 | CLI | impl | — | — |
 | TUI | — | — | — |
-| REST API | **FAIL** 2/8 | 2 pass · 1 fail · 0 not run · 5 no test | [report-issue-flow.spec.ts](../../frontend/apps/web_app/tests/report-issue-flow.spec.ts)<br>4 unit test file(s), e.g. [test_issue_report_email_task.py](../../backend/tests/test_issue_report_email_task.py), [test_admin_debug_log_query.py](../../backend/tests/test_admin_debug_log_query.py)<br>❌ [report-issue-flow.spec.ts › Report issue API accepts long user-written titles](../../frontend/apps/web_app/tests/report-issue-flow.spec.ts › Report issue API accepts long user-written titles) |
+| REST API | **FAIL** 2/8 | 2 pass · 1 fail · 0 not run · 5 no test | [report-issue-flow.spec.ts](../../frontend/apps/web_app/tests/report-issue-flow.spec.ts)<br>5 unit test file(s), e.g. [test_issue_report_email_task.py](../../backend/tests/test_issue_report_email_task.py), [test_admin_debug_log_query.py](../../backend/tests/test_admin_debug_log_query.py)<br>❌ [report-issue-flow.spec.ts › Report issue API accepts long user-written titles](../../frontend/apps/web_app/tests/report-issue-flow.spec.ts › Report issue API accepts long user-written titles) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 

@@ -5619,7 +5619,8 @@ features:
       - backend/tests/test_admin_debug_log_query.py
       - backend/tests/test_issue_report_archive.py
       - backend/tests/test_issue_report_auth.py
-      unit_test_files: 4
+      - backend/tests/test_issue_report_storage.py
+      unit_test_files: 5
     sdk_npm:
       status: not_planned
       source: intent

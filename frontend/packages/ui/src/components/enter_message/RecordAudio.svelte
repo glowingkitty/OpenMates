@@ -48,6 +48,8 @@
         close: void;
         cancel: void;
         transcriptionerror: Error;
+        /** The server's per-recording cap was reached; the recording finishes and keeps its text. */
+        recordinglimit: void;
         overlayremoved: { recordingGeneration: number };
         recordingStateChange: { active: boolean };
         prepareassistantplayback: void;
@@ -322,6 +324,11 @@
                     onStatus: (value) => { realtimeStatus = value; },
                     correctionContext,
                     purpose,
+                    onLimitReached: () => {
+                        if (isCancelled || stopIntent) return;
+                        dispatch('recordinglimit');
+                        stopInternal(false);
+                    },
                 });
                 void realtimeHandle.correction.catch((error: Error) => {
                     if (isCancelled || realtimeHandedOff || overlayCloseNotified) return;
@@ -584,7 +591,10 @@
         recordingTime = 0;
         recordingInterval = setInterval(() => {
             recordingTime++;
-            if (maxDurationSeconds && recordingTime >= maxDurationSeconds) stop();
+            if (maxDurationSeconds && recordingTime >= maxDurationSeconds) {
+                dispatch('recordinglimit');
+                stop();
+            }
         }, 1000);
     }
 

@@ -80,7 +80,7 @@ assertions:
     depends_on: [models.ReportControls.report_text, examples.single_text_form]
   - id: issue-reporting.form.free-limited-dictation
     type: behavior
-    must: Report Issue voice transcription is not charged to the user; the server limits each recording to two minutes and each signed-in user to thirty minutes per UTC day, and once the daily budget is spent the record button is greyed out with a try-again-tomorrow tooltip and further report dictation is refused.
+    must: Report Issue voice transcription is not charged to the user; the server limits each recording to two minutes (reaching that limit ends the recording and still adds the transcript of those two minutes to the report text; it never discards it) and each signed-in user to thirty minutes per UTC day, and once the daily budget is spent the record button is greyed out with a try-again-tomorrow tooltip and further report dictation is refused.
     depends_on: [models.ReportControls.report_text, examples.dictation_limits]
   - id: issue-reporting.automation.admin-dev-claude-chat
     type: behavior

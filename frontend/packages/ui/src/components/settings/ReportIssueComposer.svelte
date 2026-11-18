@@ -157,6 +157,7 @@
                 maxDurationSeconds={anonymous ? MAX_RECORDING_SECONDS : maxRecordingSeconds}
                 on:audiorecorded={(event) => void handleAudioRecorded(event)}
                 on:transcriptionerror={(event) => handleTranscriptionError(event.detail)}
+                on:recordinglimit={() => notificationStore.info($text('settings.report_issue.dictation_recording_limit'), 6000)}
                 on:close={() => (recording = false)}
                 on:cancel={() => (recording = false)}
             />

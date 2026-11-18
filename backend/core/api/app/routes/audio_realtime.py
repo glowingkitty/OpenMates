@@ -32,6 +32,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.report_issue_dictation_quota import (
     REPORT_DICTATION_PURPOSE, ReportDictationDenied, ReportDictationQuota,
+    cap_report_dictation_chunk,
 )
 from backend.core.api.app.services.guest_transcription_meter import (
     GuestTranscriptionDenied, GuestTranscriptionMeter, GUEST_IDLE_SECONDS,
@@ -582,9 +583,21 @@ async def realtime_transcription(
                                     raise ValueError("Audio chunk size is invalid")
                                 if guest and (input_ended or len(decoded) % 2):
                                     raise GuestTranscriptionDenied("invalid_audio_chunk")
+                                report_limit_reached = False
+                                if report_quota is not None:
+                                    # The two-minute cap ends the input instead of
+                                    # failing the stream, so the words already
+                                    # spoken are still transcribed and corrected.
+                                    if input_ended:
+                                        decoded = b""
+                                    else:
+                                        decoded, report_limit_reached = cap_report_dictation_chunk(
+                                            bytes_received, decoded, PCM_BYTES_PER_SECOND
+                                        )
+                                        encoded = base64.b64encode(decoded).decode()
                                 if guest:
                                     await guest.reserve_audio((guest_forwarded_bytes + len(decoded)) / PCM_BYTES_PER_SECOND)
-                                elif report_quota is not None:
+                                elif report_quota is not None and decoded:
                                     await report_quota.reserve((bytes_received + len(decoded)) / PCM_BYTES_PER_SECOND)
                                 bytes_received += len(decoded)
                                 peak_pcm = max(peak_pcm, max((abs(sample) for (sample,) in
@@ -596,17 +609,27 @@ async def realtime_transcription(
                                     raise ValueError("Recording is too long")
                                 if guest:
                                     guest_audio_ambiguous = True
-                                await provider.send_json(
-                                    {"type": event_type, "audio": encoded}
-                                )
+                                if decoded:
+                                    await provider.send_json(
+                                        {"type": event_type, "audio": encoded}
+                                    )
                                 if guest:
                                     guest_forwarded_bytes += len(decoded)
                                     guest_audio_ambiguous = False
+                                if report_limit_reached:
+                                    input_ended = True
+                                    await provider.send_json({"type": "input_audio.end"})
+                                    await websocket.send_json({
+                                        "type": "session.limit_reached", "code": "recording_limit",
+                                        "message": str(ReportDictationDenied("recording_limit")),
+                                    })
                             elif event_type == "input_audio.end":
                                 if guest and input_ended:
                                     raise GuestTranscriptionDenied("invalid_audio_end")
-                                input_ended = True
-                                await provider.send_json({"type": "input_audio.end"})
+                                # A report dictation may already have ended at its cap.
+                                if not input_ended:
+                                    input_ended = True
+                                    await provider.send_json({"type": "input_audio.end"})
                             elif event_type == "session.metadata" and not guest:
                                 candidate_chat_id = message.get("chat_id")
                                 if (

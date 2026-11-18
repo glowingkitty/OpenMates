@@ -38,6 +38,12 @@ interface StartOptions {
   correctionContext?: 'workflow';
   /** Free, server-capped Report Issue dictation (signed-in users only). */
   purpose?: 'report_issue';
+  /**
+   * The server reached the per-recording cap and ended the input; the
+   * transcript of the audio so far still arrives. Hosts should finish (not
+   * cancel) the recording.
+   */
+  onLimitReached?: () => void;
 }
 
 /** A Report Issue dictation limit (`recording_limit`, `daily_limit`) was reached. */
@@ -235,6 +241,9 @@ export function startAudioRealtimeTranscription(
           }
           break;
         }
+        case 'session.limit_reached':
+          options.onLimitReached?.();
+          break;
         case 'correction.started':
           options.onStatus?.('correcting');
           break;

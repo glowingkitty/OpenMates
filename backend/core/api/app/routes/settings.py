@@ -16,6 +16,9 @@ from pydantic import BaseModel, Field, SecretStr # Import BaseModel and Field fo
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.direct_chat_access import is_personal_retention_chat
+from backend.core.api.app.services.issue_report_storage import (
+    ISSUE_REPORT_DB_TITLE_MAX_CHARS, fit_issue_text_for_storage,
+)
 from backend.core.api.app.services.storage_usage_metering import (
     StorageUsageIncompleteError,
     StorageUsageMeteringService,
@@ -77,7 +80,6 @@ router = APIRouter(prefix="/v1/settings", tags=["Settings"])
 logger = logging.getLogger(__name__)
 
 ISSUE_REPORT_TITLE_MAX_CHARS = 5_000
-ISSUE_REPORT_DB_TITLE_MAX_CHARS = 250
 
 LLM_PROVIDER_ENV_KEYS = (
     "SECRET__MISTRAL_AI__API_KEY",
@@ -3266,21 +3268,20 @@ async def report_issue(
             timestamp_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S UTC').replace(tzinfo=timezone.utc)
             current_timestamp = datetime.now(timezone.utc)
             
-            # The production DB issues.title column is varchar(255) (schema YAML declares TEXT
-            # but setup_schemas.py does not update existing fields for custom collections).
-            # Truncate here so the Directus write never fails on long titles while the
-            # migration is pending. Apply `ALTER TABLE issues ALTER COLUMN title TYPE TEXT`
-            # on the production DB to remove this limit.
-            db_title = sanitized_title[:ISSUE_REPORT_DB_TITLE_MAX_CHARS] if len(sanitized_title) > ISSUE_REPORT_DB_TITLE_MAX_CHARS else sanitized_title
-            if len(sanitized_title) > ISSUE_REPORT_DB_TITLE_MAX_CHARS:
+            # issues.title is still varchar(255) on existing databases; the full
+            # text moves to the description so a long report is never lost.
+            db_title, db_description, title_truncated = fit_issue_text_for_storage(
+                sanitized_title, sanitized_description
+            )
+            if title_truncated:
                 logger.warning(
-                    f"[report_issue] Title truncated from {len(sanitized_title)} to {ISSUE_REPORT_DB_TITLE_MAX_CHARS} chars "
-                    "for Directus storage (varchar(255) constraint not yet migrated to TEXT on prod)"
+                    f"[report_issue] Title shortened from {len(sanitized_title)} to {ISSUE_REPORT_DB_TITLE_MAX_CHARS} chars "
+                    "for Directus storage; the full text is kept in the description"
                 )
 
             issue_data_dict = {
                 "title": db_title,
-                "description": sanitized_description,
+                "description": db_description,
                 "issue_type": issue_data.issue_type,
                 "encrypted_chat_or_embed_url": encrypted_chat_or_embed_url,
                 "encrypted_contact_email": encrypted_contact_email,

@@ -825,7 +825,7 @@ specifications:
     version: 1
     status: draft
     path: features/issue-reporting
-    fingerprint: 52f066d60492e43dfca36ebeea4313861bc669e9e06749e7f99f0ca3409c2ae6
+    fingerprint: 33861f276d1238d3eb90e5e33f8760b1829c2e1d35aef7931279e6eaf13159ff
     required_applies_to:
     - rest_api
     - gui.web
@@ -10949,7 +10949,7 @@ assertions:
     specification: feature.issue-reporting@1
     specification_id: feature.issue-reporting
     type: behavior
-    fingerprint: ebc44b03ef7129f7dcc655823777eefbdab9c7a3f070164dc4f99eb159a91742
+    fingerprint: 4e06cf698ecb8d5839ab40e7ad9da3c4ebe1cceed37f01120e4a12a0466e6d41
     required_applies_to:
     - rest_api
     - gui.web

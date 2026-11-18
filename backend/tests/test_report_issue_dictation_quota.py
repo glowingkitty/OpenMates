@@ -16,6 +16,7 @@ from backend.core.api.app.services.report_issue_dictation_quota import (
     REPORT_DICTATION_MAX_RECORDING_SECONDS,
     ReportDictationDenied,
     ReportDictationQuota,
+    cap_report_dictation_chunk,
 )
 
 FIVE_SECONDS_PCM = base64.b64encode(b"\x00\x01" * (audio_realtime.PCM_SAMPLE_RATE * 5)).decode()
@@ -196,18 +197,34 @@ def test_report_dictation_refuses_when_the_daily_budget_is_spent(monkeypatch) ->
 
 
 # contract-test: direct surface=gui.web assertions=issue-reporting.form.free-limited-dictation
-def test_report_dictation_stops_audio_beyond_two_minutes(monkeypatch) -> None:
+def test_report_dictation_keeps_the_transcript_at_the_two_minute_cap(monkeypatch) -> None:
+    """Issue A5455: hitting the cap ends the input; it must not discard the dictation."""
     redis, charges = Redis(), []
     with TestClient(_app(monkeypatch, redis, charges)) as client:
         with client.websocket_connect(URL, headers=ORIGIN) as websocket:
             assert websocket.receive_json()["type"] == "session.ready"
             for _ in range(REPORT_DICTATION_MAX_RECORDING_SECONDS // 5 + 1):
                 websocket.send_json({"type": "input_audio.append", "audio": FIVE_SECONDS_PCM})
-            error = websocket.receive_json()
-    assert error["type"] == "session.error"
-    assert error["code"] == "recording_limit"
+            limit = websocket.receive_json()
+            # Audio still in flight and the client's own end after the cap are ignored.
+            websocket.send_json({"type": "input_audio.append", "audio": FIVE_SECONDS_PCM})
+            websocket.send_json({"type": "input_audio.end"})
+            assert websocket.receive_json()["type"] == "transcription.done"
+    assert limit["type"] == "session.limit_reached"
+    assert limit["code"] == "recording_limit"
     assert charges == []
     assert list(redis.rows.values()) == [REPORT_DICTATION_MAX_RECORDING_SECONDS]
+
+
+# contract-test: supporting surface=gui.web assertions=issue-reporting.form.free-limited-dictation
+def test_cap_trims_the_chunk_that_crosses_two_minutes_to_whole_samples() -> None:
+    per_second = audio_realtime.PCM_BYTES_PER_SECOND
+    cap = per_second * REPORT_DICTATION_MAX_RECORDING_SECONDS
+    chunk = b"\x00\x01" * 100
+    assert cap_report_dictation_chunk(0, chunk, per_second) == (chunk, False)
+    trimmed, reached = cap_report_dictation_chunk(cap - 51, chunk, per_second)
+    assert reached and len(trimmed) == 50
+    assert cap_report_dictation_chunk(cap, chunk, per_second) == (b"", True)
 
 
 # contract-test: supporting surface=gui.web assertions=issue-reporting.form.free-limited-dictation
