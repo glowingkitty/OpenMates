@@ -102,7 +102,8 @@ jobs:
               exit 1
             fi
           }
-          require_context "Vercel"
+          require_context "Vercel – open-mates-webapp"
+          require_context "Vercel – openmates-website"
           require_context "$RELEASE_CONTEXT"
       - name: Reject retired shared-dev release verification
         run: |
