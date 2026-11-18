@@ -34544,12 +34544,12 @@ assertions:
     direct_tests:
     - &id4416
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 124
+      line: 131
       name: counts app use with a loaded Memory and puts its pill above activity content
       surface: gui.web
     - &id4417
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 142
+      line: 149
       name: keeps long mixed summaries within one desktop line and two mobile lines
         in English and German
       surface: gui.web
@@ -97007,13 +97007,13 @@ assertions:
       surface: cli
     - &id12150
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 163
+      line: 170
       name: keeps focus countdown and activation acknowledgement visible, then collapses
         completed sub chats
       surface: gui.web
     - &id12151
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 211
+      line: 218
       name: keeps a delayed Project card mounted through its client acceptance and
         full acknowledgement
       surface: gui.web
@@ -97293,28 +97293,28 @@ assertions:
       surface: gui.web
     - &id12179
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 57
+      line: 64
       name: uses canonical Code, Events, and thinking circle gradients in both themes
       surface: gui.web
     - &id12180
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 79
+      line: 86
       name: names the first three of six apps and caps overlapping circles at three
       surface: gui.web
     - &id12181
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 110
+      line: 117
       name: uses one front AI circle within the three-circle limit when thinking
       surface: gui.web
     - &id12182
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 142
+      line: 149
       name: keeps long mixed summaries within one desktop line and two mobile lines
         in English and German
       surface: gui.web
     - &id12183
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 254
+      line: 261
       name: nests the thinking disclosure above skills and shows the latest lines
         during streaming
       surface: gui.web
@@ -97379,38 +97379,38 @@ assertions:
       surface: gui.web
     - &id12189
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 57
+      line: 64
       name: uses canonical Code, Events, and thinking circle gradients in both themes
       surface: gui.web
     - &id12190
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 79
+      line: 86
       name: names the first three of six apps and caps overlapping circles at three
       surface: gui.web
     - &id12191
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 102
+      line: 109
       name: uses singular grammar when one app remains after the first three
       surface: gui.web
     - &id12192
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 110
+      line: 117
       name: uses one front AI circle within the three-circle limit when thinking
       surface: gui.web
     - &id12193
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 124
+      line: 131
       name: counts app use with a loaded Memory and puts its pill above activity content
       surface: gui.web
     - &id12194
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 163
+      line: 170
       name: keeps focus countdown and activation acknowledgement visible, then collapses
         completed sub chats
       surface: gui.web
     - &id12195
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 254
+      line: 261
       name: nests the thinking disclosure above skills and shows the latest lines
         during streaming
       surface: gui.web
@@ -131480,13 +131480,13 @@ assertions:
       surface: rest_api
     - &id16730
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 211
+      line: 218
       name: keeps a delayed Project card mounted through its client acceptance and
         full acknowledgement
       surface: gui.web
     - &id16731
       path: frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
-      line: 238
+      line: 245
       name: expires an unapproved Project request without accepting it
       surface: gui.web
     - &id16732

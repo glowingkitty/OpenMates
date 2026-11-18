@@ -148,6 +148,7 @@ export const variants = {
   streamingThinking: { document: doc({ type: 'app-skill-use-group', id: 'preview-thinking-skills', groupedItems: [skill('web'), skill('news'), skill('images')] }), appIds: ['web', 'news', 'images'], thinkingContent: Array.from({ length: 18 }, (_, i) => `Reasoning line ${i + 1}.`).join('\n\n'), thinkingStreaming: true, active: true },
   multiple: { document: doc(skill('web'), skill('news'), skill('images')), appIds: ['web', 'news', 'images'] },
   specificationAnswerCard: { document: doc(skill('projects'), specificationSkill()), appIds: ['projects', 'plans'] },
+  specificationAnswerCardGrouped: { document: doc({ type: 'app-skill-use-group', id: 'preview-plans-group', groupedItems: [specificationSkill(), skill('web')] }), appIds: ['plans', 'web'] },
   gradients: { document: doc(skill('code'), skill('events'), skill('ai')), appIds: ['code', 'events', 'ai'] },
   fourApps: { document: doc(...fourApps.map(skill)), appIds: fourApps },
   manyApps: { document: doc(...manyApps.map(skill)), appIds: manyApps },

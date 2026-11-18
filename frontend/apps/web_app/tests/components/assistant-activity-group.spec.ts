@@ -51,6 +51,13 @@ test.describe('Completed assistant activity disclosure', () => {
       await expect(page.getByTestId('assistant-activity-body')).toContainText('Shared shopping lists');
       await expect(cards).toHaveCount(0);
     }
+    // XUDR8: real answers group the Specification with other skill calls in one node.
+    await page.goto(preview('specificationAnswerCardGrouped', 'light', 390));
+    await waitForComponentPreview(page);
+    const groupedCards = page.getByTestId('assistant-activity-answer-cards');
+    await expect(groupedCards).toContainText('Shared shopping lists');
+    await expect(groupedCards.getByTestId('embed-preview')).toHaveCount(1);
+    await testInfo.attach('specification-answer-card-grouped-390', { body: await page.getByTestId('assistant-activity-group').screenshot(), contentType: 'image/png' });
   });
 
   // contract-test: direct surface=gui.web assertions=chat-processing-feedback.completed-processing-summary,chat-processing-feedback.accessible-responsive

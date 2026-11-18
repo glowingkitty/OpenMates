@@ -208,12 +208,17 @@
   // Skill cards that are the requested result (a drafted Specification, Check
   // or Plan; answer_card in app.yml) stay visible below the collapsed summary.
   const answerCardSkills = new Set(EMBED_ANSWER_CARD_SKILLS);
+  // Items may sit in a grouped node (a Specification and its Checks in one
+  // "app-skill-use-group"), so each answer-card item gets its own embed node.
   const answerCardDocument = $derived.by(() => {
-    const content = (document?.content ?? []).filter((node) => {
-      const nodeItems = assistantActivityItems({ type: 'doc', content: [node] });
-      return nodeItems.length === 1 && nodeItems[0].type === 'app-skill-use' &&
-        answerCardSkills.has(`app:${String(nodeItems[0].app_id)}:${String(nodeItems[0].skill_id)}`);
-    });
+    const seen = new Set<string>();
+    const content = assistantActivityItems(document).filter((item) => {
+      if (item.type !== 'app-skill-use' || !answerCardSkills.has(`app:${String(item.app_id)}:${String(item.skill_id)}`)) return false;
+      const key = String(item.id ?? item.contentRef ?? '');
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map((item) => ({ type: 'paragraph', content: [{ type: 'embed', attrs: { ...item } }] }));
     return content.length ? { type: 'doc' as const, content } : null;
   });
   function displayName(key: string, fallback: string): string {
