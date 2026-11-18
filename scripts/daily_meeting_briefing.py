@@ -191,7 +191,7 @@ goes into the `Triage:` part of the decisions note.
 marketing, business development or a real end-user flow problem (users affected now, signups or payments broken); \
 after 17:00 building is free. The dev connector judges every `start_chat` and every `send_message` (follow-up \
 messages that add scope count) with a sceptical neutral model: it passes, queues until 17:00 (sent automatically \
-with a note) or puts the request in the idea inbox, and logs the reason. Pure ops and safety fixes for live users, \
+with a note) or puts the request in the idea inbox, and logs the reason. Release steps (pull requests, deploys, merges) and pure ops and safety fixes for live users, \
 outages, answers to a chat's question and pause or stop messages always pass; the founder can override explicitly \
 (`[override build gate: <reason>]`), and the override is logged. At most 3 non-marketing build chats run at once; \
 a fourth waits for a slot. **Voice and meeting assistants: during marketing time, before sending build work through \

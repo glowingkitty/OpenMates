@@ -160,8 +160,9 @@ feature-like Tasks LATER with that reason).
 - **The gate** lives in the private dev connector (`broker/build_gate.py`, not in this repository): a neutral decision
   model (Jev) judges every `start_chat` and `send_message` with a sceptical rubric (the requester may overstate
   marketing relevance). Outcomes: pass, queue until 17:00 (sent automatically with a note) or idea inbox (an `idea`
-  Task). Ops and safety fixes for live users, outages, answers to a chat's question and pause/stop messages always
-  pass; the founder overrides with `[override build gate: <reason>]`, logged. At most 3 non-marketing build chats run
+  Task). Release steps (pull requests, deploys, merges, releases), ops and safety fixes for live users, outages, answers to
+  a chat's question and pause/stop messages always pass; the founder overrides with `[override build gate: <reason>]`
+  (also `[override: <reason>]` or a line `override: <reason>`; a reason is required), which starts the chat at once, logged. At most 3 non-marketing build chats run
   at once. Every decision is logged with its reason (`run/build-gate-decisions.jsonl` of the connector).
 - **Voice and meeting assistants** ask once before sending build work in marketing time: "That's build work - inbox,
   queue for 17:00, or does it really help marketing?" (rule in the meeting script).
