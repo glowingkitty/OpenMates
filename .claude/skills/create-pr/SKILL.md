@@ -217,13 +217,39 @@ Group commits into:
 - **Improvements** (`refactor:`, `perf:`, `improve:`) — internal improvements
 - **Other** (`docs:`, `chore:`, `build:`, `ci:`, `test:`) — maintenance
 
-### Step 7 — Write PR Description
+### Step 7 — Write PR Title And Description
+
+**Title rules.** The title tells users what they will notice, not what changed
+internally:
+
+- Lead with user-noticeable improvements: new or newly activated features,
+  speed improvements, lower costs and big bug fixes. Never lead with, or
+  include, internal or technical work (Rust core, CI, infrastructure,
+  refactors, tooling); that belongs in the body under Internal/Platform Work.
+- Follow the format of the most recent merged release titles, for example
+  `Release: unified Memories with suggestions, new creative skills, and ...` and
+  `Release: richer visual results, better voice calling and dictation`:
+  `Release: ` plus two to four short, plain-language highlights.
+  Check them with
+  `gh pr list --base main --head dev --state merged --limit 5 --json number,title`.
+- No version number in the PR title. The version is decided when the release is
+  tagged (`/create-release`, Step 9), and the PR is merged before that tag exists.
+  Do not copy `vX.Y` from older titles.
+- Be honest about cost: a price increase is never described as a reduced cost;
+  state it plainly in the summary.
+- Only highlights that are active, visible to users and new in this PR belong
+  in the title; gated, dev-only or already shipped work does not.
+
+**Description rules.** The Summary starts with a short user-facing section
+("What you will notice") listing the same highlights in plain language, including
+any price change. Technical sections (Internal/Platform Work, validation) come
+after it.
 
 Write a **human-readable** PR description — not a commit dump. Structure:
 
 ```markdown
 ## Summary
-<2-4 sentence overview of what this PR does and why>
+<short user-facing list of what users will notice: new or activated features, speed, cost changes (price increases stated plainly), big bug fixes; then one sentence on the technical background work and gated features>
 
 ## Features
 - <grouped by feature area>
@@ -231,8 +257,8 @@ Write a **human-readable** PR description — not a commit dump. Structure:
 ## Bug Fixes
 - <grouped by fix area>
 
-## Improvements
-- <grouped by improvement area>
+## Internal/Platform Work
+- <technical background work: Rust core, CI, infrastructure, refactors, tooling>
 
 ## Future Release Preparation
 - <briefly summarize included code for explicitly unreleased features without claiming availability>
@@ -241,7 +267,8 @@ Write a **human-readable** PR description — not a commit dump. Structure:
 - <docs, chore, config items>
 ```
 
-Only include sections that have content. Write for a developer audience — specific and clear.
+Only include sections that have content. The Summary is written for users; the
+sections after it are for developers — specific and clear.
 
 Apply this guidance when creating or updating a PR description. The public body
 describes the included changes, their purpose, and concise factual validation.
@@ -255,7 +282,7 @@ without publishing the internal waiver or deployment plan.
 ### Step 8 — Create the PR
 
 ```bash
-gh pr create --base main --head dev --title "<short descriptive title>" --body "$(cat <<'EOF'
+gh pr create --base main --head dev --title "Release: <user-noticeable highlights, no version, no technical work>" --body "$(cat <<'EOF'
 <PR description>
 EOF
 )"
