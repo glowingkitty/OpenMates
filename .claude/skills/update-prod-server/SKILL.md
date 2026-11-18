@@ -436,6 +436,39 @@ Green health checks never replace a real reply: on 2026-11-13 every AI worker
 was crash-looping while `/v1/health` stayed green. Record the observed responses and status without guest IDs or
 private chat contents in the completion summary.
 
+### Final step: promote the production web app (only when healthy)
+
+Owner decision (2026-11-18): the update flow ends by promoting the web app
+itself, run from the dev server; no GitHub workflow, Vercel secret or extra
+runner is involved. Run it only when **all** of these passed for this update:
+`openmates server verify`, the guest chat checks, the free-hourly smoke and the
+signed-in chat. If any failed or was unproven, do NOT promote: report the
+previous web app as still live and stop.
+
+1. Find the ready `open-mates-webapp` deployment of the same full merge SHA
+   (`vercel ls open-mates-webapp --meta githubCommitSha=<FULL_MERGE_SHA>`); take
+   the expected version from `shared/config/product_version.json`
+   (`userFacing`) at that commit. Skip the step for a backend-only release that
+   built no web app deployment, and say so.
+2. Run exactly this one command (script unchanged: browser check of the
+   candidate, alias assignment, live check, rollback to the previous
+   deployment on failure):
+
+   ```bash
+   python3 scripts/promote_production_webapp.py --deployment <DEPLOYMENT_HOST> --expected-version <userFacing> --out <NEW_EMPTY_PRIVATE_DIR>
+   ```
+3. Confirm `https://app.openmates.org` shows the expected version and report
+   the receipt path. A rollback or failed check fails the release; never retry
+   by assigning the alias another way. Also check whether `openmates-website`
+   changed; promote it only through its own configured flow.
+
+Permission: this command is the only one the step runs against Vercel. The
+owner must allow it once in the user settings as the Bash rule
+`Bash(python3 scripts/promote_production_webapp.py:*)`; the agent never edits
+its own permission settings, and if the permission classifier still blocks the
+command, stop and hand the exact command to the owner instead of working around
+it.
+
 Close the prod master connection when finished:
 
 ```bash

@@ -147,3 +147,14 @@ def test_failed_live_check_does_not_roll_back_another_operators_release(tmp_path
 def test_browser_gate_rejects_unrelated_origins(url):
     with pytest.raises(ValueError):
         validate_url(url)
+
+
+# contract-test: tooling
+def test_update_skill_promotes_only_after_healthy_backend_with_one_scoped_command():
+    skill = (Path(__file__).resolve().parents[2] / '.claude/skills/update-prod-server/SKILL.md').read_text()
+    step = skill.split('### Final step: promote the production web app', 1)[1].split('Close the prod master', 1)[0]
+    assert 'do NOT promote' in step
+    assert 'openmates server verify' in step and 'signed-in chat' in step
+    assert 'promote_production_webapp.py --deployment' in step
+    assert 'Bash(python3 scripts/promote_production_webapp.py:*)' in step
+    assert 'rollback' in step
