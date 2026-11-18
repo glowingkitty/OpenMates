@@ -158,3 +158,12 @@ def test_update_skill_promotes_only_after_healthy_backend_with_one_scoped_comman
     assert 'promote_production_webapp.py --deployment' in step
     assert 'Bash(python3 scripts/promote_production_webapp.py:*)' in step
     assert 'rollback' in step
+
+
+# contract-test: tooling
+def test_update_skill_uses_full_sha_as_expected_version_and_reports_failed_candidate():
+    skill = (Path(__file__).resolve().parents[2] / '.claude/skills/update-prod-server/SKILL.md').read_text()
+    step = skill.split('### Final step: promote the production web app', 1)[1].split('Close the prod master', 1)[0]
+    assert '--expected-version <FULL_MERGE_SHA>' in step
+    assert 'userFacing' not in step
+    assert 'Candidate failed its browser check' in step and 'before/receipt.json' in step

@@ -446,18 +446,23 @@ signed-in chat. If any failed or was unproven, do NOT promote: report the
 previous web app as still live and stop.
 
 1. Find the ready `open-mates-webapp` deployment of the same full merge SHA
-   (`vercel ls open-mates-webapp --meta githubCommitSha=<FULL_MERGE_SHA>`); take
-   the expected version from `shared/config/product_version.json`
-   (`userFacing`) at that commit. Skip the step for a backend-only release that
+   (`vercel ls open-mates-webapp --meta githubCommitSha=<FULL_MERGE_SHA>`); the
+   expected version is that **full 40-character merge SHA**: the deployment's
+   `_app/version.json` serves the commit SHA, not the `v0.31` product label
+   (using the label fails the browser check with "Served version differs"). Skip the step for a backend-only release that
    built no web app deployment, and say so.
 2. Run exactly this one command (script unchanged: browser check of the
    candidate, alias assignment, live check, rollback to the previous
    deployment on failure):
 
    ```bash
-   python3 scripts/promote_production_webapp.py --deployment <DEPLOYMENT_HOST> --expected-version <userFacing> --out <NEW_EMPTY_PRIVATE_DIR>
+   python3 scripts/promote_production_webapp.py --deployment <DEPLOYMENT_HOST> --expected-version <FULL_MERGE_SHA> --out <NEW_EMPTY_PRIVATE_DIR>
    ```
-3. Confirm `https://app.openmates.org` shows the expected version and report
+3. If the script raises "Candidate failed its browser check", production was
+   not changed: read `<out>/before/receipt.json` (per-view `failure`, `version`,
+   `errors`) and the failure screenshots, report the cause and that the previous
+   web app is still live, and do not retry with another method.
+4. Confirm `https://app.openmates.org` shows the expected version and report
    the receipt path. A rollback or failed check fails the release; never retry
    by assigning the alias another way. Also check whether `openmates-website`
    changed; promote it only through its own configured flow.
