@@ -134,10 +134,16 @@ on 2026-11-15 were such leftovers of CI result downloads).
   that failed, and stopped or done chats whose transcript holds undelivered
   results (listed with the resume command, never woken).
 
-Pushes that reach the user through `scripts/agent_question.py` (and
-`scripts/e2b_credits.py`, which calls its `record_push`) are appended to
-`logs/agent-questions/pushes.jsonl` (time, chat id and title, text, what it asks),
-so the connector can match a push to its chat. Push text is scrubbed before
+Every chat tells the user on Discord exactly once when it is done or blocked,
+with `scripts/agent_question.py`: `done` sends "✅ <short title>: <result>" (also
+for a parked or paused chat, with `--paused-until`), `ask` sends "❓ <short
+title>: <decision>. Recommendation: …". Each is one or two sentences (title at
+most 60, text at most 320 characters, links never cut and not counted); no
+progress pushes, never both for one event, one of each kind per chat per 20
+minutes. These pushes (and `scripts/e2b_credits.py`'s, which calls its
+`record_push`) are appended to `logs/agent-questions/pushes.jsonl` (time, kind
+`done`/`ask`/empty for other alerts, chat id and title, text, what it asks), so
+the connector can match a push to its chat and label it ✅ done or ❓ needs input. Push text is scrubbed before
 sending (`agent_question.scrub`): webhook URLs, emails, private keys, JWTs,
 bearer and prefixed API tokens, `NAME=value` values and other long random tokens
 become `[removed]`. Task and chat UUIDs, 40/64-char hex hashes, ENV/snake/kebab

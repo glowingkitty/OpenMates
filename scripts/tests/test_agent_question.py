@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # contract-test-file: tooling
-"""Discord question sender of scripts/agent_question.py (tooling test, no network)."""
+"""Discord done (✅) and ask (❓) pushes of scripts/agent_question.py (tooling test, no network)."""
 
 import argparse
 import json
@@ -15,8 +15,8 @@ import agent_question as aq  # noqa: E402
 
 
 def args(**overrides) -> argparse.Namespace:
-    values = dict(question="Which region?", recommendation="eu", option=["eu", "us"], task="TASK-1",
-                  dry_run=False, force=False)
+    values = dict(command="ask", question="Which region?", recommendation="eu", option=["eu", "us"],
+                  task="TASK-1", dry_run=False, force=False)
     values.update(overrides)
     return argparse.Namespace(**values)
 
@@ -31,13 +31,53 @@ def root(tmp_path, monkeypatch):
     return tmp_path
 
 
-def test_message_content_and_scrubbing(root):
-    message = aq.build_message("Mail me@example.org? token sk-abcdefghijklmnopqrst", "eu", ["a", "b"],
-                               "TASK-1", "aa11", "Fix billing")
-    assert message.startswith("Question from Claude chat: Fix billing")
-    assert "1. a" in message and "2. b" in message and "TASK-1" in message and "aa11" in message
-    assert "example.org" not in message and "sk-abc" not in message
-    assert len(aq.build_message("x " * 9000, "", [], "", "", "t")) <= aq.MAX_CHARS * aq.MAX_PARTS
+def done_args(**overrides) -> argparse.Namespace:
+    values = dict(command="done", summary="Billing retries ship on dev; the E2E is green.", paused_until=None,
+                  task="TASK-1", dry_run=True, force=False)
+    values.update(overrides)
+    return argparse.Namespace(**values)
+
+
+def test_done_dry_run_format(root, monkeypatch):
+    monkeypatch.setenv("CLAUDE_CHAT_TITLE", "Billing fix")
+    text = aq.send(done_args(), root, "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
+    assert text == "✅ Billing fix: Billing retries ship on dev; the E2E is green."
+    paused = aq.send(done_args(summary="Parked until the owner's answer", paused_until="2026-11-24"), root,
+                     "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
+    assert paused == "✅ Billing fix: Parked until the owner's answer. Paused until 2026-11-24."
+    assert not (root / "logs").exists()
+
+
+def test_ask_dry_run_format_has_no_option_list(root):
+    text = aq.send(args(dry_run=True, question="Which S3 region for backups?", recommendation="EU (Falkenstein)"),
+                   root, "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
+    assert text == "❓ Fix billing: Which S3 region for backups? Recommendation: EU (Falkenstein)"
+    assert "eu" not in text.replace("EU", "") and "\n" not in text  # --option goes to the log only
+
+
+@pytest.mark.parametrize("make", [lambda text: done_args(summary=text), lambda text: args(dry_run=True, question=text)])
+def test_both_formats_are_capped_and_keep_their_prefix(root, make):
+    long = "This sentence keeps going with more words than any push should hold. " * 20
+    text = aq.send(make(long), root, "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
+    title, _, body = text.partition(": ")
+    assert text[0] in (aq.DONE, aq.ASK) and text[1] == " "
+    assert len(body) <= aq.MAX_TEXT_CHARS and body.endswith("…")
+    long_title = aq.short_title("A chat title that is far too long to fit in front of a push message " * 2)
+    assert len(long_title) <= aq.MAX_TITLE_CHARS and long_title.endswith("…")
+
+
+@pytest.mark.parametrize("make", [lambda text: done_args(summary=text), lambda text: args(dry_run=True, question=text)])
+def test_both_formats_are_scrubbed(root, make):
+    text = aq.send(make("Mail me@example.org, token sk-abcdefghijklmnopqrst, task " + "1b0f9375-84d4-4e0b-8f96-d677a4f1da2d"),
+                   root, "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
+    assert "example.org" not in text and "sk-abc" not in text
+    assert "1b0f9375-84d4-4e0b-8f96-d677a4f1da2d" in text  # Task ids stay readable
+
+
+def test_links_are_never_cut_by_the_length_cap(root):
+    text = aq.send(done_args(summary="Proof video " + PRESIGNED + " and " + "more words " * 60), root, "chat-1",
+                   1000.0, post=lambda **_: pytest.fail("posted"))
+    assert PRESIGNED in text and "[removed]" not in text
 
 
 # Token-shaped strings below are concatenated so secret scanners do not flag the synthetic values.
@@ -64,11 +104,6 @@ def test_ids_hashes_and_own_media_links_stay_intact():
                  "test_agent_question_keeps_presigned_links_whole", "fix-discord-push-redaction-ids"):
         assert kept in out, kept
     assert "[removed]" not in out
-
-
-def test_task_line_of_a_built_message_keeps_the_task_id(root):
-    message = aq.build_message(f"Video: {PRESIGNED}", "", [], TASK_UUID, "3c39", "Fix pushes")
-    assert f"Task: {TASK_UUID} | Session: 3c39" in message and PRESIGNED in message
 
 
 @pytest.mark.parametrize("secret, leaked", [
@@ -115,21 +150,21 @@ def test_long_push_is_split_into_parts_without_cutting_links(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
     question = " ".join(f"Flow {n}: {PRESIGNED}" for n in range(5))
     sent = []
-    text = aq.ask(args(question=question), root, "chat-1", 1.0, post=lambda **kw: sent.append(kw) or {"message_id": "1"})
+    text = aq.send(args(question=question), root, "chat-1", 1.0, post=lambda **kw: sent.append(kw) or {"message_id": "1"})
     parts = [call["payload"]["content"] for call in sent]
     assert len(parts) >= 2 and all(len(part) <= aq.MAX_CHARS for part in parts)
     assert sum(part.count(PRESIGNED) for part in parts) == 5 and text.count(PRESIGNED) == 5
 
 
 def test_dry_run_writes_nothing(root):
-    text = aq.ask(args(dry_run=True), root, "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
+    text = aq.send(args(dry_run=True), root, "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
     assert "Fix billing" in text
     assert not (root / "logs").exists()
 
 
 def test_no_webhook_fails(root):
     with pytest.raises(aq.QuestionError, match="no Discord webhook"):
-        aq.ask(args(), root, "chat-1", 1000.0, post=lambda **_: {"message_id": "1"})
+        aq.send(args(), root, "chat-1", 1000.0, post=lambda **_: {"message_id": "1"})
 
 
 def test_post_marker_rate_limit_and_fallback_key(root, monkeypatch):
@@ -140,27 +175,27 @@ def test_post_marker_rate_limit_and_fallback_key(root, monkeypatch):
         sent.append(kwargs)
         return {"message_id": "1"}
 
-    aq.ask(args(), root, "chat-1", 1000.0, post=post)
+    aq.send(args(), root, "chat-1", 1000.0, post=post)
     assert sent[0]["webhook_url"] == "https://example.org/hook"
     marker = json.loads(aq.marker_path(root, "chat-1").read_text())
     assert marker["ts"] == 1000.0 and marker["question"] == "Which region?"
     with pytest.raises(aq.QuestionError, match="20 minutes"):
-        aq.ask(args(), root, "chat-1", 1100.0, post=post)
-    aq.ask(args(force=True), root, "chat-1", 1100.0, post=post)
-    aq.ask(args(), root, "chat-1", 1100.0 + aq.RATE_LIMIT_SECONDS + 1, post=post)
+        aq.send(args(), root, "chat-1", 1100.0, post=post)
+    aq.send(args(force=True), root, "chat-1", 1100.0, post=post)
+    aq.send(args(), root, "chat-1", 1100.0 + aq.RATE_LIMIT_SECONDS + 1, post=post)
     assert len(sent) == 3
 
 
 def test_unconfirmed_delivery_fails_without_marker(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
     with pytest.raises(aq.QuestionError, match="not confirmed"):
-        aq.ask(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
+        aq.send(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
     assert not aq.marker_path(root, "chat-1").exists()
 
 def test_transient_failure_is_retried_then_delivered(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
     results, waits = [None, None, {"message_id": "9"}], []
-    aq.ask(args(), root, "chat-1", 1.0, post=lambda **_: results.pop(0), sleep=waits.append)
+    aq.send(args(), root, "chat-1", 1.0, post=lambda **_: results.pop(0), sleep=waits.append)
     assert waits == list(aq.RETRY_DELAYS) and not results
     assert aq.marker_path(root, "chat-1").exists()
 
@@ -168,21 +203,42 @@ def test_gives_up_after_all_attempts(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
     calls = []
     with pytest.raises(aq.QuestionError, match="after 3 attempts"):
-        aq.ask(args(), root, "chat-1", 1.0, post=lambda **_: calls.append(1), sleep=lambda _: None)
+        aq.send(args(), root, "chat-1", 1.0, post=lambda **_: calls.append(1), sleep=lambda _: None)
     assert len(calls) == 3
 
 
 def test_delivered_push_is_logged_for_the_connector(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
     monkeypatch.setenv("CLAUDE_CHAT_TITLE", "Billing fix")
-    text = aq.ask(args(), root, "chat-1", 1000.0, post=lambda **_: {"message_id": "1"})
+    text = aq.send(args(), root, "chat-1", 1000.0, post=lambda **_: {"message_id": "1"})
     entry = json.loads((root / aq.PUSH_LOG).read_text().splitlines()[-1])
     assert entry["chat_id"] == "chat-1" and entry["title"] == "Billing fix" and entry["ts"] == 1000.0
     assert entry["asks"] == "Which region?" and entry["recommendation"] == "eu"
     assert entry["options"] == ["eu", "us"] and entry["task"] == "TASK-1" and entry["text"] == text
+    assert entry["kind"] == "ask" and text.startswith("❓ Billing fix: ")
+
+
+def test_done_push_is_logged_and_rate_limited_apart_from_the_question(root, monkeypatch):
+    """Blocked then finished: one ❓ then one ✅ go out; a second ✅ within 20 min is refused."""
+    monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
+    sent = []
+    post = lambda **kw: sent.append(kw["payload"]["content"]) or {"message_id": "1"}  # noqa: E731 - test stub
+    aq.send(args(), root, "chat-1", 1000.0, post=post)
+    aq.send(done_args(dry_run=False), root, "chat-1", 1100.0, post=post)
+    with pytest.raises(aq.QuestionError, match="already sent a done push"):
+        aq.send(done_args(dry_run=False), root, "chat-1", 1200.0, post=post)
+    assert [m[0] for m in sent] == [aq.ASK, aq.DONE]
+    kinds = [json.loads(line)["kind"] for line in (root / aq.PUSH_LOG).read_text().splitlines()]
+    assert kinds == ["ask", "done"]
+    assert json.loads(aq.marker_path(root, "chat-1").read_text())["kind"] == aq.DONE
+
+
+def test_other_scripts_alerts_are_logged_without_a_kind(root):
+    aq.record_push(root, "Feedback needed: E2B credits run out in 20 days", 1.0, title="E2B credits")
+    assert json.loads((root / aq.PUSH_LOG).read_text())["kind"] == ""
 
 def test_failed_push_is_not_logged(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
     with pytest.raises(aq.QuestionError):
-        aq.ask(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
+        aq.send(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
     assert not (root / aq.PUSH_LOG).exists()

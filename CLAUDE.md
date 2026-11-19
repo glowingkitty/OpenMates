@@ -73,10 +73,13 @@ when a skill or this file points to it.
   decisions. Never ask what the repo can answer. When a material decision
   remains, ask one question per message with `Recommendation:` (evidence-based,
   else the safest reversible default) and `Examples:`. Clear requests: just do it.
-  A question that blocks all further work also goes out as a Discord push:
-  `python3 scripts/agent_question.py ask --question "..." --recommendation
-  "..."`; put it first in the reply, not at the end of a report. Not for
-  status updates or questions the work does not depend on.
+  Put a blocking question first in the reply, not at the end of a report.
+- Discord: every chat sends exactly one push (1-2 sentences) when it is done
+  or blocked on the user, never for progress and never both for one event
+  (blocked, later finished: one ❓, then one ✅). Done, also parked or paused:
+  `python3 scripts/agent_question.py done --summary "..." [--paused-until DATE]`.
+  Blocked: `python3 scripts/agent_question.py ask --question "..."
+  --recommendation "..."`.
 - Size the record to the risk: trivial → none; ordinary → inline goal + acceptance
   criteria; auth, encryption, billing, privacy, teams/sharing, permissions, sync,
   AI pipeline, provider integrations, migrations, new API routes, app skills,

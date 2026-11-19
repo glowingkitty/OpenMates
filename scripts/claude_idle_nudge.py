@@ -161,7 +161,8 @@ def message_text(idle_minutes: int, finished: list[str]) -> str:
     return (f"Automatic check: this chat has been idle for {idle_minutes} minutes and nothing is running "
             f"for it. If work is still owed (finished CI jobs: {', '.join(finished[:8]) or 'none'}), "
             "continue it now. If you are blocked on a decision from the user, send it with "
-            "scripts/agent_question.py and stop.")
+            "scripts/agent_question.py ask and stop; if the work is finished, send "
+            "scripts/agent_question.py done once and stop.")
 
 
 def run(command: str, dry_run: bool, min_minutes: float, max_minutes: float, root: Path, claude_home: Path,

@@ -1,19 +1,30 @@
 #!/usr/bin/env python3
-"""Send one compact Discord message when a chat is blocked on a decision only the user can make.
+"""Tell the user on Discord, in one compact push, that a chat is done or needs their input.
 
-Usage: agent_question.py ask --question "..." [--recommendation "..."] [--option "..."]...
-                             [--task TASK-id] [--dry-run] [--force]
+Usage: agent_question.py done --summary "..." [--paused-until DATE] [--task TASK-id] [--dry-run] [--force]
+       agent_question.py ask --question "..." [--recommendation "..."] [--task TASK-id] [--dry-run] [--force]
+
+Two formats the user tells apart at a glance, each one or two sentences (details come from the
+dev connector, which matches the push to its chat through the push log):
+  ✅ <short chat title>: <what changed or the result>        (done; also a parked or paused chat,
+                                                              with --paused-until)
+  ❓ <short chat title>: <decision needed> Recommendation: …  (ask)
+A chat sends exactly one push when it finishes (done) or is blocked on the user (ask), never for
+progress and never both for one event; blocked and later finished is one ❓ then one ✅. Text over
+MAX_TEXT_CHARS is shortened with "…" (the push log keeps the full text); --option values go to the
+push log only. Every text is scrubbed (secrets, personal data) before it is sent or logged.
 
 The webhook URL comes from DISCORD_WEBHOOK_AGENT_QUESTIONS, then DISCORD_WEBHOOK_DAILY_MEETING,
 then DISCORD_WEBHOOK_DEV_NIGHTLY (environment, then the canonical checkout's ``.env``, the same
-lookup as scripts/daily_meeting_briefing.py). The URL is never printed or logged. One message per
-chat per 20 minutes unless ``--force``. A success marker
-``logs/claude-idle-chats/questions/<chat-id>.json`` tells scripts/claude_idle_nudge.py that the
-chat already asked. Every confirmed push (also other scripts' pushes through ``record_push``) is
-appended to ``logs/agent-questions/pushes.jsonl`` (time, chat id and title, the text, what it asks),
-so the dev connector can look a push up by time and open its chat. An unconfirmed delivery (network error, Discord 429/5xx) is retried twice
-after 2 and 5 seconds, because this push is how the user learns a chat needs a decision. Failures
-that remain exit non-zero with a message; there is no silent fallback.
+lookup as scripts/daily_meeting_briefing.py). The URL is never printed or logged. One push of
+each kind per chat per 20 minutes unless ``--force``. A marker
+``logs/claude-idle-chats/questions/<chat-id>.json`` (ts, text, kind) tells
+scripts/claude_idle_nudge.py that the chat already told the user. Every confirmed push (also other
+scripts' pushes through ``record_push``) is appended to ``logs/agent-questions/pushes.jsonl``
+(time, kind, chat id and title, the text, what it asks), so the dev connector can look a push up
+by time and open its chat. An unconfirmed delivery (network error, Discord 429/5xx) is retried
+twice after 2 and 5 seconds. Failures that remain exit non-zero with a message; there is no
+silent fallback.
 """
 
 from __future__ import annotations
@@ -38,6 +49,10 @@ PUSH_LOG = Path("logs") / "agent-questions" / "pushes.jsonl"
 RETRY_DELAYS = (2.0, 5.0)
 MAX_CHARS = 1900  # per Discord message (limit 2000); longer pushes go out as several parts
 MAX_PARTS = 4
+DONE, ASK = "✅", "❓"
+MAX_TITLE_CHARS = 60
+MAX_TEXT_CHARS = 320  # the one or two sentences after the title
+_LINK_MARK = 0xF0000  # Unicode private use plane: placeholders while a text is shortened
 # Presigned links to our own buckets on our object storage are meant to be opened and are kept
 # whole (bucket name, key path and X-Amz-* query values). Every other URL goes through the filters.
 OWN_STORAGE_HOST_SUFFIX = ".your-objectstorage.com"
@@ -164,34 +179,47 @@ def session_info(root: Path, chat_id: str) -> tuple[str, str]:
     return key, task
 
 
-def build_message(question: str, recommendation: str, options: list[str], task_id: str,
-                  session_id: str, title: str) -> str:
-    lines = [f"Question from Claude chat: {scrub(title) or 'unnamed chat'}", "",
-             scrub(question)]
-    if recommendation:
-        lines += ["", f"Recommendation: {scrub(recommendation)}"]
-    if options:
-        lines += ["", "Options:"] + [f"{number}. {scrub(option)}" for number, option in enumerate(options, 1)]
-    meta = [f"Task: {task_id}" if task_id else "", f"Session: {session_id}" if session_id else ""]
-    meta_line = " | ".join(part for part in meta if part)
-    if meta_line:
-        lines += ["", scrub(meta_line)]
-    text = "\n".join(lines)
-    limit = MAX_CHARS * MAX_PARTS
-    if len(text) <= limit:
-        return text
-    cut = max(text.rfind("\n", 0, limit - 3), text.rfind(" ", 0, limit - 3))
-    return text[:cut if cut > 0 else limit - 3].rstrip() + "..."
+def _short(text: str, limit: int) -> str:
+    """At most `limit` characters, cut at a word boundary with "…"; a link counts as one character
+    and is never cut (a presigned video link alone is ~400 characters)."""
+    links: list[str] = []
+
+    def hold(match: re.Match[str]) -> str:
+        links.append(match.group(0))
+        return chr(_LINK_MARK + len(links) - 1)  # one private-use character per link
+
+    marked = _URL.sub(hold, text)
+    if len(marked) > limit:
+        space = marked.rfind(" ", 0, limit)
+        marked = marked[:space if space > 0 else limit - 1].rstrip(" ,;:") + "…"
+    return "".join(links[ord(c) - _LINK_MARK] if _LINK_MARK <= ord(c) < _LINK_MARK + len(links) else c
+                   for c in marked)
+
+
+def short_title(title: str) -> str:
+    return _short(scrub(title) or "unnamed chat", MAX_TITLE_CHARS)
+
+
+def build_message(kind: str, title: str, text: str, recommendation: str = "", paused_until: str = "") -> str:
+    """One compact push: '✅ title: result.' or '❓ title: decision. Recommendation: …'."""
+    body = scrub(text).rstrip()
+    end = "" if body.endswith((".", "?", "!", "…")) else "."
+    if kind == ASK and recommendation:
+        body = f"{body}{end} Recommendation: {scrub(recommendation)}"
+    if kind == DONE and paused_until:
+        body = f"{body}{end} Paused until {scrub(paused_until)}."
+    return f"{kind} {short_title(title)}: {_short(body, MAX_TEXT_CHARS)}"
 
 
 def marker_path(root: Path, chat_id: str) -> Path:
     return root / "logs" / "claude-idle-chats" / "questions" / f"{chat_id}.json"
 
 
-def recently_asked(root: Path, chat_id: str, now: float) -> bool:
+def recently_sent(root: Path, chat_id: str, now: float, kind: str = ASK) -> bool:
+    """A push of this kind from this chat in the last RATE_LIMIT_SECONDS (markers without kind are asks)."""
     try:
         recorded = json.loads(marker_path(root, chat_id).read_text(encoding="utf-8"))
-        return now - float(recorded.get("ts", 0)) < RATE_LIMIT_SECONDS
+        return recorded.get("kind", ASK) == kind and now - float(recorded.get("ts", 0)) < RATE_LIMIT_SECONDS
     except (OSError, ValueError, AttributeError):
         return False
 
@@ -215,10 +243,13 @@ def deliver(url: str, message: str, post: Callable[..., dict | None],
 
 def record_push(root: Path, message: str, now: float, *, chat_id: str = "", title: str = "", asks: str = "",
                 recommendation: str = "", options: list[str] | None = None, task_id: str = "",
-                source: str = "agent_question") -> Path:
-    """Append one delivered push to the push log (one JSON object per line); returns the log path."""
+                source: str = "agent_question", kind: str = "") -> Path:
+    """Append one delivered push to the push log (one JSON object per line); returns the log path.
+
+    kind: "done" or "ask" (derived from a ✅/❓ prefix when not given; other scripts' alerts: "")."""
     first = next((line for line in message.splitlines()[1:] if line.strip()), message)
-    entry = {"ts": now, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)), "source": source,
+    kind = kind or {DONE: "done", ASK: "ask"}.get(message[:1], "")
+    entry = {"ts": now, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)), "source": source, "kind": kind,
              "chat_id": chat_id, "title": scrub(title), "asks": scrub(asks or first),
              "recommendation": scrub(recommendation), "options": [scrub(o) for o in options or []],
              "task": scrub(task_id), "text": message}
@@ -228,46 +259,52 @@ def record_push(root: Path, message: str, now: float, *, chat_id: str = "", titl
         handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
     return path
 
-def ask(args: argparse.Namespace, root: Path, chat_id: str, now: float,
-        post: Callable[..., dict | None] = discord_webhook.post_message,
-        sleep: Callable[[float], None] = time.sleep) -> str:
-    """Send (or, with --dry-run, build) the message; returns the message text."""
-    session_id, task_text = session_info(root, chat_id)
-    message = build_message(args.question, args.recommendation or "", args.option or [],
-                            args.task or "", session_id, os.environ.get("CLAUDE_CHAT_TITLE") or task_text)
+def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
+         post: Callable[..., dict | None] = discord_webhook.post_message,
+         sleep: Callable[[float], None] = time.sleep) -> str:
+    """Send (or, with --dry-run, build) a done or ask push; returns the message text."""
+    kind = DONE if args.command == "done" else ASK
+    text = args.summary if kind == DONE else args.question
+    recommendation = getattr(args, "recommendation", None) or ""
+    _, task_text = session_info(root, chat_id)
+    title = os.environ.get("CLAUDE_CHAT_TITLE") or task_text
+    message = build_message(kind, title, text, recommendation, getattr(args, "paused_until", None) or "")
     if args.dry_run:
         return message
     if not chat_id:
         raise QuestionError("CLAUDE_CODE_SESSION_ID is not set; cannot identify this chat")
-    if not args.force and recently_asked(root, chat_id, now):
-        raise QuestionError("this chat already sent a question in the last 20 minutes (use --force)")
+    if not args.force and recently_sent(root, chat_id, now, kind):
+        raise QuestionError(f"this chat already sent a {args.command} push in the last 20 minutes (use --force)")
     deliver(webhook(root), message, post, sleep)
-    record_push(root, message, now, chat_id=chat_id,
-                title=os.environ.get("CLAUDE_CHAT_TITLE") or task_text, asks=args.question,
-                recommendation=args.recommendation or "", options=args.option or [], task_id=args.task or "")
+    record_push(root, message, now, chat_id=chat_id, title=title, asks=text, recommendation=recommendation,
+                options=getattr(args, "option", None) or [], task_id=args.task or "", kind=args.command)
     path = marker_path(root, chat_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"ts": now, "question": scrub(args.question)}), encoding="utf-8")
+    path.write_text(json.dumps({"ts": now, "question": scrub(text), "kind": kind}), encoding="utf-8")
     return message
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    ask_parser = sub.add_parser("ask", help="send one question to Discord")
-    ask_parser.add_argument("--question", required=True)
+    done_parser = sub.add_parser("done", help="✅ the chat finished (or parked / paused itself)")
+    done_parser.add_argument("--summary", required=True, help="one or two sentences: what changed or the result")
+    done_parser.add_argument("--paused-until", help="parked or paused: the date it resumes")
+    ask_parser = sub.add_parser("ask", help="❓ the chat is blocked on a decision of the user")
+    ask_parser.add_argument("--question", required=True, help="one or two sentences: the decision needed")
     ask_parser.add_argument("--recommendation")
-    ask_parser.add_argument("--option", action="append")
-    ask_parser.add_argument("--task")
-    ask_parser.add_argument("--dry-run", action="store_true")
-    ask_parser.add_argument("--force", action="store_true")
+    ask_parser.add_argument("--option", action="append", help="logged for the connector; not sent")
+    for each in (done_parser, ask_parser):
+        each.add_argument("--task")
+        each.add_argument("--dry-run", action="store_true")
+        each.add_argument("--force", action="store_true")
     args = parser.parse_args(argv)
     try:
-        message = ask(args, canonical_root(), os.environ.get("CLAUDE_CODE_SESSION_ID", ""), time.time())
+        message = send(args, canonical_root(), os.environ.get("CLAUDE_CODE_SESSION_ID", ""), time.time())
     except QuestionError as error:
         print(f"agent_question: {error}", file=sys.stderr)
         return 1
-    print(message if args.dry_run else "Question sent.")
+    print(message if args.dry_run else ("Done push sent." if args.command == "done" else "Question sent."))
     return 0
 
 
