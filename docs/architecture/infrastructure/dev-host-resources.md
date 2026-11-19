@@ -155,8 +155,9 @@ connector's start_chat (and a send_message that would reopen a closed chat with
 new work) is not run but stored as a timer waiter (`claude_chat_waiters.add_start`,
 usage-checked, at the reset + 5 minutes, moved to 17:00 when that falls in
 marketing time and the build gate would hold it). Its Task is created at once.
-The connector starts it when the timer fires and sends one ✅ push (❓ after three
-failed attempts). `run="now"`, `run_at` and the connector tools
+The connector starts it when the timer fires without any Discord push (a start is
+not a ✅ event; ✅ is only for a finished or parked chat); after three failed
+attempts it sends one ❓. `run="now"`, `run_at` and the connector tools
 `list_scheduled_chats`, `cancel_scheduled_chat` and `run_queued_chat` control it;
 the briefing lists the queue under "Scheduled chats". Push text is scrubbed before
 sending (`agent_question.scrub`): webhook URLs, emails, private keys, JWTs,
