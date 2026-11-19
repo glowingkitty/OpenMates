@@ -24,6 +24,7 @@ from backend.core.api.app.services.chat_email_notification_service import (
 )
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.email_delivery_guard import build_delivery_id, build_delivery_key
+from backend.core.api.app.services.notification_headline_handoff import headline_key, stage_headline
 from backend.core.api.app.services.notification_presence import (
     classify_lifecycle_client, clear_presence, mark_message_viewed,
     refresh_legacy_apple_presence_on_message, report_presence,
@@ -79,8 +80,9 @@ def _mailpit_messages(client: httpx.Client, email: str, since: float) -> list[di
     matches = []
     for item in response.json().get("messages", []):
         subject = item.get("Subject") or ""
-        if "messaged you in OpenMates" not in subject and " in " not in subject:
-            continue
+        if ("messaged you in OpenMates" not in subject and " in " not in subject
+                and not subject.startswith(("\u2705", "\u2753", "\u2139"))):
+            continue  # chat mail only: generic, "<Mate> in <title>" or an icon + summary subject
         if not any(address.get("Address", "").lower() == email for address in item.get("To", [])):
             continue
         created = datetime.fromisoformat(item["Created"].replace("Z", "+00:00")).timestamp()
@@ -204,6 +206,35 @@ async def _run(admin: httpx.Client, email: str, user: dict) -> None:
         assert "&lt;script&gt;PREVIEW-ESCAPED&lt;/script&gt;" in opted_body
         assert preview_marker not in opted_body and "line 10" not in opted_body
 
+        # Summary headline: staged Vault-sealed (as the post_processing_completed listener does),
+        # read by the dispatcher only because includeContent is on.
+        summary_message = str(uuid.uuid4())
+        summary_task = "probe-summary-" + summary_message
+        assert await stage_headline(
+            cache_service=cache, directus_service=directus, encryption_service=encryption,
+            user_id=user_id, chat_id=chat_id, task_id=summary_task,
+            notification_type="done", summary="Gemini 4 models added, 3 tests pass",
+        )
+        sealed = await (await cache.client).get(headline_key(user_id, chat_id, summary_task))
+        assert sealed and b"Gemini 4 models" not in sealed
+        candidate_keys.append(candidate_key(user_id, chat_id, summary_message))
+        delivery_ids.append(build_delivery_id(build_delivery_key(
+            email_type="chat_response", campaign_key=summary_message,
+            recipient_kind="directus_user", recipient_id=user_id, stage=chat_id,
+        )))
+        assert await enqueue_chat_email(
+            cache_service=cache, directus_service=directus, encryption_service=encryption,
+            user_id=user_id, chat_id=chat_id, message_id=summary_message, sender_name="Mate",
+            preview="The garden beds are planned.\nSecond line.", title="Garden planning notes",
+            task_id=summary_task,
+        )
+        messages = await _wait_for_mail(mailpit, email, since, 3)
+        assert len(messages) == 3
+        assert messages[-1]["Subject"] == "\u2705 Gemini 4 models added, 3 tests pass"
+        summary_body = html.unescape(messages[-1].get("HTML") or "")
+        assert "Garden planning notes" in summary_body and "The garden beds are planned." in summary_body
+        assert f"/#chat-id={chat_id}" in summary_body
+
         viewed = str(uuid.uuid4())
         assert await enqueue(viewed, preview="VIEWED-MUST-NOT-EMAIL")
         await mark_message_viewed(cache, user_id, chat_id, viewed)
@@ -237,14 +268,14 @@ async def _run(admin: httpx.Client, email: str, user: dict) -> None:
         )
         await clear_presence(cache, user_id, "probe-cli-send")
         await asyncio.sleep(20)
-        assert len(_mailpit_messages(mailpit, email, since)) == 2
+        assert len(_mailpit_messages(mailpit, email, since)) == 3
 
         active = str(uuid.uuid4())
         assert await enqueue(active, preview="ACTIVE-MUST-NOT-EMAIL")
         await report_presence(cache, user_id, "probe-web-connection", "web", True, now=time.time())
         try:
             await asyncio.sleep(20)
-            assert len(_mailpit_messages(mailpit, email, since)) == 2
+            assert len(_mailpit_messages(mailpit, email, since)) == 3
         finally:
             await clear_presence(cache, user_id, "probe-web-connection")
 
@@ -284,7 +315,7 @@ async def _run(admin: httpx.Client, email: str, user: dict) -> None:
         )
         try:
             await asyncio.sleep(20)
-            assert len(_mailpit_messages(mailpit, email, since)) == 2
+            assert len(_mailpit_messages(mailpit, email, since)) == 3
         finally:
             await refresh_legacy_apple_presence_on_message(cache, user_id, "probe-legacy-apple", False)
 
@@ -341,8 +372,8 @@ async def _run(admin: httpx.Client, email: str, user: dict) -> None:
         ) == 1
         raw = await (await cache.client).get(team_candidate_key)
         assert raw and team_preview.encode() not in raw and b"encrypted_preview" in raw
-        team_messages = await _wait_for_mail(mailpit, email, since, 3)
-        assert len(team_messages) == 3
+        team_messages = await _wait_for_mail(mailpit, email, since, 4)
+        assert len(team_messages) == 4
         assert team_messages[-1]["Subject"].endswith(" in Team preview title")
         assert "&lt;strong&gt;TEAM-PREVIEW-ESCAPED&lt;/strong&gt;" in team_messages[-1].get("HTML", "")
         assert team_preview not in team_messages[-1].get("HTML", "")

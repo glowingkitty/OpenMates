@@ -448,7 +448,7 @@ postprocess_response_tool:
         notification_type:
           type: "string"
           enum: ["done", "question", "info"]
-          description: "How to label the push/email for the assistant's LATEST reply. done = the assistant completed a task or part of the work the user asked for; question = the assistant asks the user for input, a choice or confirmation and cannot continue without it (a long reply that ends with one open question is question); info = a purely informative answer with nothing completed or asked. A reply that did only part of the task is done only if it finished a concrete step, otherwise question or info."
+          description: "How to label the push/email for the assistant's LATEST reply. Decide in this order: (1) question = the reply ends by asking the user for input, a choice or confirmation, or cannot continue without them (a long reply that ends with one open question is question); (2) done = the assistant carried out work: created, changed, fixed, booked, calculated, drafted or planned something concrete. A reply that reports results and also mentions leftovers, failures or blockers is still done unless it asks the user something; (3) info = the reply only explains, answers a factual question, teaches or compares, and nothing was carried out for the user, however long the explanation is."
         notification_summary:
           type: "string"
           description: "One plain-text line of at most 90 characters that tells the user what the LATEST reply achieved or asks, in the language given in the system message. Use only facts stated in the reply; never invent names, numbers or results. No emoji, no markdown, no quotes, no trailing full stop."
