@@ -55,6 +55,10 @@ The cap keeps a chat active in the last `cap_min_idle_minutes` and suspends chat
 without an open question first; a chat whose last reply asks something is suspended
 only after `cap_question_idle_hours` without an answer (the connector resumes it
 when the answer comes). Idle stop and done never stop a chat with an open question.
+A ❓ Discord push (scripts/agent_question.py ask; its marker in
+logs/claude-idle-chats/questions/<chat>.json) is an open question until the user's next
+prompt, whatever the chat's last reply says (2026-11-19: chat 602f0aeb pushed a decision,
+then ended its reply without a question mark and was stopped as idle after 65 minutes).
 
 Settings: defaults below, overridden by `<repo>/logs/claude-chat-lifecycle/config.json`
 (or OPENMATES_CHAT_LIFECYCLE_CONFIG), overridden by flags.
@@ -174,6 +178,7 @@ class Chat:
     refusal_kept: bool | None = None
     refusal_at: str = ""
     waiters: list = field(default_factory=list)  # claude_chat_waiters.Waiter: disk, CI, handoff, background
+    pushed_question: str = ""  # a ❓ push sent after the user's last prompt (open until they answer)
 
 
 @dataclass
@@ -247,7 +252,42 @@ def cap_victims(chats: list[Chat], now: float, config: dict, own_session_id: str
 
 
 def asks(chat: Chat) -> bool:
-    return chat.last_speaker == "assistant" and asks_something(chat.last_text)
+    return bool(chat.pushed_question) or (chat.last_speaker == "assistant" and asks_something(chat.last_text))
+
+
+def open_question(chat: Chat) -> str:
+    """What the chat asks the user: its ❓ push, else the end of its last reply ('' when nothing)."""
+    if chat.pushed_question:
+        return chat.pushed_question
+    return " ".join(chat.last_text.split())[-300:] if asks(chat) else ""
+
+
+def questions_dir() -> Path:
+    return state_dir().parent / "claude-idle-chats" / "questions"  # written by scripts/agent_question.py
+
+
+def pushed_question(session_id: str, last_prompt_at: float, markers: Path | None = None) -> str:
+    """The ❓ push this chat sent after the user's last prompt, or '' (none, answered, or a ✅ push)."""
+    try:
+        marker = json.loads(((markers or questions_dir()) / f"{session_id}.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    if not isinstance(marker, dict) or marker.get("kind", "❓") != "❓":
+        return ""
+    if float(marker.get("ts", 0)) <= last_prompt_at:
+        return ""  # the user answered (or wrote) after it
+    return " ".join(str(marker.get("question", "")).split())[:300] or "a question sent to the user on Discord"
+
+
+def last_prompt_at(claude_home: Path, session_id: str) -> float:
+    """When the user last typed a prompt into the chat (0 when none is in the transcript tail)."""
+    newest = 0.0
+    for transcript in (claude_home / "projects").glob(f"*/{session_id}.jsonl"):
+        for record in _tail_records(transcript):
+            if (record.get("type") == "user" and not record.get("isMeta") and not record.get("isCompactSummary")
+                    and _text(record).strip()):
+                newest = max(newest, _iso(record.get("timestamp")))
+    return newest
 
 
 # ---------------------------------------------------------------------------
@@ -431,6 +471,8 @@ def live_chats(claude_home: Path, config: dict, waiters: dict[str, list] | None 
             zellij_session=zellij_env.get("ZELLIJ_SESSION_NAME", ""), pane_id=zellij_env.get("ZELLIJ_PANE_ID", ""),
             model=_flag(args, "--model"), undelivered=pending.undelivered, refusal_kept=pending.refusal_kept,
             refusal_at=pending.refusal_at, waiters=waiters.get(session_id) or waiters.get(UNREADABLE) or [],
+            pushed_question=(pushed_question(session_id, last_prompt_at(claude_home, session_id))
+                             if (questions_dir() / f"{session_id}.json").exists() else ""),
         )
         previous = chats.get(session_id)
         if previous is None or previous.pid < pid:  # a resumed chat can leave an older process behind
@@ -490,7 +532,7 @@ def resume_command(chat: Chat) -> str:
 
 def record_stop(registry: dict[str, dict], chat: Chat, state: str, reason: str) -> None:
     registry[chat.session_id] = {
-        "open_question": " ".join(chat.last_text.split())[-300:] if asks(chat) else "",
+        "open_question": open_question(chat),
         "state": state, "reason": reason, "stopped_at": _utc(), "last_activity": _utc(chat.last_activity),
         "title": chat.title or chat.name, "cwd": chat.cwd, "kind": chat.kind, "model": chat.model,
         "zellij_session": chat.zellij_session, "resume": resume_command(chat),

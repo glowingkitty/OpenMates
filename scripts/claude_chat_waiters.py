@@ -45,6 +45,12 @@ Rules (applied by scripts/claude_idle_chats.py every cycle):
   * Archived chats are never reopened.
   * TASK-9844 (2026-11-18): chats that stopped because weekly usage ran out are woken by
     a `timer --at usage-reset` waiter instead of the owner remembering to restart them.
+  * TASK-4594 (2026-11-19): a queued chat START is a timer too (add_start): the dev connector
+    queues start_chat when weekly usage is low, for an explicit time or until marketing time
+    ends. It has no chat yet (`chat_id` ""), carries the saved request in `start`, always has
+    the usage check, and wakes no chat: settle_timers fires it like any timer and the
+    connector starts the fired ones (due_starts / take_start). Writes to registered.json hold
+    a file lock, since the connector and the lifecycle both write it.
 
 State, in logs/claude-chat-lifecycle/: registered.json (handoff/background/timer waiters),
 waiters.json (the waiters seen last cycle, to notice CI jobs that ended),
@@ -61,6 +67,8 @@ Commands:
 from __future__ import annotations
 
 import argparse
+import contextlib
+import fcntl
 import json
 import os
 import re
@@ -146,6 +154,18 @@ def _read_json(path: Path) -> dict:
     except FileNotFoundError:
         return {}
     return data if isinstance(data, dict) else {}
+
+
+@contextlib.contextmanager
+def _locked(state: Path):
+    """Serialise read-modify-write of registered.json (the lifecycle, chats and the connector write it)."""
+    state.mkdir(parents=True, exist_ok=True)
+    with (state / ".registered.lock").open("a") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
 
 
 def _write_json(path: Path, data: dict) -> None:
@@ -238,46 +258,49 @@ def weekly_usage() -> tuple[float, datetime]:
 def settle_timers(state: Path, now: float, usage: Callable[[], tuple[float, datetime]] | None = None,
                   log=lambda event: None) -> None:
     """Fire due timers; a due usage-checked timer whose weekly usage is still used up moves one hour later."""
-    path = state / "registered.json"
-    data = _read_json(path)
-    changed = False
-    read: list = []  # one usage read per cycle, however many timers are due (the endpoint rate-limits)
-    for key, entry in data.items():
-        if entry["kind"] != "timer" or entry.get("fired_at") or now < entry["timeout_at"]:
-            continue
-        if entry.get("usage_check"):
-            import claude_usage_guard  # noqa: E402  (sibling script)
+    with _locked(state):
+        path = state / "registered.json"
+        data = _read_json(path)
+        changed = False
+        read: list = []  # one usage read per cycle, however many timers are due (the endpoint rate-limits)
+        for key, entry in data.items():
+            if entry["kind"] != "timer" or entry.get("fired_at") or now < entry["timeout_at"]:
+                continue
+            if entry.get("usage_check"):
+                import claude_usage_guard  # noqa: E402  (sibling script)
 
-            try:
-                if not read:
-                    try:
-                        read.append((usage or weekly_usage)())
-                    except claude_usage_guard.UsageUnavailable as error:
-                        read.append(error)
-                if isinstance(read[0], Exception):
-                    raise read[0]
-                used, resets = read[0]
-            except claude_usage_guard.UsageUnavailable as error:
-                entry["usage_note"] = f"weekly usage could not be read ({error}); check /usage before working"
-            else:
-                if used >= USAGE_AVAILABLE_BELOW:
-                    entry["timeout_at"] = now + USAGE_RETRY_SECONDS
-                    entry["postponed"] = int(entry.get("postponed", 0)) + 1
-                    log({"event": "timer_postponed", "session_id": entry["chat_id"], "key": key,
-                         "used_percent": used, "resets_at": resets.isoformat(), "next": _utc(entry["timeout_at"])})
-                    changed = True
-                    continue
-                entry["usage_note"] = f"weekly usage is {used:.0f}% (resets {resets.isoformat()})"
-        entry["fired_at"] = now
-        log({"event": "timer_fired", "session_id": entry["chat_id"], "key": key})
-        changed = True
-    if changed:
-        _write_json(path, data)
+                try:
+                    if not read:
+                        try:
+                            read.append((usage or weekly_usage)())
+                        except claude_usage_guard.UsageUnavailable as error:
+                            read.append(error)
+                    if isinstance(read[0], Exception):
+                        raise read[0]
+                    used, resets = read[0]
+                except claude_usage_guard.UsageUnavailable as error:
+                    entry["usage_note"] = f"weekly usage could not be read ({error}); check /usage before working"
+                else:
+                    if used >= USAGE_AVAILABLE_BELOW:
+                        entry["timeout_at"] = now + USAGE_RETRY_SECONDS
+                        entry["postponed"] = int(entry.get("postponed", 0)) + 1
+                        log({"event": "timer_postponed", "session_id": entry["chat_id"], "key": key,
+                             "used_percent": used, "resets_at": resets.isoformat(), "next": _utc(entry["timeout_at"])})
+                        changed = True
+                        continue
+                    entry["usage_note"] = f"weekly usage is {used:.0f}% (resets {resets.isoformat()})"
+            entry["fired_at"] = now
+            log({"event": "timer_fired", "session_id": entry["chat_id"], "key": key})
+            changed = True
+        if changed:
+            _write_json(path, data)
 
 
 def registered_waiters(state: Path) -> list[Waiter]:
     found = []
     for key, entry in _read_json(state / "registered.json").items():
+        if "start" in entry:
+            continue  # a queued chat start wakes no chat; the dev connector starts it (due_starts)
         fired = bool(entry.get("fired_at"))
         if entry["kind"] == "timer":
             found.append(Waiter(
@@ -344,44 +367,98 @@ def add(state: Path, chat_id: str, kind: str, on: str, key: str = "", timeout_mi
         raise ValueError("--at is required for a timer and only for a timer")
     now = time.time() if now is None else now
     key = key or uuid.uuid4().hex[:10]
-    path = state / "registered.json"
-    data = _read_json(path)
-    minutes = TIMEOUT_MINUTES[kind] if timeout_minutes is None else timeout_minutes
-    data[key] = {"chat_id": chat_id, "kind": kind, "on": " ".join(on.split())[:1000 if at else 300], "since": now,
-                 "timeout_at": at if at is not None else now + minutes * 60}
-    if at is not None:
-        data[key] |= {"at": at, "usage_check": usage_check}
-    _write_json(path, data)
-    return key
+    with _locked(state):
+        path = state / "registered.json"
+        data = _read_json(path)
+        minutes = TIMEOUT_MINUTES[kind] if timeout_minutes is None else timeout_minutes
+        data[key] = {"chat_id": chat_id, "kind": kind, "on": " ".join(on.split())[:1000 if at else 300], "since": now,
+                     "timeout_at": at if at is not None else now + minutes * 60}
+        if at is not None:
+            data[key] |= {"at": at, "usage_check": usage_check}
+        _write_json(path, data)
+        return key
 
 
 def fire(state: Path, chat_id: str, key: str, message: str = "", now: float | None = None) -> None:
-    path = state / "registered.json"
-    data = _read_json(path)
-    entry = data.get(key)
-    if not entry or entry["chat_id"] != chat_id:
-        raise KeyError(f"no registered waiter {key!r} for chat {chat_id}")
-    entry["fired_at"] = time.time() if now is None else now
-    entry["message"] = " ".join(message.split())[:1000]
-    _write_json(path, data)
+    with _locked(state):
+        path = state / "registered.json"
+        data = _read_json(path)
+        entry = data.get(key)
+        if not entry or entry["chat_id"] != chat_id:
+            raise KeyError(f"no registered waiter {key!r} for chat {chat_id}")
+        entry["fired_at"] = time.time() if now is None else now
+        entry["message"] = " ".join(message.split())[:1000]
+        _write_json(path, data)
 
 
 def clear(state: Path, chat_id: str, key: str) -> bool:
-    path = state / "registered.json"
-    data = _read_json(path)
-    if data.get(key, {}).get("chat_id") != chat_id:
-        return False
-    del data[key]
-    _write_json(path, data)
-    return True
+    with _locked(state):
+        path = state / "registered.json"
+        data = _read_json(path)
+        if data.get(key, {}).get("chat_id") != chat_id:
+            return False
+        del data[key]
+        _write_json(path, data)
+        return True
 
 
 def _drop_delivered_registrations(state: Path, delivered: set[str]) -> None:
-    path = state / "registered.json"
-    data = _read_json(path)
-    keep = {key: entry for key, entry in data.items() if f"reg:{key}" not in delivered}
-    if keep != data:
-        _write_json(path, keep)
+    with _locked(state):
+        path = state / "registered.json"
+        data = _read_json(path)
+        keep = {key: entry for key, entry in data.items() if f"reg:{key}" not in delivered}
+        if keep != data:
+            _write_json(path, keep)
+
+
+def add_start(state: Path, request: dict, at: float, reasons: list[str], now: float | None = None,
+              key: str = "") -> str:
+    """Queue a chat start (the dev connector's start_chat) as a usage-checked timer; returns its key."""
+    now = time.time() if now is None else now
+    key = key or uuid.uuid4().hex[:8]
+    title = " ".join(str(request.get("args", {}).get("title") or request.get("args", {}).get("chat", "")).split())
+    with _locked(state):
+        path = state / "registered.json"
+        data = _read_json(path)
+        data[key] = {"chat_id": "", "kind": "timer", "on": f"start {title}"[:300], "since": now, "timeout_at": at,
+                     "at": at, "usage_check": True, "start": request, "reasons": reasons, "attempts": 0}
+        _write_json(path, data)
+    return key
+
+
+def starts(state: Path) -> dict[str, dict]:
+    """Every queued chat start (key -> entry), fired or not."""
+    return {key: entry for key, entry in _read_json(state / "registered.json").items() if "start" in entry}
+
+
+def take_start(state: Path, key: str) -> dict | None:
+    """Remove a queued start and return it (run now, cancel, or before starting it): never starts twice."""
+    with _locked(state):
+        path = state / "registered.json"
+        data = _read_json(path)
+        entry = data.get(key)
+        if not entry or "start" not in entry:
+            return None
+        del data[key]
+        _write_json(path, data)
+    return entry
+
+
+def put_start(state: Path, key: str, entry: dict) -> None:
+    """Store a start back (a failed start to retry, or one kept as failed)."""
+    with _locked(state):
+        path = state / "registered.json"
+        data = _read_json(path)
+        data[key] = entry
+        _write_json(path, data)
+
+
+def due_starts(state: Path, now: float, usage: Callable[[], tuple[float, datetime]] | None = None,
+               log=lambda event: None) -> dict[str, dict]:
+    """Fire due timers (the usage check postpones a start while usage is used up) and take the fired starts."""
+    settle_timers(state, now, usage, log)
+    fired = {key for key, entry in starts(state).items() if entry.get("fired_at") and not entry.get("failed")}
+    return {key: entry for key in fired if (entry := take_start(state, key))}
 
 
 # ---------------------------------------------------------------------------

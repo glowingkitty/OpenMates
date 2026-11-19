@@ -155,7 +155,7 @@ def test_launch_opens_persistent_remote_control_tab_with_opus_5_5_high(monkeypat
     assert chat[chat.index("--remote-control") + 1] == "title"
     assert chat[chat.index("--model") + 1] == "claude-opus-5-5"
     assert chat[chat.index("--effort") + 1] == "high"
-    assert chat[-1] == "prompt"
+    assert chat[-1] == "prompt\n\n" + dispatch.PUSH_RULE
     assert not any("attach" in call for call in calls)
 
 
@@ -214,7 +214,7 @@ def test_launched_chat_gets_user_bin_folders_first_on_path(tmp_path, monkeypatch
     chat = calls[-1][calls[-1].index("--") + 1:]
     assert chat[0] == "/usr/bin/env"
     assert chat[1] == f"PATH={tmp_path}/.npm-global/bin:{tmp_path}/.local/bin:/usr/bin:/bin"
-    assert chat[2] == dispatch.CLAUDE_BIN
+    assert chat[2] == "CLAUDE_CHAT_TITLE=title" and chat[3] == dispatch.CLAUDE_BIN
 
 
 # contract-test: supporting surface=gui.web assertions=issue-reporting.automation.admin-dev-claude-chat
@@ -239,11 +239,11 @@ def test_full_chat_cap_queues_the_chat_instead_of_dropping_it(isolated_state, mo
     calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
     monkeypatch.setattr(dispatch, "admit_new_chat", lambda: FULL)
     with pytest.raises(dispatch.ChatQueued, match="queued, not started yet"):
-        dispatch.launch_claude_chat("Queued title", "the prompt")
+        dispatch.launch_claude_chat("Queued title", dispatch.with_push_rule("the prompt"))
     assert not calls, "no tab may open while the cap is full"
     [pending] = list((isolated_state / "pending").iterdir())
     entry = json.loads(pending.read_text())
-    assert (entry["title"], entry["prompt"], entry["why"]) == ("Queued title", "the prompt", FULL)
+    assert (entry["title"], entry["prompt"], entry["why"]) == ("Queued title", dispatch.with_push_rule("the prompt"), FULL)
     assert '"kind": "queued"' in (isolated_state / "launches.jsonl").read_text()
 
 
@@ -325,3 +325,27 @@ def test_zellij_scope_start_failure_is_an_error(monkeypatch):
         "Result", (), {"returncode": 1, "stdout": "", "stderr": "Failed to connect to bus"})())
     with pytest.raises(dispatch.DispatchError, match="Failed to connect to bus"):
         dispatch._start_zellij_server("claude")
+
+
+# contract-test: tooling
+@pytest.mark.parametrize("title", ["Issue ABCDE: investigate & fix", "Prod chat failures: phase=provider",
+                                   "Prod message_received_handler ERROR (3x)"])
+def test_automatically_started_chats_get_the_done_and_ask_push_rule_once(monkeypatch, title):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    dispatch.launch_claude_chat(title, "Investigate the failure.")
+    chat = calls[-1][calls[-1].index("--") + 1:]
+    prompt = chat[-1]
+    assert prompt.count("agent_question.py done --summary") == 1 and "agent_question.py ask --question" in prompt
+    assert "✅" in prompt and "❓" in prompt and "Never for progress" in prompt
+    assert f"CLAUDE_CHAT_TITLE={title}" in chat  # the pushes carry the chat's title
+    # a prompt that already has the rule (the dev connector's Task note) does not get it twice
+    dispatch.launch_claude_chat(title, dispatch.with_push_rule("Investigate."))
+    assert calls[-1][-1].count("agent_question.py done") == 1
+
+
+# contract-test: tooling
+def test_issue_and_prod_prompts_reach_the_launcher_with_the_rule(isolated_state, monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    _queue(isolated_state, "issue-ABCDE.json", {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"})
+    dispatch.dispatch_issues()
+    assert dispatch.PUSH_RULE in calls[-1][-1]

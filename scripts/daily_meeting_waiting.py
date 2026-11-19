@@ -8,6 +8,8 @@ reply, it has been idle for MIN_IDLE_HOURS and its last activity is within LOOKB
 Every such chat is listed (no cap, no age cut-off for finished-work replies): a chat leaves the
 list only when it is answered, archived (`waiting-reviewed.json`), its Task is done, or its Task
 is paused (then it shows in "Paused chats", scripts/daily_meeting_paused.py).
+A chat that sent a ❓ Discord push (scripts/agent_question.py ask) after the founder's last prompt
+shows that pushed question as what it needs, also when the chat lifecycle has closed it.
 Docs: docs/contributing/guides/daily-meeting.md
 """
 
@@ -100,8 +102,22 @@ def scan_transcript(path: Path) -> dict | None:
     return {"human": human, "assistant": assistant, "title": title, "branch": branch}
 
 
+def pushed_question(markers: Path | None, chat: str, after: datetime | None) -> str:
+    """The ❓ push this chat sent after `after` (the founder's last prompt), or ''."""
+    try:
+        marker = json.loads((markers / f"{chat}.json").read_text()) if markers else {}
+    except (OSError, ValueError):
+        return ""
+    if not isinstance(marker, dict) or marker.get("kind", "❓") != "❓" or not marker.get("question"):
+        return ""
+    if after and float(marker.get("ts", 0)) <= after.timestamp():
+        return ""
+    return re.sub(r"\s+", " ", str(marker["question"])).strip()[:300]
+
+
 def waiting_chats(base: Path, now: datetime, tasks: list[dict] | None = None,
-                  reviewed: dict[str, str] | None = None, current: str = "", topics=paused_mod.PRIORITY_TOPICS) -> list[dict]:
+                  reviewed: dict[str, str] | None = None, current: str = "", topics=paused_mod.PRIORITY_TOPICS,
+                  markers: Path | None = None) -> list[dict]:
     """Chats waiting on the founder, longest-waiting first, with their Task if one is linked."""
     reviewed, found = reviewed or {}, []
     by_chat = {t["chat"].split(":", 1)[1]: t for t in tasks or [] if str(t.get("chat", "")).startswith("claude:")}
@@ -125,6 +141,9 @@ def waiting_chats(base: Path, now: datetime, tasks: list[dict] | None = None,
         if archived and date.fromisoformat(archived) >= said_at.date():
             continue  # archived in a meeting and silent since
         verdict = signal(reply)
+        asked = pushed_question(markers, path.stem, scan["human"][0] if scan["human"] else None)
+        if asked:
+            verdict = "asks you a question (Discord ❓)"
         task = by_chat.get(path.stem)
         if task and (task.get("status") == "done" or "paused" in (task.get("labels") or [])):
             continue
@@ -133,7 +152,7 @@ def waiting_chats(base: Path, now: datetime, tasks: list[dict] | None = None,
         found.append({
             "session": path.stem, "title": plain_title(scan["title"], last_prompt, reply), "branch": scan["branch"],
             "idle_hours": round(idle.total_seconds() / 3600, 1), "age_days": idle.days, "signal": verdict,
-            "needs": paused_mod.question_of(reply),
+            "needs": asked or paused_mod.question_of(reply),
             "priority_topic": paused_mod.topic_name(rank[0], topics), "_rank": rank,
             "last_reply": re.sub(r"\s+", " ", reply).strip()[:600],
             "last_prompt": last_prompt,

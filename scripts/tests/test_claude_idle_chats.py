@@ -437,3 +437,24 @@ def test_runs_as_isolated_python_like_the_systemd_unit():
     result = subprocess.run(["/usr/bin/python3", "-I", "-S", str(script), "--help"],
                             capture_output=True, text=True, timeout=60, check=False)
     assert result.returncode == 0, result.stderr
+
+
+def test_a_question_pushed_to_discord_keeps_the_chat_until_the_user_answers(tmp_path):
+    """Chat 602f0aeb (2026-11-19): it pushed a ❓ decision, ended its reply without a question mark
+    and was stopped as idle after 65 minutes, so the decision looked closed."""
+    markers = tmp_path / "questions"
+    markers.mkdir()
+    (markers / "chat-a.json").write_text(json.dumps({"ts": NOW - 3 * HOUR, "question": "Make resends quiet?", "kind": "❓"}))
+    asked = lc.pushed_question("chat-a", last_prompt_at=NOW - 4 * HOUR, markers=markers)
+    assert asked == "Make resends quiet?"
+    pushed = chat(pushed_question=asked, last_text="Pushed the decision to Discord; stopping here.")
+    assert lc.decide(pushed, NOW, CONFIG, "").action == "keep"
+    assert lc.decide(chat(last_activity=NOW - 30 * HOUR, pushed_question=asked), NOW, CONFIG, "").action == "keep"
+    assert lc.decide(chat(), NOW, CONFIG, "").action == "stop"  # the same chat without the push
+    assert lc.open_question(pushed) == "Make resends quiet?"
+    # answered (a prompt after the push), or finished with a ✅ push: no longer open
+    assert lc.pushed_question("chat-a", last_prompt_at=NOW - 2 * HOUR, markers=markers) == ""
+    (markers / "chat-a.json").write_text(json.dumps({"ts": NOW - HOUR, "question": "Done.", "kind": "✅"}))
+    assert lc.pushed_question("chat-a", last_prompt_at=0, markers=markers) == ""
+    (markers / "chat-b.json").write_text(json.dumps({"ts": NOW - HOUR, "question": "Old marker without kind"}))
+    assert lc.pushed_question("chat-b", last_prompt_at=0, markers=markers) == "Old marker without kind"

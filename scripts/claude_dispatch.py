@@ -119,6 +119,21 @@ def _zellij_env() -> dict[str, str]:
     return env
 
 
+# Every chat this host starts (issue and production-failure chats, connector starts) tells the owner on
+# Discord exactly once when it is done or blocked, in the same compact format (scripts/agent_question.py).
+PUSH_RULE = (
+    "Discord: send exactly one push when you finish or stop for any reason (✅: python3 scripts/agent_question.py "
+    "done --summary \"<1-2 sentences: what changed or the result>\"; parked or paused: add --paused-until DATE) and "
+    "one when you are blocked on the owner (❓: python3 scripts/agent_question.py ask --question \"<the decision>\" "
+    "--recommendation \"<yours>\"), then stop. Never for progress, never both for one event; blocked and later "
+    "finished is one ❓ then one ✅.")
+
+
+def with_push_rule(prompt: str) -> str:
+    """The prompt with PUSH_RULE appended once (prompts that already carry it stay as they are)."""
+    return prompt if "agent_question.py done" in prompt else f"{prompt.rstrip()}\n\n{PUSH_RULE}"
+
+
 def _chat_command(*claude_args: str) -> list[str]:
     """Command for a zellij tab. Tabs inherit the zellij server's environment, and a
     server started from cron has only the system PATH, so the chat could not find
@@ -256,6 +271,7 @@ def launch_claude_chat(
     it once a slot frees. A chat is never dropped.
     """
     check_chat_model(model, explicit_model)
+    prompt = with_push_rule(prompt)
     why = admit_new_chat()
     if why:
         path = queue_launch(title, prompt, model, effort, explicit_model, why)
@@ -313,6 +329,7 @@ def _open_chat_tab(title: str, prompt: str, model: str, effort: str) -> str:
     command = _chat_command(
         "--remote-control", title, "--model", model, "--effort", effort, "--permission-mode", "auto", prompt,
     )
+    command.insert(2, f"CLAUDE_CHAT_TITLE={title}")  # the chat's ✅/❓ pushes carry its title (agent_question.py)
     if is_fable(model):
         # Tells the SessionStart Fable guard (scripts/fable_guard.py) this Fable chat was asked for.
         command.insert(2, "OPENMATES_FABLE_REQUESTED=1")

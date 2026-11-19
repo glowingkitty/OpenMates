@@ -143,7 +143,22 @@ progress pushes, never both for one event, one of each kind per chat per 20
 minutes. These pushes (and `scripts/e2b_credits.py`'s, which calls its
 `record_push`) are appended to `logs/agent-questions/pushes.jsonl` (time, kind
 `done`/`ask`/empty for other alerts, chat id and title, text, what it asks), so
-the connector can match a push to its chat and label it ✅ done or ❓ needs input. Push text is scrubbed before
+the connector can match a push to its chat and label it ✅ done or ❓ needs input.
+Chats the host starts by itself (issue and production-failure chats,
+`claude_dispatch.launch_claude_chat`) get the same rule appended to their prompt
+and their title in `CLAUDE_CHAT_TITLE`. A ❓ push stays an open question until
+the user's next prompt: the chat lifecycle never idle-stops such a chat, and the
+briefing's waiting chats show the pushed question, also for a closed chat.
+
+Queued chat starts: when the weekly Claude usage has 10% or less left, the dev
+connector's start_chat (and a send_message that would reopen a closed chat with
+new work) is not run but stored as a timer waiter (`claude_chat_waiters.add_start`,
+usage-checked, at the reset + 5 minutes, moved to 17:00 when that falls in
+marketing time and the build gate would hold it). Its Task is created at once.
+The connector starts it when the timer fires and sends one ✅ push (❓ after three
+failed attempts). `run="now"`, `run_at` and the connector tools
+`list_scheduled_chats`, `cancel_scheduled_chat` and `run_queued_chat` control it;
+the briefing lists the queue under "Scheduled chats". Push text is scrubbed before
 sending (`agent_question.scrub`): webhook URLs, emails, private keys, JWTs,
 bearer and prefixed API tokens, `NAME=value` values and other long random tokens
 become `[removed]`. Task and chat UUIDs, 40/64-char hex hashes, ENV/snake/kebab

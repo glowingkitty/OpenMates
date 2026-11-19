@@ -441,7 +441,8 @@ def waiting(tasks: list[dict] | None, out: Path, now: datetime, focus_text: str 
 
     topics = daily_meeting_triage.read_priorities(focus_text)[0]
     chats = daily_meeting_waiting.waiting_chats(TRANSCRIPTS, now, tasks, reviewed,
-                                                os.environ.get("CLAUDE_CODE_SESSION_ID", ""), topics)
+                                                os.environ.get("CLAUDE_CODE_SESSION_ID", ""), topics,
+                                                ROOT / "logs" / "claude-idle-chats" / "questions")
     return daily_meeting_waiting.waiting_summary(chats, tasks, now)
 
 
