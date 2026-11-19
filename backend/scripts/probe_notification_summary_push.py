@@ -42,36 +42,17 @@ def _unb64(value: str) -> bytes:
     return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
 
 
-async def main() -> None:
-    from backend.apps.ai.processing import postprocessor
+def seal_and_open(headline: str, chat_title: str, preview_text: str) -> tuple[dict, dict]:
+    """Compose the push like the dispatcher, send it through the production APNs code
+    to a capturing client (nothing reaches Apple) and open it with a throwaway device key.
+
+    Returns (what goes to APNs, what the device decrypts)."""
     from backend.core.api.app.services.push_notification_content import compose_push_content
     from backend.core.api.app.services.push_notification_service import (
         APNS_CHAT_CATEGORY, APNS_ENCRYPTION_INFO, APNS_ENCRYPTION_VERSION, PushNotificationService,
     )
-    from backend.core.api.app.utils.secrets_manager import SecretsManager
-
-    logging.disable(logging.CRITICAL)
-    instructions = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/ai/base_instructions.yml").read_text())
-    manager = SecretsManager()
-    await manager.initialize()
-    try:
-        async def frozen_decisions(**_kwargs):
-            return {"harmful_response": 0.0, "top_recommended_apps_for_user": ["web"]}
-        with patch.object(postprocessor, "_postprocessing_decisions_with_jev", frozen_decisions):
-            result = await postprocessor.handle_postprocessing(
-                task_id="synthetic-notification-proof", user_message="Add the Gemini models and run the tests.",
-                assistant_response=SYNTHETIC_REPLY, chat_summary=None, chat_tags=[],
-                message_history=[{"role": "user", "content": "Add the Gemini models and run the tests."}],
-                base_instructions=instructions, secrets_manager=manager, cache_service=None,
-                available_app_ids=["web"], output_language="en", user_system_language="en",
-                translate_ui_metadata=False,
-            )
-    finally:
-        await manager.close()
-    assert result and result.notification_type and result.notification_summary, "model returned no usable summary"
-    headline = f"{postprocessor_icons()[result.notification_type]} {result.notification_summary}"
-    content = compose_push_content(preferences={}, headline=headline, chat_title=CHAT_TITLE, mate_name="Mate",
-                                   preview_text=SYNTHETIC_REPLY, hidden=False)
+    content = compose_push_content(preferences={}, headline=headline, chat_title=chat_title, mate_name="Mate",
+                                   preview_text=preview_text, hidden=False)
 
     private = x25519.X25519PrivateKey.generate()
     public = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
@@ -101,8 +82,36 @@ async def main() -> None:
     key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=APNS_ENCRYPTION_INFO).derive(private.exchange(ephemeral))
     opened = json.loads(AESGCM(key).decrypt(_unb64(envelope["nonce"]), _unb64(envelope["ciphertext"]), None))
     wire_text = json.dumps(wire, ensure_ascii=False)
-    assert result.notification_summary not in wire_text and CHAT_TITLE not in wire_text
-    assert opened["title"] == headline and opened["body"] == f'in "{CHAT_TITLE}"'
+    assert headline.split(" ", 1)[1] not in wire_text and chat_title not in wire_text
+    assert opened["title"] == headline and opened["body"] == f'in "{chat_title}"'
+    return wire, opened
+
+
+async def main() -> None:
+    from backend.apps.ai.processing import postprocessor
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+    logging.disable(logging.CRITICAL)
+    instructions = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/ai/base_instructions.yml").read_text())
+    manager = SecretsManager()
+    await manager.initialize()
+    try:
+        async def frozen_decisions(**_kwargs):
+            return {"harmful_response": 0.0, "top_recommended_apps_for_user": ["web"]}
+        with patch.object(postprocessor, "_postprocessing_decisions_with_jev", frozen_decisions):
+            result = await postprocessor.handle_postprocessing(
+                task_id="synthetic-notification-proof", user_message="Add the Gemini models and run the tests.",
+                assistant_response=SYNTHETIC_REPLY, chat_summary=None, chat_tags=[],
+                message_history=[{"role": "user", "content": "Add the Gemini models and run the tests."}],
+                base_instructions=instructions, secrets_manager=manager, cache_service=None,
+                available_app_ids=["web"], output_language="en", user_system_language="en",
+                translate_ui_metadata=False,
+            )
+    finally:
+        await manager.close()
+    assert result and result.notification_type and result.notification_summary, "model returned no usable summary"
+    headline = f"{postprocessor_icons()[result.notification_type]} {result.notification_summary}"
+    wire, opened = seal_and_open(headline, CHAT_TITLE, SYNTHETIC_REPLY)
     print(json.dumps({"model_type": result.notification_type, "model_summary": result.notification_summary,
                       "summary_chars": len(result.notification_summary),
                       "on_the_wire_to_apns": wire, "decrypted_on_device": opened}, indent=2, ensure_ascii=False))
