@@ -551,9 +551,9 @@ class PushNotificationService:
         if category == APNS_CHAT_CATEGORY and platform != "watchos":
             reply_context = build_reply_context(subscription_info, recipient_account_id, chat_id, message_id, workspace)
         # Watch has no notification service extension; always retain generic text.
-        if category == "OPENMATES_WORKFLOW_COMPLETED" and encrypted_title and platform != "watchos":
+        if category in {"OPENMATES_WORKFLOW_COMPLETED", APNS_CHAT_CATEGORY} and encrypted_title and platform != "watchos":
             encrypted_payload = self._build_encrypted_apns_payload(
-                subscription_info, body, title=encrypted_title,
+                subscription_info, body, title=encrypted_title, reply_context=reply_context,
             )
         else:
             encrypted_payload = None if platform == "watchos" else self._build_encrypted_apns_payload(
@@ -572,7 +572,7 @@ class PushNotificationService:
                     middle = (low + high) // 2
                     candidate = self._build_encrypted_apns_payload(
                         subscription_info, clean[:middle] + ("…" if middle < len(clean) else ""),
-                        title=encrypted_title if category == "OPENMATES_WORKFLOW_COMPLETED" else None,
+                        title=encrypted_title if category in {"OPENMATES_WORKFLOW_COMPLETED", APNS_CHAT_CATEGORY} else None,
                         reply_context=reply_context,
                     )
                     payload["encrypted_notification"] = candidate
@@ -637,6 +637,9 @@ class PushNotificationService:
     ) -> Optional[dict]:
         """Encrypt optional Apple notification preview text to the device public key."""
         preview_text = notification_preview_text(preview_text) if subscription_info.get("preview_enabled") is not False else ""
+        if title and not preview_text:
+            # Title without preview: the extension still needs a body to display.
+            preview_text = APNS_CHAT_MESSAGE_BODY
         public_key_b64 = (subscription_info.get("notification_public_key") or "").strip()
         encryption_version = (subscription_info.get("encryption_version") or APNS_ENCRYPTION_VERSION).strip()
         if not public_key_b64 or encryption_version != APNS_ENCRYPTION_VERSION or (not preview_text and reply_context is None):

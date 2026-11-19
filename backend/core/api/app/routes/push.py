@@ -14,6 +14,7 @@ The `push_notification_enabled` flag is set to True/False accordingly.
 See docs/architecture/notifications.md for the full notification flow.
 """
 
+import json
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, StrictBool
@@ -59,6 +60,11 @@ class PushVapidKeyResponse(BaseModel):
 class PushSubscribeResponse(BaseModel):
     success: bool
     message: str
+
+
+class PushPreferencesRequest(BaseModel):
+    """Per-channel push preference; only the chat-title switch is writable."""
+    includeChatTitle: StrictBool
 
 
 class NativeDeviceRegisterResponse(PushSubscribeResponse):
@@ -226,6 +232,35 @@ async def unregister_native_device(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.patch("/preferences", response_model=PushSubscribeResponse, dependencies=[Depends(verify_auth_client)])
+async def update_push_preferences(
+    body: PushPreferencesRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """
+    Save whether push notifications may show "<Mate> in <chat title>".
+
+    API surface: first-party client only (session auth); carries one boolean and no
+    chat content. The title itself never reaches this route or storage.
+    """
+    user_id = str(current_user.id)
+    row = await directus_service.get_user_fields_direct(user_id, ["push_notification_preferences"], no_cache=True)
+    current = row.get("push_notification_preferences") if isinstance(row, dict) else None
+    if isinstance(current, str):
+        try:
+            current = json.loads(current)
+        except ValueError:
+            current = None
+    preferences = {**(current if isinstance(current, dict) else {}), "includeChatTitle": body.includeChatTitle}
+    if not await directus_service.update_user(user_id, {"push_notification_preferences": preferences}):
+        raise HTTPException(status_code=500, detail="Failed to save push preferences")
+    # Notification updates must not invalidate authenticated sessions or chat caches.
+    await cache_service.update_user(user_id, {"push_notification_preferences": preferences})
+    return PushSubscribeResponse(success=True, message="Preferences saved")
 
 
 @router.delete("/subscribe", response_model=PushSubscribeResponse)

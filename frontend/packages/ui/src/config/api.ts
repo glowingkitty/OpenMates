@@ -380,6 +380,7 @@ export const apiEndpoints = {
     vapidPublicKey: "/v1/push/vapid-public-key", // GET: fetch VAPID public key for Web Push subscription
     subscribe: "/v1/push/subscribe", // POST: register a browser PushSubscription
     unsubscribe: "/v1/push/subscribe", // DELETE: remove a browser PushSubscription
+    preferences: "/v1/push/preferences", // PATCH: save the chat-title switch (first-party only)
   },
 } as const;
 

@@ -438,6 +438,16 @@ notifications.new_messages:
   sv: Nya meddelanden
   he: הודעות חדשות
   verified_by_human: []
+notifications.push_include_chat_title:
+  context: Push notification toggle - show the chat title in the notification
+  en: Show chat title
+  de: Chat-Titel anzeigen
+  verified_by_human: []
+notifications.push_include_chat_title_desc:
+  context: Explains the push chat title toggle and the client-side encryption boundary
+  en: Shows "Mate in Chat title" in app notifications. The title is sealed to your device and shown only on your device; Apple cannot read it. Turn off to keep notifications generic.
+  de: Zeigt "Mate in Chat-Titel" in App-Benachrichtigungen. Der Titel wird für dein Gerät versiegelt und nur dort angezeigt; Apple kann ihn nicht lesen. Ausschalten, damit Benachrichtigungen allgemein bleiben.
+  verified_by_human: []
 notifications.new_messages_desc:
   context: Description for new messages notifications
   en: When an assistant completes a response

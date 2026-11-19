@@ -168,3 +168,88 @@ def test_preview_uses_existing_translated_skill_labels_without_internal_ids():
     assert notification_preview_text(content, lang='de') == 'Internet | Suchen'
     unknown = content.replace('"web"', '"private-app"').replace('"search"', '"private-skill"')
     assert notification_preview_text(unknown) == 'App | Action'
+
+
+def _apns_with_device_key(monkeypatch, subscription_extra=None):
+    """Capture the APNs request for a synthetic device and return a decryptor."""
+    private = x25519.X25519PrivateKey.generate()
+    public = private.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    target = {"type": "apns", "platform": "ios", "token": "synthetic-device", "environment": "production",
+              "encryption_version": APNS_ENCRYPTION_VERSION,
+              "notification_public_key": base64.urlsafe_b64encode(public).decode().rstrip('='),
+              **(subscription_extra or {})}
+    calls = []
+    class Client:
+        def __init__(self, **kwargs): pass
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def post(self, url, json, headers):
+            calls.append(json)
+            return SimpleNamespace(status_code=200, text='')
+    monkeypatch.setattr('httpx.Client', Client)
+    monkeypatch.setenv('APNS_TEAM_ID', 'fixture-team')
+    monkeypatch.setenv('APNS_KEY_ID', 'fixture-key')
+    monkeypatch.setenv('APNS_PRIVATE_KEY', 'fixture-key-material')
+    service = PushNotificationService()
+    monkeypatch.setattr(service, '_build_apns_jwt', lambda **kwargs: 'synthetic-provider-auth')
+
+    def opened():
+        envelope = calls[0]['encrypted_notification']
+        ephemeral = x25519.X25519PublicKey.from_public_bytes(decode(envelope['ephemeral_public_key']))
+        key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=APNS_ENCRYPTION_INFO).derive(private.exchange(ephemeral))
+        return json.loads(AESGCM(key).decrypt(decode(envelope['nonce']), decode(envelope['ciphertext']), None))
+    return service, target, calls, opened
+
+
+@pytest.mark.parametrize('extra,expected_body', [
+    ({}, 'Garden answer is ready.'),
+    ({'preview_enabled': False}, APNS_CHAT_MESSAGE_BODY),
+])
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe,apple-notifications.preview.readable
+def test_apns_chat_title_is_sealed_to_the_device_and_absent_from_the_wire(monkeypatch, extra, expected_body):
+    service, target, calls, opened = _apns_with_device_key(monkeypatch, extra)
+    headline = 'Mate in Garden planning notes'
+    assert service._send_apns_notification(target, 'OpenMates', 'Garden answer is ready.', 'synthetic-chat',
+                                           APNS_CHAT_CATEGORY, None, encrypted_title=headline)
+    wire = json.dumps(calls[0])
+    # Apple only sees the generic alert and ciphertext, never the title.
+    assert calls[0]['aps']['alert'] == {'title': 'OpenMates', 'body': APNS_CHAT_MESSAGE_BODY}
+    assert 'Garden' not in wire
+    assert calls[0]['aps']['mutable-content'] == 1
+    assert opened() == {'title': headline, 'body': expected_body}
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
+def test_apns_chat_without_title_stays_generic_for_the_extension(monkeypatch):
+    service, target, calls, opened = _apns_with_device_key(monkeypatch)
+    assert service._send_apns_notification(target, 'OpenMates', 'Garden answer is ready.', 'synthetic-chat',
+                                           APNS_CHAT_CATEGORY, None)
+    assert opened() == {'preview': 'Garden answer is ready.'}
+
+
+@pytest.mark.parametrize('prefs,expect_title', [
+    ({'aiResponses': True}, True),
+    ({'aiResponses': True, 'includeChatTitle': True}, True),
+    ({'aiResponses': True, 'includeChatTitle': False}, False),
+])
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
+def test_completion_dispatch_adds_chat_title_by_default_and_honours_opt_out(monkeypatch, prefs, expect_title):
+    celery = SimpleNamespace(send_task=Mock())
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", SimpleNamespace(app=celery))
+    notify = completion_dispatch()
+    monkeypatch.setattr("backend.core.api.app.services.notification_presence.has_active_human", AsyncMock(return_value=False))
+    cache = SimpleNamespace(get_user_by_id=AsyncMock(return_value={
+        "push_notification_enabled": True,
+        "push_notification_subscription": '{"type":"apns","token":"synthetic"}',
+        "push_notification_preferences": prefs,
+    }))
+    app = SimpleNamespace(state=SimpleNamespace(cache_service=cache))
+    assert asyncio.run(notify(app, "synthetic-user", "synthetic-chat", "Garden answer.",
+                              chat_title="Garden planning notes"))
+    sent = celery.send_task.call_args.kwargs["kwargs"]
+    if expect_title:
+        assert sent["chat_title"].endswith(" in Garden planning notes")
+        assert sent["chat_title"].count(" in ") == 1
+    else:
+        assert sent["chat_title"] is None
+        assert sent["title"] == "OpenMates"

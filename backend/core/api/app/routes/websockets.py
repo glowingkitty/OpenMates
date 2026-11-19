@@ -789,6 +789,7 @@ async def _check_user_offline_and_send_email(
     model_name: Optional[str] = None,
     category: Optional[str] = None,
     message_id: Optional[str] = None,
+    chat_title: Optional[str] = None,
 ) -> None:
     """
     Check if user is offline with retries, then notify via push notification and/or email.
@@ -877,6 +878,8 @@ async def _check_user_offline_and_send_email(
             chat_id=chat_id,
             response_preview=response_preview,
             message_id=message_id,
+            chat_title=chat_title,
+            mate_category=category,
         )
     except Exception as e:
         logger.error(f"{log_prefix} Push notification attempt failed: {e}", exc_info=True)
@@ -889,6 +892,8 @@ async def _send_push_notification_if_enabled(
     chat_id: str,
     response_preview: str,
     message_id: Optional[str] = None,
+    chat_title: Optional[str] = None,
+    mate_category: Optional[str] = None,
 ) -> bool:
     """
     Look up user's push subscription from cache and dispatch push Celery task if enabled.
@@ -946,9 +951,24 @@ async def _send_push_notification_if_enabled(
 
     # Build notification content
     from backend.core.api.app.services.push_notification_service import notification_preview_text
+    from backend.core.api.app.services.notification_email_preferences import (
+        notification_headline, push_chat_title_enabled,
+    )
 
     preview_text = notification_preview_text(response_preview, lang=cached_user.get("language") or "en")
     push_title = "OpenMates"
+    # The title is the transient value from this inference (client-supplied or
+    # just generated), never a decrypted stored title. APNs seals it to the
+    # device key for the notification extension; it is on by default.
+    sealed_title = None
+    if chat_title and push_chat_title_enabled(push_prefs):
+        from backend.core.api.app.services.translations import TranslationService
+        mate_name = TranslationService().get_nested_translation(
+            f"mates.{mate_category or 'general_knowledge'}", str(cached_user.get("language") or "en"))
+        if not isinstance(mate_name, str) or not mate_name or mate_name.startswith("mates."):
+            mate_name = "Mate"
+        sealed_title = notification_headline(mate_name, chat_title) or None
+        push_title = sealed_title or push_title
     push_body = preview_text if preview_text else "Your AI assistant has responded."
     push_url = f"/?chat={chat_id}"
     push_tag = f"ai-response-{chat_id}"
@@ -985,6 +1005,7 @@ async def _send_push_notification_if_enabled(
                 "user_id": user_id,
                 "message_id": message_id,
                 "workspace": workspace,
+                "chat_title": sealed_title,
             },
             queue="push",
         )
@@ -1861,6 +1882,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     delay_seconds=5,
                                     model_name=redis_payload.get("model_name"),
                                     category=redis_payload.get("category"),
+                                    chat_title=redis_payload.get("chat_title"),
                                 )
                             )
                 else:

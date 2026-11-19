@@ -20,6 +20,7 @@ Native Swift counterparts:
     import { authStore } from '../../../stores/authStore';
     import { webSocketService } from '../../../services/websocketService';
     import { notificationStore } from '../../../stores/notificationStore';
+    import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     
     // Local state for push notifications
     let isRequestingPermission = $state(false);
@@ -139,6 +140,27 @@ Native Swift counterparts:
         syncSettingsToServer();
     }
     
+    /**
+     * Save the chat-title switch for push notifications (default on). Only this
+     * boolean goes to the server; native apps read the same profile preference.
+     */
+    async function handleToggleChatTitle(): Promise<void> {
+        const previous = preferences.includeChatTitle;
+        pushNotificationStore.togglePreference('includeChatTitle');
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.push.preferences), {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ includeChatTitle: !previous })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        } catch (error) {
+            console.error('[SettingsChatNotifications] Failed to save chat title preference:', error);
+            pushNotificationStore.setPreferences({ includeChatTitle: previous });
+        }
+    }
+
     /**
      * Close iOS instructions modal
      */
@@ -434,6 +456,19 @@ Native Swift counterparts:
             </div>
         {/if}
     {/if}
+
+    <!-- Profile-level preference: also governs native app notifications, so it is
+         reachable even where browser push is unavailable. -->
+    <SettingsItem
+        type="submenu"
+        icon="subsetting_icon chat"
+        title={$text('settings.chat.notifications.push_include_chat_title')}
+        data-testid="push-notifications-include-chat-title"
+        subtitleTop={$text('settings.chat.notifications.push_include_chat_title_desc')}
+        hasToggle={true}
+        checked={preferences.includeChatTitle}
+        onClick={handleToggleChatTitle}
+    />
     
     <!-- ================================================== -->
     <!-- EMAIL NOTIFICATIONS SECTION -->

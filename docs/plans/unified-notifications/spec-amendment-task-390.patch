@@ -1,0 +1,65 @@
+diff --git a/specifications/features/apple-notifications/specification.yml b/specifications/features/apple-notifications/specification.yml
+index 15f657e8c7..ce4678a93e 100644
+--- a/specifications/features/apple-notifications/specification.yml
++++ b/specifications/features/apple-notifications/specification.yml
+@@ -123,7 +123,7 @@ assertions:
+     depends_on: [models.ApplePushRegistration, examples.registration_lifecycle]
+   - id: apple-notifications.payload.privacy-safe
+     type: privacy
+-    must: APNs alert fields contain localized generic text without private chat titles or message plaintext; an optional preview is encrypted to the target device, decrypted only by the notification service extension, and falls back to generic text when absent or invalid.
++    must: APNs alert fields contain localized generic text without private chat titles or message plaintext; an optional preview is encrypted to the target device, decrypted only by the notification service extension, and falls back to generic text when absent or invalid. The sealed envelope may also carry the chat headline "<Mate> in <chat title>" (default on, opt-out includeChatTitle); alert fields still never contain it.
+     depends_on: [models.ApplePushPayload, examples.payload_privacy]
+   - id: apple-notifications.preview.readable
+     type: behavior
+diff --git a/specifications/features/notifications/examples.yml b/specifications/features/notifications/examples.yml
+index 0d8c6448ba..e21997bd45 100644
+--- a/specifications/features/notifications/examples.yml
++++ b/specifications/features/notifications/examples.yml
+@@ -156,6 +156,24 @@ workflow_daily_identity:
+     when: The sender reaches its final delivery boundary.
+     then: His hidden content remains absent; disabled or unverified delivery is suppressed. Optional preview preparation never overrides the latest preference or leaks private text into logs or retained metadata.
+ 
++chat_title_headline:
++  - id: apple-push-title-default-on
++    platform: apple
++    input: {chat_title: "Garden planning notes", include_chat_title: default, device_key_registered: true}
++    expect: {sealed_headline: "Mate in Garden planning notes", alert_fields_generic: true, title_on_wire_plaintext: false}
++  - id: apple-push-title-opted-out
++    platform: apple
++    input: {chat_title: "Garden planning notes", include_chat_title: false, device_key_registered: true}
++    expect: {sealed_headline: null, alert_fields_generic: true}
++  - id: email-title-needs-content-consent
++    platform: email
++    input: {chat_title: "Garden planning notes", include_content: false}
++    expect: {subject: "Mate messaged you in OpenMates."}
++  - id: email-title-with-content-consent
++    platform: email
++    input: {chat_title: "Garden planning notes", include_content: true}
++    expect: {subject: "Mate in Garden planning notes"}
++
+ notification_history:
+   - id: cli-lists-past-notifications
+     surface: cli
+diff --git a/specifications/features/notifications/specification.yml b/specifications/features/notifications/specification.yml
+index 2454a22ef4..150c94884d 100644
+--- a/specifications/features/notifications/specification.yml
++++ b/specifications/features/notifications/specification.yml
+@@ -272,6 +272,10 @@ assertions:
+     type: privacy
+     must: Notification storage, logs, email payloads, push payloads, and history summaries avoid durable plaintext private chat, reminder, workflow, billing, or account-secret content unless that channel is explicitly user-addressed and authorized; encrypted or redacted summaries are used otherwise.
+     depends_on: [models.NotificationHistoryItem.summary, models.PushSubscription.endpoint_ciphertext, examples.privacy_boundaries]
++  - id: notifications.chat.title-headline
++    type: privacy
++    must: A chat-message push shows the chat title as "<Mate> in <chat title>" by default, and the user can turn it off per channel (push preference includeChatTitle). The title is sealed to the receiving device inside the encrypted envelope and shown by the notification extension; APNs alert fields, notification history and public streams never carry it. It is the transient value of the current inference request, never a decrypted stored title. Email shows the same headline only under the existing include-content consent, because a mail provider and mailbox keep plaintext subjects. Where the title is unavailable (Apple Watch, team, direct and workflow-output messages) the generic text stays.
++    depends_on: [examples.chat_title_headline]
+   - id: notifications.delivery.idempotent
+     type: invariant
+     must: Retries, duplicate workers, reconnects, and multi-device clients preserve one logical notification history item and at most one successful delivery per channel for the same notification id.
+@@ -402,6 +406,7 @@ examples:
+   - reminder_email_targets
+   - reminder_email_preview_access
+   - push_delivery
++  - chat_title_headline
+   - notification_history
+   - privacy_boundaries
+   - delivery_idempotency

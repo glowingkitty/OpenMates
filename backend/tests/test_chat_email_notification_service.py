@@ -16,6 +16,9 @@ from backend.core.api.app.services import chat_email_notification_service as ser
 def test_private_team_chat_link_has_encoded_context_without_content():
     subject, context = service.message_email_content("Team user", "chat/id", team_id="team/id")
     assert subject == "Team user messaged you in OpenMates."
+    titled_subject, titled = service.message_email_content("Mate", "chat/id", title="Garden planning notes", preview="Synthetic answer")
+    assert titled_subject == "Mate in Garden planning notes"
+    assert titled["notification_text"] == "Mate in Garden planning notes"
     assert context["chat_url"].endswith("/#chat-id=chat%2Fid&team-id=team%2Fid")
     assert context["chat_title"] == context["response_preview"] == ""
     assert "token=" not in context["chat_url"] and "key=" not in context["chat_url"]

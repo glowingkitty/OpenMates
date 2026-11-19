@@ -79,7 +79,7 @@ def _mailpit_messages(client: httpx.Client, email: str, since: float) -> list[di
     matches = []
     for item in response.json().get("messages", []):
         subject = item.get("Subject") or ""
-        if "messaged you in OpenMates" not in subject and "New message from" not in subject:
+        if "messaged you in OpenMates" not in subject and " in " not in subject:
             continue
         if not any(address.get("Address", "").lower() == email for address in item.get("To", [])):
             continue
@@ -200,6 +200,7 @@ async def _run(admin: httpx.Client, email: str, user: dict) -> None:
         assert len(messages) == 2
         opted_body = messages[-1].get("HTML") or ""
         assert "T" * 60 in opted_body and "T" * 61 not in opted_body
+        assert messages[-1]["Subject"] == "Mate in " + "T" * 60
         assert "&lt;script&gt;PREVIEW-ESCAPED&lt;/script&gt;" in opted_body
         assert preview_marker not in opted_body and "line 10" not in opted_body
 
@@ -342,6 +343,7 @@ async def _run(admin: httpx.Client, email: str, user: dict) -> None:
         assert raw and team_preview.encode() not in raw and b"encrypted_preview" in raw
         team_messages = await _wait_for_mail(mailpit, email, since, 3)
         assert len(team_messages) == 3
+        assert team_messages[-1]["Subject"].endswith(" in Team preview title")
         assert "&lt;strong&gt;TEAM-PREVIEW-ESCAPED&lt;/strong&gt;" in team_messages[-1].get("HTML", "")
         assert team_preview not in team_messages[-1].get("HTML", "")
         assert f"/#chat-id={chat_id}&team-id={team_id}" in html.unescape(team_messages[-1].get("HTML", ""))

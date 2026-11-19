@@ -42,6 +42,7 @@ def send_push_notification(
     user_id: Optional[str] = None,
     message_id: Optional[str] = None,
     workspace: Optional[dict] = None,
+    chat_title: Optional[str] = None,
 ) -> bool:
     """
     Celery task to send a browser push notification.
@@ -94,6 +95,8 @@ def send_push_notification(
         recipient_account_id=user_id,
         message_id=message_id,
         workspace=workspace,
+        # Plaintext headline sealed to the device key before leaving the server.
+        encrypted_title=chat_title,
     )
 
     if not success:
