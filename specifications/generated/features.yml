@@ -7793,6 +7793,7 @@ features:
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       - frontend/apps/web_app/tests/components/event-sounds.spec.ts
       - frontend/apps/web_app/tests/components/notification-grouping.spec.ts
+      - frontend/apps/web_app/tests/components/settings-chat-notifications.spec.ts
       - frontend/apps/web_app/tests/components/workflow-completion-status.spec.ts
       - frontend/apps/web_app/tests/components/workflow-run-exact-target.spec.ts
       - frontend/apps/web_app/tests/connection-status.spec.ts
@@ -8670,6 +8671,7 @@ features:
       - frontend/apps/web_app/tests/components/language-settings.spec.ts
       - frontend/apps/web_app/tests/components/report-issue-confirmation.spec.ts
       - frontend/apps/web_app/tests/components/settings-avatar.spec.ts
+      - frontend/apps/web_app/tests/components/settings-chat-notifications.spec.ts
       - frontend/apps/web_app/tests/components/settings-storage-overview.spec.ts
       - frontend/apps/web_app/tests/components/settings-teams-icons.spec.ts
       - frontend/apps/web_app/tests/components/settings-teams-storage.spec.ts

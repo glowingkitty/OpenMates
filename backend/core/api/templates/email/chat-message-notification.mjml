@@ -11,6 +11,7 @@
     <mj-wrapper css-class="content-box" padding="20px">
       <mj-section><mj-column>
         <mj-text>{{ notification_text }}</mj-text>
+{% if chat_title_in_body %}<mj-text>{{ chat_title }}</mj-text>{% endif %}
         {% if response_preview %}
         <mj-text>{{ response_preview | safe }}</mj-text>
         {% endif %}

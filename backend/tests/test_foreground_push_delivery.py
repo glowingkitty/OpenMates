@@ -61,7 +61,7 @@ def test_completion_dispatches_push_when_only_stale_foreground_viewer_remains(so
     assert push.await_count == expected_pushes
     assert events.await_count == expected_pushes
     if expected_pushes:
-        push.assert_awaited_once_with(app=app, user_id=user, chat_id=chat, response_preview="synthetic response", message_id="synthetic-message", chat_title=None, mate_category=None)
+        push.assert_awaited_once_with(app=app, user_id=user, chat_id=chat, response_preview="synthetic response", message_id="synthetic-message", chat_title=None, mate_category=None, task_id="synthetic-processing-task")
         events.assert_awaited_once_with(user_id=user, chat_id=chat, has_encrypted_preview=False)
     # The same retained session still owns completion recovery. Notification
     # visibility must not change that storage decision or duplicate the queue.

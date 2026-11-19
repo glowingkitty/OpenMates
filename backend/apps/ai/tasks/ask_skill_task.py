@@ -5224,6 +5224,10 @@ async def _async_process_ai_skill_ask_task(
                 "task_update_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_update_proposals],
                 "source_title_v": source_title_v,
                 "source_metadata_v": source_metadata_v,
+                # Transient pub/sub only: the API listener seals these for the push/email
+                # path. They are not part of the client payload or the recovery job.
+                "notification_type": postprocessing_result.notification_type,
+                "notification_summary": postprocessing_result.notification_summary,
             }
 
             # Older clients receive their first title at completion. The early

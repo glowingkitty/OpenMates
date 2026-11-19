@@ -292,6 +292,7 @@ class PushNotificationService:
         on_expired_web_target: Optional[Callable[[], None]] = None,
         workflow_routing: Optional[dict] = None,
         encrypted_title: Optional[str] = None,
+        encrypted_context: Optional[str] = None,
         on_apns_result: Optional[Callable[[str], None]] = None,
         recipient_account_id: Optional[str] = None,
         message_id: Optional[str] = None,
@@ -351,6 +352,7 @@ class PushNotificationService:
                 tag=tag,
                 workflow_routing=workflow_routing,
                 encrypted_title=encrypted_title,
+                encrypted_context=encrypted_context,
                 on_apns_result=on_apns_result,
                 recipient_account_id=recipient_account_id,
                 message_id=message_id,
@@ -470,6 +472,7 @@ class PushNotificationService:
         tag: Optional[str],
         workflow_routing: Optional[dict] = None,
         encrypted_title: Optional[str] = None,
+        encrypted_context: Optional[str] = None,
         on_apns_result: Optional[Callable[[str], None]] = None,
         recipient_account_id: Optional[str] = None,
         message_id: Optional[str] = None,
@@ -553,7 +556,8 @@ class PushNotificationService:
         # Watch has no notification service extension; always retain generic text.
         if category in {"OPENMATES_WORKFLOW_COMPLETED", APNS_CHAT_CATEGORY} and encrypted_title and platform != "watchos":
             encrypted_payload = self._build_encrypted_apns_payload(
-                subscription_info, body, title=encrypted_title, reply_context=reply_context,
+                subscription_info, body, title=encrypted_title, context_line=encrypted_context,
+                reply_context=reply_context,
             )
         else:
             encrypted_payload = None if platform == "watchos" else self._build_encrypted_apns_payload(
@@ -573,7 +577,7 @@ class PushNotificationService:
                     candidate = self._build_encrypted_apns_payload(
                         subscription_info, clean[:middle] + ("…" if middle < len(clean) else ""),
                         title=encrypted_title if category in {"OPENMATES_WORKFLOW_COMPLETED", APNS_CHAT_CATEGORY} else None,
-                        reply_context=reply_context,
+                        context_line=encrypted_context, reply_context=reply_context,
                     )
                     payload["encrypted_notification"] = candidate
                     size = len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
@@ -633,12 +637,17 @@ class PushNotificationService:
 
     def _build_encrypted_apns_payload(
         self, subscription_info: dict, preview_text: str, *,
-        title: str | None = None, reply_context: dict | None = None,
+        title: str | None = None, context_line: str | None = None, reply_context: dict | None = None,
     ) -> Optional[dict]:
-        """Encrypt optional Apple notification preview text to the device public key."""
+        """Encrypt optional Apple notification content to the device public key.
+
+        `context_line` is the already-composed `in "<chat title>"` text: it is sealed
+        verbatim, never run through the answer-text projection.
+        """
         preview_text = notification_preview_text(preview_text) if subscription_info.get("preview_enabled") is not False else ""
+        preview_text = "\n".join(part for part in (context_line, preview_text) if part)
         if title and not preview_text:
-            # Title without preview: the extension still needs a body to display.
+            # Title without a body: the extension still needs a body to display.
             preview_text = APNS_CHAT_MESSAGE_BODY
         public_key_b64 = (subscription_info.get("notification_public_key") or "").strip()
         encryption_version = (subscription_info.get("encryption_version") or APNS_ENCRYPTION_VERSION).strip()

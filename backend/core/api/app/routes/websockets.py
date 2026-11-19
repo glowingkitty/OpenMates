@@ -777,6 +777,11 @@ def _trace_final_stream_delivery(
 # OFFLINE NOTIFICATIONS (PUSH + EMAIL) FOR OFFLINE USERS
 # =============================================================================
 
+# Post-processing normally finishes before the push (10 s of offline checks);
+# wait this much longer for a late summary, then fall back to the title or generic text.
+HEADLINE_WAIT_SECONDS = 8.0
+
+
 async def _check_user_offline_and_send_email(
     app: FastAPI,
     manager: ConnectionManager,
@@ -880,6 +885,7 @@ async def _check_user_offline_and_send_email(
             message_id=message_id,
             chat_title=chat_title,
             mate_category=category,
+            task_id=task_id,
         )
     except Exception as e:
         logger.error(f"{log_prefix} Push notification attempt failed: {e}", exc_info=True)
@@ -894,6 +900,7 @@ async def _send_push_notification_if_enabled(
     message_id: Optional[str] = None,
     chat_title: Optional[str] = None,
     mate_category: Optional[str] = None,
+    task_id: Optional[str] = None,
 ) -> bool:
     """
     Look up user's push subscription from cache and dispatch push Celery task if enabled.
@@ -949,45 +956,60 @@ async def _send_push_notification_if_enabled(
         logger.debug(f"{log_prefix} AI response push notifications disabled in preferences")
         return False
 
-    # Build notification content
-    from backend.core.api.app.services.push_notification_service import notification_preview_text
-    from backend.core.api.app.services.notification_email_preferences import (
-        notification_headline, push_chat_title_enabled,
-    )
+    # Chat metadata decides two things: hidden chats never get content in a
+    # notification, and the reply workspace comes from durable chat authority
+    # (never inferred from absent metadata or a client profile URL).
+    workspace = None
+    hidden = False
+    directus_service = getattr(app.state, "directus_service", None)
+    if directus_service is not None:
+        try:
+            metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+            hidden = not isinstance(metadata, dict) or bool(metadata.get("is_hidden") or metadata.get("is_hidden_candidate"))
+            if message_id:
+                from backend.core.api.app.services.push_reply_context import reply_workspace
 
-    preview_text = notification_preview_text(response_preview, lang=cached_user.get("language") or "en")
-    push_title = "OpenMates"
-    # The title is the transient value from this inference (client-supplied or
-    # just generated), never a decrypted stored title. APNs seals it to the
-    # device key for the notification extension; it is on by default.
-    sealed_title = None
-    if chat_title and push_chat_title_enabled(push_prefs):
+                workspace = reply_workspace(metadata, user_id, chat_id)
+        except Exception:
+            # Unknown hidden state must not leak content: stay generic.
+            hidden = True
+            logger.warning("[PUSH_NOTIFY] Chat metadata unavailable; sending generic text without reply routing")
+
+    from backend.core.api.app.services.push_notification_service import notification_preview_text
+    from backend.core.api.app.services.push_notification_content import compose_push_content
+    from backend.core.api.app.services.notification_email_preferences import (
+        push_chat_title_enabled, push_preview_enabled,
+    )
+    from backend.core.api.app.services.notification_headline_handoff import lookup_vault_key_id, read_headline
+
+    language = str(cached_user.get("language") or "en")
+    # Title/summary are decided by the user's switches; the summary comes from the
+    # post-processing call, sealed in Redis (never a decrypted stored title).
+    headline = None
+    if not hidden and push_chat_title_enabled(push_prefs) and task_id:
+        try:
+            headline = await read_headline(
+                cache_service=cache_service, encryption_service=app.state.encryption_service,
+                vault_key_id=cached_user.get("vault_key_id") or await lookup_vault_key_id(cache_service, directus_service, user_id),
+                user_id=user_id, chat_id=chat_id, task_id=task_id, wait_seconds=HEADLINE_WAIT_SECONDS,
+            )
+        except Exception as exc:
+            logger.warning(f"{log_prefix} Notification summary unavailable ({type(exc).__name__}); using title or generic text")
+    mate_name = "Mate"
+    if chat_title and not headline:
         from backend.core.api.app.services.translations import TranslationService
-        mate_name = TranslationService().get_nested_translation(
-            f"mates.{mate_category or 'general_knowledge'}", str(cached_user.get("language") or "en"))
-        if not isinstance(mate_name, str) or not mate_name or mate_name.startswith("mates."):
-            mate_name = "Mate"
-        sealed_title = notification_headline(mate_name, chat_title) or None
-        push_title = sealed_title or push_title
-    push_body = preview_text if preview_text else "Your AI assistant has responded."
+        translated = TranslationService().get_nested_translation(f"mates.{mate_category or 'general_knowledge'}", language)
+        if isinstance(translated, str) and translated and not translated.startswith("mates."):
+            mate_name = translated
+    content = compose_push_content(
+        preferences=push_prefs, headline=headline, chat_title=chat_title, mate_name=mate_name, hidden=hidden,
+        preview_text=notification_preview_text(response_preview, lang=language) if push_preview_enabled(push_prefs) else "",
+    )
     push_url = f"/?chat={chat_id}"
     push_tag = f"ai-response-{chat_id}"
 
     if await has_active_human(cache_service, user_id, chat_id):
         return False
-
-    # Load workspace from durable chat authority, never infer Personal from
-    # absent metadata or use a client profile URL supplied in a push envelope.
-    workspace = None
-    directus_service = getattr(app.state, "directus_service", None)
-    if message_id and directus_service is not None:
-        try:
-            from backend.core.api.app.services.push_reply_context import reply_workspace
-
-            metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
-            workspace = reply_workspace(metadata, user_id, chat_id)
-        except Exception:
-            logger.warning("[PUSH_NOTIFY] Reply routing metadata unavailable; sending legacy alert")
 
     try:
         from backend.core.api.app.tasks.celery_config import app as celery_app
@@ -996,8 +1018,8 @@ async def _send_push_notification_if_enabled(
             name='app.tasks.push_notification_task.send_push_notification',
             kwargs={
                 "subscription_json": subscription_json,
-                "title": push_title,
-                "body": push_body,
+                "title": content.title,
+                "body": content.body,
                 "url": push_url,
                 "tag": push_tag,
                 "chat_id": chat_id,
@@ -1005,7 +1027,8 @@ async def _send_push_notification_if_enabled(
                 "user_id": user_id,
                 "message_id": message_id,
                 "workspace": workspace,
-                "chat_title": sealed_title,
+                "chat_title": content.sealed_title,
+                "chat_context": content.context,
             },
             queue="push",
         )
@@ -1031,7 +1054,7 @@ def email_eligible_completion(payload: dict) -> bool:
 async def _send_offline_email_notification(
     app: FastAPI, user_id: str, chat_id: str, response_preview: str,
     message_id: str | None = None, sender_name: str = "Mate", chat_title: str | None = None,
-    mate_category: str | None = None, *, viewing_connection: bool,
+    mate_category: str | None = None, *, viewing_connection: bool, task_id: str | None = None,
 ) -> None:
     if not message_id:
         return
@@ -1057,6 +1080,7 @@ async def _send_offline_email_notification(
         encryption_service=app.state.encryption_service,
         user_id=user_id, chat_id=chat_id, message_id=message_id,
         sender_name=sender_name, preview=response_preview, title=chat_title, mate_category=mate_category,
+        task_id=task_id,
     )
 
 
@@ -1861,6 +1885,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             chat_title=redis_payload.get("chat_title"),
                             mate_category=redis_payload.get("category"),
                             viewing_connection=bool(final_viewer_devices),
+                            task_id=redis_payload.get("task_id"),
                         )
                     if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
                         # Notify unless a foreground client is visibly viewing this chat.
@@ -2188,6 +2213,21 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     await _deliver_metadata_event(manager, user_id_uuid, client_event_name,
                                                   client_payload, redis_payload.get("metadata_recovery_job"))
                     logger.info(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with {len(client_payload.get('follow_up_request_suggestions', []))} follow-up suggestions")
+
+                    # Seal the notification type/summary for the push and email paths.
+                    # Optional enhancement: a failure leaves the generic notification text.
+                    if redis_payload.get("notification_summary"):
+                        from backend.core.api.app.services.notification_headline_handoff import stage_headline
+                        try:
+                            await stage_headline(
+                                cache_service=app.state.cache_service, directus_service=app.state.directus_service,
+                                encryption_service=app.state.encryption_service,
+                                user_id=user_id_uuid, chat_id=chat_id, task_id=task_id,
+                                notification_type=redis_payload.get("notification_type"),
+                                summary=redis_payload.get("notification_summary"),
+                            )
+                        except Exception as exc:
+                            logger.warning(f"AI Typing Listener: Could not stage notification headline ({type(exc).__name__}); generic text will be used")
 
                 # Handle assistant_answer_withdrawn: the client replaces the answer with the notice
                 elif internal_event_type == "assistant_answer_withdrawn":

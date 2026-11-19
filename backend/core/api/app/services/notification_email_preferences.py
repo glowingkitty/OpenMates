@@ -70,6 +70,11 @@ def push_chat_title_enabled(push_preferences: Any) -> bool:
     """Same default-on rule for the push channel's own preference map."""
     return _json_object(push_preferences).get("includeChatTitle", True) is not False
 
+def push_preview_enabled(push_preferences: Any) -> bool:
+    """Answer text in the sealed push body is an explicit opt-in (default off)."""
+    return _json_object(push_preferences).get("includePreview") is True
+
+
 def notification_headline(sender: str, title: str | None) -> str:
     """Short, shared wording for push and email: "<Mate> in <chat title>"."""
     sender = " ".join((sender or "").split())[:60] or "Mate"

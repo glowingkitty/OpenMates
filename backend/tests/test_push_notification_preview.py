@@ -19,7 +19,7 @@ from backend.core.api.app.services.push_notification_service import (
     APNS_CHAT_CATEGORY, APNS_CHAT_MESSAGE_BODY, APNS_ENCRYPTION_INFO,
     APNS_ENCRYPTION_VERSION, PushNotificationService, notification_preview_text,
 )
-def completion_dispatch():
+def completion_dispatch(**constants):
     # Execute the complete production coroutine independently of unrelated API
     # bootstrap services, matching existing completion/cache-fallback tests.
     source = Path(__file__).resolve().parents[1] / 'core/api/app/routes/websockets.py'
@@ -28,7 +28,7 @@ def completion_dispatch():
     node.returns = None
     for argument in node.args.args:
         argument.annotation = None
-    namespace = {'logger': logging.getLogger(__name__)}
+    namespace = {'logger': logging.getLogger(__name__), **constants}
     exec(compile(ast.fix_missing_locations(ast.Module(body=[node], type_ignores=[])), str(source), 'exec'), namespace)
     return namespace[node.name]
 
@@ -49,7 +49,7 @@ def test_notification_preview_preserves_prose_and_removes_fences(content, expect
 
 @pytest.mark.parametrize("content,expected", [
     ('```json\n{"type":"app_skill_use","embed_id":"fixture","metadata":"' + 'x' * 300 + '"}\n```\nHuman explanation.', 'Human explanation.'),
-    ('```json\n{"type":"app_skill_use","embed_id":"fixture"}\n```', 'Your AI assistant has responded.'),
+    ('```json\n{"type":"app_skill_use","embed_id":"fixture"}\n```', ''),
 ])
 # contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
 def test_completion_dispatch_sanitizes_full_content_before_preview_limit(monkeypatch, content, expected):
@@ -60,7 +60,7 @@ def test_completion_dispatch_sanitizes_full_content_before_preview_limit(monkeyp
     cache = SimpleNamespace(get_user_by_id=AsyncMock(return_value={
         "push_notification_enabled": True,
         "push_notification_subscription": '{"type":"apns","token":"synthetic"}',
-        "push_notification_preferences": {"aiResponses": True},
+        "push_notification_preferences": {"aiResponses": True, "includePreview": True},
     }))
     app = SimpleNamespace(state=SimpleNamespace(cache_service=cache))
     assert asyncio.run(notify(app, "synthetic-user", "synthetic-chat", content))
@@ -253,3 +253,70 @@ def test_completion_dispatch_adds_chat_title_by_default_and_honours_opt_out(monk
     else:
         assert sent["chat_title"] is None
         assert sent["title"] == "OpenMates"
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
+def test_apns_sealed_context_line_is_verbatim_and_absent_from_the_wire(monkeypatch):
+    service, target, calls, opened = _apns_with_device_key(monkeypatch)
+    # A chat title with braces/markdown must never be run through the answer-text projection.
+    assert service._send_apns_notification(target, 'OpenMates', '', 'synthetic-chat', APNS_CHAT_CATEGORY, None,
+                                           encrypted_title='✅ Added 4 models', encrypted_context='in "Garden {notes} **plan**"')
+    assert 'Garden' not in json.dumps(calls[0]) and 'Added' not in json.dumps(calls[0])
+    assert opened() == {'title': '✅ Added 4 models', 'body': 'in "Garden {notes} **plan**"'}
+
+
+def _dispatch_with_summary(monkeypatch, prefs, *, headline, metadata):
+    celery = SimpleNamespace(send_task=Mock())
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", SimpleNamespace(app=celery))
+    monkeypatch.setattr("backend.core.api.app.services.notification_presence.has_active_human", AsyncMock(return_value=False))
+    read = AsyncMock(return_value=headline)
+    monkeypatch.setattr("backend.core.api.app.services.notification_headline_handoff.read_headline", read)
+    notify = completion_dispatch(HEADLINE_WAIT_SECONDS=0.0)
+    cache = SimpleNamespace(get_user_by_id=AsyncMock(return_value={
+        "push_notification_enabled": True, "vault_key_id": "synthetic-vault-key",
+        "push_notification_subscription": '{"type":"apns","token":"synthetic"}',
+        "push_notification_preferences": {"aiResponses": True, **prefs},
+    }))
+    directus = SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value=metadata)))
+    app = SimpleNamespace(state=SimpleNamespace(cache_service=cache, directus_service=directus,
+                                                encryption_service=SimpleNamespace()))
+    assert asyncio.run(notify(app, "synthetic-user", "synthetic-chat", "The beds are planned.",
+                              chat_title="Garden planning notes", task_id="synthetic-task"))
+    return celery.send_task.call_args.kwargs["kwargs"], read
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
+def test_completion_dispatch_seals_summary_title_and_chat_context_by_default(monkeypatch):
+    sent, read = _dispatch_with_summary(monkeypatch, {}, headline="✅ Added 4 models, 3 tests pass", metadata={"is_hidden": False})
+    assert sent["chat_title"] == sent["title"] == "✅ Added 4 models, 3 tests pass"
+    assert sent["chat_context"] == 'in "Garden planning notes"'
+    assert sent["body"] == ""  # the answer text is not sent unless the user opted into previews
+    assert read.await_args.kwargs["task_id"] == "synthetic-task"
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
+def test_completion_dispatch_preview_is_opt_in(monkeypatch):
+    sent, _ = _dispatch_with_summary(monkeypatch, {"includePreview": True}, headline="✅ Added 4 models", metadata={})
+    assert sent["body"] == "The beds are planned."
+
+
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.payload.privacy-safe
+@pytest.mark.parametrize("metadata", [{"is_hidden": True}, {"is_hidden_candidate": True}, None])
+def test_completion_dispatch_hidden_or_unknown_chats_stay_generic(monkeypatch, metadata):
+    celery = SimpleNamespace(send_task=Mock())
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", SimpleNamespace(app=celery))
+    monkeypatch.setattr("backend.core.api.app.services.notification_presence.has_active_human", AsyncMock(return_value=False))
+    read = AsyncMock(return_value="✅ Secret detail")
+    monkeypatch.setattr("backend.core.api.app.services.notification_headline_handoff.read_headline", read)
+    notify = completion_dispatch(HEADLINE_WAIT_SECONDS=0.0)
+    cache = SimpleNamespace(get_user_by_id=AsyncMock(return_value={
+        "push_notification_enabled": True, "vault_key_id": "k",
+        "push_notification_subscription": '{"type":"apns","token":"synthetic"}',
+        "push_notification_preferences": {"aiResponses": True, "includePreview": True},
+    }))
+    directus = SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value=metadata)))
+    app = SimpleNamespace(state=SimpleNamespace(cache_service=cache, directus_service=directus, encryption_service=SimpleNamespace()))
+    assert asyncio.run(notify(app, "synthetic-user", "synthetic-chat", "Secret answer.", chat_title="Secret", task_id="t"))
+    sent = celery.send_task.call_args.kwargs["kwargs"]
+    assert (sent["title"], sent["body"], sent["chat_title"], sent["chat_context"]) == ("OpenMates", "", None, None)
+    read.assert_not_awaited()

@@ -510,6 +510,7 @@
         "components/project-chat-previews.spec.ts",
         "components/project-file-references.spec.ts",
         "components/settings-storage-overview.spec.ts",
+        "components/settings-chat-notifications.spec.ts",
         "components/maps-discovery.spec.ts",
         "components/maps-place-label.spec.ts",
         "components/agent-context-message.spec.ts",

@@ -445,6 +445,13 @@ postprocess_response_tool:
         chat_summary:
           type: "string"
           description: "An updated concise summary of the full conversation including this latest exchange (max 20 words) in the USER'S SYSTEM LANGUAGE (as specified in system message). Capture the main topic, key decisions or outcomes, and what was accomplished or resolved. Be specific — include names, technologies, or details that distinguish this chat from others."
+        notification_type:
+          type: "string"
+          enum: ["done", "question", "info"]
+          description: "How to label the push/email for the assistant's LATEST reply. done = the assistant completed a task or part of the work the user asked for; question = the assistant asks the user for input, a choice or confirmation and cannot continue without it (a long reply that ends with one open question is question); info = a purely informative answer with nothing completed or asked. A reply that did only part of the task is done only if it finished a concrete step, otherwise question or info."
+        notification_summary:
+          type: "string"
+          description: "One plain-text line of at most 90 characters that tells the user what the LATEST reply achieved or asks, in the language given in the system message. Use only facts stated in the reply; never invent names, numbers or results. No emoji, no markdown, no quotes, no trailing full stop."
         chat_tags:
           type: "array"
           description: "Up to 10 concise tags for search and categorization based on the completed conversation."
@@ -558,6 +565,8 @@ postprocess_response_tool:
         - "new_chat_general_suggestions"
         - "harmful_response"
         - "chat_summary"
+        - "notification_type"
+        - "notification_summary"
         - "chat_tags"
         - "share_cta_text"
         - "updated_chat_title"

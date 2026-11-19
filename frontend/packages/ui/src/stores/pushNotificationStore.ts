@@ -39,6 +39,8 @@ export interface PushNotificationPreferences {
   softwareUpdates: boolean;
   /** Show "Mate in Chat title" in notifications (sealed to the device); default on */
   includeChatTitle: boolean;
+  /** Add the first lines of the answer to the notification (sealed to the device); default off */
+  includePreview: boolean;
 }
 
 /**
@@ -78,6 +80,7 @@ const defaultPreferences: PushNotificationPreferences = {
   serverEvents: true,
   softwareUpdates: false,
   includeChatTitle: true,
+  includePreview: false,
 };
 
 /**
