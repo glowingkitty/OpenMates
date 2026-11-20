@@ -159,7 +159,7 @@ specifications:
     version: 14
     status: draft
     path: features/ai-model-routing
-    fingerprint: 45cf36bac4e1d74b89ff46d73d4e979fc515eedac2b5124a9f8f05b14e4a4095
+    fingerprint: 5b7ec1d9faafb448215632d4c14344178d1f39b3f107129d2a50f582be8c413f
     required_applies_to:
     - rest_api
     - cli
@@ -3110,7 +3110,7 @@ assertions:
     specification: feature.ai-model-routing@14
     specification_id: feature.ai-model-routing
     type: behavior
-    fingerprint: 6f14c75629069ae307a22a8ae4b2a601e434d4a8fd675a10ced145601c484b91
+    fingerprint: 7853db9006fb8641ad85e489c6c9790bd77bba9bc7fef7855f47a7f11724c608
     required_applies_to:
     - rest_api
     - cli

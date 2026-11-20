@@ -29,6 +29,7 @@ from backend.shared.python_utils.calendar_action_journal import calendar_undo_pa
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.apps.ai.processing.specialised_skill_preference import specialised_first_instruction
 from backend.apps.ai.processing.preprocessor import (
     PreprocessingResult, _history_has_loaded_image_blocks,
     _image_reference_consumer_skills, _request_has_image_upload_embed,
@@ -4590,6 +4591,9 @@ async def handle_main_processing(
             logger.warning(f"{log_prefix} relevant_app_skills is None (should be list or empty list). Treating as empty list.")
             preselected_skills = set()
 
+    # Stage two's own selection, before baseline and companion skills are merged.
+    stage_two_skills = set(preselected_skills or ())
+
     # HARDENING: Merge always_include_skills into preselected_skills unless the user
     # explicitly requested a specific tool/search surface. In that case use only the
     # user's selection and add a mandatory instruction to call it.
@@ -5086,6 +5090,14 @@ async def handle_main_processing(
             prompt_parts.append(proactive_skill_instruction)
             tool_only_prompt_parts.append(("app_skill", proactive_skill_instruction))
             research_only_prompt_parts.add(proactive_skill_instruction)
+        specialised_first = specialised_first_instruction(
+            stage_two_skills, preselected_skills or (), explicit_request=user_requested_skills_only,
+        )
+        if specialised_first:
+            prompt_parts.append(specialised_first)
+            tool_only_prompt_parts.append(("app_skill", specialised_first))
+            research_only_prompt_parts.add(specialised_first)
+            logger.info(f"{log_prefix} [SPECIALISED_FIRST] Specialised skills named before web search")
     else:
         # When no apps available, skip the proactive skill usage instruction
         # to avoid confusing the AI about capabilities it doesn't have

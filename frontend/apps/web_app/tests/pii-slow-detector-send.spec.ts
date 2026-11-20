@@ -116,6 +116,13 @@ function expectNothingRawLeft(outgoing: string[]): void {
 	}
 }
 
+// Each test deletes its chat; this only cleans up after a test that failed before that.
+test.afterEach(async ({ page }: { page: any }) => {
+	if (!/chat-id=/.test(page.url())) return;
+	const log = createSignupLogger('PII_DETECTOR_CLEANUP');
+	await deleteActiveChat(page, log, createStepScreenshotter(log, { filenamePrefix: 'pii-detector-cleanup' }), 'pii-detector-cleanup');
+});
+
 // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference
 test('a slow detector delays the send until name and address are replaced', async ({ page }: { page: any }) => {
 	test.slow();
@@ -183,6 +190,9 @@ test('a failing detector blocks the send, keeps the draft and asks to try again'
 	expectNothingRawLeft(outgoing);
 	await expect(editor).toContainText('Jonas Albrecht');
 	await takeStepScreenshot(page, 'still-blocked-after-retry');
+	// The kept draft belongs to this test's chat; deleting the chat removes it.
+	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'pii-failing-detector-cleanup');
+	expectNothingRawLeft(outgoing);
 });
 
 // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference
@@ -204,19 +214,25 @@ test('with a warm detector the protected send still leaves quickly', async ({ pa
 	await expect(page.getByTestId('message-user').last()).toBeVisible({ timeout: 30000 });
 	logCheckpoint(`Cold send left after the model started.`);
 
-	// The second send in the same chat uses the warm model and must leave quickly.
+	// The second send in the same chat uses the warm model. The user waits for the
+	// detector until the protected message appears in the chat; the turn itself may
+	// then queue behind a still-running answer (for example a focus mode countdown),
+	// which says nothing about the detector.
 	await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60000 });
 	await typeMessage(page, FOLLOW_UP);
 	await takeStepScreenshot(page, 'second-message-typed');
+	const userMessages = page.getByTestId('message-user');
 	const sentAt = Date.now();
 	await page.locator('[data-action="send-message"]').click();
-	await expect.poll(() => turns.length, { timeout: 30000 }).toBe(2);
-	const waitedMs = turns[1].at - sentAt;
-	logCheckpoint(`Warm send left after ${waitedMs} ms.`);
+	await expect(userMessages).toHaveCount(2, { timeout: 30000 });
+	await expect(userMessages.last()).toContainText(/\[EMAIL_\w+\]/, { timeout: 30000 });
+	const waitedMs = Date.now() - sentAt;
+	logCheckpoint(`Warm send was protected and shown after ${waitedMs} ms.`);
 	// CI runners have slow shared CPUs; dev reports the real number on a normal device.
 	expect(waitedMs).toBeLessThan(10000);
+	await expect.poll(() => turns.length, { timeout: 240000, message: 'the protected follow-up leaves' }).toBe(2);
 	expect(turns[1].content).toMatch(/\[EMAIL_\w+\]/);
-	expectNothingRawLeft(outgoing);
 	await takeStepScreenshot(page, 'sent-quickly');
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'pii-fast-detector-cleanup');
+	expectNothingRawLeft(outgoing);
 });

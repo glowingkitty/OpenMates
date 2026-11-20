@@ -24,7 +24,7 @@ const {
 	setChatSidebarOpen,
 	startNewChat
 } = require('./helpers/chat-test-helpers');
-const { closeFullscreen } = require('./helpers/embed-test-helpers');
+const { closeFullscreen, openFullscreen } = require('./helpers/embed-test-helpers');
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 const QUESTION = ' What is the largest open source software conference in Europe and when does it happen?';
@@ -82,16 +82,14 @@ test('the largest open source conference question is answered with Events app ca
 		await expect(answer.getByTestId('generated-by')).toContainText(/Gemini 3\.8 Flash/i, { timeout: 60_000 });
 
 		// The Events app search skill ran: its card is in the answer.
-		const eventsCard = page.locator('[data-testid="embed-preview"][data-app-id="events"]').first();
+		const eventsCard = page.locator('[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]').first();
 		await expect(eventsCard, 'the Events app search card is in the answer').toBeVisible({ timeout: 60_000 });
 		await expect(eventsCard).toHaveAttribute('data-status', 'finished', { timeout: 120_000 });
 		log(`Events card skill: ${await eventsCard.getAttribute('data-skill-id')}`);
 		await eventsCard.evaluate(element => element.scrollIntoView({ block: 'center' }));
 		await testInfo.attach('answer-with-events-card', { body: await page.screenshot(), contentType: 'image/png' });
 
-		await eventsCard.click();
-		const overlay = page.getByTestId('embed-fullscreen-overlay');
-		await expect(overlay).toBeVisible({ timeout: 20_000 });
+		const overlay = await openFullscreen(page, eventsCard);
 		await expect(overlay).not.toContainText(EMBED_NOT_FOUND);
 		await page.waitForTimeout(1_500);
 		await testInfo.attach('events-fullscreen', { body: await page.screenshot(), contentType: 'image/png' });
@@ -101,12 +99,11 @@ test('the largest open source conference question is answered with Events app ca
 		await page.evaluate(() => window.scrollTo(0, 0));
 		const bubble = page.locator('[data-testid="chat-header-image-bubble-left"], [data-testid="chat-header-image-bubble-right"]').first();
 		if (await bubble.isVisible().catch(() => false)) {
-			await bubble.click();
-			await expect(overlay).toBeVisible({ timeout: 20_000 });
+			const bubbleOverlay = await openFullscreen(page, bubble);
 			await page.waitForTimeout(2_000);
 			await expect(page.getByText(EMBED_NOT_FOUND)).toHaveCount(0);
 			await testInfo.attach('header-bubble-fullscreen', { body: await page.screenshot(), contentType: 'image/png' });
-			await closeFullscreen(page, overlay);
+			await closeFullscreen(page, bubbleOverlay);
 		} else {
 			log('The chat header shows no image bubble for this answer.');
 		}
