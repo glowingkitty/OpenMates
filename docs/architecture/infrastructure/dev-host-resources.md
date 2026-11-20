@@ -157,13 +157,28 @@ on 2026-11-15 were such leftovers of CI result downloads).
 Every chat tells the user on Discord exactly once when it is done or blocked,
 with `scripts/agent_question.py`: `done` sends "✅ <short title>: <result>" (also
 for a parked or paused chat, with `--paused-until`), `ask` sends "❓ <short
-title>: <decision>. Recommendation: …". Each is one or two sentences (title at
-most 60, text at most 320 characters, links never cut and not counted); no
-progress pushes, never both for one event, one of each kind per chat per 20
+title>: <decision>. Recommendation: …". The chat writes the short text itself because
+the push is read on a phone lock screen (`scripts/discord_summary.py`): done at most 110
+characters, ask (question plus recommendation) at most 120, title at most 30 characters
+(Task id removed); a link counts as one character. Markdown, Task/chat ids, commit hashes,
+list markers and icons the chat wrote are stripped, so exactly one icon goes out. Text over
+the limit is rejected (exit 1, "rewrite it in under N characters, one sentence"); the rejection
+count is kept per chat and kind in `logs/agent-questions/rejections/<chat-id>.json` (dry runs
+do not count, a delivered push resets it). After two rejections one headless `claude -p --model
+haiku` call shortens the scrubbed text (platform login, no tools, no project instructions; a
+tiny comparison is below), and if that fails or is still too long the text is cut
+at a word boundary with "…". The production monitors (`prod_email_health.py`,
+`prod_tls_health.py`) build their 🚨/✅ lines with `discord_summary.alert` (one line, 140
+characters). No progress pushes, never both for one event, one of each kind per chat per 20
 minutes. These pushes (and `scripts/e2b_credits.py`'s, which calls its
 `record_push`) are appended to `logs/agent-questions/pushes.jsonl` (time, kind
 `done`/`ask`/empty for other alerts, chat id and title, text, what it asks), so
 the connector can match a push to its chat and label it ✅ done or ❓ needs input.
+Fallback model comparison (2026-11-20, four long summaries to 110 characters): Haiku kept
+4/4 within the limit (about 5-45 s per call depending on host load), Sonnet 1/4 (about 4 s);
+Haiku is the cheaper model and the one that obeyed the limit. A Gemini key is not
+available on the dev host (vault only), so it was not compared. Each call is capped at
+$0.25 and 120 s.
 Chats the host starts by itself (issue and production-failure chats,
 `claude_dispatch.launch_claude_chat`) get the same rule appended to their prompt
 and their title in `CLAUDE_CHAT_TITLE`. A ❓ push stays an open question until

@@ -33,6 +33,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from scripts import discord_summary  # noqa: E402 (repo path bootstrap)
+
 HOSTS = ("openmates.org", "www.openmates.org", "app.openmates.org", "api.openmates.org")
 MIN_DAYS_LEFT = 21
 STATE_FILE = Path(__file__).resolve().parent.parent / "test-results" / "hourly-prod" / "tls-health-state.json"
@@ -108,18 +111,19 @@ def alert_decision(result: dict[str, Any], state: dict[str, Any], now_ts: float)
 
 
 def format_message(result: dict[str, Any], kind: str) -> str:
+    """One short line for the lock screen; the full reasons stay in the printed check result."""
     if kind == "recovery":
-        return "✅ **Prod TLS recovered**: all production hosts serve valid certificates again."
-    lines = [f"🚨 **Prod TLS check FAILED**: a production certificate is invalid or expires within {MIN_DAYS_LEFT} days."]
-    lines += [f"- {c['reason']}" for c in result["checks"].values() if not c["ok"] and c.get("reason")]
-    lines.append("Vercel hosts: the domain must be attached to a Vercel project (Settings → Domains) for renewal.")
-    return "\n".join(lines)
+        return discord_summary.alert("✅", "Prod TLS recovered: all certificates are valid again.")
+    reasons = [c["reason"] for c in result["checks"].values() if not c["ok"] and c.get("reason")]
+    more = f" (+{len(reasons) - 1} more)" if len(reasons) > 1 else ""
+    text = f"Prod TLS failing: {reasons[0]}{more}" if reasons else "Prod TLS check failing."
+    return discord_summary.alert("🚨", text)
 
 
 def post_discord(webhook_url: str, content: str, opener: Callable[..., Any] = urllib.request.urlopen) -> bool:
     request = urllib.request.Request(
         webhook_url,
-        data=json.dumps({"content": content[:1900]}).encode(),
+        data=json.dumps({"content": content}).encode(),
         headers={"Content-Type": "application/json", "User-Agent": USER_AGENT},
         method="POST",
     )

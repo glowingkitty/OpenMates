@@ -10,9 +10,13 @@ dev connector, which matches the push to its chat through the push log):
                                                               with --paused-until)
   ❓ <short chat title>: <decision needed> Recommendation: …  (ask)
 A chat sends exactly one push when it finishes (done) or is blocked on the user (ask), never for
-progress and never both for one event; blocked and later finished is one ❓ then one ✅. Text over
-MAX_TEXT_CHARS is shortened with "…" (the push log keeps the full text); --option values go to the
-push log only. Every text is scrubbed (secrets, personal data) before it is sent or logged.
+progress and never both for one event; blocked and later finished is one ❓ then one ✅. The chat
+writes the short text itself (scripts/discord_summary.py): done at most SUMMARY_MAX characters, ask
+(question plus recommendation) at most ASK_MAX, title shortened to TITLE_MAX; markdown, ids and
+icons the chat wrote are stripped (the script adds exactly one icon). Longer text is rejected with a
+rewrite instruction (exit 1); after two rejections one cheap model call shortens it, then a cut at a
+word boundary with "…". --option values go to the push log only. Every text is scrubbed (secrets,
+personal data) before it is sent, logged or given to the model.
 
 The webhook URL comes from DISCORD_WEBHOOK_AGENT_QUESTIONS, then DISCORD_WEBHOOK_DAILY_MEETING,
 then DISCORD_WEBHOOK_DEV_NIGHTLY (environment, then the canonical checkout's ``.env``, the same
@@ -34,11 +38,14 @@ import json
 import os
 import re
 import sys
+import subprocess
+import tempfile
 import time
 from pathlib import Path
 from typing import Callable
 from urllib.parse import urlparse
 
+import discord_summary
 import discord_webhook
 from pending_work_gate import canonical_root
 
@@ -50,9 +57,10 @@ RETRY_DELAYS = (2.0, 5.0)
 MAX_CHARS = 1900  # per Discord message (limit 2000); longer pushes go out as several parts
 MAX_PARTS = 4
 DONE, ASK = "✅", "❓"
-MAX_TITLE_CHARS = 60
-MAX_TEXT_CHARS = 320  # the one or two sentences after the title
-_LINK_MARK = 0xF0000  # Unicode private use plane: placeholders while a text is shortened
+SHORTEN_MODEL = "haiku"  # fallback shortener: cheapest Claude model; benchmark in dev-host-resources.md
+SHORTEN_BUDGET_USD = "0.25"
+SHORTEN_TIMEOUT = 120
+REJECTION_LOG = Path("logs") / "agent-questions" / "rejections"
 # Presigned links to our own buckets on our object storage are meant to be opened and are kept
 # whole (bucket name, key path and X-Amz-* query values). Every other URL goes through the filters.
 OWN_STORAGE_HOST_SUFFIX = ".your-objectstorage.com"
@@ -179,37 +187,63 @@ def session_info(root: Path, chat_id: str) -> tuple[str, str]:
     return key, task
 
 
-def _short(text: str, limit: int) -> str:
-    """At most `limit` characters, cut at a word boundary with "…"; a link counts as one character
-    and is never cut (a presigned video link alone is ~400 characters)."""
-    links: list[str] = []
-
-    def hold(match: re.Match[str]) -> str:
-        links.append(match.group(0))
-        return chr(_LINK_MARK + len(links) - 1)  # one private-use character per link
-
-    marked = _URL.sub(hold, text)
-    if len(marked) > limit:
-        space = marked.rfind(" ", 0, limit)
-        marked = marked[:space if space > 0 else limit - 1].rstrip(" ,;:") + "…"
-    return "".join(links[ord(c) - _LINK_MARK] if _LINK_MARK <= ord(c) < _LINK_MARK + len(links) else c
-                   for c in marked)
-
-
 def short_title(title: str) -> str:
-    return _short(scrub(title) or "unnamed chat", MAX_TITLE_CHARS)
+    return discord_summary.short_title(scrub(title))
 
-
-def build_message(kind: str, title: str, text: str, recommendation: str = "", paused_until: str = "") -> str:
-    """One compact push: '✅ title: result.' or '❓ title: decision. Recommendation: …'."""
-    body = scrub(text).rstrip()
+def build_body(kind: str, text: str, recommendation: str = "", paused_until: str = "", title: str = "") -> str:
+    """The cleaned, scrubbed text after the title: the result, or 'question? Recommendation: …'."""
+    body = discord_summary.clean_text(scrub(text), title).rstrip()
     end = "" if body.endswith((".", "?", "!", "…")) else "."
     if kind == ASK and recommendation:
-        body = f"{body}{end} Recommendation: {scrub(recommendation)}"
+        body = f"{body}{end} Recommendation: {discord_summary.clean_text(scrub(recommendation))}"
     if kind == DONE and paused_until:
         body = f"{body}{end} Paused until {scrub(paused_until)}."
-    return f"{kind} {short_title(title)}: {_short(body, MAX_TEXT_CHARS)}"
+    return body
 
+def build_message(kind: str, title: str, body: str) -> str:
+    """One compact push with exactly one icon: '✅ title: result.' or '❓ title: decision. Recommendation: …'."""
+    return f"{kind} {short_title(title)}: {body}"
+
+def rejection_path(root: Path, chat_id: str) -> Path:
+    return root / REJECTION_LOG / f"{chat_id}.json"
+
+def rejection_count(root: Path, chat_id: str, kind: str) -> int:
+    """How many too-long rewrites this chat already got for this kind of push."""
+    try:
+        return int(json.loads(rejection_path(root, chat_id).read_text(encoding="utf-8")).get(kind, 0))
+    except (OSError, ValueError, AttributeError):
+        return 0
+
+def write_rejections(root: Path, chat_id: str, kind: str, count: int) -> None:
+    path = rejection_path(root, chat_id)
+    try:
+        counts = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        counts = {}
+    counts[kind] = count
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(counts), encoding="utf-8")
+
+def shorten_with_model(text: str, limit: int,
+                       run: Callable[..., subprocess.CompletedProcess] = subprocess.run) -> str:
+    """One cheap model call (headless ``claude -p`` on the platform login, never a user's) that shortens ``text``.
+
+    ``text`` must already be scrubbed. Raises discord_summary.ShortenFailed when the CLI is missing,
+    times out, fails or answers nothing."""
+    system = (f"Rewrite the user's text as one short sentence of at most {limit} characters, in plain words, "
+              "no markdown, no ids, no lists. Keep the outcome and, if present, the 'Recommendation:' part. "
+              "Answer with the sentence only.")
+    command = ["claude", "-p", "--model", SHORTEN_MODEL, "--no-session-persistence", "--tools", "",
+               "--setting-sources", "", "--max-budget-usd", SHORTEN_BUDGET_USD, "--system-prompt", system]
+    try:
+        with tempfile.TemporaryDirectory() as neutral:  # no project instructions are loaded
+            done = run(command, input=text, capture_output=True, text=True, timeout=SHORTEN_TIMEOUT, cwd=neutral)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise discord_summary.ShortenFailed(type(error).__name__) from error
+    answer = done.stdout.strip()
+    if done.returncode != 0 or not answer:
+        raise discord_summary.ShortenFailed(f"claude exit {done.returncode}")
+    return answer
 
 def marker_path(root: Path, chat_id: str) -> Path:
     return root / "logs" / "claude-idle-chats" / "questions" / f"{chat_id}.json"
@@ -268,7 +302,19 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
     recommendation = getattr(args, "recommendation", None) or ""
     _, task_text = session_info(root, chat_id)
     title = os.environ.get("CLAUDE_CHAT_TITLE") or task_text
-    message = build_message(kind, title, text, recommendation, getattr(args, "paused_until", None) or "")
+    limit = discord_summary.SUMMARY_MAX if kind == DONE else discord_summary.ASK_MAX
+    body = build_body(kind, text, recommendation, getattr(args, "paused_until", None) or "", title)
+    rejections = rejection_count(root, chat_id, kind) if chat_id else discord_summary.MAX_REJECTIONS
+    try:
+        body = discord_summary.fit(
+            body, limit, rejections=rejections, shorten=shorten_with_model,
+            what="the summary" if kind == DONE else "question plus recommendation",
+            note=lambda line: print(f"agent_question: {line}", file=sys.stderr))
+    except discord_summary.SummaryTooLong:
+        if chat_id and not args.dry_run:
+            write_rejections(root, chat_id, kind, rejections + 1)
+        raise
+    message = build_message(kind, title, body)
     if args.dry_run:
         return message
     if not chat_id:
@@ -284,6 +330,7 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
     if getattr(args, "paused_until", None):
         marker["paused_until"] = args.paused_until  # parked: the chat lifecycle stops it but does not archive it
     path.write_text(json.dumps(marker), encoding="utf-8")
+    write_rejections(root, chat_id, kind, 0)
     return message
 
 
@@ -292,10 +339,10 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     done_parser = sub.add_parser("done", help="✅ the chat finished (or parked / paused itself); put open "
                                  "follow-ups in its Task first: a done chat is archived when its turn ends")
-    done_parser.add_argument("--summary", required=True, help="one or two sentences: what changed or the result")
+    done_parser.add_argument("--summary", required=True, help="one short sentence, under 110 characters: the result, no ids or markdown")
     done_parser.add_argument("--paused-until", help="parked or paused: the date it resumes")
     ask_parser = sub.add_parser("ask", help="❓ the chat is blocked on a decision of the user")
-    ask_parser.add_argument("--question", required=True, help="one or two sentences: the decision needed")
+    ask_parser.add_argument("--question", required=True, help="the decision as one short question; question plus recommendation under 120 characters")
     ask_parser.add_argument("--recommendation")
     ask_parser.add_argument("--option", action="append", help="logged for the connector; not sent")
     for each in (done_parser, ask_parser):
@@ -305,7 +352,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         message = send(args, canonical_root(), os.environ.get("CLAUDE_CODE_SESSION_ID", ""), time.time())
-    except QuestionError as error:
+    except (QuestionError, discord_summary.SummaryTooLong) as error:
         print(f"agent_question: {error}", file=sys.stderr)
         return 1
     print(message if args.dry_run else ("Done push sent." if args.command == "done" else "Question sent."))

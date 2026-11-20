@@ -128,11 +128,17 @@ def _zellij_env() -> dict[str, str]:
 # Discord exactly once when it is done or blocked, in the same compact format (scripts/agent_question.py).
 PUSH_RULE = (
     "Discord: send exactly one push when you finish or stop for any reason (✅, after any open follow-up is in your "
-    "Task: python3 scripts/agent_question.py "
-    "done --summary \"<1-2 sentences: what changed or the result>\"; parked or paused: add --paused-until DATE) and "
-    "one when you are blocked on the owner (❓: python3 scripts/agent_question.py ask --question \"<the decision>\" "
-    "--recommendation \"<yours>\"), then stop. Never for progress, never both for one event; blocked and later "
-    "finished is one ❓ then one ✅.")
+    "Task: python3 scripts/agent_question.py done --summary \"<one sentence, under 110 characters>\"; parked or "
+    "paused: add --paused-until DATE) and one when you are blocked on the owner (❓: python3 "
+    "scripts/agent_question.py ask --question \"<the decision>\" --recommendation \"<yours>\", question plus "
+    "recommendation under 120 characters), then stop. Never for progress, never both for one event; blocked and "
+    "later finished is one ❓ then one ✅. The push is read on a phone lock screen: you write the short text "
+    "yourself, plain words, no markdown, no ids, no icon (the script adds one), no list, no details (they belong "
+    "in the chat and its Task). Over the limit the script rejects it; rewrite it shorter. Bad: \"Check production "
+    "health now: ✅ Production is healthy: emails are going out (Brevo accepted sends at 12:14 and 12:34 UTC, Brevo "
+    "API reachable from prod, no send errors); both alerts were false alarms - ...\". Good: \"Production is "
+    "healthy: both alerts were false alarms (Brevo stats timeout, runner error). No fix needed.\" Good ask: "
+    "\"Quietly ignore resent messages?\" with recommendation \"yes\".")
 
 
 def with_push_rule(prompt: str) -> str:

@@ -74,13 +74,24 @@ when a skill or this file points to it.
   remains, ask one question per message with `Recommendation:` (evidence-based,
   else the safest reversible default) and `Examples:`. Clear requests: just do it.
   Put a blocking question first in the reply, not at the end of a report.
-- Discord: every chat sends exactly one push (1-2 sentences) when it is done
-  or blocked on the user, never for progress and never both for one event
-  (blocked, later finished: one ❓, then one ✅). Done, also parked or paused:
+- Discord: every chat sends exactly one push when it is done or blocked on the
+  user, never for progress and never both for one event (blocked, later finished:
+  one ❓, then one ✅). It is read on a phone lock screen, so you write the short
+  text yourself: one sentence, done under 110 characters, ask (question plus
+  recommendation) under 120; plain words, no markdown, ids, icon (the script adds
+  one) or list; details stay in the chat and its Task. Too long = rejected, rewrite
+  it shorter (after two rejections a cheap model shortens it, then it is cut).
+  Done, also parked or paused:
   `python3 scripts/agent_question.py done --summary "..." [--paused-until DATE]`;
   put open follow-ups in the Task first, since a done chat is archived at its turn end.
   Blocked: `python3 scripts/agent_question.py ask --question "..."
   --recommendation "..."`.
+  Good: "Production is healthy: both alerts were false alarms (Brevo stats
+  timeout, runner error). No fix needed." Bad: "Check production health now: ✅
+  Production is healthy: emails are going out (Brevo accepted sends at 12:14 and
+  12:34 UTC, Brevo API reachable from prod, no send errors); both alerts were …"
+  (long, cut off, two icons, details). Good ask: "Quietly ignore resent
+  messages?" + recommendation "yes".
 - Size the record to the risk: trivial → none; ordinary → inline goal + acceptance
   criteria; auth, encryption, billing, privacy, teams/sharing, permissions, sync,
   AI pipeline, provider integrations, migrations, new API routes, app skills,

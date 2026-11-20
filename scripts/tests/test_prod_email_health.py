@@ -111,8 +111,8 @@ def test_failure_message_names_each_reason_without_secrets():
         "brevo_account": {"ok": False, "reason": "Brevo account check HTTP 401: unrecognised IP address"},
     }}
     message = health.format_message(result, "failure")
-    assert "Prod email check FAILED" in message
-    assert "- Brevo account check HTTP 401" in message
+    assert message.startswith("🚨 ") and "Prod email failing" in message
+    assert "Brevo account check HTTP 401" in message and len(message) <= 140 and "\n" not in message
     assert "api-key" not in message
 
 
