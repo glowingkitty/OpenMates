@@ -428,6 +428,7 @@ def reject_inherited_accounts():
         "TEST_ACCOUNT",
         "OPENMATES_TEST_ACCOUNT_",
         "E2E_SIGNUP_INVITE_CODE",
+        "E2E_SIGNUP_GIFT_CARD_CODE",
         "OPENMATES_CLI_SIGNUP_",
     )
     if any(key.startswith(prefixes) for key in os.environ):
@@ -1536,6 +1537,17 @@ def provision_account(
         token,
     )
     mapped["E2E_SIGNUP_INVITE_CODE"] = fixture_invite
+    # One single-use gift card per provisioned set, redeemed through the product's
+    # own /#gift-card= signup link, so a fresh signup can use paid features (voice
+    # calls) without patching balances. Only the disposable database holds it.
+    gift_chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    gift_code = "-".join("".join(secrets.choice(gift_chars) for _ in range(4)) for _ in range(3))
+    request(
+        "http://localhost:8055/items/gift_cards",
+        {"code": gift_code, "credits_value": FIXTURE_CREDITS, "notes": "isolated CI signup fixture"},
+        token,
+    )
+    mapped["E2E_SIGNUP_GIFT_CARD_CODE"] = gift_code
     mapped["OPENMATES_CLI_SIGNUP_INVITE_CODE"] = fixture_invite
     mapped["OPENMATES_STATE_DIR"] = env["OPENMATES_STATE_DIR"]
     accept_fixture_credits(mapped)
