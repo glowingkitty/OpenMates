@@ -29,7 +29,10 @@ from backend.shared.python_utils.calendar_action_journal import calendar_undo_pa
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
-from backend.apps.ai.processing.specialised_skill_preference import specialised_first_instruction
+from backend.apps.ai.processing.specialised_skill_preference import (
+    empty_specialised_result_note,
+    specialised_first_instruction,
+)
 from backend.apps.ai.processing.preprocessor import (
     PreprocessingResult, _history_has_loaded_image_blocks,
     _image_reference_consumer_skills, _request_has_image_upload_embed,
@@ -11563,9 +11566,17 @@ async def handle_main_processing(
                             else None
                         )
 
+                        _fallback_note = empty_specialised_result_note(
+                            tool_name, allowed_tool_names, filtered_results_with_refs,
+                        )
+                        if _fallback_note:
+                            logger.info(f"{log_prefix} [SPECIALISED_FIRST] '{tool_name}' found nothing; web search named as fallback")
+
                         if len(filtered_results_with_refs) == 1 and not shopping_visual_metadata:
                             # Single result - flatten and encode filtered result as TOON for LLM inference
                             flattened_result = _flatten_for_toon_tabular(filtered_results_with_refs[0])
+                            if _fallback_note:
+                                flattened_result["fallback_hint"] = _fallback_note
                             if _sq_hint:
                                 flattened_result["source_quote_hint"] = _sq_hint
                             flattened_result["embed_ref_hint"] = _ref_hint
@@ -11577,6 +11588,8 @@ async def handle_main_processing(
                             # Flattening enables TOON to use tabular format for uniform objects
                             flattened_results = [_flatten_for_toon_tabular(result) for result in filtered_results_with_refs]
                             toon_wrapper: Dict[str, Any] = {"results": flattened_results, "count": len(filtered_results_with_refs)}
+                            if _fallback_note:
+                                toon_wrapper["fallback_hint"] = _fallback_note
                             if shopping_visual_metadata:
                                 toon_wrapper.update(_flatten_for_toon_tabular(shopping_visual_metadata))
                             if _sq_hint:

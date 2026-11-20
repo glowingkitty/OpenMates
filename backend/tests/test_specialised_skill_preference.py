@@ -4,7 +4,10 @@
 
 from __future__ import annotations
 
-from backend.apps.ai.processing.specialised_skill_preference import specialised_first_instruction
+from backend.apps.ai.processing.specialised_skill_preference import (
+    empty_specialised_result_note,
+    specialised_first_instruction,
+)
 
 OFFERED = {"events-search", "web-search", "web-browse", "news-search", "images-search", "videos-search"}
 
@@ -38,3 +41,21 @@ def test_explicit_skill_requests_keep_their_own_instruction() -> None:
     assert specialised_first_instruction(
         {"events-search", "web-search"}, OFFERED, explicit_request=True,
     ) is None
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_empty_specialised_result_names_web_search_as_the_fallback() -> None:
+    note = empty_specialised_result_note("events-search", OFFERED, [{"id": "1", "results": []}])
+    assert note is not None and "`web-search`" in note and "instead of from memory" in note
+    assert empty_specialised_result_note("events-search", OFFERED, []) == note
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_no_fallback_note_when_results_exist_or_web_search_is_not_offered() -> None:
+    assert empty_specialised_result_note("events-search", OFFERED, [{"id": "1", "results": [{"title": "x"}]}]) is None
+    assert empty_specialised_result_note("events-search", {"events-search"}, [{"id": "1", "results": []}]) is None
+    # General retrieval never points to itself, and a failed request has its own error path.
+    assert empty_specialised_result_note("web-search", OFFERED, [{"id": "1", "results": []}]) is None
+    assert empty_specialised_result_note("news-search", OFFERED, [{"id": "1", "results": []}]) is None
+    assert empty_specialised_result_note(
+        "events-search", OFFERED, [{"id": "1", "results": [], "error": "unavailable"}]) is None

@@ -13,6 +13,7 @@ answer model calls them first and keeps web search as the fallback.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import Any
 
 # Broad retrieval skills that a specialised skill should come before.
 GENERAL_WEB_SKILLS: frozenset[str] = frozenset({"web-search", "web-browse"})
@@ -55,4 +56,32 @@ def specialised_first_instruction(
         f"what the user asks, call it first instead of {fallback}. Use {fallback} only for parts "
         "no specialised skill covers, or as a fallback when the specialised skill returns "
         "nothing useful."
+    )
+
+
+def _found_nothing(results: Iterable[Any]) -> bool:
+    """True when a finished skill call produced no items: no rows, or only empty request groups."""
+    rows = list(results)
+    for row in rows:
+        if not isinstance(row, dict) or "results" not in row:
+            return False
+        if row.get("error") or row.get("results"):
+            return False
+    return True
+
+
+def empty_specialised_result_note(tool_name: str, offered_skills: Iterable[str], results: Iterable[Any]) -> str | None:
+    """Tell the answer model to fall back to web search after a specialised skill found nothing.
+
+    The owner rule keeps web search as the fallback, but an empty specialised
+    result alone led the model to answer from memory (largest open source
+    conference question: ``events-search`` found no upcoming dated edition).
+    """
+    if tool_name in GENERAL_WEB_SKILLS or tool_name.split("-", 1)[0] in GENERAL_APPS:
+        return None
+    if "web-search" not in set(offered_skills) or not _found_nothing(results):
+        return None
+    return (
+        f"`{tool_name}` found nothing for this request. Call `web-search` now for the parts it should have "
+        "answered, and answer from those results instead of from memory."
     )

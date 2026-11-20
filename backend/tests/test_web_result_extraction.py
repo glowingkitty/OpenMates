@@ -169,7 +169,11 @@ def test_routing_hint_names_the_web_source_only_next_to_a_provider_hint():
     overlay._add_web_source_hint("events", skill)
     hint = skill["preprocessor_hint"]
     assert hint.endswith(" Search events in a city.") and "public web pages" in hint
-    assert hint.startswith("Prefer this over web search")
+    # Stage-one app routing reads only the first ~100 characters of the first sentence: that
+    # sentence alone says what the skill finds and that it beats web search.
+    first_sentence = hint.split(". ", 1)[0]
+    assert len(first_sentence) <= 100 and first_sentence.startswith("Find events and conferences")
+    assert "prefer this over web search" in first_sentence
     bare = {"id": "search"}
     overlay._add_web_source_hint("events", bare)
     other = {"id": "search_stays", "preprocessor_hint": "Stays."}
@@ -214,3 +218,19 @@ def test_events_app_declares_reachable_installed_provider_descriptions():
     overlay._apply_installed_descriptions(skill)
     requests = skill["tool_schema"]["properties"]["requests"]
     assert "Europe" in requests["description"] and "unavailable" not in requests["description"]
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
+def test_open_ended_event_search_also_looks_for_next_years_edition() -> None:
+    from datetime import date
+
+    today = date(2026, 11, 20)
+    request = {"query": "Example conference", "location": "Example City"}
+    # Late in a year the next edition of an annual event is dated the year after the start date.
+    assert extraction.search_query(extraction.KIND_EVENT, {**request, "start_date": "2026-11-20T20:00:00+01:00"},
+                                   today) == "Example conference Example City 2026 2027"
+    assert extraction.search_query(extraction.KIND_EVENT, request, today) == "Example conference Example City 2026 2027"
+    # A window that ends in its start year stays in that year.
+    assert extraction.search_query(extraction.KIND_EVENT, {**request, "start_date": "2026-03-01",
+                                                           "end_date": "2026-06-30"}, today) == \
+        "Example conference Example City 2026"

@@ -353,7 +353,12 @@ def search_query(kind: str, request: Mapping[str, Any], today: date) -> str:
     if kind == KIND_EVENT:
         parts.append(str(request.get("location") or "").strip())
         start = str(request.get("start_date") or "")[:4]
-        parts.append(start if start.isdigit() else f"{today.year} {today.year + 1}")
+        end = str(request.get("end_date") or "")[:4]
+        first = int(start) if start.isdigit() else today.year
+        # An open-ended window also covers the next year: late in a year the next edition of an
+        # annual event is dated the year after the start date.
+        last = int(end) if end.isdigit() and int(end) >= first else first + 1
+        parts.append(" ".join(str(year) for year in range(first, min(last, first + 1) + 1)))
     else:
         parts.append("buy price")
     return " ".join(part for part in parts if part)[:300]
