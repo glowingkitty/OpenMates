@@ -67,6 +67,7 @@ from backend.apps.ai.processing.use_case_routing import (
     normalize_use_case, use_case_model_candidates, use_case_thinking_level,
 )
 from backend.apps.ai.processing.ai_model_topic_routing import complete_ai_model_topics
+from backend.apps.ai.processing.workflow_preprocessing import workflow_deterministic_preprocessing_arguments
 from backend.apps.ai.processing.model_routing import (
     HIGH_TIER,
     MERCURY_MODEL,
@@ -3568,19 +3569,7 @@ async def handle_preprocessing(
         # The Workflow graph already chose the source app and values. Keep credit,
         # safety, model, and language handling below, but skip classification AI.
         llm_call_result = LLMPreprocessingCallResult(
-            arguments={
-                "harmful_or_illegal": 0,
-                "misuse_risk": 0,
-                "category": "general_knowledge",
-                "topic_area": "general",
-                "complexity": LOW_TIER,
-                "relevant_app_skills": [],
-                "relevant_focus_modes": [],
-                "relevant_embedded_previews": [],
-                "load_app_settings_and_memories": [],
-                "output_language": user_system_language,
-                "llm_response_temp": 0.4,
-            },
+            arguments=workflow_deterministic_preprocessing_arguments(user_system_language),
             raw_provider_response_summary={"purpose": "workflow_deterministic_preprocessing", "generated_text": False},
         )
     elif llm_call_result is None and decision_model and not early_route_failed:
