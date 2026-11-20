@@ -1542,7 +1542,8 @@ def provision_account(
     # signup with this invite accepts its gift through the product's own
     # /v1/auth/accept-gift, so paid features (voice calls) work without patching
     # balances. Only the disposable database holds it.
-    gifted_invite = secrets.token_hex(9)
+    gifted_chars = secrets.token_hex(6).upper()
+    gifted_invite = f"{gifted_chars[:4]}-{gifted_chars[4:8]}-{gifted_chars[8:]}"
     request(
         "http://localhost:8055/items/invite_codes",
         {"code": gifted_invite, "remaining_uses": 1, "is_admin": False, "gifted_credits": FIXTURE_CREDITS},
