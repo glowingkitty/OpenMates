@@ -52,6 +52,7 @@
   import { chatNavigationStore, navigatePrev, navigateNext } from '../stores/chatNavigationStore';
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
   import { resolveHeaderSwipeNavigation } from './headerSwipeNavigation';
+  import { headerBubbleFocusChildEmbedId } from './headerImageBubbleKey';
   import WorkspaceDetailHeader from './workspace/WorkspaceDetailHeader.svelte';
 
   // ─── Props ─────────────────────────────────────────────────────────────────
@@ -719,7 +720,7 @@
     dispatchEmbedFullscreen({
       embedId: bubble.parentEmbedId,
       embedType: 'app-skill-use',
-      focusChildEmbedId: bubble.childEmbedId,
+      focusChildEmbedId: headerBubbleFocusChildEmbedId(bubble.childEmbedId),
       hasChatContext: true,
     });
   }

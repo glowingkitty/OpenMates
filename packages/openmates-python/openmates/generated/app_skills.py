@@ -1502,12 +1502,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'events',
   'app_namespace_py': 'events',
   'app_namespace_ts': 'events',
-  'description': 'Prefer this over web search for any question about upcoming events or '
-                 'conferences, anywhere: in a city, a country, a region such as Europe, or '
-                 'worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3 and '
-                 '37C3, from their official schedules (set conference only for those). Without a '
-                 'city give only a topic query. Include past_events only when requested. Never '
-                 'retry another source or fall back to web search.',
+  'description': 'Find events and conferences and when and where they happen, anywhere; prefer '
+                 'this over web search. Use for upcoming events in a city, a country, a region '
+                 'such as Europe, or worldwide, for the largest or best-known conference on a '
+                 'topic, and for the dates of a named conference. Results come from public web '
+                 'pages and, for GPN24, 39C3, 38C3 and 37C3, from their official schedules (set '
+                 'conference only for those). Without a city give only a topic query. Include '
+                 'past_events only when requested. Never',
   'description_key': 'events.search.description',
   'output_schema': {'properties': {'events': {'example': [{'canonical_url': 'https://example.invalid/events/ai',
                                                            'date_end': '2026-09-23T20:00:00+02:00',
@@ -11173,7 +11174,7 @@ class EventsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Prefer this over web search for any question about upcoming events or conferences, anywhere: in a city, a country, a region such as Europe, or worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3 and 37C3, from their official schedules (set conference only for those). Without a city give only a topic query. Include past_events only when requested. Never retry another source or fall back to web search.
+        """Find events and conferences and when and where they happen, anywhere; prefer this over web search. Use for upcoming events in a city, a country, a region such as Europe, or worldwide, for the largest or best-known conference on a topic, and for the dates of a named conference. Results come from public web pages and, for GPN24, 39C3, 38C3 and 37C3, from their official schedules (set conference only for those). Without a city give only a topic query. Include past_events only when requested. Never
 
         Description key: events.search.description
         Skill: events/search

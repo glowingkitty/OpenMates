@@ -1933,8 +1933,7 @@
             }
             
             console.debug('[MessageInput] Updated editor from markdown:', {
-                length: markdown.length,
-                preview: markdown.substring(0, 100)
+                length: markdown.length
             });
             
         } catch (error) {
@@ -2049,7 +2048,7 @@
                         const youtubePattern = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
                         if (block.content && youtubePattern.test(block.content)) {
                             className = 'unclosed-block-video';
-                            console.debug('[MessageInput] Detected YouTube URL in url block, using video highlight color (red):', block.content.substring(0, 50));
+                            console.debug('[MessageInput] Detected YouTube URL in url block, using video highlight color (red)');
                         } else {
                             className = 'unclosed-block-url';
                         }
@@ -5760,8 +5759,7 @@
 
             console.info('[MessageInput] Paste as text: replacing embed with text', {
                 type: attrs.type,
-                textLength: textContent.length,
-                preview: textContent.substring(0, 50)
+                textLength: textContent.length
             });
 
             // For web / video URL embeds: add the URL to the ignore list so that
@@ -6501,8 +6499,7 @@
                 sessionStorage.setItem('pendingDraftAfterSignup', JSON.stringify(draftData));
                 console.debug('[MessageInput] Saved draft to sessionStorage for restoration after signup:', {
                     chatId: draftData.chatId,
-                    markdownLength: markdown.length,
-                    preview: markdown.substring(0, 50) + '...'
+                    markdownLength: markdown.length
                 });
             } catch (error) {
                 console.error('[MessageInput] Failed to save draft to sessionStorage:', error);
@@ -7246,8 +7243,7 @@
     export function setOriginalMarkdown(markdown: string) {
         originalMarkdown = markdown;
         console.debug('[MessageInput] Set original markdown from draft:', {
-            length: markdown.length,
-            preview: markdown.substring(0, 100)
+            length: markdown.length
         });
     }
 

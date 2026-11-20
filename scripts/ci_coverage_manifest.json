@@ -711,6 +711,7 @@
         "new-chat-pinned-sort.spec.ts",
         "personal-account-model-loading.spec.ts",
         "pii-detection-flow.spec.ts",
+        "pii-slow-detector-send.spec.ts",
         "pii-placeholder-rewrite.spec.ts",
         "share-chat-flow.spec.ts",
         "source-quote-verification.spec.ts",

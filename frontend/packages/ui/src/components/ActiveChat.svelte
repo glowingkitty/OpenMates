@@ -7269,7 +7269,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 if (currentText !== liveInputText) {
                     liveInputText = currentText;
                     console.debug('[ActiveChat] Synced liveInputText after draft save:', { 
-                        text: currentText, 
                         length: currentText.length 
                     });
                 }
@@ -12311,7 +12310,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             if (currentText.trim().length > 0) {
                                 liveInputText = currentText;
                                 console.debug('[ActiveChat] Synced liveInputText after draft save event (editor has content):', { 
-                                    text: currentText, 
                                     length: currentText.length 
                                 });
                             } else if (liveInputText.trim().length === 0) {

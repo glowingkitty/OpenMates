@@ -7,6 +7,9 @@ import { createWebPIINetworkBroker, type WebPIIBrokerFailure } from './webPIINet
 import { buildWebPIIWindows, mergeWebPIIWindowEntities } from './webPIIWindows';
 
 export const WEB_PII_ASSET_BASE = '/pii-runtime/redact-4.1.0-litert-2.6.0/';
+// Composer previews only: a preview that misses this budget keeps the basic
+// highlights. A send never uses it: the message waits for the model and is not
+// sent when the model fails (owner decision 2026-11-20, TASK-6594).
 export const WEB_PII_SCAN_BUDGET_MS = 2_500;
 // The SDK uses 256-token windows. Keep enhancement limited to short inputs;
 // 2,048 UTF-16 code units is roughly two windows of typical prose, not a token
@@ -17,8 +20,8 @@ export const WEB_PII_MAX_ENHANCED_CHARS = 2_048;
 // a loaded host). Text past the budget keeps the basic detector's result.
 export const WEB_PII_DOCUMENT_BUDGET_MS = 30_000;
 export const WEB_PII_MAX_DOCUMENT_CHARS = 200_000;
-export interface WebPIIScanContext { purpose?: 'preview' | 'send' | 'document'; deadline?: number; enhancedEnabled?: boolean }
-/** Share one lazily started budget across every text field in a captured send. */
+export interface WebPIIScanContext { purpose?: 'preview' | 'send' | 'document'; deadline?: number; enhancedEnabled?: boolean; failureRetried?: boolean }
+/** One captured send: every text field waits for the model, without a time budget. */
 export function createWebPIIScanContext(): WebPIIScanContext { return { purpose: 'send', enhancedEnabled: isWebPIIModelEnabled() }; }
 /** One budget for every text field of a pasted or attached document. */
 export function createWebPIIDocumentScanContext(): WebPIIScanContext { return { purpose: 'document', enhancedEnabled: isWebPIIModelEnabled() }; }
@@ -229,8 +232,14 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
   const enhancementEnabled = isWebPIIModelEnabled();
   context.enhancedEnabled ??= enhancementEnabled;
   if (!text) return [];
-  const operationGeneration = generation;
   const purpose = context.purpose ?? 'send';
+  const isSend = purpose === 'send';
+  // A new send is the user's retry after a failed detector: start it once more.
+  if (isSend && failure && enhancementEnabled && context.enhancedEnabled && !context.failureRetried) {
+    context.failureRetried = true;
+    resetWebPIIDetector();
+  }
+  const operationGeneration = generation;
   const snapshot: PIIDetectionOptions = {
     excludedIds: options.excludedIds ? new Set(options.excludedIds) : undefined,
     disabledCategories: options.disabledCategories ? new Set(options.disabledCategories) : undefined,
@@ -247,19 +256,27 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
     if (activeScan?.purpose === 'preview' && activeScan.phase === 'loading') activeScan.resolve([]);
     for (let i = queue.length - 1; i >= 0; i--) if (queue[i].purpose === 'preview') queue.splice(i, 1)[0].resolve([]);
   }
-  if (failure) return basic;
+  // A send never falls back to basic-only matches: names and addresses would
+  // leave unprotected. Its caller blocks the send and offers a retry instead.
+  if (failure) { if (isSend) throw failure; return basic; }
   const isDocument = purpose === 'document';
-  if (text.length > (isDocument ? WEB_PII_MAX_DOCUMENT_CHARS : WEB_PII_MAX_ENHANCED_CHARS)) {
+  if (text.length > (isPreview(purpose) ? WEB_PII_MAX_ENHANCED_CHARS : WEB_PII_MAX_DOCUMENT_CHARS)) {
+    if (isSend) throw new Error('The message is too long for the private data check.');
     state.set({ ...get(state), fallbackReason: 'size' });
     return basic;
   }
-  context.deadline ??= Date.now() + (isDocument ? WEB_PII_DOCUMENT_BUDGET_MS : WEB_PII_SCAN_BUDGET_MS);
+  context.deadline ??= isSend ? Number.POSITIVE_INFINITY
+    : Date.now() + (isDocument ? WEB_PII_DOCUMENT_BUDGET_MS : WEB_PII_SCAN_BUDGET_MS);
   const remaining = context.deadline - Date.now();
   if (remaining <= 0) {
     state.set({ ...get(state), fallbackReason: 'timeout' });
     return basic;
   }
-  if (queue.length >= 32) { state.set({ status: 'error' }); return basic; }
+  if (queue.length >= 32) {
+    state.set({ status: 'error' });
+    if (isSend) throw new Error('Private data detection is busy.');
+    return basic;
+  }
   try {
     const matches = await new Promise<PIIMatch[]>((resolve, reject) => {
       const scan: Scan = {
@@ -267,18 +284,20 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
         resolve(matches) { clearTimeout(timer); scan.phase = 'done'; resolve(matches); },
         reject(error) { clearTimeout(timer); scan.phase = 'done'; reject(error); },
       };
-      const timer = setTimeout(() => {
+      // A send has no deadline; the worker's own request timers still end a hung model.
+      const timer = Number.isFinite(remaining) ? setTimeout(() => {
         if (scan.phase === 'done' || operationGeneration !== generation) return;
         // Loading may be a slow first download: let it finish in the background.
-        // Only running inference must release its worker and model memory.
-        if (scan.phase === 'inference') failWorker(operationGeneration);
+        // Running document inference must release its worker and model memory. A
+        // slow preview only stops waiting: the send right after it needs that model.
+        if (scan.phase === 'inference' && purpose !== 'preview') failWorker(operationGeneration);
         else {
           const index = queue.indexOf(scan);
           if (index !== -1) queue.splice(index, 1);
           state.set({ ...get(state), fallbackReason: 'timeout' });
         }
         scan.reject(new Error('Enhanced private data detection exceeded its time budget'));
-      }, remaining);
+      }, remaining) : undefined;
       queue.push(scan);
       void drain();
     });
@@ -287,10 +306,12 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
   } catch (error) {
     // Logout, disabling protection and reset/retry invalidate ownership. Never
     // turn cancelled work into a successful fallback from an obsolete request.
-    if (operationGeneration !== generation) throw error;
+    if (operationGeneration !== generation || isSend) throw error;
     return basic;
   }
 }
+
+function isPreview(purpose: 'preview' | 'send' | 'document'): boolean { return purpose === 'preview'; }
 
 /** Settings disable/retry destroys all model and request memory. Asset cache stays. */
 export function resetWebPIIDetector(): void {

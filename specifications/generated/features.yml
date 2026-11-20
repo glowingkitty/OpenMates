@@ -221,8 +221,8 @@ features:
       assertions:
         passing: 2
         failing: 8
-        not_run: 4
-        missing: 10
+        not_run: 5
+        missing: 9
         counted: 24
       failing_tests:
       - frontend/apps/web_app/tests/ai-model-settings.spec.ts › AI settings overview, tier, provider, and model detail match
@@ -253,6 +253,7 @@ features:
       - frontend/apps/web_app/tests/components/glm-mistral-pricing.spec.ts
       - frontend/apps/web_app/tests/composer-model-routing.spec.ts
       - frontend/apps/web_app/tests/default-model-settings.spec.ts
+      - frontend/apps/web_app/tests/events-question-real.spec.ts
       - frontend/apps/web_app/tests/gpt61-sol-model-picker.spec.ts
       - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
       - frontend/apps/web_app/tests/mercury3-model-picker.spec.ts
@@ -354,8 +355,8 @@ features:
       key_unit_tests:
       - backend/tests/test_ai_model_routing.py
       - backend/tests/test_main_processor_invalid_tool_calls.py
-      - backend/tests/test_preprocessor.py
       - backend/tests/test_preprocessor_jev.py
+      - backend/tests/test_preprocessor.py
       - backend/tests/test_main_factual_prompt.py
       unit_test_files: 30
     sdk_npm:
@@ -7974,6 +7975,7 @@ features:
       - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
       - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
       - frontend/apps/web_app/tests/pii-placeholder-rewrite.spec.ts
+      - frontend/apps/web_app/tests/pii-slow-detector-send.spec.ts
       - frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
       - frontend/apps/web_app/tests/projects-flow.spec.ts
       - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts

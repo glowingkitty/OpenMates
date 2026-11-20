@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.pii-protection
-version: 4
+version: 5
 status: draft
 title: PII Placeholder Protection
 summary: >
@@ -96,7 +96,7 @@ assertions:
     depends_on: [models.WebEnhancedProtection, models.ComposerDetection, examples.web_enhanced_preference]
   - id: pii.web.local-bounded-inference
     type: privacy
-    must: Web enhancement processes message inputs and existing recording/transcript text locally, preserving encrypted owner mappings and exact restoration. Inputs above 2,048 UTF-16 code units use complete basic detection. Each send shares one lazy 2,500 ms enhancement budget across queueing, model readiness, exclusions and recording/message text. Slow asset loading can continue in the background; stalled inference releases its worker. Basic protection remains immediate and available on failure. Only current owner/document/settings results publish. The existing one-time fallback notification is used without adding a model status row. Audio services and document-upload protection retain their existing boundaries.
+    must: Web enhancement processes message inputs and existing recording/transcript text locally, preserving encrypted owner mappings and exact restoration. Composer previews of inputs above 2,048 UTF-16 code units use complete basic detection, and each preview is bounded by a 2,500 ms enhancement budget that never unloads the model. A send with enhancement on waits for the local model, without a time budget, however slow the device; the message is sent only after the model has checked every text field and active detections are replaced. If the model fails, a send first retries one fresh detector; when that also fails, or the text cannot be checked, nothing is sent, the draft stays in the composer and a short notice asks the user to try again. A send never falls back to basic-only protection while enhancement is on. Composer and draft logs record lengths only, never draft text, because admin, debug-session and dev log forwarding can send browser logs to the server. Slow asset loading can continue in the background; stalled preview inference releases its worker. Basic protection remains immediate for previews. Only current owner/document/settings results publish. Document checks keep their own bounded budget and basic fallback. Audio services and document-upload protection retain their existing boundaries.
     depends_on: [models.WebEnhancedProtection, models.ComposerDetection, models.PIIMapping, examples.web_bounded_inference]
   - id: pii.web.licensing-egress-boundary
     type: privacy

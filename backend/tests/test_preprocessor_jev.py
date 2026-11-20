@@ -36,6 +36,27 @@ def test_routing_catalogue_keeps_providers_from_every_skill_before_hint_truncati
     assert "internal" not in catalogue[0]
 
 
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_long_provider_list_and_authoring_note_never_hide_the_skill_relevance_hint():
+    # An operator can install many providers for one skill; their names and the
+    # authoring note must not push the "prefer over web search" hint past the cut.
+    skill = SimpleNamespace(
+        id="search",
+        preprocessor_hint="Find events and conferences and when and where they happen, anywhere; prefer this over web search. More.",
+        providers=[SimpleNamespace(name=f"provider_{index}", display_name=f"Example Provider Number {index}")
+                   for index in range(20)],
+    )
+    focus = "events-plan_conference_talk: Select when the user wants to give a talk at a conference. " + "x" * 300
+    catalogue = jev_preprocessing._app_catalogue(
+        ["events"], [preprocessor._skill_routing_candidate("events", skill)], [focus],
+        {"events.event": {"app_id": "events", "display_name": "Conference or event"}},
+        request_text="What is the largest open source software conference in Europe?",
+    )
+    assert len(catalogue[0]) <= jev_preprocessing.APP_SKETCH_CHARS
+    assert "prefer this over web search" in catalogue[0]
+    assert catalogue[0].startswith("events: capabilities search; plan conference talk focus")
+
+
 # contract-test: supporting surface=rest_api assertions=focus-modes.natural-request
 def test_stage_one_shows_every_focus_hint_and_leads_with_the_request_match():
     import yaml

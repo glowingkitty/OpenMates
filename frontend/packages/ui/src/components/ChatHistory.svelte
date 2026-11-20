@@ -121,6 +121,7 @@ import { storageArchiveFetch } from "../config/api";
   import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
   import { panelState } from '../stores/panelStateStore';
   import { chatSyncService } from '../services/chatSyncService';
+  import { headerPreviewBubbleKey } from './headerImageBubbleKey';
   import {
     NORMAL_MESSAGE_PAGE_LIMIT,
     pruneDecryptedMessageWindow,
@@ -218,6 +219,7 @@ import { storageArchiveFetch } from "../config/api";
     title?: string;
     image_url?: string;
     thumbnail_url?: string;
+    embed_id?: string;
   };
 
   interface InternalMessage {
@@ -688,7 +690,9 @@ import { storageArchiveFetch } from "../config/api";
           bubbles,
           seen,
           candidate.parentEmbedId,
-          `${candidate.parentEmbedId}:preview:${index}`,
+          // A preview row may name its stored child; otherwise this key only
+          // identifies the bubble and must never be requested as an embed.
+          parentPreviewResults[index].embed_id || headerPreviewBubbleKey(candidate.parentEmbedId, index),
         )) {
           return bubbles;
         }

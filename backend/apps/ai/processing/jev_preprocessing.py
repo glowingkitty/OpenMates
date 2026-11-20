@@ -170,7 +170,11 @@ def _app_catalogue(available_apps: Iterable[str], available_skills: Iterable[str
         authored = ", ".join(f"{kind} ({row['display_name']})" for kind, row in
                              (authoring_definitions or {}).items() if row["app_id"] == app_id)
         authoring_hint = f"Create result cards from research or supplied facts, independent of search availability: {authored}" if authored else ""
-        description = "; ".join(part for part in (authoring_hint, provider_hint, skills_and_focuses, example_hints) if part)
+        # The relevance hints decide whether stage one keeps the app, so they lead.
+        # The authoring note and the provider list come last: an operator's long
+        # installed-provider list must never push a skill's "prefer this over web
+        # search" hint past the cut below.
+        description = "; ".join(part for part in (skills_and_focuses, example_hints, authoring_hint, provider_hint) if part)
         # Apps with many focus modes get room for each focus hint instead of
         # silently dropping the later ones behind a fixed cut.
         limit = APP_SKETCH_CHARS + FOCUS_SKETCH_CHARS * max(0, len(focus_examples[app_id]) - 2)

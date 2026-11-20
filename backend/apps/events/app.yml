@@ -37,8 +37,9 @@ skills:
     description_translation_key: events.search.description
     icon_image: search.svg
     preprocessor_hint: >-
-      Prefer this over web search for any question about upcoming events or conferences, anywhere: in a city, a
-      country, a region such as Europe, or worldwide. Results come from public web pages and, for GPN24, 39C3, 38C3
+      Find events and conferences and when and where they happen, anywhere; prefer this over web search. Use for
+      upcoming events in a city, a country, a region such as Europe, or worldwide, for the largest or best-known
+      conference on a topic, and for the dates of a named conference. Results come from public web pages and, for GPN24, 39C3, 38C3
       and 37C3, from their official schedules (set conference only for those). Without a city give only a topic
       query. Include past_events only when requested. Never retry another source or fall back to web search.
     class_path: |
