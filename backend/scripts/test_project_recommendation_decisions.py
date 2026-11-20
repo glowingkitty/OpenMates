@@ -35,6 +35,7 @@ wf_text='For the existing disabled saved Workflow Incident completion notice, ad
 
 cases=[
  ('create-empty',{'history':history(create_text),'catalog':[]},CREATE,True),
+ ('create-explicit-after-memory',{'history':[{'role':'user','content':'Please create a Project Focus named "Add a new data source". It applies when I add a new data source or integration. Its process: research the official API, write the wrapper, add tests, and ask me before adding any dependency.'},{'role':'assistant','content':'I saved these steps as a Project Memory that applies whenever you add a new data source.'}],'catalog':[]},CREATE,True),
  ('create-one-off',{'history':[{'role':'user','content':'What is two plus two?'}],'catalog':[]},CREATE,False),
  ('create-overlap',{'history':history(update_text),'catalog':[focus]},CREATE,False),
  ('create-workflow-only',{'history':history(wf_text),'catalog':[wf]},CREATE,False),

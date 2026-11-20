@@ -877,3 +877,10 @@ async def test_project_recommendation_member_precheck_respects_team_holds():
         await billing.team_precheck("team-1", "member")
     with pytest.raises(TeamPermissionError):
         await billing.team_precheck("team-1", "viewer")
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-recommendation-catalog
+def test_create_focus_assessment_treats_an_explicit_focus_request_as_reusable_even_after_a_memory_save():
+    from backend.core.api.app.services.project_recommendation_service import CREATE_FOCUS_INSTRUCTIONS
+    assert "An explicit user request to create a Focus counts as an established reusable goal" in CREATE_FOCUS_INSTRUCTIONS
+    assert "a Memory never covers a requested Focus" in CREATE_FOCUS_INSTRUCTIONS

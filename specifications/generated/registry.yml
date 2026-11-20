@@ -788,7 +788,7 @@ specifications:
     version: 3
     status: draft
     path: features/focus-modes
-    fingerprint: ee5ecebc410797b0d6f6f9cd805979f8efb7e37733607f3f02c333ddb6782a81
+    fingerprint: 8a478d64c949ce9033154f38d2a9bb236c2a671acfa9b91d3afe836ee57d43f0
     required_applies_to:
     - rest_api
     - cli
@@ -10642,7 +10642,7 @@ assertions:
     specification: feature.focus-modes@3
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: 54381da13804a17a72dbc01dcc50608299372cb68f9aef622b64f39bd3f725f8
+    fingerprint: 1b2b2df54df700a4cedc51764e27de292c796e839a14fef108738e2460291b8e
     required_applies_to:
     - rest_api
     - cli

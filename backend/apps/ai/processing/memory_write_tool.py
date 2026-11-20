@@ -88,6 +88,10 @@ personal Memories. Use it for knowledge that belongs to this Project or company
 It creates a new Project Memory; to change an existing one, read its file in
 .openmates/memories with project_read_text and apply project_update_file. Say it
 was saved only after the Project file operation reports success.
+A request to create a Focus is not a Memory: never save it with save_memory or
+write it as a Project file. Restate the Focus goal and process in a few lines and
+tell the user to press the Create Focus suggestion shown below your answer, which
+drafts and saves the Focus.
 """
 
 

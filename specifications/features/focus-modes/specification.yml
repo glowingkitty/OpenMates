@@ -238,7 +238,9 @@ assertions:
     Focus catalog of titles and summaries, including inactive Focuses. It may select existing IDs for full inspection or recommend
     a useful non-overlapping new Project Focus and expose Create directly. A new Project Focus is not recommended for a goal a
     built-in focus mode already serves (the assessment also receives the names and descriptions of the built-in focus modes);
-    a Project-specific style for such a goal belongs in a Project Memory. Improvement proposals for public/app Focuses or
+    a Project-specific style for such a goal belongs in a Project Memory. An explicit user request to create a Focus is a
+    reusable goal that a Memory never covers; the assistant does not save it as a Memory or Project file but points to the
+    Create Focus suggestion, and the assessment recommends Create unless a catalog Focus covers it. Improvement proposals for public/app Focuses or
     personal/global Focuses outside Projects are excluded. Catalog assessment performs no generative authoring. Where the
     chat Recommendations card is shown, Project Focus Create/Update suggestions appear in it next to Memory and Workflow
     recommendations instead of a separate "Suggested Project improvements" block; the started job's progress and Save step
