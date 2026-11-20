@@ -293,12 +293,21 @@ impl<'a> Projects<'a> {
     }
     async fn prepare_create(&mut self, input: ProjectCreate) -> Result<(Value, Key)> {
         self.scope()?;
-        let wrapping = self
-            .backend
-            .wrapping(self.filters.team_id.as_deref())
-            .await?;
         let key = crypto::random_key();
-        let payload = encode_create(&input, &key, &wrapping, self.filters.team_id.as_deref())?;
+        let payload = match self.filters.team_id.clone() {
+            Some(team) => {
+                let wrapping = self.backend.wrapping(Some(&team)).await?;
+                encode_create(&input, &key, &wrapping, Some(&team))?
+            }
+            None => {
+                // Personal Projects wrap through the shell's master binding: the
+                // web Worker cannot export its master, so it wraps in WebCrypto
+                // and creates the Project without the optional slug index.
+                let wrapped = self.backend.wrap_with_master(&key[..]).await?;
+                let lookup = self.backend.slug_lookup_master().await?;
+                encode_create_wrapped(&input, &key, &wrapped, lookup.as_deref(), None)?
+            }
+        };
         Ok((payload, key))
     }
     pub async fn create(&mut self, input: ProjectCreate) -> Result<Value> {
@@ -613,6 +622,19 @@ fn encode_create(
     wrapping: &[u8; 32],
     team: Option<&str>,
 ) -> Result<Value> {
+    let wrapped = crypto::server_fields::encrypt_bytes(key, wrapping, &[])?;
+    encode_create_wrapped(input, key, &wrapped, Some(wrapping), team)
+}
+/// Create payload with an already wrapped Project key. `lookup` keys the
+/// private slug index (`encrypted_slug` + `slug_lookup_hash`); `None` omits
+/// both optional fields, as the web's TypeScript create always did.
+fn encode_create_wrapped(
+    input: &ProjectCreate,
+    key: &[u8; 32],
+    wrapped: &str,
+    lookup: Option<&[u8; 32]>,
+    team: Option<&str>,
+) -> Result<Value> {
     if input.name.trim().is_empty()
         || input.name.len() > 100_000
         || input.description.len() > 1_000_000
@@ -633,8 +655,11 @@ fn encode_create(
     let focus=input.default_focus.clone().unwrap_or_else(||ProjectDefaultFocus{focus_id:uuid::Uuid::new_v4().to_string(),name:format!("Work on {name}"),instructions:format!("Help with work in {name}. Follow the user's instructions and the Project's connected source guidance."),source:"generated".into()});
     validate_focus(&focus)?;
     let slug = crypto::normalize_object_slug(input.slug.as_deref().unwrap_or(name))?;
-    let wrapped = crypto::server_fields::encrypt_bytes(key, wrapping, &[])?;
-    let mut value = json!({"project_id":id,"encrypted_project_key":if team.is_none(){json!(wrapped)}else{Value::Null},"encrypted_name":crypto::server_fields::encrypt_text(name,key, &[])?,"encrypted_description":crypto::server_fields::encrypt_text(&input.description,key, &[])?,"encrypted_icon":crypto::server_fields::encrypt_text(input.icon.as_deref().unwrap_or("folder"),key, &[])?,"encrypted_color":crypto::server_fields::encrypt_text(input.color.as_deref().unwrap_or("default"),key, &[])?,"encrypted_slug":crypto::server_fields::encrypt_text(&slug,key, &[])?,"slug_lookup_hash":crypto::object_slug_lookup_hash(&slug,wrapping)?,"pinned":input.pinned,"created_at":now(),"updated_at":now(),"last_opened_at":now(),"write_mode":input.write_mode,"chat_organization_only":input.chat_organization_only,"default_focus_id":focus.focus_id,"encrypted_settings":crypto::server_fields::encrypt_text(&serde_json::to_string(&json!({"default_focus":focus}))?,key, &[])?,"key_wrappers":[]});
+    let mut value = json!({"project_id":id,"encrypted_project_key":if team.is_none(){json!(wrapped)}else{Value::Null},"encrypted_name":crypto::server_fields::encrypt_text(name,key, &[])?,"encrypted_description":crypto::server_fields::encrypt_text(&input.description,key, &[])?,"encrypted_icon":crypto::server_fields::encrypt_text(input.icon.as_deref().unwrap_or("folder"),key, &[])?,"encrypted_color":crypto::server_fields::encrypt_text(input.color.as_deref().unwrap_or("default"),key, &[])?,"pinned":input.pinned,"created_at":now(),"updated_at":now(),"last_opened_at":now(),"write_mode":input.write_mode,"chat_organization_only":input.chat_organization_only,"default_focus_id":focus.focus_id,"encrypted_settings":crypto::server_fields::encrypt_text(&serde_json::to_string(&json!({"default_focus":focus}))?,key, &[])?,"key_wrappers":[]});
+    if let Some(lookup) = lookup {
+        value["encrypted_slug"] = json!(crypto::server_fields::encrypt_text(&slug, key, &[])?);
+        value["slug_lookup_hash"] = json!(crypto::object_slug_lookup_hash(&slug, lookup)?);
+    }
     if let Some(team) = team {
         value["key_wrappers"] = json!([{"key_type":"team","hashed_team_id":hash(team),"team_key_epoch":1,"wrapper_version":1,"encrypted_project_key":wrapped,"created_at":now()}]);
     }
