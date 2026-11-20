@@ -4076,13 +4076,14 @@ async def handle_main_processing(
         # The standard 5-second countdown is skipped because the user explicitly chose this focus mode.
         try:
             from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+            from backend.shared.python_utils.focus_continuation_history import FOCUS_TIMER_QUEUE
             celery_app_instance.send_task(
                 'apps.ai.tasks.focus_mode_auto_confirm',
                 kwargs={
                     "chat_id": request_data.chat_id,
                     "request_id": fm_embed_id,
                 },
-                queue='app_ai',
+                queue=FOCUS_TIMER_QUEUE,
                 countdown=0,  # Immediate — user explicitly requested this focus mode, no countdown needed
             )
             logger.info(
@@ -6380,13 +6381,14 @@ async def handle_main_processing(
         try:
             from backend.core.api.app.tasks.celery_config import app as celery_app_instance
             from backend.apps.ai.tasks.focus_mode_auto_confirm_task import FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN
+            from backend.shared.python_utils.focus_continuation_history import FOCUS_TIMER_QUEUE
             celery_app_instance.send_task(
                 'apps.ai.tasks.focus_mode_auto_confirm',
                 kwargs={
                     "chat_id": request_data.chat_id,
                     "request_id": fm_embed_id,
                 },
-                queue='app_ai',
+                queue=FOCUS_TIMER_QUEUE,
                 countdown=0 if named_by_user else FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
             )
             # Positive live eligibility is a transient event, never embed metadata.

@@ -1029,7 +1029,7 @@ async def _recreate_fixture_embeds(
                     celery_app_instance.send_task(
                         "apps.ai.tasks.focus_mode_auto_confirm",
                         kwargs={"chat_id": request_data.chat_id},
-                        queue="app_ai",
+                        queue="app_ai_routing",  # focus timers use the short stage-one lane
                         countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
                     )
                     logger.info(
