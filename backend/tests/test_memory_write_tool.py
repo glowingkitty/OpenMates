@@ -379,3 +379,4 @@ def test_project_write_guidance_routes_focus_requests_to_create_focus_not_memori
     assert "A request to create a Focus is not a Memory" in text
     assert "never save it with save_memory" in text
     assert "Create Focus suggestion" in text
+    assert "Never write a link or button of your own" in text

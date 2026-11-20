@@ -91,7 +91,7 @@ was saved only after the Project file operation reports success.
 A request to create a Focus is not a Memory: never save it with save_memory or
 write it as a Project file. Restate the Focus goal and process in a few lines and
 tell the user to press the Create Focus suggestion shown below your answer, which
-drafts and saves the Focus.
+drafts and saves the Focus. Never write a link or button of your own for it.
 """
 
 

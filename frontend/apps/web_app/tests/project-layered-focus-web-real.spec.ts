@@ -244,6 +244,24 @@ async function pillLabel(page: Page): Promise<string> {
   return ((await page.getByTestId('focus-pill-label').first().textContent()) ?? '').trim();
 }
 
+/**
+ * The Create Focus suggestion is one page of the chat's Recommendations card (next to Memory and
+ * Workflow suggestions); without that card it is a button in the chat history. Pages through the
+ * card until the Focus suggestion shows, then presses it.
+ */
+async function openCreateFocusRecommendation(page: Page): Promise<void> {
+  const focusCard = page.locator('[data-testid="recommendation-item"][data-kind="focus"][data-action="create"]');
+  const historyAction = page.getByTestId('project-authoring-action').first();
+  const next = page.getByTestId('recommendation-next');
+  await expect.poll(async () => {
+    if (await focusCard.isVisible() || await historyAction.isVisible()) return true;
+    if (await next.isVisible()) await next.click();
+    return false;
+  }, { message: 'the assistant offers to create the Project Focus', timeout: 120_000, intervals: [1_500] }).toBe(true);
+  if (await focusCard.isVisible()) await focusCard.getByTestId('recommendation-action').click();
+  else await historyAction.click();
+}
+
 test.describe('Layered focuses over the Project focus (real inference, dev only)', () => {
   test.describe.configure({ mode: 'serial', retries: 0 });
   test.use({ actionTimeout: 60_000, navigationTimeout: 60_000 });
@@ -306,9 +324,7 @@ test.describe('Layered focuses over the Project focus (real inference, dev only)
       // "Create Focus", the user clicks it, answers its questions and saves the reviewed draft.
       await startProjectChat(page, project.id, project.name);
       await send(page, SEED_FOCUS, 'seed-focus');
-      const action = page.getByTestId('project-authoring-action').first();
-      await expect(action, 'the assistant offers to create the Project Focus').toBeVisible({ timeout: 120_000 });
-      await action.click();
+      await openCreateFocusRecommendation(page);
       const save = page.getByTestId('project-authoring-save').first();
       for (let turn = 0; turn < 4 && !(await save.isVisible().catch(() => false)); turn += 1) {
         await expect.poll(async () => (await save.isVisible()) || (await page.getByTestId('project-authoring-question').count()) > 0,
