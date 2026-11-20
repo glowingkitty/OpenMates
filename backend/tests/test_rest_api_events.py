@@ -131,7 +131,7 @@ async def test_a_large_listing_source_never_pushes_web_matches_out_before_rankin
     from backend.shared.python_utils.search_relevance import SearchRelevanceRankingResult
 
     instance, upstream = skill
-    listings = [{"title": f"City meetup {n}", "date_start": "2027-01-10", "url": f"https://example.org/meetup/{n}",
+    listings = [{"title": f"City listing {n}", "date_start": "2027-01-10", "url": f"https://example.org/listing/{n}",
                  "provider": "My provider"} for n in range(80)]
     conference = {"title": "Example conference 2027", "date_start": "2027-01-30", "date_end": "2027-01-31",
                   "url": "https://example.org/conference/2027/", "provider": "example.org"}
