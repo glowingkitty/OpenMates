@@ -394,16 +394,13 @@ skills:
         chat_import_sanitization_model: openai/gpt-oss-safeguard-20b
       # Typed decisions per purpose (backend/shared/providers/typesafe/routing.py). The first model is the
       # default; Jev after it is the automatic fallback on errors, timeouts and provider blocks. Unlisted
-      # purposes use `default`. Chosen from the Gemini-vs-Jev benchmark (TASK-1809): Gemini only where it is
-      # at least as accurate, adds no safety false negatives and is off the per-message path (its p95 is
-      # 2-9 s against Jev's ~0.25 s). Routed purposes must reach Jev through decision_client_for_policy so the
-      # user's AI settings can turn Google off. Safety, preprocessing, voice, browse and PDF stay on Jev.
+      # purposes use `default`. Every purpose is on Jev: the 2026-11-20 re-benchmark of Gemini Decision 1
+      # against Jev (TASK-4784) found Gemini still slower at median (1.3-2.3x) and p95 (1.7-4.7x), blocked some
+      # routing prompts, hit rate limits under bursts and was less accurate on web-browse control. List a
+      # purpose here as `[google/gemini-decision-1, typesafe/jev-1.14]` only after a benchmark shows it comparable.
+      # Routed purposes must reach Jev through decision_client_for_policy so the user's AI settings can turn Google off.
       decision_routing:
         default: [typesafe/jev-1.14]
-        purposes:
-          search_relevance: [google/gemini-decision-1, typesafe/jev-1.14]
-          shopping_visual_relevance: [google/gemini-decision-1, typesafe/jev-1.14]
-          result_photo_relevance: [google/gemini-decision-1, typesafe/jev-1.14]
       preprocessing_thresholds:
         harmful_content_score: 7
         misuse_risk_score: 8

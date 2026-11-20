@@ -31283,36 +31283,36 @@ assertions:
     current_direct_proof: false
   ai-model-routing.decisions.per-purpose-model-with-jev-fallback:
     specification: feature.ai-model-routing@13
-    fingerprint: 129a565c28f71b4944236b47bf658dcbd069ca9254d4c19176654b0fe721ad75
+    fingerprint: 6b145e494685a79bb1a8cffcadbfb98ef73612cd1deaff7ad81d9734c17d4f87
     direct_tests:
     - &id4007
       path: backend/tests/test_gemini_decision_routing.py
-      line: 82
-      name: test_repo_routes_only_reviewed_purposes_to_gemini
+      line: 94
+      name: test_repo_routes_every_purpose_to_jev
       surface: rest_api
     - &id4008
       path: backend/tests/test_gemini_decision_routing.py
-      line: 158
+      line: 170
       name: test_routed_purpose_is_answered_by_gemini_and_logged
       surface: rest_api
     - &id4009
       path: backend/tests/test_gemini_decision_routing.py
-      line: 177
+      line: 189
       name: test_gemini_failure_falls_back_to_jev
       surface: rest_api
     - &id4010
       path: backend/tests/test_gemini_decision_routing.py
-      line: 195
+      line: 207
       name: test_unrouted_or_pinned_clients_never_call_google
       surface: rest_api
     - &id4011
       path: backend/tests/test_gemini_decision_routing.py
-      line: 208
+      line: 220
       name: test_image_decision_sends_images_to_gemini
       surface: rest_api
     - &id4012
       path: backend/tests/test_gemini_decision_routing.py
-      line: 228
+      line: 240
       name: test_policy_that_turns_off_google_disables_gemini
       surface: rest_api
     supporting_tests: []

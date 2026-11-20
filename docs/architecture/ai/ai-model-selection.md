@@ -290,13 +290,16 @@ skipped when the caller pins a Jev provider, endpoint or version, or when the us
 Gemini Decision 1 or its server (`decision_client_for_policy` sets `allow_gemini=False`). Each decision logs
 `Decision decided: purpose=… model=… provider=…`, and a fallback logs `Decision fallback to Jev: purpose=… reason=…`.
 
-Only `search_relevance`, `shopping_visual_relevance` and `result_photo_relevance` start with Gemini today.
-The comparison script in `backend/scripts/` (suites in `backend/scripts/decision_bench/`, TASK-1809) runs
-both models on every decision task. Gemini's median latency was 0.3–2.8 s and its p95 1.6–9 s, against
-about 0.2 s and 0.25 s for Jev. It refused some safety prompts (`prohibited_content`), and on image safety,
-browse control and the postprocessing harm score it missed more unsafe cases. Safety, prompt-injection,
-preprocessing, postprocessing, voice-turn and browse decisions therefore stay on Jev. PDF upload checks also
-stay on Jev because they do not follow the user's AI settings.
+No purpose starts with Gemini today: every typed decision is answered by Jev. The comparison script in
+`backend/scripts/` (suites in `backend/scripts/decision_bench/`, TASK-1809, re-run 2026-11-20 as TASK-4784) runs
+both models on every decision task. The re-run found the launch-week latency (1.5 s median, 6 s p95) gone: Gemini's
+valid answers took 0.21-0.39 s median and 0.32-1.15 s p95, against 0.16-0.20 s and 0.18-0.24 s for Jev, so it is
+still 1.3-2.3x slower at the median and 1.7-4.7x at p95. It also refused some routing prompts
+(`prohibited_content`), was less accurate on web-browse control, missed critical unsafe cases in the postprocessing
+harm score, and returned `429` when a burst exceeded its per-minute token limit (the routing prompts average
+5,600-9,200 input tokens). Gemini was more accurate on prompt injection and the relevance judges, but not enough to
+outweigh the speed and reliability gap; add a purpose to `decision_routing` only after a new benchmark shows it
+comparable. PDF upload checks stay on Jev because they do not follow the user's AI settings.
 
 ## Server Region Policy
 

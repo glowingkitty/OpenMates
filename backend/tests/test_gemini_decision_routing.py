@@ -31,8 +31,20 @@ from backend.shared.providers.typesafe.client import TYPESAFE_DECISIONS_URL, Jev
 from backend.shared.python_utils.internal_llm_policy import InternalLlmPolicy
 
 ROUTED = "search_relevance"
+# Purposes the Gemini-first tests route to Gemini; the repo config keeps every purpose on Jev (TASK-4784).
+GEMINI_ROUTED_PURPOSES = ("search_relevance", "shopping_visual_relevance", "result_photo_relevance")
 QUESTIONS = {"fits": {"type": "noul", "instructions": "Does the result fit?",
                       "criteria": {"true": "it fits", "false": "it does not"}}}
+
+
+@pytest.fixture(autouse=True)
+def gemini_first_for_test_purposes(monkeypatch, request) -> None:
+    """The mechanism stays supported; route the three relevance purposes to Gemini for these tests only."""
+    if "repo_routes" in request.node.name:
+        return
+    monkeypatch.setattr(routing, "decision_route", lambda purpose: (
+        (routing.GEMINI_DECISION_MODEL, routing.JEV_DECISION_MODEL) if purpose in GEMINI_ROUTED_PURPOSES
+        else (routing.JEV_DECISION_MODEL,)))
 
 
 class Secrets:
@@ -79,13 +91,13 @@ def _app_yml(tmp_path: Path, block: str) -> Path:
 
 
 # contract-test: direct surface=rest_api assertions=ai-model-routing.decisions.per-purpose-model-with-jev-fallback
-def test_repo_routes_only_reviewed_purposes_to_gemini() -> None:
+def test_repo_routes_every_purpose_to_jev() -> None:
     default, purposes = routing.decision_routes()
     assert default == (routing.JEV_DECISION_MODEL,)
-    assert set(purposes) == {"search_relevance", "shopping_visual_relevance", "result_photo_relevance"}
-    assert all(route == (routing.GEMINI_DECISION_MODEL, routing.JEV_DECISION_MODEL) for route in purposes.values())
-    for kept in ("preprocess_decision", "postprocess_decision", "image_safety", "pdf_text_injection", None):
-        assert not routing.gemini_first(kept)
+    assert purposes == {}
+    for purpose in (*GEMINI_ROUTED_PURPOSES, "preprocess_decision", "postprocess_decision", "image_safety",
+                    "pdf_text_injection", None):
+        assert not routing.gemini_first(purpose)
 
 
 def test_missing_block_means_jev_only(tmp_path: Path) -> None:
