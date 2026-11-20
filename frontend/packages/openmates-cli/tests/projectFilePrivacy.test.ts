@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ProjectFilePrivacy } from "../../ui/src/services/projectFilePrivacy.js";
-import { loadProjectFilePrivacy } from "../../ui/src/services/projectFilePrivacyStorage.js";
-import { createProjectFileJobExecutor, type ProjectFileJob } from "../../ui/src/services/projectFileJobExecutor.js";
+import { loadProjectFilePrivacy } from "../src/projectFilePrivacyStorage.js";
+import { createProjectFileJobExecutor, type ProjectFileJob } from "../src/projectFileJobExecutor.js";
 import { encryptWithAesGcmCombined, decryptWithAesGcmCombined } from "../src/crypto.js";
 import { detectPII } from "../../ui/src/components/enter_message/services/piiDetectionService.js";
 import { SecretScanner } from "../../secret-scanner/src/scanner.ts";

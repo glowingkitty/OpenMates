@@ -1,6 +1,6 @@
 /** Transient, chat-scoped Project file consent and applied-change previews. */
 import { get, writable } from 'svelte/store';
-import type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from '../services/projectFileJobExecutor';
+import type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from '../services/projectFileJobTypes';
 import { activeChatStore } from './activeChatStore';
 import { notificationStore } from './notificationStore';
 import { text } from '../i18n/translations';

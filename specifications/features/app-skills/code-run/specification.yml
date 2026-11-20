@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.app-skill.code-run
-version: 2
-status: draft
+version: 3
+status: approved
 title: Code Run Skill
 summary: >
   Code Run executes bounded user-provided or assistant-created code in an
@@ -24,6 +24,7 @@ scope:
     - Remote-command access to ignored dependencies and build outputs while deterministic Project private paths remain inaccessible
     - Required terminal-text safety coverage for live batches, completion results and later inference-cache hydration
     - Test runs for Project files in E2B or on a connected remote machine, with recorded browser-test video, step timelines and terminal timelines shown as test result embeds
+    - One-time per-account consent before any of a user's code or Project files is first sent to E2B, on every surface
   excludes:
     - Backend execution, importing, package installation, linting, formatting, cloning, or URL fetching of user code outside E2B
     - Persisting direct-run source code, terminal output, artifacts, messages, embeds, embed keys, or code_run_outputs unless the caller uses chat-bound mode
@@ -288,6 +289,9 @@ assertions:
   - id: code-run.cloud.command-changes-sync-back
     type: behavior
     must: When a command changes Project files itself, such as a lockfile, generated code or formatter output, the changed and new text files outside ignored paths (.gitignore plus dependency, build and cache folders) are written back to the Project through the authorized client with the ordinary encrypted file writes and shown as normal file diffs, never silently. A file whose Project revision changed meanwhile is not overwritten and is reported. Binary or oversized changes, and changes beyond 20 files, are listed as not synced instead of being dropped without notice.
+  - id: code-run.e2b.upload-consent
+    type: privacy
+    must: Before the first time any code or Project file of a user is sent to E2B, the user is asked for permission and nothing is uploaded until they answer. The request appears inside the chat history like the memory sharing request (in a voice call, the needs-you chime and then a spoken line), says in plain text that the files are sent to E2B, a cloud sandbox provider, to run there, links the privacy policy, and names the alternative of connecting the user's own machine with the remote access command so code runs there instead. Its choices are Allow, Use my own machine and Not now. One decision per account covers chat snippets and Project files; it is recorded with its date and the privacy policy version, can be changed in settings, and is asked again only after a meaningful change of the wording or the provider. After Not now, or while no decision exists, nothing goes to E2B and the assistant says it cannot run the code there and offers the connected machine. Web, Apple, CLI and SDK behave the same; the CLI and SDK ask with a clear prompt or require an explicit flag and never upload silently.
   - id: code-run.remote.confinement
     type: security
     must: Remote commands require current access and the target Project's active focus in the originating chat. OS-enforced filesystem and process boundaries confine the command and descendants to declared Project/toolchain/cache access; cwd alone is insufficient. Unsupported isolation fails visibly without an unrestricted fallback. Background services have read-only source plus declared writable cache/output paths. Source-writing commands coordinate against overlapping Project edits during execution without holding reservations while explaining or awaiting permission.
@@ -409,6 +413,11 @@ assertions:
     depends_on:
     - examples.semantic_risk_review
 
+approval_source:
+  instruction: >-
+    Marco (owner) approved draft v2 together with the one-time E2B consent assertion (code-run.e2b.upload-consent) in a voice call on 2026-11-20, relayed through the authenticated dev connector (receipts 92875247869df315 and c5f0d51ef9cb0836), recorded as v3.
+  date: '2026-11-20'
+
 applies_to:
   rest_api: {required: true}
   cli: {required: true}
@@ -455,3 +464,4 @@ examples:
   - execution_targets
   - project_test_runs
   - test_evidence
+  - e2b_upload_consent

@@ -85,9 +85,9 @@ import {
 import { loadServerConfig } from "./serverConfig.js";
 import { activateCliProjectFocus, prepareCliProjectFocusForPreflight, registerCliProjectFileExecutor } from "./projectFileExecutor.js";
 import { registerRemoteCommandOriginClient, type DecryptedRemoteCommandEvent, type RemoteCommandReview, type RemoteCommandApprovalChoice } from "./remoteCommandClient.js";
-import type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
+import type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from "./projectFileJobExecutor.js";
 import type { HostedProjectFileHead } from "../../ui/src/services/hostedProjectFileExecutor.js";
-export type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
+export type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from "./projectFileJobExecutor.js";
 
 function parseCliChatModelPreference(payload: unknown): { ciphertext: string; version: number } | null {
   if (!payload || typeof payload !== "object") throw new Error("Invalid chat model preference response.");

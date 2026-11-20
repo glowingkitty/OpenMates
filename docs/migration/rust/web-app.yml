@@ -16,7 +16,7 @@ summary:
   percent: 47.6
 worker_namespaces_installed_not_progress:
   installed: 17
-  total: 23
+  total: 24
   note: 'Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs.'
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
   web-rust-core-chat.spec.ts, web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts,
@@ -385,6 +385,19 @@ units:
     'Timeline file rows open the file''s folder in the Files tab, not the file viewer.']
   spec_assertions: []
   spec_gaps: ['The Timeline tab load, load-more and file-open behavior has no assertion.']
+- namespace: projectFileJobs
+  status: planned
+  pre_bind: false
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
+  e2e_specs: []
+  vectors: []
+  open_gaps: ['No flag-on web-rust-core spec yet for hosted Project file jobs (approval card, applied change).',
+    'The core''s applied event carries no mutation, so an apply-and-show card has no diff preview.']
+  spec_assertions: []
+  spec_gaps: [Hosted file-job approval and applied-change behavior has no assertion.]
 - namespace: presentRemote
   status: planned
   pre_bind: false

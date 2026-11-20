@@ -220,14 +220,16 @@ mod project_file_jobs;
 mod remote_command_jobs;
 use memory_write_jobs::MEMORY_WRITE_JOBS_CAPABILITY;
 use project_file_jobs::{PROJECT_FILE_JOBS_AVAILABLE, PROJECT_FILE_JOBS_CAPABILITY};
-#[cfg(all(feature = "workflow-yaml", unix))]
+#[cfg(feature = "workflow-yaml")]
+pub use project_file_jobs::{ProjectFileJobFrame, ProjectFilePrivacyBlob, ProjectFileJobStep};
+#[cfg(feature = "workflow-yaml")]
 mod hosted_file_io;
 mod project_commit_restore;
 pub use project_commit_restore::{
     ProjectCommitFileOutcome, ProjectCommitFileRestore, ProjectCommitUserRestore,
 };
 mod project_embed_source;
-#[cfg(all(feature = "workflow-yaml", unix))]
+#[cfg(feature = "workflow-yaml")]
 mod project_embed_adoption;
 pub(crate) mod project_item_error;
 mod task_job_payload;
@@ -241,6 +243,9 @@ pub mod voice_call_media;
 mod toon;
 pub(crate) mod transport;
 #[cfg(not(target_arch = "wasm32"))] pub mod upload;
+#[cfg(target_arch = "wasm32")]
+#[path = "client/upload_wasm.rs"]
+pub mod upload;
 #[cfg(not(target_arch = "wasm32"))] pub mod call_source_frame;
 #[cfg(not(target_arch = "wasm32"))] pub mod profile_upload;
 // Temporary shell passthrough for un-migrated Apple code (plan step A6 removes it).
@@ -662,6 +667,8 @@ pub struct Client {
     #[cfg(all(target_arch="wasm32",feature="browser-metadata-prototype"))]
     browser_normal_data_native:Option<std::rc::Rc<browser::configured_native::OriginalNormalBrowser>>,
     cookies: BTreeMap<String, String>,
+    // Per-chat file-job state of shells that own their socket (bounded).
+    file_job_chats: project_file_jobs::FileJobChats,
     generation: u64,
     task_watch_authority: std::sync::Arc<project_task_watch::WatchAuthority>,
     task_watch_owner: Option<String>,
@@ -812,6 +819,7 @@ impl Client {
             #[cfg(all(target_arch="wasm32",feature="browser-metadata-prototype"))]
             browser_normal_data_native:None,
             cookies,
+            file_job_chats: Default::default(),
             generation: 0,
             task_watch_authority: std::sync::Arc::new(project_task_watch::WatchAuthority::new()),
             task_watch_owner: None,

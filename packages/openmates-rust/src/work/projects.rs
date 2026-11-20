@@ -95,10 +95,10 @@ mod hosted_base;
 pub(crate) use adoption::TurnEmbed;
 pub use adoption::{AdoptEmbedKind, ProjectEmbedAdoptError};
 pub use hosted_base::{HostedFileError, HostedIdentityKind, HostedResult, hosted_file_identity};
-#[cfg(all(feature = "workflow-yaml", unix))]
+#[cfg(feature = "workflow-yaml")]
 mod hosted;
-/// Hosted Project file writer (native only: it shares the `source_host` path matcher).
-#[cfg(all(feature = "workflow-yaml", unix))]
+/// Hosted Project file writer (shares the platform-neutral `path_rules` matcher, so it also builds for the browser).
+#[cfg(feature = "workflow-yaml")]
 pub use hosted::{
     HostedApproval, HostedFile, HostedFileJob, HostedFileMutation, HostedFileOperation,
     HostedProposal, ProjectCommitRestoreResult, apply_exact_patch, content_hash, replacement_patch,
@@ -110,10 +110,10 @@ pub use remote_files::{
     ProjectFileOperation, ProjectRequesterError, remote_error_message, safe_relative_path,
     select_source,
 };
-/// Assistant file jobs relayed to a remote source (native only, like the hosted writer).
-#[cfg(all(feature = "workflow-yaml", unix))]
+/// Assistant file jobs relayed to a remote source.
+#[cfg(feature = "workflow-yaml")]
 mod remote_file_jobs;
-#[cfg(all(feature = "workflow-yaml", unix))]
+#[cfg(feature = "workflow-yaml")]
 pub(crate) use remote_file_jobs::REMOTE_OPERATION_UNSUPPORTED;
 mod remote_ops;
 pub use remote_ops::{

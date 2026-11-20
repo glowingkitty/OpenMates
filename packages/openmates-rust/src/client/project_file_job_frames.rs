@@ -57,6 +57,7 @@ pub(super) trait JobRunner {
         focus: &Focus,
         job: HostedFileJob,
         approved: bool,
+        ignored_read_approved: bool,
     ) -> HostedResult<Value>;
     /// Record a native Project commit authored by the assistant for `chat`.
     async fn commit(&mut self, focus: &Focus, chat: &str, message: String) -> HostedResult<Value>;
@@ -213,7 +214,7 @@ async fn snapshot_frames<R: JobRunner>(
 }
 
 impl FileJobState {
-    fn finish(&mut self, operation: &str) {
+    pub(super) fn finish(&mut self, operation: &str) {
         if self.finished.len() < MAX_FINISHED {
             self.finished.insert(operation.to_owned());
         }
@@ -239,7 +240,7 @@ fn identity<'a>(event: &'a Value, chat: &str) -> Option<&'a Value> {
     .then_some(event)
 }
 
-fn scope(job: &Value) -> Value {
+pub(super) fn scope(job: &Value) -> Value {
     json!({"protocol_version": 1, "operation_id": job["operation_id"],
         "chat_id": job["chat_id"], "project_id": job["project_id"]})
 }
@@ -283,6 +284,15 @@ fn job_of(event: &Value) -> Option<HostedFileJob> {
         operation: serde_json::from_value(event["operation"].clone()).ok()?,
         arguments: event["arguments"].clone(),
     })
+}
+
+/// Restores placeholders with the chat's privacy layer (web) or, without one,
+/// with the plain mappings of [`restore_write`] (CLI, unchanged).
+fn restore_job(job: HostedFileJob, state: &FileJobState) -> Result<HostedFileJob> {
+    match &state.privacy {
+        Some(layer) => layer.restore(job),
+        None => restore_write(job, &state.mappings.0),
+    }
 }
 
 /// A created or updated Project file stores real details, like the web's
@@ -398,7 +408,7 @@ pub(super) async fn job_frames<R: JobRunner>(
     } else {
         job_of(job)
     };
-    let hosted = match hosted.map(|h| restore_write(h, &state.mappings.0)) {
+    let hosted = match hosted.map(|h| restore_job(h, state)) {
         Some(Err(error)) => {
             state.finish(&operation);
             return Ok(vec![error_frame(job, &HostedFileError::Core(error))]);
@@ -442,10 +452,28 @@ pub(super) async fn job_frames<R: JobRunner>(
             return Ok(vec![error_frame(job, &error)]);
         }
     };
+    let interactive = state.approvals.interactive;
+    // Interactive shells: the user accepted exactly this proposal digest.
+    let preapproved = interactive
+        && proposal
+            .as_ref()
+            .is_some_and(|p| state.approvals.write_approved(&operation, &p.digest));
     if let Some(proposal) = proposal
         .as_ref()
-        .filter(|p| p.requires_approval && !state.approve_writes)
+        .filter(|p| p.requires_approval && !state.approve_writes && !preapproved)
     {
+        if interactive {
+            // Answer awaiting_approval only; the shell decides (see approvals).
+            let shown = serde_json::to_value(&proposal.mutation).map_err(Error::from)?;
+            state
+                .approvals
+                .prompt_write(job, scope(job), &proposal.digest, shown.clone());
+            return Ok(vec![result_frame(
+                job,
+                "awaiting_approval",
+                json!({"proposal_commitment": proposal.digest, "proposal": shown}),
+            )]);
+        }
         // Awaiting approval first (the server only accepts a reject from that
         // state), then the explicit decline; the file stays unchanged.
         state.finish(&operation);
@@ -473,12 +501,39 @@ pub(super) async fn job_frames<R: JobRunner>(
         .await;
         return remote_frames(job, &source, outcome, proposal.as_ref(), state, &operation);
     }
+    let read_key = (interactive && job["operation"] == "read_text")
+        .then(|| hosted.arguments["path"].as_str())
+        .flatten()
+        .map(|path| (path.to_owned(), super::approvals::read_key(job, path)));
+    let read_approved = read_key
+        .as_ref()
+        .is_some_and(|(_, key)| state.approvals.read_approved(key));
     let outcome = crate::platform::time::timeout(
         remaining,
-        runner.execute(&focus, hosted, state.approve_writes),
+        runner.execute(
+            &focus,
+            hosted,
+            state.approve_writes || preapproved,
+            read_approved,
+        ),
     )
     .await;
+    if let (
+        Ok(Err(HostedFileError::Refused("ignored_path_requires_approval"))),
+        Some((path, key)),
+    ) = (&outcome, read_key)
+    {
+        state
+            .approvals
+            .prompt_read(job, scope(job), key, path.as_str());
+        return Ok(vec![result_frame(
+            job,
+            "awaiting_approval",
+            json!({"reason": "ignored_path_requires_approval", "path": path}),
+        )]);
+    }
     state.finish(&operation);
+    state.approvals.forget(&operation);
     let output = match outcome {
         Err(_) => {
             return Ok(vec![result_frame(
@@ -505,6 +560,7 @@ pub(super) async fn job_frames<R: JobRunner>(
         state
             .notices
             .push(applied_notice(&proposal.mutation, created));
+        state.approvals.record_applied(job, &proposal.mutation);
     }
     Ok(vec![result_frame(job, "completed", Value::Object(body))])
 }
@@ -568,6 +624,7 @@ fn remote_frames<T>(
         state
             .notices
             .push(applied_notice(&proposal.mutation, created));
+        state.approvals.record_applied(job, &proposal.mutation);
     }
     Ok(vec![result_frame(job, "completed", Value::Object(body))])
 }
@@ -609,11 +666,12 @@ impl JobRunner for Client {
         focus: &Focus,
         job: HostedFileJob,
         approved: bool,
+        ignored_read_approved: bool,
     ) -> HostedResult<Value> {
         let mut approve = move |_: &HostedFileMutation| Ok(approved);
         self.projects()
             .with_filters(filters(focus))
-            .execute_hosted_file_job(&focus.project_id, job, &mut approve, false)
+            .execute_hosted_file_job(&focus.project_id, job, &mut approve, ignored_read_approved)
             .await
     }
 
@@ -639,8 +697,10 @@ impl JobRunner for Client {
             Err(error) => return Err(error.into()),
         };
         Ok(
-            json!({"commit_id": commit.commit_id, "message": commit.message,
-            "file_count": commit.files.len()}),
+            // `short_id` is the 7-character form the Project Timeline shows; the
+            // tool description tells the model to quote only it to the user.
+            json!({"commit_id": commit.commit_id, "short_id": short_commit_id(&commit.commit_id),
+            "message": commit.message, "file_count": commit.files.len()}),
         )
     }
 
@@ -761,3 +821,8 @@ impl Client {
 #[cfg(test)]
 #[path = "project_file_jobs_tests.rs"]
 mod tests;
+
+/// First 7 characters of a commit id (the Timeline's short form).
+fn short_commit_id(commit_id: &str) -> String {
+    commit_id.chars().take(7).collect()
+}

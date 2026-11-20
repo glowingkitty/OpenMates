@@ -204,7 +204,7 @@ async fn search<I: HostedIo>(
         .map(|v| v as usize)
         .ok_or(HostedFileError::Core(Error::Protocol))?;
     if include_content {
-        let order = crate::source_host::NameOrder::new()
+        let order = crate::path_rules::NameOrder::new()
             .map_err(|_| HostedFileError::Core(Error::Protocol))?;
         candidates.sort_by(|a, b| order.compare(&a.path, &b.path));
     }

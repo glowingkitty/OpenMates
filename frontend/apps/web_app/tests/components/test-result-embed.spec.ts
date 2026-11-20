@@ -26,6 +26,13 @@ test.describe('test result preview card', () => {
 		await expect(page.getByTestId('test-result-preview-status')).toHaveAttribute('data-status', 'passed');
 		await expect(page.getByTestId('test-result-preview-counts')).toContainText('4');
 		await expect(page.getByTestId('test-result-preview-stale')).toHaveCount(0);
+		// Nothing failed: "0 Failed" is neutral text, not the error colour.
+		const zeroFailed = page.getByTestId('test-result-preview-count-failed');
+		await expect(zeroFailed).toContainText('0');
+		await expect(zeroFailed).toHaveClass(/tr-count-zero/);
+		const neutral = await zeroFailed.evaluate((el) => getComputedStyle(el).color);
+		const rowColor = await page.getByTestId('test-result-preview-counts').evaluate((el) => getComputedStyle(el).color);
+		expect(neutral, 'zero failed count uses the neutral counts colour').toBe(rowColor);
 		// The title names the test; the execution target ("e2b") is never the title.
 		await expect(page.getByTestId('test-result-preview-title')).toHaveText('Signing in opens the dashboard');
 		// The compact card keeps its 24px text inset (the arrow clearance is for wide cards only).
@@ -56,7 +63,10 @@ test.describe('test result preview card', () => {
 		await open(page, PREVIEW, 'browserNoFrame');
 		const placeholder = page.getByTestId('test-result-preview-placeholder');
 		await expect(placeholder).toBeVisible();
-		await expect(placeholder).toContainText(/passed/i);
+		// The frame area names what is missing; the status is shown once, by the badge.
+		await expect(placeholder).toContainText(/no video/i);
+		await expect(placeholder).not.toContainText(/passed/i);
+		await expect(page.getByTestId('test-result-preview-status')).toContainText(/passed/i);
 		const background = await placeholder.evaluate((el) => getComputedStyle(el).backgroundColor);
 		expect(background).not.toBe('rgb(255, 255, 255)');
 		await expect(page.getByTestId('test-result-preview-frame')).toHaveCount(0);
@@ -164,6 +174,8 @@ test.describe('test result fullscreen', () => {
 		await open(page, FULLSCREEN, 'unit');
 		await expect(page.getByTestId('test-result-count-passed')).toContainText('2');
 		await expect(page.getByTestId('test-result-count-failed')).toContainText('1');
+		// A real failure keeps the error colour (only zero is neutral).
+		await expect(page.getByTestId('test-result-count-failed')).not.toHaveClass(/tr-count-zero/);
 		await expect(page.getByTestId('test-result-count-skipped')).toContainText('1');
 		const failing = page.getByTestId('test-result-test-2');
 		await expect(failing).toHaveAttribute('data-status', 'failed');

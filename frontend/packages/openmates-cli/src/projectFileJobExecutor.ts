@@ -1,55 +1,23 @@
-/** Client-owned execution of transient Project file jobs; ciphertext stays client-owned. */
+/**
+ * Project file-job executor of the npm CLI (the explicit fallback CLI). The web
+ * app and the native CLI run file jobs in the Rust core; this TypeScript copy
+ * stays only until the npm CLI is retired. Moved unchanged from
+ * ui/src/services/projectFileJobExecutor.ts; ciphertext stays client-owned.
+ */
 import {
   isProjectFileMutationOperation, projectFileMutationDigest, validateProjectFileMutation,
   type ProjectFileMutation,
-} from "../utils/projectFileMutationProtocol";
-import type { ProjectFilePrivacy } from "./projectFilePrivacy";
+} from "../../ui/src/utils/projectFileMutationProtocol.js";
+import type {
+  ProjectApprovedIgnoredRead, ProjectFileExecutionContext, ProjectFileJob,
+  ProjectReadApprovalRequest, ProjectWriteApprovalRequest,
+} from "../../ui/src/services/projectFileJobTypes.js";
 
-export interface ProjectWriteApprovalRequest {
-  projectId: string;
-  chatId: string;
-  mutation: ProjectFileMutation;
-}
+export type {
+  ProjectApprovedIgnoredRead, ProjectFileExecutionContext, ProjectFileJob,
+  ProjectReadApprovalRequest, ProjectWriteApprovalRequest,
+};
 
-export interface ProjectReadApprovalRequest {
-  projectId: string;
-  sourceId: string | null;
-  chatId: string;
-  operationId: string;
-  path: string;
-}
-
-export interface ProjectApprovedIgnoredRead {
-  path: string;
-  chatId: string;
-  operationId: string;
-}
-
-export interface ProjectFileJob {
-  protocol_version: 1;
-  operation_id: string;
-  chat_id: string;
-  project_id: string;
-  source_id?: string | null;
-  operation: "list" | "search" | "read_text" | "create_file" | "update_file";
-  arguments: Record<string, unknown>;
-  lease_token: string;
-  lease_generation: number;
-  lease_expires_at: number;
-}
-
-export interface ProjectFileExecutionContext {
-  projectKey: Uint8Array;
-  privacy?: ProjectFilePrivacy;
-  /** Actual source selected by the fresh resolver; null identifies hosted Project files. */
-  sourceId?: string | null;
-  writeMode: "apply_and_show" | "always_ask" | null;
-  execute: (
-    job: ProjectFileJob,
-    mutation?: ProjectFileMutation,
-    approvedIgnoredRead?: ProjectApprovedIgnoredRead,
-  ) => Promise<unknown>;
-}
 
 export interface ProjectFileJobExecutorOptions {
   isActiveChat: (chatId: string) => boolean;

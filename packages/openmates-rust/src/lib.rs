@@ -14,6 +14,7 @@ pub mod mentions_list;
 pub mod model;
 pub mod pairing;
 pub mod pii_display_aliases;
+mod path_rules;
 mod platform;
 pub mod privacy;
 pub mod project_task_sync;
@@ -86,6 +87,8 @@ pub use client::{
     Client, ClientIdentity, ClientOptions, PasswordLoginOptions, CredentialEvent, CredentialSnapshot, PairChallenge,
     MachineProjectDecision, SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,
 };
+#[cfg(feature = "workflow-yaml")]
+pub use client::{ProjectFileJobFrame, ProjectFilePrivacyBlob, ProjectFileJobStep};
 pub use error::{Error, Result};
 pub use session::Session;
 

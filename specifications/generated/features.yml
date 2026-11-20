@@ -11770,7 +11770,7 @@ features:
   description: Get coding help, docs & project advice.
   specifications:
   - id: feature.app-skill.code-run
-    status: draft
+    status: approved
     path: specifications/features/app-skills/code-run
   apps:
   - code
@@ -11782,7 +11782,7 @@ features:
     - app:code
     dev: enabled
     prod: enabled
-  assertions: 37
+  assertions: 38
   surfaces:
     web:
       status: failing
@@ -11791,15 +11791,16 @@ features:
       assertions:
         passing: 7
         failing: 1
-        not_run: 11
-        missing: 20
-        counted: 39
+        not_run: 13
+        missing: 19
+        counted: 40
       failing_tests:
       - frontend/apps/web_app/tests/skill-code-docs.spec.ts
       key_tests:
       - frontend/apps/web_app/tests/skill-code-docs.spec.ts
       - frontend/apps/web_app/tests/skill-code-search-repos.spec.ts
       e2e_tests:
+      - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
       - frontend/apps/web_app/tests/application-preview.spec.ts
       - frontend/apps/web_app/tests/code-run-dependency-flow.spec.ts
       - frontend/apps/web_app/tests/code-run-languages.spec.ts
@@ -11825,8 +11826,8 @@ features:
         passing: 9
         failing: 0
         not_run: 0
-        missing: 28
-        counted: 37
+        missing: 29
+        counted: 38
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/AgenticCodingPreviewUITests.swift
@@ -11850,8 +11851,8 @@ features:
         passing: 9
         failing: 0
         not_run: 8
-        missing: 20
-        counted: 37
+        missing: 21
+        counted: 38
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
@@ -11886,8 +11887,8 @@ features:
         passing: 16
         failing: 0
         not_run: 6
-        missing: 15
-        counted: 37
+        missing: 16
+        counted: 38
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -11905,8 +11906,8 @@ features:
         passing: 0
         failing: 0
         not_run: 2
-        missing: 35
-        counted: 37
+        missing: 36
+        counted: 38
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -11920,8 +11921,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 37
-        counted: 37
+        missing: 38
+        counted: 38
       key_tests: []
       evidence: generated/app_skills.py apps.code (generic skill call)
       e2e_tests: []
@@ -15984,6 +15985,7 @@ features:
         binding is unavailable
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
       - frontend/apps/web_app/tests/agentic-remote-project-web-real.spec.ts
       - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
       - frontend/apps/web_app/tests/components/agent-context-message.spec.ts
@@ -16017,7 +16019,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/projectReadme.test.ts
       - backend/tests/test_project_file_references.py
       - backend/tests/test_project_focus_early_routing.py
-      unit_test_files: 35
+      unit_test_files: 34
     apple:
       status: failing
       source: tests

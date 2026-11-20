@@ -13,7 +13,7 @@ import { clearProjectFileApprovals } from "./stores/projectFileApprovalStore";
 import { clearRemoteCommands } from "./stores/remoteCommandApprovalStore";
 import { installE2ETestHooks } from "./services/e2eTestHooks";
 import { activeChatStore } from "./stores/activeChatStore";
-import { createBrowserProjectFileExecutor } from "./services/browserProjectFileExecutor";
+import { createBrowserProjectFileJobRunner } from "./services/rustCore/projects/projectFileJobRunnerBrowser";
 import { createBrowserRemoteCommandClient } from "./services/browserRemoteCommandClient";
 import { chatSyncService } from "./services/chatSyncService";
 import { get } from "svelte/store";
@@ -32,11 +32,8 @@ function initProjectFileExecutorLifecycle(): void {
       return;
     }
     if (removeProjectAgentClients) return;
-    const executor = createBrowserProjectFileExecutor({
-      transport: {
-        send: chatSyncService.sendProjectFileExecutorEvent,
-        commit: chatSyncService.commitProjectFileRevision,
-      },
+    const executor = createBrowserProjectFileJobRunner({
+      transport: { send: chatSyncService.sendProjectFileExecutorEvent },
       isActiveChat: (chatId) => activeChatStore.get() === chatId,
     });
     const remoteCommandClient = createBrowserRemoteCommandClient({

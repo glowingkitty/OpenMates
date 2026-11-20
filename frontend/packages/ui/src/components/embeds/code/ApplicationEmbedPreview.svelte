@@ -205,11 +205,16 @@
         {:else}
           <!-- No stored screenshot (always the case for apps built from private
                Project files): a call to start the preview, not a loading skeleton. -->
+          <!-- The play icon and its label share one centered column, so a short
+               card can never stack the icon over the label. -->
           <div class="placeholder" data-testid="application-preview-placeholder">
+            <div class="play-overlay inline" data-testid="application-preview-play-overlay" aria-hidden="true">▶</div>
             <span class="placeholder-label" data-testid="application-preview-start-label">{$text('embeds.application_start_preview')}</span>
           </div>
         {/if}
-        <div class="play-overlay" data-testid="application-preview-play-overlay" aria-hidden="true">▶</div>
+        {#if screenshotUrl}
+          <div class="play-overlay" data-testid="application-preview-play-overlay" aria-hidden="true">▶</div>
+        {/if}
       </div>
       <div class="meta-row">
         <span>{fileCount} {$text(fileCount === 1 ? 'embeds.application_file_singular' : 'embeds.application_file_plural')}</span>
@@ -249,8 +254,10 @@
 
   .placeholder {
     display: flex;
-    align-items: flex-end;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
+    gap: var(--spacing-2);
     height: 100%;
     /* Padding inside the frame height, so the bottom label is never clipped. */
     box-sizing: border-box;
@@ -279,11 +286,33 @@
     font-size: var(--font-size-small);
   }
 
+  .play-overlay.inline {
+    position: static;
+    transform: none;
+    flex-shrink: 0;
+  }
+
   .meta-row {
     display: flex;
     gap: var(--spacing-2);
     flex-wrap: wrap;
     color: var(--color-font-secondary);
     font-size: var(--font-size-xs);
+  }
+
+  /* Same "·" separator as the subtitle, so the two counts do not read as one phrase. */
+  .meta-row span + span::before {
+    content: '·';
+    margin-right: var(--spacing-2);
+  }
+
+  /* The narrow card stacks the counts; a leading dot would dangle there. */
+  .application-preview.mobile .meta-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .application-preview.mobile .meta-row span + span::before {
+    content: none;
   }
 </style>

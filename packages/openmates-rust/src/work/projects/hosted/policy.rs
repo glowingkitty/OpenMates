@@ -6,8 +6,8 @@
 //! Pattern semantics come from the shared npm-`ignore` matcher in `source_host`.
 use super::io::HostedIo;
 use super::{HostedFile, HostedFileError, HostedResult, decide, refused};
-use crate::source_host::ignore_rules::{Matcher, candidate};
-use crate::source_host::path_policy::PROJECT_CREDENTIAL_GLOBS;
+use crate::path_rules::PROJECT_CREDENTIAL_GLOBS;
+use crate::path_rules::ignore_rules::{Matcher, candidate};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
@@ -253,7 +253,7 @@ pub(super) async fn load<I: HostedIo>(
             None => return protected(),
         }
     }
-    let order = crate::source_host::NameOrder::new()
+    let order = crate::path_rules::NameOrder::new()
         .map_err(|_| HostedFileError::Refused("protected_path"))?;
     let mut ignore_controls: Vec<&HostedFile> = files
         .iter()

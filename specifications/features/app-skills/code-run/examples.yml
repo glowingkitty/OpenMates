@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.app-skill.code-run@2
+specification: feature.app-skill.code-run@3
 
 sandbox_tiers:
   - id: linux-without-namespace-restriction
@@ -488,3 +488,15 @@ test_evidence:
     given: An end-to-end test runs "recipes add Pancakes" and then "recipes list" against a command-line program.
     when: Alice opens the test result embed.
     then: She sees each command followed by its output in a terminal-style timeline from top to bottom, with the failing step highlighted if one failed. A unit test run in the same Project shows only "12 passed, 0 failed" and its output.
+
+e2b_upload_consent:
+  - id: first-cloud-run-asks-once
+    assertion_ids: [code-run.e2b.upload-consent]
+    given: Alice has never decided about E2B and asks the assistant to run the tests of her cloud Project Recipe Manager.
+    when: The assistant wants to start the run.
+    then: The chat shows a request that her files are sent to E2B, a cloud sandbox provider, to run there, with a privacy policy link and the choices Allow, Use my own machine and Not now. No file leaves her device until she answers. After Allow the tests run, and her later chat snippets and Project runs go to E2B without asking again.
+  - id: not-now-uploads-nothing
+    assertion_ids: [code-run.e2b.upload-consent]
+    given: Bob chose Not now on the E2B request.
+    when: He asks the assistant to run a Python snippet, or runs openmates code run in the CLI without the explicit consent flag.
+    then: Nothing is sent to E2B. The assistant says it cannot run the code there and offers to run it on his connected machine; the CLI prints the same choice and exits without uploading.

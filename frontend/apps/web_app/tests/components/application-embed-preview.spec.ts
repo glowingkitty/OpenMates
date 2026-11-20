@@ -32,6 +32,17 @@ test.describe('application preview card', () => {
 				body: await page.getByTestId('application-preview-details').screenshot(),
 				contentType: 'image/png'
 			});
+
+			// In a chat the card is short: the frame is barely taller than the icon and
+			// the label together. They still must not overlap (was "Sta▶iew").
+			await page.addStyleTag({ content: '[data-testid="application-preview-screenshot"] { flex: none !important; height: 96px !important; }' });
+			const shortLabel = await page.getByTestId('application-preview-start-label').boundingBox();
+			const shortPlay = await page.getByTestId('application-preview-play-overlay').boundingBox();
+			expect(shortLabel && shortPlay && shortLabel.y >= shortPlay.y + shortPlay.height, 'label sits below the play icon in a short card').toBe(true);
+			await testInfo.attach(`application-card-placeholder-short${variant ? `-${variant}` : ''}`, {
+				body: await page.getByTestId('application-preview-details').screenshot(),
+				contentType: 'image/png'
+			});
 		});
 	}
 });

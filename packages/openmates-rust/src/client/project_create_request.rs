@@ -9,7 +9,7 @@
 //! server error after creation rolls the Project back before reporting `failed`.
 //! Contract: `docs/plans/cloud-project-development/contracts/project-create-request.md`.
 use super::plaintext::Wipe;
-use super::transport::{send, Socket};
+use super::transport::{Socket, send};
 use super::*;
 use crate::work::{
     CreatedProjectRecord, ProjectCreateLocation, ProjectCreateRefusal, ProjectCreateRequest,
@@ -155,7 +155,7 @@ impl ProjectCreateState {
 
 impl ProjectCreateState {
     /// Record one embed adoption report (adopted or failed, with its code).
-    #[cfg_attr(not(all(feature = "workflow-yaml", unix)), allow(dead_code))]
+    #[cfg_attr(not(feature = "workflow-yaml"), allow(dead_code))]
     pub(super) fn push_adoption(&mut self, row: Value) {
         self.adoptions.push(row);
     }
@@ -225,7 +225,7 @@ impl Client {
         chat: &str,
         state: &mut ProjectCreateState,
     ) -> Result<()> {
-        #[cfg(all(feature = "workflow-yaml", unix))]
+        #[cfg(feature = "workflow-yaml")]
         if kind.starts_with("project_file_operation_") {
             return self
                 .project_file_job_event(ws, kind, event, chat, &mut state.file_jobs)
@@ -243,7 +243,7 @@ impl Client {
             ))
             .await;
         }
-        #[cfg(all(feature = "workflow-yaml", unix))]
+        #[cfg(feature = "workflow-yaml")]
         if kind == super::project_embed_adoption::TURN_ADOPTION_KIND {
             return self.adopt_turn_embeds(event, chat, state).await;
         }

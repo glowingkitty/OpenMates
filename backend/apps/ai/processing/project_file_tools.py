@@ -347,7 +347,8 @@ def build_project_file_tools() -> list[dict[str, Any]]:
                 "description": (
                     "Record a Project commit of the Project's current changed files. Call it only after the "
                     "tests are green, with one short line describing the change. The commit is executed by the "
-                    "client; its result names the commit id and the number of files."
+                    "client; its result names the commit id, its 7-character short_id and the number of files. "
+                    "When you mention the commit to the user, quote only the short_id."
                 ),
                 "parameters": {
                     "type": "object",

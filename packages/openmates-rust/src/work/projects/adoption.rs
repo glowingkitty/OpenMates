@@ -12,15 +12,15 @@ mod adopt_plan;
 mod link;
 pub use adopt::{AdoptEmbedKind, ProjectEmbedAdoptError};
 pub(crate) use adopt_plan::TurnEmbed;
-/// Item sources the hosted file writer recognizes as adopted (native writer only).
-#[cfg(all(feature = "workflow-yaml", unix))]
+/// Item sources the hosted file writer recognizes as adopted.
+#[cfg(feature = "workflow-yaml")]
 pub(crate) use adopt_plan::{APPLICATION_SOURCE, TEST_RESULT_SOURCE};
 // Planner internals the hosted adoption tests (`hosted/adopt_tests.rs`) exercise.
-#[cfg(all(test, feature = "workflow-yaml", unix))]
+#[cfg(all(test, feature = "workflow-yaml"))]
 pub(crate) use adopt::{
     AdoptionTarget, adoption_body, operation_id, project_item_id, turn_embed_key,
 };
-#[cfg(all(test, feature = "workflow-yaml", unix))]
+#[cfg(all(test, feature = "workflow-yaml"))]
 pub(crate) use adopt_plan::{
     FileRef, application_metadata, choose_folder, file_metadata, plan_turn, test_result_metadata,
     title_folder,

@@ -17,7 +17,7 @@ import {
   executeHostedProjectFileJob, type HostedProjectFileAdapter,
 } from './hostedProjectFileExecutor';
 import { projectFileMutationDigest, type ProjectFileMutation } from '../utils/projectFileMutationProtocol';
-import type { ProjectFileJob } from './projectFileJobExecutor';
+import type { ProjectFileJob } from './projectFileJobTypes';
 import { PROJECT_RUST_CORE } from './projectState/decide';
 import { decideProjectFile } from './projectState/projectFileDecide';
 import {

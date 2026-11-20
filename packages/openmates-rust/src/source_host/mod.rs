@@ -20,9 +20,8 @@ pub(crate) mod create_source;
 mod creation_host;
 mod dispatch;
 mod fs_safe;
-pub(crate) mod job;
 pub(crate) mod git_ops;
-pub(crate) mod ignore_rules;
+pub(crate) mod job;
 mod patch;
 pub(crate) mod path_policy;
 mod reads;
@@ -38,17 +37,15 @@ mod writes_journal;
 #[cfg(test)]
 mod command_sandbox_tests;
 #[cfg(test)]
+mod commands_tests;
+#[cfg(test)]
 mod create_source_tests;
 #[cfg(test)]
 mod creation_host_tests;
 #[cfg(test)]
-mod commands_tests;
-#[cfg(test)]
 mod git_ops_tests;
 #[cfg(test)]
 mod host_capability_tests;
-#[cfg(test)]
-mod ignore_rules_tests;
 #[cfg(test)]
 mod patch_tests;
 #[cfg(test)]
@@ -70,13 +67,16 @@ pub use attach::{
     selectable_projects, stored_attachments,
 };
 pub use dispatch::FilesystemSourceAdapter;
-pub use runner::{CredentialSync, CredentialSyncFuture, SourceHostEvent, SourceHostRun, SourceHostRunSource, run_source_host};
+pub use runner::{
+    CredentialSync, CredentialSyncFuture, SourceHostEvent, SourceHostRun, SourceHostRunSource,
+    run_source_host,
+};
 pub use store::{
-    StoredRemoteSource, load_new_projects_dir, load_remote_sources, npm_state_dir, remote_cache_path,
-    remote_source_type, save_new_projects_dir, save_remote_sources, upsert_remote_source,
+    StoredRemoteSource, load_new_projects_dir, load_remote_sources, npm_state_dir,
+    remote_cache_path, remote_source_type, save_new_projects_dir, save_remote_sources,
+    upsert_remote_source,
 };
 
-use std::cmp::Ordering;
 use std::fmt;
 
 /// Capabilities the Rust host always advertises for each source, in npm order.
@@ -155,31 +155,13 @@ impl std::error::Error for HostError {}
 /// Result alias for host operations.
 pub type HostResult<T> = std::result::Result<T, HostError>;
 
-/// `a.localeCompare(b) || (a < b ? -1 : a > b ? 1 : 0)`: the npm listing and
-/// search order. ICU root collation (en-US, like Node's default) with a code
-/// unit tie-break so the order is total and cursors stay stable.
-pub(crate) struct NameOrder {
-    collator: icu_collator::CollatorBorrowed<'static>,
+impl From<crate::path_rules::PathRuleError> for HostError {
+    fn from(error: crate::path_rules::PathRuleError) -> Self {
+        Self::new(error.code, error.message)
+    }
 }
 
-impl NameOrder {
-    pub(crate) fn new() -> HostResult<Self> {
-        let locale: icu_locale_core::Locale = "en-US"
-            .parse()
-            .map_err(|_| HostError::failed("Collation locale is unavailable."))?;
-        let collator = icu_collator::Collator::try_new(
-            locale.into(),
-            icu_collator::options::CollatorOptions::default(),
-        )
-        .map_err(|_| HostError::failed("Collation data is unavailable."))?;
-        Ok(Self { collator })
-    }
-    pub(crate) fn compare(&self, a: &str, b: &str) -> Ordering {
-        self.collator
-            .compare(a, b)
-            .then_with(|| a.encode_utf16().cmp(b.encode_utf16()))
-    }
-}
+pub(crate) use crate::path_rules::NameOrder;
 
 /// Lowercase hex SHA-256 of bytes.
 pub(crate) fn sha256_hex(bytes: &[u8]) -> String {

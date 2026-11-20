@@ -237,10 +237,10 @@ specifications:
     - sdks.pip
     - gui.web
   feature.app-skill.code-run:
-    version: 2
-    status: draft
+    version: 3
+    status: approved
     path: features/app-skills/code-run
-    fingerprint: 7ac3a6d1fea5ebf03c2f9312b6cceba6202975069f30cf95d98e1ec3165979ea
+    fingerprint: 56d499bdbdfe07bcdb1e3fe8b460c83f04599267f8a22781ada4d22bd8eff32f
     required_applies_to:
     - rest_api
     - cli
@@ -4215,7 +4215,7 @@ assertions:
     - sdks.pip
     - gui.web
   code-run.request.validated:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: validation
     fingerprint: ebdb27e21aaadfd934ab95579ba6c106f4d3717ea76be6661c4d95fa688d1d05
@@ -4227,7 +4227,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.execution.e2b-only:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
     fingerprint: dfa549e3fcdcfd6dd75af6e9441c1b2a848547c486cb58791423083787265c42
@@ -4239,7 +4239,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.tests.project-snapshot:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: babdbda24fc902aa82b73df69ca4821d636e3859403f9573a165f35f641764f4
@@ -4251,7 +4251,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.tests.recorded-evidence:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: 0826bc6bf35424c44c715ad3724e2477cf806d19b86ecdbce5d19d475656b145
@@ -4263,10 +4263,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.commands.files-through-file-tools:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: 3764486ef96c6a109dc74dec19e6ba7b0c840510b673809cb005ac0c6604b6bb
+    fingerprint: 875ccfbfa7796e55090e9af1d4250d35f37a1d0def68ac693ce6dc71ab436d46
     required_applies_to:
     - rest_api
     - cli
@@ -4275,10 +4275,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.cloud.commands:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: 87ff876e3e3debd37a6f99b77ae94f223836098bc4bc00e7c0aac906682d0caf
+    fingerprint: 9d31dbaadda2a3105ac2c64ecff4e2a1841d6dcc36f07641c2df0db9f4d27375
     required_applies_to:
     - rest_api
     - cli
@@ -4287,10 +4287,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.cloud.workspace:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: 2770e74a51638a8f9738b4418117bd2445ac5e68572dd32f5e31f2c5160c18c2
+    fingerprint: fc21a4590fd9c8bf3ca2cc7add849c0120109733c22f253d2df65d963cef9cac
     required_applies_to:
     - rest_api
     - cli
@@ -4299,10 +4299,22 @@ assertions:
     - gui.web
     - gui.apple
   code-run.cloud.command-changes-sync-back:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: 40c0f1542b3ff0bb66fc44d05db26ca21fecf4de27a79202d45f39fca621ad67
+    fingerprint: 8d9a1e7337d069043026ba7e6046c1c0a5609eefdfc90e3bc14c051ba2afe855
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.e2b.upload-consent:
+    specification: feature.app-skill.code-run@3
+    specification_id: feature.app-skill.code-run
+    type: privacy
+    fingerprint: a5aee2d3f2eded19c8f580b51ccd54b83daa04b58d748a2b5ebbdbf5af4bccc5
     required_applies_to:
     - rest_api
     - cli
@@ -4311,7 +4323,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.confinement:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
     fingerprint: d8e05579ed4ca76acee39780de12e61b3ae9c686fadb921e87b257fda7978269
@@ -4323,7 +4335,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.ignored-project-files:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: 9b41d7dfb0577181b44240e998ab593d9a4ecd46bf6467e49bc6aa18bc7f5adb
@@ -4335,7 +4347,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.private-path-deny:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
     fingerprint: 1389785880c5da28dbf9b1a5d7998f4fc20194e01352a4e26faca2e33e06c50b
@@ -4347,10 +4359,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.explicit-approval:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: f4660e0936b01eb602a3137350599fc8f1bcefb987a0f3ce6e2ea116fb5abf3f
+    fingerprint: 42e38a5f50186e1e1afe4932343cdb81ddce3a22fbc28c85f2d7c86be1bce819
     required_applies_to:
     - rest_api
     - cli
@@ -4359,10 +4371,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.command-lists:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: f5e613b61675d5dce7dbd5373a69e6f9f098228eb552ac4faee2563db329a681
+    fingerprint: d7c4084dc0bbe1e89f9475465366312111d9715f78eb2c445e5f2b924854830f
     required_applies_to:
     - rest_api
     - cli
@@ -4371,7 +4383,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.sandbox-tiers:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
     fingerprint: 677e13eef0c7f4052095e89c17d0dba93c45391f9abb1bbd4452f3d84219e71a
@@ -4383,7 +4395,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.sandbox-setup:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
     fingerprint: 91e36a58946f177065c9ab890f12e8d0c5ca6cdf9fe59fe60bebbee604665596
@@ -4395,7 +4407,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.sandbox-boundary:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
     fingerprint: fb0195569b5eddede161474a1f6bf2e582466d0fe9b9f44425cb12d73139ec56
@@ -4407,7 +4419,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.run-limits:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
     fingerprint: f78950f6c85b0549a8564e030b8d2595fe0e9e4ba23f03c434ce3f9cd6564cf2
@@ -4419,10 +4431,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.explanation:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: 932d85df80081dd741ae2a552c1d263f7b8cb7a699383c2b7536db72d63b4b60
+    fingerprint: 2184c5ecd837fa3fc84416d4e6bc5e115df513361cd5e074bbfcf1f15efc84d2
     required_applies_to:
     - rest_api
     - cli
@@ -4431,10 +4443,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.resource-profiles:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: a9a7f58cbc7e18c1130f098cb5e423f880da54a8b034c9a910045fa2bc6ef662
+    fingerprint: 1ff14d1637a742908fcd86f2d7d7b09bfc607714ce017696873a7f80b1982432
     required_applies_to:
     - rest_api
     - cli
@@ -4443,10 +4455,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.managed-jobs:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: 15dc1a6a108f5153c22f2644f58376072974d766a3c7843712c8266134be246f
+    fingerprint: d140976f8708381291d6be44dc667135705860076295ed3414b20e0884ac293b
     required_applies_to:
     - rest_api
     - cli
@@ -4455,7 +4467,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.execution.wait-or-continue:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: 0f45a2d4c23626029ef3701a21846471402dcd29cbcd6b38b6d408447f285057
@@ -4467,10 +4479,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.output.external-text-guard:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: 4150b1f2c2443d9f0e4be54e9ee6744c3ccd231a515721321a50033060fa47cd
+    fingerprint: 05a214c72e4cd14b7a5fdd7e082ae79b509c701584085689e92098e83332452c
     required_applies_to:
     - rest_api
     - cli
@@ -4479,10 +4491,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.output.cached-inference-guard:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
-    fingerprint: 70b63837614658a14b172971edf4a4b70159caffcac0cad2c58234cfe9bbd9de
+    fingerprint: 1ca19313f9b4529d610bdaf87b91d1ccf3bd85f489ee5c909c6e0a8613a02025
     required_applies_to:
     - rest_api
     - cli
@@ -4491,10 +4503,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.output.bounded-delivery:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: invariant
-    fingerprint: e12510a383418c2262e5632c412d0e7388770a85471111883f625a51e594933d
+    fingerprint: 663ac1fb9e7da14cea62e765e942a20b51d12994079bb4dfafed67203a2932f9
     required_applies_to:
     - rest_api
     - cli
@@ -4503,7 +4515,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.execution.stream-status-visible:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: 611bb91c0912888fa8dbedaa83860f193dd6e2fd744fa27918153c2473afd554
@@ -4515,7 +4527,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.billing.rate-limits:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: invariant
     fingerprint: 833d856df0abdd52ff04113d0d0b46f5ffcf3832a6abb205467f345a1abc0d83
@@ -4527,7 +4539,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.output.chat-bound-encrypted:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: privacy
     fingerprint: 2780c3f902ce8cc62479742230644959e4f93c7a863ad3f688e35faed5b7bef7
@@ -4539,7 +4551,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.output.direct-transient:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: dc4678cce0e82d6b008b0c25a7cc0051f1397673e42faa09048b290cdb839e0c
@@ -4551,7 +4563,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.artifacts.explicit-only:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
     fingerprint: d6bc5e779e46893b9f40180d1657a67cc3f0dcbf1b6be76e12ab81b69fe151c9
@@ -4563,7 +4575,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.artifacts.encrypted-indexed:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: privacy
     fingerprint: 16341d879f1a9a34c7e74c7d47e527638173efcd63feb68d693b7b6790886208
@@ -4575,7 +4587,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.artifacts.chat-bound-versioned:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: e0f1ea75e12590759f70011fc0edd5749863b884c587ade9f7d0cba5fd7b12cc
@@ -4587,7 +4599,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.artifacts.child-renderer-routing:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: b2f0212de70952cfc58498fc94d68a476d14fbf3db9ee0ea3e0595e9d5e54967
@@ -4599,7 +4611,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.artifacts.parent-child-navigation:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: aa2663cc1f823060907932bbe13963f4cf831ecbd641d1dfd5c0f40c310e416d
@@ -4611,7 +4623,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.gui.split-layout-width:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: 3abde178ca82ce8a4167b28627205783a9fcbfeff5b4a8bd14ca33acc97000d2
@@ -4623,7 +4635,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.assistant.auto-debug-bounded:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: 503b58724761c353b403c162b34458984d04ad8e7621774e28f18c2301e7c32e
@@ -4635,10 +4647,10 @@ assertions:
     - gui.web
     - gui.apple
   code-run.surface-parity:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: parity
-    fingerprint: bdcf8cdc2b38b958b59c0ecf8f7eedfc01314aa567b1eece515fd7e1d5f1b986
+    fingerprint: 2e4ee21de9ee1c664e385a781a7ebcd7597c06acda5880bb9afe06285933223f
     required_applies_to:
     - rest_api
     - cli
@@ -4647,7 +4659,7 @@ assertions:
     - gui.web
     - gui.apple
   code-run.remote.semantic-risk-review:
-    specification: feature.app-skill.code-run@2
+    specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: security
     fingerprint: c75f89cd58ef86e46868bb6fd7235b825cd1b12069038df5a43463efb364b889

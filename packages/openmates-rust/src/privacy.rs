@@ -10,7 +10,11 @@ use std::{
 
 #[cfg(test)]
 mod embed_ref_tests;
+mod detect;
 mod exclusions;
+#[cfg(test)]
+mod file_privacy_tests;
+pub mod file_privacy;
 #[cfg(test)]
 mod exclusions_tests;
 mod placeholder;
@@ -564,90 +568,15 @@ fn prepare_internal(
         }
     }
     if enabled {
-        let urls = ranges_for(&regex(r"https?://[^\s]+"), text);
-        let url_index = RangeIndex::from_ranges(&urls);
-        let identifiers = ranges_for(
-            &regex(
-                r"(?i)(?-u:\b)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?-u:\b)|(?-u:\b)[0-9a-f]{40,64}(?-u:\b)|\[[A-Z][A-Z0-9_]*\]",
-            ),
+        detect::detect_into(
             text,
-        );
-        let identifier_index = RangeIndex::from_ranges(&identifiers);
-        if text.encode_utf16().count() >= 6 {
-            for pattern in patterns() {
-                if disabled.contains(category(pattern.kind)) {
-                    continue;
-                }
-                for matched in pattern.regex.find_iter(text) {
-                    let (start, end) = (matched.start(), matched.end());
-                    if url_index.contains(start, end)
-                        || token_index.overlaps(start, end)
-                        || accepted.overlaps(start, end)
-                        || pattern.kind == "PHONE" && identifier_index.overlaps(start, end)
-                        || exclusions.excludes_original(matched.as_str())
-                        || !valid(pattern.kind, matched.as_str(), text[end..].chars().next())
-                    {
-                        continue;
-                    }
-                    accepted.insert(start, end);
-                    ranges.push(Range {
-                        start,
-                        end,
-                        kind: pattern.kind.into(),
-                    });
-                }
-            }
-        }
-        let mut personal = Vec::new();
-        let mut personal_index = RangeIndex::default();
-        for memory in memories
-            .iter()
-            .filter(|m| m["app_id"] == "privacy" && m["item_type"] == "personal_data_entry")
-        {
-            let data = &memory["data"];
-            if data["enabled"] != true
-                || data["textToHide"].as_str().is_none_or(str::is_empty)
-                || data["replaceWith"].as_str().is_none_or(str::is_empty)
-            {
-                continue;
-            }
-            let mut values = vec![data["textToHide"].as_str().unwrap()];
-            if let Some(lines) = data["addressLines"].as_object() {
-                values.extend(lines.values().filter_map(Value::as_str));
-            }
-            for value in values.into_iter().filter(|v| !v.trim().is_empty()) {
-                let search = Regex::new(&format!("(?i){}", regex::escape(value)))
-                    .map_err(|_| Error::Invalid("Personal privacy data could not be processed."))?;
-                for m in search.find_iter(text) {
-                    if exclusions.excludes_original(m.as_str()) {
-                        continue;
-                    }
-                    if !personal_index.overlaps(m.start(), m.end()) {
-                        personal_index.insert(m.start(), m.end());
-                        personal.push(Range {
-                            start: m.start(),
-                            end: m.end(),
-                            kind: "EMAIL".into(),
-                        });
-                    }
-                }
-            }
-        }
-        // Preserve the same uncovered personal-data suffixes, querying only
-        // intersecting shield intervals instead of scanning every prior range.
-        if !personal.is_empty() {
-            let mut protected = token_index.clone();
-            for range in &ranges {
-                protected.insert(range.start, range.end);
-            }
-            for range in personal {
-                let fragments = protected.uncovered(range);
-                for fragment in &fragments {
-                    protected.insert(fragment.start, fragment.end);
-                }
-                ranges.extend(fragments);
-            }
-        }
+            memories,
+            &disabled,
+            exclusions,
+            &token_index,
+            &mut accepted,
+            &mut ranges,
+        )?;
     }
     ranges.sort_by_key(|r| r.start);
     let mut output = String::with_capacity(text.len());

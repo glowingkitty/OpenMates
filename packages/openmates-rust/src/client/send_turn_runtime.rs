@@ -86,7 +86,7 @@ async fn adopt_turn_embeds<P: SavedTurnClientPhases>(
     rows: &BTreeMap<String, Value>,
     observed: &mut SendObservations,
 ) -> Result<()> {
-    #[cfg(all(feature = "workflow-yaml", unix))]
+    #[cfg(feature = "workflow-yaml")]
     match crate::client::project_embed_adoption::turn_adoption_event(rows) {
         Ok(Some(event)) => {
             phases

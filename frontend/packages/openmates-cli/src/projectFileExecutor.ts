@@ -3,7 +3,7 @@ import { scanEnhancedText, privacyDetectionOptions } from "./privacyScan.js";
 import { randomUUID, createHash } from "node:crypto";
 import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
 import { join } from "node:path";
-import type { OpenMatesClient } from "./client.js";
+import type { DecryptedMemoryEntry, OpenMatesClient } from "./client.js";
 import type { OpenMatesWsClient } from "./ws.js";
 import { decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
 import { requestProjectRemoteOperation } from "./projectRequester.js";
@@ -11,11 +11,11 @@ import {
   createProjectFileJobExecutor,
   type ProjectReadApprovalRequest,
   type ProjectWriteApprovalRequest,
-} from "../../ui/src/services/projectFileJobExecutor.js";
+} from "./projectFileJobExecutor.js";
 import { executeHostedProjectFileJob, normalizeHostedProjectPath, type HostedProjectFile } from "../../ui/src/services/hostedProjectFileExecutor.js";
 import { toonEncodeContent } from "./embedCreator.js";
 import { resolveStateDir } from "./storage.js";
-import { loadProjectFilePrivacy } from "../../ui/src/services/projectFilePrivacyStorage.js";
+import { loadProjectFilePrivacy } from "./projectFilePrivacyStorage.js";
 import type { ProjectFilePrivacy } from "../../ui/src/services/projectFilePrivacy.js";
 import type { PIIMappingGeneric } from "../../ui/src/components/enter_message/services/piiDetectionService.js";
 
@@ -98,7 +98,7 @@ export function registerCliProjectFileExecutor(options: {
   chatId: string;
   chatKey: Uint8Array;
   piiMappings?: PIIMappingGeneric[];
-  memories?: Array<{ id: string; app_id: string; item_type: string; data: unknown }>;
+  memories?: DecryptedMemoryEntry[];
   requestApproval?: (request: ProjectWriteApprovalRequest) => boolean | Promise<boolean>;
   requestReadApproval?: (request: ProjectReadApprovalRequest) => boolean | Promise<boolean>;
   /** Observes a hosted commit after the normal Project focus, approval and WS receipt flow. */

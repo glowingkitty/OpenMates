@@ -66,6 +66,7 @@ impl JobRunner for Fake {
         _: &Focus,
         job: HostedFileJob,
         approved: bool,
+        _: bool,
     ) -> HostedResult<Value> {
         self.executed.push((job.operation_id, approved));
         self.outcome.clone()
@@ -184,16 +185,14 @@ async fn available_is_claimed_with_the_scope_and_a_request_completes_with_the_co
         vec!["Project file created: index.html".to_owned()]
     );
     // A repeated frame for a finished operation does nothing.
-    assert!(
-        run(
-            &mut fake,
-            REQUEST,
-            &request("create_file", NOW + 90),
-            &mut state
-        )
-        .await
-        .is_empty()
-    );
+    assert!(run(
+        &mut fake,
+        REQUEST,
+        &request("create_file", NOW + 90),
+        &mut state
+    )
+    .await
+    .is_empty());
     assert_eq!(fake.executed.len(), 1);
 }
 
@@ -272,7 +271,13 @@ async fn a_lease_that_runs_out_during_execution_is_failed() {
         ) -> HostedResult<Option<HostedProposal>> {
             Ok(None)
         }
-        async fn execute(&mut self, _: &Focus, _: HostedFileJob, _: bool) -> HostedResult<Value> {
+        async fn execute(
+            &mut self,
+            _: &Focus,
+            _: HostedFileJob,
+            _: bool,
+            _: bool,
+        ) -> HostedResult<Value> {
             tokio::time::sleep(Duration::from_secs(30)).await;
             Ok(json!({}))
         }
@@ -409,16 +414,14 @@ async fn a_remote_source_create_sends_the_proposal_and_reports_its_commitment() 
     assert_eq!(fake.relayed[0].2.as_deref(), Some("index.html"));
     assert_eq!(state.notices.len(), 1);
     // Finished: a duplicate offer of the same operation is ignored.
-    assert!(
-        run(
-            &mut fake,
-            REQUEST,
-            &remote_request("create_file"),
-            &mut state
-        )
-        .await
-        .is_empty()
-    );
+    assert!(run(
+        &mut fake,
+        REQUEST,
+        &remote_request("create_file"),
+        &mut state
+    )
+    .await
+    .is_empty());
 }
 
 #[tokio::test]

@@ -6,7 +6,7 @@ import { projectItemRevision } from './cliProjectAuthoring.js';
 import { projectPrivatePaths } from './projectFileExecutor.js';
 import { executeHostedProjectFileJob, hostedProjectFileIdentity, normalizeHostedProjectPath, projectFileContentHash, type HostedProjectFile } from '../../ui/src/services/hostedProjectFileExecutor.js';
 import { projectFileMutationDigest, type ProjectFileMutation } from '../../ui/src/utils/projectFileMutationProtocol.js';
-import type { ProjectFileJob } from '../../ui/src/services/projectFileJobExecutor.js';
+import type { ProjectFileJob } from './projectFileJobExecutor.js';
 
 export class AuthoringSaveApprovalRequired extends Error {
   readonly digest: string;

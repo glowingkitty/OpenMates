@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 # Dependency ranges mirror the existing SDK; no separate lock is generated here.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-openmates-sdk = { path = "../openmates-rust" }
+openmates-sdk = { path = "../openmates-rust", features = ["workflow-yaml"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"

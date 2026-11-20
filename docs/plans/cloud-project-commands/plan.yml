@@ -14,8 +14,8 @@ goal: >-
 tracking:
   authority: OpenMates Tasks
   delivery_task_id: 47659cb6-ac2b-4c7b-b106-1aae6ee4024c
-  session: 5349
-  owner_receipts: [992b3895392d1d68, fa3efcf81752e952]
+  session: ca73
+  owner_receipts: [992b3895392d1d68, fa3efcf81752e952, 22eefd90ee7df6c0, dbbdff093228e0a2]
   parent_plan: docs/plans/cloud-project-development/plan.yml (P5 hosted build/test/preview, P14 auto-commit)
   related_plans: [docs/plans/native-agentic-coding-readiness/plan.yml (R3/R9 machine runtime), docs/plans/agentic-tests-and-git-sync/plan.yml (test runs)]
 
@@ -32,7 +32,7 @@ gaps:
   - No general terminal command on E2B for a hosted Project; only inline scripts and test runs, each in a fresh sandbox.
   - No sandbox that outlives one run, so every install starts from zero and a dev server cannot outlive its test.
   - Files a command changes (lockfile, generated code, formatter output) are lost.
-  - The web app's Project file executor (TypeScript; projects capability ts-only) runs only list, search, read_text, create_file and update_file. Snapshot (every hosted test run and cloud command), commit, rename/delete and apply_changes run only in the Rust core (CLI). The web proof needs them; decision asked of the owner (recommendation - the Rust executor in the shared Worker).
+  - The web app's Project file executor (TypeScript; projects capability ts-only) runs only list, search, read_text, create_file and update_file. Snapshot (every hosted test run and cloud command), commit, rename/delete and apply_changes run only in the Rust core (CLI). The web proof needs them. Owner decision 2026-11-18 (receipt 22eefd90ee7df6c0, option A): the web app runs every hosted file-job operation through the Rust core in the shared Worker, no new TypeScript (package C3w).
   - Since 2026-08-07 every root turn that offers start_sub_chats carries an orchestration id, and the async-skill gate refuses every code.run in it, cloud or machine, leaving a stuck Processing card.
 
 rules:
@@ -111,8 +111,21 @@ packages:
     outcome: Sync-back. One ordered client file job (apply_changes) in the Rust hosted executor reusing the existing write path; dispatched after a command that changed files; diff cards in web and CLI.
     ownership: packages/openmates-rust/src/work/projects/hosted (new apply_changes module), backend dispatch beside project_test_snapshot.py.
   - id: C3w
-    outcome: Web executes every hosted file-job operation (snapshot, commit, rename/delete, apply_changes) through the Rust core, per the owner's decision.
-    ownership: packages/openmates-rust hosted executor binding, packages/openmates-browser-bindings, the shared Worker unit, frontend/packages/ui/src/services/projectFileJobExecutor.ts.
+    outcome: Web executes every hosted file-job operation (list, search, read, create/update, rename/delete, apply_changes, snapshot, commit, remote-source relay) through the Rust core, per the owner's decision; the TypeScript job executor is deleted.
+    design: >-
+      (1) The hosted executor, the frame protocol (job_frames) and the snapshot compile for wasm32:
+      the pure path rules (gitignore matcher, credential globs, name order) move out of the
+      native-only source_host; the browser build enables workflow-yaml; the revision commit uses the
+      core's own short socket as on native. (2) The core gains the web's interactive behaviour: an
+      always-ask write or an ignored-file read answers awaiting_approval and returns a prompt to the
+      shell; the shell's decision returns the reject or the re-claim frame; the approved operation
+      then runs with the approval (digest-bound) on its new lease. Applied writes are returned as
+      events for the diff cards. (3) The web's Project-file privacy layer (restore of placeholders in
+      arguments and writes, redaction of file contents into OM_PII tokens, mappings persisted
+      chat-key-encrypted in the existing local format) moves into the core and also covers the CLI.
+      (4) A projectFileJobs Worker unit marshals frames, prompts, decisions and events; the page only
+      relays WebSocket frames and shows the existing approval prompts and diff cards.
+    ownership: packages/openmates-rust (path_rules, work/projects/hosted, client/project_file_job*, privacy/file_privacy), packages/openmates-browser-bindings, frontend/packages/ui/src/services/rustCore/projects (new unit), chatSyncService wiring; deletes projectFileJobExecutor.ts and browserProjectFileExecutor.ts.
   - id: C4
     outcome: Proof. CLI acceptance first, then the web E2E spec for the full cloud flow with a Playwright video on the personal dev test account.
     ownership: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts (new), scripts/agentic_cloud_project_web_real_test.py (new).
