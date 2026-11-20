@@ -18,6 +18,16 @@ def isolate_claude_conversation_identity(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def isolate_chat_lifecycle_state(tmp_path, monkeypatch):
+    """Real-test runners take the dev test lock (dev_test_lock.py); keep it and waiters out of real state."""
+    monkeypatch.setenv('OPENMATES_CHAT_LIFECYCLE_DIR', str(tmp_path / 'chat-lifecycle'))
+    import sys
+    lock = sys.modules.get('dev_test_lock')
+    if lock is not None:
+        monkeypatch.setattr(lock, '_held', {})
+
+
+@pytest.fixture(autouse=True)
 def isolate_apple_stop_state(request, tmp_path, monkeypatch):
     name = request.node.path.name
     if not (name.startswith('test_apple_remote') or name == 'test_apple_no_delete_guard.py'):

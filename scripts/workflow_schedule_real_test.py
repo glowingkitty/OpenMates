@@ -25,6 +25,7 @@ from zoneinfo import ZoneInfo
 
 from workflow_real_test_helpers import resolve_cli_path, run_cli_json
 from project_names import natural_project_name
+import dev_test_lock
 
 try:
     from scripts import sessions
@@ -196,6 +197,7 @@ def acquire_leases(session_id: str, slot: int | None) -> tuple[list[tuple[str, s
     stack_resources = {sessions.DOCKER_RESOURCE_DEV_STACK}
     sessions.acquire_test_resource_lease(stack_id, owner, stack_resources, mode="shared", timeout=120)
     leases.append((stack_id, owner, stack_resources, "shared"))
+    dev_test_lock.hold("real-inference", Path(sys.argv[0]).name, session_id)  # TASK-8552
     try:
         for candidate in ([slot] if slot else range(1, 14)):
             lease_id = f"workflow-schedule-account-{candidate}-{uuid4().hex[:10]}"

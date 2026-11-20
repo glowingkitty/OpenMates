@@ -10177,8 +10177,20 @@ def _run_setup_gated_docker_restart(
         raise
 
 
+def _dev_test_lock_gate(action: str, sid: str, session: dict | None = None) -> None:
+    """Exit (code 75) while a real test holds dev; the calling chat is woken on release (TASK-8552)."""
+    try:
+        from scripts import dev_test_lock
+    except ModuleNotFoundError:
+        import dev_test_lock
+    if session is None:
+        session = _load_sessions().get("sessions", {}).get(sid) or {}
+    dev_test_lock.gate(action, sid, str(session.get("agent_task_id") or ""))
+
+
 def cmd_docker_restart(args: argparse.Namespace) -> None:
     """Drain dependent tests, restart allowlisted services, and verify health."""
+    _dev_test_lock_gate("docker restart", args.session)
     services = sorted(set(args.service))
     checkout_root = _docker_checkout_root(args.session)
     available = available_docker_services(checkout_root)
@@ -12996,6 +13008,8 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     session = data["sessions"][sid]
+    if _session_repo_id(session) == DEFAULT_REPO_ID:
+        _dev_test_lock_gate("deploy", sid, session)
     modified = session.get("modified_files", [])
     exclude = set(args.exclude or [])
     is_control_plane_repo = _session_is_control_plane_repo(session)

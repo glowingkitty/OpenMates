@@ -32,6 +32,7 @@ from verify_chat_sidebar_title_live import safe_failure, test_account_environmen
 from workflow_schedule_real_test import API_URL, ProofError, acquire_leases, sessions, write_receipt
 from personal_dev_draft_guard import DraftGuard, DraftGuardError, record_leftovers
 from project_names import natural_project_name
+import dev_test_lock
 
 ROOT = Path(__file__).resolve().parents[1]
 TERMINAL = {"finished", "failed", "cancelled"}
@@ -79,6 +80,9 @@ def personal_dev_leases(prefix: str, session_id: str, *, timeout: int) -> list[t
             lease_id = f"{prefix}-{name}-{uuid4().hex[:12]}"
             sessions.acquire_test_resource_lease(lease_id, owner, resources, mode=mode, timeout=timeout)
             leases.append((lease_id, owner, resources, mode))
+        # Deploys and restarts by other chats wait until this real test ends (TASK-8552).
+        script = Path(sys.argv[0]).name
+        dev_test_lock.hold("voice-call" if "voice" in script else "real-inference", script, session_id)
         return leases
     except BaseException:
         for lease_id, *_ in reversed(leases):

@@ -377,6 +377,24 @@ rotation in `/etc/docker/daemon.json` (validated with `dockerd --validate`;
 active after the next Docker restart, which the script does not do). The ext4 root reserve is lowered
 once by hand to 3 GiB (`sudo tune2fs -r 786432 <root device>`).
 
+## 6. Dev test lock (`scripts/dev_test_lock.py`, TASK-8552)
+
+While a real voice call test, a real-inference E2E test or an AI test user run uses dev,
+`sessions.py deploy` and `sessions.py docker restart` do nothing (exit code 75) and register a
+`dev-test-lock-<chat>` handoff waiter for the calling chat. The chat keeps coding; when the lock is
+released every waiting chat is woken through the chat waiters and runs its command again.
+
+- Holders: `personal_dev_leases` (most `*_real_test.py`, voice call tests included),
+  `workflow_schedule_real_test.acquire_leases`, `workflow_real_test_helpers.cli_env` (dev URL),
+  `maps_closing_time_real_test.py` and `ai_test_users.dev_stack_lease`. Anything else:
+  `dev_test_lock.py run --kind voice-call|real-inference|ai-test-users -- <command>`.
+- Several tests may hold it at once; dev is free when the last leaves. A holder ends with its
+  process (at exit; a killed one is swept by the lifecycle within a minute) and at the latest
+  45 minutes after it took the lock (no renewal).
+- `python3 scripts/dev_test_lock.py status` and the dev connector's host_status show who holds it
+  since when. `release --all` drops a stuck lock.
+- Temporary: it goes away when the test setup moves into OpenMates itself.
+
 ## Setup
 
 `scripts/host-load-guard-setup.sh` and `scripts/claude-idle-chats-setup.sh` install
