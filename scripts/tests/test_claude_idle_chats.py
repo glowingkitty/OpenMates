@@ -498,30 +498,39 @@ def test_task_priorities_come_from_the_tasks_copy(tmp_path):
 
 
 class FakeZellij:
-    """zellij(session, *args) stand-in: list-panes output per session, records close-pane calls."""
+    """zellij(session, *args) stand-in: list-panes --json / list-tabs per session, records closes."""
 
-    def __init__(self, panes: dict[str, list[str]]):
-        self.panes, self.closed = panes, []
+    def __init__(self, panes: dict[str, list[dict]], tabs: dict[str, list[int]]):
+        self.panes, self.tabs, self.closed = panes, tabs, []
 
     def __call__(self, session, *args):
         import subprocess
         if args[0] == "list-panes":
-            lines = ["PANE_ID  TYPE  TITLE", "plugin_0  plugin  zellij:link",
-                     *(f"terminal_{n}  terminal  Pane" for n in self.panes.get(session, []))]
-            return subprocess.CompletedProcess(args, 0, "\n".join(lines), "")
-        self.closed.append((session, args[-1]))
+            return subprocess.CompletedProcess(args, 0, json.dumps(self.panes.get(session, [])), "")
+        if args[0] == "list-tabs":
+            rows = ["TAB_ID  POSITION  NAME", *(f"{t}  {t}  tab" for t in self.tabs.get(session, []))]
+            return subprocess.CompletedProcess(args, 0, "\n".join(rows), "")
+        self.closed.append((session, args[0], args[-1]))
         return subprocess.CompletedProcess(args, 0, "", "")
 
 
-def test_dead_panes_are_closed_only_after_two_cycles_and_live_ones_never(tmp_path):
-    """2026-11-20: 58 of 72 panes of the claude session belonged to exited chats (zellij server at 900 MB)."""
-    fake = FakeZellij({"claude": ["1", "2", "3"], "socialhub": ["4"]})
-    owners = {"claude": {"2"}, "socialhub": set()}
-    assert lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW, owners, fake) == []  # first sighting
-    assert lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW + 30, owners, fake) == []  # too soon
+def term(n, tab, **extra):
+    return {"id": n, "is_plugin": False, "tab_id": tab, "exited": False, "is_held": False, **extra}
+
+
+def test_dead_panes_empty_tabs_and_the_link_plugin_are_closed_but_live_panes_never(tmp_path):
+    """2026-11-20: 58 dead panes, 57 empty tabs and the link plugin kept the claude zellij server at 110% CPU."""
+    link = {"id": 0, "is_plugin": True, "plugin_url": "zellij:link", "tab_id": 0}
+    fake = FakeZellij({"claude": [link, term(1, 0), term(2, 1), term(3, 2), term(9, 2)],
+                       "socialhub": [term(4, 0, is_held=True)]},
+                      {"claude": [0, 1, 2, 5], "socialhub": [0]})
+    owners = {"claude": {"1", "9"}, "socialhub": {"4"}}
+    first = lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW, owners, fake)
+    assert first == ["claude plugin_0 (zellij:link)", "claude empty tab 5"]  # dead panes wait for a second sighting
+    assert lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW + 30, owners, fake) == [
+        "claude plugin_0 (zellij:link)", "claude empty tab 5"]  # too soon for the panes
     closed = lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW + lc.DEAD_PANE_SECONDS, owners, fake)
-    assert closed == ["claude terminal_1", "claude terminal_3", "socialhub terminal_4"]
-    assert ("claude", "terminal_2") not in fake.closed and ("claude", "plugin_0") not in fake.closed
-    fake.panes = {"claude": ["5"]}
-    lc.close_dead_panes(["claude"], tmp_path, NOW + 200, {"claude": set()}, fake)
-    assert lc.close_dead_panes(["claude"], tmp_path, NOW + 205, {"claude": {"5"}}, fake) == []  # it started meanwhile
+    assert "claude terminal_2" in closed and "claude terminal_3" in closed and "socialhub terminal_4" in closed
+    assert ("claude", "close-tab", "1") in fake.closed  # its only pane: the tab goes with it
+    assert ("claude", "close-pane", "terminal_3") in fake.closed  # tab 2 keeps its live pane 9
+    assert not any(target in ("terminal_1", "terminal_9") for _, _, target in fake.closed)

@@ -683,36 +683,69 @@ def pane_owners() -> dict[str, set[str]]:
     return owners
 
 
+HEADLESS_PLUGINS = frozenset({"zellij:link"})  # background plugins nobody needs in a session nobody attaches to
+
+
 def close_dead_panes(sessions: list[str], directory: Path, now: float, owners: dict[str, set[str]] | None = None,
                      run=None) -> list[str]:
-    """Close terminal panes whose process ended (seen dead for DEAD_PANE_SECONDS); returns them.
+    """Tidy the managed zellij sessions; returns what was closed.
 
-    A stopped chat's pane stays open with its scrollback: on 2026-11-20 the `claude`
-    session held 58 dead panes of 72 and its zellij server used 900 MB, and the
-    socialhub server hit about 690% CPU. A new tab has no process for a moment, so a pane
-    must be seen dead in two cycles at least DEAD_PANE_SECONDS apart.
+    * A terminal pane whose process ended (exited, held, or no live process with its
+      pane id) is closed once seen dead in two cycles DEAD_PANE_SECONDS apart (a new tab
+      has no process for a moment). The tab goes with it when it was the tab's only pane:
+      `close-pane` from the CLI leaves an empty tab behind.
+    * Empty tabs are closed.
+    * The `zellij:link` background plugin is closed.
+    2026-11-20: the `claude` session held 58 dead panes and 57 empty tabs of 72 and its
+    link plugin thread had used 43 CPU hours; closing them took the server from about 110%
+    CPU and 900 MB to 29% and 180 MB, with every chat still running.
     """
     run = run or zellij
     owners = pane_owners() if owners is None else owners
     marks, seen, closed = load_marks(directory, "dead_panes.json"), {}, []
     for session in sessions:
-        listing = run(session, "list-panes")
-        if listing.returncode:
+        listing = run(session, "list-panes", "--json", "--tab")
+        tabs = run(session, "list-tabs")
+        if listing.returncode or tabs.returncode:
             continue
-        for line in listing.stdout.splitlines()[1:]:
-            pane = line.split()[0] if line.split() else ""
-            if not pane.startswith("terminal_") or pane[len("terminal_"):] in owners.get(session, set()):
+        try:
+            panes = json.loads(listing.stdout or "[]")
+        except ValueError:
+            continue
+        per_tab: dict[int, int] = {}
+        for pane in panes:
+            per_tab[pane.get("tab_id")] = per_tab.get(pane.get("tab_id"), 0) + 1
+        for pane in panes:
+            if pane.get("is_plugin"):
+                if pane.get("plugin_url") in HEADLESS_PLUGINS and not run(
+                        session, "close-pane", "--pane-id", f"plugin_{pane['id']}").returncode:
+                    closed.append(f"{session} plugin_{pane['id']} ({pane['plugin_url']})")
                 continue
-            key = f"{session} {pane}"
+            pane_id = f"terminal_{pane['id']}"
+            if str(pane["id"]) in owners.get(session, set()) and not (pane.get("exited") or pane.get("is_held")):
+                continue
+            key = f"{session} {pane_id}"
             first = marks.get(key)
-            if first and now - _iso(first) >= DEAD_PANE_SECONDS:
-                if not run(session, "close-pane", "--pane-id", pane).returncode:
-                    closed.append(key)
-                    continue
-            seen[key] = first or _utc(now)
+            if not first or now - _iso(first) < DEAD_PANE_SECONDS:
+                seen[key] = first or _utc(now)
+                continue
+            alone = per_tab.get(pane.get("tab_id"), 0) <= 1 and pane.get("tab_id") is not None
+            result = (run(session, "close-tab", "--tab-id", str(pane["tab_id"])) if alone
+                      else run(session, "close-pane", "--pane-id", pane_id))
+            if result.returncode:
+                seen[key] = first
+                continue
+            closed.append(key)
+            if alone:
+                per_tab[pane["tab_id"]] = 0
+        used = {pane.get("tab_id") for pane in panes}
+        for line in tabs.stdout.splitlines()[1:]:
+            tab = line.split()[0] if line.split() else ""
+            if tab.isdigit() and int(tab) not in used and not run(session, "close-tab", "--tab-id", tab).returncode:
+                closed.append(f"{session} empty tab {tab}")
     save_marks(directory, "dead_panes.json", seen)
     if closed:
-        log_event(directory, {"event": "dead_panes_closed", "panes": closed[:50], "count": len(closed)})
+        log_event(directory, {"event": "zellij_tidied", "closed": closed[:50], "count": len(closed)})
     return closed
 
 

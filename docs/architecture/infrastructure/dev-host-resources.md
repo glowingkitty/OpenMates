@@ -64,9 +64,12 @@ that waits on the owner is stopped but stays listed as waiting with its question
 
 Each cycle also declines Claude Code's auto-mode setup offer ("Teach auto mode
 about your environment?", Esc) in pane chats, which otherwise sat behind it for
-days as `waiting`, and closes zellij panes whose process ended (seen dead in two
-cycles 2 minutes apart; 58 of 72 panes of the `claude` session were dead on
-2026-11-20).
+days as `waiting`, and tidies the managed zellij sessions: panes whose process
+ended (seen dead in two cycles 2 minutes apart; with their tab when it was the
+only pane), empty tabs, and the `zellij:link` background plugin. On 2026-11-20 the
+`claude` session held 58 dead panes and 57 empty tabs of 72, and the link plugin's
+thread had used 43 CPU hours; closing them took the server from about 110% CPU
+and 900 MB to 29% and 180 MB with every chat still running.
 
 Waking after a wait reopens at most `wake_batch` (3) closed chats per cycle, a
 finished job's result before a timer, then by the chat's Task priority (hourly
