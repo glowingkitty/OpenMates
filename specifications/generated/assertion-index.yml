@@ -133183,12 +133183,12 @@ assertions:
     direct_tests:
     - &id16936
       path: frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
-      line: 206
+      line: 226
       name: new feature request layers Write specification over the Project focus
       surface: gui.web
     - &id16937
       path: frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
-      line: 241
+      line: 262
       name: a Project
       surface: gui.web
     supporting_tests:
@@ -133232,7 +133232,7 @@ assertions:
     direct_tests:
     - &id16940
       path: frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
-      line: 206
+      line: 226
       name: new feature request layers Write specification over the Project focus
       surface: gui.web
     supporting_tests:
@@ -133370,12 +133370,12 @@ assertions:
     direct_tests:
     - &id16953
       path: frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
-      line: 206
+      line: 226
       name: new feature request layers Write specification over the Project focus
       surface: gui.web
     - &id16954
       path: frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
-      line: 241
+      line: 262
       name: a Project
       surface: gui.web
     supporting_tests:

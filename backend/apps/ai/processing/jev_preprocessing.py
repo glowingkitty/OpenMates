@@ -21,6 +21,7 @@ from backend.apps.ai.processing.jev_decisions import (
 from backend.apps.ai.processing.use_case_routing import (
     USE_CASE_QUESTION_KEY, normalize_use_case, use_case_question,
 )
+from backend.apps.ai.processing.plan_focus_routing import PROJECT_LAYER_FOCUS_IDS
 from backend.apps.ai.utils.authored_result_instructions import authoring_preview_hints
 from backend.apps.ai.utils.authored_result_fences import get_authoring_definitions
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -847,6 +848,8 @@ async def decide_preprocessing_with_jev(
                 f"project-focus:{authorized_project_id}:")
         if identifier.startswith("project-"):
             return True  # Public candidate for cancellable Project Focus consent.
+        if authorized_project_id is not None and identifier in PROJECT_LAYER_FOCUS_IDS:
+            return True  # Spec-driven layer over the accepted Project's base focus.
         return _app_id(identifier, selected_set) is not None
 
     available_focus_modes = [entry for entry in available_focus_modes if focus_in_scope(entry)]

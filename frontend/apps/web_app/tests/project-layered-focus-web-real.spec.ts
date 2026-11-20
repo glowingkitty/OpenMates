@@ -83,6 +83,7 @@ async function insertModelMention(page: Page): Promise<void> {
 
 async function sendWithModel(page: Page, prompt: string, kind: string): Promise<void> {
   await focusMessageEditor(page.getByTestId('message-editor'));
+  await page.keyboard.press('End');
   await insertModelMention(page);
   await sendMessage(page, ` ${prompt}`, undefined, undefined, kind, { preserveExistingContent: true });
 }
@@ -141,14 +142,33 @@ async function createProject(page: Page, topic: string): Promise<{ id: string; n
   return { id, name };
 }
 
-/** Starts a chat inside the open Project from the Files tab Create menu (Project focus active). */
-async function startProjectChat(page: Page): Promise<void> {
-  await page.getByTestId('project-tab-folders').click();
-  await expect(page.getByTestId('project-folders-panel')).toBeVisible({ timeout: 30_000 });
-  await page.getByTestId('project-folder-create-menu-button').click();
-  await page.getByTestId('project-create-chat').click();
-  await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByTestId('focus-pill')).toBeVisible({ timeout: 60_000 });
+/**
+ * Starts a fresh chat and binds it to the Project with an @Project mention, the way a user names a
+ * Project in any chat. The Project focus becomes active when the first message is sent.
+ */
+async function startProjectChat(page: Page, projectId: string, projectName: string): Promise<void> {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page).not.toHaveURL(/chat-id=/);
+  await page.getByTestId('message-field').click();
+  const editor = page.getByTestId('message-editor');
+  await expect(editor).toBeVisible({ timeout: 60_000 });
+  await focusMessageEditor(editor);
+  // Start from an empty composer: Project creation may leave its own @Project chip behind.
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.press('Backspace');
+  const projectQuery = projectName.trim().split(/\s+/).at(-1);
+  expect(projectQuery).toBeTruthy();
+  await page.keyboard.type(`@${projectQuery}`, { delay: 60 });
+  const projectResult = page.locator('.mention-dropdown .mention-result')
+    .filter({ hasText: projectName }).filter({ hasText: 'Project context' }).first();
+  // Project mention results load every Project's settings and sources before ranking, which is slow on
+  // accounts with many Projects; the time it took is logged so a slow dropdown stays visible in the run.
+  const mentionStarted = Date.now();
+  await expect(projectResult).toBeVisible({ timeout: 120_000 });
+  console.log(`[project-mention] dropdown result after ${Date.now() - mentionStarted} ms`);
+  await projectResult.click();
+  const mention = editor.locator(`[data-type="generic-mention"][data-mention-type="project"][data-project-id="${projectId}"]`);
+  await expect(mention, 'the new chat is bound to the Project').toBeVisible({ timeout: 30_000 });
 }
 
 async function deleteProject(page: Page, projectId: string): Promise<void> {
@@ -216,10 +236,11 @@ test.describe('Layered focuses over the Project focus (real inference, dev only)
     try {
       const project = await createProject(page, 'Garden planner');
       projectId = project.id;
-      await startProjectChat(page);
-      await expect(page.getByTestId('focus-pill')).toContainText(project.name.split(':')[0]);
+      await startProjectChat(page, project.id, project.name);
 
       await send(page, FEATURE_REQUEST, 'layer-feature-request');
+      await expect(page.getByTestId('focus-pill'), 'the Project focus is the base of the chat')
+        .toContainText(project.name.split(':')[0], { timeout: 60_000 });
       await activateLayered(page, `[data-testid="focus-mode-bar"][data-focus-id="${SPEC_FOCUS_ID}"]`);
       await expect.poll(() => pillLabel(page), { timeout: 60_000 }).toMatch(/Write specification/i);
       expect(await pillLabel(page), 'the banner is qualified with the Project').toContain(project.name.split(':')[0]);
@@ -253,7 +274,7 @@ test.describe('Layered focuses over the Project focus (real inference, dev only)
 
       // Seed the stored Project Focus through the product's own authoring job: the chat suggests
       // "Create Focus", the user clicks it, answers its questions and saves the reviewed draft.
-      await startProjectChat(page);
+      await startProjectChat(page, project.id, project.name);
       await send(page, SEED_FOCUS, 'seed-focus');
       const action = page.getByTestId('project-authoring-action').first();
       await expect(action, 'the assistant offers to create the Project Focus').toBeVisible({ timeout: 120_000 });
@@ -272,7 +293,7 @@ test.describe('Layered focuses over the Project focus (real inference, dev only)
       // A fresh chat in the Project starts with only the Project focus active.
       await page.goto(`/projects/${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
       await expect(page.getByTestId('project-workspace-header')).toBeVisible({ timeout: 60_000 });
-      await startProjectChat(page);
+      await startProjectChat(page, project.id, project.name);
 
       await send(page, PROVIDER_REQUEST, 'layer-project-focus');
       await activateLayered(page, `[data-testid="focus-mode-bar"]:has-text("${PROVIDER_FOCUS_NAME}")`);
