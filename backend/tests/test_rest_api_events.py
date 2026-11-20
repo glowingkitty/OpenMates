@@ -47,6 +47,21 @@ async def test_explicit_unsupported_provider_never_falls_back(skill, provider):
     upstream.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=events-search.providers.explicit
+@pytest.mark.asyncio
+async def test_named_schedule_for_another_conference_searches_nothing_and_points_to_auto(skill):
+    instance, upstream = skill
+    result = await instance._process_single_search_request(
+        {"query": "Example open source summit", "location": "Example City", "provider": "pretalx", "count": 5},
+        "other-conference", secrets_manager=object(),
+    )
+    identity, events, error, total, sources, _warnings = result
+    assert identity == "other-conference"
+    assert events == [] and total == 0 and sources == []
+    assert error and "provider auto" in error
+    upstream.assert_not_awaited()
+
+
 # contract-test: supporting surface=rest_api assertions=events-search.conference.supported,events-search.results.actionable
 @pytest.mark.asyncio
 async def test_supported_conference_preserves_shape_and_count(skill):

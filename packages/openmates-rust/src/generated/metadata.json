@@ -2189,7 +2189,7 @@
                   "basic": false
                 },
                 "type": "string",
-                "description": "Source of the results (an official conference schedule, web for public web pages, or an installed provider).",
+                "description": "Leave as auto (the default), which searches public web pages and every available source. pretalx, GPN24, 39C3, 38C3 and 37C3 are only those four official schedules; never set them for any other conference, because they search nothing else.",
                 "enum": [
                   "auto",
                   "pretalx",

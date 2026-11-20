@@ -938,6 +938,11 @@ class SearchSkill(BaseSkill):
             if query and not conference and "auto" in normalized:
                 # A topic that only the web can answer, on a call without the server's secrets.
                 return request_id, [], "Web search is unavailable for this request.", 0, [], []
+            if query:
+                # A named schedule source never broadens; say what it holds so the next call can use auto.
+                return request_id, [], (
+                    "The official conference schedules cover only GPN24, 39C3, 38C3 and 37C3, so nothing was "
+                    "searched. Search again with provider auto to find this conference."), 0, [], []
             return request_id, [], "Event search needs a topic or a known conference schedule.", 0, [], []
         criteria = normalize_relevance_criteria(req.get("relevance_criteria"))
         topic = f"Events about {query}" if query and (not conference or query.casefold() != conference.casefold()) else None

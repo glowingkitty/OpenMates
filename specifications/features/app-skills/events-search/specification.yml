@@ -98,7 +98,8 @@ assertions:
 - id: events-search.providers.explicit
   type: behavior
   must: Explicit providers never broaden to auto discovery. A request naming pretalx or a known conference uses only
-    that official schedule and never the web; unsupported choices are reported visibly and never contact a source; the
+    that official schedule and never the web; naming it for any other conference searches nothing and tells the
+    caller to search again with auto; unsupported choices are reported visibly and never contact a source; the
     response lists only queried sources.
   depends_on:
   - examples.boundary_and_history

@@ -99,6 +99,36 @@ function recordOutgoing(page: any) {
 	return { outgoing, turns };
 }
 
+/** Chat ids whose local row holds draft ciphertext; never reads the draft itself. */
+function draftChatIds(page: any): Promise<string[]> {
+	return page.evaluate(() => new Promise<string[]>((resolve) => {
+		const open = indexedDB.open('chats_db');
+		open.onerror = () => resolve([]);
+		open.onsuccess = () => {
+			const db = open.result;
+			const request = db.transaction('chats', 'readonly').objectStore('chats').getAll();
+			request.onsuccess = () => {
+				db.close();
+				const rows = (request.result || []) as Array<Record<string, unknown>>;
+				resolve(rows.filter((row) => typeof row.encrypted_draft_md === 'string' && row.encrypted_draft_md !== '')
+					.map((row) => String(row.chat_id)));
+			};
+			request.onerror = () => { db.close(); resolve([]); };
+		};
+	}));
+}
+
+/** A blocked send keeps its draft in a chat that never got a URL; emptying the composer deletes it. */
+async function clearKeptDraft(page: any, draftsBefore: string[]): Promise<void> {
+	const editor = page.getByTestId('message-editor').last();
+	await editor.click();
+	await page.keyboard.press('ControlOrMeta+a');
+	await page.keyboard.press('Backspace');
+	await expect.poll(async () => (await draftChatIds(page)).filter((id) => !draftsBefore.includes(id)), {
+		message: "emptying the composer removes this test's kept draft", timeout: 30000,
+	}).toEqual([]);
+}
+
 async function typeMessage(page: any, message: string = MESSAGE): Promise<any> {
 	const editor = page.getByTestId('message-editor').last();
 	await expect(editor).toBeVisible({ timeout: 10000 });
@@ -177,6 +207,7 @@ test('a failing detector blocks the send, keeps the draft and asks to try again'
 	await archiveExistingScreenshots(logCheckpoint);
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	await startNewChat(page, logCheckpoint);
+	const draftsBefore = await draftChatIds(page);
 	const editor = await typeMessage(page);
 	await page.locator('[data-action="send-message"]').click();
 
@@ -190,8 +221,8 @@ test('a failing detector blocks the send, keeps the draft and asks to try again'
 	expectNothingRawLeft(outgoing);
 	await expect(editor).toContainText('Jonas Albrecht');
 	await takeStepScreenshot(page, 'still-blocked-after-retry');
-	// The kept draft belongs to this test's chat; deleting the chat removes it.
-	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'pii-failing-detector-cleanup');
+	// The kept draft belongs to a chat that never got a URL, so there is no chat to delete: empty the composer.
+	await clearKeptDraft(page, draftsBefore);
 	expectNothingRawLeft(outgoing);
 });
 
