@@ -60,3 +60,21 @@ def test_slow_replies_and_reviewer_groups_become_one_task_each():
     clusters = ai_test_users.cluster_findings(findings, ai_test_users.merge_groups("b#1+c#1"))
     assert [[f["id"] for f in c] for c in clusters] == [["b#1", "c#1"], ["a#1", "d#1"], ["e#1"]]
     assert ai_test_users.slow_title(clusters[1]) == "Slow chat replies on dev: 2 test users waited 72-111 s for answers"
+
+
+def test_run_holds_the_shared_dev_stack_lease_and_releases_it(monkeypatch):
+    import types
+
+    calls = []
+    fake = types.SimpleNamespace(
+        DOCKER_RESOURCE_DEV_STACK="dev-stack",
+        acquire_test_resource_lease=lambda lease_id, owner, resources, mode, timeout: calls.append(
+            ("acquire", lease_id, frozenset(resources), mode)),
+        release_test_resource_lease=lambda lease_id: calls.append(("release", lease_id)),
+    )
+    monkeypatch.setitem(sys.modules, "sessions", fake)
+    with pytest.raises(RuntimeError):
+        with ai_test_users.dev_stack_lease("20261120-120000"):
+            assert calls == [("acquire", "ai-test-users-20261120-120000", frozenset({"dev-stack"}), "shared")]
+            raise RuntimeError("worker crashed")
+    assert calls[-1] == ("release", "ai-test-users-20261120-120000")

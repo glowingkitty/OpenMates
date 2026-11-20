@@ -25,8 +25,10 @@ import json
 import re
 import subprocess
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -44,6 +46,36 @@ TASK_PROJECT = "96033196-e4b1-431e-b773-ba221e952fed"
 TASK_LABEL = "ai-test-users"
 STOPWORDS = set("the and for with that this when from into are not but has have was its on in of to a an is it "
                 "shows shown show page app chat".split())
+
+
+LEASE_RENEW_SECONDS = 600  # the coordination lease expires after 30 minutes without renewal
+
+
+@contextmanager
+def dev_stack_lease(run_id: str):
+    """Hold the shared dev-stack lease for the run: the workers live in the api container, so a coordinated
+    `sessions.py docker restart` must wait for them instead of killing them mid-run."""
+    import sessions  # heavy module; only the run commands need it
+
+    lease_id = owner = f"ai-test-users-{run_id}"
+    resources = {sessions.DOCKER_RESOURCE_DEV_STACK}
+    sessions.acquire_test_resource_lease(lease_id, owner, resources, mode="shared", timeout=1800)
+    stop = threading.Event()
+
+    def renew() -> None:
+        while not stop.wait(LEASE_RENEW_SECONDS):
+            try:
+                sessions.acquire_test_resource_lease(lease_id, owner, resources, mode="shared", timeout=60)
+            except (RuntimeError, OSError) as exc:  # the run goes on; the next renewal tries again
+                log(f"dev-stack lease renewal failed: {exc}")
+
+    renewer = threading.Thread(target=renew, name="dev-stack-lease", daemon=True)
+    renewer.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        sessions.release_test_resource_lease(lease_id)
 
 
 def log(message: str) -> None:
@@ -118,8 +150,9 @@ def command_daily(args: argparse.Namespace) -> int:
     run_dir = accounts.home() / run_id
     run_dir.mkdir(parents=True)
     started = time.monotonic()
-    results = run_groups(groups, run_id, run_dir, cfg, args.parallel)
-    deletions = execution.retry_deletions(run_id, run_dir, cfg)
+    with dev_stack_lease(run_id):
+        results = run_groups(groups, run_id, run_dir, cfg, args.parallel)
+        deletions = execution.retry_deletions(run_id, run_dir, cfg)
     run = finish_run(run_id, run_dir, plan["kind"], day.isoformat(), results, areas, estimate, cap, started,
                      deletions, queue=True)
     log(f"done: {run_dir / 'report.md'} total {run['totals']['total_usd']} USD")
@@ -163,8 +196,9 @@ def command_run(args: argparse.Namespace) -> int:
     run_dir.mkdir(parents=True)
     log(f"run {run_id}: {len(personas)} personas on {args.target}, budget cap {budget:.2f} USD, output {run_dir}")
     started = time.monotonic()
-    results = run_groups({args.target: personas}, run_id, run_dir, cfg, args.parallel)
-    deletions = execution.retry_deletions(run_id, run_dir, cfg)
+    with dev_stack_lease(run_id):
+        results = run_groups({args.target: personas}, run_id, run_dir, cfg, args.parallel)
+        deletions = execution.retry_deletions(run_id, run_dir, cfg)
     run = finish_run(run_id, run_dir, "manual", datetime.now(UTC).date().isoformat(), results,
                      schedule.areas_for([p["id"] for p in personas], PERSONAS), budget, args.total_cap_usd,
                      started, deletions, queue=args.queue)
