@@ -88,6 +88,7 @@ TIMEOUT_MINUTES = {"disk": 360.0, "ci": 240.0, "handoff": 240.0, "background": 2
 REGISTERED_KINDS = ("handoff", "background", "timer")
 USAGE_AVAILABLE_BELOW = 95.0  # weekly used percent; a usage-checked timer waits while usage is at or above it
 USAGE_RETRY_SECONDS = 3600.0
+EXPIRE_HOURS = 24.0  # a handoff/background waiter nobody fired is dropped this long after its timeout
 USAGE_RESET_MARGIN_SECONDS = 300.0
 CI_WAITING_STATES = ("queued", "dispatching", "submitted", "running", "attention")
 CI_FINAL_STATES = ("success", "failure", "cancelled")
@@ -112,12 +113,17 @@ class Waiter:
     def stalled(self, now: float) -> bool:
         return self.kind != "timer" and not self.ready and now > self.timeout_at
 
+    def late(self, now: float) -> bool:
+        """Stalled background work (a timed-out handoff waits on a person: shown as timed out, not stalled)."""
+        return self.stalled(now) and self.kind != "handoff"
+
     def blocks_stop(self, now: float) -> bool:
         """Keeps the chat running: not timed out, or over and about to be woken (a timer only when due)."""
         return self.ready or (self.kind != "timer" and not self.stalled(now))
 
     def label(self, now: float) -> str:
-        state = "ready" if self.ready else "STALLED" if self.stalled(now) else "waiting"
+        state = ("ready" if self.ready else f"timed out {_clock(self.timeout_at)} UTC, nobody fired it"
+                 if self.kind == "handoff" and self.stalled(now) else "STALLED" if self.stalled(now) else "waiting")
         until = (f", fires {_utc(self.timeout_at)}" if self.kind == "timer"
                  else f", times out {_clock(self.timeout_at)} UTC")
         return (f"{self.kind}: {self.detail} ({state}, since {_clock(self.since)} UTC"
@@ -296,6 +302,22 @@ def settle_timers(state: Path, now: float, usage: Callable[[], tuple[float, date
             _write_json(path, data)
 
 
+def expire(state: Path, now: float, log=lambda event: None) -> list[str]:
+    """Drop handoff/background waiters nobody fired within EXPIRE_HOURS after their timeout."""
+    with _locked(state):
+        path = state / "registered.json"
+        data = _read_json(path)
+        gone = [key for key, entry in data.items()
+                if entry["kind"] in ("handoff", "background") and not entry.get("fired_at")
+                and now > entry["timeout_at"] + EXPIRE_HOURS * 3600]
+        for key in gone:
+            entry = data.pop(key)
+            log({"event": "waiter_expired", "session_id": entry["chat_id"], "key": key, "on": entry["on"][:120]})
+        if gone:
+            _write_json(path, data)
+    return gone
+
+
 def registered_waiters(state: Path) -> list[Waiter]:
     found = []
     for key, entry in _read_json(state / "registered.json").items():
@@ -321,6 +343,7 @@ def registered_waiters(state: Path) -> list[Waiter]:
 def collect(sources: Sources, now: float) -> dict[str, list[Waiter]]:
     """chat id -> its waiters now, with CI jobs that ended since last cycle as ready waiters."""
     settle_timers(sources.state, now, sources.usage)
+    expire(sources.state, now)
     current = (disk_waiters(sources.ledger or default_ledger(), now)
                + ci_waiters(sources.root, sources.sessions, now) + registered_waiters(sources.state))
     seen = {waiter.key for waiter in current}
@@ -474,19 +497,30 @@ def wake_text(ready: list[Waiter]) -> str:
 
 
 def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, dict], state: Path, now: float, *,
-            type_into, resume, room: int, log, asks=lambda chat: False) -> tuple[set[str], list[dict]]:
+            type_into, resume, room: int, log, asks=lambda chat: False,
+            priority: dict[str, int] | None = None) -> tuple[set[str], list[dict]]:
     """Wake every chat with ready waiters once. `live` maps chat id -> lifecycle Chat.
 
     type_into(chat, text) -> bool types into a live pane chat; resume(chat_id, text) -> 'ok'
     or why not reopens a chat that is not running (at most `room` of them). A live chat
     whose last reply asks the owner something (`asks`) is not typed into: the owner's
-    answer comes first and the chat retries then. Returns the delivered waiter keys and
-    the wake failures to list as stalled.
+    answer comes first and the chat retries then. Chats go in order: a finished job's
+    result before a timer, then the rank of the chat's Task (`priority`: chat id -> 0
+    urgent .. 3 low), then the longest wait. Returns the delivered waiter keys and the
+    wake failures to list as stalled.
     """
     marks = _read_json(state / "waiter_wakes.json")
     delivered: set[str] = set()
     failures: list[dict] = []
-    for chat_id, items in sorted(waiters.items()):
+    ranks = priority or {}
+
+    def order(pair: tuple[str, list[Waiter]]) -> tuple:
+        chat_id, items = pair
+        ready = [w for w in items if w.ready] or items
+        return (all(w.kind == "timer" for w in ready), ranks.get(chat_id, 4),
+                min(w.ready_at or w.since for w in ready), chat_id)
+
+    for chat_id, items in sorted(waiters.items(), key=order):
         ready = [w for w in items if w.ready]
         chat = live.get(chat_id)
         if chat is not None:
@@ -546,7 +580,8 @@ def status_entries(waiters: dict[str, list[Waiter]], live: dict, registry: dict[
             "session_id": chat_id, "title": (chat.title or chat.name) if chat else stopped.get("title", ""),
             "running": chat is not None, "waits_on": [w.label(now) for w in items],
             "kinds": sorted({w.kind for w in items}), "since": _utc(min(w.since for w in items)),
-            "stalled": any(w.stalled(now) for w in items), "ready": any(w.ready for w in items)})
+            "stalled": any(w.late(now) for w in items), "ready": any(w.ready for w in items),
+            "timed_out": any(w.stalled(now) and not w.late(now) for w in items)})
     return entries
 
 
@@ -554,7 +589,7 @@ def stalled_entries(waiters: dict[str, list[Waiter]], live: dict, registry: dict
     """Waiters past their timeout, for status.json `stalled`."""
     entries = []
     for chat_id, items in sorted(waiters.items()):
-        late = [w for w in items if w.stalled(now)]
+        late = [w for w in items if w.late(now)]
         if not late:
             continue
         chat = live.get(chat_id)

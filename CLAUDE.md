@@ -77,7 +77,8 @@ when a skill or this file points to it.
 - Discord: every chat sends exactly one push (1-2 sentences) when it is done
   or blocked on the user, never for progress and never both for one event
   (blocked, later finished: one ❓, then one ✅). Done, also parked or paused:
-  `python3 scripts/agent_question.py done --summary "..." [--paused-until DATE]`.
+  `python3 scripts/agent_question.py done --summary "..." [--paused-until DATE]`;
+  put open follow-ups in the Task first, since a done chat is archived at its turn end.
   Blocked: `python3 scripts/agent_question.py ask --question "..."
   --recommendation "..."`.
 - Size the record to the risk: trivial → none; ordinary → inline goal + acceptance

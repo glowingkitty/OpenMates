@@ -372,3 +372,35 @@ def test_a_timer_needs_a_time_with_zone(tmp_path):
     with pytest.raises(ValueError):
         cw.parse_at("2026-11-20T10:05:00", False)
     assert cw.parse_at("2026-11-20T10:05:00+00:00", False) == (1795169100.0, False)
+
+
+def test_the_reset_wake_reopens_a_few_chats_by_task_priority_and_results_before_timers(tmp_path):
+    """Owner, 2026-11-20: the usage-reset wake filled all 20 slots with chats that did one step."""
+    ids = [f"{n:08d}-0000-4000-8000-000000000000" for n in range(6)]
+    found = {cid: [cw.Waiter(cid, "timer", f"reg:{n}", "resume", NOW - 9 * HOUR + n, NOW - HOUR, ready=True,
+                             ready_text="your timer is due", ready_at=NOW - HOUR)] for n, cid in enumerate(ids)}
+    found[ids[5]] = [cw.Waiter(ids[5], "ci", "ci:job", "CI e2e job", NOW - 2 * HOUR, NOW + HOUR, ready=True,
+                               ready_text="CI finished", ready_at=NOW - 60)]
+    registry = {cid: {"state": "stopped", "title": cid[:8]} for cid in ids}
+    rec = Recorder()
+    cw.deliver(found, {}, registry, tmp_path, NOW, type_into=rec.type_into, resume=rec.resume, room=3,
+               log=rec.events.append, priority={ids[3]: 0, ids[1]: 2})
+    assert [chat_id for chat_id, _ in rec.resumed] == [ids[5], ids[3], ids[1]]  # CI result, urgent, medium
+    cw.deliver(found, {}, registry, tmp_path, NOW, type_into=rec.type_into, resume=rec.resume, room=0,
+               log=rec.events.append)
+    assert len(rec.resumed) == 3  # no room left: the rest waits for a later cycle
+
+
+def test_a_timed_out_handoff_shows_as_timed_out_not_stalled_and_is_dropped_a_day_later(tmp_path):
+    state_dir = tmp_path / "state"
+    key = cw.add(state_dir, CHAT, "handoff", "owner answer on the disk proposal", timeout_minutes=60, now=NOW - 2 * HOUR)
+    found = cw.collect(sources(tmp_path), NOW)
+    (waiter,) = found[CHAT]
+    assert "timed out" in waiter.label(NOW) and "STALLED" not in waiter.label(NOW) and not waiter.late(NOW)
+    (entry,) = cw.status_entries(found, {}, {}, NOW)
+    assert entry["timed_out"] and not entry["stalled"]
+    assert cw.stalled_entries(found, {}, {}, NOW) == []
+    events: list = []
+    assert cw.expire(state_dir, NOW + (cw.EXPIRE_HOURS - 2) * 3600, events.append) == []  # not a full day past yet
+    assert cw.expire(state_dir, NOW + (cw.EXPIRE_HOURS + 1) * 3600, events.append) == [key]
+    assert events[0]["event"] == "waiter_expired" and CHAT not in cw.collect(sources(tmp_path), NOW + 26 * HOUR)

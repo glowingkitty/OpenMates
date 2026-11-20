@@ -38,13 +38,18 @@ What an overload does:
 | New session (SessionStart) | Instruction to wait (`host_load_guard.py wait`). |
 | `heavy_slot.py run` | Waits for a slot; local runs also need their class cap plus a 3 GiB floor free. |
 
-## 2. Chat lifecycle (`scripts/claude_idle_chats.py`, timer every 5 min)
+## 2. Chat lifecycle (`scripts/claude_idle_chats.py`, timer every minute)
 
 | State | When | What happens |
 | --- | --- | --- |
-| Working | busy, waiting for a permission/answer, background command, or active within `idle_stop_minutes` | runs |
-| Idle-stopped | idle ≥ `idle_stop_minutes` (60) and nothing open | SIGTERM (graceful); transcript kept; connector `send_message` resumes it with `claude --resume` |
+| Working | busy, waiting for a permission, background command or waiter, or its turn ended less than `idle_stop_minutes` (3) ago | runs, holds a slot |
+| Idle-stopped | turn ended ≥ `idle_stop_minutes` ago and nothing runs or waits in the background, also when it waits on the owner's answer or parked itself | SIGTERM (graceful); transcript and open question kept; connector `send_message` or its waiter resumes it with `claude --resume` |
+| Archived | reported done with a ✅ push (no `--paused-until`), asks nothing, no waiter | pane chat: `/exit` (archives its Claude app session) and its pane closed; otherwise stopped as done with `reported_done` and archived by the connector without approval |
 | Done | idle ≥ `done_hours` (24), finished | listed in `status.json` for the connector to archive in the Claude app |
+
+Owner rule (2026-11-20): only working chats and chats waiting on a background job
+hold one of the `max_running` slots. After the weekly usage reset 13 of 20 slots
+were held by idle chats for about an hour, and new chats could not start.
 
 Activity is the session record's state time plus the newest record timestamp in
 the transcript and sub-agent transcripts. File mtime is not used, because Claude
@@ -52,13 +57,25 @@ Code rewrites idle transcripts in place on bridge reconnects.
 
 Never stopped: chats started by hand in a terminal (only Remote Control workers
 and chats in a zellij pane of `zellij_sessions` are managed), the running chat, a
-chat that is not idle, one with a background command, and one whose last turn is
-a message without a reply (including a refused prompt). Idle stop and done also
-keep a chat whose last reply asks something.
+chat that is not idle, one with a background command or an open waiter, and one
+whose last turn is a message without a reply (including a refused prompt). A chat
+that waits on the owner is stopped but stays listed as waiting with its question
+(stopped.json `open_question`, the briefing's waiting chats).
+
+Each cycle also declines Claude Code's auto-mode setup offer ("Teach auto mode
+about your environment?", Esc) in pane chats, which otherwise sat behind it for
+days as `waiting`, and closes zellij panes whose process ended (seen dead in two
+cycles 2 minutes apart; 58 of 72 panes of the `claude` session were dead on
+2026-11-20).
+
+Waking after a wait reopens at most `wake_batch` (3) closed chats per cycle, a
+finished job's result before a timer, then by the chat's Task priority (hourly
+Tasks copy), and leaves `free_slots` (4) slots for new chats. A handoff waiter
+past its timeout shows as "timed out" (not STALLED) and is dropped 24 hours later;
+only timed-out disk, CI and background waiters count as stalled.
 
 Cap: at most `max_running` (20) chat processes. Beyond that the longest-idle
-chats are suspended, those without an open question first; a chat with an open
-question only after `cap_question_idle_hours` (4) without an answer.
+chats are suspended, those without an open question first.
 `claude_dispatch.launch_claude_chat` (also used by the connector's `start_chat`)
 asks `claude_idle_chats.py admit` first. When there is no room, the chat waits in
 `logs/claude-dispatch/pending/` and the caller gets `ChatQueued`. The per-minute

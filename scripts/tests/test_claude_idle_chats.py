@@ -34,10 +34,12 @@ def iso(ts: float) -> str:
     return datetime.fromtimestamp(ts, timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def test_idle_finished_chat_is_stopped_after_the_idle_limit_and_done_after_a_day():
+def test_a_finished_turn_releases_its_slot_within_minutes_and_is_done_after_a_day():
+    """Owner, 2026-11-20: after the usage reset 13 of 20 slots were held by idle chats for about an hour."""
     assert lc.decide(chat(), NOW, CONFIG, "other").action == "stop"
     assert lc.decide(chat(last_activity=NOW - 30 * HOUR), NOW, CONFIG, "other").action == "done"
-    assert lc.decide(chat(last_activity=NOW - 50 * 60), NOW, CONFIG, "other").action == "keep"
+    assert lc.decide(chat(last_activity=NOW - 5 * 60), NOW, CONFIG, "other").action == "stop"
+    assert lc.decide(chat(last_activity=NOW - 2 * 60), NOW, CONFIG, "other").action == "keep"  # just ended its turn
 
 
 def test_idle_limit_and_pressure_limit_are_configurable():
@@ -70,9 +72,14 @@ def test_own_chat_is_never_stopped():
     "Workflows are on in production. Decide whether they appear in this one.",
     "Reply **OK** (or with changes) and I'll start.",
 ])
-def test_open_questions_anywhere_near_the_end_keep_the_chat(text):
+def test_a_chat_waiting_on_the_owner_frees_its_slot_but_keeps_its_question(text):
     assert lc.asks_something(text)
-    assert lc.decide(chat(last_activity=NOW - 30 * HOUR, last_text=text), NOW, CONFIG, "other").action == "keep"
+    asking = chat(last_activity=NOW - 30 * HOUR, last_text=text)
+    decision = lc.decide(asking, NOW, CONFIG, "other")
+    assert decision.action == "stop" and "waits on your answer" in decision.reason  # never "done" or archived
+    registry: dict = {}
+    lc.record_stop(registry, asking, "stopped", decision.reason)
+    assert registry["chat-a"]["open_question"]
 
 
 def test_urls_and_code_spans_with_question_marks_are_not_questions():
@@ -84,7 +91,7 @@ def test_cap_suspends_longest_idle_first_and_never_breaks_hard_rules():
     chats = [
         chat(session_id="busy", status="busy", last_activity=NOW - 9 * HOUR),
         chat(session_id="old", last_activity=NOW - 5 * HOUR),
-        chat(session_id="recent", last_activity=NOW - 5 * 60),
+        chat(session_id="recent", last_activity=NOW - 30),
         chat(session_id="mid", last_activity=NOW - 2 * HOUR),
         chat(session_id="held", last_speaker="user", last_text=lc.REFUSED_PREFIX, last_activity=NOW - 8 * HOUR),
     ]
@@ -439,7 +446,7 @@ def test_runs_as_isolated_python_like_the_systemd_unit():
     assert result.returncode == 0, result.stderr
 
 
-def test_a_question_pushed_to_discord_keeps_the_chat_until_the_user_answers(tmp_path):
+def test_a_question_pushed_to_discord_stays_open_until_the_user_answers(tmp_path):
     """Chat 602f0aeb (2026-11-19): it pushed a ❓ decision, ended its reply without a question mark
     and was stopped as idle after 65 minutes, so the decision looked closed."""
     markers = tmp_path / "questions"
@@ -448,9 +455,9 @@ def test_a_question_pushed_to_discord_keeps_the_chat_until_the_user_answers(tmp_
     asked = lc.pushed_question("chat-a", last_prompt_at=NOW - 4 * HOUR, markers=markers)
     assert asked == "Make resends quiet?"
     pushed = chat(pushed_question=asked, last_text="Pushed the decision to Discord; stopping here.")
-    assert lc.decide(pushed, NOW, CONFIG, "").action == "keep"
-    assert lc.decide(chat(last_activity=NOW - 30 * HOUR, pushed_question=asked), NOW, CONFIG, "").action == "keep"
-    assert lc.decide(chat(), NOW, CONFIG, "").action == "stop"  # the same chat without the push
+    assert lc.decide(pushed, NOW, CONFIG, "").reason.startswith("waits on your answer")
+    assert lc.decide(chat(last_activity=NOW - 30 * HOUR, pushed_question=asked), NOW, CONFIG, "").action == "stop"
+    assert lc.decide(chat(last_activity=NOW - 30 * HOUR), NOW, CONFIG, "").action == "done"  # without the push
     assert lc.open_question(pushed) == "Make resends quiet?"
     # answered (a prompt after the push), or finished with a ✅ push: no longer open
     assert lc.pushed_question("chat-a", last_prompt_at=NOW - 2 * HOUR, markers=markers) == ""
@@ -458,3 +465,63 @@ def test_a_question_pushed_to_discord_keeps_the_chat_until_the_user_answers(tmp_
     assert lc.pushed_question("chat-a", last_prompt_at=0, markers=markers) == ""
     (markers / "chat-b.json").write_text(json.dumps({"ts": NOW - HOUR, "question": "Old marker without kind"}))
     assert lc.pushed_question("chat-b", last_prompt_at=0, markers=markers) == "Old marker without kind"
+
+
+def test_a_chat_that_reported_done_is_archived_at_the_end_of_its_turn_and_a_parked_one_only_stopped(tmp_path):
+    markers = tmp_path / "questions"
+    markers.mkdir()
+    (markers / "chat-a.json").write_text(json.dumps({"ts": NOW - HOUR, "question": "Shipped.", "kind": "✅"}))
+    assert lc.pushed_done(lc.pushed("chat-a", NOW - 2 * HOUR, markers)) == "done"
+    assert lc.pushed_done(lc.pushed("chat-a", NOW - 10 * 60, markers)) == ""  # the user wrote after it
+    (markers / "chat-a.json").write_text(json.dumps({"ts": NOW - HOUR, "question": "Parked.", "kind": "✅",
+                                                     "paused_until": "2026-11-27"}))
+    assert lc.pushed_done(lc.pushed("chat-a", 0, markers)) == "parked"
+    assert lc.decide(chat(pushed_done="done"), NOW, CONFIG, "").action == "archive"
+    assert lc.decide(chat(pushed_done="parked"), NOW, CONFIG, "").action == "stop"
+    timer = waiters.Waiter("chat-a", "timer", "reg:t", "resume", NOW - HOUR, NOW + HOUR)
+    assert lc.decide(chat(pushed_done="done", waiters=[timer]), NOW, CONFIG, "").action == "stop"  # it wakes later
+    assert lc.decide(chat(pushed_done="done", last_activity=NOW - 60), NOW, CONFIG, "").action == "keep"
+    asked = chat(pushed_done="done", last_text="Shall I also deploy it?")
+    assert lc.decide(asked, NOW, CONFIG, "").action == "stop"  # a question wins: listed as waiting, not archived
+
+
+def test_task_priorities_come_from_the_tasks_copy(tmp_path):
+    cache = tmp_path / "tasks.json"
+    cache.write_text(json.dumps({"data": {"tasks": [
+        {"status": "todo", "priority_level": "low", "external_chat": {"provider": "claude", "id": "a"}},
+        {"status": "in_progress", "priority_level": "urgent", "external_chat": {"provider": "claude", "id": "a"}},
+        {"status": "done", "priority_level": "urgent", "external_chat": {"provider": "claude", "id": "b"}},
+        {"status": "todo", "priority_level": "high", "external_chat": {"provider": "codex", "id": "c"}},
+        {"status": "todo", "priority_level": "high", "external_chat": None}]}}))
+    assert lc.task_priorities(cache) == {"a": 0}
+    assert lc.task_priorities(tmp_path / "missing.json") == {}
+
+
+class FakeZellij:
+    """zellij(session, *args) stand-in: list-panes output per session, records close-pane calls."""
+
+    def __init__(self, panes: dict[str, list[str]]):
+        self.panes, self.closed = panes, []
+
+    def __call__(self, session, *args):
+        import subprocess
+        if args[0] == "list-panes":
+            lines = ["PANE_ID  TYPE  TITLE", "plugin_0  plugin  zellij:link",
+                     *(f"terminal_{n}  terminal  Pane" for n in self.panes.get(session, []))]
+            return subprocess.CompletedProcess(args, 0, "\n".join(lines), "")
+        self.closed.append((session, args[-1]))
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+
+def test_dead_panes_are_closed_only_after_two_cycles_and_live_ones_never(tmp_path):
+    """2026-11-20: 58 of 72 panes of the claude session belonged to exited chats (zellij server at 900 MB)."""
+    fake = FakeZellij({"claude": ["1", "2", "3"], "socialhub": ["4"]})
+    owners = {"claude": {"2"}, "socialhub": set()}
+    assert lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW, owners, fake) == []  # first sighting
+    assert lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW + 30, owners, fake) == []  # too soon
+    closed = lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW + lc.DEAD_PANE_SECONDS, owners, fake)
+    assert closed == ["claude terminal_1", "claude terminal_3", "socialhub terminal_4"]
+    assert ("claude", "terminal_2") not in fake.closed and ("claude", "plugin_0") not in fake.closed
+    fake.panes = {"claude": ["5"]}
+    lc.close_dead_panes(["claude"], tmp_path, NOW + 200, {"claude": set()}, fake)
+    assert lc.close_dead_panes(["claude"], tmp_path, NOW + 205, {"claude": {"5"}}, fake) == []  # it started meanwhile

@@ -25,13 +25,13 @@ UNIT
 
 cat > "$SYSTEMD_DIR/openmates-claude-idle-chats.timer" <<UNIT
 [Unit]
-Description=Run the Claude chat lifecycle every 5 minutes
+Description=Run the Claude chat lifecycle every minute (a finished turn frees its slot within minutes)
 
 [Timer]
 OnBootSec=5min
 OnActiveSec=1min
-OnUnitActiveSec=5min
-AccuracySec=1min
+OnUnitActiveSec=1min
+AccuracySec=10s
 
 [Install]
 WantedBy=timers.target

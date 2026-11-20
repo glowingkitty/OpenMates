@@ -122,7 +122,8 @@ def _zellij_env() -> dict[str, str]:
 # Every chat this host starts (issue and production-failure chats, connector starts) tells the owner on
 # Discord exactly once when it is done or blocked, in the same compact format (scripts/agent_question.py).
 PUSH_RULE = (
-    "Discord: send exactly one push when you finish or stop for any reason (✅: python3 scripts/agent_question.py "
+    "Discord: send exactly one push when you finish or stop for any reason (✅, after any open follow-up is in your "
+    "Task: python3 scripts/agent_question.py "
     "done --summary \"<1-2 sentences: what changed or the result>\"; parked or paused: add --paused-until DATE) and "
     "one when you are blocked on the owner (❓: python3 scripts/agent_question.py ask --question \"<the decision>\" "
     "--recommendation \"<yours>\"), then stop. Never for progress, never both for one event; blocked and later "

@@ -280,14 +280,18 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
                 options=getattr(args, "option", None) or [], task_id=args.task or "", kind=args.command)
     path = marker_path(root, chat_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"ts": now, "question": scrub(text), "kind": kind}), encoding="utf-8")
+    marker = {"ts": now, "question": scrub(text), "kind": kind}
+    if getattr(args, "paused_until", None):
+        marker["paused_until"] = args.paused_until  # parked: the chat lifecycle stops it but does not archive it
+    path.write_text(json.dumps(marker), encoding="utf-8")
     return message
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    done_parser = sub.add_parser("done", help="✅ the chat finished (or parked / paused itself)")
+    done_parser = sub.add_parser("done", help="✅ the chat finished (or parked / paused itself); put open "
+                                 "follow-ups in its Task first: a done chat is archived when its turn ends")
     done_parser.add_argument("--summary", required=True, help="one or two sentences: what changed or the result")
     done_parser.add_argument("--paused-until", help="parked or paused: the date it resumes")
     ask_parser = sub.add_parser("ask", help="❓ the chat is blocked on a decision of the user")
