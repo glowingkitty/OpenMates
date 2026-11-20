@@ -15,6 +15,7 @@ from backend.core.api.app.services.email.brevo_provider import BrevoProvider
 from backend.core.api.app.services.email.ci_mail_provider import CiMailProvider
 from backend.core.api.app.services.email_sender_profiles import sender_profile_for_template
 from backend.core.api.app.utils.newsletter_unsubscribe import newsletter_one_click_headers
+from backend.core.api.app.utils.issue_report_text import short_issue_subject_title
 from backend.shared.python_utils.live_email_policy import email_type_for_template
 from backend.shared.python_utils.newsletter_assets import validate_newsletter_html_size
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter  # Import the filter
@@ -395,7 +396,9 @@ class EmailTemplateService:
                     # The translation contains {issue_title} which needs to be replaced
                     if "issue_title" in context:
                         subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})
-                        subject = subject_template.format(issue_title=context["issue_title"])
+                        subject = subject_template.format(
+                            issue_title=short_issue_subject_title(context["issue_title"])
+                        )
                     else:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "issue_report_confirmation":

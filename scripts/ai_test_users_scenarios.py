@@ -149,16 +149,3 @@ def flow_verdicts(results: list[dict]) -> dict[str, dict]:
         entry["verdict"] = ("working" if entry["passed"] == entry["runs"] else
                             "broken" if entry["passed"] == 0 else "flaky")
     return verdicts
-
-
-def summary_text(name: str, target: str, run_date: str, verdicts: dict[str, dict], problems: list[str]) -> str:
-    """One push: ✅ when every flow works and nothing else failed, else ❌ with each flow's verdict and the
-    session videos of its runs."""
-    clean = not problems and all(v["verdict"] == "working" for v in verdicts.values())
-    flows = ", ".join(f"{flow.split('_', 1)[0]} {v['verdict']} ({' '.join(v.get('videos') or []) or 'no video'})"
-                      for flow, v in sorted(verdicts.items()))
-    text = f"{'✅' if clean else '❌'} AI test users {name} run on {target} {run_date}: {flows}."
-    broken = [f"{flow}: {v['unmet'][0][:90]}" for flow, v in sorted(verdicts.items()) if v["unmet"]]
-    if broken:
-        text += " Unmet: " + "; ".join(broken[:3]) + "."
-    return text

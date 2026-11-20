@@ -12,8 +12,9 @@ app's own issue reporting, and deletes its account. A Gemini judge and Jev revie
   python3 scripts/ai_test_users.py tasks --run DIR [--exclude persona#n,...] [--dry-run]
 
 `daily` follows the rotation in `ai_test_users_schedule.py` (weekdays 3 dev + 2 prod personas, Saturday all
-personas on dev), queues an investigation chat per filed report, retries failed account deletions, writes
-run.json and report.md, and sends one Discord summary per day. Prod runs need the flag file
+personas on dev), retries failed account deletions, writes run.json and report.md, and sends the run's one
+Discord message (`ai_test_users_message.py`). Reports only collect findings: no debug chat starts from them
+(owner, 20 Nov 2026). Prod runs need the flag file
 ~/.openmates/ai-test-users/prod-enabled and a gift card code in prod-gift-cards.txt. Everything is written
 to ~/.openmates/ai-test-users/<run-id>/ (outside the repository). Caps: 3 USD per daily run, 6 USD weekly.
 """
@@ -35,6 +36,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ai_test_users_accounts as accounts  # noqa: E402 - sibling script modules
 import ai_test_users_exec as execution  # noqa: E402
+import ai_test_users_message as message_text  # noqa: E402
 import ai_test_users_report as reporting  # noqa: E402
 import ai_test_users_scenarios as scenarios
 import ai_test_users_video as video  # noqa: E402
@@ -47,8 +49,6 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNS = accounts.HOME
 TASK_PROJECT = "96033196-e4b1-431e-b773-ba221e952fed"
 TASK_LABEL = "ai-test-users"
-STOPWORDS = set("the and for with that this when from into are not but has have was its on in of to a an is it "
-                "shows shown show page app chat".split())
 
 
 LEASE_RENEW_SECONDS = 600  # the coordination lease expires after 30 minutes without renewal
@@ -88,18 +88,6 @@ def log(message: str) -> None:
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {message}", flush=True)
 
 
-def queue_investigation(env: str, short_id: str) -> str:
-    """Queue a Claude investigation chat for one filed report; returns a short status."""
-    import issues
-    from claude_dispatch import queue_test_user_issue  # lane C; imported lazily
-
-    issue_id = issues.resolve_issue_identifier(env, short_id)
-    if issue_id == short_id:
-        return "issue id not found"
-    queue_test_user_issue(issue_id, short_id, env)
-    return "queued"
-
-
 def run_groups(groups: dict[str, list[dict]], run_id: str, run_dir: Path, cfg: execution.Settings,
                parallel: int) -> list[dict]:
     """Run the dev and prod groups side by side; each group keeps its signups sequential-friendly."""
@@ -109,15 +97,8 @@ def run_groups(groups: dict[str, list[dict]], run_id: str, run_dir: Path, cfg: e
 
 
 def finish_run(run_id: str, run_dir: Path, kind: str, day: str, results: list[dict], areas: list[str],
-               estimate: float, cap: float, started: float, deletions: list[dict], queue: bool) -> dict:
-    if queue:
-        for result in results:
-            for rep in result.get("reports", []):
-                if rep.get("short_issue_id"):
-                    try:
-                        rep["queued"] = queue_investigation(result["target"], rep["short_issue_id"])
-                    except (ImportError, OSError, ValueError, subprocess.SubprocessError, RuntimeError) as exc:
-                        rep["queued"] = f"failed: {exc}"
+               estimate: float, cap: float, started: float, deletions: list[dict]) -> dict:
+    message_text.mark_suspects(results, base=accounts.HOME)
     totals = {
         "harness_usd": sum(r.get("harness_usd") or 0 for r in results),
         "e2b_usd": sum((r.get("e2b") or {}).get("usd", 0) for r in results),
@@ -162,11 +143,12 @@ def command_daily(args: argparse.Namespace) -> int:
         results = run_groups(groups, run_id, run_dir, cfg, args.parallel)
         deletions = execution.retry_deletions(run_id, run_dir, cfg)
     run = finish_run(run_id, run_dir, plan["kind"], day.isoformat(), results, areas, estimate, cap, started,
-                     deletions, queue=True)
+                     deletions)
     log(f"done: {run_dir / 'report.md'} total {run['totals']['total_usd']} USD")
     if reporting.push_due(accounts.HOME, day.isoformat()):
-        message = reporting.summary_text(plan["kind"], day.isoformat(), results, areas, run["undeleted"])
-        accounts._push(message, "AI test users")
+        label = "Weekly AI test-user run" if plan["kind"] == "weekly" else "AI test users daily run"
+        accounts._push(message_text.run_message(f"{label} {day.isoformat()}", results, run["problems"]),
+                       "AI test users")
         reporting.mark_pushed(accounts.HOME, day.isoformat())
     return 0
 
@@ -231,15 +213,17 @@ def command_run(args: argparse.Namespace) -> int:
         deletions = execution.retry_deletions(run_id, run_dir, cfg)
     run = finish_run(run_id, run_dir, "manual", datetime.now(UTC).date().isoformat(), results,
                      schedule.areas_for([p["id"] for p in personas], PERSONAS), budget, args.total_cap_usd,
-                     started, deletions, queue=args.queue)
+                     started, deletions)
     log(f"done: {run_dir / 'run.json'} total {run['totals']['total_usd']} USD")
-    message = reporting.summary_text("manual", run["date"], results, run["areas"], run["undeleted"])
+    title = f"AI test users manual run on {args.target} {run['date']}"
     if args.scenario:
         run["flows"] = scenarios.flow_verdicts(results)
         (run_dir / "run.json").write_text(json.dumps(run, indent=1, ensure_ascii=False))
+        (run_dir / "report.md").write_text(reporting.report_markdown(run, run_dir))
         for flow, entry in run["flows"].items():
             log(f"flow {flow}: {entry['verdict']} ({entry['passed']}/{entry['runs']})")
-        message = scenarios.summary_text(args.scenario, args.target, run["date"], run["flows"], run["problems"])
+        title = f"AI test users {args.scenario} run on {args.target} {run['date']}"
+    message = message_text.run_message(title, results, run["problems"], run.get("flows"))
     if args.notify:
         accounts._push(message, "AI test users")
     return 0
@@ -254,13 +238,7 @@ def persona_dir(run_dir: Path, persona: dict) -> Path:
     return nested if nested.exists() else run_dir / persona["persona"]
 
 
-def tokens(text: str) -> set[str]:
-    return {w for w in re.findall(r"[a-zäöüß0-9]{3,}", text.lower()) if w not in STOPWORDS}
-
-
-def similar(a: str, b: str) -> float:
-    ta, tb = tokens(a), tokens(b)
-    return len(ta & tb) / len(ta | tb) if ta and tb else 0.0
+similar = message_text.similar
 
 
 def id_set(text: str | None) -> set[str]:
@@ -427,8 +405,6 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--e2b-cap-usd", type=float, default=0.2)
     run.add_argument("--total-cap-usd", type=float, default=20.0)
     run.add_argument("--worker-copy", action="store_true", help="run the worker from this checkout (before deploy)")
-    run.add_argument("--queue", action="store_true",
-                     help="queue an investigation chat per filed report, as the daily run does (daily cap applies)")
     run.add_argument("--scenario", choices=sorted(scenarios.SCENARIOS), default=None,
                      help="run a fixed-goal scenario instead of --personas (unmet goals count as problems)")
     run.add_argument("--flows", default="", help="scenario flows to run, e.g. b,c,e (default: all)")

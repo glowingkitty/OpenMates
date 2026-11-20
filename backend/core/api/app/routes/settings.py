@@ -57,7 +57,7 @@ from backend.core.api.app.utils.report_issue_ids import (
     create_issue_record_with_short_id,
     issue_identifier_filter,
 )
-from backend.core.api.app.utils.issue_report_contact_email import resolve_account_contact_email
+from backend.core.api.app.utils.issue_report_contact_email import reporter_is_test_account, resolve_account_contact_email
 from backend.core.api.app.utils.issue_report_text import normalize_issue_report_error_sentinels
 from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
 from backend.core.api.app.services.chat_recovery_service import (
@@ -3352,6 +3352,11 @@ async def report_issue(
         
         from backend.core.api.app.tasks.celery_config import app
 
+        # Test accounts (AI test users) never send issue emails; their reports are still stored.
+        send_email_notification = issue_data.send_email_notification and not await reporter_is_test_account(
+            directus_service, reported_by_user_id
+        )
+
         # Always dispatch the report-processing task. Durable diagnostic YAML
         # retention is mandatory and independent of the optional email toggle.
         # The task conditionally sends notifications only after persistence.
@@ -3380,14 +3385,14 @@ async def report_issue(
                 "screenshot_presigned_urls": screenshot_presigned_urls,
                 "reported_by_user_id": reported_by_user_id,
                 "trace_ids": issue_data.trace_ids or [],
-                "send_email_notification": issue_data.send_email_notification,
+                "send_email_notification": send_email_notification,
             },
             queue='email'
         )
         logger.info(
             f"Issue report submitted: '{issue_data.title[:50]}...' - "
             f"diagnostic processing task dispatched to queue 'email' with task_id={task_result.id}, "
-            f"email_notification={issue_data.send_email_notification}"
+            f"email_notification={send_email_notification}"
         )
 
         claude_chat_status = await _queue_admin_claude_chat(

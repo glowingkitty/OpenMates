@@ -182,3 +182,10 @@ async def test_inbox_reads_a_generic_subject_code_from_the_html_body():
     async with httpx.AsyncClient(transport=httpx.MockTransport(answer)) as client:
         assert BASE_URL.startswith("https://")
         assert await inbox._poll(client, requested_at=1_999_999_990) == "731904"
+
+
+def test_judge_context_treats_scrollable_overlap_and_short_notices_as_intended():
+    from models import EXPECTED_BEHAVIOR
+
+    assert "scroll it into view" in EXPECTED_BEHAVIOR
+    assert "'Sounds are on'" in EXPECTED_BEHAVIOR and "notification banners" in EXPECTED_BEHAVIOR

@@ -306,6 +306,8 @@ class Session:
 
     async def run_steps(self, models: TesterModels) -> str:
         started = time.monotonic()
+        # Wall clock of step time 0: the host compares finding moments with deploys, restarts and deletions.
+        self.result["steps_started_epoch"] = round(time.time(), 1)
         observation = await self.rpc({"operation": "observe"})
         # Step times count from here; this offset maps them onto the session video.
         self.result["video_offset_seconds"] = observation.get("video_seconds")
@@ -441,6 +443,8 @@ class Session:
             offset = self.result.get("video_offset_seconds")
             if step in by_step and isinstance(offset, (int, float)):
                 finding["video_seconds"] = round(offset + by_step[step]["at_seconds"], 1)
+            if step in by_step:
+                finding["at_epoch"] = round(self.result["steps_started_epoch"] + by_step[step]["at_seconds"], 1)
             self.result["findings"].append(finding)
         self.result["goal_outcomes"] = verdict.get("goal_outcomes", [])
         self.result["summary"] = verdict.get("summary", "")

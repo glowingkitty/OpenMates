@@ -35,10 +35,10 @@ scope:
     Report issue: up to 5 screenshots on web, API, storage and the admin/debug
     readers; the legacy single field stays accepted (Apple, CLI).
   - >-
-    Investigation: the host queues each test-user report for the issue
-    dispatcher with origin ai_test_user; that chat runs with a small-fix change
-    scope that sessions.py deploy enforces; feature requests, design opinions,
-    large changes and architecture questions become a Task for Marco.
+    Reports only collect findings (owner, 20 Nov 2026 evening): no
+    investigation chat starts from a test-user report. Test accounts send no
+    issue emails; real issue emails carry the first ~60 characters of the
+    title as subject.
   - >-
     Production gift card batch: backend/scripts/create_test_gift_card_batch.py
     run by Marco inside the production api container over SSH; codes land in a
@@ -100,9 +100,17 @@ decisions:
     so the harness reads them from getHtml, ignoring style/script/head
     blocks. The first production run's 10 accounts were deleted this way.
   - >-
-    Investigation chats from test-user reports are capped per day and the
-    deploy guard refuses changes above the small-fix limit; refusing names
-    the Task route instead.
+    Owner, 20 Nov 2026 evening (keep it small; the setup will be rebuilt
+    inside OpenMates): one Discord message per run with two summary lines and
+    one line per finding grouped by cause, with its verdict (bug, not a bug,
+    suspect) and video link. A finding is suspect when a product-code dev
+    deploy or an api/worker restart happened between the persona's start and
+    the finding, or the account was deleted by another process during the
+    run (production deploys are not visible from the dev host). The judge
+    treats overlap that can be scrolled away and short closable notices as
+    intended. The quiet window, Jev triage of every report and fix buckets
+    are written down in TASK-3434 for later. Investigation chats from
+    test-user reports are switched off.
 verification:
   required:
     - Backend pytest for the label, gift card redemption flag, growth and server-stats exclusion.

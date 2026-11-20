@@ -1,4 +1,4 @@
-"""Daily summary, report.md, cost estimate and the once-per-day push marker for AI test users."""
+"""Run problems, report.md, cost estimate, video links and the once-per-day push marker for AI test users."""
 
 from __future__ import annotations
 
@@ -9,8 +9,6 @@ from pathlib import Path
 
 DAILY_CAP_USD = 3.0
 WEEKLY_CAP_USD = 6.0
-MAX_IDS_IN_PUSH = 5
-MAX_PROBLEMS_IN_PUSH = 4
 USD_PER_CREDIT = 0.001
 # A persona that ended one of these ways ran as planned; anything else is a failure worth an alert.
 FINISHED_STATUSES = ("persona_finished", "max_steps", "max_minutes", "harness_budget")
@@ -81,35 +79,6 @@ def problems(results: list[dict], undeleted: int = 0) -> list[str]:
     return out
 
 
-def summary_text(kind: str, run_date: str, results: list[dict], areas: list[str], undeleted: int = 0) -> str:
-    """One or two sentences: counts, then the problems (❌) or at most five short report IDs (✅)."""
-    ran = [r for r in results if r.get("status") not in ("skipped", "prod_disabled", "no_gift_card")]
-    reports = [r for r in results for rep in r.get("reports", [])]
-    ids = [rep["short_issue_id"] for r in results for rep in r.get("reports", []) if rep.get("short_issue_id")]
-    linked = [f"{rep['short_issue_id']} {video_link(r, report_moment(r, rep))}".strip()
-              for r in results for rep in r.get("reports", []) if rep.get("short_issue_id")]
-    kept = sum(r.get("findings_kept") or 0 for r in results)
-    label = "Weekly AI test-user run" if kind == "weekly" else "AI test users"
-    first = f"✅ {label} {run_date}: {len(ran)} personas ran, {kept} findings kept, {len(ids)} reports filed."
-    if len(reports) == 0 and not ids:
-        first = f"✅ {label} {run_date}: {len(ran)} personas ran, {kept} findings kept, no reports filed."
-    issues = problems(results, undeleted)
-    if issues:
-        first = "❌" + first[1:]
-    second = ""
-    if issues:
-        shown = "; ".join(issues[:MAX_PROBLEMS_IN_PUSH])
-        more = f" (+{len(issues) - MAX_PROBLEMS_IN_PUSH} more)" if len(issues) > MAX_PROBLEMS_IN_PUSH else ""
-        second = f" Problems: {shown}{more}."
-    elif ids:
-        shown = ", ".join(linked[:MAX_IDS_IN_PUSH])
-        more = f" (+{len(ids) - MAX_IDS_IN_PUSH} more)" if len(ids) > MAX_IDS_IN_PUSH else ""
-        second = f" Reports: {shown}{more}."
-    elif areas:
-        second = f" Areas: {', '.join(areas[:3])}."
-    return first + second
-
-
 def marker_path(base: Path, day: str) -> Path:
     return base / "daily-push" / f"{day}.sent"
 
@@ -144,9 +113,13 @@ def report_markdown(run: dict, run_dir: Path) -> str:
     lines += ["", "## Problems"] + ([f"- {line}" for line in run.get("problems") or []] or ["- none"])
     lines += ["", "## Reports filed"]
     reports = [(r, rep) for r in run["personas"] for rep in r.get("reports", [])]
-    lines += [f"- {rep.get('short_issue_id')} ({r['target']}/{r['persona']}): {rep.get('status')}, "
-              f"investigation {rep.get('queued', 'not queued')} {video_link(r, report_moment(r, rep))}".rstrip()
+    lines += [f"- {rep.get('short_issue_id')} ({r['target']}/{r['persona']}): {rep.get('status')} "
+              f"{video_link(r, report_moment(r, rep))}".rstrip()
               for r, rep in reports] or ["- none"]
+    import ai_test_users_message as message_text  # imports this module
+
+    lines += ["", "## Findings by cause"]
+    lines += [message_text.cause_line(g).replace("• ", "- ", 1) for g in message_text.causes(run["personas"])] or ["- none"]
     lines += ["", "## False positives (dropped by Jev)"]
     dropped = [f"- {r['target']}/{r['persona']}: {r['findings_total'] - r['findings_kept']}"
                for r in run["personas"] if (r.get("findings_total") or 0) > (r.get("findings_kept") or 0)]

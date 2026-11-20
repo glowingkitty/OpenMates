@@ -108,6 +108,7 @@ def run_persona(persona: dict, target: str, run_id: str, run_dir: Path, cfg: Set
         accounts.update_status(identity["email"], "delete_failed", cfg.base)  # nothing was created; retry cleans up
         return {**summary, "status": "no_e2b_slot", "email": identity["email"]}
     started = time.monotonic()
+    summary["started_at"] = round(time.time(), 1)
     try:
         run = docker("exec", "-i", CONTAINER, "python", cfg.worker, stdin=json.dumps(job),
                      timeout=int(cfg.max_minutes * 60 + 1500))
@@ -118,6 +119,7 @@ def run_persona(persona: dict, target: str, run_id: str, run_dir: Path, cfg: Set
     finally:
         slot.release()
     summary["wall_seconds"] = round(time.monotonic() - started, 1)
+    summary["finished_at"] = round(time.time(), 1)
     copied = docker("cp", f"{CONTAINER}:{CONTAINER_OUTPUT}/{run_id}/{name}", str(out), timeout=300)
     if copied.returncode:
         summary["copy_error"] = copied.stderr[-300:]
@@ -148,7 +150,9 @@ def read_result(summary: dict, result_file: Path, email: str, cfg: Settings) -> 
         summary.update({k: result.get(k) for k in (
             "status", "steps", "harness_usd", "e2b", "error", "judge_error", "credits_start", "credits_end",
             "answer_quality", "demo_candidate", "goal_outcomes", "video_offset_seconds")})
-        summary["findings"] = [{k: f.get(k) for k in ("title", "severity", "step", "video_seconds", "kept")}
+        summary["findings"] = [{**{k: f.get(k) for k in ("title", "severity", "step", "video_seconds", "kept",
+                                                         "at_epoch")},
+                                "evidence": str(f.get("evidence") or "")[:300]}
                                for f in findings]
         summary["findings_total"] = len(findings)
         summary["findings_kept"] = sum(1 for f in findings if f.get("kept"))

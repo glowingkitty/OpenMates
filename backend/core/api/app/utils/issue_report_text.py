@@ -28,3 +28,25 @@ def normalize_issue_report_error_sentinels(value: Optional[str]) -> Optional[str
 def normalize_issue_report_trace_ids(trace_ids: Optional[list]) -> list[str]:
     """Bound trace IDs persisted in issue-report YAML for timeline correlation."""
     return [str(trace_id)[:64] for trace_id in (trace_ids or []) if trace_id]
+
+
+ISSUE_EMAIL_SUBJECT_TITLE_CHARS = 60
+
+
+def short_issue_subject_title(title: str, limit: int = ISSUE_EMAIL_SUBJECT_TITLE_CHARS) -> str:
+    """First part of an issue title for the email subject (owner, 20 Nov 2026: about 60 characters).
+
+    Cuts at a word boundary when one is near the limit, never inside an HTML entity of the
+    escaped title, and marks the cut with an ellipsis. The email body keeps the full title."""
+    text = " ".join(str(title or "").split())
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    space = cut.rfind(" ")
+    if space >= limit // 2:
+        cut = cut[:space]
+    else:
+        amp = cut.rfind("&")
+        if amp != -1 and ";" not in cut[amp:]:
+            cut = cut[:amp]
+    return cut.rstrip(" ,.;:-") + "…"

@@ -65,7 +65,13 @@ EXPECTED_BEHAVIOR = (
     "The 'Log in to keep chatting' prompt and login modal that follow such a reload are expected. "
     "After a gift card signup the app opens Settings > Gift Cards by itself (known, tracked separately). "
     "Dates and years are judged against the run date given as `today`, not against your training data. "
-    "/settings is not a page; settings open as a drawer."
+    "/settings is not a page; settings open as a drawer. "
+    # Owner, 20 Nov 2026: TASK-3023 (question partly under the chat header) was a false positive.
+    "Content partly covered by the chat header, the call bar or another bar is not a defect when the user can "
+    "scroll it into view; report overlap only when content can never be read or a control can never be reached. "
+    "Short notices, toasts and notification banners (for example 'Sounds are on', which closes itself after 12 s "
+    "and has a close button) are not defects because they cover part of the page for a few seconds; report one "
+    "only when it blocks a needed action and cannot be closed, never closes, or its text itself is wrong."
 )
 
 JUDGE_INSTRUCTIONS = """You are a strict QA judge reviewing one simulated user's session in the OpenMates web app.

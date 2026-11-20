@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import ai_test_users_exec as execution  # noqa: E402
+import ai_test_users_message as message_text  # noqa: E402
 import ai_test_users_report as reporting  # noqa: E402
 import ai_test_users_scenarios as scenarios  # noqa: E402
 import ai_test_users_video as video  # noqa: E402
@@ -41,17 +42,16 @@ def test_every_problem_and_report_in_the_push_links_its_video():
     assert all(URL in line for line in reporting.problems([broken]))
     filed = persona("b-1", findings=[{"title": "t", "video_seconds": 61.0}],
                     reports=[{"short_issue_id": "AB12C", "status": "submitted", "finding_ids": [0]}])
-    text = reporting.summary_text("daily", "2026-11-20", [filed], [])
-    assert f"AB12C [video 1:01](<{URL}#t=61>)" in text
+    text = message_text.run_message("daily", [filed], [])
+    assert f"[video 1:01](<{URL}#t=61>) AB12C" in text
 
 
-def test_scenario_push_links_each_runs_video():
+def test_scenario_flow_verdicts_keep_each_runs_video():
     results = [persona("c_model_picker_export-1", goal_outcomes=[{"achieved": True}]),
                {"persona": "c_model_picker_export-2", "status": "persona_finished", "video_error": "no recording",
                 "goal_outcomes": [{"achieved": True}]}]
     verdicts = scenarios.flow_verdicts(results)
-    text = scenarios.summary_text("intro-video", "prod", "2026-11-20", verdicts, [])
-    assert f"c working ([video](<{URL}>) no video)" in text
+    assert verdicts["c_model_picker_export"]["videos"] == [f"[video](<{URL}>)", "no video"]
 
 
 def test_store_video_records_missing_and_failed_uploads(tmp_path, monkeypatch):
@@ -97,5 +97,5 @@ def test_attach_run_links_earlier_recordings_and_estimates_finding_moments(tmp_p
     assert traveller["video"]["url"] == URL and traveller["video_offset_estimated"] is True
     assert traveller["findings"][0]["video_seconds"] == 63.5
     assert cook["video_error"] == "no recording"
-    assert f"NZLBW (dev/traveller): submitted, investigation not queued [video 1:03](<{URL}#t=63>)" in (
+    assert f"NZLBW (dev/traveller): submitted [video 1:03](<{URL}#t=63>)" in (
         run_dir / "report.md").read_text()
