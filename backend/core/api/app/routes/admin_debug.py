@@ -39,6 +39,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_encryption_service,
 )
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.issue_report_screenshots import decrypt_screenshot_keys, issue_has_screenshots
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.openobserve_log_collector import openobserve_log_collector
@@ -272,6 +273,8 @@ class IssueDetailResponse(BaseModel):
     # screenshot attach flow and S3 upload worked end-to-end).
     has_screenshot: bool = False
     screenshot_presigned_url: Optional[str] = None
+    screenshot_presigned_urls: List[str] = []
+    screenshot_count: int = 0
     # YAML S3 report presence — set by issue_report_email_task after the
     # YAML is encrypted and uploaded to S3. The test polls for this.
     has_yaml_report: bool = False
@@ -685,24 +688,28 @@ async def get_issue_detail(
         # The screenshot is uploaded synchronously in the /v1/settings/issues handler,
         # so it is available immediately after issue creation (unlike the YAML report
         # which is generated asynchronously by the email task).
-        has_screenshot = bool(issue.get("encrypted_screenshot_s3_key"))
+        has_screenshot = issue_has_screenshots(issue)
         screenshot_presigned_url: Optional[str] = None
+        screenshot_presigned_urls: List[str] = []
+        screenshot_count = 0
         if has_screenshot:
             try:
                 s3_service = get_s3_service(request)
-                screenshot_s3_key = await encryption_service.decrypt_issue_report_data(
-                    issue["encrypted_screenshot_s3_key"]
-                )
-                if screenshot_s3_key:
-                    from backend.core.api.app.services.s3.config import get_bucket_name as _get_bucket_name
-                    screenshot_bucket = _get_bucket_name('issue_logs', os.getenv('SERVER_ENVIRONMENT', 'development'))
-                    screenshot_presigned_url = s3_service.generate_presigned_url(
-                        bucket_name=screenshot_bucket,
-                        file_key=screenshot_s3_key,
-                        expiration=3600  # 1h is enough for inspection
+                screenshot_keys = await decrypt_screenshot_keys(issue, encryption_service)
+                screenshot_count = len(screenshot_keys)
+                from backend.core.api.app.services.s3.config import get_bucket_name as _get_bucket_name
+                screenshot_bucket = _get_bucket_name('issue_logs', os.getenv('SERVER_ENVIRONMENT', 'development'))
+                for screenshot_s3_key in screenshot_keys:
+                    screenshot_presigned_urls.append(
+                        s3_service.generate_presigned_url(
+                            bucket_name=screenshot_bucket,
+                            file_key=screenshot_s3_key,
+                            expiration=3600  # 1h is enough for inspection
+                        )
                     )
+                screenshot_presigned_url = screenshot_presigned_urls[0] if screenshot_presigned_urls else None
             except Exception as e:
-                logger.warning(f"Failed to generate screenshot presigned URL for issue {issue_id}: {e}")
+                logger.warning(f"Failed to generate screenshot presigned URLs for issue {issue_id}: {e}")
 
         # Flag for whether a YAML report is available — lets E2E tests poll
         # for eventual upload completion without needing to parse full_report.
@@ -772,6 +779,8 @@ async def get_issue_detail(
             full_report=full_report,
             has_screenshot=has_screenshot,
             screenshot_presigned_url=screenshot_presigned_url,
+            screenshot_presigned_urls=screenshot_presigned_urls,
+            screenshot_count=screenshot_count,
             has_yaml_report=has_yaml_report,
         )
         
@@ -980,13 +989,10 @@ async def delete_issue(
             except Exception as e:
                 logger.warning(f"Failed to delete S3 YAML file for issue {issue_id}: {e}")
 
-        # Delete screenshot PNG from S3 if exists
-        if issue.get("encrypted_screenshot_s3_key"):
+        # Delete all screenshot PNGs from S3 (new list field or legacy single key)
+        if issue_has_screenshots(issue):
             try:
-                screenshot_s3_key = await encryption_service.decrypt_issue_report_data(
-                    issue["encrypted_screenshot_s3_key"]
-                )
-                if screenshot_s3_key:
+                for screenshot_s3_key in await decrypt_screenshot_keys(issue, encryption_service):
                     await s3_service.delete_file(
                         bucket_key='issue_logs',
                         file_key=screenshot_s3_key
@@ -994,7 +1000,7 @@ async def delete_issue(
                     logger.info(f"Deleted S3 screenshot for issue {issue_id}: {screenshot_s3_key}")
             except Exception as e:
                 logger.warning(f"Failed to delete S3 screenshot for issue {issue_id}: {e}")
-        
+
         # Delete from Directus
         success = await directus_service.delete_item("issues", issue_id, admin_required=True)
         if not success:

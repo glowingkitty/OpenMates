@@ -256,6 +256,7 @@ test.describe('Report Issue Flow', () => {
 					issue_id: '00000000-0000-4000-8000-000000000404',
 					short_issue_id: 'ABCD4',
 					screenshot_uploaded: false,
+					screenshots_uploaded: 0,
 				}),
 			});
 		});
@@ -479,17 +480,20 @@ test.describe('Report Issue Flow', () => {
 		// The "Image" quick action clicks this input; setInputFiles() works on
 		// the hidden input directly.
 		const screenshotFileInput = page.getByTestId('screenshot-file-input');
-		await screenshotFileInput.setInputFiles({
-			name: 'e2e-screenshot.png',
-			mimeType: 'image/png',
-			buffer: TINY_PNG_BUFFER,
-		});
-		logCheckpoint(`Attached ${TINY_PNG_BUFFER.length}-byte test PNG via screenshot-file-input.`);
+		await screenshotFileInput.setInputFiles(
+			['e2e-screenshot-1.png', 'e2e-screenshot-2.png'].map((name) => ({
+				name,
+				mimeType: 'image/png',
+				buffer: TINY_PNG_BUFFER,
+			}))
+		);
+		logCheckpoint(`Attached 2 x ${TINY_PNG_BUFFER.length}-byte test PNG via screenshot-file-input.`);
 
 		// Wait for the FileReader onload to populate screenshotDataUrl and
 		// render the preview. The preview uses data-testid="screenshot-preview".
 		const screenshotPreview = page.getByTestId('screenshot-preview');
-		await expect(screenshotPreview).toBeVisible({ timeout: 5000 });
+		await expect(screenshotPreview).toHaveCount(2, { timeout: 5000 });
+		await expect(page.getByTestId('screenshot-count')).toHaveText('2/5');
 		logCheckpoint('Screenshot preview rendered after attach.');
 		await takeStepScreenshot(page, '04b-screenshot-attached');
 
@@ -524,6 +528,7 @@ test.describe('Report Issue Flow', () => {
 		expect(responseBody?.success).toBe(true);
 		expect(responseBody?.issue_id).toBeTruthy();
 		expect(responseBody?.short_issue_id).toMatch(/^[A-HJ-NP-Z2-9]{5}$/);
+		expect(responseBody?.screenshots_uploaded).toBe(2);
 		expect(responseBody?.screenshot_uploaded).toBe(true);
 		const submittedPayload = apiResponse.request().postDataJSON?.();
 		expect(submittedPayload?.contact_email).toBe(TEST_EMAIL);

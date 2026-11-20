@@ -127,3 +127,26 @@ tail logs/claude-dispatch/launches.jsonl                    # launched chats
 Resume a dispatched chat from the Claude app (it keeps its title) or on the
 server with `zellij attach claude` and switch to its tab. Close the tab (or
 `/exit`) when the chat is finished; chats are not retired automatically.
+
+## AI test-user reports
+
+Issue requests in `queue/` may carry `"origin": "ai_test_user"` and `"env": "dev"|"prod"`
+(any other origin is rejected). The AI test-user orchestrator writes them with
+`claude_dispatch.queue_test_user_issue(issue_id, short_id, env)` (atomic write).
+
+Rule: an AI test user never triggers feature work or large changes. Its investigation chat
+(`AI test user issue <short>: investigate`) uses `ai_user_issue_prompt`: it classifies the
+report first and implements only a small, clear bug; features, design/wording opinions,
+product decisions, large changes and architecture decisions become one OpenMates Task for the
+owner (label `ai-test-users`) and the chat stops without editing code. Such chats never ask
+the owner questions mid-chat.
+
+- Cap: at most 3 such chats per UTC day (`test-user-issues-state.json` next to the launch
+  log). Above it the queue file moves to `processed/deferred/` and the launch log records a
+  `deferred` line; the orchestrator lists deferred ones in its summary.
+- Enforcement: the chat starts with `OPENMATES_CHANGE_SCOPE=small-fix`. `sessions.py start`
+  stores `change_scope` on the session (never dropped afterwards) and `sessions.py deploy`
+  refuses when `scripts/change_scope.py` finds more than 6 changed files, more than 150
+  changed non-test lines, a new non-test source file, a change under
+  `backend/core/directus/schemas/`, migrations, `docs/plans/`, `specifications/`, or a new
+  API route decorator.

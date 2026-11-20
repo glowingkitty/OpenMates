@@ -10,12 +10,20 @@ import secrets
 import glob
 from pathlib import Path
 import pyotp
-from typing import Optional, Dict, Any, List, Literal
+from typing import Annotated, Optional, Dict, Any, List, Literal
 from datetime import datetime, timezone, timedelta
-from pydantic import BaseModel, Field, SecretStr # Import BaseModel and Field for response models
+from pydantic import BaseModel, Field, SecretStr, StringConstraints, model_validator # Import BaseModel and Field for response models
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.direct_chat_access import is_personal_retention_chat
+from backend.core.api.app.services.issue_report_screenshots import (
+    MAX_ISSUE_SCREENSHOTS,
+    MAX_SCREENSHOT_B64_CHARS,
+    combine_screenshot_inputs,
+    decode_screenshots,
+    decrypt_screenshot_keys,
+    issue_has_screenshots,
+)
 from backend.core.api.app.services.issue_report_storage import (
     ISSUE_REPORT_DB_TITLE_MAX_CHARS, fit_issue_text_for_storage,
 )
@@ -2832,6 +2840,16 @@ class IssueReportRequest(BaseModel):
             "via a pre-signed URL. Only available for authenticated users."
         )
     )
+    screenshots_png_base64: Optional[
+        List[Annotated[str, StringConstraints(max_length=MAX_SCREENSHOT_B64_CHARS)]]
+    ] = Field(
+        None,
+        max_length=MAX_ISSUE_SCREENSHOTS,
+        description=(
+            "Up to 5 base64-encoded PNG screenshots (each decoded <= 2 MB). When the legacy "
+            "screenshot_png_base64 is also sent it counts as the first item; the total must stay <= 5."
+        ),
+    )
     picked_element_html: Optional[str] = Field(
         None,
         max_length=200000,
@@ -2866,6 +2884,13 @@ class IssueReportRequest(BaseModel):
         ),
     )
 
+    @model_validator(mode="after")
+    def _limit_total_screenshots(self) -> "IssueReportRequest":
+        total = len(combine_screenshot_inputs(self.screenshot_png_base64, self.screenshots_png_base64))
+        if total > MAX_ISSUE_SCREENSHOTS:
+            raise ValueError(f"At most {MAX_ISSUE_SCREENSHOTS} screenshots are allowed per report")
+        return self
+
 
 class IssueReportResponse(BaseModel):
     """Response model for issue reporting endpoint"""
@@ -2878,6 +2903,9 @@ class IssueReportResponse(BaseModel):
     # Surfaced synchronously so E2E tests can assert the screenshot path worked
     # without needing an admin API key.
     screenshot_uploaded: bool = False
+    # Number of screenshots stored, and number dropped (invalid or > 2 MB decoded).
+    screenshots_uploaded: int = 0
+    screenshots_skipped: int = 0
     # Admin dev handoff: "queued" when a Claude chat request was written for the
     # host dispatcher, "unavailable" when it was requested but could not be queued.
     claude_chat_status: Optional[Literal["queued", "unavailable"]] = None
@@ -3158,74 +3186,71 @@ async def report_issue(
         # The frontend sends a base64-encoded PNG captured via getDisplayMedia() (authenticated users only).
         # We store it unencrypted in the issue_logs S3 bucket so admins and LLMs can view it via
         # a pre-signed URL without any decryption step. The S3 key is stored encrypted in Directus.
-        screenshot_presigned_url: Optional[str] = None
+        screenshot_presigned_urls: List[str] = []
         encrypted_screenshot_s3_key: Optional[str] = None
+        encrypted_screenshot_s3_keys: Optional[str] = None
+        screenshots_skipped = 0
+        screenshot_inputs = combine_screenshot_inputs(
+            issue_data.screenshot_png_base64, issue_data.screenshots_png_base64
+        )
 
-        if issue_data.screenshot_png_base64 and current_user:
+        if screenshot_inputs and current_user:
             # Only process screenshots from authenticated users (unauthenticated users cannot attach screenshots)
             try:
-                import base64 as _base64
                 import uuid as _uuid
                 from datetime import datetime as _dt, timezone as _tz
+                from backend.core.api.app.services.s3.config import get_bucket_name as _get_bucket_name
 
-                # Decode base64 → PNG bytes
-                # Strip the data URI prefix if the browser included it (e.g. "data:image/png;base64,...")
-                raw_b64 = issue_data.screenshot_png_base64.strip()
-                if raw_b64.startswith('data:'):
-                    raw_b64 = raw_b64.split(',', 1)[1]
-                screenshot_bytes = _base64.b64decode(raw_b64)
-
-                # Basic size guard (2 MB decoded)
-                if len(screenshot_bytes) > 2 * 1024 * 1024:
+                screenshot_images, screenshots_skipped = decode_screenshots(screenshot_inputs)
+                if screenshots_skipped:
                     logger.warning(
-                        f"Screenshot too large ({len(screenshot_bytes)} bytes) — skipping upload"
+                        f"Skipped {screenshots_skipped} screenshot(s): invalid or larger than 2 MB decoded"
                     )
-                else:
-                    # Upload unencrypted PNG to the issue_logs S3 bucket.
-                    # The bucket is private, so only pre-signed URLs can access the file.
-                    s3_service = request.app.state.s3_service
+                s3_service = request.app.state.s3_service
+                screenshot_bucket_name = _get_bucket_name('issue_logs', s3_service.environment)
+                stored_keys: List[str] = []
+                for screenshot_bytes in screenshot_images:
                     timestamp_str = _dt.now(_tz.utc).strftime('%Y%m%d_%H%M%S')
-                    unique_id = _uuid.uuid4().hex[:8]
-                    screenshot_s3_key = f"issue-screenshots/{timestamp_str}_{unique_id}.png"
-
+                    screenshot_s3_key = f"issue-screenshots/{timestamp_str}_{_uuid.uuid4().hex[:8]}.png"
+                    # The bucket is private, so only pre-signed URLs can access the file.
                     await s3_service.upload_file(
                         bucket_key='issue_logs',
                         file_key=screenshot_s3_key,
                         content=screenshot_bytes,
                         content_type='image/png'
                     )
-                    logger.info(
-                        f"Uploaded screenshot PNG to S3: {screenshot_s3_key} "
-                        f"({len(screenshot_bytes)} bytes)"
+                    stored_keys.append(screenshot_s3_key)
+                    screenshot_presigned_urls.append(
+                        s3_service.generate_presigned_url(
+                            bucket_name=screenshot_bucket_name,
+                            file_key=screenshot_s3_key,
+                            expiration=7 * 24 * 3600  # 7 days
+                        )
                     )
+                    logger.info(f"Uploaded screenshot PNG to S3: {screenshot_s3_key} ({len(screenshot_bytes)} bytes)")
 
-                    # Generate a 7-day pre-signed URL for immediate use in the email / inspect script
-                    from backend.core.api.app.services.s3.config import get_bucket_name as _get_bucket_name
-                    environment = s3_service.environment
-                    screenshot_bucket_name = _get_bucket_name('issue_logs', environment)
-                    screenshot_presigned_url = s3_service.generate_presigned_url(
-                        bucket_name=screenshot_bucket_name,
-                        file_key=screenshot_s3_key,
-                        expiration=7 * 24 * 3600  # 7 days
-                    )
-                    logger.info("Generated 7-day pre-signed URL for screenshot")
-
-                    # Encrypt the S3 key for Directus storage
+                if stored_keys:
+                    # Legacy field keeps the first key for old readers; the list field holds all keys.
                     encrypted_screenshot_s3_key = await encryption_service.encrypt_issue_report_data(
-                        screenshot_s3_key
+                        stored_keys[0]
                     )
-                    logger.debug("Encrypted screenshot S3 key for database storage")
-
+                    encrypted_screenshot_s3_keys = await encryption_service.encrypt_issue_report_data(
+                        json.dumps(stored_keys)
+                    )
             except Exception as _e:
                 # Screenshot upload failure must NOT block the issue report submission
                 logger.error(
-                    f"Failed to process screenshot for issue report: {str(_e)}",
+                    f"Failed to process screenshots for issue report: {str(_e)}",
                     exc_info=True
                 )
-                screenshot_presigned_url = None
+                screenshot_presigned_urls = []
                 encrypted_screenshot_s3_key = None
-        elif issue_data.screenshot_png_base64 and not current_user:
+                encrypted_screenshot_s3_keys = None
+        elif screenshot_inputs and not current_user:
             logger.warning("Screenshot ignored — only authenticated users can attach screenshots")
+        screenshot_presigned_url: Optional[str] = (
+            screenshot_presigned_urls[0] if screenshot_presigned_urls else None
+        )
 
         # Encrypt sensitive fields for database storage (server-side encryption)
         # Note: encryption_service was already retrieved above before the screenshot block.
@@ -3291,6 +3316,7 @@ async def report_issue(
                 "encrypted_issue_report_yaml_s3_key": encrypted_issue_report_yaml_s3_key,
                 # Encrypted S3 key for the screenshot PNG (if provided by an authenticated user)
                 "encrypted_screenshot_s3_key": encrypted_screenshot_s3_key,
+                "encrypted_screenshot_s3_keys": encrypted_screenshot_s3_keys,
                 "is_from_admin": is_from_admin,
                 "reported_by_user_id": reported_by_user_id,
                 # OTel trace IDs from frontend for trace-to-issue correlation
@@ -3351,6 +3377,7 @@ async def report_issue(
                 "action_history": action_history_str,
                 "picked_element_html": picked_element_html_str,
                 "screenshot_presigned_url": screenshot_presigned_url,
+                "screenshot_presigned_urls": screenshot_presigned_urls,
                 "reported_by_user_id": reported_by_user_id,
                 "trace_ids": issue_data.trace_ids or [],
                 "send_email_notification": issue_data.send_email_notification,
@@ -3377,6 +3404,8 @@ async def report_issue(
             issue_id=issue_id,  # Return issue ID so frontend can display it for admin lookup
             short_issue_id=short_issue_id,
             screenshot_uploaded=bool(encrypted_screenshot_s3_key),
+            screenshots_uploaded=len(screenshot_presigned_urls),
+            screenshots_skipped=screenshots_skipped,
             claude_chat_status=claude_chat_status,
         )
         
@@ -3424,6 +3453,7 @@ class IssueStatusResponse(BaseModel):
     id: str
     short_issue_id: Optional[str] = None
     has_screenshot: bool
+    screenshot_count: int = 0
     has_yaml_report: bool
     processed: bool
 
@@ -3438,6 +3468,7 @@ async def get_issue_status(
     request: Request,
     issue_id: str,
     current_user: User = Depends(get_current_user),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
 ):
     """
     Return the completion status of an issue report submitted by the current user.
@@ -3471,7 +3502,10 @@ async def get_issue_status(
         return IssueStatusResponse(
             id=issue["id"],
             short_issue_id=issue.get("short_issue_id"),
-            has_screenshot=bool(issue.get("encrypted_screenshot_s3_key")),
+            has_screenshot=issue_has_screenshots(issue),
+            screenshot_count=len(
+                await decrypt_screenshot_keys(issue, encryption_service)
+            ),
             has_yaml_report=bool(issue.get("encrypted_issue_report_yaml_s3_key")),
             processed=bool(issue.get("processed", False)),
         )

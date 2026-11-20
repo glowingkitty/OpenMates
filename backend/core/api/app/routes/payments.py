@@ -138,8 +138,16 @@ BANK_TRANSFER_PROCESSING_ALERT_KEY_PREFIX = "bank_transfer:processing_alert"
 BANK_TRANSFER_PROCESSING_ALERT_TTL_SECONDS = 24 * 60 * 60
 
 
-def _paid_signup_completion_update_payload(**extra_fields: Any) -> Dict[str, Any]:
-    """Fields that make any successful paid credit source durable for cleanup."""
+def _paid_signup_completion_update_payload(
+    *, marks_test_account: bool = False, **extra_fields: Any
+) -> Dict[str, Any]:
+    """Fields that make any successful paid credit source durable for cleanup.
+
+    ``marks_test_account`` (gift cards only) also labels the account as a test
+    account; the flag is only ever set here, never cleared.
+    """
+    if marks_test_account:
+        extra_fields["is_test_account"] = True
     return {
         **extra_fields,
         "last_opened": PAID_SIGNUP_COMPLETION_LAST_OPENED,
@@ -4874,7 +4882,10 @@ async def redeem_gift_card(
         # 7. Update Directus with new credit balance
         update_success = await directus_service.update_user(
             user_id,
-            _paid_signup_completion_update_payload(encrypted_credit_balance=encrypted_new_credits)
+            _paid_signup_completion_update_payload(
+                encrypted_credit_balance=encrypted_new_credits,
+                marks_test_account=bool(gift_card.get("marks_test_account")),
+            )
         )
         
         if not update_success:
@@ -4885,6 +4896,8 @@ async def redeem_gift_card(
         user_cache_data["credits"] = new_total_credits
         user_cache_data["last_opened"] = PAID_SIGNUP_COMPLETION_LAST_OPENED
         user_cache_data["signup_completed"] = True
+        if gift_card.get("marks_test_account"):
+            user_cache_data["is_test_account"] = True
         await cache_service.set_user(user_cache_data, user_id=user_id)
         
         # Update Global Stats for Gift Card

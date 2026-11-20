@@ -80,6 +80,7 @@ def send_issue_report_email(
     action_history: Optional[str] = None,
     picked_element_html: Optional[str] = None,
     screenshot_presigned_url: Optional[str] = None,
+    screenshot_presigned_urls: Optional[list] = None,
     reported_by_user_id: Optional[str] = None,
     trace_ids: Optional[list] = None,
     send_email_notification: bool = True,
@@ -140,6 +141,7 @@ def send_issue_report_email(
                 action_history=action_history,
                 picked_element_html=picked_element_html,
                 screenshot_presigned_url=screenshot_presigned_url,
+                screenshot_presigned_urls=screenshot_presigned_urls,
                 reported_by_user_id=reported_by_user_id,
                 trace_ids=trace_ids,
                 send_email_notification=send_email_notification,
@@ -493,6 +495,7 @@ async def _async_send_issue_report_email(
     action_history: Optional[str] = None,
     picked_element_html: Optional[str] = None,
     screenshot_presigned_url: Optional[str] = None,
+    screenshot_presigned_urls: Optional[list] = None,
     reported_by_user_id: Optional[str] = None,
     trace_ids: Optional[list] = None,
     send_email_notification: bool = True,
@@ -523,6 +526,9 @@ async def _async_send_issue_report_email(
     Note: This function ensures proper cleanup of async resources (like httpx clients)
     before the event loop closes to prevent "Event loop is closed" errors.
     """
+    all_screenshot_urls = [u for u in (screenshot_presigned_urls or []) if u]
+    if not all_screenshot_urls and screenshot_presigned_url:
+        all_screenshot_urls = [screenshot_presigned_url]
     try:
         # Initialize services using the base task class method
         logger.info("Initializing services for issue report email task...")
@@ -659,7 +665,9 @@ async def _async_send_issue_report_email(
                 # Pre-signed URL for the screenshot PNG (valid 7 days from report time).
                 # The image is stored unencrypted in the private issue_logs S3 bucket so
                 # admins and LLMs can load it directly without any decryption step.
-                'screenshot_presigned_url': screenshot_presigned_url if screenshot_presigned_url else None
+                'screenshot_presigned_url': screenshot_presigned_url if screenshot_presigned_url else None,
+                # All screenshots (first one repeated in screenshot_presigned_url for old readers).
+                'screenshot_presigned_urls': all_screenshot_urls
             }
         }
 
@@ -793,7 +801,8 @@ async def _async_send_issue_report_email(
             "user_stats": user_stats_formatted,
             # Pre-signed URL for the screenshot PNG — included in the email so admins
             # and LLMs can view the screenshot directly without needing the inspect script.
-            "screenshot_presigned_url": screenshot_presigned_url if screenshot_presigned_url else None
+            "screenshot_presigned_url": screenshot_presigned_url if screenshot_presigned_url else None,
+            "screenshot_presigned_urls": all_screenshot_urls,
         }
         logger.info("Prepared email context for issue report")
         

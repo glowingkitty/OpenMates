@@ -68,21 +68,23 @@
             <strong>Device Information (for debugging):</strong><br/>
             {{ device_info | safe }}
           </mj-text>
-          {% if screenshot_presigned_url %}
+          {% if screenshot_presigned_urls %}
           <mj-text font-size="16px" padding-bottom="10px">
-            <strong>Screenshot (captured by user):</strong>
+            <strong>Screenshots (captured by user):</strong>
           </mj-text>
+          {% for screenshot_url in screenshot_presigned_urls %}
           <mj-image
-            src="{{ screenshot_presigned_url }}"
-            alt="Issue screenshot uploaded by user"
+            src="{{ screenshot_url }}"
+            alt="Issue screenshot {{ loop.index }} uploaded by user"
             padding="0 0 10px 0"
             border-radius="8px"
             fluid-on-mobile="true"
           />
           <mj-text font-size="14px" padding-bottom="20px">
             If the image preview is blocked by your email client, open it directly:
-            <a href="{{ screenshot_presigned_url }}" style="color: #6364FF; text-decoration: underline;">View screenshot</a>
+            <a href="{{ screenshot_url }}" style="color: #6364FF; text-decoration: underline;">View screenshot {{ loop.index }}</a>
           </mj-text>
+          {% endfor %}
           {% endif %}
           <mj-text font-size="16px" padding-bottom="30px">
             <strong>Debug Information:</strong><br/>

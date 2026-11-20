@@ -29,10 +29,11 @@ def hash_username(username: str) -> str:
 
 logger = logging.getLogger(__name__)
 
-async def get_total_users_count(self) -> int:
+async def get_total_users_count(self, exclude_test_accounts: bool = False) -> int:
     """
     Get the total count of registered users
-    Returns the count as an integer
+    Returns the count as an integer. With ``exclude_test_accounts`` users
+    labelled ``is_test_account`` are left out (server stats).
     """
     try:
         url = f"{self.base_url}/users"
@@ -40,6 +41,8 @@ async def get_total_users_count(self) -> int:
             "limit": 1,
             "meta": "filter_count"
         }
+        if exclude_test_accounts:
+            params["filter"] = json.dumps({"is_test_account": {"_neq": True}})
         
         response = await self._make_api_request("GET", url, params=params)
         

@@ -5,6 +5,11 @@ directus_users:
       type: boolean
       note: "Is the user an admin?"
 
+    is_test_account:
+      type: boolean
+      default: false
+      note: "Labels a regular AI test user. Set only by redeeming a gift card with marks_test_account=true (redeem-gift-card route); never settable by user-facing endpoints, never cleared. Excluded from growth numbers and server stats."
+
     last_opened:
       type: string
       length: 512

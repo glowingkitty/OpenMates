@@ -61,6 +61,11 @@ issues:
       nullable: true
       note: "Encrypted S3 object key for issue screenshot PNG file (encrypted with issue report encryption key for server-side use). Uses TEXT type to accommodate Vault base64-encoded ciphertext. The PNG is stored unencrypted in S3 issue_logs bucket; only the key itself is encrypted."
 
+    encrypted_screenshot_s3_keys:
+      type: text
+      nullable: true
+      note: "Encrypted JSON array of S3 object keys for all issue screenshot PNG files (encrypted with the issue report encryption key). The first key is also written to encrypted_screenshot_s3_key for older readers. PNGs are stored unencrypted in the S3 issue_logs bucket; only the keys are encrypted."
+
     created_at:
       type: timestamp
       note: "Timestamp when the issue record was created (set by application during creation)"

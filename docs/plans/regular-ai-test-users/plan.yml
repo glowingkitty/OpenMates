@@ -1,0 +1,77 @@
+schema_version: 2
+profile: concise
+id: regular-ai-test-users
+title: Regular AI test users on dev and production
+status: implementing
+goal: >-
+  Marco, 19 Nov 2026 (TASK-7525, final brief plus activity notes): turn the
+  one-off AI test-user trial (TASK-1816) into daily automated user testing of
+  the web app on dev AND production with different, rotating tests. Each run
+  signs up a fresh disposable account through the real web signup (Inbox
+  Kitten address with a fixed prefix, strong random password), gets credits
+  from a single-use 1,000-credit test gift card (production: a batch created
+  over SSH on the production server, never by an online endpoint), is
+  labelled as a test account so it never counts in signup, active-user or
+  purchase numbers, reports its findings through the real Report issue form
+  (which must support multiple screenshots), and is deleted afterwards. The
+  judge also rates answer quality and flags demo-chat candidates; transcripts
+  are readable per persona. Reports from test accounts start investigation
+  chats that may only fix small, clear bugs (TASK-8809). One short Discord
+  summary per day. Weekdays 3 dev + 2 production personas, a weekly full run
+  of all 10, about 35 USD per month. Models stay as they are.
+scope:
+  - >-
+    Harness (scripts/ai_test_users.py, backend/scripts/ai_test_users/): target
+    dev or prod; scripted web signup, gift card redemption, Report issue
+    submission and web account deletion (no model sees credentials or codes);
+    judge adds answer quality and demo candidates; transcript.md per persona.
+  - >-
+    Label: users.is_test_account, set only when a gift card with
+    marks_test_account is redeemed; growth metrics and server stats leave such
+    accounts out. The dev host's AI test-user registry feeds the existing
+    growth exclusion list (email hashes), which also covers production before
+    the next release.
+  - >-
+    Report issue: up to 5 screenshots on web, API, storage and the admin/debug
+    readers; the legacy single field stays accepted (Apple, CLI).
+  - >-
+    Investigation: the host queues each test-user report for the issue
+    dispatcher with origin ai_test_user; that chat runs with a small-fix change
+    scope that sessions.py deploy enforces; feature requests, design opinions,
+    large changes and architecture questions become a Task for Marco.
+  - >-
+    Production gift card batch: backend/scripts/create_test_gift_card_batch.py
+    run by Marco inside the production api container over SSH; codes land in a
+    0600 file on the dev host, outside the repository.
+  - >-
+    Schedule: systemd user timer on the dev host, weekday rotation (3 dev, 2
+    prod, disjoint personas, every persona on each server within a week),
+    weekly full dev run, one daily summary push, one low-batch question push.
+contracts:
+  - issue-reporting.form.single-text-quick-actions
+  - issue-reporting.submission.confirmed-and-durable
+decisions:
+  - >-
+    Test users sign up with password only (no 2FA): the web flow allows
+    skipping 2FA and the account lives under an hour; deletion uses password
+    plus an email code read from the Inbox Kitten inbox.
+  - >-
+    Dev also redeems a single-use 1,000-credit test gift card in the web app,
+    created inside the dev api container like the existing invite codes, so
+    the production label path is exercised daily on dev; the existing top-up
+    script stays the fallback when a balance is short.
+  - >-
+    Production runs stay disabled until Marco has created a gift card batch
+    on the production server and production carries the is_test_account
+    release; until then the email-hash exclusion is the only production label.
+  - >-
+    Investigation chats from test-user reports are capped per day and the
+    deploy guard refuses changes above the small-fix limit; refusing names
+    the Task route instead.
+verification:
+  required:
+    - Backend pytest for the label, gift card redemption flag, growth and server-stats exclusion.
+    - Backend pytest and web component/E2E proof for multiple Report issue screenshots.
+    - Script tests for the dispatcher origin, the small-fix deploy guard, rotation and the daily summary.
+    - One full 10-persona run on dev from the deployed commit with a short report.
+  evidence: ""

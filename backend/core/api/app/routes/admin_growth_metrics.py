@@ -44,7 +44,8 @@ router = APIRouter(prefix="/v1/admin/debug", tags=["Admin Debug"])
 
 MAX_EXCLUDED_HASHES = 200
 MAX_WINDOW_DAYS = 31
-USER_FIELDS = ["id", "is_admin", "signup_completed", "signup_started_at", "last_online_timestamp", "hashed_email"]
+USER_FIELDS = ["id", "is_admin", "signup_completed", "signup_started_at", "last_online_timestamp", "hashed_email",
+               "is_test_account"]
 INVOICE_FIELDS = ["user_id_hash", "date", "is_gift_card", "refund_status", "has_chargeback"]
 
 
@@ -96,7 +97,7 @@ def compute_growth_metrics(users: Iterable[dict], invoices: Iterable[dict], *, n
     """Counts only. ``users``/``invoices`` are raw Directus rows; nothing per-user is returned."""
     counted, excluded_ids, started = [], set(), []
     for user in users:
-        if (user.get("is_admin") or (user.get("hashed_email") or "") in excluded_email_hashes
+        if (user.get("is_admin") or user.get("is_test_account") or (user.get("hashed_email") or "") in excluded_email_hashes
                 or str(user.get("id", "")) in excluded_user_ids):
             excluded_ids.add(hashlib.sha256(str(user.get("id", "")).encode()).hexdigest())
             continue

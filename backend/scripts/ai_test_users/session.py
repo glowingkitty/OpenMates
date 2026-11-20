@@ -7,19 +7,20 @@ catalog and the Browse model layer live there):
 
   docker exec -i api python /app/backend/scripts/ai_test_users/session.py < job.json
 
-The job arrives on stdin only (it holds the throwaway account's login values;
-they are never written to disk, logged, or placed in the sandbox except as the
-login form input). Output goes to `job.output_dir` inside the container
+The job arrives on stdin only (it holds the throwaway account's values; they are
+never written to disk or logged, and reach the sandbox only as form input). Output goes to `job.output_dir` inside the container
 (screenshots, `video.webm`, `transcript.json`, `result.json`); the host copies
 it out and removes it.
 
 Flow: create one disposable E2B sandbox from the Browse template, stop its
 prebooted runtime, upload `driver.py` plus a copy of the Browse runtime,
-launch Chromium with the persona's device profile, log in deterministically,
-then loop persona steps (observe, model step, act) within the step, time and
+launch Chromium with the persona's device profile, sign up a throwaway account
+(Inbox Kitten code), redeem the gift card, then loop persona steps (observe, model step, act) within the step, time and
 budget limits. Afterwards one Gemini judge call reviews transcript and
-screenshots, and Jev checks each finding against its screenshot. The sandbox
-is killed in every case. Refuses to run unless SERVER_ENVIRONMENT=development.
+screenshots, Jev checks each finding, kept findings are filed through the web
+Report issue form, and the account is deleted before the sandbox is killed (in
+every case). Target may be dev or prod; the worker refuses to run unless
+SERVER_ENVIRONMENT=development.
 """
 
 from __future__ import annotations
@@ -39,12 +40,13 @@ from typing import Any
 import wave
 
 import httpx
-import pyotp
 from e2b.exceptions import SandboxException
 
 sys.path.insert(0, "/app")
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling models.py, also from a copied trial checkout
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402 - container path setup
+import flows  # noqa: E402
+from transcript import render as render_transcript  # noqa: E402
 from models import (  # noqa: E402
     ACTION_KINDS,
     FINDING_KEEP_SCORE,
@@ -79,12 +81,11 @@ BLOCKED_LABEL = re.compile(
 )
 
 
+GIFT_HASH = re.compile(r"#gift-card=\S*")
+
+
 def log(message: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}] {message}", file=sys.stderr, flush=True)
-
-
-def totp_code(otp_key: str) -> str:
-    return pyotp.TOTP(otp_key).now()
 
 
 async def voice_clip(secrets: SecretsManager, text: str) -> bytes:
@@ -132,12 +133,13 @@ def compact_controls(observation: dict[str, Any]) -> list[dict[str, Any]]:
 class Session:
     def __init__(self, job: dict[str, Any]) -> None:
         self.job = job
+        self.mode = flows.validate_job(job)
         self.persona = job["persona"]
         self.out = Path(job["output_dir"])
         self.out.mkdir(parents=True, exist_ok=True)
         self.transcript: list[dict[str, Any]] = []
         self.history: list[dict[str, Any]] = []
-        self.result: dict[str, Any] = {"persona": self.persona["id"], "status": "started", "findings": []}
+        self.result: dict[str, Any] = {"persona": self.persona["id"] if self.persona else None, "mode": self.mode, "status": "started", "findings": []}
         self.sandbox = None
         self.provider: dict[str, Any] | None = None
         self.browser: E2BBrowser | None = None
@@ -145,6 +147,8 @@ class Session:
         self.cpu, self.memory_mb = 2, 4096
         self.extra_cost = Decimal(0)
         self.screenshots: dict[int, str] = {}
+        self.inbox = None
+        self.account_created = False
 
     # --- sandbox ------------------------------------------------------------
     async def create_sandbox(self, api_key: str) -> None:
@@ -162,7 +166,7 @@ class Session:
             envs={"PLAYWRIGHT_BROWSERS_PATH": "/opt/openmates-browser/browsers"},
             timeout=lifetime,
             network={"deny_out": PRIVATE_NETWORKS, "allow_public_traffic": False},
-            metadata={"openmates_ai_test_user_run": self.job["run_id"], "persona": self.persona["id"]},
+            metadata={"openmates_ai_test_user_run": self.job["run_id"], "persona": self.persona["id"] if self.persona else "delete_only"},
         )
         self.sandbox_started = time.monotonic()
         info = await asyncio.to_thread(self.sandbox.get_info)
@@ -176,7 +180,7 @@ class Session:
         await asyncio.to_thread(sandbox.files.write, f"{SANDBOX_HOME}/config.json", json.dumps({"token": token}))
         await asyncio.to_thread(sandbox.files.write, f"{SANDBOX_HOME}/browse_runtime.py", RUNTIME_SOURCE.read_text())
         await asyncio.to_thread(sandbox.files.write, f"{SANDBOX_HOME}/driver.py", (HERE / "driver.py").read_text())
-        if self.persona.get("voice_text"):
+        if self.persona and self.persona.get("voice_text"):
             clip = await voice_clip(self.secrets, self.persona["voice_text"])
             self.extra_cost += ELEVENLABS_USD_PER_CHAR * len(self.persona["voice_text"])
             await asyncio.to_thread(sandbox.files.write, f"{SANDBOX_HOME}/voice.wav", clip)
@@ -200,7 +204,29 @@ class Session:
         raise BrowserUnavailable("The tester driver did not start.")
 
     async def rpc(self, body: dict[str, Any], timeout: float = 40) -> dict[str, Any]:
-        return await self.browser.rpc(self.provider, body, timeout=timeout)
+        """One driver call. A refused operation (HTTP 409) keeps the driver's error class and detail,
+        which the shared Browse client drops; login and signup bodies never echo their detail."""
+        async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
+            try:
+                response = await client.post(
+                    self.provider["rpc_url"], json=body,
+                    headers={"Authorization": "Bearer " + self.provider["token"],
+                             "e2b-traffic-access-token": self.provider["traffic_access_token"]},
+                )
+            except httpx.HTTPError as exc:
+                raise BrowserUnavailable(f"driver unreachable ({type(exc).__name__})") from None
+        if response.status_code == 409:
+            try:
+                error = response.json()
+            except ValueError:
+                error = {}
+            raise BrowserUnavailable(f"{body.get('operation')}: {error.get('error')}: {error.get('detail', '')}"[:300])
+        if response.status_code != 200:
+            raise BrowserUnavailable(f"{body.get('operation')}: driver HTTP {response.status_code}")
+        result = response.json()
+        if not isinstance(result, dict):
+            raise BrowserUnavailable(f"{body.get('operation')}: invalid driver reply")
+        return result
 
     async def driver_error(self) -> str:
         try:
@@ -214,26 +240,6 @@ class Session:
             return Decimal(0)
         seconds = Decimal(str(time.monotonic() - self.sandbox_started))
         return seconds * (self.cpu * USD_PER_VCPU_SECOND + Decimal(self.memory_mb) / 1024 * USD_PER_GIB_SECOND)
-
-    # --- login ----------------------------------------------------------------
-    async def login(self) -> None:
-        credentials = self.job["credentials"]
-        state = (await self.rpc(
-            {"operation": "login_password", "email": credentials["email"], "password": credentials["password"]},
-            timeout=90,
-        ))["state"]
-        for attempt in range(3):
-            if state != "otp":
-                break
-            # A code is single-use per 30 s window (the orchestrator's CLI login may have used this
-            # window's code), so a retry always waits for the next window.
-            if attempt or time.time() % 30 >= 25:
-                await asyncio.sleep(31 - time.time() % 30)
-            state = (await self.rpc(
-                {"operation": "login_otp", "code": totp_code(credentials["otp_key"])}, timeout=60
-            ))["state"]
-        if state != "auth":
-            raise BrowserUnavailable(f"Login did not complete (state {state}).")
 
     # --- persona loop -----------------------------------------------------------
     def save_screenshot(self, step: int, image: str | None) -> str | None:
@@ -260,7 +266,7 @@ class Session:
     def page_context(self, observation: dict[str, Any]) -> dict[str, Any]:
         text = observation.get("document_text") or observation.get("text") or ""
         return {
-            "url": observation.get("url"),
+            "url": GIFT_HASH.sub("", str(observation.get("url") or "")),
             "title": observation.get("title"),
             "dialogs": observation.get("dialogs"),
             "visible_text": (observation.get("text") or "")[:4000],
@@ -420,12 +426,15 @@ class Session:
                 log(f"jev check failed: {exc}")
                 finding["jev_error"] = str(exc)[:200]
                 score = None
+            finding["id"] = len(self.result["findings"])
             finding["jev_score"] = score
             finding["kept"] = score is None or score >= FINDING_KEEP_SCORE
             finding["screenshot"] = f"step-{step:03d}.jpg" if image else None
             self.result["findings"].append(finding)
         self.result["goal_outcomes"] = verdict.get("goal_outcomes", [])
         self.result["summary"] = verdict.get("summary", "")
+        self.result["answer_quality"] = verdict.get("answer_quality", [])
+        self.result["demo_candidate"] = verdict.get("demo_candidate", {"is_candidate": False, "why": "", "steps": []})
 
     # --- main -------------------------------------------------------------------------
     async def run(self) -> dict[str, Any]:
@@ -435,11 +444,15 @@ class Session:
         await self.secrets.initialize()
         api_key = await get_e2b_api_key_async(self.secrets)
         self.browser = E2BBrowser(api_key)
+        if self.mode == "delete_only":
+            return await self.run_delete_only()
         models = TesterModels(self.secrets, cap_usd=Decimal(str(self.job["harness_cap_usd"])))
         wall = time.monotonic()
+        result = self.result
+        result.update(target=self.job.get("target"), reports=[], deletion={"status": "skipped", "error": None})
         try:
             await self.create_sandbox(api_key)
-            self.result["sandbox_ready_seconds"] = round(time.monotonic() - wall, 1)
+            result["sandbox_ready_seconds"] = round(time.monotonic() - wall, 1)
             await self.rpc({
                 "operation": "launch",
                 "url": self.job["app_url"],
@@ -449,25 +462,40 @@ class Session:
                 "timezone": self.persona.get("timezone", "Europe/Berlin"),
                 "voice": bool(self.persona.get("voice_text")),
             }, timeout=60)
-            await self.login()
-            log(f"{self.persona['id']}: logged in")
-            self.result["status"] = await self.run_steps(models)
-            log(f"{self.persona['id']}: steps ended ({self.result['status']})")
+            signed_up = await flows.run_stage(result, "signup", lambda: flows.signup(self), self)
+            if signed_up:
+                log(f"{self.persona['id']}: signed up")
+                carded = await flows.run_stage(result, "gift_card", lambda: flows.gift_card(self), self)
+                result["status"] = await self.run_steps(models) if carded else "gift_card_failed"
+                log(f"{self.persona['id']}: steps ended ({result['status']})")
+                if self.transcript:
+                    try:
+                        await self.judge(models)
+                        await flows.submit_reports(self)
+                    except (BudgetExceeded, BrowserModelError, DecisionProviderError, ValueError, BrowserUnavailable) as exc:
+                        result["judge_error"] = f"{type(exc).__name__}: {exc}"
+                try:
+                    result["credits_end"] = (await self.rpc({"operation": "credits"}, timeout=60))["credits"]
+                except BrowserUnavailable:
+                    result["credits_end"] = None
+            else:
+                result["status"] = "signup_failed"
         except (BrowserUnavailable, BrowserModelError, KeyError, SandboxException, httpx.HTTPError) as exc:
-            self.result["status"] = "harness_error"
-            self.result["error"] = f"{type(exc).__name__}: {exc}"
+            result["status"] = "harness_error"
+            result["error"] = f"{type(exc).__name__}: {exc}"
             if self.sandbox is not None:
-                self.result["driver_log_tail"] = await self.driver_error()
+                result["driver_log_tail"] = await self.driver_error()
         finally:
             if self.sandbox is not None and self.provider is not None:
+                await flows.delete_stage(self)
                 try:
                     finished = await self.rpc({"operation": "finish"}, timeout=60)
                     for index, path in enumerate(finished.get("videos", [])):
                         data = await asyncio.to_thread(self.sandbox.files.read, path, format="bytes")
                         (self.out / ("video.webm" if index == 0 else f"video-{index}.webm")).write_bytes(bytes(data))
                 except BrowserUnavailable as exc:
-                    self.result["video_error"] = str(exc)
-            self.result["e2b"] = {
+                    result["video_error"] = str(exc)
+            result["e2b"] = {
                 "seconds": round(time.monotonic() - self.sandbox_started, 1) if self.sandbox_started else 0,
                 "cpu": self.cpu,
                 "memory_mb": self.memory_mb,
@@ -475,12 +503,7 @@ class Session:
             }
             if self.sandbox is not None:
                 await asyncio.to_thread(self.sandbox.kill)
-        if self.transcript:
-            try:
-                await self.judge(models)
-            except (BudgetExceeded, BrowserModelError, DecisionProviderError, ValueError) as exc:
-                self.result["judge_error"] = f"{type(exc).__name__}: {exc}"
-        self.result.update(
+        result.update(
             steps=len(self.transcript),
             wall_seconds=round(time.monotonic() - wall, 1),
             harness_usd=float(round(models.cost + self.extra_cost, 4)),
@@ -488,14 +511,45 @@ class Session:
             reply_timings=[e["reply_timing"] for e in self.transcript if e.get("reply_timing")],
         )
         (self.out / "transcript.json").write_text(json.dumps(self.transcript, ensure_ascii=False, indent=1))
-        (self.out / "result.json").write_text(json.dumps(self.result, ensure_ascii=False, indent=1))
-        return self.result
+        (self.out / "transcript.md").write_text(render_transcript(result, self.persona, self.transcript, str(self.job.get("target"))))
+        (self.out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=1))
+        return result
+
+    async def run_delete_only(self) -> dict[str, Any]:
+        """Retry the deletion of an account whose earlier deletion failed: login, delete, no persona, no video."""
+        wall = time.monotonic()
+        result = self.result
+        result.update(target=self.job.get("target"), deletion={"status": "failed", "error": None})
+        try:
+            await self.create_sandbox(await get_e2b_api_key_async(self.secrets))
+            await self.rpc({
+                "operation": "launch", "url": self.job["app_url"], "allowed_hosts": self.job["allowed_hosts"],
+                "device": self.job.get("device") or {"width": 1280, "height": 800}, "locale": "en-US", "timezone": "Europe/Berlin", "voice": False,
+            }, timeout=60)
+            result["deletion"] = {"status": await flows.login_and_delete(self), "error": None}
+            result["status"] = "delete_only_done"
+        except flows.STAGE_ERRORS + (SandboxException,) as exc:
+            result["status"] = "harness_error"
+            result["deletion"] = {"status": "failed", "error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+            if self.sandbox is not None:
+                result["driver_log_tail"] = await self.driver_error()
+        finally:
+            result["e2b"] = {
+                "seconds": round(time.monotonic() - self.sandbox_started, 1) if self.sandbox_started else 0,
+                "cpu": self.cpu, "memory_mb": self.memory_mb, "usd": float(round(self.e2b_cost(), 4)),
+            }
+            if self.sandbox is not None:
+                await asyncio.to_thread(self.sandbox.kill)
+        result.update(steps=0, wall_seconds=round(time.monotonic() - wall, 1), harness_usd=0.0)
+        (self.out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=1))
+        return result
+
 
 
 def main() -> int:
     job = json.loads(sys.stdin.read())
     result = asyncio.run(Session(job).run())
-    print(json.dumps({k: result.get(k) for k in ("persona", "status", "steps", "harness_usd", "e2b", "error")}))
+    print(json.dumps({k: result.get(k) for k in ("persona", "status", "steps", "harness_usd", "e2b", "error", "deletion")}))
     return 0
 
 

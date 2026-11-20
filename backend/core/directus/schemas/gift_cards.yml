@@ -47,6 +47,11 @@ gift_cards:
       default: false
       note: "When true, the card is NOT deleted on redemption and can be redeemed repeatedly. Only set manually via admin API for infrastructure/test cards. User-purchased and admin-UI cards always default to false."
 
+    marks_test_account:
+      type: boolean
+      default: false
+      note: "When true, redeeming the card labels the redeeming account as a test account (users.is_test_account). Created only by backend/scripts/create_test_gift_card_batch.py inside the production api container; no online endpoint may set it."
+
     allowed_email_identity_hash:
       type: string
       length: 64

@@ -30,6 +30,7 @@ EXCLUDE_FILE = "growth-excluded-emails.txt"
 HISTORY_FILE = "growth-history.json"
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 HISTORY_DAYS = 60
+AI_TEST_USER_REGISTRY = Path.home() / ".openmates" / "ai-test-users" / "accounts.jsonl"
 
 
 def email_hash(email: str) -> str:
@@ -50,7 +51,26 @@ def excluded_emails(root: Path, out: Path) -> set[str]:
     if private.is_file():
         emails |= {match for line in private.read_text().splitlines()
                    if not line.strip().startswith("#") for match in EMAIL.findall(line)}
+    emails |= registry_emails(AI_TEST_USER_REGISTRY)
     return {email.lower() for email in emails}
+
+
+def registry_emails(path: Path) -> set[str]:
+    """Emails of the regular AI test users (one JSON object per line); missing file = none.
+
+    Keeps production test accounts out of the numbers until the is_test_account flag exists there.
+    """
+    if not path.is_file():
+        return set()
+    emails: set[str] = set()
+    for line in path.read_text().splitlines():
+        try:
+            email = json.loads(line).get("email")
+        except (ValueError, AttributeError):
+            continue
+        if isinstance(email, str) and "@" in email:
+            emails.add(email.strip())
+    return emails
 
 
 def fetch(since: datetime, hashes: set[str], target: str = "prod") -> dict:

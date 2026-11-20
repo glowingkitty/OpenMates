@@ -77,7 +77,13 @@ defects; judge only what the app showed or did. Return ONLY JSON:
   "severity": "high|medium|low", "step": <int>, "evidence": "<quote/description>", "expected": "<what should happen>",
   "surface": "<area of the app, e.g. chat answer, travel embed, settings>"}],
  "goal_outcomes": [{"goal": "<text>", "achieved": true|false, "why": "<short>"}],
- "summary": "<two sentences>"}"""
+ "answer_quality": [{"step": <int of the step where the answer was read>, "question": "<the user's question, short>",
+   "score": <1-5, 5 = helpful, correct, complete, natural>, "why": "<short>"}],
+ "demo_candidate": {"is_candidate": true|false, "why": "<short>", "steps": [<step numbers of the chat>]},
+ "summary": "<two sentences>"}
+
+answer_quality has one row for every assistant answer the simulated user read. demo_candidate.is_candidate is true
+only when one chat is helpful, correct, natural and visually good enough to show on the landing page; otherwise false."""
 
 JEV_FINDING_QUESTION = (
     "Is the reported problem clearly visible in the screenshot or directly supported by the quoted step "
@@ -97,6 +103,30 @@ def fit_for_jev(image: str) -> str:
     buffer = io.BytesIO()
     picture.save(buffer, format="JPEG", quality=70)
     return base64.b64encode(buffer.getvalue()).decode()
+
+
+def normalize_judge_extras(verdict: dict[str, Any]) -> dict[str, Any]:
+    """Validate the judge's `answer_quality` rows and `demo_candidate` verdict (absent = empty / not a candidate)."""
+    rows = []
+    for row in verdict.get("answer_quality") or []:
+        score = row.get("score") if isinstance(row, dict) else None
+        if isinstance(score, (int, float)) and not isinstance(score, bool) and 1 <= score <= 5:
+            step = row.get("step")
+            rows.append({
+                "step": step if isinstance(step, int) else None,
+                "question": str(row.get("question", ""))[:200],
+                "score": int(round(score)),
+                "why": str(row.get("why", ""))[:400],
+            })
+    demo = verdict.get("demo_candidate")
+    demo = demo if isinstance(demo, dict) else {}
+    verdict["answer_quality"] = rows
+    verdict["demo_candidate"] = {
+        "is_candidate": demo.get("is_candidate") is True,
+        "why": str(demo.get("why", ""))[:400],
+        "steps": [s for s in demo.get("steps") or [] if isinstance(s, int)][:40],
+    }
+    return verdict
 
 
 class BudgetExceeded(RuntimeError):
@@ -200,7 +230,7 @@ class TesterModels(BrowserModels):
         )
         if not isinstance(result, dict) or not isinstance(result.get("findings"), list):
             raise BrowserModelError("The browser text helper returned invalid JSON.")
-        return result
+        return normalize_judge_extras(result)
 
     async def jev_supports(self, finding: dict[str, Any], step: dict[str, Any] | None, screenshot: str | None) -> float:
         """Jev's probability that the finding is real, given its step and screenshot."""

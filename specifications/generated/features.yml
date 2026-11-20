@@ -5539,6 +5539,7 @@ features:
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts
       - frontend/apps/web_app/tests/components/report-issue-composer.spec.ts
       - frontend/apps/web_app/tests/components/report-issue-confirmation.spec.ts
+      - frontend/apps/web_app/tests/components/report-issue-screenshots.spec.ts
       - frontend/apps/web_app/tests/report-issue-context-fallback.spec.ts
       - frontend/apps/web_app/tests/report-issue-flow.spec.ts
       - frontend/apps/web_app/tests/storage-capacity-replay.spec.ts
@@ -5619,8 +5620,8 @@ features:
       - backend/tests/test_admin_debug_log_query.py
       - backend/tests/test_issue_report_archive.py
       - backend/tests/test_issue_report_auth.py
-      - backend/tests/test_issue_report_storage.py
-      unit_test_files: 5
+      - backend/tests/test_issue_report_screenshots.py
+      unit_test_files: 6
     sdk_npm:
       status: not_planned
       source: intent

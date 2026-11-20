@@ -176,6 +176,24 @@ PERSONAS: list[dict] = [
 ]
 
 
+# Product areas each persona exercises (shown in the daily summary). All personas act only inside
+# their own throwaway account, so every one of them is safe to run against production.
+AREAS: dict[str, list[str]] = {
+    "student": ["chat follow-ups", "focus modes", "chat list"],
+    "traveller": ["travel app", "embeds and fullscreen", "streaming interrupt"],
+    "developer": ["code embeds", "long input", "code execution"],
+    "phone_voice": ["voice input", "weather app", "small screen"],
+    "german": ["German UI", "settings language", "maps and events"],
+    "cook": ["recipes", "tablet layout", "emoji input"],
+    "job_seeker": ["jobs app", "empty and long messages", "cover letters"],
+    "trip_planner": ["maps", "stays and events", "dates and prices"],
+    "business_owner": ["slides", "email drafts", "pricing and credits"],
+    "privacy": ["privacy settings", "incognito chat", "chat deletion"],
+}
+for _persona in PERSONAS:
+    _persona["areas"] = AREAS[_persona["id"]]
+
+
 def select(ids: str) -> list[dict]:
     if ids == "all":
         return PERSONAS

@@ -7666,6 +7666,19 @@ def _binding_problem(record: dict, behind_fn=_worktree_commits_behind_dev) -> st
     return ""
 
 
+def _requested_change_scope() -> str:
+    """Scope from OPENMATES_CHANGE_SCOPE (set by claude_dispatch for AI test-user chats)."""
+    try:
+        from scripts import change_scope
+    except ModuleNotFoundError:
+        import change_scope
+    value = os.environ.get("OPENMATES_CHANGE_SCOPE", "").strip()
+    if value and value not in change_scope.VALID_SCOPES:
+        print(f"ERROR: unknown OPENMATES_CHANGE_SCOPE {value!r}", file=sys.stderr)
+        raise SystemExit(2)
+    return value
+
+
 def cmd_start(args: argparse.Namespace) -> None:
     """Bind a task to its workspace and emit a compact receipt."""
     repo = _repo_metadata(_resolve_repo_id(getattr(args, "repo", None)))
@@ -7717,6 +7730,8 @@ def cmd_start(args: argparse.Namespace) -> None:
         def refresh(state):
             current = state["sessions"][sid]
             current.update(last_active=_now_iso(), mode=mode, tags=tags)
+            if _requested_change_scope():
+                current["change_scope"] = _requested_change_scope()  # never removed once set
             if getattr(args, "require_proof_video", False):
                 current["proof_video_required"] = True
             if args.task:
@@ -7733,6 +7748,8 @@ def cmd_start(args: argparse.Namespace) -> None:
                   "agent_task_id": task_id or None,
                   "agent_host": socket.gethostname() if task_id else None,
                   "binding_mode": "legacy_grandfathered", "auto_integration_policy": "disabled"}
+        if _requested_change_scope():
+            record["change_scope"] = _requested_change_scope()
         sid, _, _, _, created = register_session_record(record)
         if ended:
             _mutate_sessions(lambda st: (st.get("ended_agent_tasks") or {}).pop(task_id, None))
@@ -12228,8 +12245,55 @@ def _validate_shell_logic_guard(session: dict, files: list[str], message: str) -
         print(f"Shell logic guard (warn-only until {shell_logic_guard.BLOCKING_FROM.isoformat()}): {error}")
 
 
+def _change_scope_stats(session: dict, files: list[str]) -> tuple[list[tuple[str, int, int, bool]], list[str]]:
+    """Per-file (path, added, removed, is_new) plus files that add API route decorators."""
+    try:
+        from scripts import change_scope
+    except ModuleNotFoundError:
+        import change_scope
+    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+    root = str(_session_checkout_root(session))
+    base = str(metadata.get("base_commit") or "HEAD")
+    new_files = _worktree_new_files(metadata, set(files)) if metadata else set()
+    untracked = _worktree_untracked_files(metadata) if metadata else set()
+    changes: list[tuple[str, int, int, bool]] = []
+    route_paths: list[str] = []
+    for path in files:
+        if path in untracked:
+            text = (Path(root) / path).read_text(encoding="utf-8", errors="replace") if (Path(root) / path).is_file() else ""
+            added_lines = text.splitlines()
+            changes.append((path, len(added_lines), 0, True))
+        else:
+            rc, out, err = _run_cmd(["git", "diff", "-U0", base, "--", path], cwd=root)
+            if rc != 0:
+                raise RuntimeError(f"Failed to inspect diff of {path}: {err}")
+            added_lines = [ln[1:] for ln in out.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
+            removed = sum(1 for ln in out.splitlines() if ln.startswith("-") and not ln.startswith("---"))
+            changes.append((path, len(added_lines), removed, path in new_files))
+        if change_scope.has_new_route_decorator(added_lines):
+            route_paths.append(path)
+    return changes, route_paths
+
+
+def _enforce_change_scope(session: dict, files: list[str]) -> None:
+    """Refuse deploys that exceed the session's change scope (AI test-user reports)."""
+    scope = str(session.get("change_scope") or "")
+    if not scope:
+        return
+    try:
+        from scripts import change_scope
+    except ModuleNotFoundError:
+        import change_scope
+    changes, route_paths = _change_scope_stats(session, files)
+    reasons = change_scope.check_small_fix(changes, route_paths)
+    if reasons:
+        print(f"ERROR: {change_scope.REFUSAL}\nReasons: " + "; ".join(reasons), file=sys.stderr)
+        raise SystemExit(2)
+
+
 def _preflight_deploy_commit_message(args: argparse.Namespace, session: dict, files: list[str]) -> str:
     """Reject deterministic commit-message errors before expensive deploy gates."""
+    _enforce_change_scope(session, files)
     message = _integration_commit_message(args, session)
     _validate_specification_commit_message(files, message)
     _validate_shell_logic_guard(session, files, message)

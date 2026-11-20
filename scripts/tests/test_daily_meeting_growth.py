@@ -7,6 +7,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import daily_meeting_briefing as briefing  # noqa: E402 - sibling scripts, path set above
@@ -22,6 +24,19 @@ METRICS = {"since": "2026-11-12T10:30:00+00:00", "total_users": 640, "paying_use
                                        "new_paying_users": 6, "credit_purchases": 14},
                        "previous_7_days": {"signups_completed": 20, "signups_started": 25,
                                            "new_paying_users": 0, "credit_purchases": 10}}}
+
+
+@pytest.fixture(autouse=True)
+def _no_real_registry(tmp_path, monkeypatch):
+    monkeypatch.setattr(growth, "AI_TEST_USER_REGISTRY", tmp_path / "no-such-registry.jsonl")
+
+
+def test_excluded_emails_include_ai_test_user_registry(tmp_path, monkeypatch):
+    registry = tmp_path / "accounts.jsonl"
+    registry.write_text('{"email": "Bot.One@Example.org", "id": 1}\nnot json\n{"name": "x"}\n'
+                        '{"email": "bot2@example.org"}\n')
+    monkeypatch.setattr(growth, "AI_TEST_USER_REGISTRY", registry)
+    assert growth.excluded_emails(tmp_path, tmp_path) == {"bot.one@example.org", "bot2@example.org"}
 
 
 def test_excluded_emails_come_from_env_and_private_file(tmp_path):

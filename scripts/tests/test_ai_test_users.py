@@ -35,7 +35,7 @@ def test_select_rejects_unknown_persona():
 def test_run_refuses_caps_above_total_budget(monkeypatch):
     monkeypatch.setattr(ai_test_users.dev_test_account, "server_is_development", lambda: True)
     with pytest.raises(SystemExit, match="above --total-cap-usd"):
-        ai_test_users.main(["run", "--credit-cap", "5000", "--total-cap-usd", "20"])
+        ai_test_users.main(["run", "--harness-cap-usd", "5", "--total-cap-usd", "20"])
 
 
 def test_similar_titles_merge_but_different_ones_do_not():

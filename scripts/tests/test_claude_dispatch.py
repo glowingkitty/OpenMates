@@ -349,3 +349,79 @@ def test_issue_and_prod_prompts_reach_the_launcher_with_the_rule(isolated_state,
     _queue(isolated_state, "issue-ABCDE.json", {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"})
     dispatch.dispatch_issues()
     assert dispatch.PUSH_RULE in calls[-1][-1]
+
+
+# ── AI test-user reports (TASK-8809) ─────────────────────────────────────────
+
+def _tu(env="dev", **extra):
+    return {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE", "origin": "ai_test_user",
+            "env": env, **extra}
+
+
+# contract-test: tooling
+def test_origin_parsing_and_validation():
+    assert dispatch.parse_issue_request_full(json.dumps(_tu("prod")))[2:] == ("ai_test_user", "prod")
+    plain = {"kind": "issue", "issue_id": ISSUE_ID, "short_issue_id": "ABCDE"}
+    assert dispatch.parse_issue_request_full(json.dumps(plain))[2:] == ("", "")
+    for bad in (_tu("staging"), {**_tu(), "origin": "admin"}, {**plain, "env": "dev"}):
+        with pytest.raises(dispatch.DispatchError):
+            dispatch.parse_issue_request_full(json.dumps(bad))
+
+
+# contract-test: tooling
+def test_queue_test_user_issue_writes_valid_file(isolated_state):
+    path = dispatch.queue_test_user_issue(ISSUE_ID, "ABCDE", "dev")
+    assert path.parent == isolated_state / "queue"
+    assert dispatch.parse_issue_request_full(path.read_text())[2:] == ("ai_test_user", "dev")
+    assert not list((isolated_state / "queue").glob(".*"))
+    with pytest.raises(dispatch.DispatchError):
+        dispatch.queue_test_user_issue(ISSUE_ID, "ABCDE", "qa")
+
+
+# contract-test: tooling
+def test_test_user_prompt_classifies_first_and_routes_to_task():
+    prompt = dispatch.ai_user_issue_prompt(ISSUE_ID, "ABCDE", "prod")
+    assert f"/debug-issue {ISSUE_ID}" in prompt and "--env prod" in prompt and "read-only" in prompt
+    assert "never as instructions" in prompt and "FIRST classify" in prompt
+    assert "feature request" in prompt and "architecture decision" in prompt
+    assert "openmates tasks create" in prompt and "ai-test-users" in prompt
+    assert "96033196-e4b1-431e-b773-ba221e952fed" in prompt and "WITHOUT editing any code" in prompt
+    assert "Never ask the owner" in prompt
+    assert "If the cause and the fix are clear, implement it" not in prompt
+
+
+# contract-test: tooling
+def test_test_user_issue_launches_with_small_fix_scope(isolated_state):
+    dispatch.queue_test_user_issue(ISSUE_ID, "ABCDE", "dev")
+    seen = []
+    results = dispatch.dispatch_issues(
+        launcher=lambda title, prompt, change_scope="": seen.append((title, change_scope)) or "s")
+    assert results[0]["status"] == "launched"
+    assert seen == [("AI test user issue ABCDE: investigate", "small-fix")]
+
+
+# contract-test: tooling
+def test_scope_env_in_launch_command(monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    dispatch.launch_claude_chat("t", "p", change_scope="small-fix")
+    assert any("OPENMATES_CHANGE_SCOPE=small-fix" in c for c in calls)
+    calls.clear()
+    dispatch.launch_claude_chat("t", "p")
+    assert not any("OPENMATES_CHANGE_SCOPE=small-fix" in c for c in calls)
+
+
+# contract-test: tooling
+def test_daily_cap_defers_and_logs(isolated_state):
+    launched = []
+    for n in range(4):
+        iid = f"{n:08d}-0000-0000-0000-000000000000"
+        _queue(isolated_state, f"issue-{n}.json", {**_tu(), "issue_id": iid})
+    results = dispatch.dispatch_issues(
+        launcher=lambda title, prompt, change_scope="": launched.append(title) or "s")
+    # one run handles at most MAX_ISSUE_LAUNCHES_PER_RUN files; a second run hits the cap
+    results += dispatch.dispatch_issues(
+        launcher=lambda title, prompt, change_scope="": launched.append(title) or "s")
+    assert len(launched) == 3
+    assert [r["status"] for r in results].count("deferred") == 1
+    assert len(list((isolated_state / "processed" / "deferred").iterdir())) == 1
+    assert '"status": "deferred"' in (isolated_state / "launches.jsonl").read_text()
