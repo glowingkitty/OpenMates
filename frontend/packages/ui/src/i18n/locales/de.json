@@ -20988,6 +20988,21 @@
         "new_messages": {
           "text": "Neue Nachrichten"
         },
+        "push_include_chat_title": {
+          "text": "Zusammenfassung und Chat-Titel anzeigen"
+        },
+        "push_include_chat_title_desc": {
+          "text": "Zeigt in App-Benachrichtigungen eine einzeilige Zusammenfassung der Antwort, zum Beispiel \"✅ Gartenbeete geplant\", und den Chat-Titel. Beides wird für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können es nicht lesen. Ausschalten, damit Benachrichtigungen allgemein bleiben."
+        },
+        "push_include_preview": {
+          "text": "Anfang der Antwort anzeigen"
+        },
+        "push_include_preview_desc": {
+          "text": "Fügt App-Benachrichtigungen die ersten Zeilen der Antwort hinzu. Sie werden für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können sie nicht lesen. Standardmäßig aus."
+        },
+        "missed_warning": {
+          "text": "E-Mail- und Push-Benachrichtigungen sind beide ausgeschaltet. Du könntest wichtige Antworten und Updates verpassen. Schalte eine der beiden ein, um informiert zu bleiben."
+        },
         "new_messages_desc": {
           "text": "Wenn ein Assistent eine Antwort abgeschlossen hat"
         },
@@ -21046,10 +21061,10 @@
           "text": "Eine tägliche E-Mail zu geplanten Workflow-Aktivitäten; Chat-Nachrichten folgen den normalen Chat-Einstellungen."
         },
         "email_include_content": {
-          "text": "Private Titel und Vorschauen einschließen"
+          "text": "Antwortinhalt in E-Mails anzeigen"
         },
         "email_include_content_desc": {
-          "text": "Erlaube Chat-Titel und Nachrichtenvorschauen in E-Mails. Tägliche Workflow-Übersichten enthalten normalerweise Namen und Ergebnisse; wenn du Inhalte ausdrücklich ausblendest, werden auch diese Namen verborgen. Dein E-Mail-Anbieter kann enthaltene Inhalte lesen."
+          "text": "Standardmäßig aus: E-Mails sagen dann nur, dass eine Antwort bereit ist. Wenn an, ist der Betreff eine einzeilige Zusammenfassung der Antwort, und die E-Mail zeigt den Chat-Titel, die ersten Zeilen der Antwort und einen Link zum Öffnen des Chats. Dieser Inhalt wird dann als Klartext über den E-Mail-Anbieter übertragen und bleibt in deinem Postfach. Tägliche Workflow-Übersichten enthalten normalerweise Namen und Ergebnisse; wenn du dies ausschaltest, werden auch diese Namen verborgen."
         },
         "email_webhooks": {
           "text": "Webhook-Chats"
@@ -26024,7 +26039,7 @@
       "text": "Kostenlos testen"
     },
     "version_title": {
-      "text": "v0.31"
+      "text": "v0.32"
     },
     "domain_not_allowed": {
       "text": "E-Mail-Domain nicht erlaubt."
