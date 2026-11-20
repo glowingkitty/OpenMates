@@ -32,6 +32,23 @@ MAX_EXISTING_CARD_LOOKUPS = 100
 MAX_EXISTING_CARDS_LISTED = 50
 
 
+def lookup_ref(index: Mapping[str, Any] | None, reference: Any) -> str | None:
+    """Find the embed id of a model-written ref in the authorized index.
+
+    Models copy refs from the answer's link form ``[Title](embed:<ref>)``, so a
+    leading ``embed:`` prefix, surrounding whitespace, backticks or an
+    angle-bracket wrapper are tolerated. Only a key that is literally in the
+    index resolves: nothing is guessed or fuzzy-matched.
+    """
+    if not isinstance(index, Mapping) or not isinstance(reference, str):
+        return None
+    candidate = reference.strip().strip("`<>").strip()
+    for ref in (reference, candidate, candidate.removeprefix("embed:").strip()):
+        embed_id = index.get(ref)
+        if isinstance(embed_id, str) and embed_id:
+            return embed_id
+    return None
+
 @dataclass(frozen=True)
 class ExistingCard:
     """One finished authored card of the chat, safe to show again unchanged."""
@@ -83,8 +100,8 @@ async def resolve_existing_card(
     kind (for example a travel connection from ``search_connections``) is also
     reusable, so an authored block can show the complete card instead of a copy.
     """
-    embed_id = index.get(reference) if isinstance(index, Mapping) else None
-    if not isinstance(embed_id, str) or not embed_id:
+    embed_id = lookup_ref(index, reference)
+    if embed_id is None:
         return None
     record = await service._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
     if (not isinstance(record, dict) or record.get("hashed_user_id") != user_id_hash
