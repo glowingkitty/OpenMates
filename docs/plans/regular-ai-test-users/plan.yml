@@ -87,4 +87,14 @@ verification:
     - Backend pytest and web component/E2E proof for multiple Report issue screenshots.
     - Script tests for the dispatcher origin, the small-fix deploy guard, rotation and the daily summary.
     - One full 10-persona run on dev from the deployed commit with a short report.
-  evidence: ""
+  evidence: >-
+    Dev, 20 Nov 2026. CI on 9ac7ff85: pytest 7dd7885a (screenshots, label,
+    growth exclusion, harness), component 57c4ce47 (ReportIssueScreenshots),
+    e2e 583ea9de (report-issue-flow); pytest 859e0360 on 29e898c; script
+    tests local. Deployed 0bbe50d, 60a87dd, 3e72dfa; cms-setup ran on dev.
+    Full 10-persona run 20261120-130104 from 3e72dfa: 10/10 signed up,
+    redeemed the test gift card and were deleted; 14 of 15 reports filed with
+    5 screenshots each; investigation chats started for 3 (daily cap);
+    3 demo candidates; 2.81 USD (harness 1.40, E2B 0.19, app credits at list
+    price 1.22). Timer installed (Mon-Sat 06:30 UTC). Production stays off
+    until the owner's go-ahead (TASK-8620).
