@@ -2951,8 +2951,9 @@ features:
       - frontend/apps/web_app/tests/chat-unread-read-position.spec.ts
       key_unit_tests:
       - backend/tests/test_phased_sync_handler.py
+      - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
       - frontend/packages/ui/src/stores/__tests__/unreadMessagesStore.test.ts
-      unit_test_files: 2
+      unit_test_files: 3
     apple:
       status: implemented
       source: intent

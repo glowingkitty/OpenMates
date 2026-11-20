@@ -10032,6 +10032,16 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             void tick().then(() => requestAnimationFrame(() => { void markCurrentChatReadIfLatestReplySeen(); }));
         });
     });
+    // The unread signal, the render key and a scroll event are not the only moments the last
+    // line can become visible: a finished reply lays out and auto-scrolls to its end after
+    // those fired (instant replies, tablet and phone widths), with no further event. While the
+    // open chat is unread, re-check on a slow tick; the read gate still decides every time.
+    const UNREAD_RECHECK_INTERVAL_MS = 750;
+    $effect(() => {
+        if (currentChatUnreadCount <= 0) return;
+        const timer = setInterval(() => { void markCurrentChatReadIfLatestReplySeen(); }, UNREAD_RECHECK_INTERVAL_MS);
+        return () => clearInterval(timer);
+    });
     $effect(() => {
         const onVisible = () => { if (document.visibilityState === 'visible') void markCurrentChatReadIfLatestReplySeen(); };
         document.addEventListener('visibilitychange', onVisible);

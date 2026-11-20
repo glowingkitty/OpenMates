@@ -247,3 +247,119 @@ test('clears the unread counter of a reply read on a phone while it streamed in'
 	await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
 	await deleteActiveChat(page, log, screenshot, 'cleanup');
 });
+
+/** Scroll the history to its end and wait until the newest reply's last line is on screen. */
+async function scrollToReplyEnd(page: any): Promise<void> {
+	await expect(async () => {
+		await page.getByTestId('chat-history-container').evaluate((container: HTMLElement) => {
+			container.scrollTop = container.scrollHeight;
+		});
+		await expect(page.getByText(LONG_REPLY_LAST_LINE).last()).toBeInViewport({ timeout: 1500 });
+	}).toPass({ timeout: 30000 });
+}
+
+const READER_VIEWPORTS = [
+	{ name: 'phone', width: 390, height: 844 },
+	{ name: 'tablet', width: 820, height: 1180 }
+];
+
+/** On a phone the toast stack overlays the sidebar's Close button; clear it first. */
+async function dismissToasts(page: any): Promise<void> {
+	const dismissButtons = page.getByTestId('notification-dismiss');
+	for (let index = (await dismissButtons.count()) - 1; index >= 0; index -= 1) {
+		await dismissButtons.nth(index).click({ timeout: 2000, force: true }).catch(() => undefined);
+	}
+	const chatNotifications = page.getByTestId('chat-notification');
+	for (let index = (await chatNotifications.count()) - 1; index >= 0; index -= 1) {
+		await chatNotifications
+			.nth(index)
+			.getByRole('button', { name: 'Dismiss notification' })
+			.click({ timeout: 2000, force: true })
+			.catch(() => undefined);
+	}
+}
+
+/** The chat shows no unread counter on the start-screen chip row nor in the chat list. */
+async function expectChatReadEverywhere(page: any, chatId: string, log: (msg: string) => void): Promise<void> {
+	await expect(page.getByTestId('recent-chats-scroll-container').locator(`[data-chat-id="${chatId}"]`).first())
+		.toBeVisible({ timeout: 30000 });
+	await expect(continueCardBadge(page, chatId)).toHaveCount(0, { timeout: 15000 });
+	await dismissToasts(page);
+	await setChatSidebarOpen(page, true, log);
+	await expect(sidebarRow(page, chatId)).toBeVisible({ timeout: 20000 });
+	await expect(sidebarRow(page, chatId).getByTestId('unread-badge')).toHaveCount(0, { timeout: 15000 });
+	await dismissToasts(page);
+	await setChatSidebarOpen(page, false, log);
+}
+
+// A user sends a message, reads the reply, and leaves: the counter must be gone on the
+// Continue chip row and in the chat list. A second reply completes while the user is on
+// the start screen (counter 1 on both), is opened from the chip and read, and the
+// counters clear again, also after a reload. Runs at phone and tablet widths.
+// contract-test: direct surface=gui.web assertions=chat-unread.reply.read-at-last-line,chat-unread.surfaces.sidebar-and-continue,chat-unread.persistence.cross-device
+for (const viewport of READER_VIEWPORTS) {
+	test(`clears the unread counter on the chip row and chat list after a reply is read (${viewport.name})`, async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.slow();
+		test.setTimeout(300000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+		const log = createSignupLogger(`CHAT_UNREAD_READ_CLEARS_${viewport.name.toUpperCase()}`);
+		const screenshot = createStepScreenshotter(log);
+		await archiveExistingScreenshots(log);
+		page.on('console', (message: any) => {
+			const text = message.text();
+			if (text.includes('[ChatRead]') || text.includes('chat_read_status_updated')) log(text);
+		});
+
+		await page.setViewportSize({ width: viewport.width, height: viewport.height });
+		await loginToTestAccount(page, log, screenshot);
+		await startNewChat(page, log);
+
+		// 1. Sent, answered in view and read to the last line.
+		await sendLongReplyMessage(page, 'Explain step by step how rainbows form.', 1, log);
+		const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
+		if (!chatId) throw new Error('Chat URL is missing chat-id');
+		await scrollToReplyEnd(page);
+		await page.waitForTimeout(2000);
+		await openChatsStartScreen(page);
+		await expectChatReadEverywhere(page, chatId, log);
+		await screenshot(page, `${viewport.name}-read-in-view-no-counter`);
+
+		// 2. A reply that completes while the user is on the start screen counts once.
+		await page.locator(`[data-chat-id="${chatId}"]`).first().click();
+		await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
+		await sendMessage(page, withMockMarker('Now explain double rainbows step by step.', LONG_REPLY_FIXTURE, 'medium'), log);
+		await openChatsStartScreen(page);
+		await expect(continueCardBadge(page, chatId)).toHaveText('1', { timeout: 90000 });
+		await dismissToasts(page);
+		await setChatSidebarOpen(page, true, log);
+		await expect(sidebarRow(page, chatId).getByTestId('unread-badge')).toHaveText('1', { timeout: 20000 });
+		await dismissToasts(page);
+		await setChatSidebarOpen(page, false, log);
+		await screenshot(page, `${viewport.name}-background-reply-counter`);
+
+		// 3. Opened from the chip, read to the last line, back on the start screen.
+		await page.getByTestId('recent-chats-scroll-container').locator(`[data-chat-id="${chatId}"]`).first().click();
+		await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
+		await expect(page.getByText(LONG_REPLY_LAST_LINE)).toHaveCount(2, { timeout: 30000 });
+		await scrollToReplyEnd(page);
+		await page.waitForTimeout(2000);
+		await openChatsStartScreen(page);
+		await expectChatReadEverywhere(page, chatId, log);
+		await screenshot(page, `${viewport.name}-read-from-chip-no-counter`);
+
+		// The server cleared it too: a reload keeps both surfaces clean.
+		await page.reload();
+		await page.waitForTimeout(3000);
+		await expectChatReadEverywhere(page, chatId, log);
+		await screenshot(page, `${viewport.name}-after-reload-no-counter`);
+
+		await page.locator(`[data-chat-id="${chatId}"]`).first().click();
+		await expect(page).toHaveURL(new RegExp(`chat-id=${chatId}`), { timeout: 15000 });
+		await deleteActiveChat(page, log, screenshot, 'cleanup');
+	});
+}
