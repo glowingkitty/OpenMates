@@ -4984,9 +4984,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 12
+        passing: 13
         failing: 1
-        not_run: 8
+        not_run: 7
         missing: 10
         counted: 31
       failing_tests:

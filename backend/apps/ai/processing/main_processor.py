@@ -38,7 +38,8 @@ from backend.apps.ai.processing.wellbeing_support import (
 )
 from backend.apps.ai.processing.plan_focus_routing import PLANNER_FOCUS_IDS, has_active_app_focus
 from backend.apps.ai.processing.focus_layering import (
-    build_layer_precedence_section, deactivate_focus_tool, deactivation_result, resolve_focus_layers,
+    build_layer_precedence_section, deactivate_focus_tool, deactivation_result, layer_end_client_event,
+    resolve_focus_layers,
 )
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
@@ -9881,6 +9882,14 @@ async def handle_main_processing(
                                 logger.info(f"{log_prefix} [FOCUS_MODE] Dispatched Celery task to clear focus_id in Directus")
                             except Exception as cache_error:
                                 logger.error(f"{log_prefix} [FOCUS_MODE] Error clearing cache: {cache_error}", exc_info=True)
+                        layer_end_event = layer_end_client_event(deactivated_layers, request_data.chat_id)
+                        if layer_end_event and cache_service:
+                            # The clients still show the ended layer until they hear the
+                            # base is the active focus again.
+                            redis_client = await cache_service.client
+                            await redis_client.publish(f"user_cache_events:{request_data.user_id}",
+                                                       json.dumps(layer_end_event))
+                            logger.info(f"{log_prefix} [FOCUS_MODE] Published Project base focus after layer end")
                         
                         tool_result_content_str = json.dumps(deactivation_result(deactivated_layers) or {
                             "status": "deactivated",

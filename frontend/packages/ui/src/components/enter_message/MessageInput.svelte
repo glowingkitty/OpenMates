@@ -7729,8 +7729,11 @@
                             aria-hidden="true"
                         ></span>
                     {/if}
-                    <span class="focus-pill-label" data-testid="focus-pill-label" title={focusPillLabel}>
-                        {focusPillLabel}
+                    <!-- A layered focus keeps its own name readable; the Project name shrinks first
+                         (focus-modes.project-layering). The title keeps the full identity. -->
+                    <span class="focus-pill-label" class:layered={!!(activeProjectFocusName && specialistName)}
+                        data-testid="focus-pill-label" title={focusPillLabel}>
+                        {#if activeProjectFocusName && specialistName}<span class="focus-pill-base">{activeProjectFocusName}</span><span class="focus-pill-separator">{' | '}</span><span class="focus-pill-layer" data-testid="focus-pill-layer">{specialistName}</span>{:else}{focusPillLabel}{/if}
                     </span>
                     {#if !activeProjectFocusName}
                         <span class="focus-pill-on-text">{$text('embeds.focus_mode.focus_on')}</span>
