@@ -5352,7 +5352,7 @@ features:
       - backend/tests/test_app_packages_events_dispatch.py
       - backend/tests/test_app_packages_jobs_dispatch.py
       - backend/tests/test_app_packages_result_photo_relevance.py
-      unit_test_files: 8
+      unit_test_files: 9
     sdk_npm:
       status: not_planned
       source: intent

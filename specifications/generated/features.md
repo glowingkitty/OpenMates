@@ -1759,7 +1759,7 @@ Operators of an OpenMates server install additional providers for existing app s
 | Apple | — | — | — |
 | CLI | impl | 0 pass · 0 fail · 0 not run · 8 no test | — |
 | TUI | — | — | — |
-| REST API | **live** 8/8 | 8 pass · 0 fail · 0 not run · 0 no test | 8 unit test file(s), e.g. [test_app_packages_loader.py](../../backend/tests/test_app_packages_loader.py), [test_app_packages_generic_contract.py](../../backend/tests/test_app_packages_generic_contract.py) |
+| REST API | **live** 8/8 | 8 pass · 0 fail · 0 not run · 0 no test | 9 unit test file(s), e.g. [test_app_packages_loader.py](../../backend/tests/test_app_packages_loader.py), [test_app_packages_generic_contract.py](../../backend/tests/test_app_packages_generic_contract.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 

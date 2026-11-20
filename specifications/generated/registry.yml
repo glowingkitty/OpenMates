@@ -285,7 +285,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/events-search
-    fingerprint: 6a6829abc2b6546d14dc2e796fbf399bd2c1cbb73a3bd4cfcaae40d48a394c95
+    fingerprint: 71589b43969e4ce7ba4b91b8d8a2bff3c669dd4b231ee3deb1f63bbc2e47fc51
     required_applies_to:
     - rest_api
     - cli
@@ -5120,7 +5120,7 @@ assertions:
     specification: feature.app-skill.events-search@1
     specification_id: feature.app-skill.events-search
     type: invariant
-    fingerprint: c066cd27ca44ef2dcd010089f934c20b291c116742fef31844fbedd97c690f71
+    fingerprint: 74680f35f97c594a0e137f6133c5ab706ad5e725a962e5f21d8a56bfaf8ce8ab
     required_applies_to:
     - rest_api
     - cli
