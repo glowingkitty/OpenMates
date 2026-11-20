@@ -147,8 +147,7 @@ def command_daily(args: argparse.Namespace) -> int:
     log(f"done: {run_dir / 'report.md'} total {run['totals']['total_usd']} USD")
     if reporting.push_due(accounts.HOME, day.isoformat()):
         label = "Weekly AI test-user run" if plan["kind"] == "weekly" else "AI test users daily run"
-        accounts._push(message_text.run_message(f"{label} {day.isoformat()}", results, run["problems"]),
-                       "AI test users")
+        message_text.push(message_text.run_message(f"{label} {day.isoformat()}", results, run["problems"]))
         reporting.mark_pushed(accounts.HOME, day.isoformat())
     return 0
 
@@ -225,7 +224,7 @@ def command_run(args: argparse.Namespace) -> int:
         title = f"AI test users {args.scenario} run on {args.target} {run['date']}"
     message = message_text.run_message(title, results, run["problems"], run.get("flows"))
     if args.notify:
-        accounts._push(message, "AI test users")
+        message_text.push(message)
     return 0
 
 

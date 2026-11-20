@@ -73,3 +73,29 @@ def test_problems_and_flows_turn_the_message_into_an_alert():
     text = message_text.run_message("intro-video on prod", [], ["1 test account not deleted"], flows)
     first, second = text.splitlines()
     assert first.startswith("❌") and second == "Flows: a broken 0/2. Problems: 1 test account not deleted."
+
+
+def test_long_run_message_goes_out_as_one_discord_message_with_embeds():
+    long_url = "https://nbg1.example.org/v.webm?" + "X" * 380
+    words = ("composer sidebar billing voice upload search maps travel invoice login export camera "
+             "calendar weather").split()
+    results = [persona(f"p{i}", [finding(f"{word.title()} {word}panel {word}button broken")], video={"url": long_url})
+               for i, word in enumerate(words)]
+    problems = [f"prod/p{i} goal not met (did not finish) [video](<{long_url}>)" for i in range(5)]
+    text = message_text.run_message("intro-video on prod", results, problems)
+    second = text.splitlines()[1]
+    assert "video" not in second and "(+2 more in report.md)" in second
+    payload = message_text.discord_payload(text)
+    assert payload["content"] == "\n".join(text.splitlines()[:2]) and len(payload["content"]) <= 2000
+    descriptions = [e["description"] for e in payload["embeds"]]
+    assert all(len(d) <= 4096 for d in descriptions) and sum(map(len, descriptions)) <= 6000
+    assert len(payload["embeds"]) <= 10 and descriptions[-1].endswith("more causes in report.md)")
+    sent = []
+    message_text.push(text, post=lambda **kw: sent.append(kw) or {"message_id": "1"}, sleep=lambda s: None)
+    assert len(sent) == 1 and sent[0]["payload"] == payload
+    assert "](<" not in descriptions[0] and f"]({long_url}#t=61)" in descriptions[0]
+
+
+def test_short_run_message_has_no_embeds():
+    payload = message_text.discord_payload(message_text.run_message("run", [], []))
+    assert "embeds" not in payload

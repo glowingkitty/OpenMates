@@ -32,6 +32,12 @@ RESTART_CONTAINERS = ("api", "app-ai-worker", "task-worker")
 PRODUCT_PATHS = ("frontend", "backend", "packages")  # deploys of tooling or docs never touch the running app
 DELETION_STATUSES = ("deleted", "delete_failed")
 MAX_CAUSES = 15
+MAX_PROBLEMS = 3
+PROBLEM_CHARS = 90
+CONTENT_LIMIT = 2000  # Discord message content
+EMBED_LIMIT = 4096  # Discord embed description
+EMBED_TOTAL_LIMIT = 5800  # Discord: 6000 characters across all embeds of a message, kept with a margin
+MAX_EMBEDS = 10
 VERDICT_ORDER = {"bug": 0, "suspect": 1, "not a bug": 2}
 
 
@@ -143,6 +149,71 @@ def cause_line(group: dict) -> str:
     return f"• {label}: {group['title'][:110]} ({count}{who}) {link}" + (f" {reports}" if reports else "")
 
 
+def problem_text(problems: list[str]) -> str:
+    """Line-2 problems: at most MAX_PROBLEMS short texts without links (full list in report.md)."""
+    if not problems:
+        return "No run problems."
+    short = [re.sub(r"\s*\[[^\]]*\]\(<?[^)>]*>?\)", "", p).strip() for p in problems[:MAX_PROBLEMS]]
+    short = [p if len(p) <= PROBLEM_CHARS else p[:PROBLEM_CHARS].rstrip() + "…" for p in short]
+    more = f" (+{len(problems) - MAX_PROBLEMS} more in report.md)" if len(problems) > MAX_PROBLEMS else ""
+    return f"Problems: {'; '.join(short)}{more}."
+
+
+def discord_payload(text: str) -> dict:
+    """One Discord message: the two summary lines as content, the cause lines in embeds.
+
+    Signed video links are ~400 characters, so the cause lines do not fit the 2000-character content
+    limit; embeds add up to 6000 characters (4096 per embed, 10 embeds) and render markdown links."""
+    lines = text.splitlines()
+    content = "\n".join(lines[:2])[:CONTENT_LIMIT]
+    causes_lines = [re.sub(r"\]\(<([^>\s]+)>\)", r"](\1)", line) for line in lines[2:]]  # embeds never unfurl
+    descriptions: list[str] = []
+    used, dropped = 0, 0
+    for index, line in enumerate(causes_lines):
+        left = len(causes_lines) - index - 1
+        reserve = 60 if left else 0  # room for the "+N more" line
+        if used + len(line) + 1 + reserve > EMBED_TOTAL_LIMIT or (
+                len(descriptions) == MAX_EMBEDS and len(descriptions[-1]) + len(line) + 1 > EMBED_LIMIT):
+            dropped = len(causes_lines) - index
+            break
+        if descriptions and len(descriptions[-1]) + len(line) + 1 <= EMBED_LIMIT:
+            descriptions[-1] += "\n" + line
+        else:
+            descriptions.append(line)
+        used += len(line) + 1
+    if dropped:
+        note = f"(+{dropped} more causes in report.md)"
+        if descriptions and len(descriptions[-1]) + len(note) + 1 <= EMBED_LIMIT:
+            descriptions[-1] += "\n" + note
+        else:
+            descriptions.append(note)
+    payload: dict = {"content": content}
+    if descriptions:
+        payload["embeds"] = [{"description": d} for d in descriptions]
+    return payload
+
+
+def push(text: str, title: str = "AI test users", post=None, sleep=None) -> None:
+    """Send the run message as one Discord message (content + embeds) and log it like other pushes."""
+    import time
+
+    import agent_question
+    import discord_webhook
+    from pending_work_gate import canonical_root
+
+    root = canonical_root()
+    post = post or discord_webhook.post_message
+    payload, url = discord_payload(text), agent_question.webhook(root)
+    for delay in (*agent_question.RETRY_DELAYS, None):
+        if post(webhook_url=url, payload=payload):
+            break
+        if delay is not None:
+            (sleep or time.sleep)(delay)
+    else:
+        raise agent_question.QuestionError("Discord delivery of the AI test-user run message was not confirmed")
+    agent_question.record_push(root, text, time.time(), title=title, source=accounts.PUSH_SOURCE)
+
+
 def run_message(title: str, results: list[dict], problems: list[str], flows: dict | None = None) -> str:
     """The run's single push: two summary lines, then one line per cause."""
     ran = [r for r in results if r.get("status") not in ("skipped", "prod_disabled", "no_gift_card")]
@@ -158,7 +229,7 @@ def run_message(title: str, results: list[dict], problems: list[str], flows: dic
     if flows:
         parts.append("Flows: " + ", ".join(f"{f.split('_', 1)[0]} {v['verdict']} {v['passed']}/{v['runs']}"
                                            for f, v in sorted(flows.items())) + ".")
-    parts.append(f"Problems: {'; '.join(problems)}." if problems else "No run problems.")
+    parts.append(problem_text(problems))
     lines = [first, " ".join(parts)] + [cause_line(g) for g in groups[:MAX_CAUSES]]
     if len(groups) > MAX_CAUSES:
         lines.append(f"(+{len(groups) - MAX_CAUSES} more causes in report.md)")
