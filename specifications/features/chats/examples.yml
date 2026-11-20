@@ -58,6 +58,24 @@ identity_idempotency:
     assistant_message_id: assistant-1
   expect:
     treated_as_handled: true
+- id: resend-of-finished-turn-is-acknowledged-quietly
+  given: A client resends a user message whose turn the server already answered (preflight TERMINAL or CONSUMED), for example
+    a stale outbox replay after reconnect or app restart.
+  when: The resend arrives as a message, a turn preflight or an enqueue, with or without its original preflight identity.
+  then: The origin client gets an ordinary confirmation marked turn_already_completed with the existing turn and assistant ids,
+    never an error frame; the server writes nothing, starts no inference, dispatches nothing and charges nothing; clients
+    finish the send with the existing answer; one WARNING log line per resend keeps the stale-resend cause visible.
+  input:
+    preflight_state: TERMINAL
+    resent_message_id: user-1
+    assistant_message_id: assistant-1
+  expect:
+    error_frames: 0
+    confirmation_turn_already_completed: true
+    new_inference_tasks: 0
+    new_assistant_messages: 0
+    credits_charged: 0
+    warning_log_lines: 1
     duplicate_messages: 0
 - id: confirmed-local-message-haptic-in-either-receipt-order
   assertion_ids: [chats.message.confirmed-haptic]

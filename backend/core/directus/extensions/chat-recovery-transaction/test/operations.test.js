@@ -6219,3 +6219,50 @@ test('possibly exposed Ready or absent exposure proof always retains the bound c
     await assert.rejects(executeOperation(database, 'invalidate_deletion', cleanupDeletion()), /empty_call_cleanup_not_eligible/);
   }
 });
+
+// contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+test('get_finished_turn reports only finished, owned, undeleted turns and never writes', async () => {
+  const FINISHED_MESSAGE = 'user-message-finished';
+  const request = (extra = {}) => ({
+    protocol_version: 1, hashed_user_id: OWNER, chat_id: CHAT_ID, user_message_id: FINISHED_MESSAGE, ...extra,
+  });
+  const seedWith = (state, mutate = () => {}) => {
+    const seed = leasedSeed();
+    Object.assign(seed.chat_turn_preflights[0], {
+      state, user_message_id: FINISHED_MESSAGE, inference_task_id: TASK_ID,
+      prepared_at: new Date('2029-01-01T00:00:00Z'), deletion_invalidated_at: null,
+    });
+    seed.chats[0].messages_v = 4;
+    seed.chat_completion_recovery_jobs[0].state = 'TERMINAL';
+    mutate(seed);
+    return seed;
+  };
+  const terminal = await executeOperation(fakeDatabase(seedWith('TERMINAL')), 'get_finished_turn', request());
+  assert.deepEqual(terminal, {
+    finished: true, state: 'TERMINAL', preflight_id: PREFLIGHT_ID, turn_id: TURN_ID, inference_task_id: TASK_ID,
+    assistant_message_id: 'assistant-message-1', committed_messages_v: 4,
+    recovery_job: { job_id: JOB_ID, state: 'TERMINAL' },
+  });
+  const consumed = await executeOperation(fakeDatabase(seedWith('CONSUMED')), 'get_finished_turn', request());
+  assert.equal(consumed.finished, true);
+  assert.equal(consumed.state, 'CONSUMED');
+  for (const state of ['PREPARED', 'ENQUEUED', 'RUNNING', 'FAILED']) {
+    assert.deepEqual(await executeOperation(fakeDatabase(seedWith(state)), 'get_finished_turn', request()), { finished: false });
+  }
+  const foreign = await executeOperation(fakeDatabase(seedWith('TERMINAL')), 'get_finished_turn',
+    request({ hashed_user_id: 'e'.repeat(64) }));
+  assert.deepEqual(foreign, { finished: false });
+  const fenced = seedWith('TERMINAL', (seed) => { seed.chat_recovery_chat_deletion_fences = [{ id: CHAT_ID }]; });
+  assert.deepEqual(await executeOperation(fakeDatabase(fenced), 'get_finished_turn', request()), { finished: false });
+  const invalidated = seedWith('TERMINAL', (seed) => { seed.chat_turn_preflights[0].deletion_invalidated_at = new Date(); });
+  assert.deepEqual(await executeOperation(fakeDatabase(invalidated), 'get_finished_turn', request()), { finished: false });
+  const noJob = seedWith('TERMINAL', (seed) => { seed.chat_completion_recovery_jobs = []; });
+  const withoutJob = await executeOperation(fakeDatabase(noJob), 'get_finished_turn', request());
+  assert.equal(withoutJob.finished, true);
+  assert.equal(withoutJob.recovery_job, null);
+  assert.equal(withoutJob.assistant_message_id, null);
+  const otherChatOwner = seedWith('TERMINAL', (seed) => { seed.chats[0].hashed_user_id = 'e'.repeat(64); });
+  assert.equal((await executeOperation(fakeDatabase(otherChatOwner), 'get_finished_turn', request())).committed_messages_v, null);
+  await assert.rejects(executeOperation(fakeDatabase(seedWith('TERMINAL')), 'get_finished_turn', request({ extra: 1 })),
+    (error) => error instanceof ProtocolError && error.status === 400);
+});

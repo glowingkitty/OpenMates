@@ -18,6 +18,8 @@ pub(in crate::client) mod prepared_transport;
 pub(in crate::client) mod refusal_trace;
 #[path="send_turn_runtime.rs"]
 pub(in crate::client) mod turn_runtime;
+#[path="send_finished_turn.rs"]
+pub(in crate::client) mod finished_turn;
 #[path="turn_deadline.rs"]
 pub(in crate::client) mod turn_deadline;
 #[path="send_unfinished_embeds.rs"]

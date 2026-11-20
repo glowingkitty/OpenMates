@@ -239,6 +239,12 @@ pub(in crate::client) async fn receive_turn<P:SavedTurnClientPhases>(phases:&mut
                         message_id: message.into(),
                     }).await?;
             }
+            if let Some(assistant_id) = super::finished_turn::finished_assistant_id(&kind, &p, id, message, turn) {
+                // Resent turn that already finished: no stream or claim will follow.
+                let outcome = super::finished_turn::complete_finished_turn(phases, turn_scope, id, message,
+                    assistant_id, generation, updates, cancel, observed.into_inner()).await?;
+                return Ok(outcome);
+            }
             let same = belongs_to_turn(&p, id, message, turn);
             if same {
                 let known = task_id.clone();

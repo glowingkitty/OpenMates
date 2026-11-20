@@ -3165,6 +3165,7 @@ features:
       - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
       - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
       - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+      - frontend/apps/web_app/tests/chat-finished-turn-resend.spec.ts
       - frontend/apps/web_app/tests/chat-flow.spec.ts
       - frontend/apps/web_app/tests/chat-followup-recovery-disabled.spec.ts
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
@@ -3448,7 +3449,7 @@ features:
       - backend/tests/test_stream_consumer_recovery.py
       - backend/tests/test_agent_context_history_transport.py
       - backend/tests/test_chat_completion_recovery_retention.py
-      unit_test_files: 70
+      unit_test_files: 71
     sdk_npm:
       status: not_run
       source: tests

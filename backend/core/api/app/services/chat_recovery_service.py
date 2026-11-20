@@ -88,6 +88,7 @@ RECOVERY_OPERATIONS = {
     "mark_child_parent_consumed",
     "mark_child_canonical_acknowledged",
     "list_available_jobs",
+    "get_finished_turn",
     "lease_job",
     "renew_lease",
     "persist_terminal",

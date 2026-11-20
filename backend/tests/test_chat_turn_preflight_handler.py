@@ -309,6 +309,9 @@ async def test_ordinary_team_lost_ack_retry_ignores_live_inference_metadata(monk
         async def execute(self, operation: str, data: dict) -> dict:
             if operation == "get_cutover_state":
                 return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+            if operation == "get_finished_turn":
+                # A changed retry of an unfinished turn must keep its mismatch error.
+                return {"finished": False}
             assert operation == "prepare_preflight"
             if self.committed is None:
                 self.__class__.committed = deepcopy(data)
@@ -333,6 +336,8 @@ async def test_ordinary_team_lost_ack_retry_ignores_live_inference_metadata(monk
 
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", IdempotentRecoveryService)
+    from backend.core.api.app.routes.handlers.websocket_handlers import finished_turn_resend
+    monkeypatch.setattr(finished_turn_resend, "ChatRecoveryService", IdempotentRecoveryService)
     monkeypatch.setattr(project_write_authorization_service, "ProjectWriteAuthorizationService", ChangingFocus)
     directus = _directus_with_chat_metadata(
         "team-1", SimpleNamespace(require_team_role=require_team_role)

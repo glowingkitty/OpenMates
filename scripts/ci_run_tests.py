@@ -169,6 +169,7 @@ MARKER_CHAT_EPOCH_SPECS = frozenset(
         "connection-resilience.spec.ts",
         "chat-saved-followup-admission.spec.ts",
         "chat-reload-followup-send.spec.ts",
+        "chat-finished-turn-resend.spec.ts",
         "skill-web-search.spec.ts",
         "native-cache-selected-tools.spec.ts",
     }
