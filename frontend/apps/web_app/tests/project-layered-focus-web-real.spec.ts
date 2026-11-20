@@ -203,11 +203,20 @@ async function recordOverrideNote(page: Page, testInfo: any, layered: RegExp, la
   await testInfo.attach(`override-note-${label}`, { body: outcome, contentType: 'text/plain' });
 }
 
-async function activateLayered(page: Page, barSelector: string): Promise<void> {
-  const bar = page.locator(barSelector).first();
-  await expect(bar, 'the layered focus is proposed with a countdown card').toBeVisible({ timeout: TURN_TIMEOUT });
+/**
+ * Sends a request that should layer a focus and proves the countdown card was shown and completed.
+ * The card is watched from before the send: once the turn ends, the reply folds its activity into the
+ * "Activated '<focus>'" summary, so looking for the card afterwards depends on timing.
+ */
+async function sendAndActivateLayered(page: Page, prompt: string, kind: string, barSelector: string): Promise<void> {
+  const before = await page.getByTestId('message-assistant').count();
+  const counting = page.waitForSelector(barSelector, { state: 'attached', timeout: TURN_TIMEOUT });
+  const activated = page.waitForSelector(`${barSelector}.activated`, { state: 'attached', timeout: TURN_TIMEOUT });
+  await sendWithModel(page, prompt, kind);
   // Let the countdown complete; do not cancel it.
-  await expect(page.locator(`${barSelector}.activated`).first()).toBeVisible({ timeout: 120_000 });
+  await expect(counting, 'the layered focus is proposed with a countdown card').resolves.toBeTruthy();
+  await expect(activated, 'the countdown completes and the focus is activated').resolves.toBeTruthy();
+  await waitForTurn(page, before);
 }
 
 async function pillLabel(page: Page): Promise<string> {
@@ -238,10 +247,10 @@ test.describe('Layered focuses over the Project focus (real inference, dev only)
       projectId = project.id;
       await startProjectChat(page, project.id, project.name);
 
-      await send(page, FEATURE_REQUEST, 'layer-feature-request');
+      await sendAndActivateLayered(page, FEATURE_REQUEST, 'layer-feature-request',
+        `[data-testid="focus-mode-bar"][data-focus-id="${SPEC_FOCUS_ID}"]`);
       await expect(page.getByTestId('focus-pill'), 'the Project focus is the base of the chat')
         .toContainText(project.name.split(':')[0], { timeout: 60_000 });
-      await activateLayered(page, `[data-testid="focus-mode-bar"][data-focus-id="${SPEC_FOCUS_ID}"]`);
       await expect.poll(() => pillLabel(page), { timeout: 60_000 }).toMatch(/Write specification/i);
       expect(await pillLabel(page), 'the banner is qualified with the Project').toContain(project.name.split(':')[0]);
       await waitForIdle(page);
@@ -295,8 +304,8 @@ test.describe('Layered focuses over the Project focus (real inference, dev only)
       await expect(page.getByTestId('project-workspace-header')).toBeVisible({ timeout: 60_000 });
       await startProjectChat(page, project.id, project.name);
 
-      await send(page, PROVIDER_REQUEST, 'layer-project-focus');
-      await activateLayered(page, `[data-testid="focus-mode-bar"]:has-text("${PROVIDER_FOCUS_NAME}")`);
+      await sendAndActivateLayered(page, PROVIDER_REQUEST, 'layer-project-focus',
+        `[data-testid="focus-mode-bar"]:has-text("${PROVIDER_FOCUS_NAME}")`);
       await expect.poll(() => pillLabel(page), { timeout: 60_000 }).toContain(PROVIDER_FOCUS_NAME);
       expect(await pillLabel(page)).toContain(project.name.split(':')[0]);
       await waitForIdle(page);
