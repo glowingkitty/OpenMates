@@ -9,13 +9,14 @@ import type { BrowserCoreWorkerHost } from '../workerHost';
 const owner = 'owner-1';
 const chatId = '11111111-1111-1111-1111-111111111111';
 
-function fixture(readFailure: Error) {
+function fixture(readFailure: Error, admitReply?: unknown) {
   const lifecycle = new PriorProfileLifecycle();
   const calls = { workerClosed: 0, reads: 0 };
   const status = { principal: owner, persistence: 'memory_only', localReadOnly: false, handle: 1, generation: 1 };
   const host = {
     async request(body: { operation: string }) {
       if (body.operation === 'restore_existing') return { ok: true, status };
+      if (body.operation === 'admit_chat' && admitReply) return admitReply;
       calls.reads++;
       throw readFailure;
     },
@@ -48,5 +49,23 @@ describe('second-device saved chat session', () => {
     expect(session.signal.aborted, 'callers must see the session as ended and re-admit').toBe(true);
     expect(f.calls.workerClosed).toBe(1);
     expect(() => session.assertCurrent()).toThrow(/invalidated_snapshot/);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider
+  it('a chat admission the core rejects as session_expired ends the session so the owner re-admits', async () => {
+    const f = fixture(new Error('unused'), { ok: false, error: 'session_expired' });
+    const session = await f.admit();
+    await expect(session.admitChat(chatId, null)).rejects.toThrow(/session_expired/);
+    expect(session.signal.aborted, 'a stale session must not be reused for the retry').toBe(true);
+    expect(f.calls.workerClosed).toBe(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider
+  it('a non-session admission failure keeps the session', async () => {
+    const f = fixture(new Error('unused'), { ok: false, error: 'chat_unavailable' });
+    const session = await f.admit();
+    await expect(session.admitChat(chatId, null)).rejects.toThrow(/chat_unavailable/);
+    expect(session.signal.aborted).toBe(false);
+    expect(f.calls.workerClosed).toBe(0);
   });
 });

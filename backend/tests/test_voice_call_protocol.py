@@ -339,7 +339,9 @@ async def test_low_credit_and_foreign_chat_never_open_provider(runtime, monkeypa
     monkeypatch.setattr(route, "_authoritative_credits", zero)
     socket, provider, task = await runtime.start(wait_ready=False)
     await task
-    assert not provider.opened and (await socket.event("error"))["stage"] == "credits"
+    error = await socket.event("error")
+    # TASK-950: the client shows the credits message, not "voice calling is unavailable".
+    assert not provider.opened and error["stage"] == "credits" and error["code"] == "insufficient_credits"
     async def foreign(*args):
         return False
     monkeypatch.setattr(route, "_personal_chat", foreign)

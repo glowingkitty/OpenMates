@@ -490,6 +490,10 @@ async def handle_personal_send_context_snapshot_v2(
             except Exception:
                 logger.warning("Personal privacy snapshot unavailable", exc_info=True)
                 error_code = "unavailable"
+    # Fixed category only (no ids or content): shows why a send, such as a spoken
+    # call turn, never reached the server (NRUV9).
+    logger.info("Personal send-context snapshot refused code=%s purpose=%s", error_code,
+                request["purpose"] if request else "invalid")
     result["error"] = {"code": error_code}
     await websocket.send_json({"type": "personal_send_context_snapshot_result", "payload": result})
 

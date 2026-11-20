@@ -863,7 +863,8 @@
         "website-newsletter-delivery.spec.ts",
         "account-retirement-reads.spec.ts",
         "teams-direct-chat.spec.ts",
-        "cli-tui-team-direct-chat.spec.ts"
+        "cli-tui-team-direct-chat.spec.ts",
+        "voice-call.spec.ts"
       ]
     },
     "storage_accountability_integration": {

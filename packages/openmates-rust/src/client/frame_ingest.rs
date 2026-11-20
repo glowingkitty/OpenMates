@@ -34,6 +34,10 @@ pub(crate) const VERSION_RECEIPT_FRAMES: &[&str] = &[
     "queued_message_status",
     "queued_message_updated",
     "recovery_job_persisted",
+    // The page persists an assistant reply itself (`ai_response_completed`)
+    // with a messages_v this core never computed; its durable confirmation
+    // carries that version so the next core-built turn is not refused.
+    "ai_response_storage_confirmed",
 ];
 
 /// Optional ciphertext/link fields a call or system receipt row may carry.

@@ -473,15 +473,21 @@ export class VoiceCallController implements VoiceCallControllerLike {
           this.cues.prepare();
         }
       });
-      if (!current()) return;
+      if (!current()) { console.info('[VoiceCall] Start superseded during the privacy check'); return; }
       this.privacyRequest = null;
       if (!accepted) {
+        // Category only: shows why a started call returned to inactive without a notice.
+        console.info('[VoiceCall] Start ended: privacy acknowledgement not given');
         this.cues.stop();
         this.closeResources();
         this.update({ ...initialVoiceCallState, chatId: existingChatId ?? null });
         return;
       }
-      if (savedDraft && !await savedDraft) throw new VoiceCallStartError('call_unavailable');
+      if (savedDraft && !await savedDraft) {
+        // Category only: the composer could not save the draft this call binds to.
+        console.info('[VoiceCall] Start ended: draft not saved');
+        throw new VoiceCallStartError('call_unavailable');
+      }
       if (!current()) return;
       const capture = audio.start().catch((error: unknown) => { throw new VoiceCallStartError(microphoneError(error)); });
       // Keep preparation independently observed: microphone denial/hangup may
@@ -497,6 +503,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
         }
         return prepared;
       }).catch((error) => {
+        // Fixed developer messages only; no chat content is ever in them.
+        console.info('[VoiceCall] Start ended: chat preparation failed', error instanceof Error ? error.message.slice(0, 120) : typeof error);
         throw new VoiceCallStartError(error instanceof VoiceCallContextError ? error.code : 'call_unavailable');
       });
       if (attempt) attempt.preparation = preparation.then(() => {});
@@ -506,9 +514,6 @@ export class VoiceCallController implements VoiceCallControllerLike {
       if (generation !== this.generation) return;
       this.update({ chatId: prepared.chatId, mateCategory: prepared.mateCategory });
       onBound?.(prepared.chatId);
-      // Turns are built from the core's own chat state. The admission runs
-      // while the call connects; only turns wait for it, not the call start.
-      const admitted = admitVoiceCallChat(prepared.chatId).catch(() => false);
       await assistantSpeechController.stop();
       assistantSpeechController.setCallOwner(prepared.chatId);
       let token = getWebSocketToken();
@@ -518,11 +523,20 @@ export class VoiceCallController implements VoiceCallControllerLike {
       }
       if (!token || websocketTokenNeedsRefresh(token)) throw new VoiceCallStartError('session_expired');
       if (generation !== this.generation) return;
+      // Turns are built from the core's own chat state. Admit only after the
+      // forced auth refresh: right after signup it hydrates the account id,
+      // which invalidates the workspace and closes the core session an earlier
+      // admission would be queued on (TASK-950). The admission still runs while
+      // the call connects; only turns wait for it, not the call start.
+      const admitted = admitVoiceCallChat(prepared.chatId).catch(() => false);
       this.turnAdmission = admitted.then((ok) => {
         if (generation !== this.generation) return;
         this.coreAdmitted = ok;
         // Without the chat in the core no turn can be built: end the call.
-        if (!ok) this.fail('call_unavailable');
+        if (!ok) {
+          console.warn('[VoiceCall] Chat admission refused; ending the call');
+          this.fail('call_unavailable');
+        }
       });
       this.openSocket(generation, token, prepared.chatId, prepared.cleanupAttemptId);
     } catch (error) {
@@ -850,12 +864,23 @@ export class VoiceCallController implements VoiceCallControllerLike {
             ...(heardBoundary ? { heardBoundary } : {}),
             onVisible: clearLive, early: (() => { const prepared = early; early = undefined; return prepared; })(),
             isCurrent: () => generation === this.generation && this.state.status === 'live' });
-          let accepted = await writeTurn();
-          // The chat sync socket needs a moment to reconnect after the page returns.
-          for (const delay of TURN_WRITE_RETRY_DELAYS_MS) {
-            if (accepted || !this.background?.awayRecently || generation !== this.generation) break;
+          // A rejected admission (e.g. version_conflict: the turn was built just
+          // before the reply's stored version arrived) throws; it is retried like
+          // a refusal. The server stored nothing for it, so the same id is safe.
+          const attempt = () => writeTurn().catch((error: unknown) => {
+            console.warn('[VoiceCall] Turn attempt failed; retrying', error instanceof Error ? error.message.slice(0, 80) : typeof error);
+            return false;
+          });
+          let accepted = await attempt();
+          // A refused or failed delivery is retried with a fresh preparation before
+          // the call gives up: one transient refusal must not end the call (NRUV9).
+          // After the page returns from the background, the chat sync socket may
+          // need the longer last delay to reconnect.
+          for (const [index, delay] of TURN_WRITE_RETRY_DELAYS_MS.entries()) {
+            if (accepted || generation !== this.generation || this.state.status !== 'live') break;
+            if (index >= TURN_WRITE_RETRY_DELAYS_MS.length - 1 && !this.background?.awayRecently) break;
             await new Promise(resolve => setTimeout(resolve, delay));
-            accepted = await writeTurn();
+            accepted = await attempt();
           }
           if (accepted && generation === this.generation && this.pendingHeardBoundary === heardBoundary) this.pendingHeardBoundary = null;
           return accepted;
@@ -905,7 +930,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.update({ billingActivity: { inputListening: message.input_listening, processing: message.processing } });
         return;
       case 'ended': this.finish('ended', null); return;
-      case 'error': this.fail(typeof message.code === 'string' ? message.code : 'call_unavailable'); return;
+      // A credits refusal names its own message (TASK-950: it read "unavailable").
+      case 'error': this.fail(message.stage === 'credits' ? 'insufficient_credits' : typeof message.code === 'string' ? message.code : 'call_unavailable'); return;
     }
   }
 
@@ -1134,6 +1160,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
 
   hangup(): void {
     if (this.state.status === 'idle' || this.state.status === 'ended') return;
+    if (this.state.status === 'connecting') console.info('[VoiceCall] Hangup while connecting', new Error().stack?.split('\n').slice(2, 6).join(' | '));
     this.send({ type: 'hangup' });
     this.finish('ended', null);
   }

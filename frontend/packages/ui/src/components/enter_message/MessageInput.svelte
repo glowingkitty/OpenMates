@@ -4826,7 +4826,11 @@
             if (!settled) watch(run => userProfile.subscribe(run));
             if (!settled) watch(run => activeTeamContext.subscribe(run));
         });
-        if (!ready || !stillOwned() || !capturedEditor) return false;
+        if (!ready || !stillOwned() || !capturedEditor) {
+            // Category only: why a call could not bind to this draft.
+            console.info('[VoiceCall] Draft handoff not ready', { ready, owned: stillOwned(), switching: get(draftEditorUIState).isSwitchingContext, sameDraft: get(draftEditorUIState).currentChatId === capturedChatId });
+            return false;
+        }
         syncTextOnlyDomToEditorBeforeDraftSave(capturedEditor);
         // The call binds to this draft chat, so an untouched Project prefill
         // mention is persisted here even though autosave skips it.
@@ -4834,8 +4838,10 @@
             suppressQueuedEditResaves: false,
             persistAutoInserted: true,
         });
-        return saved && stillOwned() && get(draftEditorUIState).currentChatId === capturedChatId &&
+        const bound = saved && stillOwned() && get(draftEditorUIState).currentChatId === capturedChatId &&
             !get(draftEditorUIState).isSwitchingContext;
+        if (!bound) console.info('[VoiceCall] Draft save before call failed', { saved, owned: stillOwned() });
+        return bound;
     }
 
     function handleSaveDraftBeforeSwitch() { flushCurrentEditorDraft(currentChatId); }
@@ -7955,9 +7961,10 @@
             </div>
         {/if}
 
-        <!-- Stop Processing Icon - shown when AI task is active -->
-        <!-- Debug: activeAITaskId = {activeAITaskId}, currentChatId = {currentChatId} -->
-        {#if showStopProcessingButton && !recordingLayoutActive}
+        <!-- Stop Processing Icon - shown when AI task is active. A call bound to this
+             chat owns the controls (speaking interrupts the answer), so the pulsing red
+             stop icon never shows in its composer (TASK-5166). -->
+        {#if showStopProcessingButton && !recordingLayoutActive && !callOwnsComposer}
             <button
                 class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
                 data-testid="stop-processing-button"

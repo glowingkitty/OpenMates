@@ -145,6 +145,7 @@ def make_payload(fingerprint: str, user_message_id: str | None = None) -> dict:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
 def test_ai_response_completed_rejects_mismatched_ciphertext_fingerprint(monkeypatch):
     asyncio.run(_run_rejects_mismatched_ciphertext_fingerprint(monkeypatch))
 
@@ -190,6 +191,7 @@ async def _run_rejects_mismatched_ciphertext_fingerprint(monkeypatch):
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
 def test_ai_response_completed_accepts_matching_ciphertext_fingerprint(monkeypatch):
     asyncio.run(_run_accepts_matching_ciphertext_fingerprint(monkeypatch))
 
@@ -227,6 +229,7 @@ async def _run_accepts_matching_ciphertext_fingerprint(monkeypatch):
                     "message_id": "assistant-123",
                     "chat_id": "chat-123",
                     "task_id": "websocket-direct",
+                    "messages_v": 4,
                 },
             },
             "user-123",
@@ -235,6 +238,7 @@ async def _run_accepts_matching_ciphertext_fingerprint(monkeypatch):
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
 def test_ai_response_completed_does_not_confirm_failed_persistence(monkeypatch):
     asyncio.run(_run_does_not_confirm_failed_persistence(monkeypatch))
 
@@ -286,6 +290,7 @@ async def _run_does_not_confirm_failed_persistence(monkeypatch):
     assert queued_tasks[0][2] == "persistence"
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
 def test_epoch_one_authorized_legacy_completion_persists_durably(monkeypatch):
     asyncio.run(_run_epoch_one_authorized_legacy_completion(monkeypatch))
 
@@ -318,6 +323,7 @@ async def _run_epoch_one_authorized_legacy_completion(monkeypatch):
     assert FakeCutoverController.authoritative_calls == [True]
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.message.identity-idempotent
 def test_epoch_one_legacy_completion_uses_user_message_identity(monkeypatch):
     asyncio.run(_run_epoch_one_legacy_completion_uses_user_message_identity(monkeypatch))
 
@@ -356,6 +362,7 @@ async def _run_epoch_one_legacy_completion_uses_user_message_identity(monkeypatc
     assert manager.personal_messages[0][0]["type"] == "ai_response_storage_confirmed"
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.message.identity-idempotent
 def test_epoch_one_server_trigger_completion_uses_prefixed_user_message_identity(monkeypatch):
     asyncio.run(_run_epoch_one_server_trigger_completion_uses_prefixed_user_message_identity(monkeypatch))
 
@@ -399,6 +406,7 @@ async def _run_epoch_one_server_trigger_completion_uses_prefixed_user_message_id
     assert manager.personal_messages[0][0]["type"] == "ai_response_storage_confirmed"
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
 def test_epoch_one_unauthorized_legacy_completion_is_rejected(monkeypatch):
     asyncio.run(_run_epoch_one_unauthorized_legacy_completion(monkeypatch))
 
@@ -433,6 +441,7 @@ async def _run_epoch_one_unauthorized_legacy_completion(monkeypatch):
     assert manager.personal_messages[0][0]["payload"]["code"] == "recovery_persistence_required"
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
 def test_malformed_or_invalid_completion_never_authorizes(monkeypatch):
     asyncio.run(_run_malformed_or_invalid_completion_never_authorizes(monkeypatch))
 

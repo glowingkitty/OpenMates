@@ -91,6 +91,10 @@ class ContextLimitError(ValueError):
     pass
 
 
+class InsufficientCreditsError(RuntimeError):
+    """The account cannot pay for the call; the client shows the credits message."""
+
+
 def _context(value: Any) -> tuple[str, list[dict[str, Any]]]:
     if not isinstance(value, dict):
         raise ValueError("Invalid call context")
@@ -848,7 +852,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         logger.info("Voice call start stage=%s call_id=%s elapsed_ms=%d", stage, call_id,
                     (time.monotonic() - accepted_at) * 1000)
         if is_payment_enabled() and await _authoritative_credits(websocket, user_id) < REALTIME_CREDITS_PER_MINUTE:
-            raise RuntimeError("Insufficient credits")
+            raise InsufficientCreditsError("Insufficient credits")
         stage = "lock"
         logger.info("Voice call start stage=%s call_id=%s elapsed_ms=%d", stage, call_id,
                     (time.monotonic() - accepted_at) * 1000)
@@ -924,7 +928,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     prospective_credits = math.ceil(prospective / (PCM_INPUT_BYTES_PER_SECOND * 60)) * REALTIME_CREDITS_PER_MINUTE
                     reserve = prospective_credits - ledger.charged
                     if is_payment_enabled() and reserve > 0 and await _authoritative_credits(websocket, user_id) < reserve:
-                        raise RuntimeError("Insufficient credits")
+                        raise InsufficientCreditsError("Insufficient credits")
                     await asyncio.wait_for(provider.send_audio(event["data"]), 5)
                     ledger.audio_bytes = prospective
                     listening = True
@@ -1068,7 +1072,10 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         logger.warning("Voice call ended category=%s function=%s line=%s stage=%s call_id=%s",
                        type(exc).__name__, origin.name if origin else "unknown", origin.lineno if origin else 0, stage, call_id)
         try:
-            code = "context_too_large" if isinstance(exc, ContextLimitError) else "transcript_limit" if isinstance(exc, TranscriptLimitError) else "call_unavailable"
+            code = ("context_too_large" if isinstance(exc, ContextLimitError)
+                    else "transcript_limit" if isinstance(exc, TranscriptLimitError)
+                    else "insufficient_credits" if isinstance(exc, InsufficientCreditsError)
+                    else "call_unavailable")
             await send({"type": "error", "code": code, "stage": stage, "message": "Call unavailable. Your call has ended."})
         except Exception:
             pass

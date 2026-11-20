@@ -155,12 +155,24 @@ export async function prepareVoiceCallChat(existingChatId?: string, transportOnl
     if (!chat || chat.team_id || chat.chat_visibility === "direct" || chat.is_incognito || chat.is_anonymous
       || (chat.user_id && chat.user_id !== profile.user_id)) throw new Error("Voice calls need an owned personal chat");
     chatId = existingChatId;
-    const key = await chatKeyManager.getKey(chatId);
-    if (!key) throw new Error("Chat key unavailable for voice call");
-    chatKey = key;
-    // Use the persisted wrapper verbatim. Rewrapping the same raw key produces
-    // different ciphertext and cannot prove an existing server key matches.
-    encryptedChatKey = chat.encrypted_chat_key ?? await chatDB.getEncryptedChatKey(chatId);
+    const persistedWrapper = chat.encrypted_chat_key ?? await chatDB.getEncryptedChatKey(chatId);
+    const unsentDraftShell = !persistedWrapper && !chat.messages_v && Boolean(chat.encrypted_draft_md);
+    if (!unsentDraftShell) {
+      if (!persistedWrapper) throw new Error("Chat key unavailable for voice call");
+      const key = await chatKeyManager.getKey(chatId);
+      if (!key) throw new Error("Chat key unavailable for voice call");
+      chatKey = key;
+      // Use the persisted wrapper verbatim. Rewrapping the same raw key produces
+      // different ciphertext and cannot prove an existing server key matches.
+      encryptedChatKey = persistedWrapper;
+    } else {
+      // An unsent draft's shell row (written by the core's draft save) has no
+      // chat key yet; the first send creates it the same way
+      // (sendersChatMessages), and so does the call that binds to the draft.
+      const created = await chatKeyManager.createAndPersistKeyLocked(chatId);
+      chatKey = created.chatKey;
+      encryptedChatKey = created.encryptedChatKey;
+    }
     createdAt = chat.created_at;
   } else {
     chatId = crypto.randomUUID();

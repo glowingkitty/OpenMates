@@ -248,6 +248,12 @@ export async function admitSecondDeviceSavedChatSession(input: AdmissionInput): 
         const reply = pick(response as Extract<CoreResponse, { ok: true }>);
         if (!response.status || response.status.handle !== status.handle || response.status.generation !== status.generation || reply === undefined) throw new Error("session_expired");
         return reply;
+      } catch (error) {
+        // A rejected server session stays rejected: end it so the owner re-admits a
+        // fresh one with the current login instead of reusing it (TASK-950: a first
+        // call after signup refused twice on the same stale session).
+        if (error instanceof Error && error.message === "session_expired") close();
+        throw error;
       } finally { busy = false; }
     };
     const ingestSocketFrames = (frames: Record<string, unknown>[]) => frameOp({ operation: "ingest_socket_frames", frames }, response => response.socketIngest);
