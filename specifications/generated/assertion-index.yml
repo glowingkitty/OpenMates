@@ -158440,6 +158440,14 @@ assertions:
         - *id20082
         - *id20083
     current_direct_proof: false
+  projects.files.executor-answers:
+    specification: feature.projects@2
+    fingerprint: 1792a83ad0c61b44afa52d9474f8321528e78a60889c830ffa2724463b07af53
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   projects.files.wait-deadlines:
     specification: feature.projects@2
     fingerprint: 31134959399ff41a3b3e558cc07831e1779b17a04e49662e9d718d3dd446f22b
@@ -159041,7 +159049,7 @@ assertions:
       surface: rest_api
     - &id20185
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 512
+      line: 529
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -159650,7 +159658,7 @@ assertions:
       surface: gui.web
     - &id20238
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 512
+      line: 529
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -159753,7 +159761,7 @@ assertions:
       surface: gui.web
     - &id20250
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 512
+      line: 529
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -160362,7 +160370,7 @@ assertions:
       surface: gui.web
     - &id20329
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 512
+      line: 529
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web
@@ -161484,7 +161492,7 @@ assertions:
       surface: gui.web
     - &id20467
       path: frontend/apps/web_app/tests/projects-chat-file-executor.spec.ts
-      line: 512
+      line: 529
       name: reads and updates the original remote file through the browser WebSocket
         executor
       surface: gui.web

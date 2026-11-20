@@ -61,8 +61,10 @@ export function createProjectFileJobRunner(deps: ProjectFileJobRunnerDeps) {
 	/**
 	 * Installs the chat's privacy layer before every step. The core keeps a
 	 * bounded set of chats and a Worker restart loses it, so a one-time install
-	 * could let a later job run without redaction. A failure means this chat's
-	 * job must not run.
+	 * could let a later job run without redaction. On a failure the core has no
+	 * layer for the chat and answers the job fail-closed (`pii_mapping_unavailable`,
+	 * nothing read), so the event is still handed to it: the assistant then gets
+	 * an error within seconds instead of waiting for an executor.
 	 */
 	async function preparePrivacy(chatId: string, projectId: string): Promise<void> {
 		await deps.setMappings(chatId, await deps.chatMappings(chatId));
@@ -119,7 +121,11 @@ export function createProjectFileJobRunner(deps: ProjectFileJobRunnerDeps) {
 		}
 		const { chat_id: chatId, project_id: projectId } = payload as { chat_id: string; project_id: string };
 		return enqueue(chatId, async () => {
-			await preparePrivacy(chatId, projectId);
+			try {
+				await preparePrivacy(chatId, projectId);
+			} catch (error) {
+				console.warn('[ProjectFiles] Privacy layer unavailable', codeOf(error));
+			}
 			await process(await deps.step(kind, payload, true));
 		});
 	}

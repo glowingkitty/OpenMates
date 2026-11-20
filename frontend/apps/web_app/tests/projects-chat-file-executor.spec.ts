@@ -296,6 +296,10 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
     const marker = syntheticMarker('hosted');
     const sentWebSocketMessages: Array<Record<string, unknown>> = [];
     const readOperations = new Set<string>();
+    // Requirement: a leased file request is answered within seconds (never
+    // minutes of silence), whatever the outcome.
+    const requestSeenAt = new Map<string, number>();
+    const answerLatencyMs = new Map<string, number>();
     const persistedRecoveryJobs = new Set<string>();
     const advertisedCapabilities = new Set<string>();
     const cdp = await page.context().newCDPSession(page);
@@ -309,8 +313,12 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         const message = JSON.parse(response.payloadData) as Record<string, unknown>;
         sentWebSocketMessages.push(message);
         if (message.type === 'project_file_operation_result') {
-          const payload = message.payload as { status?: string; result?: { code?: string; reason?: string } };
+          const payload = message.payload as { operation_id?: string; status?: string; result?: { code?: string; reason?: string } };
           console.log('Project executor outcome:', payload.status, payload.result?.code ?? payload.result?.reason ?? '');
+          const seenAt = requestSeenAt.get(payload.operation_id ?? '');
+          if (seenAt !== undefined && !answerLatencyMs.has(payload.operation_id ?? '')) {
+            answerLatencyMs.set(payload.operation_id ?? '', Date.now() - seenAt);
+          }
         }
       } catch {
         // Binary/control frames and non-JSON traffic are irrelevant here.
@@ -321,6 +329,10 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         const message = JSON.parse(response.payloadData) as { type?: string; payload?: { status?: string; state?: string; job_id?: string; code?: string; operation?: string; operation_id?: string; arguments?: { path?: string } } };
         if (message.type === 'recovery_job_persisted' && message.payload?.state === 'TERMINAL' && message.payload.job_id) {
           persistedRecoveryJobs.add(message.payload.job_id);
+        }
+        if (message.type === 'project_file_operation_request' && message.payload?.operation_id
+          && !requestSeenAt.has(message.payload.operation_id)) {
+          requestSeenAt.set(message.payload.operation_id, Date.now());
         }
         if (message.type === 'project_file_operation_request' && message.payload?.operation === 'read_text'
           && message.payload.arguments?.path === path && message.payload.operation_id) {
@@ -378,6 +390,11 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
           && readOperations.has(payload.operation_id ?? '') && Boolean(payload.result?.content?.startsWith(`${marker}\noriginal\n`))
           && /^\[[A-Za-z0-9_]+\]$/.test(payload.result?.content?.split('\n')[2] ?? '');
       }), { message: 'the created file must be read back before switching off Project access', timeout: 180_000 }).toBe(true);
+      for (const operationId of readOperations) {
+        const latency = answerLatencyMs.get(operationId);
+        console.log('Project file read answered after ms:', latency ?? 'never');
+        expect(latency, 'every Project file read request is answered within seconds').toBeLessThan(10_000);
+      }
       await expect.poll(() => persistedRecoveryJobs.size, {
         message: 'the final asynchronous answer must be durably encrypted before reload', timeout: 180_000,
       }).toBeGreaterThan(0);

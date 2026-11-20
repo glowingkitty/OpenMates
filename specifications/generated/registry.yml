@@ -945,7 +945,7 @@ specifications:
     version: 2
     status: draft
     path: features/projects
-    fingerprint: cf67579909d6140aea061e14bb8ec55b5ff897113a935626001e0a60c889eaee
+    fingerprint: 1abcf08a4ea567974646cdaaba6662890dc89639c20cd06e67e906f09e04d855
     required_applies_to:
     - rest_api
     - cli
@@ -12567,6 +12567,18 @@ assertions:
     specification_id: feature.projects
     type: behavior
     fingerprint: 03d211f2989ad84555c90adb63bd1c5d9a33c3ed93169b56d4f60b943b7dbb3a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.files.executor-answers:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: 1792a83ad0c61b44afa52d9474f8321528e78a60889c830ffa2724463b07af53
     required_applies_to:
     - rest_api
     - cli

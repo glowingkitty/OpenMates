@@ -349,6 +349,13 @@ assertions:
     capable executor is ready, within the original request and after current focus, role, path, write-policy, approval, and
     base checks. Another logged-in device is not automatically an authorized executor. The server must not bypass client-side
     encryption to keep working. Waiting alone must not run repeated model calls or consume model tokens.
+- id: projects.files.executor-answers
+  type: behavior
+  must: An authorized client that receives a Project file operation answers it within seconds. When it cannot execute the
+    operation (for example its privacy layer or the chat key is unavailable in that client), it reads, decrypts and transmits
+    nothing and reports the operation failed with a stable error code, so the assistant can tell the user instead of waiting
+    silently for minutes. The waiting state of projects.files.executor-wait applies only when no capable executor received the
+    operation.
 - id: projects.files.wait-deadlines
   type: invariant
   must: Deterministic processing persists one waiting episode for the chat interruption, with a start time, a reminder due

@@ -124,3 +124,7 @@ mod approvals_tests;
 #[cfg(all(test, feature = "workflow-yaml"))]
 #[path = "project_file_job_privacy_tests.rs"]
 mod privacy_tests;
+
+#[cfg(all(test, feature = "workflow-yaml"))]
+#[path = "project_file_job_web_privacy_tests.rs"]
+mod web_privacy_tests;

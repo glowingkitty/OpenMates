@@ -24,7 +24,7 @@ const { expandActivity } = require('./helpers/assistant-activity');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 const { naturalProjectName } = require('./helpers/project-names');
 
-const STORAGE_DIAGNOSTIC = /CLIENT_DECRYPT|decryption failed|DUPLICATE PREVENTED|replaceMessageById|replaced a stale local segment|Final AI message|recover|Conflict|sealed|interim|Skipping content regression|could not be applied|Remote command/i;
+const STORAGE_DIAGNOSTIC = /CLIENT_DECRYPT|decryption failed|DUPLICATE PREVENTED|replaceMessageById|replaced a stale local segment|Final AI message|recover|Conflict|sealed|interim|Skipping content regression|could not be applied|Remote command|ProjectFiles|ProjectCreate|File job|unit_port|project_file_jobs/i;
 
 const L = ['web-laptop'];
 const B = ['web-laptop', 'web-phone'];

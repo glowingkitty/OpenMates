@@ -153,20 +153,49 @@ fn offline_client() -> crate::Client {
 }
 
 #[tokio::test]
-async fn an_interactive_step_without_a_privacy_layer_runs_nothing() {
+async fn an_interactive_step_without_a_privacy_layer_fails_closed_with_an_immediate_answer() {
+    // The offline client proves nothing is read: any file access would need
+    // the unreachable server. The job is still answered at once, so the
+    // assistant gets a clear error instead of minutes of silence.
     let mut client = offline_client();
-    let outcome = client
+    let offered = client
+        .project_file_job_step(
+            "project_file_operation_available",
+            &request("read_text"),
+            true,
+        )
+        .await
+        .expect("an offered job is claimed");
+    assert_eq!(offered.frames.len(), 1);
+    assert_eq!(offered.frames[0].name, "project_file_operation_claim");
+    assert!(offered.frames[0].payload.get("result").is_none());
+    let started = std::time::Instant::now();
+    let answered = client
         .project_file_job_step(
             "project_file_operation_request",
             &request("read_text"),
             true,
         )
-        .await;
-    assert!(matches!(
-        outcome,
-        Err(Error::Unavailable {
-            code: "pii_mapping_unavailable",
-            ..
-        })
-    ));
+        .await
+        .expect("a leased request is answered");
+    assert!(started.elapsed() < std::time::Duration::from_secs(3));
+    assert_eq!(answered.frames.len(), 1);
+    let result = &answered.frames[0];
+    assert_eq!(result.name, "project_file_operation_result");
+    assert_eq!(result.payload["status"], "failed");
+    assert_eq!(
+        result.payload["result"],
+        json!({"code": "pii_mapping_unavailable"})
+    );
+    assert!(answered.privacy.is_none() && answered.applied.is_empty());
+    // One answer per operation: a replayed request stays silent.
+    let replay = client
+        .project_file_job_step(
+            "project_file_operation_request",
+            &request("read_text"),
+            true,
+        )
+        .await
+        .unwrap();
+    assert!(replay.frames.is_empty());
 }

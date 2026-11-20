@@ -221,6 +221,37 @@ impl FileJobState {
     }
 }
 
+/// Fail-closed answer of a shell whose privacy layer could not be installed:
+/// claim an offered job (no content), then report the leased request as
+/// `failed` with `pii_mapping_unavailable` instead of staying silent, so the
+/// assistant learns within seconds that the file could not be read here.
+pub(super) fn privacy_unavailable_frames(
+    kind: &str,
+    event: &Value,
+    chat: &str,
+    state: &mut FileJobState,
+) -> Vec<(&'static str, Value)> {
+    let Some(job) = identity(event, chat) else {
+        return Vec::new();
+    };
+    let operation = job["operation_id"].as_str().unwrap_or_default().to_owned();
+    if state.finished.contains(&operation) {
+        return Vec::new();
+    }
+    if kind == "project_file_operation_available" {
+        return vec![("project_file_operation_claim", scope(job))];
+    }
+    if !valid_lease(job) {
+        return Vec::new();
+    }
+    state.finish(&operation);
+    vec![result_frame(
+        job,
+        "failed",
+        json!({"code": "pii_mapping_unavailable"}),
+    )]
+}
+
 /// A job frame with a valid identity (`protocol_version` 1, known operation,
 /// bounded ids) for this turn's chat.
 fn identity<'a>(event: &'a Value, chat: &str) -> Option<&'a Value> {

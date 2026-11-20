@@ -90,15 +90,19 @@ describe('projectFileJobRunner', () => {
 		expect(stopped.deps.step).not.toHaveBeenCalled();
 	});
 
-	it('does not run the step when the privacy layer cannot be installed', async () => {
+	it('still hands the job to the core when the privacy layer cannot be installed, so it is answered fail-closed', async () => {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+		const failed = { name: 'project_file_operation_result' as const,
+			payload: { operation_id: 'op1', status: 'failed', result: { code: 'pii_mapping_unavailable' } } };
 		const { deps, runner } = setup({
-			setPrivacy: vi.fn(async () => { throw Object.assign(new Error('secret'), { code: 'pii_mapping_unavailable' }); })
+			setPrivacy: vi.fn(async () => { throw Object.assign(new Error('secret'), { code: 'pii_mapping_unavailable' }); }),
+			step: vi.fn(async () => ({ ...EMPTY, frames: [failed] }))
 		});
 		await runner.request(EVENT);
-		expect(deps.step).not.toHaveBeenCalled();
-		expect(deps.send).not.toHaveBeenCalled();
-		expect(warn).toHaveBeenCalledWith('[ProjectFiles] File job step failed', 'pii_mapping_unavailable');
+		expect(deps.step).toHaveBeenCalledWith('project_file_operation_request', EVENT, true);
+		expect(deps.send).toHaveBeenCalledWith('project_file_operation_result', failed.payload);
+		expect(warn).toHaveBeenCalledWith('[ProjectFiles] Privacy layer unavailable', 'pii_mapping_unavailable');
+		expect(JSON.stringify(warn.mock.calls)).not.toContain('secret');
 		warn.mockRestore();
 	});
 });

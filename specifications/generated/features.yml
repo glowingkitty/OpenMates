@@ -15955,7 +15955,7 @@ features:
     - platform:projects
     dev: enabled
     prod: disabled
-  assertions: 58
+  assertions: 59
   surfaces:
     web:
       status: failing
@@ -15965,8 +15965,8 @@ features:
         passing: 19
         failing: 14
         not_run: 7
-        missing: 18
-        counted: 58
+        missing: 19
+        counted: 59
       failing_tests:
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_mixed_project_and_web_batch_defers_web_until_file_result
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_multiple_project_jobs_dispatch_only_first
@@ -16028,8 +16028,8 @@ features:
         passing: 15
         failing: 2
         not_run: 1
-        missing: 40
-        counted: 58
+        missing: 41
+        counted: 59
       failing_tests:
       - apple/OpenMatesUITests/DevComponentPreviewUITests.swift › testProjectsWorkspaceLandingOverviewAndFilesAtWebPhoneWidth
       key_tests: []
@@ -16062,8 +16062,8 @@ features:
         passing: 21
         failing: 0
         not_run: 16
-        missing: 21
-        counted: 58
+        missing: 22
+        counted: 59
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
@@ -16111,8 +16111,8 @@ features:
         passing: 26
         failing: 0
         not_run: 7
-        missing: 25
-        counted: 58
+        missing: 26
+        counted: 59
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/jev-project-context-api.spec.ts
@@ -16131,8 +16131,8 @@ features:
         passing: 0
         failing: 0
         not_run: 6
-        missing: 52
-        counted: 58
+        missing: 53
+        counted: 59
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -16148,8 +16148,8 @@ features:
         passing: 0
         failing: 0
         not_run: 5
-        missing: 53
-        counted: 58
+        missing: 54
+        counted: 59
       key_tests: []
       e2e_tests: []
       key_unit_tests:

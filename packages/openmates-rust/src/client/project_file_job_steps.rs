@@ -3,7 +3,7 @@
 //! per chat and bounded, frames are returned instead of sent on the core's own
 //! socket. Native turns keep using `project_file_job_event`.
 use super::super::*;
-use super::frames::job_frames;
+use super::frames::{job_frames, privacy_unavailable_frames};
 use super::ProjectFilePrivacyBlob;
 use serde::Serialize;
 
@@ -54,13 +54,14 @@ impl Client {
     /// empty step.
     ///
     /// Interactive (web) steps fail closed: without a privacy layer installed by
-    /// [`Client::project_file_job_set_privacy`] for this chat, nothing runs, so
-    /// a shell that forgot it or a Client that dropped the chat can never send
-    /// unredacted file contents.
+    /// [`Client::project_file_job_set_privacy`] for this chat, no file is read
+    /// or written, so a shell that forgot it or a Client that dropped the chat
+    /// can never send unredacted file contents. The job is still answered
+    /// (claim, then `failed` with `pii_mapping_unavailable`) so the assistant
+    /// gets an error within seconds instead of waiting for an executor.
     ///
     /// # Errors
-    /// `pii_mapping_unavailable` for an interactive step without a privacy
-    /// layer; cancellation. Executor refusals become result frames.
+    /// Cancellation. Executor refusals become result frames.
     pub async fn project_file_job_step(
         &mut self,
         kind: &str,
@@ -72,10 +73,11 @@ impl Client {
         };
         let mut state = self.file_job_chats.take(&chat, interactive);
         if interactive && state.privacy.is_none() {
+            let frames = privacy_unavailable_frames(kind, event, &chat, &mut state);
             self.file_job_chats.put(&chat, state);
-            return Err(Error::Unavailable {
-                code: "pii_mapping_unavailable",
-                reason: "The chat's Project file privacy layer is not installed.",
+            return Ok(ProjectFileJobStep {
+                frames: frames.into_iter().map(frame).collect(),
+                ..ProjectFileJobStep::default()
             });
         }
         let frames = job_frames(self, kind, event, &chat, now_ms() / 1000, &mut state).await;
@@ -137,8 +139,10 @@ impl Client {
     /// # Errors
     /// `pii_mapping_unavailable` (undecryptable blob or one of another
     /// chat/project), `pii_mapping_limit`, or the chat-key resolution errors.
-    /// On error no layer is installed: the shell must stop (fail closed) and not
-    /// feed this chat's file jobs, or results would not be redacted.
+    /// On error no layer is installed (an earlier one is dropped), so the
+    /// chat's next interactive step reads nothing and answers the job `failed`
+    /// with `pii_mapping_unavailable`: unredacted content can never leave and
+    /// the assistant is told at once.
     pub async fn project_file_job_set_privacy(
         &mut self,
         chat_id: &str,
@@ -147,7 +151,21 @@ impl Client {
         memories: Vec<Value>,
         sealed: Option<&str>,
     ) -> Result<()> {
-        let key = self.work_chat_key(chat_id).await?;
+        // `hosted_file_chat_key` opens the chat key with either credential
+        // kind: the web Worker's master is a non-extractable WebCrypto
+        // capability, which the native-session path (`work_chat_key`) refused,
+        // so every web file job stayed unanswered.
+        let key = match self.hosted_file_chat_key(chat_id).await {
+            Ok(key) => key,
+            Err(error) => {
+                // Fail closed: drop any earlier layer so the next step answers
+                // `pii_mapping_unavailable` instead of using stale mappings.
+                let mut state = self.file_job_chats.take(chat_id, true);
+                state.privacy = None;
+                self.file_job_chats.put(chat_id, state);
+                return Err(error);
+            }
+        };
         let mut state = self.file_job_chats.take(chat_id, true);
         let layer = super::privacy::PrivacyLayer::open(
             chat_id,
@@ -158,7 +176,16 @@ impl Client {
             &state.mappings.0,
             key,
         );
-        let outcome = layer.map(|layer| state.privacy = Some(layer));
+        let outcome = match layer {
+            Ok(layer) => {
+                state.privacy = Some(layer);
+                Ok(())
+            }
+            Err(error) => {
+                state.privacy = None;
+                Err(error)
+            }
+        };
         self.file_job_chats.put(chat_id, state);
         outcome
     }
