@@ -213,6 +213,12 @@ def asks_something(text: str) -> bool:
     return bool(QUESTION_RE.search(tail))
 
 
+def ends_with_question(text: str) -> bool:
+    """The reply's last line asks something ("Shall I also deploy it?"), URLs and code ignored."""
+    lines = [line for line in URL_OR_CODE_RE.sub(" ", text).strip().splitlines() if line.strip()]
+    return bool(lines) and lines[-1].rstrip(" *_)\"'").endswith("?")
+
+
 def hard_blocker(chat: Chat, own_session_id: str, now: float | None = None) -> str | None:
     if chat.kind == "terminal":
         return "not a managed chat (started by hand in a terminal)"
@@ -244,12 +250,15 @@ def decide(chat: Chat, now: float, config: dict, own_session_id: str, idle_minut
     limit = 60 * (config["idle_stop_minutes"] if idle_minutes is None else idle_minutes)
     if idle <= limit:
         return Decision("keep", f"idle {idle / 60:.0f} min, limit {limit / 60:.0f} min")
+    # The chat's own push decides; the wording of its reply is only a guess. A ✅ chat whose report
+    # merely mentions "waiting on your answer" (2026-11-20) is done; only a closing "?" keeps it open.
+    if chat.pushed_done and not chat.pushed_question and not ends_with_question(chat.last_text):
+        if chat.pushed_done == "done" and not chat.waiters:
+            return Decision("archive", "reported done with a ✅ push, nothing open")
+        if chat.pushed_done == "parked":
+            return Decision("stop", "parked itself (✅ with a resume date)")
     if asks(chat):
         return Decision("stop", "waits on your answer (process stopped; the answer reopens it)")
-    if chat.pushed_done == "done" and not chat.waiters:
-        return Decision("archive", "reported done with a ✅ push, nothing open")
-    if chat.pushed_done == "parked":
-        return Decision("stop", "parked itself (✅ with a resume date)")
     if idle > config["done_hours"] * 3600:
         return Decision("done", f"idle {idle / 3600:.1f}h, finished")
     return Decision("stop", f"idle {idle / 60:.0f} min")

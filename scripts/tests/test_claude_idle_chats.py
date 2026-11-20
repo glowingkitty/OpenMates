@@ -483,6 +483,12 @@ def test_a_chat_that_reported_done_is_archived_at_the_end_of_its_turn_and_a_park
     assert lc.decide(chat(pushed_done="done", last_activity=NOW - 60), NOW, CONFIG, "").action == "keep"
     asked = chat(pushed_done="done", last_text="Shall I also deploy it?")
     assert lc.decide(asked, NOW, CONFIG, "").action == "stop"  # a question wins: listed as waiting, not archived
+    # 2026-11-20: a ✅ report that only describes the rule ("a chat waiting on your answer …") is not a
+    # question; the chat was stopped as asking instead of archived.
+    report = chat(pushed_done="done", last_text="**Answering chats:** a chat waiting on your answer no longer runs "
+                                                "in the background.\nIt reopens when you answer.")
+    assert lc.decide(report, NOW, CONFIG, "").action == "archive"
+    assert lc.decide(chat(last_text=report.last_text), NOW, CONFIG, "").action == "stop"  # no push: the guess holds
 
 
 def test_task_priorities_come_from_the_tasks_copy(tmp_path):

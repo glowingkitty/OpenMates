@@ -44,7 +44,7 @@ What an overload does:
 | --- | --- | --- |
 | Working | busy, waiting for a permission, background command or waiter, or its turn ended less than `idle_stop_minutes` (3) ago | runs, holds a slot |
 | Idle-stopped | turn ended ≥ `idle_stop_minutes` ago and nothing runs or waits in the background, also when it waits on the owner's answer or parked itself | SIGTERM (graceful); transcript and open question kept; connector `send_message` or its waiter resumes it with `claude --resume` |
-| Archived | reported done with a ✅ push (no `--paused-until`), asks nothing, no waiter | pane chat: `/exit` (archives its Claude app session) and its pane closed; otherwise stopped as done with `reported_done` and archived by the connector without approval |
+| Archived | reported done with a ✅ push (no `--paused-until`), no ❓ after it, its reply does not end with a question, no waiter (the push decides: wording such as "waiting on your answer" inside a report does not keep it open) | pane chat: `/exit` (archives its Claude app session) and its pane closed; otherwise stopped as done with `reported_done` and archived by the connector without approval |
 | Done | idle ≥ `done_hours` (24), finished | listed in `status.json` for the connector to archive in the Claude app |
 
 Owner rule (2026-11-20): only working chats and chats waiting on a background job
