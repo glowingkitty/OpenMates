@@ -84,6 +84,22 @@ decisions:
     problems; a crash, timeout or kill of the unit sends one ❌ alert from the
     unit's OnFailure hook. Manual runs push the same summary with --notify.
   - >-
+    Owner, 20 Nov 2026: every run (dev and prod, daily, weekly, manual)
+    records each persona's browser session and uploads it to a private S3
+    bucket of its own through the response-media transport, deleted after 7
+    days (the response-media bucket's 2-day rule covers that whole bucket).
+    The link is signed before the session, so the reports it files carry it;
+    findings, reports, report.md and the Discord pushes link the video at the
+    problem's moment (step time plus the recorded video offset). `videos
+    --run <id>` adds links to earlier runs, with estimated moments.
+    Standing rule (owner, same day): every visual finding reaches Marco
+    with its screenshot or video moment, never as text alone.
+  - >-
+    Inbox Kitten (20 Nov 2026) no longer returns message bodies from getKey;
+    sensitive-action codes (account deletion) arrive under a generic subject,
+    so the harness reads them from getHtml, ignoring style/script/head
+    blocks. The first production run's 10 accounts were deleted this way.
+  - >-
     Investigation chats from test-user reports are capped per day and the
     deploy guard refuses changes above the small-fix limit; refusing names
     the Task route instead.
@@ -103,4 +119,8 @@ verification:
     5 screenshots each; investigation chats started for 3 (daily cap);
     3 demo candidates; 2.81 USD (harness 1.40, E2B 0.19, app credits at list
     price 1.22). Timer installed (Mon-Sat 06:30 UTC). Production stays off
-    until the owner's go-ahead (TASK-8620).
+    until the owner's go-ahead (TASK-8620). Production, 20 Nov 2026 (owner
+    go-ahead): 50 single-use 1,000-credit cards created over SSH (prod has no
+    marks_test_account field, so the email-hash exclusion labels the
+    accounts); intro-video run 20261120-143143 with 10 accounts, all deleted
+    afterwards; session videos in the 7-day bucket.

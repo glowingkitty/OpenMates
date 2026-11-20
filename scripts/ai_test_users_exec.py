@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import ai_test_users_accounts as accounts
+import ai_test_users_video as video
 import dev_test_account
 import e2b_dev_capacity
 
@@ -97,6 +98,11 @@ def run_persona(persona: dict, target: str, run_id: str, run_dir: Path, cfg: Set
     out.mkdir(parents=True, exist_ok=True)
     name = persona["id"]
     job = make_job(persona, target, run_id, signup, cfg, name)
+    video_key = video.object_key(run_id, target, name)
+    try:  # signed before the session so the reports it files can link the recording
+        job["video_url"] = video.sign([video_key])[0]
+    except RuntimeError as exc:
+        summary["video_error"] = str(exc)[:300]
     slot = e2b_dev_capacity.acquire(f"ai-test-user-{target}-{name}", timeout=900)
     if slot is None:
         accounts.update_status(identity["email"], "delete_failed", cfg.base)  # nothing was created; retry cleans up
@@ -117,7 +123,21 @@ def run_persona(persona: dict, target: str, run_id: str, run_dir: Path, cfg: Set
         summary["copy_error"] = copied.stderr[-300:]
     docker("exec", CONTAINER, "rm", "-rf", f"{CONTAINER_OUTPUT}/{run_id}/{name}",
            f"{CONTAINER_OUTPUT}/{run_id}/{name}.stop")
+    store_video(summary, out / name / "video.webm", video_key, job.get("video_url"))
     return read_result(summary, out / name / "result.json", identity["email"], cfg)
+
+
+def store_video(summary: dict, path: Path, key: str, signed_url: str | None) -> None:
+    """Upload the session recording (7-day bucket) and keep its link in the persona summary."""
+    if not path.exists():
+        summary["video_error"] = summary.get("video_error") or "no recording"
+        return
+    try:
+        uploaded = video.upload(path, key)
+    except (RuntimeError, OSError) as exc:
+        summary["video_error"] = f"upload failed: {str(exc)[:300]}"
+        return
+    summary["video"] = {"url": signed_url or uploaded["url"], "key": key}
 
 
 def read_result(summary: dict, result_file: Path, email: str, cfg: Settings) -> dict:
@@ -127,7 +147,9 @@ def read_result(summary: dict, result_file: Path, email: str, cfg: Settings) -> 
         findings = result.get("findings", [])
         summary.update({k: result.get(k) for k in (
             "status", "steps", "harness_usd", "e2b", "error", "judge_error", "credits_start", "credits_end",
-            "answer_quality", "demo_candidate", "goal_outcomes")})
+            "answer_quality", "demo_candidate", "goal_outcomes", "video_offset_seconds")})
+        summary["findings"] = [{k: f.get(k) for k in ("title", "severity", "step", "video_seconds", "kept")}
+                               for f in findings]
         summary["findings_total"] = len(findings)
         summary["findings_kept"] = sum(1 for f in findings if f.get("kept"))
         summary["reports"] = result.get("reports", [])

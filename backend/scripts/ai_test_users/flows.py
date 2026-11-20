@@ -114,7 +114,8 @@ async def submit_reports(session: Any) -> None:
                 path = f"{SANDBOX_HOME}/report-{number}-{step:03d}.jpg"
                 await asyncio.to_thread(session.sandbox.files.write, path, jpeg_for_upload(session.screenshots[step]))
                 paths.append(path)
-            title, description = report_text(group, session.persona, session.job["target"])
+            title, description = report_text(group, session.persona, session.job["target"],
+                                             str(session.job.get("video_url") or ""))
             sent = await session.rpc(
                 {"operation": "report_issue", "title": title, "description": description, "files": paths}, timeout=120)
             entry.update(short_issue_id=sent["short_issue_id"], screenshots=sent.get("screenshots", 0), status="submitted")

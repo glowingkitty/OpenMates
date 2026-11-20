@@ -147,3 +147,38 @@ def test_ensure_signed_in_counts_relogins_and_fails_closed():
 
     with pytest.raises(BrowserUnavailable):
         asyncio.run(ensure_signed_in(FakeSession({"state": "error", "relogin": True})))
+
+
+def test_report_text_links_the_session_video_at_each_finding():
+    group = [{"title": "Event card missing", "step": 4, "evidence": "no card", "video_seconds": 63.2},
+             {"title": "Embed not found", "step": 9, "evidence": "banner"}]
+    url = "https://example.org/video.webm?sig=1"
+    _, description = report_text(group, {"name": "Mara"}, "prod", url)
+    assert f"Video: {url}#t=63 (at 1:03)" in description
+    assert description.count("Video:") == 2 and f"Video: {url}\n" in description  # no time for step 9
+    _, without = report_text(group, {"name": "Mara"}, "prod")
+    assert "Video:" not in without
+
+
+def test_extract_code_ignores_numbers_in_style_blocks():
+    html = "<head><style>.a{width:100000px}</style></head><p>Enter this one time code:</p><b>482913</b>"
+    assert extract_code({"body-html": html}) == "482913"
+
+
+async def test_inbox_reads_a_generic_subject_code_from_the_html_body():
+    import httpx
+    from inbox import BASE_URL, InboxKitten
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        path = request.url.path.rsplit("/", 1)[-1]
+        if path == "list":
+            return httpx.Response(200, json=[{"timestamp": 2_000_000_000, "storage": {"region": "r1", "key": "k1"}}])
+        if path == "getKey":
+            return httpx.Response(200, json={"subject": "Message from OpenMates", "name": "OpenMates"})
+        assert path == "getHtml" and request.url.params["key"] == "k1"
+        return httpx.Response(200, text="<p>Verify your action</p><p>Enter this one time code:</p><b>731904</b>")
+
+    inbox = InboxKitten("someone@example.org")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(answer)) as client:
+        assert BASE_URL.startswith("https://")
+        assert await inbox._poll(client, requested_at=1_999_999_990) == "731904"

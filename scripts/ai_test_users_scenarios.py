@@ -8,6 +8,7 @@ when some did and broken when none did. All data in the goals is synthetic.
 
 from __future__ import annotations
 
+import ai_test_users_report as reporting
 from ai_test_users_personas import MACBOOK
 
 FOSDEM_QUESTION = "What is the largest open source software conference in Europe and when does it happen?"
@@ -63,6 +64,7 @@ INTRO_VIDEO: list[dict] = [
         "flow": "c_model_picker_export",
         "name": "Mara (34), open source developer, intro-video flow c",
         "description": "Recording the model choice and export part of the intro video.",
+        "downloads": True,
         "goals": [
             "Start a new chat, open the model picker in the message composer, look at the available models and "
             "pick a different model than the default one.",
@@ -134,8 +136,9 @@ def flow_verdicts(results: list[dict]) -> dict[str, dict]:
     verdicts: dict[str, dict] = {}
     for result in results:
         flow = str(result.get("persona", "")).rsplit("-", 1)[0]
-        entry = verdicts.setdefault(flow, {"runs": 0, "passed": 0, "unmet": []})
+        entry = verdicts.setdefault(flow, {"runs": 0, "passed": 0, "unmet": [], "videos": []})
         entry["runs"] += 1
+        entry["videos"].append(reporting.video_link(result) or "no video")
         if goals_met(result):
             entry["passed"] += 1
         else:
@@ -149,9 +152,11 @@ def flow_verdicts(results: list[dict]) -> dict[str, dict]:
 
 
 def summary_text(name: str, target: str, run_date: str, verdicts: dict[str, dict], problems: list[str]) -> str:
-    """One push: ✅ when every flow works and nothing else failed, else ❌ with each flow's verdict."""
+    """One push: ✅ when every flow works and nothing else failed, else ❌ with each flow's verdict and the
+    session videos of its runs."""
     clean = not problems and all(v["verdict"] == "working" for v in verdicts.values())
-    flows = ", ".join(f"{flow.split('_', 1)[0]} {v['verdict']}" for flow, v in sorted(verdicts.items()))
+    flows = ", ".join(f"{flow.split('_', 1)[0]} {v['verdict']} ({' '.join(v.get('videos') or []) or 'no video'})"
+                      for flow, v in sorted(verdicts.items()))
     text = f"{'✅' if clean else '❌'} AI test users {name} run on {target} {run_date}: {flows}."
     broken = [f"{flow}: {v['unmet'][0][:90]}" for flow, v in sorted(verdicts.items()) if v["unmet"]]
     if broken:

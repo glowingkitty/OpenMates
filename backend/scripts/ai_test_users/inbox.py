@@ -4,9 +4,12 @@ Dev test tooling (runs in the api container). The mailbox is public by
 address: `GET /api/v1/mail/list?recipient=<local part>` returns the stored
 messages (each with `storage.region`/`storage.key` or a `storage.url`), and
 `GET /api/v1/mail/getKey?region=..&key=..` returns the message JSON with
-`subject`, `body-plain` and `body-html`. The verification code is read from
-there and handed straight to the driver; neither the address nor the code is
-ever logged in full.
+`subject` (since November 2026 without the bodies), and
+`GET /api/v1/mail/getHtml?region=..&key=..` returns the HTML body. The code is
+read from the subject (signup: "Your code: …") or else from the HTML body
+(sensitive-action codes such as account deletion use a generic subject), and
+handed straight to the driver; neither the address nor the code is ever
+logged in full.
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ import httpx
 BASE_URL = "https://inboxkitten.com/api/v1/mail"
 CODE_PATTERN = re.compile(r"(?<![\w.])(\d{6})(?![\w.])")
 TAG_PATTERN = re.compile(r"<[^>]+>")
+HIDDEN_PATTERN = re.compile(r"<(style|script|head)\b.*?</\1\s*>", re.S | re.I)
 REGION_PATTERN = re.compile(r"storage-([a-z0-9-]+)\.api\.mailgun\.net")
 
 
@@ -65,7 +69,7 @@ def item_timestamp(item: dict[str, Any]) -> float | None:
 
 def extract_code(message: dict[str, Any]) -> str | None:
     """First standalone six-digit number in subject, plain body, then HTML body."""
-    html = TAG_PATTERN.sub(" ", str(message.get("body-html") or ""))
+    html = TAG_PATTERN.sub(" ", HIDDEN_PATTERN.sub(" ", str(message.get("body-html") or "")))
     for field in (str(message.get("subject") or ""), str(message.get("body-plain") or ""), html):
         match = CODE_PATTERN.search(field)
         if match:
@@ -111,7 +115,12 @@ class InboxKitten:
             message = await client.get(f"{BASE_URL}/getKey", params={"region": ref[0], "key": ref[1]})
             message.raise_for_status()
             self.seen.add(ref[1])
-            code = extract_code(message.json())
+            body = message.json()
+            code = extract_code(body)
+            if not code and not body.get("body-html"):
+                html = await client.get(f"{BASE_URL}/getHtml", params={"region": ref[0], "key": ref[1]})
+                html.raise_for_status()
+                code = extract_code({"body-html": html.text})
             if code:
                 return code
         return None

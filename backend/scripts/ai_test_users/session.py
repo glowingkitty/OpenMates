@@ -141,7 +141,9 @@ class Session:
         self.out.mkdir(parents=True, exist_ok=True)
         self.transcript: list[dict[str, Any]] = []
         self.history: list[dict[str, Any]] = []
-        self.result: dict[str, Any] = {"persona": self.persona["id"] if self.persona else None, "mode": self.mode, "status": "started", "findings": []}
+        self.result: dict[str, Any] = {
+            "persona": self.persona["id"] if self.persona else None, "mode": self.mode, "status": "started",
+            "findings": [], "video_url": job.get("video_url")}
         self.sandbox = None
         self.provider: dict[str, Any] | None = None
         self.browser: E2BBrowser | None = None
@@ -305,6 +307,8 @@ class Session:
     async def run_steps(self, models: TesterModels) -> str:
         started = time.monotonic()
         observation = await self.rpc({"operation": "observe"})
+        # Step times count from here; this offset maps them onto the session video.
+        self.result["video_offset_seconds"] = observation.get("video_seconds")
         step = 0
         while True:
             reason = self.stop_reason(models, started, step)
@@ -434,6 +438,9 @@ class Session:
             finding["jev_score"] = score
             finding["kept"] = score is None or score >= FINDING_KEEP_SCORE
             finding["screenshot"] = f"step-{step:03d}.jpg" if image else None
+            offset = self.result.get("video_offset_seconds")
+            if step in by_step and isinstance(offset, (int, float)):
+                finding["video_seconds"] = round(offset + by_step[step]["at_seconds"], 1)
             self.result["findings"].append(finding)
         self.result["goal_outcomes"] = verdict.get("goal_outcomes", [])
         self.result["summary"] = verdict.get("summary", "")

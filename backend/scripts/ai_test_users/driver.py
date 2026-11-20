@@ -60,6 +60,7 @@ class Driver:
         self.allowed_hosts: set[str] = set()
         self.events: list[dict] = []
         self.started = time.monotonic()
+        self.video_started: float | None = None  # the recording starts with the browser context
 
     # Events the judge reads: console errors, failed API calls, blocked exits.
     def event(self, kind: str, **fields) -> None:
@@ -137,6 +138,7 @@ class Driver:
         if device.get("user_agent"):
             options["user_agent"] = device["user_agent"]
         self.context = await self.browser.new_context(**options)
+        self.video_started = time.monotonic()
         if body.get("voice"):
             # Chromium's fake device also provides a test-pattern camera for video calls.
             media = ["microphone", "camera"] if body.get("camera") else ["microphone"]
@@ -478,6 +480,8 @@ class Driver:
             self.runtime.control = "ai"
             observation = await self.runtime.observe_page(True)
             observation["viewport"] = self.page.viewport_size
+            if self.video_started is not None:
+                observation["video_seconds"] = round(time.monotonic() - self.video_started, 1)
             return observation
         if op == "step":
             return await self.runtime.step(body)

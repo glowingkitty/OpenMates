@@ -36,7 +36,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ai_test_users_accounts as accounts  # noqa: E402 - sibling script modules
 import ai_test_users_exec as execution  # noqa: E402
 import ai_test_users_report as reporting  # noqa: E402
-import ai_test_users_scenarios as scenarios  # noqa: E402
+import ai_test_users_scenarios as scenarios
+import ai_test_users_video as video  # noqa: E402
 import ai_test_users_schedule as schedule  # noqa: E402
 import dev_test_account  # noqa: E402
 from ai_test_users_personas import PERSONAS, select  # noqa: E402
@@ -399,6 +400,16 @@ def command_tasks(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_videos(args: argparse.Namespace) -> int:
+    run = video.attach_run(accounts.home() / args.run)
+    for r in run["personas"]:
+        reports = ", ".join(f"{rep.get('short_issue_id')} {reporting.video_link(r, reporting.report_moment(r, rep))}"
+                            for rep in r.get("reports", []) if rep.get("short_issue_id"))
+        print(f"{r['target']}/{r['persona']}: {reporting.video_link(r) or r.get('video_error')}"
+              + (f" | reports: {reports}" if reports else ""))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -427,6 +438,8 @@ def main(argv: list[str] | None = None) -> int:
     daily.add_argument("--dry-run", action="store_true")
     daily.add_argument("--parallel", type=int, default=5)
     daily.add_argument("--total-cap-usd", type=float, default=None, help="override the daily/weekly cap")
+    videos = sub.add_parser("videos", help="upload an earlier run's recordings and link them in its report")
+    videos.add_argument("--run", required=True)
     tasks = sub.add_parser("tasks")
     tasks.add_argument("--run", required=True)
     tasks.add_argument("--exclude", default="", help="finding ids a reviewer rejected (persona#n,...)")
@@ -435,7 +448,7 @@ def main(argv: list[str] | None = None) -> int:
     tasks.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     return {"run": command_run, "daily": command_daily, "tasks": command_tasks,
-            "notify-failure": command_notify_failure}[args.command](args)
+            "notify-failure": command_notify_failure, "videos": command_videos}[args.command](args)
 
 
 if __name__ == "__main__":

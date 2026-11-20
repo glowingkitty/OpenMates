@@ -35,6 +35,24 @@ def check_cap(kind: str, count: int, harness_cap: float, e2b_cap: float, overrid
         raise SystemExit(f"{kind} run would cost up to {cost:.2f} USD, above the {cap:.2f} USD cap")
 
 
+def video_link(result: dict, seconds: object = None) -> str:
+    """A Discord/markdown link to the persona's session video, at `seconds` when known ("" without one)."""
+    url = (result.get("video") or {}).get("url")
+    if not url:
+        return ""
+    if isinstance(seconds, (int, float)):
+        whole = max(0, int(seconds))
+        return f"[video {whole // 60}:{whole % 60:02d}](<{url}#t={whole}>)"
+    return f"[video](<{url}>)"
+
+
+def report_moment(result: dict, report: dict) -> object:
+    """Video second of the report's lead finding (None when unknown)."""
+    findings = result.get("findings") or []
+    ids = report.get("finding_ids") or []
+    return findings[ids[0]].get("video_seconds") if ids and ids[0] < len(findings) else None
+
+
 def problems(results: list[dict], undeleted: int = 0) -> list[str]:
     """Short lines for everything that went wrong in a run (empty when the run is clean)."""
     out = []
@@ -43,6 +61,7 @@ def problems(results: list[dict], undeleted: int = 0) -> list[str]:
         if status in NOT_SCHEDULED_STATUSES:
             continue
         who = f"{r.get('target')}/{r.get('persona')}"
+        before = len(out)
         if status not in FINISHED_STATUSES:
             out.append(f"{who} {status}" + (f" ({str(r['error'])[:80]})" if r.get("error") else ""))
         failed = sum(1 for rep in r.get("reports", []) if rep.get("status") != "submitted")
@@ -55,6 +74,8 @@ def problems(results: list[dict], undeleted: int = 0) -> list[str]:
             if unmet or not r.get("goal_outcomes"):
                 why = str(unmet[0].get("why", ""))[:80] if unmet else "no goal verdict"
                 out.append(f"{who} goal not met ({why})")
+        link = video_link(r)
+        out[before:] = [f"{line} {link}" if link else line for line in out[before:]]
     if undeleted:
         out.append(f"{undeleted} test account{'s' if undeleted > 1 else ''} not deleted")
     return out
@@ -65,6 +86,8 @@ def summary_text(kind: str, run_date: str, results: list[dict], areas: list[str]
     ran = [r for r in results if r.get("status") not in ("skipped", "prod_disabled", "no_gift_card")]
     reports = [r for r in results for rep in r.get("reports", [])]
     ids = [rep["short_issue_id"] for r in results for rep in r.get("reports", []) if rep.get("short_issue_id")]
+    linked = [f"{rep['short_issue_id']} {video_link(r, report_moment(r, rep))}".strip()
+              for r in results for rep in r.get("reports", []) if rep.get("short_issue_id")]
     kept = sum(r.get("findings_kept") or 0 for r in results)
     label = "Weekly AI test-user run" if kind == "weekly" else "AI test users"
     first = f"✅ {label} {run_date}: {len(ran)} personas ran, {kept} findings kept, {len(ids)} reports filed."
@@ -79,7 +102,7 @@ def summary_text(kind: str, run_date: str, results: list[dict], areas: list[str]
         more = f" (+{len(issues) - MAX_PROBLEMS_IN_PUSH} more)" if len(issues) > MAX_PROBLEMS_IN_PUSH else ""
         second = f" Problems: {shown}{more}."
     elif ids:
-        shown = ", ".join(ids[:MAX_IDS_IN_PUSH])
+        shown = ", ".join(linked[:MAX_IDS_IN_PUSH])
         more = f" (+{len(ids) - MAX_IDS_IN_PUSH} more)" if len(ids) > MAX_IDS_IN_PUSH else ""
         second = f" Reports: {shown}{more}."
     elif areas:
@@ -115,13 +138,15 @@ def report_markdown(run: dict, run_dir: Path) -> str:
     lines.append("## Personas")
     for r in run["personas"]:
         link = f" - [transcript]({run_dir / r['target'] / r['persona'] / 'transcript.md'})" if r.get("persona") else ""
+        link += f" - {video_link(r)}" if video_link(r) else (f" - no video ({r['video_error']})" if r.get("video_error") else "")
         lines.append(f"- {r['target']}/{r['persona']}: {r.get('status')}, kept {r.get('findings_kept', 0)} of "
                      f"{r.get('findings_total', 0)}, deletion {r.get('deletion_status', 'n/a')}{link}")
     lines += ["", "## Problems"] + ([f"- {line}" for line in run.get("problems") or []] or ["- none"])
     lines += ["", "## Reports filed"]
     reports = [(r, rep) for r in run["personas"] for rep in r.get("reports", [])]
     lines += [f"- {rep.get('short_issue_id')} ({r['target']}/{r['persona']}): {rep.get('status')}, "
-              f"investigation {rep.get('queued', 'not queued')}" for r, rep in reports] or ["- none"]
+              f"investigation {rep.get('queued', 'not queued')} {video_link(r, report_moment(r, rep))}".rstrip()
+              for r, rep in reports] or ["- none"]
     lines += ["", "## False positives (dropped by Jev)"]
     dropped = [f"- {r['target']}/{r['persona']}: {r['findings_total'] - r['findings_kept']}"
                for r in run["personas"] if (r.get("findings_total") or 0) > (r.get("findings_kept") or 0)]

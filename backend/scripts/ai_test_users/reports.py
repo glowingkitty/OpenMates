@@ -55,13 +55,24 @@ def screenshot_steps(lead_step: int | None, available: list[int], limit: int) ->
     return sorted(chosen[:limit])
 
 
-def report_text(group: list[dict[str, Any]], persona: dict[str, Any], target: str) -> tuple[str, str]:
+def video_moment(url: str, seconds: Any) -> str:
+    """The session video link, opened at `seconds` when known (`#t=` media fragment), with a readable time."""
+    if not isinstance(seconds, (int, float)):
+        return url
+    whole = max(0, int(seconds))
+    return f"{url}#t={whole} (at {whole // 60}:{whole % 60:02d})"
+
+
+def report_text(group: list[dict[str, Any]], persona: dict[str, Any], target: str,
+                video_url: str = "") -> tuple[str, str]:
     lead = group[0]
     parts = [str(lead["title"]).strip()]
     for finding in group:
         lines = [f"Step {finding.get('step')}: {finding.get('evidence', '')}".strip()]
         if finding.get("expected"):
             lines.append(f"Expected: {finding['expected']}")
+        if video_url:
+            lines.append(f"Video: {video_moment(video_url, finding.get('video_seconds'))}")
         parts.append("\n".join(lines))
     parts.append(
         f"Surface: {lead.get('surface', '-')}, severity {lead.get('severity', '-')}, "

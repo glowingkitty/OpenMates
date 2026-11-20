@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from reports import video_moment
+
 EXCERPT_CHARS = 600
 
 
@@ -41,6 +43,8 @@ def render(result: dict[str, Any], persona: dict[str, Any], transcript: list[dic
         f"- Costs: harness {result.get('harness_usd')} USD, sandbox {(result.get('e2b') or {}).get('usd')} USD",
         f"- Signup: {_stage(result.get('signup'))}; gift card: {_stage(result.get('gift_card'))}; "
         f"account deletion: {_stage(result.get('deletion'))}",
+        f"- Video: {result.get('video_url') or 'not recorded'}"
+        + (" (deleted after 7 days)" if result.get("video_url") else ""),
         "",
     ]
     if result.get("summary"):
@@ -77,6 +81,8 @@ def render(result: dict[str, Any], persona: dict[str, Any], transcript: list[dic
             f"Jev {finding.get('jev_score')}, {'kept' if finding.get('kept') else 'dropped'}"
             + (f", report {report.get('short_issue_id')}" if report and report.get("short_issue_id") else "")
             + f"): {finding.get('evidence', '')}"
+            + (f" Video: {video_moment(result['video_url'], finding.get('video_seconds'))}"
+               if result.get("video_url") else "")
         )
     if not findings:
         out.append("None.")
