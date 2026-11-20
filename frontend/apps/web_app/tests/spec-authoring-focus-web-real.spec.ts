@@ -97,9 +97,18 @@ async function sendWithModel(page: Page, prompt: string, kind: string): Promise<
   await sendMessage(page, ` ${prompt}`, undefined, undefined, kind, { preserveExistingContent: true });
 }
 
-/** The turn is over when the stop button and typing indicator stay hidden for 5 s. */
+/** The turn is over when nothing is in flight for 5 s: no stop button, typing indicator or "Working"
+ * placeholder, no streaming answer, and no user message still sending or queued. A focus phase change can
+ * start a follow-up answer after a short pause, so the stop button alone ends the turn too early. */
 async function waitForIdle(page: Page): Promise<void> {
-  const busy = page.locator('[data-testid="stop-processing-button"]:visible, [data-testid="typing-indicator"]:visible');
+  const busy = page.locator([
+    '[data-testid="stop-processing-button"]:visible',
+    '[data-testid="typing-indicator"]:visible',
+    '[data-testid="pending-assistant-response"]',
+    '[data-testid="message-assistant"][data-streaming="true"]',
+    '[data-testid="message-user"][data-status="sending"]',
+    '[data-testid="queued-followup-controls"]',
+  ].join(', '));
   let idleSince = 0;
   await expect.poll(async () => {
     if (await busy.count() > 0) {
@@ -111,9 +120,19 @@ async function waitForIdle(page: Page): Promise<void> {
   }, { timeout: TURN_TIMEOUT, intervals: [1_000] }).toBe(true);
 }
 
-async function waitForTurn(page: Page, assistantsBefore: number): Promise<void> {
-  await expect.poll(() => page.getByTestId('message-assistant').count(), { timeout: TURN_TIMEOUT, intervals: [2_000] })
-    .toBeGreaterThan(assistantsBefore);
+/** Id of the newest rendered assistant message. The chat renders a window of messages, so with long
+ * replies an older message unmounts while a new one mounts and the count alone can stay the same. */
+async function lastAssistantId(page: Page): Promise<string | null> {
+  const ids = await page.getByTestId('message-assistant').evaluateAll((elements) =>
+    elements.map((element) => element.getAttribute('data-message-id') ?? '').filter(Boolean));
+  return ids.at(-1) ?? null;
+}
+
+async function waitForTurn(page: Page, lastBefore: string | null): Promise<void> {
+  await expect.poll(async () => {
+    const last = await lastAssistantId(page);
+    return last !== null && last !== lastBefore;
+  }, { timeout: TURN_TIMEOUT, intervals: [2_000] }).toBe(true);
   await waitForAssistantMessage(page, { timeout: TURN_TIMEOUT });
   await waitForIdle(page);
   const generatedBy = page.getByTestId('message-assistant').last().getByTestId('generated-by');
@@ -173,7 +192,7 @@ test.describe('Write specification focus guides an idea to an approved Spec, Pla
     await loginToTestAccount(page);
     await startNewChat(page);
 
-    let assistants = await page.getByTestId('message-assistant').count();
+    let assistants = await lastAssistantId(page);
     await sendWithModel(page, OPENING, 'spec-opening');
     await waitForTurn(page, assistants);
 
@@ -191,6 +210,16 @@ test.describe('Write specification focus guides an idea to an approved Spec, Pla
       // expanding "Used the Plans app", so count it in the collapsed view first.
       const specCount = await page.getByTestId('assistant-activity-answer-cards')
         .getByTestId(PLANS_EMBED_TESTIDS.specification).count();
+      if (specCount > 0 && !specShown) {
+        // Phone view of the collapsed answer: the card shows below "Used the Plans app".
+        const viewport = page.viewportSize();
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.getByTestId('assistant-activity-answer-cards')
+          .getByTestId(PLANS_EMBED_TESTIDS.specification).last().scrollIntoViewIfNeeded();
+        await page.waitForTimeout(1_000);
+        await shot(page, testInfo, '03b-specification-card-phone');
+        if (viewport) await page.setViewportSize(viewport);
+      }
       await expandActivity(page);
       const lastText = (await page.getByTestId('message-assistant').last().textContent()) ?? '';
       if (specCount > 0 && !specShown) {
@@ -200,11 +229,6 @@ test.describe('Write specification focus guides an idea to an approved Spec, Pla
         await expect(plansEmbed(page, 'check').first(), 'acceptance Checks are drafted with the Specification')
           .toBeVisible({ timeout: 30_000 });
         await shot(page, testInfo, '03-specification-and-checks');
-        const viewport = page.viewportSize();
-        await page.setViewportSize({ width: 390, height: 844 });
-        await page.getByTestId('assistant-activity-answer-cards').last().scrollIntoViewIfNeeded();
-        await shot(page, testInfo, '03b-specification-card-phone');
-        if (viewport) await page.setViewportSize(viewport);
         await plansEmbed(page, 'specification').last().click();
         await page.waitForTimeout(2_000);
         await shot(page, testInfo, '04-specification-fullscreen');
@@ -217,7 +241,7 @@ test.describe('Write specification focus guides an idea to an approved Spec, Pla
         reply = APPROVE;
         approvedAt = turn;
       }
-      assistants = await page.getByTestId('message-assistant').count();
+      assistants = await lastAssistantId(page);
       await sendWithModel(page, reply, `spec-turn-${turn}`);
       await waitForTurn(page, assistants);
       if (turn === 2) await shot(page, testInfo, '02-requirements-or-design');

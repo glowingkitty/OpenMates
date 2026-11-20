@@ -132824,7 +132824,7 @@ assertions:
       surface: gui.web
     - &id16889
       path: frontend/apps/web_app/tests/spec-authoring-focus-web-real.spec.ts
-      line: 165
+      line: 184
       name: phases with confirmations, Specification and Checks before approval, Plan
         and Tasks after
       surface: gui.web
