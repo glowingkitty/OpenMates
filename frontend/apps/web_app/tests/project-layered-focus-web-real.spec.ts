@@ -102,10 +102,21 @@ async function waitForIdle(page: Page): Promise<void> {
   }, { timeout: TURN_TIMEOUT, intervals: [1_000] }).toBe(true);
 }
 
+/** Answer text of the newest assistant reply, without the "Activated '<focus>'" activity line. */
+async function lastAnswerText(page: Page): Promise<string> {
+  const parts = await page.getByTestId('message-assistant').last().getByTestId('message-content').allInnerTexts();
+  return parts.join(' ').replace(/Activated '[^']*'/g, '').trim();
+}
+
 async function waitForTurn(page: Page, assistantsBefore: number): Promise<void> {
   await expect.poll(() => page.getByTestId('message-assistant').count(), { timeout: TURN_TIMEOUT, intervals: [2_000] })
     .toBeGreaterThan(assistantsBefore);
   await waitForAssistantMessage(page, { timeout: TURN_TIMEOUT });
+  // A focus activation or a client tool step (e.g. reading Project files) can pause the
+  // turn with no indicator before the answer is written; idle alone is not the end.
+  await expect.poll(async () => (await lastAnswerText(page)).length, {
+    message: 'the assistant wrote an answer', timeout: TURN_TIMEOUT, intervals: [2_000],
+  }).toBeGreaterThan(10);
   await waitForIdle(page);
   const generatedBy = page.getByTestId('message-assistant').last().getByTestId('generated-by');
   await expect(generatedBy).toBeVisible({ timeout: 120_000 });
