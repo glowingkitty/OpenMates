@@ -118,9 +118,11 @@ def finish_run(run_id: str, run_dir: Path, kind: str, day: str, results: list[di
         "app_usd_list_price": sum(r.get("app_usd_list_price") or 0 for r in results),
     }
     totals["total_usd"] = round(sum(totals.values()), 3)
+    undeleted = sum(1 for e in accounts.pending_deletions(accounts.HOME) if e.get("run_id") == run_id)
     run = {"run_id": run_id, "date": day, "kind": kind, "areas": areas, "estimate_usd": estimate, "cap_usd": cap,
            "wall_seconds": round(time.monotonic() - started, 1), "personas": results, "totals": totals,
-           "deletion_retries": deletions}
+           "deletion_retries": deletions, "undeleted": undeleted,
+           "problems": reporting.problems(results, undeleted)}
     (run_dir / "run.json").write_text(json.dumps(run, indent=1, ensure_ascii=False))
     (run_dir / "report.md").write_text(reporting.report_markdown(run, run_dir))
     return run
@@ -157,9 +159,31 @@ def command_daily(args: argparse.Namespace) -> int:
                      deletions, queue=True)
     log(f"done: {run_dir / 'report.md'} total {run['totals']['total_usd']} USD")
     if reporting.push_due(accounts.HOME, day.isoformat()):
-        message = reporting.summary_text(plan["kind"], day.isoformat(), results, areas)
+        message = reporting.summary_text(plan["kind"], day.isoformat(), results, areas, run["undeleted"])
         accounts._push(message, "AI test users")
         reporting.mark_pushed(accounts.HOME, day.isoformat())
+    return 0
+
+
+DAILY_UNIT = "ai-test-users.service"
+
+
+def failure_detail(unit: str) -> str:
+    """systemd result plus the last error line of the unit's journal (logs never carry codes or passwords)."""
+    shown = subprocess.run(["systemctl", "--user", "show", unit, "-p", "Result", "-p", "ExecMainStatus", "--value"],
+                           capture_output=True, text=True, timeout=30, check=False).stdout.split()
+    journal = subprocess.run(["journalctl", "--user", "-u", unit, "-n", "40", "--no-pager", "-o", "cat"],
+                             capture_output=True, text=True, timeout=30, check=False).stdout.splitlines()
+    lines = [line.strip() for line in journal if line.strip()]
+    errors = [line for line in lines if "Error" in line or "Exit" in line or "error" in line]
+    last = (errors or lines or ["no log"])[-1]
+    return f"{' '.join(shown) or 'unknown result'}: {last}"
+
+
+def command_notify_failure(args: argparse.Namespace) -> int:
+    """OnFailure hook of the daily unit: one alert push for a run that crashed, timed out or was killed."""
+    day = datetime.now(UTC).date().isoformat()
+    accounts._push(reporting.crash_text(day, failure_detail(args.unit)), "AI test users")
     return 0
 
 
@@ -203,6 +227,9 @@ def command_run(args: argparse.Namespace) -> int:
                      schedule.areas_for([p["id"] for p in personas], PERSONAS), budget, args.total_cap_usd,
                      started, deletions, queue=args.queue)
     log(f"done: {run_dir / 'run.json'} total {run['totals']['total_usd']} USD")
+    if args.notify:
+        accounts._push(reporting.summary_text("manual", run["date"], results, run["areas"], run["undeleted"]),
+                       "AI test users")
     return 0
 
 
@@ -380,6 +407,10 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--worker-copy", action="store_true", help="run the worker from this checkout (before deploy)")
     run.add_argument("--queue", action="store_true",
                      help="queue an investigation chat per filed report, as the daily run does (daily cap applies)")
+    run.add_argument("--notify", action="store_true",
+                     help="send the run summary push (an alert listing the problems when anything failed)")
+    notify = sub.add_parser("notify-failure")
+    notify.add_argument("--unit", default=DAILY_UNIT)
     daily = sub.add_parser("daily")
     daily.add_argument("--date", default=None)
     daily.add_argument("--dry-run", action="store_true")
@@ -392,7 +423,8 @@ def main(argv: list[str] | None = None) -> int:
     tasks.add_argument("--merge", default="", help="reviewer groups of one defect: a#1+b#2,c#1+d#3")
     tasks.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
-    return {"run": command_run, "daily": command_daily, "tasks": command_tasks}[args.command](args)
+    return {"run": command_run, "daily": command_daily, "tasks": command_tasks,
+            "notify-failure": command_notify_failure}[args.command](args)
 
 
 if __name__ == "__main__":

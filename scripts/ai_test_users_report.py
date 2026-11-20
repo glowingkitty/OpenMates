@@ -10,7 +10,12 @@ from pathlib import Path
 DAILY_CAP_USD = 3.0
 WEEKLY_CAP_USD = 6.0
 MAX_IDS_IN_PUSH = 5
+MAX_PROBLEMS_IN_PUSH = 4
 USD_PER_CREDIT = 0.001
+# A persona that ended one of these ways ran as planned; anything else is a failure worth an alert.
+FINISHED_STATUSES = ("persona_finished", "max_steps", "max_minutes", "harness_budget")
+NOT_SCHEDULED_STATUSES = ("prod_disabled",)
+DELETED_STATUSES = ("ok", "absent", "deleted")
 
 
 def cap_for(kind: str, override: float | None = None) -> float:
@@ -30,8 +35,28 @@ def check_cap(kind: str, count: int, harness_cap: float, e2b_cap: float, overrid
         raise SystemExit(f"{kind} run would cost up to {cost:.2f} USD, above the {cap:.2f} USD cap")
 
 
-def summary_text(kind: str, run_date: str, results: list[dict], areas: list[str]) -> str:
-    """One or two sentences: counts, the top finding and at most five short report IDs."""
+def problems(results: list[dict], undeleted: int = 0) -> list[str]:
+    """Short lines for everything that went wrong in a run (empty when the run is clean)."""
+    out = []
+    for r in results:
+        status = r.get("status")
+        if status in NOT_SCHEDULED_STATUSES:
+            continue
+        who = f"{r.get('target')}/{r.get('persona')}"
+        if status not in FINISHED_STATUSES:
+            out.append(f"{who} {status}" + (f" ({str(r['error'])[:80]})" if r.get("error") else ""))
+        failed = sum(1 for rep in r.get("reports", []) if rep.get("status") != "submitted")
+        if failed:
+            out.append(f"{who} {failed} report{'s' if failed > 1 else ''} not filed")
+        if r.get("judge_error"):
+            out.append(f"{who} judge failed")
+    if undeleted:
+        out.append(f"{undeleted} test account{'s' if undeleted > 1 else ''} not deleted")
+    return out
+
+
+def summary_text(kind: str, run_date: str, results: list[dict], areas: list[str], undeleted: int = 0) -> str:
+    """One or two sentences: counts, then the problems (❌) or at most five short report IDs (✅)."""
     ran = [r for r in results if r.get("status") not in ("skipped", "prod_disabled", "no_gift_card")]
     reports = [r for r in results for rep in r.get("reports", [])]
     ids = [rep["short_issue_id"] for r in results for rep in r.get("reports", []) if rep.get("short_issue_id")]
@@ -40,8 +65,15 @@ def summary_text(kind: str, run_date: str, results: list[dict], areas: list[str]
     first = f"✅ {label} {run_date}: {len(ran)} personas ran, {kept} findings kept, {len(ids)} reports filed."
     if len(reports) == 0 and not ids:
         first = f"✅ {label} {run_date}: {len(ran)} personas ran, {kept} findings kept, no reports filed."
+    issues = problems(results, undeleted)
+    if issues:
+        first = "❌" + first[1:]
     second = ""
-    if ids:
+    if issues:
+        shown = "; ".join(issues[:MAX_PROBLEMS_IN_PUSH])
+        more = f" (+{len(issues) - MAX_PROBLEMS_IN_PUSH} more)" if len(issues) > MAX_PROBLEMS_IN_PUSH else ""
+        second = f" Problems: {shown}{more}."
+    elif ids:
         shown = ", ".join(ids[:MAX_IDS_IN_PUSH])
         more = f" (+{len(ids) - MAX_IDS_IN_PUSH} more)" if len(ids) > MAX_IDS_IN_PUSH else ""
         second = f" Reports: {shown}{more}."
@@ -65,6 +97,11 @@ def mark_pushed(base: Path, day: str) -> None:
     os.chmod(path, 0o600)
 
 
+def crash_text(run_date: str, detail: str) -> str:
+    """Alert for a daily run that never finished (crash, timeout, kill); sent by the unit's OnFailure hook."""
+    return f"❌ AI test users {run_date}: the daily run failed before its summary ({detail[:300]})."
+
+
 def report_markdown(run: dict, run_dir: Path) -> str:
     lines = [f"# AI test users {run['date']} ({run['kind']})", "",
              f"Areas: {', '.join(run.get('areas') or []) or 'none'}",
@@ -75,6 +112,7 @@ def report_markdown(run: dict, run_dir: Path) -> str:
         link = f" - [transcript]({run_dir / r['target'] / r['persona'] / 'transcript.md'})" if r.get("persona") else ""
         lines.append(f"- {r['target']}/{r['persona']}: {r.get('status')}, kept {r.get('findings_kept', 0)} of "
                      f"{r.get('findings_total', 0)}, deletion {r.get('deletion_status', 'n/a')}{link}")
+    lines += ["", "## Problems"] + ([f"- {line}" for line in run.get("problems") or []] or ["- none"])
     lines += ["", "## Reports filed"]
     reports = [(r, rep) for r in run["personas"] for rep in r.get("reports", [])]
     lines += [f"- {rep.get('short_issue_id')} ({r['target']}/{r['persona']}): {rep.get('status')}, "

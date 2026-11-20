@@ -115,16 +115,39 @@ def test_run_persona_prod_disabled_never_creates_account(tmp_path, monkeypatch):
 
 
 def test_summary_text_limits_and_marker(tmp_path):
-    results = [{"status": "ok", "findings_kept": 2,
-                "reports": [{"short_issue_id": f"ABC2{i}"} for i in range(8)]}]
+    results = [{"status": "persona_finished", "findings_kept": 2,
+                "reports": [{"short_issue_id": f"ABC2{i}", "status": "submitted"} for i in range(8)]}]
     text = reporting.summary_text("daily", "2026-11-16", results, ["maps"])
     assert text.startswith("✅") and text.count(". ") <= 2
     assert sum(1 for i in range(8) if f"ABC2{i}" in text) == 5 and "+3 more" in text
-    quiet = reporting.summary_text("weekly", "2026-11-21", [{"status": "ok"}], ["maps", "jobs"])
+    quiet = reporting.summary_text("weekly", "2026-11-21", [{"status": "persona_finished"}], ["maps", "jobs"])
     assert "Weekly" in quiet and "Areas: maps, jobs" in quiet
     assert reporting.push_due(tmp_path, "2026-11-16")
     reporting.mark_pushed(tmp_path, "2026-11-16")
     assert not reporting.push_due(tmp_path, "2026-11-16") and reporting.push_due(tmp_path, "2026-11-17")
+
+
+def test_summary_turns_into_an_alert_naming_every_problem():
+    results = [
+        {"target": "dev", "persona": "cook", "status": "persona_finished", "deletion_status": "deleted",
+         "reports": [{"short_issue_id": "ABC21", "status": "submitted"}, {"status": "failed"}]},
+        {"target": "dev", "persona": "german", "status": "signup_failed", "error": "code input missing"},
+        {"target": "prod", "persona": "student", "status": "prod_disabled"},
+        {"target": "dev", "persona": "privacy", "status": "persona_finished", "judge_error": "timeout"},
+    ]
+    issues = reporting.problems(results, undeleted=1)
+    assert issues == ["dev/cook 1 report not filed", "dev/german signup_failed (code input missing)",
+                      "dev/privacy judge failed", "1 test account not deleted"]
+    text = reporting.summary_text("daily", "2026-11-21", results, ["maps"], undeleted=1)
+    assert text.startswith("❌") and "Problems: dev/cook 1 report not filed" in text
+    clean = [{"target": "dev", "persona": "cook", "status": "max_steps", "reports": []},
+             {"target": "prod", "persona": "student", "status": "prod_disabled"}]
+    assert reporting.problems(clean) == [] and reporting.summary_text("daily", "d", clean, []).startswith("✅")
+
+
+def test_crash_alert_names_the_failure():
+    text = reporting.crash_text("2026-11-21", "exit-code 1: SystemExit: dev stack lease timed out")
+    assert text.startswith("❌") and "lease timed out" in text
 
 
 def test_caps():

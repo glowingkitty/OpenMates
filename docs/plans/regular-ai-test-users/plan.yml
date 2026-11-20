@@ -78,6 +78,12 @@ decisions:
     in with the password first. The judge and Jev get the run date and a short
     list of intended behaviors so these are not reported as defects.
   - >-
+    Owner, 20 Nov 2026: every failure reaches Discord. A daily run with any
+    problem (a persona that did not finish, a report not filed, a judge error,
+    an account left undeleted) sends its summary as a ❌ alert naming the
+    problems; a crash, timeout or kill of the unit sends one ❌ alert from the
+    unit's OnFailure hook. Manual runs push the same summary with --notify.
+  - >-
     Investigation chats from test-user reports are capped per day and the
     deploy guard refuses changes above the small-fix limit; refusing names
     the Task route instead.

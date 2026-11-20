@@ -13,6 +13,7 @@ mkdir -p "$SYSTEMD_DIR"
 cat > "$SYSTEMD_DIR/ai-test-users.service" <<UNIT
 [Unit]
 Description=OpenMates AI test users daily run
+OnFailure=ai-test-users-failure.service
 
 [Service]
 Type=oneshot
@@ -20,6 +21,18 @@ WorkingDirectory=$PROJECT_ROOT
 TimeoutStartSec=90min
 Nice=10
 ExecStart=/usr/bin/python3 $PROJECT_ROOT/scripts/ai_test_users.py daily
+UNIT
+
+# A crash, timeout or kill of the daily run sends one alert push (the run's own summary covers
+# failures inside a finished run).
+cat > "$SYSTEMD_DIR/ai-test-users-failure.service" <<UNIT
+[Unit]
+Description=Alert push for a failed OpenMates AI test users run
+
+[Service]
+Type=oneshot
+WorkingDirectory=$PROJECT_ROOT
+ExecStart=/usr/bin/python3 $PROJECT_ROOT/scripts/ai_test_users.py notify-failure --unit ai-test-users.service
 UNIT
 
 cat > "$SYSTEMD_DIR/ai-test-users.timer" <<UNIT

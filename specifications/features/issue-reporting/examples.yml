@@ -54,10 +54,10 @@ long_title:
     then: The API accepts the complete title and returns a successful issue confirmation.
 
 successful_submission:
-  - id: screenshot-and-confirmation
-    given: An authenticated user adds a small screenshot to a valid issue report.
+  - id: screenshots-and-confirmation
+    given: An authenticated user attaches three small screenshots to a valid issue report.
     when: The user submits the form.
-    then: The UI shows the returned short issue ID and the status endpoint confirms that the screenshot was retained.
+    then: The UI shows the returned short issue ID, the status endpoint reports three stored screenshots, the admin issue detail lists three screenshot links, and attaching a sixth screenshot in the form is refused with a visible hint.
   - id: requested-debug-report-finishes
     given: A non-administrator submits an issue whose consented reporting flow requests an asynchronous debug report.
     when: Background processing finishes.
