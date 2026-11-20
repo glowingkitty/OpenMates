@@ -120,3 +120,30 @@ def test_dev_cache_inbox_reads_only_the_signup_code():
     assert box.reads_deletion_code is False and inbox.InboxKitten("a@inboxkitten.com").address
     with pytest.raises(inbox.InboxError):
         asyncio.run(box.wait_for_code(0, timeout=0.05, purpose="delete_account"))
+
+
+def test_ensure_signed_in_counts_relogins_and_fails_closed():
+    import asyncio
+
+    from flows import ensure_signed_in
+    from backend.shared.providers.e2b_browser import BrowserUnavailable
+
+    class FakeSession:
+        def __init__(self, answer):
+            self.answer, self.sent, self.result = answer, [], {}
+            self.job = {"app_url": "https://app.example.org", "signup": {"email": "a@example.org", "password": "pw"}}
+
+        async def rpc(self, body, timeout):
+            self.sent.append(body)
+            return self.answer
+
+    signed_in = FakeSession({"state": "auth", "relogin": False})
+    asyncio.run(ensure_signed_in(signed_in))
+    assert signed_in.sent[0]["operation"] == "ensure_signed_in" and "relogins" not in signed_in.result
+
+    relogged = FakeSession({"state": "auth", "relogin": True})
+    asyncio.run(ensure_signed_in(relogged))
+    assert relogged.result["relogins"] == 1
+
+    with pytest.raises(BrowserUnavailable):
+        asyncio.run(ensure_signed_in(FakeSession({"state": "error", "relogin": True})))

@@ -84,6 +84,17 @@ def jpeg_for_upload(image_b64: str) -> bytes:
     return data if len(data) <= MAX_SCREENSHOT_BYTES else base64.b64decode(fit_for_jev(image_b64))
 
 
+async def ensure_signed_in(session: Any) -> None:
+    """Personas may end their own session (a reload without "Stay logged in"); sign in again for the scripted stages."""
+    spec = session.job["signup"]
+    state = await session.rpc({"operation": "ensure_signed_in", "url": session.job["app_url"], "email": spec["email"],
+                               "password": spec["password"]}, timeout=150)
+    if state.get("relogin"):
+        session.result["relogins"] = session.result.get("relogins", 0) + 1
+    if state.get("state") != "auth":
+        raise BrowserUnavailable(f"Could not sign the test account back in (state {state.get('state')}).")
+
+
 async def submit_reports(session: Any) -> None:
     settings = session.job["report"]
     result = session.result
@@ -91,6 +102,8 @@ async def submit_reports(session: Any) -> None:
     if not settings.get("enabled"):
         return
     groups = select_reports(result["findings"], settings.get("skip_titles", []), int(settings.get("max_reports", 3)))
+    if groups:
+        await run_stage(result, "relogin", lambda: ensure_signed_in(session), session)
     for number, group in enumerate(groups):
         entry: dict[str, Any] = {"finding_ids": [f["id"] for f in group], "short_issue_id": None, "screenshots": 0, "status": "failed"}
         result["reports"].append(entry)
@@ -111,6 +124,7 @@ async def submit_reports(session: Any) -> None:
 
 async def delete_account(session: Any) -> None:
     spec = session.job["signup"]
+    await ensure_signed_in(session)
     requested = time.time()
     await session.rpc({"operation": "delete_account", "password": spec["password"]}, timeout=120)
     code = await session.inbox.wait_for_code(requested, purpose="delete_account")

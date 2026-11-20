@@ -14,6 +14,7 @@ import base64
 import io
 import json
 import time
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -58,6 +59,15 @@ Rules:
   message, always wait for the reply and read it before moving on. Use {"kind":"finish"} only when all goals are
   done, when you are truly stuck after trying alternatives, or in the last two steps of the budget."""
 
+# Intended app behavior that first runs reported as defects (20 Nov 2026). The judge and Jev get it as context.
+EXPECTED_BEHAVIOR = (
+    "Without 'Stay logged in' a page reload signs the user out and clears the local chat store (privacy by design). "
+    "The 'Log in to keep chatting' prompt and login modal that follow such a reload are expected. "
+    "After a gift card signup the app opens Settings > Gift Cards by itself (known, tracked separately). "
+    "Dates and years are judged against the run date given as `today`, not against your training data. "
+    "/settings is not a page; settings open as a drawer."
+)
+
 JUDGE_INSTRUCTIONS = """You are a strict QA judge reviewing one simulated user's session in the OpenMates web app.
 You get the persona and its goals, a step transcript (actions, page text excerpts, timings, the persona's own notes,
 browser console errors, failed HTTP calls, blocked external links) and screenshots labelled with their step number.
@@ -72,7 +82,8 @@ Only report what the evidence shows. A finding must cite the step number and quo
 content. Do not report the masked (blacked-out) login screens, the test account's synthetic data, or harness
 limits (blocked external links are expected; judge only WHERE they pointed). Never report the session ending,
 goals left unfinished, or the simulated user's own choices (not waiting, clicking Send after pressing Enter) as app
-defects; judge only what the app showed or did. Return ONLY JSON:
+defects; judge only what the app showed or did. Do not report the expected behavior listed under `expected_behavior`
+in the payload. Return ONLY JSON:
 {"findings": [{"title": "<short, specific, product wording>", "category": "<one of the 8 above>",
   "severity": "high|medium|low", "step": <int>, "evidence": "<quote/description>", "expected": "<what should happen>",
   "surface": "<area of the app, e.g. chat answer, travel embed, settings>"}],
@@ -87,7 +98,7 @@ only when one chat is helpful, correct, natural and visually good enough to show
 
 JEV_FINDING_QUESTION = (
     "Is the reported problem clearly visible in the screenshot or directly supported by the quoted step "
-    "evidence, and is it a real defect of the web app rather than expected behavior, test-harness masking, "
+    "evidence, and is it a real defect of the web app rather than expected behavior (see expected_behavior and today), test-harness masking, "
     "or the judge misreading the screen? Answer no when the evidence is missing or ambiguous."
 )
 
@@ -235,6 +246,8 @@ class TesterModels(BrowserModels):
     async def jev_supports(self, finding: dict[str, Any], step: dict[str, Any] | None, screenshot: str | None) -> float:
         """Jev's probability that the finding is real, given its step and screenshot."""
         state = {
+            "today": date.today().isoformat(),
+            "expected_behavior": EXPECTED_BEHAVIOR,
             "finding": {k: finding.get(k) for k in ("title", "category", "evidence", "expected", "surface")},
             "step": {k: (step or {}).get(k) for k in ("url", "title", "page_text", "actions", "events", "reply_timing")},
         }

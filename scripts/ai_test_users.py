@@ -167,7 +167,7 @@ def command_run(args: argparse.Namespace) -> int:
     deletions = execution.retry_deletions(run_id, run_dir, cfg)
     run = finish_run(run_id, run_dir, "manual", datetime.now(UTC).date().isoformat(), results,
                      schedule.areas_for([p["id"] for p in personas], PERSONAS), budget, args.total_cap_usd,
-                     started, deletions, queue=False)
+                     started, deletions, queue=args.queue)
     log(f"done: {run_dir / 'run.json'} total {run['totals']['total_usd']} USD")
     return 0
 
@@ -344,6 +344,8 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--e2b-cap-usd", type=float, default=0.2)
     run.add_argument("--total-cap-usd", type=float, default=20.0)
     run.add_argument("--worker-copy", action="store_true", help="run the worker from this checkout (before deploy)")
+    run.add_argument("--queue", action="store_true",
+                     help="queue an investigation chat per filed report, as the daily run does (daily cap applies)")
     daily = sub.add_parser("daily")
     daily.add_argument("--date", default=None)
     daily.add_argument("--dry-run", action="store_true")

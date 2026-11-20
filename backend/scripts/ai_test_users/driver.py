@@ -41,8 +41,11 @@ VOICE_FILE = HOME / "voice.wav"
 PORT = 8766
 LIFECYCLE_OPERATIONS = {
     "signup", "signup_code", "redeem_gift_card", "credits", "report_issue", "delete_account", "delete_account_code",
+    "ensure_signed_in",
 }
-SECRET_OPERATIONS = {"login_password", "login_otp", "signup", "signup_code", "delete_account", "delete_account_code"}
+SECRET_OPERATIONS = {
+    "login_password", "login_otp", "signup", "signup_code", "delete_account", "delete_account_code", "ensure_signed_in",
+}
 TEXT_STABLE_SECONDS = 4.0
 TEXT_POLL_SECONDS = 1.0
 
@@ -227,7 +230,7 @@ class Driver:
         await page.get_by_test_id("header-login-signup-btn").click(timeout=20000)
         tabs = page.get_by_test_id("login-tabs")
         await tabs.wait_for(state="visible", timeout=10000)
-        await tabs.get_by_role("button", name=re.compile("sign up", re.I)).click(timeout=10000)
+        await tabs.get_by_test_id("tab-signup").click(timeout=10000)  # test id: personas use other UI languages
         email_input = page.locator('input[type="email"][autocomplete="email"]')
         await email_input.fill(body["email"], timeout=15000)
         await page.locator('input[autocomplete="username"]').fill(body["username"], timeout=10000)
@@ -237,8 +240,12 @@ class Driver:
                 await invite.fill(body["invite_code"], timeout=5000)
         await self.set_toggle("#terms-agreed-toggle", True)
         await self.set_toggle("#privacy-agreed-toggle", True)
-        await page.get_by_role("button", name=re.compile("create new account", re.I)).click(timeout=10000)
-        await page.get_by_role("link", name=re.compile("open mail app", re.I)).wait_for(state="visible", timeout=30000)
+        # The button stays disabled until the email and username checks answer, which is slower under load.
+        create = page.locator("button.signup-button").first
+        await page.wait_for_function("(el) => el && !el.disabled", arg=await create.element_handle(timeout=10000), timeout=45000)
+        await create.click(timeout=10000)
+        # The email-code field, not the "Open mail app" link: personas use other UI languages.
+        await page.locator('input[inputmode="numeric"][maxlength="6"]').wait_for(state="visible", timeout=30000)
         return {"state": "awaiting_code"}
 
     async def signup_code(self, body: dict) -> dict:
@@ -314,9 +321,24 @@ class Driver:
             await asyncio.sleep(3)
         return {**shown, "redeemed": False}
 
+    async def ensure_signed_in(self, body: dict) -> dict:
+        """Sign back in with the password when the persona's own actions ended the session.
+
+        Without "Stay logged in" a page reload signs the user out by design, and personas reload pages.
+        """
+        if await self.page.locator('[data-authenticated="true"]').count():
+            return {"state": "auth", "relogin": False}
+        await self.page.goto(body["url"], wait_until="domcontentloaded", timeout=30000)
+        await self.page.keyboard.press("Escape")  # close a login modal or drawer the persona left open
+        if await self.page.locator('[data-authenticated="true"]').count():
+            return {"state": "auth", "relogin": False}
+        login = await self.login_password(body)
+        return {**login, "relogin": True}
+
     async def report_issue(self, body: dict) -> dict:
         page = self.page
         await self.open_settings_menu()
+        await self.settings_main_page()  # the menu reopens on the last sub-page (e.g. the previous report)
         item = page.locator('[data-testid="settings-menu"].visible').get_by_role(
             "menuitem", name=re.compile(r"report.*issue|issue.*report|problem.*melden", re.I)).first
         await item.click(timeout=8000)

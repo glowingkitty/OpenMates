@@ -35,6 +35,7 @@ import re
 import secrets as token_source
 import sys
 import time
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 import wave
@@ -50,6 +51,7 @@ from transcript import render as render_transcript  # noqa: E402
 from models import (  # noqa: E402
     ACTION_KINDS,
     FINDING_KEEP_SCORE,
+    EXPECTED_BEHAVIOR,
     BudgetExceeded,
     TesterModels,
 )
@@ -398,6 +400,8 @@ class Session:
 
     async def judge(self, models: TesterModels) -> None:
         payload = {
+            "today": datetime.now(UTC).date().isoformat(),
+            "expected_behavior": EXPECTED_BEHAVIOR,
             "persona": self.persona,
             "device": self.persona.get("device_label"),
             "transcript": [

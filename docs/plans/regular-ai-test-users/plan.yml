@@ -65,6 +65,19 @@ decisions:
     on the production server and production carries the is_test_account
     release; until then the email-hash exclusion is the only production label.
   - >-
+    Dev deviation (20 Nov 2026): the dev server only admits its approved test
+    email domain, so dev test users sign up there with the same fixed prefix,
+    read the signup code from the dev cache, and are deleted with the dev
+    admin deletion script (the web deletion code is session-bound and never
+    readable). Production keeps Inbox Kitten and the web deletion. Adding
+    inboxkitten.com to dev's approved test domains switches dev back
+    automatically.
+  - >-
+    Personas may end their own session (a reload without "Stay logged in"
+    signs out by design); the scripted report and deletion stages sign back
+    in with the password first. The judge and Jev get the run date and a short
+    list of intended behaviors so these are not reported as defects.
+  - >-
     Investigation chats from test-user reports are capped per day and the
     deploy guard refuses changes above the small-fix limit; refusing names
     the Task route instead.
