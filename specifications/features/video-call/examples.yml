@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@17
+specification: feature.video-call@18
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.

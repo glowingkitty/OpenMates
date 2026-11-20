@@ -32,7 +32,7 @@ def test_completion_fixture_requires_every_guard(isolated, monkeypatch, missing)
 
 
 def test_completion_fixture_only_classifies_known_microphone_text(isolated):
-    assert isolated_voice_completion_fixture("How do I make") == "incomplete"
+    assert isolated_voice_completion_fixture("How do I make") == "hold"
     assert isolated_voice_completion_fixture("How do I make ramen?") == "complete"
     assert isolated_voice_completion_fixture("Some unrelated request") is None
 

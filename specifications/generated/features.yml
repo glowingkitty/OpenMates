@@ -10000,7 +10000,7 @@ features:
   description: Voice and video calls with the assistant, bound to an encrypted chat.
   specifications:
   - id: feature.video-call
-    status: approved
+    status: draft
     path: specifications/features/video-call
   - id: feature.video-call-experiment
     status: superseded
@@ -10012,18 +10012,18 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 49
+  assertions: 50
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 28
+        passing: 29
         failing: 6
         not_run: 5
         missing: 11
-        counted: 50
+        counted: 51
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -10076,8 +10076,8 @@ features:
         passing: 30
         failing: 0
         not_run: 0
-        missing: 11
-        counted: 41
+        missing: 12
+        counted: 42
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift
@@ -10150,9 +10150,9 @@ features:
       assertions:
         passing: 11
         failing: 0
-        not_run: 4
+        not_run: 5
         missing: 0
-        counted: 15
+        counted: 16
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -10161,7 +10161,7 @@ features:
       - backend/tests/test_voice_status.py
       - backend/tests/test_preprocessing_voice_delivery.py
       - backend/tests/test_voice_call_instructions.py
-      unit_test_files: 23
+      unit_test_files: 24
     sdk_npm:
       status: not_planned
       source: intent

@@ -1260,3 +1260,43 @@ async def test_cleanup_finish_proves_no_ready_only_before_any_ready_send_attempt
     assert [item["mode"] for item in operations] == ["start", "finish"]
     assert operations[-1]["ready_exposed"] is (failure == "ready_transport")
     assert any(event["type"] == "ready" for event in socket.sent) is (failure == "ready_transport")
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.pause-verdict
+async def test_wait_verdict_holds_the_turn_open_and_emits_the_intent(runtime, monkeypatch):
+    from backend.shared.python_utils.voice_pause_decision import PauseDecision
+
+    async def complete(text, _socket):
+        return PauseDecision("wait", "wait", None)
+
+    monkeypatch.setattr(route, "_complete", complete)
+    monkeypatch.setattr(route, "UNCERTAIN_SILENCE_FALLBACK_SECONDS", 0.1)
+    socket, provider, _ = await runtime.start()
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Hold on a second")
+    provider.push("turn.end")
+    pending = await socket.event("transcript.pending")
+    intent = await socket.event("turn.intent")
+    assert intent["intent"] == "wait" and intent["message_id"] == pending["message_id"]
+    await asyncio.sleep(0.4)
+    assert not socket.finals() and not runtime.issued
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.pause-verdict
+async def test_still_thinking_submits_after_its_short_silence_and_intent_none_sends_no_frame(runtime, monkeypatch):
+    from backend.shared.python_utils.voice_pause_decision import PauseDecision
+
+    async def complete(text, _socket):
+        return PauseDecision("still_thinking", "none", 2.0)
+
+    monkeypatch.setattr(route, "_complete", complete)
+    monkeypatch.setattr(route, "STILL_THINKING_SILENCE_SECONDS", 0.2)
+    socket, provider, _ = await runtime.start()
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Let me think about")
+    provider.push("turn.end")
+    pending = await socket.event("transcript.pending")
+    assert pending["reason"] == "incomplete"
+    final = await socket.until(lambda _: socket.finals())
+    assert [event["text"] for event in final] == ["Let me think about"]
+    assert not [e for e in socket.sent if e["type"] == "turn.intent"]

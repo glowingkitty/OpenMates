@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.video-call
-version: 17
-status: approved
+version: 18
+status: draft
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
   pipeline. Normal automatic model and thinking-level routing, app skills and rich embeds are preserved; the old Gemini
@@ -523,6 +523,16 @@ assertions:
     must be disposable and cannot invoke irreversible tools. Collect trailing transcript deltas after the turn-end signal
     through the configured streaming delay or the next speech-start boundary before admitting a final request. Idle upload
     suspension or microphone mute never acts as an implicit user command or drops pending final words.
+  depends_on:
+  - examples.complete_turn
+- id: video-call.audio.pause-verdict
+  type: invariant
+  must: After each pause one fast model check (target about 250 ms, provider order set by configuration, no keyword
+    lists) judges by meaning whether the user is finished, still thinking, unsure or asks for more time, and the turn
+    is submitted after about 0.5 s, 2 s or up to 6 s of further silence for finished, still thinking and unsure, and not automatically for a request to hold (the turn stays open and the call reacts to the intent). The same call returns an
+    intent of none, wait, resume or repeat for a request to hold, a return, or a repeat of the last answer. A low-confidence
+    or unknown answer is unsure and none; a timeout or outage fails open like a finished turn and never blocks it.
+    When the user starts speaking again the assistant's speech stops at once.
   depends_on:
   - examples.complete_turn
 applies_to:

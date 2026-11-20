@@ -33,6 +33,7 @@ from backend.core.api.app.routes.voice_call_support import (
 from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.utils.server_mode import is_payment_enabled
 from backend.shared.providers.voxtral_voice import VoxtralVoiceSession, VOXTRAL_VOICE_MODEL, STREAMING_DELAY_MS
+from backend.shared.python_utils.voice_pause_decision import PAUSE_WAIT_SECONDS, PauseDecision, as_pause_decision, classify_voice_pause
 from backend.shared.providers.live_voice import LiveVoiceSession
 from backend.shared.python_utils.voice_call_visuals import VoiceCallVisuals
 from backend.shared.python_utils.voice_call_registry import (
@@ -63,10 +64,12 @@ MAX_TEXT_IDENTITIES = 2048
 # new speech that may never come. "incomplete" thinking pauses stay held.
 # Real TTS calls showed STT-punctuated pauses ("I would like to know.") judged
 # uncertain; 2.5s keeps ordinary ~2-3s thinking pauses in one turn.
-UNCERTAIN_SILENCE_FALLBACK_SECONDS = 2.5
+UNCERTAIN_SILENCE_FALLBACK_SECONDS = PAUSE_WAIT_SECONDS["unsure"]
+# A "still thinking" verdict submits after this much further silence.
+STILL_THINKING_SILENCE_SECONDS = PAUSE_WAIT_SECONDS["still_thinking"]
 # Hard overall deadline of the "done talking?" check after turn.end. A miss or
 # provider outage counts as complete (logged), so the check cannot block a turn.
-COMPLETION_CHECK_DEADLINE_SECONDS = 0.6
+COMPLETION_CHECK_DEADLINE_SECONDS = 0.6  # transport budget; the model call itself targets 0.25s
 # A late delta only re-runs the check when this much budget is still left.
 COMPLETION_RECHECK_MIN_BUDGET_SECONDS = 0.15
 MESSAGE_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
@@ -446,21 +449,20 @@ def _material_change(checked: str, current: str) -> bool:
     return words(checked) != words(current)
 
 
-async def _complete(text: str, websocket: WebSocket, timeout: float = COMPLETION_CHECK_DEADLINE_SECONDS) -> str:
+async def _complete(text: str, websocket: WebSocket, timeout: float = COMPLETION_CHECK_DEADLINE_SECONDS) -> PauseDecision:
     """Separate, bounded completion gate; never run ordinary preprocessing here."""
     try:
         if isolated_voice_fixture_enabled():
             from backend.shared.testing.voice_call_fixture import isolated_voice_completion_fixture
-            return isolated_voice_completion_fixture(text) or "uncertain"
-        from backend.shared.python_utils.voice_turn_completion import classify_voice_turn_completion
-        return await asyncio.wait_for(classify_voice_turn_completion(
+            return as_pause_decision(isolated_voice_completion_fixture(text) or "uncertain")
+        return await asyncio.wait_for(classify_voice_pause(
             text, websocket.app.state.secrets_manager, timeout), timeout=timeout + 0.05)
     except TimeoutError:
         logger.warning("VOICE_COMPLETION_CHECK timeout after=%.2fs", timeout)
-        return "unavailable"
+        return as_pause_decision("unavailable")
     except Exception as exc:
         logger.warning("VOICE_COMPLETION_CHECK unavailable category=%s", type(exc).__name__)
-        return "unavailable"
+        return as_pause_decision("unavailable")
 
 
 async def _prewarm_completion() -> None:
@@ -754,6 +756,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     # The silence window after an uncertain decision elapsed
                     # without new speech for this exact text revision.
                     verdict = "complete"
+                    decision = None
                 else:
                     if turn.completion is None:
                         if turn.completion_text != text:
@@ -761,7 +764,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         continue
                     if not turn.completion.done():
                         continue
-                    verdict = turn.completion.result()
+                    decision = as_pause_decision(turn.completion.result())
+                    verdict = decision.completion
                     turn.completion = None
                     if turn.completion_text != text and _material_change(turn.completion_text, text):
                         # Words arrived after the check started: its verdict is
@@ -771,22 +775,32 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                             start_completion(turn, text, remaining)
                             continue
                         verdict = "unavailable"
+                        decision = as_pause_decision("unavailable")
                     elif turn.completion_text != text:
                         turn.completion_text = text
+                if decision is not None and decision.intent != "none":
+                    # Lane (b) reacts to the model-judged intent (hold, back, repeat).
+                    await send({"type": "turn.intent", "call_id": call_id,
+                                "message_id": turn.message_id, "intent": decision.intent})
                 if verdict == "unavailable":
                     # Timeout/outage never blocks the turn: send it as complete.
                     logger.warning("VOICE_COMPLETION_CHECK fail_open call_id=%s verdict=complete", call_id)
                     verdict = "complete"
                 if verdict != "complete":
-                    if verdict == "incomplete":
-                        # A thinking pause stays held until new speech continues it.
+                    if decision is not None and decision.verdict == "wait":
+                        # The user asked to hold: no automatic submission; the
+                        # turn stays open until speech continues it.
                         turn.deadline = None
+                    elif verdict == "incomplete":
+                        turn.submit_on_silence = True
+                        turn.deadline = now + STILL_THINKING_SILENCE_SECONDS
                     else:
                         turn.submit_on_silence = True
                         turn.deadline = now + UNCERTAIN_SILENCE_FALLBACK_SECONDS
                     await send({"type": "transcript.pending", "call_id": call_id,
                                 "message_id": turn.message_id,
-                                "reason": "incomplete" if verdict == "incomplete" else "uncertain"})
+                                "reason": "incomplete" if verdict == "incomplete" or (
+                                    decision is not None and decision.verdict == "wait") else "uncertain"})
                     continue
                 await interrupt(turn)
                 turn.text = text
