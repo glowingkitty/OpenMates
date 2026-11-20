@@ -428,7 +428,7 @@ def reject_inherited_accounts():
         "TEST_ACCOUNT",
         "OPENMATES_TEST_ACCOUNT_",
         "E2E_SIGNUP_INVITE_CODE",
-        "E2E_SIGNUP_GIFT_CARD_CODE",
+        "E2E_SIGNUP_GIFTED_INVITE_CODE",
         "OPENMATES_CLI_SIGNUP_",
     )
     if any(key.startswith(prefixes) for key in os.environ):
@@ -1537,17 +1537,18 @@ def provision_account(
         token,
     )
     mapped["E2E_SIGNUP_INVITE_CODE"] = fixture_invite
-    # One single-use gift card per provisioned set, redeemed through the product's
-    # own /#gift-card= signup link, so a fresh signup can use paid features (voice
-    # calls) without patching balances. Only the disposable database holds it.
-    gift_chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    gift_code = "-".join("".join(secrets.choice(gift_chars) for _ in range(4)) for _ in range(3))
+    # One single-use invite with gifted credits per provisioned set. Isolated CI
+    # runs the self-hosted edition (no billing routes, so no gift cards); a fresh
+    # signup with this invite accepts its gift through the product's own
+    # /v1/auth/accept-gift, so paid features (voice calls) work without patching
+    # balances. Only the disposable database holds it.
+    gifted_invite = secrets.token_hex(9)
     request(
-        "http://localhost:8055/items/gift_cards",
-        {"code": gift_code, "credits_value": FIXTURE_CREDITS, "notes": "isolated CI signup fixture"},
+        "http://localhost:8055/items/invite_codes",
+        {"code": gifted_invite, "remaining_uses": 1, "is_admin": False, "gifted_credits": FIXTURE_CREDITS},
         token,
     )
-    mapped["E2E_SIGNUP_GIFT_CARD_CODE"] = gift_code
+    mapped["E2E_SIGNUP_GIFTED_INVITE_CODE"] = gifted_invite
     mapped["OPENMATES_CLI_SIGNUP_INVITE_CODE"] = fixture_invite
     mapped["OPENMATES_STATE_DIR"] = env["OPENMATES_STATE_DIR"]
     accept_fixture_credits(mapped)
