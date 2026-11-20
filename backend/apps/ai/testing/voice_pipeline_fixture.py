@@ -73,6 +73,8 @@ def jev_response(*, questions: Mapping[str, Mapping[str, Any]], model: str):
         "topic_area": "general_misc", "topic_shift": "noticeable_shift",
         "temperature": "balanced", "language": "de" if text == GERMAN_REQUEST else "en",
         "preview": "none", "icon": "message-circle", "project_target": "none",
+        # Request purpose checks: every fixture request is benign.
+        "harmful_purpose": "none", "illegal_category": "none",
     }
     answers = {}
     for key, question in questions.items():
@@ -85,7 +87,10 @@ def jev_response(*, questions: Mapping[str, Mapping[str, Any]], model: str):
             answers[key] = {"type": kind, "noul": float(selected)}
         elif kind == "choice" and isinstance(criteria := question.get("criteria"), Mapping) and criteria:
             chosen = preferred.get(key)
-            chosen = chosen if chosen in criteria else next(iter(criteria))
+            if chosen not in criteria:
+                # An unknown question gets its neutral answer, never the first
+                # option (for safety questions the first option is a violation).
+                chosen = "none" if "none" in criteria else next(iter(criteria))
             answers[key] = {"type": kind, "choice": chosen, "confidence": 1.0,
                             "probabilities": {str(value): float(value == chosen) for value in criteria}}
         else:

@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from backend.core.api.app.utils.internal_auth import VerifiedInternalRequest
 from backend.shared.python_utils.image_safety.jev_signals import jev_image_findings
+from backend.shared.testing.upload_safety_fixture import isolated_image_second_opinion
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,11 @@ async def image_second_opinion(request: Request) -> Dict[str, float]:
     image_bytes = await request.body()
     if not image_bytes or len(image_bytes) > MAX_SECOND_OPINION_BYTES:
         raise HTTPException(status_code=413, detail="Image missing or too large")
+    fixture = isolated_image_second_opinion()
+    if fixture is not None:
+        # Isolated CI only (no provider credentials there): synthetic test images.
+        logger.info("[UploadSafety] Isolated CI second-opinion fixture answered")
+        return fixture
     findings = await jev_image_findings(
         image_bytes=image_bytes, stage="upload", secrets_manager=request.app.state.secrets_manager
     )
