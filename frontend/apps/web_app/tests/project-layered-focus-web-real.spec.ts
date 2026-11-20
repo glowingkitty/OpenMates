@@ -104,8 +104,18 @@ async function waitForIdle(page: Page): Promise<void> {
 
 /** Answer text of the newest assistant reply, without the "Activated '<focus>'" activity line. */
 async function lastAnswerText(page: Page): Promise<string> {
-  const parts = await page.getByTestId('message-assistant').last().getByTestId('message-content').allInnerTexts();
-  return parts.join(' ').replace(/Activated '[^']*'/g, '').trim();
+  // Only the written answer counts: the activity group's summary and body (focus activation,
+  // tool steps, thinking) render inside the same message before the answer exists.
+  return page.getByTestId('message-assistant').last().evaluate((message) => {
+    let text = Array.from(message.querySelectorAll('[data-testid="message-content"]'))
+      .map((part) => (part as HTMLElement).innerText).join(' ');
+    for (const activity of message.querySelectorAll(
+      '[data-testid="assistant-activity-toggle"], [data-testid="assistant-activity-body"]')) {
+      const activityText = (activity as HTMLElement).innerText.trim();
+      if (activityText) text = text.split(activityText).join(' ');
+    }
+    return text.replace(/Activated '[^']*'/g, '').replace(/\s+/g, ' ').trim();
+  });
 }
 
 async function waitForTurn(page: Page, assistantsBefore: number): Promise<void> {
