@@ -19,6 +19,9 @@ use crate::work::{
 #[path = "project_create_machine.rs"]
 mod machine;
 pub use machine::MachineProjectDecision;
+#[path = "project_create_steps.rs"]
+mod steps;
+pub(in crate::client) use steps::CreateChats;
 
 /// WebSocket and turn capability that opts into `project_create_requested`.
 pub(super) const PROJECT_CREATE_CAPABILITY: &str = "project_create_requests";

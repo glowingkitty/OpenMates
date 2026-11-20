@@ -15,6 +15,8 @@ import { installE2ETestHooks } from "./services/e2eTestHooks";
 import { activeChatStore } from "./stores/activeChatStore";
 import { createBrowserProjectFileJobRunner } from "./services/rustCore/projects/projectFileJobRunnerBrowser";
 import { createBrowserRemoteCommandClient } from "./services/browserRemoteCommandClient";
+import { installProjectCreateRelay } from "./services/rustCore/projects/projectCreateRelay";
+import { PROJECT_FILE_JOBS_ENABLED } from "./services/rustCore/projects/projectFileJobsClient";
 import { chatSyncService } from "./services/chatSyncService";
 import { get } from "svelte/store";
 
@@ -40,10 +42,17 @@ function initProjectFileExecutorLifecycle(): void {
       transport: { send: chatSyncService.sendRemoteCommandEvent },
       isActiveChat: (chatId) => activeChatStore.get() === chatId,
     });
-    removeProjectAgentClients = chatSyncService.installProjectAgentClients(
+    // Installed first, so the agent clients' reconnect advertises
+    // `project_create_requests` too; only cores that run file jobs create Projects.
+    const removeCreateRelay = PROJECT_FILE_JOBS_ENABLED ? installProjectCreateRelay() : () => {};
+    const removeAgentClients = chatSyncService.installProjectAgentClients(
       executor,
       remoteCommandClient,
     );
+    removeProjectAgentClients = () => {
+      removeCreateRelay();
+      removeAgentClients();
+    };
   });
 }
 

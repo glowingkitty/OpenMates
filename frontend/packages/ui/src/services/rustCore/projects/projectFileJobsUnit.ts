@@ -12,7 +12,7 @@ import { borrowCoreClient } from '../drafts/coreClientBorrow';
 import type { CoreBorrowRefusal, CoreClientBorrow } from '../drafts/coreClientBorrow';
 import {
 	PROJECT_FILE_JOB_FRAME_NAMES, isProjectFileJobsUnitClose,
-	type ProjectFileJobEventKind, type ProjectFileJobStep, type ProjectFileJobsProtocol
+	type ProjectCreateResult, type ProjectFileJobEventKind, type ProjectFileJobStep, type ProjectFileJobsProtocol
 } from './projectFileJobsProtocol';
 
 /** Bounded wait for the history dispatcher to become idle. */
@@ -24,6 +24,7 @@ export interface ProjectFileJobsClient {
 	project_file_job_decide(handle: string, generation: number, chatId: string, operationId: string, accept: boolean): Promise<string>;
 	project_file_job_set_privacy(handle: string, generation: number, chatId: string, projectId: string, enabled: boolean, memoriesJson: string, sealed: string | null): Promise<void>;
 	project_file_job_set_mappings(handle: string, generation: number, chatId: string, mappingsJson: string): void | Promise<void>;
+	project_create_step(handle: string, generation: number, kind: string, eventJson: string): Promise<string>;
 }
 
 export interface ProjectFileJobsDeps {
@@ -34,6 +35,8 @@ const CODE = /^[a-z][a-z0-9_]{0,63}$/;
 const KINDS: ReadonlySet<string> = new Set<ProjectFileJobEventKind>(['project_file_operation_available', 'project_file_operation_request']);
 const FRAMES: ReadonlySet<string> = new Set(PROJECT_FILE_JOB_FRAME_NAMES);
 const PROTOCOL = 'project_file_jobs_protocol';
+const CREATE_KINDS: ReadonlySet<string> = new Set(['project_create_requested', 'project_create_confirmed', 'project_create_error']);
+const CREATE_STATUSES: ReadonlySet<string> = new Set(['created', 'failed', 'undone', 'confirmed', 'declined']);
 
 /** Core rejections are stable code strings; keep them, never internal text. */
 function code(error: unknown): string {
@@ -66,6 +69,21 @@ export function parseProjectFileJobStep(raw: unknown): ProjectFileJobStep {
 		step.privacy = { chat_id: privacy.chat_id, project_id: privacy.project_id, ciphertext: privacy.ciphertext };
 	}
 	return step;
+}
+
+/** Strict parse of the core's creation report JSON (`null` or one `project_create_result` payload). */
+export function parseProjectCreateResult(raw: unknown): ProjectCreateResult | null {
+	if (typeof raw !== 'string') throw new UnitRefusal(PROTOCOL);
+	let value: unknown;
+	try {
+		value = JSON.parse(raw);
+	} catch {
+		throw new UnitRefusal(PROTOCOL);
+	}
+	if (value === null) return null;
+	if (!isRecord(value) || typeof value.chat_id !== 'string' || typeof value.request_id !== 'string'
+		|| typeof value.status !== 'string' || !CREATE_STATUSES.has(value.status)) throw new UnitRefusal(PROTOCOL);
+	return value as ProjectCreateResult;
 }
 
 const defaultDeps = (): ProjectFileJobsDeps => ({
@@ -119,6 +137,14 @@ export function createProjectFileJobsHandlers(principal: string, deps: ProjectFi
 				await client.project_file_job_set_privacy(handle, generation, chatId, projectId, enabled, JSON.stringify(memories), sealed);
 				return { ok: true as const };
 			});
+		},
+		async createStep(payload) {
+			const request = payload as { kind?: unknown; event?: unknown } | null;
+			if (typeof request?.kind !== 'string' || !CREATE_KINDS.has(request.kind)) throw new UnitRefusal('project_create_bad_kind');
+			if (!isRecord(request.event)) throw new UnitRefusal('project_create_bad_event');
+			const { kind, event } = request as { kind: string; event: Record<string, unknown> };
+			return withClient(async (client, handle, generation) =>
+				({ result: parseProjectCreateResult(await client.project_create_step(handle, generation, kind, JSON.stringify(event))) }));
 		},
 		async setMappings(payload) {
 			const request = payload as { chatId?: unknown; mappings?: unknown } | null;

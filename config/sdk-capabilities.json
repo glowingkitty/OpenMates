@@ -6434,6 +6434,7 @@
             "client.Client.prepare_validated_scoped_saved_send",
             "client.Client.present_remote_decrypt",
             "client.Client.present_remote_encrypt",
+            "client.Client.project_create_step",
             "client.Client.project_file_job_decide",
             "client.Client.project_file_job_set_mappings",
             "client.Client.project_file_job_set_privacy",

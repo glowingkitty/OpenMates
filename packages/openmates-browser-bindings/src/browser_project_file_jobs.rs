@@ -1,4 +1,5 @@
-//! Worker export of the Project file-job protocol (`projectFileJobs` unit).
+//! Worker export of the Project file-job protocol (`projectFileJobs` unit),
+//! plus assistant Project creation requests (`Client::project_create_step`).
 //! Marshalling only: operation handling, approvals, leases and privacy
 //! restoration are the core's (`Client::project_file_job_*`); the page sends the
 //! returned frames on its one main socket. Results are step JSON, never keys.
@@ -111,5 +112,26 @@ impl BrowserCoreClient {
             .map_err(code)?;
         self.status(handle, generation)?;
         Ok(())
+    }
+
+    /// Handle one `project_create_requested` / `_confirmed` / `_error` payload;
+    /// returns the `project_create_result` payload JSON to send, or `null`.
+    pub async fn project_create_step(
+        &mut self,
+        handle: &str,
+        generation: f64,
+        kind: &str,
+        event_json: &str,
+    ) -> Result<String, JsValue> {
+        self.status(handle, generation)?;
+        let event: serde_json::Value =
+            serde_json::from_str(event_json).map_err(|_| JsValue::from_str("invalid_request"))?;
+        let report = self
+            .client
+            .project_create_step(kind, &event)
+            .await
+            .map_err(code)?;
+        self.status(handle, generation)?;
+        serde_json::to_string(&report).map_err(|_| JsValue::from_str("protocol"))
     }
 }

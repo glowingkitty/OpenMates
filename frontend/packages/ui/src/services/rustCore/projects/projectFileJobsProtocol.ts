@@ -40,6 +40,12 @@ export interface ProjectFileJobStep {
 	privacy?: ProjectFileJobPrivacy;
 }
 
+/** Assistant Project creation frames the core handles (`Client::project_create_step`). */
+export type ProjectCreateEventKind = 'project_create_requested' | 'project_create_confirmed' | 'project_create_error';
+
+/** The `project_create_result` payload to send, or null when nothing follows. */
+export type ProjectCreateResult = Record<string, unknown> & { chat_id: string; request_id: string; status: string };
+
 export type ProjectFileJobsProtocol = {
 	step: {
 		request: { kind: ProjectFileJobEventKind; event: Record<string, unknown>; interactive: boolean };
@@ -56,6 +62,10 @@ export type ProjectFileJobsProtocol = {
 	setMappings: {
 		request: { chatId: string; mappings: unknown[] };
 		response: { ok: true };
+	};
+	createStep: {
+		request: { kind: ProjectCreateEventKind; event: Record<string, unknown> };
+		response: { result: ProjectCreateResult | null };
 	};
 };
 

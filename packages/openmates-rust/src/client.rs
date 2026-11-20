@@ -667,6 +667,8 @@ pub struct Client {
     #[cfg(all(target_arch="wasm32",feature="browser-metadata-prototype"))]
     browser_normal_data_native:Option<std::rc::Rc<browser::configured_native::OriginalNormalBrowser>>,
     cookies: BTreeMap<String, String>,
+    // Per-chat assistant Project creation state of shells that own their socket (bounded).
+    create_chats: project_create_request::CreateChats,
     // Per-chat file-job state of shells that own their socket (bounded).
     file_job_chats: project_file_jobs::FileJobChats,
     generation: u64,
@@ -819,6 +821,7 @@ impl Client {
             #[cfg(all(target_arch="wasm32",feature="browser-metadata-prototype"))]
             browser_normal_data_native:None,
             cookies,
+            create_chats: Default::default(),
             file_job_chats: Default::default(),
             generation: 0,
             task_watch_authority: std::sync::Arc::new(project_task_watch::WatchAuthority::new()),

@@ -341,7 +341,9 @@ capabilities:
     - frontend/packages/ui/src/services/projectState/
     - frontend/packages/ui/src/services/work/
     note: hosted file jobs (read/search/write, approvals, privacy) run in the core via
-      rustCore/projects/projectFileJobRunner.ts; TS executor deleted; the rest of this row is still TS
+      rustCore/projects/projectFileJobRunner.ts; TS executor deleted; assistant Project creation
+      requests run in the core via rustCore/projects/projectCreateRelay.ts (cloud only; machine
+      requests are reported failed until the web has a confirmation card); the rest of this row is still TS
     last_commit: null
   apple:
     status: swift-only
