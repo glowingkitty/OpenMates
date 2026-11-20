@@ -2,6 +2,7 @@
   import { onMount, untrack, type Snippet } from 'svelte';
   import generalKnowledgeAvatar from '../../assets/landing/general_knowledge.jpeg';
   import businessDevelopmentAvatar from '../../assets/landing/business_development.jpeg';
+  import LandingEventEmbed from './LandingEventEmbed.svelte';
   import { actionableStages, privacyStages, featureAnimationCopy } from './landingFeatureAnimationContent';
 
   interface Props {
@@ -98,7 +99,7 @@
   // the sequence clock and CSS motion, rather than skipping unread scenes.
   $effect(() => {
     if (!mounted || !active) return;
-    if (reducedMotion || (section === 'actionable' && (!eventPreview || !eventFullscreen))) { finish(); return; }
+    if (reducedMotion) { finish(); return; }
     if (!visible || completed) return;
     let frame = 0;
     let previous = performance.now();
@@ -137,12 +138,12 @@
         </div>
       {:else if scene.id === 'event-preview'}
         <div class="event-preview" bind:this={eventPreviewHost} data-testid="landing-actionable-event-preview">
-          {@render eventPreview?.(interaction === 'preview-clicked', () => { embedExpanded = true; }, language)}
+          {#if eventPreview}{@render eventPreview(interaction === 'preview-clicked', () => { embedExpanded = true; }, language)}{:else}<LandingEventEmbed mode="preview" {language} activate={interaction === 'preview-clicked'} onFullscreen={() => { embedExpanded = true; }} />{/if}
         </div>
       {:else if scene.id === 'event-details'}
         {#if embedExpanded}
           <div class="event-details" data-testid="landing-actionable-event-details">
-            {@render eventFullscreen?.(language, showCalendar)}
+            {#if eventFullscreen}{@render eventFullscreen(language, showCalendar)}{:else}<LandingEventEmbed mode="fullscreen" {language} />{/if}
           </div>
         {/if}
       {:else if scene.id === 'encryption-lock'}
@@ -202,7 +203,7 @@
   .assistant { background: var(--color-grey-10); }
   .mate-name { color: var(--color-font-tertiary); font-size: var(--font-size-xs); margin-bottom: var(--spacing-2); }
   .copy { max-width: 30rem; margin: 0; font-size: clamp(1.25rem, 3.8cqi, 1.7rem); font-weight: 800; line-height: 1.35; text-align: center; text-wrap: balance; }
-  /* The app injects its existing embeds; the public package owns only the host. */
+  /* The app host injects the real embeds; without them the public package shows its own LandingEventEmbed. */
   .event-preview { width: min(100%, 400px); min-width: 0; }
   .scene-content:has(.event-details) { height: 100%; }
   .event-details { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; pointer-events: auto; }

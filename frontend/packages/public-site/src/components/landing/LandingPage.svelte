@@ -60,8 +60,8 @@
   const storySections = ['actionable', 'privacy', 'model-choice', 'workflows', 'devices', 'open-source'] as const;
   type StorySection = typeof storySections[number];
   type StoryState = 'pending' | 'playing' | 'finishing' | 'complete';
-  const isCustomStory = (section: StorySection): section is 'actionable' | 'privacy' => section === 'privacy' || (section === 'actionable' && !!eventPreview && !!eventFullscreen);
-  let storyStates = $state<Record<StorySection, StoryState>>(Object.fromEntries(storySections.map(section => [section, section === 'actionable' && (!eventPreview || !eventFullscreen) ? 'complete' : 'pending'])) as Record<StorySection, StoryState>);
+  const isCustomStory = (section: StorySection): section is 'actionable' | 'privacy' => section === 'privacy' || section === 'actionable';
+  let storyStates = $state<Record<StorySection, StoryState>>(Object.fromEntries(storySections.map(section => [section, 'pending'])) as Record<StorySection, StoryState>);
   let activeStory = $state<StorySection | null>(null);
   let pageVisible = $state(true);
   const introElapsed: Partial<Record<StorySection, number>> = {};

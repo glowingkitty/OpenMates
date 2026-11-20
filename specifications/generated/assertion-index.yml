@@ -75192,12 +75192,12 @@ assertions:
       surface: gui.web
     - &id9389
       path: frontend/apps/web_app/tests/components/landing-authored-event-animation.spec.ts
-      line: 39
-      name: supplied event request expands the existing calendar event at ${profile.width}px
+      line: 41
+      name: natural conference question shows and expands the FOSDEM event embed (${label})
       surface: gui.web
     - &id9390
       path: frontend/apps/web_app/tests/components/landing-authored-event-animation.spec.ts
-      line: 132
+      line: 89
       name: reduced motion completes without playing a pointer demonstration
       surface: gui.web
     - &id9391
@@ -138580,8 +138580,8 @@ assertions:
       surface: gui.web
     - &id17564
       path: frontend/apps/web_app/tests/components/landing-authored-event-animation.spec.ts
-      line: 39
-      name: supplied event request expands the existing calendar event at ${profile.width}px
+      line: 41
+      name: natural conference question shows and expands the FOSDEM event embed (${label})
       surface: gui.web
     - &id17565
       path: frontend/apps/web_app/tests/components/landing-example-link.spec.ts
@@ -139927,12 +139927,12 @@ assertions:
     direct_tests:
     - &id17725
       path: frontend/apps/web_app/tests/components/landing-authored-event-animation.spec.ts
-      line: 39
-      name: supplied event request expands the existing calendar event at ${profile.width}px
+      line: 41
+      name: natural conference question shows and expands the FOSDEM event embed (${label})
       surface: gui.web
     - &id17726
       path: frontend/apps/web_app/tests/components/landing-authored-event-animation.spec.ts
-      line: 132
+      line: 89
       name: reduced motion completes without playing a pointer demonstration
       surface: gui.web
     - &id17727

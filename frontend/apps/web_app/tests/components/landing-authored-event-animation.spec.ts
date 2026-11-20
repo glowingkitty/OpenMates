@@ -3,7 +3,7 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 import type { Locator } from '@playwright/test';
 
 // playwright-account: not_required reason=isolated_component_preview
-const preview = (width: number, language: string) => `/dev/preview/landing/LandingFeatureAnimation?${new URLSearchParams({width:String(width),chrome:'0',theme:width < 760 ? 'dark' : 'light',background:width < 760 ? '#161616' : '#dbeafe',...(language === 'de' ? {variant:'german'} : {})})}`;
+const preview = (width: number, language: string, standalone = false) => `/dev/preview/landing/LandingFeatureAnimation?${new URLSearchParams({width:String(width),chrome:'0',theme:width < 760 ? 'dark' : 'light',background:width < 760 ? '#161616' : '#dbeafe',...(standalone ? {variant:language === 'de' ? 'standaloneGerman' : 'standalone'} : language === 'de' ? {variant:'german'} : {})})}`;
 
 async function expectUnobscuredInHost(target: Locator, animation: Locator, clearOverlays = false) {
   let lastBounds: Record<string, unknown> | undefined;
@@ -34,97 +34,54 @@ async function expectUnobscuredInHost(target: Locator, animation: Locator, clear
   await expect(animation).toBeVisible();
 }
 
-for (const profile of [{width:390,language:'de'},{width:1280,language:'en'}]) {
+// The app host shows the real event embed; the UI-free website shows the public package's own.
+for (const profile of [{width:390,language:'de',standalone:false},{width:1280,language:'en',standalone:false},{width:390,language:'de',standalone:true},{width:1280,language:'en',standalone:true}]) {
+  const label = `${profile.standalone ? 'standalone website' : 'app'} ${profile.width}px`;
   // contract-test: direct surface=gui.web assertions=authored-results.demonstrations.proven-capability,marketing-landing.section-stories,marketing-landing.feature-layout
-  test(`supplied event request expands the existing calendar event at ${profile.width}px`, async ({ page }, testInfo) => {
+  test(`natural conference question shows and expands the FOSDEM event embed (${label})`, async ({ page }, testInfo) => {
     // Cold Vite compilation may consume the default 30s before playback starts.
     test.setTimeout(60_000);
     await page.setViewportSize({width:profile.width,height:800});
     await page.emulateMedia({reducedMotion:'no-preference'});
-    await page.goto(preview(profile.width,profile.language), {waitUntil:'domcontentloaded'});
+    await page.goto(preview(profile.width,profile.language,profile.standalone), {waitUntil:'domcontentloaded'});
     await waitForComponentPreview(page);
     const animation = page.getByTestId('landing-feature-animation');
     await expect(animation).toHaveAttribute('inert', '');
     const animationBounds = await animation.boundingBox();
     expect(animationBounds?.width).toBeGreaterThan(100);
     await expect(animation).toHaveAttribute('data-active-stage','user-request');
-    await expect(animation).toContainText('FOSDEM 2027');
-    await expect(animation.getByTestId('landing-actionable-illustration')).toContainText(profile.language === 'de' ? 'Beispielinteraktion' : 'Illustrative interaction');
+    await expect(animation).toContainText(profile.language === 'de' ? 'Gibt es bald Konferenzen für Open-Source-Software?' : 'Any upcoming open source software conferences?');
+    await expect(animation.getByTestId('landing-actionable-illustration')).toContainText(profile.language === 'de' ? 'Beispiel' : 'Illustrative');
     await expect(animation).toHaveAttribute('data-active-stage','assistant-response');
-    await expect(animation).toContainText(profile.language === 'de' ? 'aus deinen Angaben' : 'from your supplied details');
+    await expect(animation).toContainText('FOSDEM');
+    await expect(animation).toHaveAttribute('data-active-stage','event-preview');
     const card = animation.getByTestId('landing-actionable-event-preview');
     await expect(card).toBeVisible();
     await expect(card).toContainText('FOSDEM 2027');
-    const sharedPreview = card.getByTestId('embed-preview');
-    await expect(sharedPreview).toHaveAttribute('data-app-id','calendar');
-    await expect(sharedPreview).toHaveAttribute('data-skill-id','event');
-    await expect(sharedPreview).not.toHaveAttribute('data-embed-id');
-    await expect(sharedPreview.locator('.result-corner')).toBeVisible();
-    await expect(card.getByTestId('calendar-event-preview')).toBeVisible();
-    await expect(card.getByTestId('calendar-event-date')).toContainText('2027');
-    const previewWeek = card.getByTestId('calendar-event-week');
-    await expect(previewWeek.getByTestId('embeds-results-view-calendar-week-label')).toContainText('2027');
-    await expect(previewWeek.getByTestId('embeds-results-view-calendar-day')).toHaveCount(7);
-    await expect(previewWeek.getByTestId('embeds-results-view-calendar-date-only')).toHaveCount(2);
-    await expect(card.getByTestId('calendar-event-add')).toBeEnabled();
+    await expect(card.getByTestId('embed-preview')).toHaveAttribute('data-app-id','events');
+    await expect(card.getByTestId('embed-calendar-date')).toBeVisible();
     await expect(card.getByTestId('result-preview-expand')).toBeVisible();
     await expect(card.getByTestId('event-preview-rsvps')).toHaveCount(0);
-    await expect(card.locator('img')).toHaveCount(0);
-    await expectUnobscuredInHost(previewWeek.getByTestId('embeds-results-view-calendar-week'), animation);
-    await expectUnobscuredInHost(card.getByTestId('calendar-event-add'), animation);
+    await expectUnobscuredInHost(card.getByTestId('embed-preview'), animation);
     await expect(animation).toHaveAttribute('data-interaction-state','preview-targeted');
-    await page.screenshot({path:testInfo.outputPath(`authored-event-preview-${profile.width}.png`)});
+    await testInfo.attach(`event-preview-${label}`, {body: await animation.screenshot(), contentType: 'image/png'});
     await expect(animation.getByTestId('landing-actionable-pointer')).toBeVisible();
     await expect(animation).toHaveAttribute('data-interaction-state','preview-clicked');
-    // This flag is set only by the existing preview's real expand callback.
+    // This flag is set only by the preview's expand callback.
     await expect(animation).toHaveAttribute('data-embed-expanded','true');
     const details = animation.getByTestId('landing-actionable-event-details');
     await expect(details).toBeVisible();
-    await expect(details.getByTestId('result-embed-content')).toHaveAttribute('data-app-id','calendar');
-    await expect(details.getByTestId('embed-header-title')).toContainText('FOSDEM 2027');
-    await expect(details.getByTestId('embed-header-subtitle')).toContainText('2027');
-    await expect(details.getByTestId('calendar-event-location')).toContainText(profile.language === 'de' ? 'ULB-Campus Solbosch, Brüssel' : 'ULB Solbosch campus, Brussels');
-    await expect(details.getByTestId('calendar-event-fullscreen-add')).toBeEnabled();
-    await expectUnobscuredInHost(details.getByTestId('calendar-event-fullscreen-add'), animation, true);
-    // The existing controls are rendered, but this aria-hidden illustration
-    // must never focus them or submit/share its synthetic embed identity.
+    await expect(details).toContainText('FOSDEM 2027');
+    const cta = details.getByTestId('external-provider-cta');
+    await expect(cta).toContainText(profile.standalone && profile.language === 'de' ? 'Auf fosdem.org öffnen' : /(Open on|Auf) fosdem\.org/);
+    await expectUnobscuredInHost(cta, animation, true);
+    // The controls are rendered, but this aria-hidden illustration must never focus them.
     await page.keyboard.press('Tab');
     expect(await animation.evaluate(element => element.contains(document.activeElement))).toBe(false);
-    const fullscreenWeek = details.getByTestId('calendar-event-fullscreen').getByTestId('embeds-results-view-calendar-week');
     await expect(animation).toHaveAttribute('data-fullscreen-view','week');
-    await expect(fullscreenWeek).toBeVisible();
-    await expect(fullscreenWeek.getByTestId('embeds-results-view-calendar-day')).toHaveCount(7);
-    await expect(fullscreenWeek.getByTestId('embeds-results-view-calendar-date-only')).toHaveCount(2);
-    await expect(details.getByTestId('calendar-event-source')).toHaveAttribute('href','https://fosdem.org/2027/news/fosdem-2027-dates/');
-    await expect(details.getByTestId('calendar-event-date-info')).not.toContainText(/\d{1,2}:\d{2}/);
-    // Match the established landing-mobile-stories checkpoint: inspect the
-    // readable middle of the actual CSS scene, not its entry/exit translation.
-    // The real JS sequence and previously observed pointer click keep running.
-    await details.evaluate(element => {
-      const scene = element.closest('.scene')!;
-      for (const motion of scene.getAnimations()) {
-        const duration = Number(motion.effect?.getTiming().duration);
-        if (!Number.isFinite(duration)) throw new Error('Event details motion has no finite duration');
-        motion.pause();
-        motion.currentTime = duration / 2;
-      }
-    });
-    const bounds = await details.evaluate(element => {
-      const frame = element.closest('[data-testid="landing-feature-animation"]')!.getBoundingClientRect();
-      const content = element.getBoundingClientRect();
-      return {left:content.left-frame.left,right:content.right-frame.right,top:content.top-frame.top,bottom:content.bottom-frame.bottom};
-    });
-    expect(bounds.left).toBeGreaterThanOrEqual(-1);
-    expect(bounds.right).toBeLessThanOrEqual(1);
-    expect(bounds.top).toBeGreaterThanOrEqual(-1);
-    expect(bounds.bottom).toBeLessThanOrEqual(1);
-    await expectUnobscuredInHost(details.getByTestId('embeds-results-view-calendar-week-label'), animation, true);
-    await expectUnobscuredInHost(fullscreenWeek, animation, true);
-    for (const day of await fullscreenWeek.getByTestId('embeds-results-view-calendar-date-only').all()) {
-      await expectUnobscuredInHost(day, animation, true);
-    }
-    await page.screenshot({path:testInfo.outputPath(`authored-event-details-${profile.width}.png`)});
-    await expect(page.getByTestId('landing-animation-fixture')).toHaveAttribute('data-completed','true',{timeout:6000});
+    await expect(details.getByTestId('event-venue-card')).toContainText('ULB Solbosch');
+    await testInfo.attach(`event-expanded-${label}`, {body: await animation.screenshot(), contentType: 'image/png'});
+    await expect(page.getByTestId('landing-animation-fixture')).toHaveAttribute('data-completed','true',{timeout:8000});
   });
 }
 

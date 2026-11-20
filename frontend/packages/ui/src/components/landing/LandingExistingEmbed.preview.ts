@@ -1,4 +1,4 @@
-/** The same canonical calendar components used by the landing story. */
+/** The real event embed used by the landing story (FOSDEM demonstration event). */
 const defaultProps = { mode: 'preview', activate: false, language: 'en', onFullscreen: () => {} };
 export default defaultProps;
 export const variants = {
