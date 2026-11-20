@@ -1,0 +1,17 @@
+"""Word statistics for plain text."""
+
+
+def count_words(text):
+    """Return the number of words in text."""
+    return len([word for word in text.split(" ") if word])
+
+
+def unique_words(text):
+    """Return the sorted unique lower-case words of text."""
+    return sorted({word.lower().strip(".,!?") for word in text.split() if word.strip(".,!?")})
+
+
+def longest_word(text):
+    """Return the longest word, or an empty string for empty text."""
+    words = [word.strip(".,!?") for word in text.split()]
+    return max(words, key=len) if words else ""

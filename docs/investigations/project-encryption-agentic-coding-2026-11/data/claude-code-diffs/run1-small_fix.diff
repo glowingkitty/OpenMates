@@ -1,0 +1,13 @@
+diff --git a/textstats/words.py b/textstats/words.py
+index 690f1ce..c86462f 100644
+--- a/textstats/words.py
++++ b/textstats/words.py
+@@ -3,7 +3,7 @@
+ 
+ def count_words(text):
+     """Return the number of words in text."""
+-    return len([word for word in text.split(" ") if word])
++    return len([word for word in text.split() if word])
+ 
+ 
+ def unique_words(text):

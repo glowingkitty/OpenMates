@@ -1,0 +1,116 @@
+diff --git a/tests/test_words.py b/tests/test_words.py
+index 610ca3a..cb0decc 100644
+--- a/tests/test_words.py
++++ b/tests/test_words.py
+@@ -1,6 +1,6 @@
+ import unittest
+ 
+-from textstats.words import longest_word, unique_words
++from textstats.words import longest_word, top_words, unique_words
+ 
+ 
+ class WordTests(unittest.TestCase):
+@@ -10,6 +10,33 @@ class WordTests(unittest.TestCase):
+     def test_longest_word(self):
+         self.assertEqual(longest_word("a bb ccc"), "ccc")
+ 
++    def test_top_words_most_common_first(self):
++        self.assertEqual(
++            top_words("the cat sat on the mat. the cat ran.", n=2),
++            [("the", 3), ("cat", 2)],
++        )
++
++    def test_top_words_ties_alphabetical(self):
++        self.assertEqual(
++            top_words("dog cat bird", n=2),
++            [("bird", 1), ("cat", 1)],
++        )
++
++    def test_top_words_default_n(self):
++        self.assertEqual(
++            top_words("a a b b c c d d"),
++            [("a", 2), ("b", 2), ("c", 2)],
++        )
++
++    def test_top_words_strips_punctuation_and_lowercases(self):
++        self.assertEqual(
++            top_words("Cat, cat! CAT."),
++            [("cat", 3)],
++        )
++
++    def test_top_words_empty_text(self):
++        self.assertEqual(top_words(""), [])
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/textstats/__init__.py b/textstats/__init__.py
+index 9c26c1f..e5e32aa 100644
+--- a/textstats/__init__.py
++++ b/textstats/__init__.py
+@@ -2,7 +2,7 @@
+ 
+ from textstats.report import build_report
+ from textstats.sentences import average_sentence_length, count_sentences
+-from textstats.words import count_words, longest_word, unique_words
++from textstats.words import count_words, longest_word, top_words, unique_words
+ 
+ __all__ = [
+     "average_sentence_length",
+@@ -10,5 +10,6 @@ __all__ = [
+     "count_sentences",
+     "count_words",
+     "longest_word",
++    "top_words",
+     "unique_words",
+ ]
+diff --git a/textstats/report.py b/textstats/report.py
+index b8c364b..4628f3b 100644
+--- a/textstats/report.py
++++ b/textstats/report.py
+@@ -1,16 +1,18 @@
+ """Plain-text report for a document."""
+ 
+ from textstats.sentences import average_sentence_length, count_sentences
+-from textstats.words import count_words, longest_word, unique_words
++from textstats.words import count_words, longest_word, top_words, unique_words
+ 
+ 
+ def build_report(text):
+     """Return a multi-line report about text."""
++    top = ", ".join(f"{word} ({count})" for word, count in top_words(text))
+     lines = [
+         f"Words: {count_words(text)}",
+         f"Unique words: {len(unique_words(text))}",
+         f"Longest word: {longest_word(text)}",
+         f"Sentences: {count_sentences(text)}",
+         f"Average sentence length: {average_sentence_length(text, count_words)}",
++        f"Top words: {top}",
+     ]
+     return "\n".join(lines)
+diff --git a/textstats/words.py b/textstats/words.py
+index 690f1ce..8c0fa50 100644
+--- a/textstats/words.py
++++ b/textstats/words.py
+@@ -1,5 +1,7 @@
+ """Word statistics for plain text."""
+ 
++from collections import Counter
++
+ 
+ def count_words(text):
+     """Return the number of words in text."""
+@@ -15,3 +17,13 @@ def longest_word(text):
+     """Return the longest word, or an empty string for empty text."""
+     words = [word.strip(".,!?") for word in text.split()]
+     return max(words, key=len) if words else ""
++
++
++def top_words(text, n=3):
++    """Return the n most common lower-case words as (word, count) tuples.
++
++    Most common first; ties broken alphabetically.
++    """
++    words = [word.lower().strip(".,!?") for word in text.split() if word.strip(".,!?")]
++    counts = Counter(words)
++    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:n]

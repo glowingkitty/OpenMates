@@ -1,0 +1,14 @@
+"""textstats: small text statistics helpers."""
+
+from textstats.report import build_report
+from textstats.sentences import average_sentence_length, count_sentences
+from textstats.words import count_words, longest_word, unique_words
+
+__all__ = [
+    "average_sentence_length",
+    "build_report",
+    "count_sentences",
+    "count_words",
+    "longest_word",
+    "unique_words",
+]

@@ -1,0 +1,14 @@
+"""Sentence statistics for plain text."""
+
+ENDINGS = (".", "!")
+
+
+def count_sentences(text):
+    """Return the number of sentences ending with ., ! or ?."""
+    return sum(1 for char in text if char in ENDINGS)
+
+
+def average_sentence_length(text, count_words):
+    """Return the average number of words per sentence (0 for no sentences)."""
+    sentences = count_sentences(text)
+    return round(count_words(text) / sentences, 2) if sentences else 0
