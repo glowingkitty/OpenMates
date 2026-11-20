@@ -50,6 +50,11 @@ def problems(results: list[dict], undeleted: int = 0) -> list[str]:
             out.append(f"{who} {failed} report{'s' if failed > 1 else ''} not filed")
         if r.get("judge_error"):
             out.append(f"{who} judge failed")
+        if r.get("required_goals") and status in FINISHED_STATUSES:
+            unmet = [o for o in r.get("goal_outcomes") or [] if o.get("achieved") is not True]
+            if unmet or not r.get("goal_outcomes"):
+                why = str(unmet[0].get("why", ""))[:80] if unmet else "no goal verdict"
+                out.append(f"{who} goal not met ({why})")
     if undeleted:
         out.append(f"{undeleted} test account{'s' if undeleted > 1 else ''} not deleted")
     return out

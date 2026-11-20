@@ -99,6 +99,13 @@ class Driver:
         self.event("popup_opened", url=popup.url[:500])
         await popup.close()
 
+    async def on_download(self, download) -> None:
+        """Record a finished download (e.g. a chat export) for the judge: file name and size only."""
+        failure = await download.failure()
+        path = None if failure else await download.path()
+        size = Path(path).stat().st_size if path else 0
+        self.event("download", filename=download.suggested_filename[:200], bytes=size, error=failure)
+
     async def launch(self, body: dict) -> dict:
         if self.context is not None:
             raise ValueError("Already launched")
@@ -125,15 +132,19 @@ class Driver:
             timezone_id=body.get("timezone", "Europe/Berlin"),
             record_video_dir=str(VIDEO_DIR),
             record_video_size={"width": width, "height": height},
-            accept_downloads=False,
+            accept_downloads=bool(body.get("downloads")),
         )
         if device.get("user_agent"):
             options["user_agent"] = device["user_agent"]
         self.context = await self.browser.new_context(**options)
         if body.get("voice"):
+            # Chromium's fake device also provides a test-pattern camera for video calls.
+            media = ["microphone", "camera"] if body.get("camera") else ["microphone"]
             for host in self.allowed_hosts:
-                await self.context.grant_permissions(["microphone"], origin="https://" + host)
+                await self.context.grant_permissions(media, origin="https://" + host)
         self.page = await self.context.new_page()
+        if body.get("downloads"):
+            self.page.on("download", lambda download: asyncio.ensure_future(self.on_download(download)))
         self.runtime = rt.BrowseRuntime(self.page, self.context, self.crawler_allowed)
         await self.context.route("**/*", self.guard)
         self.page.on("popup", lambda popup: asyncio.ensure_future(self.on_popup(popup)))

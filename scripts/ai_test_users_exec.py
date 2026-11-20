@@ -76,6 +76,8 @@ def gate(target: str, base: Path | None) -> tuple[str | None, dict]:
 
 def run_persona(persona: dict, target: str, run_id: str, run_dir: Path, cfg: Settings) -> dict:
     summary = {"persona": persona["id"], "target": target, "name": persona["name"]}
+    if persona.get("required_goals"):
+        summary["required_goals"] = True
     blocked = e2b_dev_capacity.budget_exhausted()
     if blocked:
         return {**summary, "status": "budget_exhausted", "error": blocked}
@@ -125,7 +127,7 @@ def read_result(summary: dict, result_file: Path, email: str, cfg: Settings) -> 
         findings = result.get("findings", [])
         summary.update({k: result.get(k) for k in (
             "status", "steps", "harness_usd", "e2b", "error", "judge_error", "credits_start", "credits_end",
-            "answer_quality", "demo_candidate")})
+            "answer_quality", "demo_candidate", "goal_outcomes")})
         summary["findings_total"] = len(findings)
         summary["findings_kept"] = sum(1 for f in findings if f.get("kept"))
         summary["reports"] = result.get("reports", [])
@@ -162,7 +164,7 @@ def host_delete(email: str) -> str:
 def retry_deletions(run_id: str, run_dir: Path, cfg: Settings) -> list[dict]:
     """Fresh sandbox job in delete-only mode for each account whose deletion failed."""
     outcomes = []
-    for entry in accounts.pending_deletions(cfg.base):
+    for entry in accounts.pending_deletions(cfg.base, run_id=run_id):
         if entry["target"] == "prod" and not accounts.prod_enabled(cfg.base):
             continue
         if entry["target"] == "dev":

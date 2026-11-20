@@ -188,3 +188,54 @@ def test_dev_gift_card_codes_match_the_web_deep_link_format():
 
     pattern = re.compile(r"^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$")
     assert all(pattern.match(accounts._random_code()) for _ in range(200))
+
+
+def test_intro_video_scenario_repeats_each_flow_on_its_own_account():
+    import ai_test_users_scenarios as scenarios
+
+    personas = scenarios.personas_for("intro-video", repeat=2)
+    assert len(personas) == 10 and len({p["id"] for p in personas}) == 10
+    assert all(p["required_goals"] and p["goals"] for p in personas)
+    voice = [p for p in personas if p["flow"] == "e_dictation_voice_video"]
+    assert all(p["camera"] and p["voice_text"] == scenarios.FOSDEM_QUESTION for p in voice)
+    assert [p["id"] for p in scenarios.personas_for("intro-video", 1, "b,e_dictation_voice_video")] == [
+        "b_privacy_placeholders-1", "e_dictation_voice_video-1"]
+    with pytest.raises(SystemExit):
+        scenarios.personas_for("unknown")
+
+
+def test_flow_verdicts_working_flaky_broken_and_unmet_goals_are_problems():
+    import ai_test_users_scenarios as scenarios
+
+    ok = [{"goal": "g", "achieved": True}]
+    bad = [{"goal": "g", "achieved": False, "why": "no event embed shown"}]
+    results = [
+        {"persona": "a_fosdem_chat-1", "status": "persona_finished", "goal_outcomes": ok, "required_goals": True},
+        {"persona": "a_fosdem_chat-2", "status": "persona_finished", "goal_outcomes": ok, "required_goals": True},
+        {"persona": "b_privacy_placeholders-1", "status": "persona_finished", "goal_outcomes": ok},
+        {"persona": "b_privacy_placeholders-2", "status": "max_steps", "goal_outcomes": bad},
+        {"persona": "d_workflow-1", "status": "signup_failed"},
+    ]
+    verdicts = scenarios.flow_verdicts(results)
+    assert {f: v["verdict"] for f, v in verdicts.items()} == {
+        "a_fosdem_chat": "working", "b_privacy_placeholders": "flaky", "d_workflow": "broken"}
+    results[3]["required_goals"] = True
+    results[3]["target"] = "prod"
+    assert "prod/b_privacy_placeholders-2 goal not met (no event embed shown)" in reporting.problems(results)
+    text = scenarios.summary_text("intro-video", "prod", "2026-11-20", verdicts, ["x"])
+    assert text.startswith("❌") and "a working" in text and "b flaky" in text and "d broken" in text
+    clean = scenarios.flow_verdicts(results[:2])
+    assert scenarios.summary_text("intro-video", "prod", "d", clean, []).startswith("✅")
+
+
+def test_cleanup_never_deletes_accounts_of_another_running_run(tmp_path):
+    from datetime import UTC, datetime, timedelta
+
+    for email, run in (("a@example.org", "mine"), ("b@example.org", "other"), ("c@example.org", "old")):
+        accounts.register_account(email, "dev", run, "cook", "created", tmp_path)
+        accounts.save_secret(email, {"password": "x"}, tmp_path)
+    now = datetime.now(UTC)
+    assert {e["email"] for e in accounts.pending_deletions(tmp_path, run_id="mine", now=now)} == {"a@example.org"}
+    later = now + timedelta(hours=3)
+    assert len(accounts.pending_deletions(tmp_path, run_id="mine", now=later)) == 3
+    assert len(accounts.pending_deletions(tmp_path)) == 3

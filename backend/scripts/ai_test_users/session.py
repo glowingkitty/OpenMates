@@ -465,6 +465,8 @@ class Session:
                 "locale": self.persona.get("locale", "en-US"),
                 "timezone": self.persona.get("timezone", "Europe/Berlin"),
                 "voice": bool(self.persona.get("voice_text")),
+                "camera": bool(self.persona.get("camera")),
+                "downloads": bool(self.persona.get("downloads")),
             }, timeout=60)
             signed_up = await flows.run_stage(result, "signup", lambda: flows.signup(self), self)
             if signed_up:

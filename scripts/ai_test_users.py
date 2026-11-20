@@ -36,6 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ai_test_users_accounts as accounts  # noqa: E402 - sibling script modules
 import ai_test_users_exec as execution  # noqa: E402
 import ai_test_users_report as reporting  # noqa: E402
+import ai_test_users_scenarios as scenarios  # noqa: E402
 import ai_test_users_schedule as schedule  # noqa: E402
 import dev_test_account  # noqa: E402
 from ai_test_users_personas import PERSONAS, select  # noqa: E402
@@ -206,7 +207,7 @@ def command_run(args: argparse.Namespace) -> int:
         raise SystemExit("prod_disabled: create ~/.openmates/ai-test-users/prod-enabled first")
     if not dev_test_account.server_is_development():
         raise SystemExit("AI test users run from the development server.")
-    personas = select(args.personas)
+    personas = scenarios.personas_for(args.scenario, args.repeat, args.flows) if args.scenario else select(args.personas)
     cfg = execution.Settings(max_steps=args.max_steps, max_minutes=args.max_minutes,
                              harness_cap_usd=args.harness_cap_usd, e2b_cap_usd=args.e2b_cap_usd,
                              base=accounts.HOME)
@@ -227,9 +228,15 @@ def command_run(args: argparse.Namespace) -> int:
                      schedule.areas_for([p["id"] for p in personas], PERSONAS), budget, args.total_cap_usd,
                      started, deletions, queue=args.queue)
     log(f"done: {run_dir / 'run.json'} total {run['totals']['total_usd']} USD")
+    message = reporting.summary_text("manual", run["date"], results, run["areas"], run["undeleted"])
+    if args.scenario:
+        run["flows"] = scenarios.flow_verdicts(results)
+        (run_dir / "run.json").write_text(json.dumps(run, indent=1, ensure_ascii=False))
+        for flow, entry in run["flows"].items():
+            log(f"flow {flow}: {entry['verdict']} ({entry['passed']}/{entry['runs']})")
+        message = scenarios.summary_text(args.scenario, args.target, run["date"], run["flows"], run["problems"])
     if args.notify:
-        accounts._push(reporting.summary_text("manual", run["date"], results, run["areas"], run["undeleted"]),
-                       "AI test users")
+        accounts._push(message, "AI test users")
     return 0
 
 
@@ -407,6 +414,10 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--worker-copy", action="store_true", help="run the worker from this checkout (before deploy)")
     run.add_argument("--queue", action="store_true",
                      help="queue an investigation chat per filed report, as the daily run does (daily cap applies)")
+    run.add_argument("--scenario", choices=sorted(scenarios.SCENARIOS), default=None,
+                     help="run a fixed-goal scenario instead of --personas (unmet goals count as problems)")
+    run.add_argument("--flows", default="", help="scenario flows to run, e.g. b,c,e (default: all)")
+    run.add_argument("--repeat", type=int, default=2, help="accounts per scenario flow (flaky = mixed results)")
     run.add_argument("--notify", action="store_true",
                      help="send the run summary push (an alert listing the problems when anything failed)")
     notify = sub.add_parser("notify-failure")

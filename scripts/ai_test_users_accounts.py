@@ -138,10 +138,26 @@ def remove_secret(email: str, base: Path | None = None) -> None:
     secret_path(email, base).unlink(missing_ok=True)
 
 
-def pending_deletions(base: Path | None = None) -> list[dict]:
-    """Registry accounts whose deletion did not finish and whose secret file still exists."""
+STALE_ACCOUNT_SECONDS = 2 * 3600  # accounts live under an hour; older leftovers belong to no running run
+
+
+def pending_deletions(base: Path | None = None, run_id: str | None = None, now: datetime | None = None) -> list[dict]:
+    """Registry accounts whose deletion did not finish and whose secret file still exists.
+
+    With `run_id`, only that run's accounts and stale leftovers of earlier runs: another run that is
+    still going (a manual run next to the daily one) keeps its accounts until it deletes them itself.
+    """
+    now = now or datetime.now(UTC)
+
+    def ours(entry: dict) -> bool:
+        if run_id is None or entry.get("run_id") == run_id:
+            return True
+        created = datetime.fromisoformat(entry["created_at"])
+        return (now - created).total_seconds() > STALE_ACCOUNT_SECONDS
+
     return [e for e in latest_by_email(base).values()
-            if e["status"] in ("delete_failed", "created", "signed_up") and load_secret(e["email"], base)]
+            if e["status"] in ("delete_failed", "created", "signed_up") and load_secret(e["email"], base)
+            and ours(e)]
 
 
 # --- production gate and gift cards -----------------------------------------------
