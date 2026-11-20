@@ -187,6 +187,22 @@ async def alert_admin(text: str) -> None:
         queue=ALERT_QUEUE,
     )
 
+async def end_all_sessions(*, user_id: str, directus_service: Any, cache_service: Any) -> None:
+    """Sign the suspended account out everywhere, as logout-all does.
+
+    Revokes every OpenMates session token, removes the Directus sessions and
+    pushes ``force_logout`` so open clients leave at once instead of on their
+    next token check. Signing in again then shows the suspension screen.
+    """
+    from backend.core.api.app.routes.auth_routes.auth_sessions import _broadcast_force_logout
+    from backend.core.api.app.services.session_security_state import revoke_all_user_sessions
+
+    revoked = await revoke_all_user_sessions(directus_service, cache_service, user_id)
+    await directus_service.logout_all_sessions(user_id)
+    await _broadcast_force_logout(cache_service, user_id, "account_suspended")
+    logger.warning(f"[SafetyStrikes] user={user_id[:8]} signed out of {revoked} session(s)")
+
+
 async def suspend_account_for_strikes(
     *, user_id: str, strike_count: int, category: str, directus_service: Any, cache_service: Any,
     decision: Optional[Dict[str, Any]] = None, flagged_message_ids: Optional[list] = None,
@@ -213,7 +229,7 @@ async def suspend_account_for_strikes(
     }
     logger.warning(f"[SafetyStrikes] user={user_id[:8]} strike {strike_count}; suspension={state}")
     await _store(directus_service, cache_service, user_id, fields)
-    await directus_service.logout_all_sessions(user_id)
+    await end_all_sessions(user_id=user_id, directus_service=directus_service, cache_service=cache_service)
     user = await cache_service.get_user_by_id(user_id) or {}
     await alert_admin(build_admin_alert(
         user_id=user_id, user=user, state=state, category=category,

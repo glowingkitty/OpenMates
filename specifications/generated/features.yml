@@ -10341,8 +10341,9 @@ features:
       e2e_tests:
       - frontend/apps/web_app/tests/components/helpline-card.spec.ts
       - frontend/apps/web_app/tests/wellbeing-helpline-real.spec.ts
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/HelplinesRenderer.test.ts
+      unit_test_files: 1
     apple:
       status: planned
       source: intent

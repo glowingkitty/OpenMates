@@ -9,12 +9,18 @@
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
-import { mount, unmount, disposeEmbedTree } from "./mountedEmbedLifecycle";
+import { mount, unmount, disposeEmbedTree, onEmbedCleanup } from "./mountedEmbedLifecycle";
+import { chatSyncService } from "../../../../services/chatSyncService";
 import HelplineCard from "../../../embeds/wellbeing/HelplineCard.svelte";
 import type { HelplineLine } from "../../../../types/helplines";
 import { resolveEmbed, decodeToonContent } from "../../../../services/embedResolver";
 
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
+// The card is created on the server just before the answer streams, so its
+// payload can reach the embed store after this node rendered. Wait for that
+// embed's "embedUpdated" event a bounded number of times, then give up.
+const MAX_PAYLOAD_WAITS = 3;
+const payloadWaits = new WeakMap<HTMLElement, number>();
 
 const asText = (value: unknown): string | null =>
   typeof value === "string" && value.trim() !== "" ? value : null;
@@ -49,17 +55,18 @@ export class HelplinesRenderer implements EmbedRenderer {
       }
     }
 
+    const emergencyNumber = asText(fields?.emergency_number);
+    const directoryUrl = asText(fields?.directory_url);
+    if (!fields || !emergencyNumber || !directoryUrl) {
+      this.waitForPayload(context);
+      return;
+    }
+    payloadWaits.delete(content);
+
     const existing = mountedComponents.get(content);
     if (existing) unmount(existing);
     disposeEmbedTree(content, false);
     content.innerHTML = "";
-
-    const emergencyNumber = asText(fields?.emergency_number);
-    const directoryUrl = asText(fields?.directory_url);
-    if (!fields || !emergencyNumber || !directoryUrl) {
-      console.warn("[HelplinesRenderer] Helplines payload missing or incomplete; nothing to render", attrs.id);
-      return;
-    }
 
     const rawLines = Array.isArray(fields.lines) ? fields.lines : [];
     const container = content.parentElement || content;
@@ -77,6 +84,26 @@ export class HelplinesRenderer implements EmbedRenderer {
       },
     });
     mountedComponents.set(content, component);
+  }
+
+  /** Re-render once this embed's payload arrives; bounded so a missing payload never loops. */
+  private waitForPayload(context: EmbedRenderContext): void {
+    const { attrs, content } = context;
+    const waits = payloadWaits.get(content) ?? 0;
+    if (!attrs.id || waits >= MAX_PAYLOAD_WAITS) {
+      console.warn("[HelplinesRenderer] Helplines payload missing or incomplete; nothing to render", attrs.id);
+      return;
+    }
+    payloadWaits.set(content, waits + 1);
+    const onEmbedUpdated = (event: Event) => {
+      if ((event as CustomEvent<{ embed_id?: string }>).detail?.embed_id !== attrs.id) return;
+      chatSyncService.removeEventListener("embedUpdated", onEmbedUpdated);
+      this.render(context).catch((err) => {
+        console.error("[HelplinesRenderer] Error re-rendering after the payload arrived:", err);
+      });
+    };
+    chatSyncService.addEventListener("embedUpdated", onEmbedUpdated);
+    onEmbedCleanup(content, () => chatSyncService.removeEventListener("embedUpdated", onEmbedUpdated));
   }
 
   toMarkdown(attrs: EmbedNodeAttributes): string {

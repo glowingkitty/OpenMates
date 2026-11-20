@@ -164,8 +164,32 @@ async def test_suspension_queues_email_and_stores_flagged_ids():
     cache.get_user_by_id = AsyncMock(return_value={})
     celery = MagicMock()
     with patch("backend.core.api.app.tasks.celery_config.app", celery), \
+         patch("backend.shared.python_utils.image_safety.account_suspension.end_all_sessions", AsyncMock()), \
          patch("backend.shared.python_utils.image_safety.account_suspension.alert_admin", AsyncMock()):
         await suspend_account_for_strikes(user_id="u1", strike_count=3, category="c", directus_service=d,
                                           cache_service=cache, flagged_message_ids=["m1"])
     assert d.update_user.await_args.args[1]["safety_flagged_message_ids"] == ["m1"]
     assert any("send_safety_suspension_email" in c.kwargs["name"] for c in celery.send_task.call_args_list)
+
+
+# contract-test: supporting surface=rest_api assertions=safety-strikes.second-strike-suspends-7-days
+@pytest.mark.asyncio
+async def test_suspension_signs_the_account_out_everywhere():
+    """Strike 2 revokes OpenMates sessions and pushes force_logout to open clients."""
+    d = directus()
+    d.logout_all_sessions = AsyncMock(return_value=(True, ""))
+    cache = MagicMock()
+    cache.delete = AsyncMock()
+    cache.get_user_by_id = AsyncMock(return_value={})
+    revoke = AsyncMock(return_value=2)
+    broadcast = AsyncMock()
+    with patch("backend.core.api.app.tasks.celery_config.app", MagicMock()), \
+         patch("backend.core.api.app.services.session_security_state.revoke_all_user_sessions", revoke), \
+         patch("backend.core.api.app.routes.auth_routes.auth_sessions._broadcast_force_logout", broadcast), \
+         patch("backend.shared.python_utils.image_safety.account_suspension.alert_admin", AsyncMock()):
+        result = await suspend_account_for_strikes(user_id="u1", strike_count=2, category="disinformation",
+                                                   directus_service=d, cache_service=cache)
+    assert result["state"] == "temporary"
+    revoke.assert_awaited_once_with(d, cache, "u1")
+    d.logout_all_sessions.assert_awaited_once_with("u1")
+    broadcast.assert_awaited_once_with(cache, "u1", "account_suspended")

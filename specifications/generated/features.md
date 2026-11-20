@@ -3045,7 +3045,7 @@ Risk signals scored in the existing preprocessing call, a rolling level kept cli
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | not run 0/9 | 0 pass · 0 fail · 2 not run · 7 no test | [helpline-card.spec.ts](../../frontend/apps/web_app/tests/components/helpline-card.spec.ts)<br>[wellbeing-helpline-real.spec.ts](../../frontend/apps/web_app/tests/wellbeing-helpline-real.spec.ts) |
+| Web | not run 0/9 | 0 pass · 0 fail · 2 not run · 7 no test | [helpline-card.spec.ts](../../frontend/apps/web_app/tests/components/helpline-card.spec.ts)<br>[wellbeing-helpline-real.spec.ts](../../frontend/apps/web_app/tests/wellbeing-helpline-real.spec.ts)<br>1 unit test file(s), e.g. [HelplinesRenderer.test.ts](../../frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/HelplinesRenderer.test.ts) |
 | Apple | planned | 0 pass · 0 fail · 0 not run · 9 no test | — |
 | CLI | planned | 0 pass · 0 fail · 0 not run · 9 no test | — |
 | TUI | — | — | — |
