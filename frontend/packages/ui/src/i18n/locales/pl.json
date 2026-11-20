@@ -4311,76 +4311,6 @@
         "text": "Paradoks Fermiego stawia pytanie, dlaczego nie znaleźliśmy przekonujących dowodów na istnienie pozaziemskich cywilizacji. Poznaj możliwe odpowiedzi."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Twórz własne kopie zapasowe. Eksportuj swoje dane z OpenMates, kiedy tylko potrzebujesz."
-      },
-      "title": {
-        "text": "Eksportuj swoje dane z OpenMates"
-      },
-      "description": {
-        "text": "Twórz kopie zapasowe czatów, ustawień, wspomnień i nie tylko."
-      },
-      "assistant_response": {
-        "text": "Wyeksportuj kopię swoich danych z OpenMates w ustawieniach konta. Zaloguj się, aby uzyskać dostęp do zaszyfrowanych danych."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Chcesz lepszej kontroli prywatności? Dodaj dane osobowe, które OpenMates ma ukrywać."
-      },
-      "title": {
-        "text": "Niestandardowe wykrywanie danych osobowych"
-      },
-      "description": {
-        "text": "Chroń dane osobowe przed wysłaniem zapytania do modelu."
-      },
-      "assistant_response": {
-        "text": "Wybierz dane osobowe, które OpenMates ma ukrywać przed zapytaniem do modelu. Zarządzaj nimi w ustawieniach prywatności."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Potrzebujesz bardziej konkretnej odpowiedzi? Przydziel swojemu asystentowi konkretne zadanie."
-      },
-      "title": {
-        "text": "Tryby skupienia"
-      },
-      "description": {
-        "text": "Skieruj czat na konkretny cel."
-      },
-      "assistant_response": {
-        "text": "Użyj trybu skupienia, aby skierować czat na konkretny cel. Sprawdź dostępne tryby w sekcji Aplikacje."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Powtarzanie się bywa męczące. Zapisuj kontekst, który Twoi asystenci powinni zapamiętać."
-      },
-      "title": {
-        "text": "Wspomnienia"
-      },
-      "description": {
-        "text": "Zapisuj przydatne preferencje i kontekst."
-      },
-      "assistant_response": {
-        "text": "Zapisuj przydatne preferencje i kontekst jako wspomnienia, a potem wybieraj, z czego mogą korzystać Twoi asystenci."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Szukasz czegoś do zrobienia? Odkryj wydarzenia w pobliżu."
-      },
-      "title": {
-        "text": "Znajdź lokalne wydarzenia"
-      },
-      "description": {
-        "text": "Szukaj zajęć, spotkań i innych wydarzeń."
-      },
-      "assistant_response": {
-        "text": "Użyj wyszukiwarki wydarzeń, aby znaleźć lokalne zajęcia i spotkania. Wybierz miejsce i temat, by zobaczyć, co dzieje się w pobliżu."
-      }
-    },
     "collective": {
       "title": {
         "text": "Zachowania zbiorowe zwierząt"
@@ -4421,62 +4351,6 @@
       },
       "assistant_response": {
         "text": "Konstrukcje stabilizowane równowagą naprężeń rozciągających i ściskających."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Cytaty z wiarygodnych źródeł"
-      },
-      "description": {
-        "text": "Poproś mate o sprawdzenie źródeł i zacytowanie fragmentów potwierdzających odpowiedź."
-      },
-      "phrase": {
-        "text": "Chcesz zweryfikować odpowiedź? Poproś OpenMates o cytat ze źródła."
-      },
-      "assistant_response": {
-        "text": "Poproś mate o sprawdzenie źródeł i zacytowanie fragmentów potwierdzających odpowiedź."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Wykrywanie obrazów AI"
-      },
-      "description": {
-        "text": "Prześlij obraz i sprawdź oznaki wygenerowania przez AI bezpośrednio na czacie."
-      },
-      "phrase": {
-        "text": "Czy obraz powstał dzięki AI? Prześlij go i sprawdź wskazówki."
-      },
-      "assistant_response": {
-        "text": "Prześlij obraz i sprawdź oznaki wygenerowania przez AI bezpośrednio na czacie."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Czaty incognito"
-      },
-      "description": {
-        "text": "Rozpocznij tymczasowy czat, gdy nie chcesz zapisywać go w historii."
-      },
-      "phrase": {
-        "text": "Potrzebujesz tymczasowej rozmowy? Nie zapisuj jej w historii czatów."
-      },
-      "assistant_response": {
-        "text": "Rozpocznij tymczasowy czat, gdy nie chcesz zapisywać go w historii."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Ustawienia prywatności"
-      },
-      "description": {
-        "text": "Zarządzaj ukrywaniem danych osobowych, połączonymi kontami i automatycznym usuwaniem w jednym miejscu."
-      },
-      "phrase": {
-        "text": "Sprawdź ochronę OpenMates, zanim pilnie potrzebne będą ustawienia."
-      },
-      "assistant_response": {
-        "text": "Zarządzaj ukrywaniem danych osobowych, połączonymi kontami i automatycznym usuwaniem w jednym miejscu."
       }
     }
   },

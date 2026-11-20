@@ -4311,76 +4311,6 @@
         "text": "Fermi paradoksu, neden dünya dışı medeniyetlere dair ikna edici bir kanıt bulamadığımızı sorgular. Olası cevapları keşfet."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Kendi yedeğini tut. OpenMates verilerini dilediğin zaman dışa aktar."
-      },
-      "title": {
-        "text": "OpenMates verilerini dışa aktar"
-      },
-      "description": {
-        "text": "Sohbetleri, ayarları, anıları ve daha fazlasını yedekle."
-      },
-      "assistant_response": {
-        "text": "Hesap ayarlarından OpenMates verilerinin bir kopyasını dışa aktar. Şifrelenmiş hesap verilerine erişmek için giriş yap."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Daha güçlü gizlilik kontrolleri mi istiyorsun? OpenMates'in gizlemesi gereken kişisel detayları ekle."
-      },
-      "title": {
-        "text": "Özel PII tespiti"
-      },
-      "description": {
-        "text": "Model çağrılarından önce kişisel detayları koru."
-      },
-      "assistant_response": {
-        "text": "Bir model çağrısından önce OpenMates'in gizlemesini istediğin kişisel detayları seç. Bunları yönetmek için gizlilik ayarlarını gözden geçir."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Daha odaklanmış bir cevaba mı ihtiyacın var? Mate'ine özel bir görev ver."
-      },
-      "title": {
-        "text": "Odak modları"
-      },
-      "description": {
-        "text": "Bir sohbeti belirli bir hedefe yönlendir."
-      },
-      "assistant_response": {
-        "text": "Bir sohbeti belirli bir hedefe yönlendirmek için bir odak modu kullan. Uygulamalar'daki mevcut modları keşfet."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Kendini tekrarlamak sıkar. Mate'lerinin hatırlaması gereken bağlamları kaydet."
-      },
-      "title": {
-        "text": "Anılar"
-      },
-      "description": {
-        "text": "Faydalı tercihleri ve bağlamı kaydet."
-      },
-      "assistant_response": {
-        "text": "Faydalı tercihleri ve bağlamı anı olarak kaydet, ardından mate'lerinin neleri kullanabileceğini seç."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Yapacak bir şey mi arıyorsun? Yakınındaki etkinlikleri keşfet."
-      },
-      "title": {
-        "text": "Yerel etkinlikleri bul"
-      },
-      "description": {
-        "text": "Dersleri, buluşmaları ve diğer etkinlikleri ara."
-      },
-      "assistant_response": {
-        "text": "Yakınındaki dersleri ve buluşmaları bulmak için Etkinlik aramasını kullan. Çevrende neler olduğunu görmek için bir yer ve konu seç."
-      }
-    },
     "collective": {
       "title": {
         "text": "Hayvanlarda kolektif davranış"
@@ -4421,62 +4351,6 @@
       },
       "assistant_response": {
         "text": "Çekme ve basınç kuvvetlerinin dengesiyle sabit kalan yapılar."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Güvenilir kaynak alıntıları"
-      },
-      "description": {
-        "text": "Mate’lerinden kaynakları incelemelerini ve yanıtı destekleyen satırları alıntılamalarını iste."
-      },
-      "phrase": {
-        "text": "Yanıtı doğrulamak mı istiyorsun? OpenMates’ten destekleyici kaynağı alıntılamasını iste."
-      },
-      "assistant_response": {
-        "text": "Mate’lerinden kaynakları incelemelerini ve yanıtı destekleyen satırları alıntılamalarını iste."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Yapay zekâ görsel tespiti"
-      },
-      "description": {
-        "text": "Bir görsel yükle ve yapay zekâyla üretim işaretlerini doğrudan sohbette incele."
-      },
-      "phrase": {
-        "text": "Bir görsel yapay zekâyla mı üretildi? Yükle ve işaretleri incele."
-      },
-      "assistant_response": {
-        "text": "Bir görsel yükle ve yapay zekâyla üretim işaretlerini doğrudan sohbette incele."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Gizli sohbetler"
-      },
-      "description": {
-        "text": "Geçmişe kaydetmek istemediğinde geçici sohbetler başlat."
-      },
-      "phrase": {
-        "text": "Geçici bir konuşma mı gerekiyor? Kayıtlı sohbet geçmişinin dışında tut."
-      },
-      "assistant_response": {
-        "text": "Geçmişe kaydetmek istemediğinde geçici sohbetler başlat."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Gizlilik kontrolleri"
-      },
-      "description": {
-        "text": "Kişisel veri gizlemeyi, bağlı hesapları ve otomatik silmeyi tek yerden ayarla."
-      },
-      "phrase": {
-        "text": "Kontrollere acilen ihtiyaç duymadan önce OpenMates’in neleri koruduğunu incele."
-      },
-      "assistant_response": {
-        "text": "Kişisel veri gizlemeyi, bağlı hesapları ve otomatik silmeyi tek yerden ayarla."
       }
     }
   },

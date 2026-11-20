@@ -19,37 +19,31 @@ test.describe('Responsive workspace homes', () => {
 			await page.setViewportSize(size);
 			await page.goto('/dev/preview/workflows/WorkflowHomePreviewHarness?theme=light&chrome=0');
 			await waitForComponentPreview(page);
-			const inspiration = page.getByTestId('workflows-daily-inspiration-area').getByTestId('daily-inspiration-banner');
-			await expect(inspiration.getByTestId('daily-inspiration-phrase')).toBeVisible();
-			await expect(inspiration.getByTestId('daily-inspiration-cta-text')).toHaveCount(0);
-			await expect(inspiration).not.toHaveAttribute('role', 'button');
-			await expect(inspiration).not.toHaveAttribute('tabindex', '0');
-			await expect(inspiration).toHaveCSS('cursor', 'default');
-			await inspiration.click();
-			await inspiration.dispatchEvent('keydown', { key: 'Enter', bubbles: true });
+			await expect(page.getByTestId('workflows-daily-inspiration-area')).toHaveCount(0);
+			await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('');
 			await expect(page.getByTestId('workflow-input-textarea')).toBeVisible();
 			await expect(page.getByTestId('workflow-landing-card')).toHaveCount(4);
 			await expect(page.getByTestId('workflows-show-all')).toBeVisible();
 			await expect(page.getByTestId('workflows-show-templates')).toBeVisible();
-			const [links, composer, banner] = await Promise.all([
+			const [links, composer] = await Promise.all([
 				page.getByTestId('workflows-workspace-link-row').boundingBox(),
 				page.getByTestId('workflow-input-composer').boundingBox(),
-				page.getByTestId('workflows-daily-inspiration-area').boundingBox()
 			]);
-			expect(links && composer && banner).toBeTruthy();
-			expect(links!.y).toBeGreaterThanOrEqual(banner!.y + banner!.height);
+			expect(links && composer).toBeTruthy();
 			expect(links!.y + links!.height).toBeLessThanOrEqual(composer!.y + 1);
 			await expect(page.locator('.workspace-subtitle')).toHaveText('What do you want to automate next?');
 			await expect(page.locator('.workspace-continue-label')).toHaveCount(0);
 			const firstCard = page.getByTestId('workflow-landing-card').first();
 			const cardBox = await firstCard.boundingBox();
 			expect(cardBox).not.toBeNull();
-			expect(cardBox!.height).toBeLessThan(size.height < 800 ? 120 : 220);
+			// TASK-1321: the Workflows start screen always uses large cards, on every viewport.
+			expect(cardBox!.height).toBeGreaterThanOrEqual(150);
+			expect(cardBox!.height).toBeLessThan(220);
+			await expect(page.locator('[data-testid="resume-chat-card"]')).toHaveCount(0);
 			const welcomeBox = await page.locator('.welcome-text').boundingBox();
 			expect(welcomeBox).not.toBeNull();
-			const expectedGap = cardBox!.height > 120 ? 17.5 : 6;
-			expect(Math.abs(cardBox!.y - welcomeBox!.y - welcomeBox!.height - expectedGap)).toBeLessThanOrEqual(1);
+			expect(Math.abs(cardBox!.y - welcomeBox!.y - welcomeBox!.height - 17.5)).toBeLessThanOrEqual(1);
 			await page.getByTestId('workflows-show-all').click();
 			await expect(page.getByTestId('all-workflows-view')).toBeVisible();
 			await expect(page.getByTestId('workflow-landing-card')).toHaveCount(4);
@@ -135,7 +129,7 @@ test.describe('Responsive workspace homes', () => {
 			await page.goto('/dev/preview/workflows/WorkflowHomePreviewHarness?variant=guest&theme=light&chrome=0');
 			await waitForComponentPreview(page);
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
-			await expect(page.getByTestId('workflows-daily-inspiration-area').getByTestId('daily-inspiration-phrase')).toBeVisible();
+			await expect(page.getByTestId('workflows-daily-inspiration-area')).toHaveCount(0);
 			const continuation = page.getByTestId('workflows-workspace-continue');
 			await expect(page.locator('.workspace-subtitle')).toHaveText('Explore the workflow automations:');
 			await expect(page.locator('.workspace-continue-label')).toHaveCount(0);

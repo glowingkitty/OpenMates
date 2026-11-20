@@ -3,7 +3,7 @@
 # Celery task for selecting today's default daily inspirations from the pool.
 #
 # Runs daily at 06:30 UTC (30 min after personalized generation at 06:00).
-# For each supported language, picks a 10-item mixed set by score
+# For each supported language, picks a 6-item mixed set by score
 # and writes them to the daily_inspiration_defaults table.
 #
 # Scoring formula:
@@ -26,7 +26,6 @@ from typing import Any, Dict, List, Optional
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
-from backend.apps.ai.daily_inspiration.feature_suggestions import feature_requires_authentication
 from backend.apps.ai.daily_inspiration.decisions import review_candidates
 from backend.apps.ai.daily_inspiration.media_coherence import (
     canonical_wiki_review_source,
@@ -37,14 +36,14 @@ from backend.apps.ai.daily_inspiration.media_coherence import (
 logger = logging.getLogger(__name__)
 
 # Redis cache key prefix for the public default-inspirations endpoint
-_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v19:"
+_PUBLIC_CACHE_KEY_PREFIX = "public:default_inspirations:v20:"
 
 # Supported languages — same as the public API endpoint
 SUPPORTED_LANGUAGES = {
     "en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it",
     "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv",
 }
-DEFAULT_TYPE_QUOTAS = {"video": 3, "wiki": 3, "feature": 4}
+DEFAULT_TYPE_QUOTAS = {"video": 3, "wiki": 3}
 DEFAULT_TOTAL_COUNT = sum(DEFAULT_TYPE_QUOTAS.values())
 
 
@@ -67,14 +66,12 @@ def _score_pool_entry(entry: Dict[str, Any], now_ts: float) -> float:
 async def _review_pool_entries(entries, secrets_manager, task_id):
     """Legacy pool rows get the same editorial gate before public selection.
 
-    Static first-party feature tips retain their deterministic public/auth checks.
+    Legacy ``feature`` rows are dropped; only video and wiki rows are reviewed.
     Failed review withholds external rows without deleting stored content.
     """
     external = []
-    features = []
     for entry in entries:
-        if entry.get("content_type") == "feature":
-            features.append(entry)
+        if (entry.get("content_type") or "video") not in {"video", "wiki"}:
             continue
         suggestions = entry.get("follow_up_suggestions") or []
         try:
@@ -107,7 +104,7 @@ async def _review_pool_entries(entries, secrets_manager, task_id):
         if (record.get("content_type") or "video") in {"video", "wiki"}:
             record["editorial_review"] = editorial_review_digest(record)
         records.append(record)
-    return records + features
+    return records
 
 
 def _entry_id(entry: Dict[str, Any]) -> str:
@@ -115,32 +112,11 @@ def _entry_id(entry: Dict[str, Any]) -> str:
     return str(entry.get("id", "") or "")
 
 
-def _feature_metadata(entry: Dict[str, Any]) -> Dict[str, Any]:
-    raw_metadata = entry.get("feature_metadata")
-    if isinstance(raw_metadata, dict):
-        return raw_metadata
-    if isinstance(raw_metadata, str) and raw_metadata:
-        try:
-            parsed = json.loads(raw_metadata)
-        except (json.JSONDecodeError, TypeError):
-            return {}
-        return parsed if isinstance(parsed, dict) else {}
-    return {}
-
-
 def _is_public_default_candidate(entry: Dict[str, Any]) -> bool:
-    if (entry.get("content_type") or "video") in {"video", "wiki"}:
-        return is_inspiration_media_coherent(entry)
-
-    if (entry.get("content_type") or "video") != "feature":
-        return True
-
-    feature = _feature_metadata(entry)
-    if not feature:
+    """Only coherent video and wiki rows may become public defaults."""
+    if (entry.get("content_type") or "video") not in {"video", "wiki"}:
         return False
-    if "requires_authentication" in feature:
-        return not bool(feature.get("requires_authentication"))
-    return not feature_requires_authentication(feature.get("feature_id"))
+    return is_inspiration_media_coherent(entry)
 
 
 def _pick_top_entries_with_exclusions(
@@ -190,7 +166,7 @@ def _pick_mixed_defaults(
     excluded_pool_entry_ids: set[str],
     max_count: int = DEFAULT_TOTAL_COUNT,
 ) -> List[Dict[str, Any]]:
-    """Pick the public default mix: 3 videos, 3 wiki articles, 4 features."""
+    """Pick the public default mix: 3 videos, 3 wiki articles."""
     entries = [entry for entry in entries if _is_public_default_candidate(entry)]
     selected: List[Dict[str, Any]] = []
     selected_ids: set[str] = set()
@@ -225,7 +201,7 @@ def _pick_mixed_defaults(
 @app.task(name="daily_inspiration.select_defaults", base=BaseServiceTask, bind=True)
 def select_daily_inspiration_defaults(self):
     """
-    Daily Celery task: select the 10-item mixed default set per language and write it
+    Daily Celery task: select the 6-item mixed default set per language and write it
     to the daily_inspiration_defaults table.
 
     Scheduled by Beat at 06:30 UTC (after the 06:00 personalized generation).
@@ -318,7 +294,7 @@ async def _select_defaults_async(task: BaseServiceTask) -> Dict[str, Any]:
                 reverse=True,
             )
 
-            # Pick the 10-item mixed set while avoiding yesterday's defaults when possible.
+            # Pick the 6-item mixed set while avoiding yesterday's defaults when possible.
             selected = _pick_mixed_defaults(
                 scored,
                 excluded_pool_entry_ids,

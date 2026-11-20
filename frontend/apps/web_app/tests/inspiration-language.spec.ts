@@ -8,17 +8,17 @@ test(`${language} public inspirations remain localized through carousel navigati
   const response = await page.request.get(`${api}/v1/default-inspirations?lang=${language}`);
   expect(response.ok()).toBe(true);
   const { inspirations } = await response.json();
-  expect(inspirations).toHaveLength(10);
+  expect(inspirations).toHaveLength(6);
   expect(inspirations.every((item: { language: string }) => item.language === language)).toBe(true);
   for (const item of inspirations) {
     expect(item.phrase.trim()).not.toBe('');
     expect(item.assistant_response.trim()).not.toBe('');
-    // Static wiki/feature recovery intentionally has no generated follow-ups.
+    // Static wiki recovery intentionally has no generated follow-ups.
     // The writer's exact-three admission contract is tested at generation.
     expect(Array.isArray(item.follow_up_suggestions)).toBe(true);
     expect(item.follow_up_suggestions.length).toBeLessThanOrEqual(3);
     for (const suggestion of item.follow_up_suggestions) expect(suggestion.trim()).not.toBe('');
-    expect(['video', 'wiki', 'feature']).toContain(item.content_type);
+    expect(['video', 'wiki']).toContain(item.content_type);
     // Editorial decisions stay internal; the public feed retains its source-backed shape.
     expect(item).not.toHaveProperty('editorial_score');
     expect(item).not.toHaveProperty('editorial_category');
@@ -26,6 +26,7 @@ test(`${language} public inspirations remain localized through carousel navigati
     expect(item).not.toHaveProperty('rejection_feedback');
     expect(item).not.toHaveProperty('_review_identity');
     expect(item).not.toHaveProperty('pending_source_ids');
+    // Feature-tip inspirations no longer exist; a daily set is 3 video + 3 wiki.
     if (item.content_type === 'wiki') expect(item.wiki.wiki_title.trim()).not.toBe('');
     if (item.content_type === 'video') expect(item.video.youtube_id).toMatch(/^[\w-]{11}$/);
   }
@@ -38,7 +39,7 @@ test(`${language} public inspirations remain localized through carousel navigati
       const localizedResponse = await page.request.get(`${api}/v1/default-inspirations?lang=${locale}`);
       expect(localizedResponse.ok()).toBe(true);
       const localized = (await localizedResponse.json()).inspirations;
-      expect(localized).toHaveLength(10);
+      expect(localized).toHaveLength(6);
       expect(localized.every((item: { language: string }) => item.language === locale)).toBe(true);
       if (locale !== 'en') {
         expect(localized.map((item: { phrase: string }) => item.phrase)).not.toContain('An ancient shipwreck held a machine that predicted the sky.');
@@ -53,19 +54,19 @@ test(`${language} public inspirations remain localized through carousel navigati
   await expect(page.locator('html')).toHaveAttribute('lang', language);
   const phrase = page.getByTestId('daily-inspiration-phrase').first();
   const banner = page.getByTestId('daily-inspiration-banner').first();
-  await expect.poll(async () => (await banner.getAttribute('data-visible-inspiration-ids') || '').split(',').length).toBe(10);
+  await expect.poll(async () => (await banner.getAttribute('data-visible-inspiration-ids') || '').split(',').length).toBe(6);
   await expect.poll(async () => phrases.includes((await phrase.innerText()).trim())).toBe(true);
   const visited = new Set<string>();
-  for (let index = 0; index < 10; index += 1) {
+  for (let index = 0; index < 6; index += 1) {
     const text = (await phrase.innerText()).trim();
     expect(phrases).toContain(text);
     visited.add(text);
-    if (index < 9) {
+    if (index < 5) {
       await page.getByTestId('daily-inspiration-next').first().click();
       await expect(phrase).not.toHaveText(text);
     }
   }
-  expect(visited.size).toBe(10);
+  expect(visited.size).toBe(6);
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', language);
   await expect.poll(async () => phrases.includes((await phrase.innerText()).trim())).toBe(true);
@@ -74,14 +75,14 @@ test(`${language} public inspirations remain localized through carousel navigati
 }
 
 // contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated,daily-inspiration.public-defaults
-test('Withheld editorial inventory keeps the ten-card guest fallback usable', async ({ page }) => {
+test('Withheld editorial inventory keeps the six-card guest fallback usable', async ({ page }) => {
   await page.route('**/v1/default-inspirations?*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ inspirations: [] }) })
   );
   await page.goto('/?lang=de');
   const banner = page.getByTestId('daily-inspiration-banner').first();
   const phrase = page.getByTestId('daily-inspiration-phrase').first();
-  await expect.poll(async () => (await banner.getAttribute('data-visible-inspiration-ids') || '').split(',').length).toBe(10);
+  await expect.poll(async () => (await banner.getAttribute('data-visible-inspiration-ids') || '').split(',').length).toBe(6);
   await expect(phrase).toBeVisible();
   const first = (await phrase.innerText()).trim();
   expect(first).not.toBe('');
@@ -89,5 +90,5 @@ test('Withheld editorial inventory keeps the ten-card guest fallback usable', as
   await expect(phrase).not.toHaveText(first);
   await page.reload();
   await expect(phrase).toBeVisible();
-  await expect.poll(async () => (await banner.getAttribute('data-visible-inspiration-ids') || '').split(',').length).toBe(10);
+  await expect.poll(async () => (await banner.getAttribute('data-visible-inspiration-ids') || '').split(',').length).toBe(6);
 });

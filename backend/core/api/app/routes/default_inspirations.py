@@ -4,11 +4,11 @@
 #
 # GET /v1/default-inspirations?lang={code}
 #
-# Returns up to 10 default inspirations for the requested language, selected
+# Returns up to 6 default inspirations for the requested language, selected
 # daily from the inspiration pool by the Celery task (see default_inspiration_tasks.py).
 #
 # Data source: daily_inspiration_defaults table (denormalized, pre-populated daily).
-# Results are cached in Redis for 1 hour (key: public:default_inspirations:v19:{lang}).
+# Results are cached in Redis for 1 hour (key: public:default_inspirations:v20:{lang}).
 # Cache is invalidated when the daily selection task runs.
 #
 # Authentication: NOT required — this endpoint is public so the banner works for
@@ -27,11 +27,6 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
 from backend.apps.ai.daily_inspiration.generator import AVAILABLE_CATEGORIES
-from backend.apps.ai.daily_inspiration.feature_suggestions import (
-    GUEST_ONBOARDING_FEATURE_IDS,
-    build_feature_inspirations,
-    feature_requires_authentication,
-)
 from backend.apps.ai.daily_inspiration.media_coherence import is_inspiration_media_coherent
 from backend.apps.ai.daily_inspiration.wiki_suggestions import build_wiki_inspirations
 
@@ -43,11 +38,10 @@ router = APIRouter(
 )
 
 # Redis cache key prefix and TTL (must match default_inspiration_tasks.py)
-_CACHE_KEY_PREFIX = "public:default_inspirations:v19:"
+_CACHE_KEY_PREFIX = "public:default_inspirations:v20:"
 _CACHE_TTL = 3600  # 1 hour
-_DEFAULT_INSPIRATION_COUNT = 10
+_DEFAULT_INSPIRATION_COUNT = 6
 _DEFAULT_WIKI_COUNT = 3
-_DEFAULT_FEATURE_COUNT = 4
 
 # Supported languages (same as SUPPORTED_LANGUAGES in default_inspiration_tasks.py)
 _SUPPORTED_LANGUAGES = {
@@ -71,28 +65,6 @@ def get_cache_service(request: Request) -> CacheService:
         logger.error("CacheService not found in app.state")
         raise HTTPException(status_code=500, detail="Internal configuration error")
     return request.app.state.cache_service
-
-
-def _get_feature_id(item: Dict[str, Any]) -> str | None:
-    feature = item.get("feature")
-    return feature.get("feature_id") if isinstance(feature, dict) else None
-
-
-def _is_public_feature_item(item: Dict[str, Any]) -> bool:
-    if item.get("content_type") != "feature":
-        return True
-
-    feature = item.get("feature")
-    if not isinstance(feature, dict):
-        return False
-
-    if feature.get("feature_id") in GUEST_ONBOARDING_FEATURE_IDS:
-        return False
-
-    if "requires_authentication" in feature:
-        return not bool(feature.get("requires_authentication"))
-
-    return not feature_requires_authentication(feature.get("feature_id"))
 
 
 def _get_wiki_title(item: Dict[str, Any]) -> str | None:
@@ -121,7 +93,7 @@ def _reserve_default_slots(
     content_type: str,
     target_count: int,
 ) -> None:
-    """Make room for missing quota items before final 10-item truncation."""
+    """Make room for missing quota items before final 6-item truncation."""
     current_count = sum(1 for item in result if item.get("content_type") == content_type)
     missing_count = max(0, target_count - current_count)
     slots_to_remove = max(0, len(result) + missing_count - _DEFAULT_INSPIRATION_COUNT)
@@ -140,27 +112,6 @@ def _reserve_default_slots(
         slots_to_remove -= 1
 
 
-def _limit_default_type(
-    result: List[Dict[str, Any]],
-    *,
-    content_type: str,
-    target_count: int,
-) -> None:
-    """Drop stale excess quota items while preserving their stored order."""
-    seen = 0
-    limited: List[Dict[str, Any]] = []
-    for item in result:
-        if item.get("content_type") == content_type:
-            seen += 1
-            if seen > target_count:
-                continue
-        limited.append(item)
-    result[:] = limited
-
-
-# ---- Endpoint ------------------------------------------------------------
-
-
 @router.get("/default-inspirations")
 @limiter.limit("60/minute")
 async def get_default_inspirations(
@@ -170,7 +121,7 @@ async def get_default_inspirations(
     cache_service: CacheService = Depends(get_cache_service),
 ) -> Dict[str, Any]:
     """
-    Return up to 10 default Daily Inspirations for the given language.
+    Return up to 6 default Daily Inspirations for the given language.
 
     The data comes from the daily_inspiration_defaults table, which is
     populated once per day by the daily selection Celery task.  Content is
@@ -286,15 +237,16 @@ async def get_default_inspirations(
         defaults = [
             record for record in defaults
             if str(record.get("pool_entry_id")) in language_ids
-            and record.get("content_type") != "feature"
         ]
 
     # ---- Transform records to the DailyInspiration response shape ---------
     result: List[Dict[str, Any]] = []
 
     for record in defaults or []:
-        is_external_default = (record.get("content_type") or "video") in {"video", "wiki"}
-        if is_external_default and not is_inspiration_media_coherent(record):
+        if (record.get("content_type") or "video") not in {"video", "wiki"}:
+            # Retired legacy feature cards are never returned to clients.
+            continue
+        if not is_inspiration_media_coherent(record):
             logger.warning(
                 "[DefaultInspirations] Skipping media-mismatched default %s "
                 "(title=%r, video=%r)",
@@ -341,30 +293,18 @@ async def get_default_inspirations(
                 "published_at": record.get("video_published_at"),
             } if youtube_id else None,
             "wiki": None,
-            "feature": None,
             "generated_at": record.get("generated_at") or 0,
             "follow_up_suggestions": follow_up_suggestions,
         }
-        for metadata_field, response_field in (
-            ("wiki_metadata", "wiki"),
-            ("feature_metadata", "feature"),
-        ):
-            raw_metadata = record.get(metadata_field)
-            if isinstance(raw_metadata, str) and raw_metadata:
-                try:
-                    inspiration_obj[response_field] = json.loads(raw_metadata)
-                except (json.JSONDecodeError, TypeError):
-                    inspiration_obj[response_field] = None
-            elif isinstance(raw_metadata, dict):
-                inspiration_obj[response_field] = raw_metadata
-        if _is_public_feature_item(inspiration_obj):
-            result.append(inspiration_obj)
-
-    _limit_default_type(
-        result,
-        content_type="feature",
-        target_count=_DEFAULT_FEATURE_COUNT,
-    )
+        raw_metadata = record.get("wiki_metadata")
+        if isinstance(raw_metadata, str) and raw_metadata:
+            try:
+                inspiration_obj["wiki"] = json.loads(raw_metadata)
+            except (json.JSONDecodeError, TypeError):
+                inspiration_obj["wiki"] = None
+        elif isinstance(raw_metadata, dict):
+            inspiration_obj["wiki"] = raw_metadata
+        result.append(inspiration_obj)
 
     wiki_count = sum(1 for item in result if item.get("content_type") == "wiki")
     if wiki_count < _DEFAULT_WIKI_COUNT:
@@ -385,33 +325,6 @@ async def get_default_inspirations(
             if wiki_count >= _DEFAULT_WIKI_COUNT:
                 break
 
-    feature_count = sum(1 for item in result if item.get("content_type") == "feature")
-    if feature_count < _DEFAULT_FEATURE_COUNT:
-        _reserve_default_slots(
-            result,
-            content_type="feature",
-            target_count=_DEFAULT_FEATURE_COUNT,
-        )
-        existing_feature_ids = {_get_feature_id(item) for item in result}
-        for feature_inspiration in build_feature_inspirations(
-            _DEFAULT_FEATURE_COUNT,
-            include_authenticated_only=False,
-            language=lang,
-        ):
-            feature_id = (
-                feature_inspiration.feature.feature_id
-                if feature_inspiration.feature
-                else None
-            )
-            if feature_id in existing_feature_ids:
-                continue
-            result.append(feature_inspiration.model_dump())
-            feature_count = sum(
-                1 for item in result if item.get("content_type") == "feature"
-            )
-            if feature_count >= _DEFAULT_FEATURE_COUNT:
-                break
-
     if len(result) < _DEFAULT_INSPIRATION_COUNT:
         existing_wiki_titles = {_get_wiki_title(item) for item in result}
         for wiki_inspiration in build_wiki_inspirations(_DEFAULT_INSPIRATION_COUNT, language=lang):
@@ -419,24 +332,6 @@ async def get_default_inspirations(
             if wiki_title in existing_wiki_titles:
                 continue
             result.append(wiki_inspiration.model_dump())
-            if len(result) >= _DEFAULT_INSPIRATION_COUNT:
-                break
-
-    if len(result) < _DEFAULT_INSPIRATION_COUNT:
-        existing_feature_ids = {_get_feature_id(item) for item in result}
-        for feature_inspiration in build_feature_inspirations(
-            _DEFAULT_INSPIRATION_COUNT,
-            include_authenticated_only=False,
-            language=lang,
-        ):
-            feature_id = (
-                feature_inspiration.feature.feature_id
-                if feature_inspiration.feature
-                else None
-            )
-            if feature_id in existing_feature_ids:
-                continue
-            result.append(feature_inspiration.model_dump())
             if len(result) >= _DEFAULT_INSPIRATION_COUNT:
                 break
 

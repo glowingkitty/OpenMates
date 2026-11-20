@@ -78,7 +78,8 @@ async function checkFocusedLayout(page: Page, surface: 'tasks' | 'workflows' | '
   if (surface === 'editor') {
     await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
   } else {
-    await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeVisible();
+    if (surface === 'workflows') await expect(page.getByTestId('workflows-daily-inspiration-area')).toHaveCount(0);
+    else await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeVisible();
     if (surface === 'tasks') await expect(page.getByTestId('tasks-board-workspace')).toBeVisible();
   }
   await expect(cancel).toBeVisible();
@@ -102,7 +103,8 @@ async function checkFocusedLayout(page: Page, surface: 'tasks' | 'workflows' | '
   if (surface === 'editor') {
     await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
   } else {
-    await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeVisible();
+    if (surface === 'workflows') await expect(page.getByTestId('workflows-daily-inspiration-area')).toHaveCount(0);
+    else await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeVisible();
     if (surface === 'tasks') await expect(page.getByTestId('tasks-board-workspace')).toBeVisible();
   }
   await expect(input).toHaveValue(draft);
@@ -219,7 +221,7 @@ test.describe('Actual workspace composer layout', () => {
       await expect(background).toHaveAttribute('inert', '');
       await expect(background).toHaveCSS('opacity', '1');
       await expect(background).toHaveCSS('visibility', 'visible');
-      await expect(page.getByTestId('daily-inspiration-banner')).toBeHidden();
+      await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
       await expect(page.getByTestId('welcome-content')).toBeHidden();
       await expect(field).toHaveCSS('background-color', 'rgb(45, 47, 53)');
       await expect(page.getByTestId('chat-welcome-suggestions')).toBeVisible();
@@ -232,7 +234,8 @@ test.describe('Actual workspace composer layout', () => {
       await page.getByTestId('chat-side').dispatchEvent('pointerdown', { pointerType: 'touch', button: 0 });
       await expect(field).toHaveAttribute('data-focused', 'false');
       await expect(background).not.toHaveAttribute('inert', '');
-      await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+      await expect(page.getByTestId('welcome-content')).toBeVisible();
+      await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
       await expect(background).toHaveCSS('opacity', '1');
       await expect(background).toHaveCSS('visibility', 'visible');
       await expectBalancedPanelGutters(page, 'chat');

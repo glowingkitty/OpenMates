@@ -104,6 +104,21 @@ export interface DailyInspiration {
   follow_up_suggestions?: string[];
   /** UI surface this inspiration belongs to. Missing values are legacy chat inspirations. */
   surface?: DailyInspirationSurface;
+  /**
+   * Recommended workflow (surface "workflows", content_type "workflow"). Not generated yet;
+   * the Workflows start row shows such records as soon as they exist (utils/startScreenRow.ts).
+   */
+  workflow?: DailyInspirationWorkflowRecommendation | null;
+}
+
+/** Data contract of a recommended-workflow daily inspiration. */
+export interface DailyInspirationWorkflowRecommendation {
+  /** Workflow template the recommendation opens. */
+  template_id: string;
+  /** Short one-line description shown on the card. */
+  summary?: string | null;
+  /** Lucide icon name for the card; falls back to the category icon. */
+  icon?: string | null;
 }
 
 export type DailyInspirationSurface = "chats" | "projects" | "workflows" | "tasks" | "plans" | "teams" | "apps";
@@ -114,10 +129,10 @@ export type DailyInspirationSource =
   | "public-daily"
   | "authenticated-fallback";
 
+/** Authenticated daily set: exactly 6 cards (3 video + 3 wiki); no feature tips. */
 const AUTHENTICATED_DAILY_QUOTAS: Record<string, number> = {
   video: 3,
   wiki: 3,
-  feature: 4,
 };
 const GUEST_ONBOARDING_FEATURE_IDS = new Set([
   "openmates-intro",
@@ -139,7 +154,7 @@ export function hasPublicSafeDailySet(inspirations: DailyInspiration[]): boolean
 export function hasCompleteAuthenticatedDailySet(
   inspirations: DailyInspiration[],
 ): boolean {
-  if (inspirations.length !== 10) return false;
+  if (inspirations.length !== 6) return false;
   if (
     inspirations.some(
       (inspiration) =>

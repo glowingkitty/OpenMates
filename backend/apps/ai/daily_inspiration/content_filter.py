@@ -209,7 +209,7 @@ def check_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
     text_fields = [
         "title", "phrase", "assistant_response",
         "video_title", "video_channel_name", "category",
-        "wiki_metadata", "feature_metadata",
+        "wiki_metadata",
     ]
     text_parts = []
     for field in text_fields:
@@ -294,32 +294,25 @@ def check_daily_inspiration_entry(
 ) -> Dict[str, Any]:
     """Apply the full Daily Inspiration content policy to an entry.
 
-    Feature cards are deterministic first-party product education and are kept
-    out of generated-content promotion checks. Video and wiki cards must not use
-    any third-party company, brand, product, app, or commercial service as the
-    primary subject.
+    Video and wiki cards must not use any third-party company, brand, product,
+    app, or commercial service as the primary subject.
     """
     result = check_entry(entry)
     violations = dict(result.get("violations", {}))
 
-    content_type = entry.get("content_type") or "video"
-    if content_type == "feature":
-        violations.pop("openmates", None)
+    subject_fields = [
+        entry.get("title"),
+        entry.get("phrase"),
+        entry.get("assistant_response"),
+        entry.get("video_title"),
+        entry.get("wiki_metadata"),
+    ]
+    if is_company_profile_text(*subject_fields):
+        violations.setdefault("company_subject", []).append("company_profile_marker")
 
-    if content_type != "feature":
-        subject_fields = [
-            entry.get("title"),
-            entry.get("phrase"),
-            entry.get("assistant_response"),
-            entry.get("video_title"),
-            entry.get("wiki_metadata"),
-        ]
-        if is_company_profile_text(*subject_fields):
-            violations.setdefault("company_subject", []).append("company_profile_marker")
-
-        blocked_types = sorted(blocked_wikidata_company_type_ids(wikidata_entity))
-        if blocked_types:
-            violations.setdefault("wikidata_company_type", []).extend(blocked_types)
+    blocked_types = sorted(blocked_wikidata_company_type_ids(wikidata_entity))
+    if blocked_types:
+        violations.setdefault("wikidata_company_type", []).extend(blocked_types)
 
     result["violations"] = violations
     result["verdict"] = "REJECT" if violations else "PASS"

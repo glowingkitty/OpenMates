@@ -5744,76 +5744,6 @@
         "text": "Das Fermi-Paradoxon fragt, warum wir keine überzeugenden Beweise für außerirdische Zivilisationen gefunden haben. Entdecke mögliche Antworten."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Behalte dein eigenes Backup. Exportiere deine OpenMates-Daten, wann immer du sie brauchst."
-      },
-      "title": {
-        "text": "Exportiere deine OpenMates-Daten"
-      },
-      "description": {
-        "text": "Sichere Chats, Einstellungen, Erinnerungen und mehr."
-      },
-      "assistant_response": {
-        "text": "Exportiere eine Kopie deiner OpenMates-Daten in den Kontoeinstellungen. Melde dich an, um auf deine verschlüsselten Kontodaten zuzugreifen."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Willst du mehr Kontrolle über deine Privatsphäre? Füge persönliche Details hinzu, die OpenMates verbergen soll."
-      },
-      "title": {
-        "text": "Eigene PII-Erkennung"
-      },
-      "description": {
-        "text": "Schütze persönliche Details vor Modellaufrufen."
-      },
-      "assistant_response": {
-        "text": "Wähle persönliche Details aus, die OpenMates vor einem Modellaufruf verbergen soll. Verwalte sie in den Privatsphäre-Einstellungen."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Brauchst du eine gezieltere Antwort? Gib deinem Mate eine spezifische Aufgabe."
-      },
-      "title": {
-        "text": "Fokus-Modi"
-      },
-      "description": {
-        "text": "Lenke einen Chat auf ein bestimmtes Ziel."
-      },
-      "assistant_response": {
-        "text": "Nutze einen Fokus-Modus, um einen Chat auf ein bestimmtes Ziel zu lenken. Entdecke verfügbare Modi in den Apps."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Sich ständig zu wiederholen, nervt. Speichere Kontext, den sich deine Mates merken sollen."
-      },
-      "title": {
-        "text": "Erinnerungen"
-      },
-      "description": {
-        "text": "Speichere nützliche Präferenzen und Kontext."
-      },
-      "assistant_response": {
-        "text": "Speichere nützliche Präferenzen und Kontext als Erinnerungen und wähle dann aus, was deine Mates verwenden dürfen."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Suchst du etwas zu unternehmen? Entdecke Veranstaltungen in deiner Nähe."
-      },
-      "title": {
-        "text": "Lokale Veranstaltungen finden"
-      },
-      "description": {
-        "text": "Suche nach Kursen, Treffen und weiteren Veranstaltungen."
-      },
-      "assistant_response": {
-        "text": "Nutze die Events-Suche, um Kurse und Treffen in deiner Nähe zu finden. Wähle einen Ort und ein Thema, um passende Veranstaltungen zu entdecken."
-      }
-    },
     "collective": {
       "title": {
         "text": "Kollektives Verhalten bei Tieren"
@@ -5854,62 +5784,6 @@
       },
       "assistant_response": {
         "text": "Tensegritätsstrukturen verbinden einzelne Druckelemente durch ein durchgehendes Netz unter Spannung. Dadurch wirken sie erstaunlich leicht und bleiben dennoch stabil. Entdecke, warum dieses Prinzip Kunst, Architektur und Biologie beschäftigt."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Zitate aus verlässlichen Quellen"
-      },
-      "description": {
-        "text": "Lass deine Mates Quellen prüfen und die Textstellen zitieren, die eine Antwort belegen."
-      },
-      "phrase": {
-        "text": "Du möchtest eine Antwort überprüfen? Bitte OpenMates um ein Zitat aus der Quelle."
-      },
-      "assistant_response": {
-        "text": "Lass deine Mates Quellen prüfen und die Textstellen zitieren, die eine Antwort belegen."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "KI-Bilder erkennen"
-      },
-      "description": {
-        "text": "Lade ein Bild hoch und untersuche Hinweise auf KI-Erzeugung direkt im Chat."
-      },
-      "phrase": {
-        "text": "Wurde ein Bild mit KI erzeugt? Lade es hoch und prüfe die Hinweise."
-      },
-      "assistant_response": {
-        "text": "Lade ein Bild hoch und untersuche Hinweise auf KI-Erzeugung direkt im Chat."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Inkognito-Chats"
-      },
-      "description": {
-        "text": "Starte vorübergehende Chats, die nicht im Verlauf gespeichert werden."
-      },
-      "phrase": {
-        "text": "Du brauchst einen vorübergehenden Chat? Halte ihn aus deinem gespeicherten Verlauf heraus."
-      },
-      "assistant_response": {
-        "text": "Starte vorübergehende Chats, die nicht im Verlauf gespeichert werden."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Datenschutzeinstellungen"
-      },
-      "description": {
-        "text": "Verwalte das Verbergen persönlicher Daten, verbundene Konten und automatisches Löschen an einem Ort."
-      },
-      "phrase": {
-        "text": "Prüfe in Ruhe, wie OpenMates deine Daten schützt und welche Einstellungen du nutzen kannst."
-      },
-      "assistant_response": {
-        "text": "Verwalte das Verbergen persönlicher Daten, verbundene Konten und automatisches Löschen an einem Ort."
       }
     }
   },

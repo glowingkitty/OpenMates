@@ -18,8 +18,8 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Web | 4 | 0 | 20 | 54 | 11 | 19 | 0 | 0 | 0 | 19 |
-| Apple | 0 | 15 | 34 | 5 | 0 | 40 | 6 | 7 | 0 | 20 |
+| Web | 4 | 0 | 21 | 53 | 11 | 19 | 0 | 0 | 0 | 19 |
+| Apple | 0 | 14 | 35 | 5 | 0 | 40 | 6 | 7 | 0 | 20 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
 | CLI | 0 | 0 | 17 | 8 | 27 | 41 | 2 | 2 | 0 | 30 |
 | TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 44 |
@@ -60,8 +60,8 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Checks](#checks) | partial 5/15 | planned |  | impl | — | partial 11/15 | impl | impl | on (no flag) | on (no flag) | unverified |
 | [Concise and Actionable Mixed-Media Answers](#assistant-answer-composition) | impl | impl |  | impl | impl | partial 2/4 | impl | impl | on (no flag) | on (no flag) | unverified |
 | [Consent-Scoped Cross-Chat Awareness](#chat-awareness) | impl | — |  | not run 0/1 | — | planned | — | — | on (no flag) | on (no flag) | unverified |
-| [Continue Carousel](#continue-carousel) | partial 1/2 | tested 2/2 |  | not run 0/2 | **FAIL** 0/1 | — | — | — | on (no flag) | on (no flag) | untagged-main |
-| [Daily Inspiration](#daily-inspiration) | **FAIL** 2/8 | partial 6/8 |  | impl | — | not run 0/8 | impl | impl | on (no flag) | on (no flag) | v0.7.0-alpha |
+| [Continue Carousel](#continue-carousel) | partial 1/3 | partial 2/3 |  | not run 0/2 | **FAIL** 0/1 | — | — | — | on (no flag) | on (no flag) | untagged-main |
+| [Daily Inspiration](#daily-inspiration) | partial 6/11 | partial 6/11 |  | impl | — | not run 0/11 | impl | impl | on (no flag) | on (no flag) | v0.7.0-alpha |
 | [Embed User Edits and Image Enhance](#embed-user-edits) | partial 8/13 | partial 6/13 |  | partial 5/13 | — | partial 8/13 | — | — | on (no flag) | on (no flag) | untagged-main |
 | [Focus Modes — Shared Operation and Display](#focus-modes) | **FAIL** 13/31 | partial 8/31 |  | partial 4/31 | wip | **FAIL** 16/31 | impl | impl | on (no flag) | on (no flag) | v0.9.0-alpha |
 | [Incognito mode](#incognito-mode) | not run 0/1 | impl |  | impl | — | impl | impl | impl | on (no flag) | on (no flag) | v0.5.0-alpha |
@@ -1248,17 +1248,17 @@ The assistant may use other chats only when the user explicitly grants it (@chat
 ### Continue Carousel
 <a id="continue-carousel"></a>
 
-The Chats start screen promotes timely saved items and recent chats.
+The Chats start screen promotes timely chats in its row and shows the next saved event as a compact entry below it.
 
-- Specifications: [feature.continue-carousel](../../specifications/features/continue-carousel/specification.yml) (draft) · 2 assertion(s)
+- Specifications: [feature.continue-carousel](../../specifications/features/continue-carousel/specification.yml) (draft) · 3 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release untagged-main
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 1/2 | 1 pass · 0 fail · 1 not run · 0 no test | [web-rust-core-continue-carousel.spec.ts](../../frontend/apps/web_app/tests/web-rust-core-continue-carousel.spec.ts)<br>2 unit test file(s), e.g. [continueCarouselService.test.ts](../../frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts), [continueCarouselVectors.test.ts](../../frontend/packages/ui/src/services/rustCore/__tests__/continueCarouselVectors.test.ts) |
-| Apple | tested 2/2 | 2 pass · 0 fail · 0 not run · 0 no test | [WelcomeContinueUITests.swift](../../apple/OpenMatesUITests/WelcomeContinueUITests.swift)<br>1 unit test file(s), e.g. [WelcomeContinuePolicyTests.swift](../../apple/OpenMatesTests/WelcomeContinuePolicyTests.swift) |
+| Web | partial 1/3 | 1 pass · 0 fail · 2 not run · 0 no test | [start-screen-row.spec.ts](../../frontend/apps/web_app/tests/components/start-screen-row.spec.ts)<br>[web-rust-core-continue-carousel.spec.ts](../../frontend/apps/web_app/tests/web-rust-core-continue-carousel.spec.ts)<br>2 unit test file(s), e.g. [continueCarouselService.test.ts](../../frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts), [continueCarouselVectors.test.ts](../../frontend/packages/ui/src/services/rustCore/__tests__/continueCarouselVectors.test.ts) |
+| Apple | partial 2/3 | 2 pass · 0 fail · 0 not run · 1 no test | [WelcomeContinueUITests.swift](../../apple/OpenMatesUITests/WelcomeContinueUITests.swift)<br>1 unit test file(s), e.g. [WelcomeContinuePolicyTests.swift](../../apple/OpenMatesTests/WelcomeContinuePolicyTests.swift) |
 | CLI | not run 0/2 | 0 pass · 0 fail · 2 not run · 0 no test | 1 unit test file(s), e.g. [tuiHome.test.ts](../../frontend/packages/openmates-cli/tests/tuiHome.test.ts) |
 | TUI | **FAIL** 0/1 | 0 pass · 1 fail · 0 not run · 0 no test | [cli-tui-startup.spec.ts](../../frontend/apps/web_app/tests/cli-tui-startup.spec.ts)<br>❌ [cli-tui-startup.spec.ts › cold TUI loads a saved chat and canonical child reads return only authorized parent wrappers](../../frontend/apps/web_app/tests/cli-tui-startup.spec.ts › cold TUI loads a saved chat and canonical child reads return only authorized parent wrappers) |
 | REST API | — | — | — |
@@ -1292,20 +1292,20 @@ Daily full-pipeline tests without paid calls, plus capped real-inference canarie
 ### Daily Inspiration
 <a id="daily-inspiration"></a>
 
-Personalised daily inspiration cards, with a public default for signed-out visitors.
+Personalised daily video and article cards inside the start-screen row (banner for signed-out visitors), with a public default.
 
-- Specifications: [feature.daily-inspiration](../../specifications/features/daily-inspiration/specification.yml) (draft) · 8 assertion(s)
+- Specifications: [feature.daily-inspiration](../../specifications/features/daily-inspiration/specification.yml) (draft) · 11 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.7.0-alpha
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | **FAIL** 2/8 | 2 pass · 2 fail · 3 not run · 1 no test | [inspiration-language.spec.ts](../../frontend/apps/web_app/tests/components/inspiration-language.spec.ts)<br>[guest-interest-smart-selection.spec.ts](../../frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts)<br>[inspiration-language.spec.ts](../../frontend/apps/web_app/tests/inspiration-language.spec.ts)<br>[landing-page-header-stories.spec.ts](../../frontend/apps/web_app/tests/landing-page-header-stories.spec.ts)<br>[landing-page-onboarding-refresh.spec.ts](../../frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts)<br>[provider-boundary.spec.ts](../../frontend/apps/web_app/tests/provider-boundary.spec.ts)<br>[session-503-inspiration-recovery.spec.ts](../../frontend/apps/web_app/tests/session-503-inspiration-recovery.spec.ts)<br>[session-revoke-flow.spec.ts](../../frontend/apps/web_app/tests/session-revoke-flow.spec.ts)<br>[unauthenticated-app-load.spec.ts](../../frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts)<br>5 unit test file(s), e.g. [dailyInspirationStore.test.ts](../../frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts), [loadDefaultInspirations.test.ts](../../frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts)<br>❌ [inspiration-language.spec.ts › Withheld editorial inventory keeps the ten-card guest fallback usable](../../frontend/apps/web_app/tests/inspiration-language.spec.ts › Withheld editorial inventory keeps the ten-card guest fallback usable) |
-| Apple | partial 6/8 | 6 pass · 0 fail · 0 not run · 2 no test | [DailyInspirationLayoutUITests.swift](../../apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift)<br>1 unit test file(s), e.g. [ChatSyncParityTests.swift](../../apple/OpenMatesTests/ChatSyncParityTests.swift) |
+| Web | partial 6/11 | 6 pass · 0 fail · 4 not run · 1 no test | [inspiration-language.spec.ts](../../frontend/apps/web_app/tests/components/inspiration-language.spec.ts)<br>[start-screen-row.spec.ts](../../frontend/apps/web_app/tests/components/start-screen-row.spec.ts)<br>[daily-inspiration-chat-flow.spec.ts](../../frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts)<br>[guest-interest-smart-selection.spec.ts](../../frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts)<br>[inspiration-language.spec.ts](../../frontend/apps/web_app/tests/inspiration-language.spec.ts)<br>[landing-page-header-stories.spec.ts](../../frontend/apps/web_app/tests/landing-page-header-stories.spec.ts)<br>[landing-page-onboarding-refresh.spec.ts](../../frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts)<br>[provider-boundary.spec.ts](../../frontend/apps/web_app/tests/provider-boundary.spec.ts)<br>[session-503-inspiration-recovery.spec.ts](../../frontend/apps/web_app/tests/session-503-inspiration-recovery.spec.ts)<br>[session-revoke-flow.spec.ts](../../frontend/apps/web_app/tests/session-revoke-flow.spec.ts)<br>[unauthenticated-app-load.spec.ts](../../frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts)<br>6 unit test file(s), e.g. [dailyInspirationStore.test.ts](../../frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts), [loadDefaultInspirations.test.ts](../../frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts) |
+| Apple | partial 6/11 | 6 pass · 0 fail · 0 not run · 5 no test | [DailyInspirationLayoutUITests.swift](../../apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift)<br>1 unit test file(s), e.g. [ChatSyncParityTests.swift](../../apple/OpenMatesTests/ChatSyncParityTests.swift) |
 | CLI | impl | — | — |
 | TUI | — | — | — |
-| REST API | not run 0/8 | 0 pass · 0 fail · 5 not run · 3 no test | 13 unit test file(s), e.g. [test_daily_inspiration_public_defaults.py](../../backend/tests/test_daily_inspiration_public_defaults.py), [test_daily_inspiration_activity.py](../../backend/tests/test_daily_inspiration_activity.py) |
+| REST API | not run 0/11 | 0 pass · 0 fail · 4 not run · 7 no test | 14 unit test file(s), e.g. [test_daily_inspiration_public_defaults.py](../../backend/tests/test_daily_inspiration_public_defaults.py), [test_daily_inspiration_content_policy.py](../../backend/tests/test_daily_inspiration_content_policy.py) |
 | npm SDK | impl | — | — |
 | PyPI SDK | impl | — | — |
 

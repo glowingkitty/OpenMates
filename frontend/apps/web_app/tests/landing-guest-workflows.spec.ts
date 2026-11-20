@@ -46,7 +46,8 @@ test(`landing Explore Workflows opens the real guest template workspace and read
   await expect(popup.getByTestId('workflows-start-screen')).toBeVisible();
   await expect(popup.getByTestId('all-workflows-view')).toHaveCount(0);
   await expect(popup.getByTestId('workflows-show-all')).toHaveCount(0);
-  await expect(popup.getByTestId('workflows-daily-inspiration-area').getByTestId('daily-inspiration-phrase')).toBeVisible();
+  // TASK-1321: the Workflows start screen has no Daily Inspiration banner, also for guests.
+  await expect(popup.getByTestId('workflows-daily-inspiration-area')).toHaveCount(0);
   const continuation = popup.getByTestId('workflows-workspace-continue');
   const cards = continuation.getByTestId('workflow-landing-card');
   await expect(continuation).toContainText('Continue where you left off');

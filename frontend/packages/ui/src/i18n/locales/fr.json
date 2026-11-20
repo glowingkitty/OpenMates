@@ -4338,76 +4338,6 @@
         "text": "Le paradoxe de Fermi interroge l'absence de preuves convaincantes de civilisations extraterrestres. Explore les réponses possibles."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Garde ta propre sauvegarde. Exporte tes données OpenMates quand tu en as besoin."
-      },
-      "title": {
-        "text": "Exporte tes données OpenMates"
-      },
-      "description": {
-        "text": "Sauvegarde tes discussions, paramètres, souvenirs et plus encore."
-      },
-      "assistant_response": {
-        "text": "Exporte une copie de tes données OpenMates depuis les paramètres du compte. Connecte-toi pour accéder à tes données chiffrées."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Tu veux plus de contrôle sur ta vie privée ? Ajoute les informations personnelles qu'OpenMates doit masquer."
-      },
-      "title": {
-        "text": "Détection personnalisée des PII"
-      },
-      "description": {
-        "text": "Protège tes données personnelles avant les appels au modèle."
-      },
-      "assistant_response": {
-        "text": "Choisis les informations personnelles qu'OpenMates doit masquer avant un appel au modèle. Gère-les dans les paramètres de confidentialité."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Besoin d'une réponse plus ciblée ? Donne une mission précise à ton mate."
-      },
-      "title": {
-        "text": "Modes Focus"
-      },
-      "description": {
-        "text": "Oriente une discussion vers un objectif précis."
-      },
-      "assistant_response": {
-        "text": "Utilise un mode focus pour orienter une discussion vers un objectif précis. Explore les modes disponibles dans les Apps."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Se répéter devient lassant. Enregistre le contexte dont tes mates doivent se souvenir."
-      },
-      "title": {
-        "text": "Souvenirs"
-      },
-      "description": {
-        "text": "Enregistre tes préférences et ton contexte."
-      },
-      "assistant_response": {
-        "text": "Enregistre tes préférences et ton contexte sous forme de souvenirs, puis choisis ce que tes mates peuvent utiliser."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Tu cherches une activité ? Découvre les événements près de chez toi."
-      },
-      "title": {
-        "text": "Trouver des événements locaux"
-      },
-      "description": {
-        "text": "Recherche des cours, des rencontres et d'autres événements."
-      },
-      "assistant_response": {
-        "text": "Utilise la recherche d'événements pour trouver des cours et des rencontres près de chez toi. Choisis un lieu et un sujet pour voir ce qui se passe à proximité."
-      }
-    },
     "collective": {
       "title": {
         "text": "Comportement collectif des animaux"
@@ -4448,62 +4378,6 @@
       },
       "assistant_response": {
         "text": "Des structures stabilisées par l’équilibre entre tension et compression."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Citations de sources fiables"
-      },
-      "description": {
-        "text": "Demande à tes mates de vérifier les sources et de citer les passages qui étayent une réponse."
-      },
-      "phrase": {
-        "text": "Besoin de vérifier une réponse ? Demande à OpenMates de citer sa source."
-      },
-      "assistant_response": {
-        "text": "Demande à tes mates de vérifier les sources et de citer les passages qui étayent une réponse."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Détection d’images IA"
-      },
-      "description": {
-        "text": "Importe une image et examine les indices de génération par IA dans le chat."
-      },
-      "phrase": {
-        "text": "Cette image a-t-elle été générée par IA ? Importe-la pour examiner les indices."
-      },
-      "assistant_response": {
-        "text": "Importe une image et examine les indices de génération par IA dans le chat."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Chats incognito"
-      },
-      "description": {
-        "text": "Lance des chats temporaires quand tu ne souhaites pas les enregistrer dans l’historique."
-      },
-      "phrase": {
-        "text": "Besoin d’une conversation temporaire ? Garde-la hors de ton historique enregistré."
-      },
-      "assistant_response": {
-        "text": "Lance des chats temporaires quand tu ne souhaites pas les enregistrer dans l’historique."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Réglages de confidentialité"
-      },
-      "description": {
-        "text": "Gère le masquage des données personnelles, les comptes connectés et la suppression automatique au même endroit."
-      },
-      "phrase": {
-        "text": "Découvre comment OpenMates protège tes données avant d’avoir besoin de ces réglages en urgence."
-      },
-      "assistant_response": {
-        "text": "Gère le masquage des données personnelles, les comptes connectés et la suppression automatique au même endroit."
       }
     }
   },

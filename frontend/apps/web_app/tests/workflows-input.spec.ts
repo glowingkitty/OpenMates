@@ -98,8 +98,8 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('workflows-nav-link')).toHaveAttribute('aria-current', 'page');
 			await page.setViewportSize({ width: 390, height: 844 });
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
-			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
-			await expect(page.getByTestId('daily-inspiration-label')).toBeVisible();
+			await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-daily-inspiration-area')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-inspiration-card')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-management')).toHaveCount(0);
 			await expect(page.getByTestId('workflows-workspace-center')).toContainText('Hey');

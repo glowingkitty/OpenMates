@@ -257,7 +257,7 @@ test('groups saved chats, navigates deep folders and reveals running descendants
     expect(sdk(apiUrl, home, 'process.stdout.write(JSON.stringify(await client.listProjectItems(input.id,{chatOnly:true})));', { id: projectId }).items).toHaveLength(1);
     await page.goto('/'); await waitForChatReady(page); await openSidebar();
     await closeSidebar();
-    const continueCard = page.locator(`.continue-priority-card[data-chat-id="${parent}"], .resume-chat-card[data-chat-id="${parent}"], .resume-chat-large-card[data-chat-id="${parent}"]`).first();
+    const continueCard = page.locator(`.continue-priority-card[data-chat-id="${parent}"], .resume-chat-large-card[data-chat-id="${parent}"]`).first();
     await expect(continueCard).toBeVisible({ timeout: 30_000 });
     await continueCard.click({ button: 'right' });
     await expect(page.getByTestId('chat-context-create-project')).toBeVisible();

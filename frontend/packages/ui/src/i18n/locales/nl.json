@@ -4311,76 +4311,6 @@
         "text": "De Fermi-paradox stelt de vraag waarom we geen overtuigend bewijs hebben gevonden van buitenaardse beschavingen. Ontdek mogelijke antwoorden."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Houd je eigen back-up bij. Exporteer je OpenMates-gegevens wanneer je maar wilt."
-      },
-      "title": {
-        "text": "Exporteer je OpenMates-gegevens"
-      },
-      "description": {
-        "text": "Maak een back-up van chats, instellingen, herinneringen en meer."
-      },
-      "assistant_response": {
-        "text": "Exporteer een kopie van je OpenMates-gegevens via de accountinstellingen. Log in om toegang te krijgen tot je versleutelde accountgegevens."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Wil je meer controle over je privacy? Voeg persoonlijke gegevens toe die OpenMates moet verbergen."
-      },
-      "title": {
-        "text": "Aangepaste PII-detectie"
-      },
-      "description": {
-        "text": "Bescherm persoonlijke gegevens vóór modelaanroepen."
-      },
-      "assistant_response": {
-        "text": "Kies welke persoonlijke gegevens OpenMates moet verbergen vóór een modelaanroep. Bekijk de privacyinstellingen om ze te beheren."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Heb je een gerichter antwoord nodig? Geef je mate een specifieke taak."
-      },
-      "title": {
-        "text": "Focusmodi"
-      },
-      "description": {
-        "text": "Stuur een chat in de richting van een specifiek doel."
-      },
-      "assistant_response": {
-        "text": "Gebruik een focusmodus om een chat naar een specifiek doel te leiden. Ontdek de beschikbare modi in Apps."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Jezelf herhalen wordt vermoeiend. Sla context op die je mates moeten onthouden."
-      },
-      "title": {
-        "text": "Herinneringen"
-      },
-      "description": {
-        "text": "Sla nuttige voorkeuren en context op."
-      },
-      "assistant_response": {
-        "text": "Sla nuttige voorkeuren en context op als herinneringen en kies vervolgens wat je mates kunnen gebruiken."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Zoek je iets om te doen? Ontdek evenementen bij jou in de buurt."
-      },
-      "title": {
-        "text": "Vind lokale evenementen"
-      },
-      "description": {
-        "text": "Zoek lessen, bijeenkomsten en andere evenementen."
-      },
-      "assistant_response": {
-        "text": "Gebruik de zoekfunctie voor evenementen om lessen en bijeenkomsten in de buurt te vinden. Kies een plaats en onderwerp om te zien wat er te doen is."
-      }
-    },
     "collective": {
       "title": {
         "text": "Collectief diergedrag"
@@ -4421,62 +4351,6 @@
       },
       "assistant_response": {
         "text": "Constructies die stabiel blijven door een evenwicht van trek en druk."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Citaten uit betrouwbare bronnen"
-      },
-      "description": {
-        "text": "Vraag mates bronnen te controleren en de regels te citeren die een antwoord onderbouwen."
-      },
-      "phrase": {
-        "text": "Wil je een antwoord controleren? Vraag OpenMates de bron te citeren."
-      },
-      "assistant_response": {
-        "text": "Vraag mates bronnen te controleren en de regels te citeren die een antwoord onderbouwen."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "AI-beelddetectie"
-      },
-      "description": {
-        "text": "Upload een afbeelding en bekijk aanwijzingen voor AI-generatie in de chat."
-      },
-      "phrase": {
-        "text": "Is een afbeelding met AI gemaakt? Upload hem en bekijk de aanwijzingen."
-      },
-      "assistant_response": {
-        "text": "Upload een afbeelding en bekijk aanwijzingen voor AI-generatie in de chat."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Incognitochats"
-      },
-      "description": {
-        "text": "Start tijdelijke chats wanneer je ze niet in je geschiedenis wilt bewaren."
-      },
-      "phrase": {
-        "text": "Een tijdelijk gesprek nodig? Houd het buiten je opgeslagen chatgeschiedenis."
-      },
-      "assistant_response": {
-        "text": "Start tijdelijke chats wanneer je ze niet in je geschiedenis wilt bewaren."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Privacyinstellingen"
-      },
-      "description": {
-        "text": "Beheer het verbergen van persoonsgegevens, gekoppelde accounts en automatisch verwijderen op één plek."
-      },
-      "phrase": {
-        "text": "Bekijk hoe OpenMates je gegevens beschermt voordat je de instellingen dringend nodig hebt."
-      },
-      "assistant_response": {
-        "text": "Beheer het verbergen van persoonsgegevens, gekoppelde accounts en automatisch verwijderen op één plek."
       }
     }
   },

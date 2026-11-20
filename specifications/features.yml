@@ -301,17 +301,17 @@ features:
   - id: continue-carousel
     name: "Continue Carousel"
     kind: core
-    description: "The Chats start screen promotes timely saved items and recent chats."
+    description: "The Chats start screen promotes timely chats in its row and shows the next saved event as a compact entry below it."
     specifications: [feature.continue-carousel]
     release: untagged-main
-    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    surfaces: {web: implemented, apple: in_progress, cli: implemented, tui: implemented, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: daily-inspiration
     name: "Daily Inspiration"
     kind: core
-    description: "Personalised daily inspiration cards, with a public default for signed-out visitors."
+    description: "Personalised daily video and article cards inside the start-screen row (banner for signed-out visitors), with a public default."
     specifications: [feature.daily-inspiration]
     release: v0.7.0-alpha
-    surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    surfaces: {web: implemented, apple: in_progress, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
     evidence:
       cli: "openmates inspirations"
       sdk_npm: "sdk.inspirations facade (both)"

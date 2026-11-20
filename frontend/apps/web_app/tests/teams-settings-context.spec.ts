@@ -237,7 +237,6 @@ async function expectContinueCardsEmpty(page: Page): Promise<void> {
 		[
 			'[data-testid="recent-chats-scroll-container"] [data-testid="continue-priority-card"]',
 			'[data-testid="recent-chats-scroll-container"] [data-testid="resume-chat-large-card"]',
-			'[data-testid="recent-chats-scroll-container"] [data-testid="resume-chat-card"]',
 			'[data-testid="recent-chats-scroll-container"] [data-testid="resume-chat-draft-card"]'
 		].join(', ')
 	);

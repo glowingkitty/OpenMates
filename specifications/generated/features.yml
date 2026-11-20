@@ -10,14 +10,14 @@ summary:
   status_by_surface:
     web:
       live: 4
-      partial: 20
-      failing: 54
+      partial: 21
+      failing: 53
       not_run: 11
       implemented: 19
       not_planned: 19
     apple:
-      tested: 15
-      partial: 34
+      tested: 14
+      partial: 35
       failing: 5
       implemented: 40
       in_progress: 6
@@ -4550,7 +4550,8 @@ features:
 - id: continue-carousel
   name: Continue Carousel
   kind: core
-  description: The Chats start screen promotes timely saved items and recent chats.
+  description: The Chats start screen promotes timely chats in its row and shows the next saved event as a compact entry below
+    it.
   specifications:
   - id: feature.continue-carousel
     status: draft
@@ -4562,7 +4563,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 2
+  assertions: 3
   surfaces:
     web:
       status: partial
@@ -4571,26 +4572,27 @@ features:
       assertions:
         passing: 1
         failing: 0
-        not_run: 1
+        not_run: 2
         missing: 0
-        counted: 2
+        counted: 3
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/components/start-screen-row.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-continue-carousel.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
       - frontend/packages/ui/src/services/rustCore/__tests__/continueCarouselVectors.test.ts
       unit_test_files: 2
     apple:
-      status: tested
+      status: partial
       source: tests
-      intent: implemented
+      intent: in_progress
       assertions:
         passing: 2
         failing: 0
         not_run: 0
-        missing: 0
-        counted: 2
+        missing: 1
+        counted: 3
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/WelcomeContinueUITests.swift
@@ -4679,7 +4681,8 @@ features:
 - id: daily-inspiration
   name: Daily Inspiration
   kind: core
-  description: Personalised daily inspiration cards, with a public default for signed-out visitors.
+  description: Personalised daily video and article cards inside the start-screen row (banner for signed-out visitors), with
+    a public default.
   specifications:
   - id: feature.daily-inspiration
     status: draft
@@ -4691,24 +4694,23 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 8
+  assertions: 11
   surfaces:
     web:
-      status: failing
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 2
-        failing: 2
-        not_run: 3
+        passing: 6
+        failing: 0
+        not_run: 4
         missing: 1
-        counted: 8
-      failing_tests:
-      - frontend/apps/web_app/tests/inspiration-language.spec.ts › Withheld editorial inventory keeps the ten-card guest fallback
-        usable
+        counted: 11
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/inspiration-language.spec.ts
+      - frontend/apps/web_app/tests/components/start-screen-row.spec.ts
+      - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
       - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
       - frontend/apps/web_app/tests/inspiration-language.spec.ts
       - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
@@ -4720,20 +4722,20 @@ features:
       key_unit_tests:
       - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
       - frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts
+      - frontend/packages/ui/src/utils/__tests__/startScreenRow.test.ts
       - frontend/packages/ui/src/services/__tests__/dailyInspirationDB.language.test.ts
       - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
-      - scripts/tests/test_message_input_welcome_contract.py
-      unit_test_files: 5
+      unit_test_files: 6
     apple:
       status: partial
       source: tests
-      intent: implemented
+      intent: in_progress
       assertions:
         passing: 6
         failing: 0
         not_run: 0
-        missing: 2
-        counted: 8
+        missing: 5
+        counted: 11
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift
@@ -4780,18 +4782,18 @@ features:
       assertions:
         passing: 0
         failing: 0
-        not_run: 5
-        missing: 3
-        counted: 8
+        not_run: 4
+        missing: 7
+        counted: 11
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_daily_inspiration_public_defaults.py
+      - backend/tests/test_daily_inspiration_content_policy.py
       - backend/tests/test_daily_inspiration_activity.py
       - backend/tests/test_daily_inspiration_config.py
       - backend/tests/test_daily_inspiration_decisions.py
-      - backend/tests/test_daily_inspiration_generator.py
-      unit_test_files: 13
+      unit_test_files: 14
     sdk_npm:
       status: implemented
       source: intent

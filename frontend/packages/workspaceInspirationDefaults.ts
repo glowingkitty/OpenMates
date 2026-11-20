@@ -3,12 +3,7 @@ import type { DailyInspiration, DailyInspirationSurface } from "./ui/src/stores/
 
 export function getWorkspaceInspirations(surface: Exclude<DailyInspirationSurface, "chats">): DailyInspiration[] {
   const now = Math.floor(Date.now() / 1000);
-  if (surface === "apps") {
-    return [
-      { inspiration_id: "hardcoded-apps-search", phrase: "Find information directly with an app skill, and keep the results for later.", title: "Use a Skill Directly", category: "general_knowledge", content_type: "feature", video: null, generated_at: now, surface, feature: { feature_id: "apps-direct-search", icon: "search", title: "Search the web", description: "Search without starting a chat.", settings_path: "apps/web/search" } },
-      { inspiration_id: "hardcoded-apps-weather", phrase: "Check the forecast before making plans. Your saved results stay together in Apps.", title: "Plan Around the Weather", category: "travel", content_type: "feature", video: null, generated_at: now, surface, feature: { feature_id: "apps-weather", icon: "cloud-sun", title: "Weather forecast", description: "Choose a location and dates.", settings_path: "apps/weather/forecast" } },
-    ];
-  }
+  if (surface === "apps" || surface === "workflows") return [];
   if (surface === "projects") {
     return [
       {
@@ -181,26 +176,5 @@ export function getWorkspaceInspirations(surface: Exclude<DailyInspirationSurfac
     ];
   }
 
-  return [
-    {
-      inspiration_id: "hardcoded-workflow-trigger",
-      phrase: "A useful workflow starts with one trigger, one decision, and one visible result.",
-      title: "Design a Workflow Trigger",
-      category: "productivity",
-      content_type: "feature",
-      video: null,
-      generated_at: now,
-      surface,
-      assistant_response: "Before automating anything, write the trigger in plain language: when this happens, decide this, then produce that result. This keeps workflows understandable and testable.",
-      follow_up_suggestions: ["Define a workflow trigger", "Map decision points", "Design the result"],
-      feature: {
-        feature_id: "workflow-trigger",
-        icon: "workflow",
-        title: "Workflow planning tip",
-        description: "Start automation with a clear trigger.",
-        settings_path: null,
-      },
-    },
-  ];
+  return [];
 }
-

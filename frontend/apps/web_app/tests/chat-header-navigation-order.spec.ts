@@ -291,8 +291,9 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		expect(caretOffset, 'Caret must remain after the text typed in the middle of the draft').toBe(
 			initialCaretOffset + typedWhileActivationPaused.length + typedDuringHeaderRender.length
 		);
-		// The measured welcome surface stays mounted while the draft is being typed, but is hidden under the composer.
-		await expect(page.getByTestId('daily-inspiration-area')).toBeHidden();
+		// Signed-in users have no Daily Inspiration banner; the welcome start row is hidden under the composer while typing.
+		await expect(page.getByTestId('daily-inspiration-area')).toHaveCount(0);
+		await expect(page.getByTestId('welcome-content')).toBeHidden();
 		const draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();
 

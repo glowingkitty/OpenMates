@@ -1,4 +1,4 @@
-"""Regression coverage for German public defaults and static personalized tips."""
+"""Regression coverage for German public defaults and static wiki fallbacks."""
 
 import ast
 import json
@@ -12,11 +12,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from backend.apps.ai.daily_inspiration.feature_suggestions import (
-    GUEST_ONBOARDING_FEATURE_IDS,
-    build_feature_inspirations,
-    feature_requires_authentication,
-)
 from backend.apps.ai.daily_inspiration.wiki_suggestions import build_wiki_inspirations
 from backend.apps.ai.daily_inspiration.media_coherence import editorial_review_digest, is_inspiration_media_coherent
 
@@ -58,9 +53,6 @@ def _load_route():
         "timezone": timezone,
         "logger": logging.getLogger(__name__),
         "AVAILABLE_CATEGORIES": {"science", "history", "openmates_official"},
-        "GUEST_ONBOARDING_FEATURE_IDS": GUEST_ONBOARDING_FEATURE_IDS,
-        "feature_requires_authentication": feature_requires_authentication,
-        "build_feature_inspirations": build_feature_inspirations,
         "build_wiki_inspirations": build_wiki_inspirations,
         "is_inspiration_media_coherent": is_inspiration_media_coherent,
     }
@@ -68,23 +60,6 @@ def _load_route():
         compile(ast.Module(body=nodes, type_ignores=[]), str(source), "exec"), namespace
     )
     return namespace["get_default_inspirations"]
-
-
-# contract-test: supporting surface=rest_api assertions=language-preferences.content-language,daily-inspiration.public-defaults
-def test_german_static_personalized_features_translate_all_display_text():
-    german = build_feature_inspirations(20, language="de-DE")
-    english = build_feature_inspirations(20)
-    assert len(german) == len(english) == 9
-    for localized, original in zip(german, english):
-        assert localized.language == "de"
-        assert localized.phrase != original.phrase
-        assert localized.title != original.title
-        assert localized.assistant_response != original.assistant_response
-        assert localized.feature.description != original.feature.description
-        assert localized.feature.settings_path == original.feature.settings_path
-        if localized.direct_video:
-            assert localized.direct_video.title == localized.title
-            assert localized.direct_video.mp4_url == original.direct_video.mp4_url
 
 
 # contract-test: supporting surface=rest_api assertions=language-preferences.content-language,daily-inspiration.public-defaults
@@ -139,16 +114,16 @@ async def test_german_defaults_remove_english_fill_even_when_stamped_german():
 
     response = await _load_route()(None, "de", directus, Cache())
     items = response["inspirations"]
-    assert len(items) == 10
+    assert len(items) == 6
     assert all(item["language"] == "de" for item in items)
     assert not any(item["phrase"] == english["phrase"] for item in items)
     assert any(item["phrase"] == german["phrase"] for item in items)
-    assert redis.set.call_args.args[0] == "public:default_inspirations:v19:de"
+    assert redis.set.call_args.args[0] == "public:default_inspirations:v20:de"
 
 
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=language-preferences.content-language,daily-inspiration.public-defaults
-async def test_german_cache_miss_without_defaults_returns_ten_localized_items():
+async def test_german_cache_miss_without_defaults_returns_six_localized_items():
     directus = SimpleNamespace(
         inspiration_defaults=SimpleNamespace(
             get_defaults_for_date=AsyncMock(return_value=[])
@@ -162,31 +137,25 @@ async def test_german_cache_miss_without_defaults_returns_ten_localized_items():
 
     response = await _load_route()(None, "de", directus, Cache())
     items = response["inspirations"]
-    assert len(items) == 10
+    assert len(items) == 6
     assert all(item["language"] == "de" for item in items)
-    assert all(item["content_type"] in {"wiki", "feature"} for item in items)
-    assert all(
-        not item.get("feature", {}).get("requires_authentication", False)
-        for item in items
-        if item.get("feature")
-    )
+    assert all(item["content_type"] == "wiki" for item in items)
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("language", ["en", "de", "zh", "es", "fr", "pt", "ru", "ja", "ko", "it", "tr", "vi", "id", "pl", "nl", "ar", "hi", "th", "cs", "sv"])
 # contract-test: supporting surface=rest_api assertions=language-preferences.content-language,daily-inspiration.public-defaults
-async def test_every_public_locale_recovers_ten_localized_cards(language):
+async def test_every_public_locale_recovers_six_localized_cards(language):
     directus = SimpleNamespace(inspiration_defaults=SimpleNamespace(get_defaults_for_date=AsyncMock(return_value=[])))
     class Cache:
         @property
         async def client(self):
             return None
     cards = (await _load_route()(None, language, directus, Cache()))["inspirations"]
-    assert len(cards) == 10
+    assert len(cards) == 6
     assert all(card["language"] == language for card in cards)
     if language != "en":
         english_phrases = {card.phrase for card in build_wiki_inspirations(10)}
-        english_phrases.update(card.phrase for card in build_feature_inspirations(20))
         assert not english_phrases.intersection(card["phrase"] for card in cards)
 
 
@@ -194,7 +163,7 @@ async def test_every_public_locale_recovers_ten_localized_cards(language):
 @pytest.mark.parametrize("language", ["en", "de"])
 @pytest.mark.parametrize("legacy", ["missing_proof", "old_proof", "changed_source", "missing_source"])
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
-async def test_legacy_dynamic_wiki_defaults_are_withheld_and_static_ten_recover(language, legacy):
+async def test_legacy_dynamic_wiki_defaults_are_withheld_and_static_six_recover(language, legacy):
     row = {"pool_entry_id": "legacy-wiki", "language": language, "content_type": "wiki",
            "phrase": "LEGACY_UNREVIEWED_COPY", "title": "Legacy generated title",
            "assistant_response": "Legacy generated intro", "follow_up_suggestions": [],
@@ -218,7 +187,28 @@ async def test_legacy_dynamic_wiki_defaults_are_withheld_and_static_ten_recover(
             return None
     response = await _load_route()(None, language, directus, Cache())
     cards = response["inspirations"]
-    assert len(cards) == 10
+    assert len(cards) == 6
     assert not any(card["phrase"] == row["phrase"] for card in cards)
-    assert all(card["content_type"] in {"wiki", "feature"} for card in cards)
+    assert all(card["content_type"] == "wiki" for card in cards)
     assert all(card["language"] == language for card in cards)
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
+async def test_legacy_feature_defaults_are_never_returned():
+    legacy = {"pool_entry_id": "legacy-feature", "language": "en", "content_type": "feature",
+              "phrase": "LEGACY_FEATURE_TIP", "title": "Legacy tip",
+              "feature_metadata": {"feature_id": "custom-pii-detection", "requires_authentication": False}}
+    directus = SimpleNamespace(
+        inspiration_defaults=SimpleNamespace(get_defaults_for_date=AsyncMock(return_value=[legacy])),
+    )
+
+    class Cache:
+        @property
+        async def client(self):
+            return None
+
+    cards = (await _load_route()(None, "en", directus, Cache()))["inspirations"]
+    assert len(cards) == 6
+    assert all(card["content_type"] == "wiki" for card in cards)
+    assert not any(card["phrase"] == legacy["phrase"] for card in cards)

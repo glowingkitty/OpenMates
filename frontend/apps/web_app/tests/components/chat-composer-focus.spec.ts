@@ -309,9 +309,10 @@ test.describe('Chat composer focus and draft preservation', () => {
 test('continuation cards match Apple spacing in narrow, short, and tall panes', async ({
 	page
 }) => {
+	// Large cards on every pane size: the compact pill view was removed (TASK-1321).
 	for (const profile of [
-		{ width: 390, height: 844, large: false, theme: 'dark' },
-		{ width: 1366, height: 700, large: false, theme: 'light' },
+		{ width: 390, height: 844, large: true, theme: 'dark' },
+		{ width: 1366, height: 700, large: true, theme: 'light' },
 		{ width: 1366, height: 1032, large: true, theme: 'light' }
 	]) {
 		await page.setViewportSize({ width: profile.width, height: profile.height });

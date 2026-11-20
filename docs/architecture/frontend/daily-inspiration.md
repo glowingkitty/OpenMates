@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-11-20
 key_files:
 - backend/apps/ai/daily_inspiration/generator.py
 - backend/apps/ai/daily_inspiration/video_processor.py
@@ -9,7 +9,9 @@ key_files:
 - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
 - frontend/packages/ui/src/stores/dailyInspirationStore.ts
 - frontend/packages/ui/src/services/dailyInspirationDB.ts
-- frontend/packages/ui/src/data/product_features.yml
+- frontend/packages/ui/src/utils/startScreenRow.ts
+- frontend/packages/ui/src/components/welcome/StartScreenChatCard.svelte
+- frontend/packages/ui/src/services/dailyInspirationViewed.ts
 - frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
 - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
 - backend/core/api/app/tasks/daily_inspiration_tasks.py
@@ -53,11 +55,11 @@ claims:
 
 # Daily Inspiration
 
-> Delivers a daily 10-card mixed inspiration set: 3 videos, 3 Wikipedia article prompts, and 4 OpenMates feature tips, with zero LLM latency at display time.
+> Delivers a daily 6-card inspiration set (3 videos, 3 Wikipedia article prompts) with zero LLM latency at display time. Signed-in users see the cards inside the start-screen row; signed-out visitors see the banner.
 
 ## Why This Exists
 
-Provides curiosity-driven content from independent educators, journalists, documentary makers, and Wikipedia articles, plus static OpenMates feature tips. Content inspirations include a phrase, pre-written assistant response, and follow-up suggestions so users can start a chat instantly. Logged-out product feature cards use concise editorial headlines from `product_features.yml`; authenticated feature tips can deep-link to settings instead of creating chats.
+Provides curiosity-driven content from independent educators, journalists, documentary makers, and Wikipedia articles, Each inspiration includes a phrase, pre-written assistant response, and follow-up suggestions so users can start a chat instantly. Static feature-tip cards were removed in TASK-1321 (2026-11-20): legacy `content_type: feature` rows are dropped on read by the backend, the Rust client core and the web store, and none are generated.
 
 ## How It Works
 
@@ -72,9 +74,8 @@ Runs in `app-ai-worker` Celery container:
 5. **Video writing** -- Mercury 3 is the sole LLM and writes the exact preselected sources. Provider failures or malformed/missing rows may retry that same model once, requesting only unresolved identities. Editorial rejections are terminal. Approved source-bound objects are retained; no cross-model fallback or separate LLM review is permitted.
 6. **Wikipedia discovery and writing** -- search real localized article titles, validate them and fetch summaries/Wikidata before Jev selection. The writer paraphrases only the selected public summaries; it cannot invent article targets.
 7. **Final review** -- Jev alone checks policy, semantic subject coherence, field grounding/language and each follow-up’s source relevance across locales. Source-preserving paraphrases and unspaced Japanese do not require word overlap. Failed/uncertain checks withhold a draft. Video admission also requires actual bounded JPEG thumbnail pixels, with no text-only visual fallback.
-8. **Feature tips** -- four static feature cards, no inference.
-9. **Delivery** -- shuffle once per user/UTC day; only complete 3-video/3-wiki/4-feature sets replace personalized delivery. Reviewed partial stock may enter the pool; clients retain existing recovery when a complete new set is unavailable.
-10. **Public selection** -- existing shared-pool external cards are reviewed before defaults selection, including legacy rows. Public video descriptions are retained for later source review. Static feature auth/guest checks remain deterministic.
+8. **Delivery** -- shuffle once per user/UTC day; only complete 3-video/3-wiki sets replace personalized delivery. Reviewed partial stock may enter the pool; clients retain existing recovery when a complete new set is unavailable.
+9. **Public selection** -- existing shared-pool external cards are reviewed before defaults selection, including legacy rows. Public video descriptions are retained for later source review.
 
 The production writer is fixed to `inception/mercury-3`: one generation stage,
 at most two same-model attempts for provider/schema failures, a 30-second timeout
@@ -86,27 +87,50 @@ models only. This does not change account settings or ordinary assistant routing
 
 | Trigger | When | Count | File |
 |---------|------|-------|------|
-| First active request | Post-processing with recent tracked request and no completed-first-run flag | 10 | `daily_inspiration_tasks.py` |
-| Scheduled daily | 06:00 UTC Celery Beat | 10 for paid activity in the last 24h and viewed_count > 0 | `daily_inspiration_tasks.py` |
-| Default selection | 06:30 UTC Celery Beat | Mixed top 10 per language | `default_inspiration_tasks.py` |
+| First active request | Post-processing with recent tracked request and no completed-first-run flag | 6 | `daily_inspiration_tasks.py` |
+| Scheduled daily | 06:00 UTC Celery Beat | 6 for paid activity in the last 24h and viewed_count > 0 | `daily_inspiration_tasks.py` |
+| Default selection | 06:30 UTC Celery Beat | Mixed top 6 (3 video, 3 wiki) per language | `default_inspiration_tasks.py` |
 
 ### Delivery
 
 **Authenticated users:** Generated -> stored in Redis (7-day TTL) -> broadcast via WebSocket if online -> delivered on login if offline. Cross-device persistence via encrypted Directus `user_daily_inspirations` table.
 
-**Unauthenticated web users:** The ordinary new-chat screen immediately shows a locale-aware, guest-safe Daily Inspirations fallback. A complete public 3-video, 3-wiki, 4-feature set can replace it through the public defaults endpoint; authenticated-only or promotional cards are rejected. Guests retain interest selection and the full example-chat catalog, independently of the selected inspiration. Marketing content belongs to the separate scrolling website. Guest data remains isolated from authenticated Daily Inspirations; the internal `guest-onboarding` source marker lets login recover the account-specific source.
+**Unauthenticated web users:** The ordinary new-chat screen immediately shows a locale-aware, guest-safe Daily Inspirations fallback. A complete public 3-video, 3-wiki set can replace it through the public defaults endpoint; authenticated-only or promotional cards are rejected. Guests retain interest selection and the full example-chat catalog, independently of the selected inspiration. Marketing content belongs to the separate scrolling website. Guest data remains isolated from authenticated Daily Inspirations; the internal `guest-onboarding` source marker lets login recover the account-specific source.
 
-**Guest fallback content:** The built-in authenticated fallback retains its chat-export feature. For guests, that authenticated-only card is replaced with a public Events search inspiration while the other nine cards remain the same.
+**Guest fallback content:** Guests and signed-in users share the same six built-in fallback cards (3 video, 3 wiki); none are authenticated-only.
 
-**Public and authenticated fallback clients:** At 06:30 UTC, pool entries are scored per language (`interaction_count / (age_hours + 1)`) and a 3-video, 3-wiki, 4-feature target is written to `daily_inspiration_defaults`. `GET /v1/default-inspirations?lang={code}` exposes the credit-free public fallback with a 1-hour cache. Authenticated clients use it only when personalized IndexedDB, Phase 1, live WebSocket, and account API recovery provide no usable records.
+**Public and authenticated fallback clients:** At 06:30 UTC, pool entries are scored per language (`interaction_count / (age_hours + 1)`) and a 3-video, 3-wiki target is written to `daily_inspiration_defaults`. `GET /v1/default-inspirations?lang={code}` exposes the credit-free public fallback with a 1-hour cache. Authenticated clients use it only when personalized IndexedDB, Phase 1, live WebSocket, and account API recovery provide no usable records.
 
 ### Frontend
 
-- `DailyInspirationBanner.svelte` -- carousel of up to 10 cards
+- `DailyInspirationBanner.svelte` -- guest-only carousel on the signed-out Chats screen (the landing intro is coupled to it)
+- `startScreenRow.ts` -- `interleaveStartRow()` (row rhythm), `selectChatRowInspirations()` (surface chats, video/wiki, unopened) and `selectWorkflowRowInspirations()` (the recommended-workflow hook, see below)
+- `welcome/StartScreenChatCard.svelte` -- the one large card used by every start-row entry (own chats, priority chats, drafts, inspirations, guest examples); inspiration cards show the video/article image with a small "Daily inspiration" label
+- `welcome/StartScreenUpcomingEntry.svelte` -- compact entry for an upcoming saved event below the row (events are no longer row cards)
+- `dailyInspirationViewed.ts` -- `inspiration_viewed` WebSocket event, once per id per session, sent when half of a card is visible (banner or row)
 - `dailyInspirationStore.ts` -- Svelte store for state/navigation and explicit guest/personalized/public/fallback source priority
 - `dailyInspirationDB.ts` -- IndexedDB with AES-GCM encryption, 72h TTL
-- `product_features.yml` -- fallback product-feature headline registry
 - Chat creation: `handleStartChatFromInspiration()` in `ActiveChat.svelte`
+
+### Start-screen row (signed-in Chats, Apps, Workflows)
+
+Signed-in start screens have no banner. Order from the top: greeting, the row,
+the new-chat suggestions or the upcoming-event entry, "Show all"/"Search", the
+message input. The Chats row holds at most ten own chats (reminder-priority
+chats, then the last opened chat, then recent chats); today's unopened
+inspirations are added on top of those ten: two own chats, one inspiration,
+then one inspiration after every third own chat, never repeating. A user
+without chats sees only the inspirations. "Show all" lists only real chats.
+Apps shows its own items as large cards with no inspirations and no tip.
+
+**Recommended-workflow hook.** The Workflows row uses the same rhythm and label
+with records that satisfy this contract (`DailyInspiration.workflow`):
+`surface: "workflows"`, `content_type: "workflow"`, and
+`workflow: { template_id: string, summary?: string, icon?: string }`. Opening
+one calls the existing start-from-inspiration handler. No producer exists yet:
+a future generator only has to deliver such records into the store; the
+shells need no change. Until then the Workflows row shows only the user's
+workflows (Specification `daily-inspiration.workflow-recommendation-hook`).
 
 ## Data Structures
 
@@ -114,15 +138,15 @@ models only. This does not change account settings or ordinary assistant routing
 
 - `DailyInspirationVideo` -- youtube_id, title, thumbnail_url, channel_name, view_count, duration_seconds, published_at
 - `DailyInspirationWiki` -- title, wiki_title, source_language (source edition, independent of card language), description, thumbnail_url, wikidata_id, extract
-- `DailyInspirationFeature` -- feature_id, icon, title, description, settings_path
-- `DailyInspiration` -- inspiration_id, phrase, title, assistant_response, category, content_type, video, wiki, feature, generated_at, follow_up_suggestions
+- Legacy `content_type: feature` rows (the former `DailyInspirationFeature`) are dropped on read by `drop_unsupported_inspirations()` and no longer produced
+- `DailyInspiration` -- inspiration_id, phrase, title, assistant_response, category, content_type (video or wiki), video, wiki, generated_at, follow_up_suggestions
 
 ### Directus Tables
 
 | Table | Purpose |
 |-------|---------|
 | `daily_inspiration_pool` | Shared cleartext public-source pool, capped at 500 |
-| `daily_inspiration_defaults` | Up to 10 reviewed public defaults per language per day |
+| `daily_inspiration_defaults` | Up to 6 reviewed public defaults per language per day |
 | `user_daily_inspirations` | Per-user encrypted records |
 
 ### Cache Keys (Redis via `cache_inspiration_mixin.py`)
@@ -139,12 +163,13 @@ models only. This does not change account settings or ordinary assistant routing
 - **Editorial decision failure:** Withhold new external candidates; preserve existing feed recovery instead of publishing unreviewed cards
 - **Video output budget:** targets three generated videos; each writing batch has at most three provider attempts, independent of source/thumbnail decision calls
 - **Wiki cost:** one initial writing call with up to two bounded repair calls, source/final Jev decisions and Wikimedia API traffic; do not conflate supplier usage with measured total infrastructure cost
-- **Feature cost:** static/no external API calls
 
 ## Related Docs
 
 - [Message Processing](../messaging/message-processing.md) -- topic extraction via post-processing
 - E2E test: `frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts`
+- Component spec: `frontend/apps/web_app/tests/components/start-screen-row.spec.ts` (`/dev/preview/welcome/StartScreenRowPreviewHarness`)
+- Specification: `specifications/features/daily-inspiration/` (start-row assertions) and `specifications/features/continue-carousel/` (upcoming entry)
 
 ### Multilingual and visual editorial admission
 
@@ -183,7 +208,7 @@ Wikipedia cards carry their actual retrieval edition. The card copy remains loca
 
 ### Granular recovery and cost accounting (2026-10-21)
 
-The review proof is versioned `daily-editorial-v10`; public cache keys use `v19`.
+The review proof is versioned `daily-editorial-v10`; public cache keys use `v20` (v20: six-card sets without feature records, TASK-1321).
 Older video/wiki approvals cannot satisfy the stronger gate. Jev confidence remains an
 abstention heuristic at the existing threshold, not a calibrated correctness
 probability. Field-level repair codes contain no arbitrary provider prose and

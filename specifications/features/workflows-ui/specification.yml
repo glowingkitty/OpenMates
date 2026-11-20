@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 11
+version: 12
 status: draft
 title: Workflows Web UI
 summary: 'The Workflows web workspace lets signed-out visitors inspect built-in templates. Authenticated owners
@@ -406,21 +406,19 @@ models:
       required: true
       constraints:
         vertical_regions:
-        - recommendation_banner
         - workflow_identity_space
         - workflow_card_carousel
         - browse_controls
         - bottom_composer
-        recommendation_banner:
-          full_content_width: true
-          vivid_gradient_surface: true
-          rounded: true
+        recommendation_banner: forbidden
         workflow_identity_space:
           large_faint_workflow_icon: true
           centered: true
         workflow_card_carousel:
           horizontal: true
-          owned_workflows_only: true
+          owned_workflows_with_interleaved_recommendations: true
+          recommendation_source: daily-inspiration.workflow-recommendation-hook
+          large_cards_only: true
           prioritized_by_recent_edits_and_upcoming_schedule: true
           cards_partially_peek_at_edge: allowed
         browse_controls:
@@ -441,19 +439,14 @@ models:
       required: true
       constraints:
         vertical_regions:
-        - recommendation_banner
         - workflow_identity_and_greeting
         - workflow_card_carousel
         - browse_controls
         - bottom_composer
-        recommendation_banner:
-          near_full_width: true
-          compact: true
+        recommendation_banner: forbidden
         workflow_identity_and_greeting:
           centered: true
           large_faint_workflow_icon: true
-          begins_below_recommendation_banner: true
-          overlaps_recommendation_banner: false
         bottom_composer:
           fixed_or_sticky_above_safe_area: true
           near_full_width: true
@@ -874,13 +867,13 @@ assertions:
   - examples.workflow_identity
 - id: workflows-ui.workspace.recommendation-led-composition
   type: behavior
-  must: The /workflows start view vertically composes a prominent recommendation banner, centered faint Workflow
-    identity, horizontal owned Workflow cards, centered plain 'Show my workflows' without a count, 'Show templates'
-    and Search controls, and a floating bottom composer. Start content begins below the recommendation banner without
-    overlap. Whenever the available Workflow container width or height cannot fit a large card, compact cards show
-    only the bare assigned icon, one ellipsized title line, and chevron; they omit enabled or paused badges and
-    schedule, next-run, and retention detail. Large cards retain useful schedule or status detail and the Workflow
-    category gradient. Authenticated visitors see the localized heading What do you want to automate next?
+  must: The /workflows start view vertically composes, without a recommendation banner, a centered faint Workflow
+    identity, one horizontal row of large owned Workflow cards with recommended-workflow inspirations interleaved
+    (two own Workflows, then one recommendation after every third; labelled Daily inspiration; none exist until a
+    producer delivers them), centered plain 'Show my workflows' without a count, 'Show templates' and Search
+    controls, and a floating bottom composer, vertically centred in the space above the composer. There is no
+    compact card variant and no generic workflow tip. Large cards retain useful schedule or status detail and the
+    Workflow category gradient. Authenticated visitors see the localized heading What do you want to automate next?
     above their cards, without a redundant Continue where you left off label. Workflows use the shared Chats
     start geometry and compact-card fit threshold. Mobile keeps the same hierarchy with the composer above the safe area.
   depends_on:

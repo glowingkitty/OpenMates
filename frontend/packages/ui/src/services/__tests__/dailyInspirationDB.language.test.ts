@@ -37,7 +37,7 @@ beforeEach(() => records.clear());
 // contract-test: supporting surface=gui.web assertions=language-preferences.content-language,daily-inspiration.encrypted-persistence,daily-inspiration.opened-state
 it('round-trips locale inside encrypted metadata while preserving opened chats', async () => {
   const inspirations = getAuthenticatedFallbackInspirations('de');
-  const examples = [inspirations[0], inspirations[3], inspirations[6]];
+  const examples = [inspirations[0], inspirations[3], inspirations[5]];
   for (const item of examples) {
     item.is_opened = true;
     item.opened_chat_id = `saved-${item.inspiration_id}`;

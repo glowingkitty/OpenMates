@@ -11,9 +11,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'frontend/packages/ui/src/i18n/sources/daily_inspiration_fallback.yml'
 LANGUAGES = ROOT / 'frontend/packages/ui/src/i18n/languages.json'
 OUTPUT = ROOT / 'frontend/packages/ui/src/demo_chats/hardcodedInspirationFallbackText.ts'
-CARDS = ('antikythera', 'bioluminescence', 'fermi', 'export', 'pii', 'focus', 'memories', 'events')
+CARDS = ('antikythera', 'bioluminescence', 'fermi')
 FIELDS = ('phrase', 'title', 'description', 'assistant_response')
-BACKEND_CARDS = (*CARDS, 'collective', 'alexandria', 'tensegrity', 'quotes', 'image_detection', 'incognito', 'privacy')
+BACKEND_CARDS = (*CARDS, 'collective', 'alexandria', 'tensegrity')
 BACKEND_OUTPUT = ROOT / 'backend/apps/ai/daily_inspiration/static_localizations.json'
 
 

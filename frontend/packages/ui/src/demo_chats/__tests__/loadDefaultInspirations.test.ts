@@ -71,7 +71,7 @@ describe("loadDefaultInspirations", () => {
 
     const immediateState = get(dailyInspirationStore);
     expect(immediateState.source).toBe("authenticated-fallback");
-    expect(immediateState.inspirations).toHaveLength(10);
+    expect(immediateState.inspirations).toHaveLength(6);
     expect(
       immediateState.inspirations.every((inspiration) =>
         inspiration.inspiration_id.startsWith("authenticated-fallback-"),
@@ -90,11 +90,11 @@ describe("loadDefaultInspirations", () => {
     const loading = loadDefaultInspirations({ allowIndexedDB: false, surface: "chats" });
     const immediateState = get(dailyInspirationStore);
     expect(immediateState.source).toBe("guest-onboarding");
-    expect(immediateState.inspirations).toHaveLength(10);
+    expect(immediateState.inspirations).toHaveLength(6);
     expect(immediateState.inspirations.every((inspiration) =>
       inspiration.inspiration_id.startsWith("authenticated-fallback-"),
     )).toBe(true);
-    expect(immediateState.inspirations[6].feature?.feature_id).toBe("export-data");
+    expect(immediateState.inspirations.some((card) => card.content_type === "feature")).toBe(false);
 
     resolveFetch();
     await loading;
@@ -114,7 +114,7 @@ describe("loadDefaultInspirations", () => {
     await loadDefaultInspirations({ allowIndexedDB: false, surface: "chats" });
 
     const state = get(dailyInspirationStore);
-    expect(state.inspirations).toHaveLength(10);
+    expect(state.inspirations).toHaveLength(6);
     expect(state.inspirations.some((inspiration) => inspiration.inspiration_id === "openmates-intro")).toBe(false);
   });
 
@@ -127,10 +127,9 @@ describe("loadDefaultInspirations", () => {
 
     const state = get(dailyInspirationStore);
     expect(state.source).toBe("guest-onboarding");
-    expect(state.inspirations).toHaveLength(10);
+    expect(state.inspirations).toHaveLength(6);
     expect(state.inspirations.map((item) => item.content_type)).toEqual([
       "video", "video", "video", "wiki", "wiki", "wiki",
-      "feature", "feature", "feature", "feature",
     ]);
     expect(state.inspirations[0].phrase).toBe(
       "Warum erschafft dein Gehirn ganze Welten, während du schläfst?",
@@ -141,43 +140,33 @@ describe("loadDefaultInspirations", () => {
     expect(wiki.wiki?.title).toBe("Der Mechanismus von Antikythera");
     expect(wiki.wiki?.description).toContain("griechisches");
     expect(wiki.assistant_response).toContain("Bronzezahnräder");
-    const feature = state.inspirations[6];
-    expect(feature.phrase).toContain("Exportiere deine OpenMates-Daten");
-    expect(feature.feature?.title).toBe("Exportiere deine OpenMates-Daten");
-    expect(feature.feature?.settings_path).toBe("account/export");
-    expect(feature.assistant_response).toContain("Kontoeinstellungen");
   });
 
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,daily-inspiration.public-defaults
-  it("keeps ten public guest cards while retaining export in the authenticated fallback", () => {
+  it("keeps six public guest cards (3 video + 3 wiki) without feature tips", () => {
     const guest = getHardcodedInspirationsForSurface("en", "chats");
     const authenticated = getAuthenticatedFallbackInspirations("en");
-    expect(guest).toHaveLength(10);
+    expect(guest).toHaveLength(6);
     expect(guest.map((card) => card.content_type)).toEqual([
       "video", "video", "video", "wiki", "wiki", "wiki",
-      "feature", "feature", "feature", "feature",
     ]);
     expect(guest.map((card) => card.inspiration_id)).toEqual(authenticated.map((card) => card.inspiration_id));
-    expect(guest[6].feature).toMatchObject({ feature_id: "export-data", settings_path: "account/export", requires_authentication: true });
-    expect(authenticated[6].feature).toMatchObject({
-      feature_id: "export-data",
-      requires_authentication: true,
-    });
+    expect(authenticated.some((card) => card.content_type === "feature")).toBe(false);
   });
 
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated
-  it("keeps the ten-card guest mix and localized copy in every supported locale", () => {
+  it("keeps the six-card guest mix and localized copy in every supported locale", () => {
     const english = getHardcodedInspirationsForSurface("en", "chats");
     for (const lang of SUPPORTED_LOCALES) {
       const cards = getHardcodedInspirationsForSurface(lang, "chats");
       expect(cards.map((card) => card.inspiration_id)).toEqual(
         english.map((card) => card.inspiration_id),
       );
-      expect(cards).toHaveLength(10);
-      expect(cards[6].feature?.feature_id, lang).toBe("export-data");
+      expect(cards).toHaveLength(6);
+      expect(cards.some((card) => card.content_type === "feature"), lang).toBe(false);
       expect(cards.some(card => card.feature?.settings_path?.startsWith("apps/events") || card.feature?.feature_id === "events-search" || card.inspiration_id === "guest-fallback-events"), lang).toBe(false);
       if (lang !== "en") {
-        for (let index = 3; index < 10; index += 1) {
+        for (let index = 3; index < 6; index += 1) {
           expect(cards[index].phrase, `${lang} card ${index}`).not.toBe(english[index].phrase);
           expect(cards[index].assistant_response, `${lang} card ${index}`).toBeTruthy();
         }
@@ -203,7 +192,7 @@ describe("loadDefaultInspirations", () => {
     await loading;
 
     expect(get(dailyInspirationStore).source).toBe("authenticated-fallback");
-    expect(get(dailyInspirationStore).inspirations).toHaveLength(10);
+    expect(get(dailyInspirationStore).inspirations).toHaveLength(6);
   });
 
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.authenticated-continuity
@@ -222,7 +211,7 @@ describe("loadDefaultInspirations", () => {
 
     const immediateState = get(dailyInspirationStore);
     expect(immediateState.source).toBe("authenticated-fallback");
-    expect(immediateState.inspirations).toHaveLength(10);
+    expect(immediateState.inspirations).toHaveLength(6);
     expect(emittedLengths).not.toContain(0);
 
     resolveFetch();

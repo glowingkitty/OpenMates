@@ -4338,76 +4338,6 @@
         "text": "Il paradosso di Fermi si chiede perché non abbiamo trovato prove convincenti di civiltà extraterrestri. Esplora le possibili risposte."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Conserva il tuo backup. Esporta i tuoi dati OpenMates ogni volta che ne hai bisogno."
-      },
-      "title": {
-        "text": "Esporta i tuoi dati OpenMates"
-      },
-      "description": {
-        "text": "Esegui il backup di chat, impostazioni, ricordi e altro ancora."
-      },
-      "assistant_response": {
-        "text": "Esporta una copia dei tuoi dati OpenMates dalle impostazioni dell'account. Accedi per consultare i dati crittografati del tuo account."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Vuoi controlli sulla privacy più rigorosi? Aggiungi i dettagli personali che OpenMates dovrebbe nascondere."
-      },
-      "title": {
-        "text": "Rilevamento PII personalizzato"
-      },
-      "description": {
-        "text": "Proteggi i dettagli personali prima delle chiamate al modello."
-      },
-      "assistant_response": {
-        "text": "Scegli i dettagli personali che OpenMates deve nascondere prima di una chiamata al modello. Controlla le impostazioni sulla privacy per gestirli."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Hai bisogno di una risposta più mirata? Assegna al tuo mate un compito specifico."
-      },
-      "title": {
-        "text": "Modalità Focus"
-      },
-      "description": {
-        "text": "Guida una chat verso un obiettivo specifico."
-      },
-      "assistant_response": {
-        "text": "Usa una modalità focus per guidare una chat verso un obiettivo specifico. Esplora le modalità disponibili in App."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Ripetersi stanca. Salva il contesto che i tuoi mate dovrebbero ricordare."
-      },
-      "title": {
-        "text": "Ricordi"
-      },
-      "description": {
-        "text": "Salva preferenze e contesti utili."
-      },
-      "assistant_response": {
-        "text": "Salva preferenze e contesti utili come ricordi, poi scegli cosa possono usare i tuoi mate."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Cerchi qualcosa da fare? Scopri gli eventi vicino a te."
-      },
-      "title": {
-        "text": "Trova eventi locali"
-      },
-      "description": {
-        "text": "Cerca corsi, incontri e altri eventi."
-      },
-      "assistant_response": {
-        "text": "Usa la ricerca Eventi per trovare corsi e incontri locali. Scegli un luogo e un argomento per vedere cosa succede nelle vicinanze."
-      }
-    },
     "collective": {
       "title": {
         "text": "Comportamento collettivo degli animali"
@@ -4448,62 +4378,6 @@
       },
       "assistant_response": {
         "text": "Strutture stabilizzate dall’equilibrio tra tensione e compressione."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Citazioni da fonti affidabili"
-      },
-      "description": {
-        "text": "Chiedi ai mate di verificare le fonti e citare i passaggi che sostengono una risposta."
-      },
-      "phrase": {
-        "text": "Vuoi verificare una risposta? Chiedi a OpenMates una citazione dalla fonte."
-      },
-      "assistant_response": {
-        "text": "Chiedi ai mate di verificare le fonti e citare i passaggi che sostengono una risposta."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Rilevamento di immagini IA"
-      },
-      "description": {
-        "text": "Carica un’immagine e osserva i segnali di generazione tramite IA nella chat."
-      },
-      "phrase": {
-        "text": "Un’immagine è stata generata con l’IA? Caricala ed esamina gli indizi."
-      },
-      "assistant_response": {
-        "text": "Carica un’immagine e osserva i segnali di generazione tramite IA nella chat."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Chat in incognito"
-      },
-      "description": {
-        "text": "Avvia chat temporanee quando non vuoi salvarle nella cronologia."
-      },
-      "phrase": {
-        "text": "Ti serve una conversazione temporanea? Tienila fuori dalla cronologia salvata."
-      },
-      "assistant_response": {
-        "text": "Avvia chat temporanee quando non vuoi salvarle nella cronologia."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Controlli sulla privacy"
-      },
-      "description": {
-        "text": "Gestisci dati personali nascosti, account collegati ed eliminazione automatica in un solo posto."
-      },
-      "phrase": {
-        "text": "Scopri come OpenMates protegge i tuoi dati prima di aver bisogno urgente dei controlli."
-      },
-      "assistant_response": {
-        "text": "Gestisci dati personali nascosti, account collegati ed eliminazione automatica in un solo posto."
       }
     }
   },

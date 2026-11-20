@@ -11,7 +11,8 @@
 # - No user PII is stored in these schemas.
 # - The content is encrypted with the user's vault key before being sent to the client.
 
-from typing import List, Optional
+from collections import Counter
+from typing import Any, List, Mapping, Optional, Sequence
 from pydantic import BaseModel, Field
 
 
@@ -43,31 +44,6 @@ class DailyInspirationWiki(BaseModel):
     thumbnail_url: Optional[str] = Field(None, description="Article thumbnail URL")
     wikidata_id: Optional[str] = Field(None, description="Wikidata QID, if available")
     extract: Optional[str] = Field(None, description="Short article summary/extract")
-
-
-class DailyInspirationFeature(BaseModel):
-    """Static OpenMates feature tip metadata shown in a Daily Inspiration banner."""
-
-    feature_id: str = Field(..., description="Stable feature identifier")
-    icon: str = Field(..., description="Lucide/category icon name")
-    title: str = Field(..., description="Feature card title")
-    description: str = Field(..., description="Short feature card description")
-    settings_path: Optional[str] = Field(None, description="Settings deep-link path, if clickable")
-    requires_authentication: bool = Field(
-        default=True,
-        description="Whether the linked feature requires an authenticated account",
-    )
-
-
-class DailyInspirationDirectVideo(BaseModel):
-    """Direct MP4 product demo metadata shown in a Daily Inspiration banner."""
-
-    title: str = Field(..., description="Display title for the direct video")
-    mp4_url: str = Field(..., description="Direct MP4 URL for fullscreen playback")
-    thumbnail_url: str = Field(..., description="Poster image URL for the video preview")
-    teaser_url: Optional[str] = Field(None, description="Silent WebM teaser URL for autoplay preview")
-    teaser_mp4_url: Optional[str] = Field(None, description="Silent MP4 teaser fallback URL")
-    teaser_webp_url: Optional[str] = Field(None, description="Static WebP poster/fallback URL")
 
 
 class DailyInspiration(BaseModel):
@@ -127,14 +103,6 @@ class DailyInspiration(BaseModel):
         None,
         description="Wikipedia metadata. Required when content_type='wiki'.",
     )
-    feature: Optional[DailyInspirationFeature] = Field(
-        None,
-        description="Static feature metadata. Required when content_type='feature'.",
-    )
-    direct_video: Optional[DailyInspirationDirectVideo] = Field(
-        None,
-        description="Direct product demo video metadata. Optional companion for feature inspirations.",
-    )
     generated_at: int = Field(..., description="Unix timestamp when this inspiration was generated")
     follow_up_suggestions: List[str] = Field(
         default_factory=list,
@@ -143,4 +111,31 @@ class DailyInspiration(BaseModel):
             "topic. Shown in the MessageInput when the user opens this inspiration chat. "
             "Generated in the same language as assistant_response."
         ),
+    )
+
+
+DAILY_INSPIRATION_TYPE_QUOTAS = {"video": 3, "wiki": 3}
+DAILY_INSPIRATION_SET_SIZE = sum(DAILY_INSPIRATION_TYPE_QUOTAS.values())
+
+
+def drop_unsupported_inspirations(
+    inspirations: "Sequence[Mapping[str, Any]]",
+) -> "List[Mapping[str, Any]]":
+    """Drop legacy records (e.g. the retired ``feature`` cards) that are not video or wiki."""
+    return [
+        item for item in inspirations
+        if (item.get("content_type") or "video") in DAILY_INSPIRATION_TYPE_QUOTAS
+    ]
+
+
+def has_complete_daily_inspiration_set(
+    inspirations: "Sequence[Mapping[str, Any]]",
+) -> bool:
+    """Return whether the records are exactly 3 video + 3 wiki cards."""
+    if len(inspirations) != DAILY_INSPIRATION_SET_SIZE:
+        return False
+    counts = Counter(item.get("content_type") for item in inspirations)
+    return all(
+        counts[content_type] == count
+        for content_type, count in DAILY_INSPIRATION_TYPE_QUOTAS.items()
     )

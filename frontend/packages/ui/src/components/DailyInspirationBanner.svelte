@@ -38,6 +38,7 @@
   import { CATEGORY_GRADIENTS, getCategoryGradientColors } from '../utils/categoryUtils';
   import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSource, type DailyInspirationSurface } from '../stores/dailyInspirationStore';
   import { loadDefaultInspirations, loadGuestOnboardingInspirations } from '../demo_chats/loadDefaultInspirations';
+  import { sendInspirationViewed } from '../services/dailyInspirationViewed';
   import { authStore } from '../stores/authStore';
   import { introBannerVisible } from '../stores/uiStateStore';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../utils/imageProxy';
@@ -1506,33 +1507,10 @@
     return source.filter((inspiration) => (inspiration.surface ?? 'chats') === surface);
   }
 
-  /**
-   * Send `inspiration_viewed` message to backend via WebSocket.
-   * Only sent for authenticated users — guests have no WebSocket connection
-   * and there is nothing to track server-side for them.
-   * Errors are logged but never swallowed silently.
-   */
+  /** Report a visible inspiration through the shared view tracker (start rows use it too). */
   async function sendViewedEvent(inspirationId: string): Promise<boolean> {
-    if (!get(authStore).isAuthenticated) return true;
-    let superseded: (error: unknown) => boolean = () => false;
-    try {
-      const { webSocketService, isWebSocketConnectionChanged } = await import('../services/websocketService');
-      superseded = isWebSocketConnectionChanged;
-      if (!webSocketService.isConnected()) {
-        console.debug('[DailyInspirationBanner] Skipping inspiration_viewed while WebSocket is disconnected:', inspirationId);
-        return true;
-      }
-      await webSocketService.sendMessage('inspiration_viewed', {
-        inspiration_id: inspirationId,
-      });
-      console.debug('[DailyInspirationBanner] Sent inspiration_viewed:', inspirationId);
-      return true;
-    } catch (err) {
-      // A reconnect replacing the socket is an expected race, not a failure.
-      const logFn = superseded(err) ? console.warn : console.error;
-      logFn('[DailyInspirationBanner] Failed to send inspiration_viewed:', err);
-      return true;
-    }
+    await sendInspirationViewed(inspirationId);
+    return true;
   }
 </script>
 

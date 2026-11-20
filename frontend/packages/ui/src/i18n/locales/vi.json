@@ -4311,76 +4311,6 @@
         "text": "Nghịch lý Fermi đặt câu hỏi tại sao chúng ta chưa tìm thấy bằng chứng thuyết phục nào về các nền văn minh ngoài hành tinh. Hãy khám phá các câu trả lời khả thi."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Hãy giữ bản sao lưu của riêng bạn. Xuất dữ liệu OpenMates bất cứ khi nào bạn cần."
-      },
-      "title": {
-        "text": "Xuất dữ liệu OpenMates của bạn"
-      },
-      "description": {
-        "text": "Sao lưu các cuộc trò chuyện, cài đặt, ký ức và nhiều nội dung khác."
-      },
-      "assistant_response": {
-        "text": "Xuất một bản sao dữ liệu OpenMates từ phần cài đặt tài khoản. Đăng nhập để truy cập dữ liệu tài khoản đã được mã hóa của bạn."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Bạn muốn kiểm soát quyền riêng tư chặt chẽ hơn? Hãy thêm các chi tiết cá nhân mà OpenMates nên ẩn đi."
-      },
-      "title": {
-        "text": "Phát hiện PII tùy chỉnh"
-      },
-      "description": {
-        "text": "Bảo vệ các chi tiết cá nhân trước khi thực hiện lệnh gọi mô hình."
-      },
-      "assistant_response": {
-        "text": "Chọn các chi tiết cá nhân để OpenMates ẩn đi trước khi thực hiện lệnh gọi mô hình. Hãy xem lại cài đặt quyền riêng tư để quản lý chúng."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Cần một câu trả lời tập trung hơn? Hãy giao cho người bạn của bạn một nhiệm vụ cụ thể."
-      },
-      "title": {
-        "text": "Chế độ tập trung"
-      },
-      "description": {
-        "text": "Hướng dẫn cuộc trò chuyện đi tới một mục tiêu cụ thể."
-      },
-      "assistant_response": {
-        "text": "Sử dụng chế độ tập trung để hướng dẫn cuộc trò chuyện đi tới một mục tiêu cụ thể. Khám phá các chế độ hiện có trong phần Ứng dụng."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Việc phải lặp lại chính mình thật nhàm chán. Hãy lưu lại ngữ cảnh mà các người bạn của bạn nên ghi nhớ."
-      },
-      "title": {
-        "text": "Ký ức"
-      },
-      "description": {
-        "text": "Lưu các tùy chọn và ngữ cảnh hữu ích."
-      },
-      "assistant_response": {
-        "text": "Lưu các tùy chọn và ngữ cảnh hữu ích dưới dạng ký ức, sau đó chọn những gì các người bạn của bạn có thể sử dụng."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Bạn đang tìm việc gì đó để làm? Khám phá các sự kiện gần bạn."
-      },
-      "title": {
-        "text": "Tìm sự kiện địa phương"
-      },
-      "description": {
-        "text": "Tìm lớp học, buổi gặp gỡ và các sự kiện khác."
-      },
-      "assistant_response": {
-        "text": "Dùng tìm kiếm Sự kiện để tìm lớp học và buổi gặp gỡ gần bạn. Chọn địa điểm và chủ đề để xem những gì đang diễn ra xung quanh."
-      }
-    },
     "collective": {
       "title": {
         "text": "Hành vi tập thể ở động vật"
@@ -4421,62 +4351,6 @@
       },
       "assistant_response": {
         "text": "Các kết cấu ổn định nhờ cân bằng lực kéo và lực nén."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Trích dẫn nguồn đáng tin cậy"
-      },
-      "description": {
-        "text": "Nhờ các mate kiểm tra nguồn và trích nguyên văn những dòng hỗ trợ câu trả lời."
-      },
-      "phrase": {
-        "text": "Muốn kiểm chứng câu trả lời? Hãy nhờ OpenMates trích dẫn nguồn hỗ trợ."
-      },
-      "assistant_response": {
-        "text": "Nhờ các mate kiểm tra nguồn và trích nguyên văn những dòng hỗ trợ câu trả lời."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Phát hiện ảnh AI"
-      },
-      "description": {
-        "text": "Tải ảnh lên và xem dấu hiệu được tạo bằng AI ngay trong cuộc trò chuyện."
-      },
-      "phrase": {
-        "text": "Bạn thắc mắc ảnh có được tạo bằng AI không? Hãy tải lên và kiểm tra các dấu hiệu."
-      },
-      "assistant_response": {
-        "text": "Tải ảnh lên và xem dấu hiệu được tạo bằng AI ngay trong cuộc trò chuyện."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Trò chuyện ẩn danh"
-      },
-      "description": {
-        "text": "Bắt đầu cuộc trò chuyện tạm thời khi bạn không muốn lưu vào lịch sử."
-      },
-      "phrase": {
-        "text": "Cần một cuộc trò chuyện tạm thời? Đừng lưu vào lịch sử trò chuyện."
-      },
-      "assistant_response": {
-        "text": "Bắt đầu cuộc trò chuyện tạm thời khi bạn không muốn lưu vào lịch sử."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Kiểm soát quyền riêng tư"
-      },
-      "description": {
-        "text": "Điều chỉnh việc ẩn dữ liệu cá nhân, tài khoản kết nối và tự động xóa tại một nơi."
-      },
-      "phrase": {
-        "text": "Tìm hiểu cách OpenMates bảo vệ dữ liệu trước khi bạn cần gấp các tùy chọn này."
-      },
-      "assistant_response": {
-        "text": "Điều chỉnh việc ẩn dữ liệu cá nhân, tài khoản kết nối và tự động xóa tại một nơi."
       }
     }
   },

@@ -9,6 +9,7 @@
 from backend.apps.ai.daily_inspiration.content_filter import check_daily_inspiration_entry
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_policy_rejects_named_company_as_inspiration_subject() -> None:
     result = check_daily_inspiration_entry(
         {
@@ -28,6 +29,7 @@ def test_policy_rejects_named_company_as_inspiration_subject() -> None:
     assert "company_names" in result["violations"]
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_policy_rejects_company_profile_language_without_known_name() -> None:
     result = check_daily_inspiration_entry(
         {
@@ -43,6 +45,7 @@ def test_policy_rejects_company_profile_language_without_known_name() -> None:
     assert result["violations"]["company_subject"] == ["company_profile_marker"]
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_policy_rejects_wikidata_company_entity_type() -> None:
     result = check_daily_inspiration_entry(
         {
@@ -71,6 +74,7 @@ def test_policy_rejects_wikidata_company_entity_type() -> None:
     assert result["violations"]["wikidata_company_type"] == ["Q4830453"]
 
 
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults
 def test_policy_allows_reframed_noncommercial_concept() -> None:
     result = check_daily_inspiration_entry(
         {
@@ -90,7 +94,8 @@ def test_policy_allows_reframed_noncommercial_concept() -> None:
     assert result["verdict"] == "PASS"
 
 
-def test_policy_allows_first_party_feature_cards() -> None:
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults,daily-inspiration.authenticated-fallback-content
+def test_policy_no_longer_exempts_retired_feature_cards() -> None:
     result = check_daily_inspiration_entry(
         {
             "content_type": "feature",
@@ -105,4 +110,4 @@ def test_policy_allows_first_party_feature_cards() -> None:
         }
     )
 
-    assert result["verdict"] == "PASS"
+    assert result["verdict"] == "REJECT"

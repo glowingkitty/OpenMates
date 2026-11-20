@@ -1,13 +1,19 @@
 <!--
   Shared workspace home shell for OpenMates surfaces.
-  Keeps DailyInspirationBanner and continue-card layout reusable across
-  chats-adjacent workspaces without importing chat sync, drafts, or message DB.
+  Keeps the continue-card layout (and, for projects/tasks/plans/teams, the
+  DailyInspirationBanner) reusable across chats-adjacent workspaces without
+  importing chat sync, drafts, or message DB.
+  Apps and Workflows are start screens (TASK-1321): no banner, large cards only.
+  Workflows interleave recommended-workflow inspirations into the row with the
+  Chats rhythm (utils/startScreenRow.ts); none are generated yet, so the row
+  shows only the user's workflows until a `content_type: "workflow"` record exists.
   Surface-specific pages provide only content, callbacks, and composer actions.
   The shared class names intentionally match the chat welcome screen.
 -->
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import WorkspaceContinueCard from './WorkspaceContinueCard.svelte';
   import AppStoreCard from '../settings/AppStoreCard.svelte';
@@ -19,6 +25,9 @@
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import { resolveIconName } from '../../utils/iconNameResolver';
   import { hasRoomForLargeContinueCards } from '../../utils/continueCardLayout';
+  import { interleaveStartRow, selectWorkflowRowInspirations } from '../../utils/startScreenRow';
+  import { sendInspirationViewed } from '../../services/dailyInspirationViewed';
+  import { text } from '../../i18n/translations';
   import { activeTeam } from '../../stores/teamStore';
   import TeamWorkspaceIdentity from '../teams/TeamWorkspaceIdentity.svelte';
 
@@ -144,7 +153,14 @@
   let composerElement: HTMLElement | null = $state(null);
   let composerHeight = $state(0);
   let availableCardHeight = $state(0);
-  let isTallViewport = $derived(hasRoomForLargeContinueCards(containerWidth, availableCardHeight));
+  /** Start screens without banner and without the compact pill layout. */
+  const START_SCREEN_SURFACES: ReadonlySet<WorkspaceSurface> = new Set(['apps', 'workflows']);
+  let isStartScreen = $derived(START_SCREEN_SURFACES.has(surface));
+  let isTallViewport = $derived(isStartScreen || hasRoomForLargeContinueCards(containerWidth, availableCardHeight));
+  let workflowRowInspirations = $derived(
+    surface === 'workflows' ? selectWorkflowRowInspirations($dailyInspirationStore.inspirations) : []
+  );
+  let actionRowEntries = $derived(interleaveStartRow(actionItems, workflowRowInspirations));
   let hasShowAllLink = $derived(!!onShowAll && showAllLabel.trim().length > 0 && !showAllMode);
   let hasBrowseLink = $derived(!!onBrowse && browseLabel.trim().length > 0 && !showAllMode);
   let hasBrowseControls = $derived(!showAllMode && (hasShowAllLink || hasBrowseLink || !!onSearchAll));
@@ -156,16 +172,34 @@
 
   // Chat sync can replace the shared array after this workspace first mounted.
   // Rehydrate only a missing non-chat surface, through the existing scoped loader.
-  $effect(() => {
-    if (restoreWorkspaceDefaults && surface !== 'chats' && !$dailyInspirationStore.inspirations.some(item => (item.surface ?? 'chats') === surface)) {
-      void loadDefaultInspirations({ surface, allowIndexedDB: false });
+  // Some surfaces have no defaults at all (Apps; Workflows until recommendations are
+  // generated): once a load returns nothing for the surface it is not retried, or
+  // every store update would start another load.
+  let defaultsLoading = false;
+  let surfaceWithoutDefaults: WorkspaceSurface | null = null;
+  async function restoreSurfaceDefaults(target: WorkspaceSurface): Promise<void> {
+    defaultsLoading = true;
+    try {
+      await loadDefaultInspirations({ surface: target, allowIndexedDB: false });
+    } finally {
+      defaultsLoading = false;
     }
+    if (!get(dailyInspirationStore).inspirations.some(item => (item.surface ?? 'chats') === target)) {
+      surfaceWithoutDefaults = target;
+    }
+  }
+
+  $effect(() => {
+    const inspirations = $dailyInspirationStore.inspirations;
+    if (!restoreWorkspaceDefaults || surface === 'chats' || defaultsLoading || surface === surfaceWithoutDefaults) return;
+    if (inspirations.some(item => (item.surface ?? 'chats') === surface)) return;
+    void restoreSurfaceDefaults(surface);
   });
 
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
     restoreWorkspaceDefaults = params.get('media') !== '1' && !params.has('og_example');
-    void loadDefaultInspirations({ surface, allowIndexedDB: false });
+    void restoreSurfaceDefaults(surface);
   });
 
   $effect(() => {
@@ -228,6 +262,22 @@
     return getResumeCardGradientStyle(getContinueGradientColors(item.category ?? 'productivity', surface === 'workflows' ? null : item.appId));
   }
 
+  /** Report a visible recommended-workflow card once (feeds next-day generation). */
+  function trackInspirationView(node: HTMLElement, inspirationId: string) {
+    if (typeof IntersectionObserver === 'undefined') {
+      void sendInspirationViewed(inspirationId);
+      return {};
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        void sendInspirationViewed(inspirationId);
+        observer.disconnect();
+      }
+    }, { threshold: 0.5 });
+    observer.observe(node);
+    return { destroy: () => observer.disconnect() };
+  }
+
   function appCardIconUrl(item: ContinueItem): string {
     const source = item.iconImage?.trim() || (item.icon === 'skill' ? 'skill' : item.appId || 'app');
     const basename = source.split('/').at(-1)?.replace(/\.svg$/i, '') ?? 'app';
@@ -241,9 +291,9 @@
 
 <svelte:window onpointerdown={(event) => { if (composerFocused && shellElement?.contains(event.target as Node) && !composerElement?.contains(event.target as Node)) onComposerDismiss?.(); }} />
 
-<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} class:composer-focused={composerFocused} class:large-continue-cards={isTallViewport} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
+<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} class:composer-focused={composerFocused} class:large-continue-cards={isTallViewport} class:start-screen={isStartScreen} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
   <div class="workspace-scroll-layer" inert={composerFocused} data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined} style:--workspace-composer-height={`${composerHeight}px`}>
-    {#if !showAllMode}
+    {#if !showAllMode && !isStartScreen}
       <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`} bind:this={inspirationElement}>
         <DailyInspirationBanner
           {surface}
@@ -332,8 +382,28 @@
     </div>
 
     {#if actionItems.length > 0}
-      <div class="recent-chats-scroll-container" class:centered-row={actionItems.length <= 3} data-testid={actionItemsTestId}>
-        {#each actionItems as item (item.id)}
+      <div class="recent-chats-scroll-container" class:centered-row={actionRowEntries.length <= 3} data-testid={actionItemsTestId}>
+        {#each actionRowEntries as entry (entry.kind === 'own' ? entry.item.id : `inspiration:${entry.item.inspiration_id}`)}
+          {#if entry.kind === 'inspiration'}
+            {@const inspiration = entry.item}
+            <div class="workflow-card-placement" use:trackInspirationView={inspiration.inspiration_id}>
+              <WorkspaceContinueCard
+                title={inspiration.title || inspiration.phrase}
+                summary={inspiration.workflow?.summary ?? null}
+                badge={$text('daily_inspiration.label')}
+                category={inspiration.category}
+                appId={null}
+                icon={inspiration.workflow?.icon ?? 'workflow'}
+                appIconUrl={null}
+                testId="workflow-inspiration-card"
+                href={null}
+                source={null}
+                fluid={false}
+                onActivate={() => handleStartInspiration(inspiration)}
+              />
+            </div>
+          {:else}
+          {@const item = entry.item}
           {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
           {@const IconComponent = getLucideIcon(iconName)}
           <div class="workflow-card-placement">
@@ -386,6 +456,7 @@
             </button>
           {/if}
           </div>
+          {/if}
         {/each}
       </div>
     {:else if continueItems.length > 0}
@@ -1156,6 +1227,31 @@
 
   .large-continue-cards .recent-chats-scroll-container {
     padding: 17.5px 48px 17px calc(50% - 150px);
+  }
+
+  /* Apps and Workflows start screens (TASK-1321): no banner, the greeting and the
+     row are centred vertically in the full pane; the first card stays centred
+     horizontally, as on the Chats start row. */
+  .workspace-home-shell.start-screen:not(.content-slot-mode):not(.all-items-mode) .workspace-scroll-layer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    padding-bottom: var(--workspace-composer-height);
+    box-sizing: border-box;
+  }
+
+  .workspace-home-shell.start-screen:not(.content-slot-mode):not(.all-items-mode) .workspace-center-content.center-content {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    flex: 1 0 auto;
+    min-height: 0;
+    margin-top: 0;
+    justify-content: center;
+    padding: var(--spacing-6) 0;
+    box-sizing: border-box;
   }
 
   @media (max-width: 730px) {

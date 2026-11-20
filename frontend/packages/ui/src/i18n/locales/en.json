@@ -5803,76 +5803,6 @@
         "text": "The Fermi paradox asks why we have found no convincing evidence of extraterrestrial civilizations. Explore possible answers."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Keep your own backup. Export your OpenMates data whenever you need it."
-      },
-      "title": {
-        "text": "Export your OpenMates data"
-      },
-      "description": {
-        "text": "Back up chats, settings, memories, and more."
-      },
-      "assistant_response": {
-        "text": "Export a copy of your OpenMates data from account settings. Sign in to access your encrypted account data."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Want stronger privacy controls? Add personal details that OpenMates should hide."
-      },
-      "title": {
-        "text": "Custom PII detection"
-      },
-      "description": {
-        "text": "Protect personal details before model calls."
-      },
-      "assistant_response": {
-        "text": "Choose personal details for OpenMates to hide before a model call. Review the privacy settings to manage them."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Need a more focused answer? Give your mate a specific job."
-      },
-      "title": {
-        "text": "Focus modes"
-      },
-      "description": {
-        "text": "Guide a chat toward a specific goal."
-      },
-      "assistant_response": {
-        "text": "Use a focus mode to guide a chat toward a specific goal. Explore available modes in Apps."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Repeating yourself gets old. Save context your mates should remember."
-      },
-      "title": {
-        "text": "Memories"
-      },
-      "description": {
-        "text": "Save useful preferences and context."
-      },
-      "assistant_response": {
-        "text": "Save useful preferences and context as memories, then choose what your mates can use."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Looking for something to do? Explore events near you."
-      },
-      "title": {
-        "text": "Find local events"
-      },
-      "description": {
-        "text": "Search classes, meetups, and other events."
-      },
-      "assistant_response": {
-        "text": "Use Events search to find local classes and meetups. Choose a place and topic to see what is happening nearby."
-      }
-    },
     "collective": {
       "title": {
         "text": "Collective animal behavior"
@@ -5913,62 +5843,6 @@
       },
       "assistant_response": {
         "text": "Tensegrity structures use isolated compression elements held together by continuous tension. The result can look impossibly light while remaining stable. Open it to see why artists, architects, and biologists all care about this principle."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Trusted source quotes"
-      },
-      "description": {
-        "text": "Ask mates to inspect sources and quote the exact lines that support an answer."
-      },
-      "phrase": {
-        "text": "Need an answer you can verify? Ask OpenMates to quote the supporting source."
-      },
-      "assistant_response": {
-        "text": "Ask mates to inspect sources and quote the exact lines that support an answer."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "AI image detection"
-      },
-      "description": {
-        "text": "Upload an image and see AI-generation signals directly in the chat."
-      },
-      "phrase": {
-        "text": "Wondering if an image was AI-generated? Upload it and inspect the signals."
-      },
-      "assistant_response": {
-        "text": "Upload an image and see AI-generation signals directly in the chat."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Incognito chats"
-      },
-      "description": {
-        "text": "Start temporary chats when you do not want them saved to history."
-      },
-      "phrase": {
-        "text": "Need a temporary conversation? Keep it out of your saved chat history."
-      },
-      "assistant_response": {
-        "text": "Start temporary chats when you do not want them saved to history."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Privacy controls"
-      },
-      "description": {
-        "text": "Tune personal-data hiding, connected accounts, and automatic deletion in one place."
-      },
-      "phrase": {
-        "text": "Review what OpenMates protects before you urgently need the controls."
-      },
-      "assistant_response": {
-        "text": "Tune personal-data hiding, connected accounts, and automatic deletion in one place."
       }
     }
   },

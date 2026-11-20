@@ -4311,76 +4311,6 @@
         "text": "Paradoks Fermi mempertanyakan mengapa kita belum menemukan bukti meyakinkan tentang peradaban luar angkasa. Jelajahi jawaban yang mungkin."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Simpan cadanganmu sendiri. Ekspor data OpenMates kamu kapan pun kamu membutuhkannya."
-      },
-      "title": {
-        "text": "Ekspor data OpenMates kamu"
-      },
-      "description": {
-        "text": "Cadangkan chat, pengaturan, memori, dan lainnya."
-      },
-      "assistant_response": {
-        "text": "Ekspor salinan data OpenMates kamu dari pengaturan akun. Masuk untuk mengakses data akun kamu yang terenkripsi."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Ingin kontrol privasi yang lebih kuat? Tambahkan detail pribadi yang harus disembunyikan OpenMates."
-      },
-      "title": {
-        "text": "Deteksi PII kustom"
-      },
-      "description": {
-        "text": "Lindungi detail pribadi sebelum pemanggilan model."
-      },
-      "assistant_response": {
-        "text": "Pilih detail pribadi yang ingin disembunyikan OpenMates sebelum pemanggilan model. Tinjau pengaturan privasi untuk mengelolanya."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Butuh jawaban yang lebih fokus? Berikan tugas spesifik kepada mate kamu."
-      },
-      "title": {
-        "text": "Mode fokus"
-      },
-      "description": {
-        "text": "Arahkan chat menuju tujuan tertentu."
-      },
-      "assistant_response": {
-        "text": "Gunakan mode fokus untuk mengarahkan chat ke tujuan tertentu. Jelajahi mode yang tersedia di Aplikasi."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Mengulang hal yang sama itu membosankan. Simpan konteks yang harus diingat oleh mate kamu."
-      },
-      "title": {
-        "text": "Memori"
-      },
-      "description": {
-        "text": "Simpan preferensi dan konteks yang berguna."
-      },
-      "assistant_response": {
-        "text": "Simpan preferensi dan konteks yang berguna sebagai memori, lalu pilih apa yang bisa digunakan oleh mate kamu."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Mencari kegiatan? Jelajahi acara di dekatmu."
-      },
-      "title": {
-        "text": "Temukan acara lokal"
-      },
-      "description": {
-        "text": "Cari kelas, pertemuan, dan acara lainnya."
-      },
-      "assistant_response": {
-        "text": "Gunakan pencarian Acara untuk menemukan kelas dan pertemuan setempat. Pilih lokasi dan topik untuk melihat kegiatan di sekitarmu."
-      }
-    },
     "collective": {
       "title": {
         "text": "Perilaku kolektif hewan"
@@ -4421,62 +4351,6 @@
       },
       "assistant_response": {
         "text": "Struktur yang stabil berkat keseimbangan tegangan dan kompresi."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Kutipan sumber tepercaya"
-      },
-      "description": {
-        "text": "Minta mate memeriksa sumber dan mengutip baris yang mendukung jawaban."
-      },
-      "phrase": {
-        "text": "Ingin memverifikasi jawaban? Minta OpenMates mengutip sumber pendukungnya."
-      },
-      "assistant_response": {
-        "text": "Minta mate memeriksa sumber dan mengutip baris yang mendukung jawaban."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Deteksi gambar AI"
-      },
-      "description": {
-        "text": "Unggah gambar dan lihat tanda pembuatan AI langsung di obrolan."
-      },
-      "phrase": {
-        "text": "Penasaran apakah gambar dibuat AI? Unggah dan periksa tanda-tandanya."
-      },
-      "assistant_response": {
-        "text": "Unggah gambar dan lihat tanda pembuatan AI langsung di obrolan."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Obrolan penyamaran"
-      },
-      "description": {
-        "text": "Mulai obrolan sementara saat kamu tidak ingin menyimpannya di riwayat."
-      },
-      "phrase": {
-        "text": "Butuh percakapan sementara? Jangan simpan di riwayat obrolan."
-      },
-      "assistant_response": {
-        "text": "Mulai obrolan sementara saat kamu tidak ingin menyimpannya di riwayat."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Kontrol privasi"
-      },
-      "description": {
-        "text": "Atur penyembunyian data pribadi, akun terhubung, dan penghapusan otomatis di satu tempat."
-      },
-      "phrase": {
-        "text": "Tinjau perlindungan OpenMates sebelum kamu mendadak membutuhkan kontrolnya."
-      },
-      "assistant_response": {
-        "text": "Atur penyembunyian data pribadi, akun terhubung, dan penghapusan otomatis di satu tempat."
       }
     }
   },

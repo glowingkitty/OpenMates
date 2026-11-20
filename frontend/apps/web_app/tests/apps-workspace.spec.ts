@@ -277,7 +277,7 @@ test.describe('Apps workspace', () => {
       await expect(page.getByTestId('apps-all-items-toolbar')).toBeVisible();
       await page.getByTestId('apps-back-to-recent').click();
       await expect.poll(() => appHash(page)).toBe('#apps');
-      await expect(page.getByTestId('apps-daily-inspiration-area')).toBeVisible();
+      await expect(page.getByTestId('apps-daily-inspiration-area')).toHaveCount(0);
       const homeCard = page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ hasText: /Web/i }).first();
       await expect(homeCard).toBeVisible();
       if (width === 1180) await expect(homeCard).toHaveCSS('height', '129px');

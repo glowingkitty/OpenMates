@@ -80,51 +80,20 @@ const {
 const { loginToTestAccount, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const CHAT_CTA_PATTERN = /(?:start chat|open chat)/i;
 const PERSONALIZED_INSPIRATION_READY_TIMEOUT_MS = 30000;
-const CAROUSEL_STEP_WAIT_MS = 300;
-const DAILY_INSPIRATION_REFERENCE_WIDTH = 373;
-const DAILY_INSPIRATION_REFERENCE_HEIGHT = 190;
-const DAILY_INSPIRATION_DESKTOP_MIN_HEIGHT = 250;
-const DAILY_INSPIRATION_MAX_HEIGHT = 420;
-const DAILY_INSPIRATION_MAX_VIEWPORT_HEIGHT_RATIO = 0.35;
 
 async function waitForStartChatInspiration(page: any, log: (message: string, data?: unknown) => void) {
-	const inspirationBanner = page.getByTestId('daily-inspiration-banner').first();
-	const ctaText = inspirationBanner.getByTestId('daily-inspiration-cta-text').first();
-	const inspirationPhrase = inspirationBanner.getByTestId('daily-inspiration-phrase').first();
-	const nextButton = page.getByTestId('daily-inspiration-next');
-	const seenStates: string[] = [];
-	const deadline = Date.now() + PERSONALIZED_INSPIRATION_READY_TIMEOUT_MS;
-
-	while (Date.now() < deadline) {
-		await expect(ctaText).toBeVisible({ timeout: 5000 });
-		const cta = ((await ctaText.textContent().catch(() => '')) || '').trim();
-		const phrase = ((await inspirationPhrase.textContent().catch(() => '')) || '')
-			.trim()
-			.replace(/\s+/g, ' ');
-		const state = `${cta || '(empty CTA)'} :: ${phrase.slice(0, 100) || '(empty phrase)'}`;
-		if (seenStates[seenStates.length - 1] !== state) seenStates.push(state);
-
-		if (CHAT_CTA_PATTERN.test(cta)) {
-			log('Found a fresh daily inspiration chat CTA.', { attempts: seenStates.length, cta });
-			return ctaText;
-		}
-
-		if (await nextButton.isVisible().catch(() => false)) {
-			await nextButton.click();
-		}
-		await page.waitForTimeout(CAROUSEL_STEP_WAIT_MS);
-	}
-
-	throw new Error(
-		`Timed out waiting for a daily inspiration with a chat CTA. Seen states:\n${seenStates
-			.slice(-20)
-			.map((state, index) => `${index + 1}. ${state}`)
-			.join('\n')}`
-	);
+	// Signed-in users get daily inspirations as large cards inside the start row.
+	const card = page.getByTestId('start-row-inspiration-card').first();
+	await expect(card).toBeVisible({ timeout: PERSONALIZED_INSPIRATION_READY_TIMEOUT_MS });
+	log('Found a daily inspiration card in the start row.', {
+		inspirationId: await card.getAttribute('data-inspiration-id'),
+		contentType: await card.getAttribute('data-content-type')
+	});
+	return card;
 }
 
+// contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-cards,daily-inspiration.start-row-rhythm,daily-inspiration.opened-state
 test('daily inspiration chat: creates chat and allows follow-up message without shared-chat error', async ({
 	page
 }: {
@@ -174,16 +143,15 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	await page.waitForTimeout(4000);
 	await screenshot(page, 'after-login');
 
-	// ── 8. Verify daily inspiration banner is visible ────────────────────────
-	// The banner is a button wrapping the inspiration text and "Click to start chat" CTA.
-	// It may take a moment to appear as the WS delivers pending inspirations.
-	log('Looking for daily inspiration banner...');
-	const inspirationBanner = page.locator('[data-testid="daily-inspiration-banner"]').first();
-	await expect(inspirationBanner).toBeVisible({ timeout: 15000 });
-	await expect(inspirationBanner).not.toHaveAttribute('data-inspiration-source', 'guest-onboarding');
-	const authenticatedInspirationIds = ((await inspirationBanner.getAttribute('data-visible-inspiration-ids')) ?? '')
-		.split(',')
-		.filter(Boolean);
+	// ── 8. Verify the signed-in start row shows daily inspiration cards (no banner) ──
+	log('Looking for daily inspiration cards in the start row...');
+	await expect(page.getByTestId('daily-inspiration-area')).toHaveCount(0);
+	await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+	const startRow = page.getByTestId('recent-chats-scroll-container');
+	const inspirationCards = startRow.getByTestId('start-row-inspiration-card');
+	await expect(inspirationCards.first()).toBeVisible({ timeout: 15000 });
+	await expect(inspirationCards.first().getByTestId('start-row-inspiration-label')).toBeVisible();
+	await expect(startRow.getByTestId('resume-chat-card')).toHaveCount(0);
 	const guestOnboardingIds = new Set([
 		'openmates-intro',
 		'openmates-actionable-events',
@@ -192,104 +160,24 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 		'openmates-provider-cross-platform',
 		'openmates-signup-cta'
 	]);
-	expect(authenticatedInspirationIds.filter((id) => guestOnboardingIds.has(id))).toEqual([]);
-	log('Daily inspiration banner is visible.');
-	await screenshot(page, 'inspiration-banner-visible');
+	const cardIds = await inspirationCards.evaluateAll((els: HTMLElement[]) =>
+		els.map((el) => el.getAttribute('data-inspiration-id') ?? '')
+	);
+	const cardTypes = await inspirationCards.evaluateAll((els: HTMLElement[]) =>
+		els.map((el) => el.getAttribute('data-content-type') ?? '')
+	);
+	expect(cardIds.filter((id: string) => guestOnboardingIds.has(id))).toEqual([]);
+	expect(cardTypes.filter((type: string) => type !== 'video' && type !== 'wiki')).toEqual([]);
+	log('Daily inspiration cards are visible in the start row.');
+	await screenshot(page, 'inspiration-cards-visible');
 
-	for (const viewport of [
-		{ width: 393, height: 852 },
-		{ width: 600, height: 900 },
-		{ width: 731, height: 960 },
-		{ width: 1280, height: 720 },
-		{ width: 1280, height: 900 }
-	]) {
-		await page.setViewportSize(viewport);
-		await page.waitForTimeout(250);
-		const metrics = await page.evaluate(() => {
-			const area = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-area"]');
-			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
-			const phrase = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-phrase"]');
-			const cta = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-cta-text"]');
-			if (!area || !banner || !phrase || !cta) throw new Error('Authenticated inspiration layout elements missing');
-			const areaRect = area.getBoundingClientRect();
-			const bannerRect = banner.getBoundingClientRect();
-			const phraseRect = phrase.getBoundingClientRect();
-			const ctaRect = cta.getBoundingClientRect();
-			return {
-				areaHeight: areaRect.height,
-				bannerWidth: bannerRect.width,
-				bannerHeight: bannerRect.height,
-				contentInsideBanner: phraseRect.top >= bannerRect.top
-					&& phraseRect.bottom <= bannerRect.bottom
-					&& ctaRect.top >= bannerRect.top
-					&& ctaRect.bottom <= bannerRect.bottom
-			};
-		});
-		const expectedHeight = Math.max(
-			viewport.width <= 730 ? DAILY_INSPIRATION_REFERENCE_HEIGHT : DAILY_INSPIRATION_DESKTOP_MIN_HEIGHT,
-			Math.min(
-				DAILY_INSPIRATION_MAX_HEIGHT,
-				metrics.bannerWidth * DAILY_INSPIRATION_REFERENCE_HEIGHT / DAILY_INSPIRATION_REFERENCE_WIDTH,
-				viewport.height * DAILY_INSPIRATION_MAX_VIEWPORT_HEIGHT_RATIO
-			)
-		);
-		expect(metrics.bannerHeight, `${viewport.width}px: authenticated banner should scale proportionally`).toBeCloseTo(expectedHeight, 0);
-		expect(metrics.areaHeight, `${viewport.width}px: authenticated area should match the banner`).toBeCloseTo(metrics.bannerHeight, 0);
-		expect(metrics.contentInsideBanner, `${viewport.width}px: authenticated banner content should remain visible`).toBe(true);
-	}
-	await page.setViewportSize({ width: 1280, height: 800 });
-
-	const inspirationPhrase = page.getByTestId('daily-inspiration-phrase');
-	const initialCarouselPhrase = (await inspirationPhrase.textContent())?.trim() ?? '';
-	await page.getByTestId('daily-inspiration-next').click();
-	await expect(inspirationPhrase).not.toHaveText(initialCarouselPhrase, { timeout: 3000 });
-	const nextCarouselPhrase = (await inspirationPhrase.textContent())?.trim() ?? '';
-	await page.waitForTimeout(800);
-	await expect(inspirationPhrase).toHaveText(nextCarouselPhrase);
-	await page.getByTestId('daily-inspiration-previous').click();
-	await expect(inspirationPhrase).toHaveText(initialCarouselPhrase, { timeout: 3000 });
-
-	const bannerBox = await inspirationBanner.boundingBox();
-	expect(bannerBox, 'Daily inspiration banner must have bounds for swipe test').toBeTruthy();
-	const centerY = bannerBox!.y + bannerBox!.height / 2;
-	await inspirationBanner.dispatchEvent('touchstart', {
-		touches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }],
-		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
-	});
-	await inspirationBanner.dispatchEvent('touchmove', {
-		touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
-		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
-	});
-	await inspirationBanner.dispatchEvent('touchend', {
-		touches: [],
-		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
-	});
-	await expect(inspirationPhrase).toHaveText(nextCarouselPhrase, { timeout: 3000 });
-
-	await inspirationBanner.dispatchEvent('touchstart', {
-		touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
-		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
-	});
-	await inspirationBanner.dispatchEvent('touchmove', {
-		touches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }],
-		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
-	});
-	await inspirationBanner.dispatchEvent('touchend', {
-		touches: [],
-		changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
-	});
-	await expect(inspirationPhrase).toHaveText(initialCarouselPhrase, { timeout: 3000 });
-	log('Authenticated daily inspiration carousel responds to buttons and touch swipes.');
-
-	// Feature inspirations open settings, and already-opened inspirations resume an
-	// existing chat. This regression needs a fresh inspiration chat creation path.
-	// Pending delivery intentionally waits on the backend before broadcasting, so
-	// wait on the observable CTA state rather than a fixed post-login sleep.
+	// Start a chat from an inspiration card. Pending delivery waits on the backend before
+	// broadcasting, so wait on the observable card rather than a fixed post-login sleep.
 	const ctaText = await waitForStartChatInspiration(page, log);
 
-	// ── 9. Click the banner to create an inspiration chat ────────────────────
+	// ── 9. Click the inspiration card to create an inspiration chat ────────────────────
 	await ctaText.click();
-	log('Clicked the daily inspiration banner to start a chat.');
+	log('Clicked the daily inspiration card to start a chat.');
 
 	// The chat ID should appear in the URL within a few seconds
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 10000 });

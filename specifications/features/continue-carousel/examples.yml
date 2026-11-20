@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.continue-carousel@1
+specification: feature.continue-carousel@2
 
 saved_item_window:
   - id: early-reminder-does-not-promote-appointment
@@ -20,3 +20,15 @@ chat_reminder_window:
     given: A chat has a linked reminder that triggers in 22 hours.
     when: The Continue carousel evaluates priority placement.
     then: The chat has a priority card for the approaching reminder with the label Reminder in 22h.
+
+upcoming_entry:
+  - id: appointment-below-row
+    assertion_ids: [continue-carousel.upcoming-entry]
+    given: A saved dentist appointment starts today at 15:30 and the user has five chats.
+    when: The user opens the Chats start screen.
+    then: The row shows only the five chats; below it one compact line shows a coloured calendar circle, "Dentist appointment" and "Today, 15:30". Tapping it opens the saved appointment.
+  - id: nothing-upcoming
+    assertion_ids: [continue-carousel.upcoming-entry]
+    given: No saved item starts within 24 hours.
+    when: The user opens the Chats start screen.
+    then: No upcoming entry is shown below the row.

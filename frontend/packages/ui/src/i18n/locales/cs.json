@@ -4311,76 +4311,6 @@
         "text": "Fermiho paradox se ptá, proč jsme nenašli žádné přesvědčivé důkazy o mimozemských civilizacích. Prozkoumej možná vysvětlení."
       }
     },
-    "export": {
-      "phrase": {
-        "text": "Měj vlastní zálohu. Exportuj si svá data z OpenMates, kdykoli potřebuješ."
-      },
-      "title": {
-        "text": "Exportuj svá data z OpenMates"
-      },
-      "description": {
-        "text": "Zálohuj si chaty, nastavení, vzpomínky a další."
-      },
-      "assistant_response": {
-        "text": "Exportuj si kopii svých dat z OpenMates v nastavení účtu. Přihlas se pro přístup ke svým šifrovaným datům."
-      }
-    },
-    "pii": {
-      "phrase": {
-        "text": "Chceš silnější kontrolu soukromí? Přidej osobní údaje, které má OpenMates skrýt."
-      },
-      "title": {
-        "text": "Vlastní detekce osobních údajů"
-      },
-      "description": {
-        "text": "Chraň osobní údaje před odesláním modelu."
-      },
-      "assistant_response": {
-        "text": "Vyber si osobní údaje, které má OpenMates před odesláním modelu skrýt. Spravovat je můžeš v nastavení soukromí."
-      }
-    },
-    "focus": {
-      "phrase": {
-        "text": "Potřebuješ cílenější odpověď? Dej svému parťákovi konkrétní úkol."
-      },
-      "title": {
-        "text": "Režimy zaměření"
-      },
-      "description": {
-        "text": "Nasměruj chat ke konkrétnímu cíli."
-      },
-      "assistant_response": {
-        "text": "Použij režim zaměření a nasměruj chat ke konkrétnímu cíli. Dostupné režimy najdeš v Aplikacích."
-      }
-    },
-    "memories": {
-      "phrase": {
-        "text": "Neustálé opakování unavuje. Ulož si kontext, který si mají tvoji parťáci pamatovat."
-      },
-      "title": {
-        "text": "Vzpomínky"
-      },
-      "description": {
-        "text": "Ukládej si užitečné předvolby a kontext."
-      },
-      "assistant_response": {
-        "text": "Ukládej si užitečné předvolby a kontext jako vzpomínky a pak si vyber, co mohou tvoji parťáci používat."
-      }
-    },
-    "events": {
-      "phrase": {
-        "text": "Hledáš, co podniknout? Objev akce ve svém okolí."
-      },
-      "title": {
-        "text": "Najít místní akce"
-      },
-      "description": {
-        "text": "Hledej kurzy, setkání a další akce."
-      },
-      "assistant_response": {
-        "text": "Použij vyhledávání akcí a najdi kurzy a setkání ve svém okolí. Vyber místo a téma a zjisti, co se děje poblíž."
-      }
-    },
     "collective": {
       "title": {
         "text": "Kolektivní chování zvířat"
@@ -4421,62 +4351,6 @@
       },
       "assistant_response": {
         "text": "Konstrukce stabilizované rovnováhou tahu a tlaku."
-      }
-    },
-    "quotes": {
-      "title": {
-        "text": "Citace z důvěryhodných zdrojů"
-      },
-      "description": {
-        "text": "Požádej mates o prověření zdrojů a citace řádků, které podporují odpověď."
-      },
-      "phrase": {
-        "text": "Chceš ověřit odpověď? Požádej OpenMates o citaci ze zdroje."
-      },
-      "assistant_response": {
-        "text": "Požádej mates o prověření zdrojů a citace řádků, které podporují odpověď."
-      }
-    },
-    "image_detection": {
-      "title": {
-        "text": "Rozpoznávání obrázků AI"
-      },
-      "description": {
-        "text": "Nahraj obrázek a prohlédni si známky vytvoření pomocí AI přímo v chatu."
-      },
-      "phrase": {
-        "text": "Zajímá tě, zda obrázek vytvořila AI? Nahraj ho a prozkoumej příznaky."
-      },
-      "assistant_response": {
-        "text": "Nahraj obrázek a prohlédni si známky vytvoření pomocí AI přímo v chatu."
-      }
-    },
-    "incognito": {
-      "title": {
-        "text": "Anonymní chaty"
-      },
-      "description": {
-        "text": "Začni dočasný chat, pokud ho nechceš ukládat do historie."
-      },
-      "phrase": {
-        "text": "Potřebuješ dočasnou konverzaci? Nech ji mimo uloženou historii chatů."
-      },
-      "assistant_response": {
-        "text": "Začni dočasný chat, pokud ho nechceš ukládat do historie."
-      }
-    },
-    "privacy": {
-      "title": {
-        "text": "Nastavení soukromí"
-      },
-      "description": {
-        "text": "Uprav skrývání osobních údajů, propojené účty a automatické mazání na jednom místě."
-      },
-      "phrase": {
-        "text": "Prohlédni si ochranu OpenMates dřív, než budeš nastavení naléhavě potřebovat."
-      },
-      "assistant_response": {
-        "text": "Uprav skrývání osobních údajů, propojené účty a automatické mazání na jednom místě."
       }
     }
   },

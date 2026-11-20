@@ -443,24 +443,25 @@ async function verifyContinueCarouselSurvivesReconnectChurn(page: any, sockets: 
 	const initialState = await getContinueCarouselState(page);
 	expect(initialState.chatIds.length, 'test account needs at least one continue card for carousel stability coverage').toBeGreaterThan(0);
 
-	// The authenticated carousel must fit in the real pane below the banner.
-	for (const size of [{ width: 390, height: 844, large: false }, { width: 1366, height: 700, large: false }, { width: 1366, height: 1032, large: true }]) {
+	// The authenticated start row is large cards only and must fit in the real pane above the composer.
+	for (const size of [{ width: 390, height: 844 }, { width: 1366, height: 700 }, { width: 1366, height: 1032 }]) {
 		await page.setViewportSize({ width: size.width, height: size.height });
 		const carouselElement = page.getByTestId('recent-chats-scroll-container');
-		const card = carouselElement.locator(size.large
-			? '.resume-chat-large-card, .saved-embed-continue-preview'
-			: '.resume-chat-card').first();
+		const card = carouselElement.locator('.resume-chat-large-card, .resume-chat-draft-card, .continue-priority-card, [data-testid="start-row-inspiration-card"]').first();
 		await expect(card).toBeVisible();
-		await expect(carouselElement).toHaveCSS('padding-top', size.large ? '17.5px' : '6px');
-		await expect(carouselElement).toHaveCSS('padding-bottom', size.large ? '17px' : '6px');
-		const [banner, carousel, input] = await Promise.all([
-			page.getByTestId('daily-inspiration-area').boundingBox(),
-			page.getByTestId('recent-chats-scroll-container').boundingBox(),
+		await expect(carouselElement.locator('[data-testid="resume-chat-card"]')).toHaveCount(0);
+		await expect(page.getByTestId('daily-inspiration-area')).toHaveCount(0);
+		await expect(carouselElement).toHaveCSS('padding-top', '17.5px');
+		await expect(carouselElement).toHaveCSS('padding-bottom', '17px');
+		const [carousel, input] = await Promise.all([
+			carouselElement.boundingBox(),
 			page.getByTestId('message-input-wrapper').boundingBox(),
 		]);
-		expect(banner && carousel && input).toBeTruthy();
-		expect(carousel!.y).toBeGreaterThanOrEqual(banner!.y + banner!.height - 1);
+		expect(carousel && input).toBeTruthy();
 		expect(carousel!.y + carousel!.height).toBeLessThanOrEqual(input!.y + 1);
+		// The first card stays horizontally centred in the row, as before the redesign.
+		const cardBox = await card.boundingBox();
+		expect(Math.abs(cardBox!.x + cardBox!.width / 2 - (carousel!.x + carousel!.width / 2))).toBeLessThanOrEqual(4);
 	}
 	await page.setViewportSize({ width: 1366, height: 900 });
 

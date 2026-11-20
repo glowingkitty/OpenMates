@@ -292,15 +292,20 @@ test.describe('Apps bare component previews', () => {
       await page.goto(preview('apps/AppsWorkspace', width), { waitUntil: 'domcontentloaded' });
       await waitForComponentPreview(page);
       await expect(page.getByTestId('apps-workspace')).toBeVisible();
-      await expect(page.getByTestId('apps-daily-inspiration-area').getByTestId('daily-inspiration-phrase')).toBeVisible();
-      await expect(page.getByTestId('daily-inspiration-cta-text')).toHaveText(/^(Click|Tap) to use app skill$/);
+      await expect(page.getByTestId('apps-daily-inspiration-area')).toHaveCount(0);
+      await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
       await expect(page.getByTestId('report-issue-button')).toBeVisible();
       await expect(page.getByRole('heading', { name: 'What app do you want to use?' })).toBeVisible();
-      const banner = await page.getByTestId('apps-daily-inspiration-area').boundingBox();
       await expect(page.getByTestId('apps-workspace-home').locator('.workspace-eyebrow')).toHaveCount(0);
       await expect(page.getByTestId('apps-workspace-background-icon')).toBeVisible();
-      const heading = await page.getByRole('heading', { name: 'What app do you want to use?' }).boundingBox();
-      expect(heading!.y).toBeGreaterThanOrEqual(banner!.y + banner!.height);
+      // TASK-1321: without the banner the heading, row and links sit vertically centred in the start screen.
+      const [heading, homeBox, linksBottom] = await Promise.all([
+        page.getByRole('heading', { name: 'What app do you want to use?' }).boundingBox(),
+        page.getByTestId('apps-workspace-home').boundingBox(),
+        page.getByTestId('apps-show-all').boundingBox(),
+      ]);
+      const contentMiddle = (heading!.y + linksBottom!.y + linksBottom!.height) / 2;
+      expect(Math.abs(contentMiddle - (homeBox!.y + homeBox!.height / 2))).toBeLessThanOrEqual(homeBox!.height * 0.15);
       await expect(page.getByTestId('apps-workspace-home').getByTestId('workspace-composer-slot')).toHaveCount(0);
       await expect(page.getByTestId('apps-workspace-home').getByRole('textbox')).toHaveCount(0);
       for (const link of [page.getByTestId('apps-show-all'), page.getByTestId('apps-search')]) {
@@ -323,24 +328,15 @@ test.describe('Apps bare component previews', () => {
       await expect(page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ has: page.getByTestId('app-card-name').getByText('Weather') })).toHaveAttribute('data-app-id', 'weather');
       const webCardBounds = await webCard.boundingBox();
       expect(webCardBounds).not.toBeNull();
-      if (width === 390) {
-        expect(webCardBounds!.width).toBeGreaterThanOrEqual(275);
-        expect(webCardBounds!.width).toBeLessThanOrEqual(285);
-        expect(webCardBounds!.height).toBeGreaterThanOrEqual(42);
-        expect(webCardBounds!.height).toBeLessThanOrEqual(46);
-        await expect(webCard.getByTestId('app-card-name')).toBeVisible();
-        await expect(webCard.getByTestId('app-card-description')).toHaveCount(0);
-        await expect(webCard).toHaveText('Web');
-      } else {
-        expect(webCardBounds!.height).toBeGreaterThanOrEqual(125);
-        await expect(webCard.getByTestId('app-card-description')).toBeVisible();
-        await expect(webCard.getByTestId('app-card-description')).toHaveCSS('text-align', 'left');
-      }
+      // TASK-1321: large cards only on every width (the compact pill variant is gone).
+      expect(webCardBounds!.height).toBeGreaterThanOrEqual(125);
+      expect(webCardBounds!.x + webCardBounds!.width).toBeLessThanOrEqual(width + 1);
+      await expect(webCard.getByTestId('app-card-name')).toBeVisible();
+      await expect(webCard.getByTestId('app-card-description')).toBeVisible();
+      await expect(webCard.getByTestId('app-card-description')).toHaveCSS('text-align', 'left');
       await attachWorkspaceScreenshot(page, `apps-home-${width}.png`);
-      const inspiredSkill = page.evaluate(() => new Promise<string>(resolve =>
-        window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
-      await page.getByTestId('daily-inspiration-phrase').click();
-      expect(await inspiredSkill).toMatch(/^#apps\/(web\/search|weather\/forecast)$/);
+      // TASK-1321: Apps has no Daily Inspiration (no banner, no inspiration cards).
+      await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
       const navigated = page.evaluate(() => new Promise<string>(resolve =>
         window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
       await page.getByTestId('apps-app-card').first().getByTestId('app-store-card').click();

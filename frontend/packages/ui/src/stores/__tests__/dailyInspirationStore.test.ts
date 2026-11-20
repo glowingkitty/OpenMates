@@ -124,7 +124,7 @@ describe("dailyInspirationStore", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated
-  it("restores the public-safe ten-card guest fallback after authenticated data races with logout", () => {
+  it("restores the public-safe six-card guest fallback after authenticated data races with logout", () => {
     dailyInspirationStore.setInspirations(INSPIRATIONS, {
       personalized: true,
       source: "personalized",
@@ -136,7 +136,7 @@ describe("dailyInspirationStore", () => {
 
     const state = get(dailyInspirationStore);
     expect(state.source).toBe("guest-onboarding");
-    expect(state.inspirations).toHaveLength(10);
+    expect(state.inspirations).toHaveLength(6);
     expect(state.inspirations.every((item) => !GUEST_ONBOARDING_IDS.includes(item.feature?.feature_id ?? ""))).toBe(true);
     expect(state.inspirations.filter((item) => item.feature).every((item) => item.feature?.requires_authentication === false)).toBe(true);
     expect(state.inspirations.map((item) => item.inspiration_id)).toEqual(
@@ -156,16 +156,16 @@ describe("dailyInspirationStore", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.authenticated-fallback-content
-  it("provides an authenticated-only 3/3/4 fallback", () => {
+  it("provides an authenticated-only 3/3 fallback", () => {
     const fallback = getAuthenticatedFallbackInspirations("en");
     const counts = fallback.reduce<Record<string, number>>((result, inspiration) => {
       result[inspiration.content_type] = (result[inspiration.content_type] ?? 0) + 1;
       return result;
     }, {});
 
-    expect(counts).toEqual({ video: 3, wiki: 3, feature: 4 });
+    expect(counts).toEqual({ video: 3, wiki: 3 });
     expect(fallback.map((item) => item.inspiration_id)).not.toContain("openmates-signup-cta");
-    expect(fallback.filter((item) => item.content_type === "feature").every((item) => item.feature?.settings_path)).toBe(true);
+    expect(fallback).toHaveLength(6);
     expect(hasCompleteAuthenticatedDailySet(fallback)).toBe(true);
     expect(hasCompleteAuthenticatedDailySet(fallback.slice(1))).toBe(false);
     expect(
@@ -175,7 +175,7 @@ describe("dailyInspirationStore", () => {
     ).toBe(false);
     expect(
       hasCompleteAuthenticatedDailySet([
-        { ...fallback[0], feature: { ...fallback[6].feature!, feature_id: "openmates-actionable-events" } },
+        { ...fallback[0], feature: { feature_id: "openmates-actionable-events", icon: "calendar", title: "Events", description: "Events", settings_path: null } },
         ...fallback.slice(1),
       ]),
     ).toBe(false);

@@ -19,13 +19,16 @@ test('default guest examples match landing order and preserve a curated catalog'
 		expect(bannerHeight).toBeLessThanOrEqual(420);
 		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible();
 		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible();
-		await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
-		const beforeSlide = await page.getByTestId('resume-chat-card').evaluateAll((cards: HTMLElement[]) =>
+		// The guest row shows large cards only (TASK-1321: the compact pill view is gone).
+		const guestRowCards = page.getByTestId('recent-chats-scroll-container').getByTestId('resume-chat-large-card');
+		await expect(guestRowCards.first()).toBeVisible();
+		await expect(page.getByTestId('resume-chat-card')).toHaveCount(0);
+		const beforeSlide = await guestRowCards.evaluateAll((cards: HTMLElement[]) =>
 			cards.map((card) => card.dataset.chatId).filter(Boolean)
 		);
 		expect(beforeSlide).toEqual(landingDefaults.map(example => example.chatId));
 		await page.getByTestId('daily-inspiration-next').click();
-		const afterSlide = await page.getByTestId('resume-chat-card').evaluateAll((cards: HTMLElement[]) =>
+		const afterSlide = await guestRowCards.evaluateAll((cards: HTMLElement[]) =>
 			cards.map((card) => card.dataset.chatId).filter(Boolean)
 		);
 		expect(afterSlide).toEqual(beforeSlide);

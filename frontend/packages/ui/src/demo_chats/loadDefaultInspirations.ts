@@ -407,7 +407,9 @@ export async function loadDefaultInspirations(
       return;
     }
     if ((get(svelteLocaleStore) || "en") !== currentLang) return;
-    const inspirations: DailyInspiration[] = data.inspirations || [];
+    // Daily set is 3 video + 3 wiki; drop legacy feature-tip rows from older caches.
+    const inspirations: DailyInspiration[] = ((data.inspirations || []) as DailyInspiration[])
+      .filter((item) => item.content_type !== "feature");
     if (!inspirationsMatchLanguage(inspirations, currentLang)) {
       console.warn(`${LOG_PREFIX} Rejected defaults from a different content language`);
       return;

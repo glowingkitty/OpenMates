@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows-ui@11
+specification: feature.workflows-ui@12
 workflow_file_export:
 - id: more-exports-current-saved-workflow
   assertion_ids:
@@ -134,22 +134,20 @@ workflow_identity:
 workspace_start_layout:
 - id: desktop-recommendation-led-layout
   assertion_ids: [workflows-ui.workspace.recommendation-led-composition]
-  given: "Alice opens Workflows on desktop with two owned Workflows and a Daily Inspiration banner."
+  given: "Alice opens Workflows on desktop with two owned Workflows; no recommended-workflow records exist."
   when: "The start view renders its cards."
   then: >-
     What do you want to automate next? appears above the cards without a redundant Continue where you left
-    off label. Banner, identity, cards and composer use the Chats start geometry and the same compact-card
-    fit threshold; Show my workflows, Show templates and Search stay above the composer. Large cards retain
-    category gradients and schedule detail when they fit.
+    off label. No banner and no generic workflow tip appear. Identity, the row of two large cards and the
+    composer use the Chats start geometry; Show my workflows, Show templates and Search stay above the
+    composer. Large cards retain category gradients and schedule detail.
 - id: mobile-retains-start-hierarchy
   assertion_ids:
   - workflows-ui.workspace.recommendation-led-composition
-  given: Bob opens Workflows on a narrow phone or a laptop whose tall inspiration banner leaves limited content
-    space.
-  when: The continuation area chooses its card size.
-  then: Compact cards show the assigned icon, one ellipsized title line and chevron, without badges or schedule
-    detail. The greeting stays below inspiration, the browse links remain visible above the composer, and the composer
-    stays above the safe area.
+  given: Bob opens Workflows on a narrow phone.
+  when: The start view renders.
+  then: The row still shows large cards, one card wide with the next one peeking; there is no compact variant.
+    The browse links remain visible above the composer, and the composer stays above the safe area.
 workspace_start:
 - id: valid-title-creates-disabled-draft
   given:
