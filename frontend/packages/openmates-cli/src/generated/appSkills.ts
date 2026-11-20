@@ -4883,7 +4883,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "jobs",
     "skill_method_py": "search",
     "description_key": "app_skills.jobs.search.description",
-    "description": "Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty results.",
+    "description": "Search current job listings. The built-in source covers Sweden (JobTech); operator-installed providers can add other countries. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty",
     "schema": {
       "type": "object",
       "properties": {
@@ -10882,7 +10882,7 @@ export class JobsAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty results.
+   * Search current job listings. The built-in source covers Sweden (JobTech); operator-installed providers can add other countries. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty
    * Description key: app_skills.jobs.search.description
    * Skill: jobs/search
    */

@@ -25261,7 +25261,7 @@
         "jobs",
         "search"
       ],
-      "summary": "Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Never invent listing facts or broaden filters after empty results.",
+      "summary": "Search current job listings. The built-in source covers Sweden (JobTech); operator-installed providers can add other countries. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Never invent listing facts or broaden filters after empty results.",
       "usages": [
         "apps jobs search [value]"
       ],

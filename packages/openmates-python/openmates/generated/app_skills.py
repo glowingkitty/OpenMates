@@ -4607,12 +4607,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'jobs',
   'app_namespace_py': 'jobs',
   'app_namespace_ts': 'jobs',
-  'description': 'Search current Swedish job listings using JobTech. Germany is unavailable. '
-                 'Preserve country, remote, employment and age filters. Radius search is '
-                 'unavailable. Use relevance_criteria only for an explicit user goal. Set listing '
-                 'filters (visa, experience, education, start, contract length, deadline, salary, '
-                 'languages) only when the user asks; they drop listings that do not state the '
-                 'value. Never invent listing facts or broaden filters after empty results.',
+  'description': 'Search current job listings. The built-in source covers Sweden (JobTech); '
+                 'operator-installed providers can add other countries. Preserve country, remote, '
+                 'employment and age filters. Radius search is unavailable. Use relevance_criteria '
+                 'only for an explicit user goal. Set listing filters (visa, experience, '
+                 'education, start, contract length, deadline, salary, languages) only when the '
+                 'user asks; they drop listings that do not state the value. Never invent listing '
+                 'facts or broaden filters after empty',
   'description_key': 'app_skills.jobs.search.description',
   'output_schema': {'description': 'Jobs search response with one result group per input request.',
                     'properties': {'app_id': {'type': 'string'},
@@ -11260,7 +11261,7 @@ class JobsAppSkills:
         self._run_skill = run_skill
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Search current Swedish job listings using JobTech. Germany is unavailable. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty results.
+        """Search current job listings. The built-in source covers Sweden (JobTech); operator-installed providers can add other countries. Preserve country, remote, employment and age filters. Radius search is unavailable. Use relevance_criteria only for an explicit user goal. Set listing filters (visa, experience, education, start, contract length, deadline, salary, languages) only when the user asks; they drop listings that do not state the value. Never invent listing facts or broaden filters after empty
 
         Description key: app_skills.jobs.search.description
         Skill: jobs/search
