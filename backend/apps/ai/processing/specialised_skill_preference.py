@@ -85,3 +85,18 @@ def empty_specialised_result_note(tool_name: str, offered_skills: Iterable[str],
         f"`{tool_name}` found nothing for this request. Call `web-search` now for the parts it should have "
         "answered, and answer from those results instead of from memory."
     )
+
+
+def require_web_search_fallback(tools: list[dict[str, Any]] | None, tool_choice: str) -> tuple[list[dict[str, Any]] | None, str]:
+    """Narrow the next model call to ``web-search`` after a specialised skill found nothing.
+
+    The fallback hint alone was ignored on dev (the model answered the conference question
+    from memory), so the iteration after an empty specialised result must call web search.
+    Only an ``auto`` choice is narrowed: budget stops (``none``) and other required tools win.
+    """
+    if tool_choice != "auto" or not tools:
+        return tools, tool_choice
+    selected = [tool for tool in tools if tool.get("function", {}).get("name") == "web-search"]
+    if not selected:
+        return tools, tool_choice
+    return selected, "required"

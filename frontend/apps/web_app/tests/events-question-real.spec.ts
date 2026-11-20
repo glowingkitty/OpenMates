@@ -83,39 +83,41 @@ test('the largest open source conference question is answered through the Events
 		await waitForIdle(page);
 		await expect(answer.getByTestId('generated-by')).toContainText(/Gemini 3\.8 Flash/i, { timeout: 60_000 });
 
-		// The Events app search skill ran: its app icon is in the answer's activity line.
+		// The Events app search skill ran first: its app icon and its search card are in the answer.
 		const eventsActivity = answer.locator('[data-testid="assistant-skill-app-icon"][data-app-id="events"]').first();
 		await expect(eventsActivity, 'the Events app ran for this answer').toBeAttached({ timeout: 60_000 });
 		const eventsCard = page.locator('[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]').first();
-		const webSearchCard = answer.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]').first();
-		const resultCard = eventsCard.or(webSearchCard).first();
 		// Collapsed activity lines show only answer cards; open the line when the card sits inside it.
-		if (!(await resultCard.waitFor({ state: 'visible', timeout: 20_000 }).then(() => true, () => false))) {
+		if (!(await eventsCard.waitFor({ state: 'visible', timeout: 20_000 }).then(() => true, () => false))) {
 			await answer.getByTestId('assistant-activity-toggle').first().click();
 		}
-		await expect(resultCard, 'Events results, or the web search fallback when Events found none').toBeVisible({ timeout: 60_000 });
+		await expect(eventsCard, 'the Events app search card is in the answer').toBeVisible({ timeout: 60_000 });
+		await expect(eventsCard).toHaveAttribute('data-status', 'finished', { timeout: 120_000 });
+		await eventsCard.evaluate(element => element.scrollIntoView({ block: 'center' }));
+		await testInfo.attach('answer-with-events-card', { body: await page.screenshot(), contentType: 'image/png' });
 
-		if (await eventsCard.isVisible()) {
-			await expect(eventsCard).toHaveAttribute('data-status', 'finished', { timeout: 120_000 });
-			log('Events found events: the Events search card is in the answer.');
-			await eventsCard.evaluate(element => element.scrollIntoView({ block: 'center' }));
-			await testInfo.attach('answer-with-events-card', { body: await page.screenshot(), contentType: 'image/png' });
-			const overlay = await openFullscreen(page, eventsCard);
-			await expect(overlay).not.toContainText(EMBED_NOT_FOUND);
-			await page.waitForTimeout(1_500);
-			await testInfo.attach('events-fullscreen', { body: await page.screenshot(), contentType: 'image/png' });
-			await closeFullscreen(page, overlay);
-		} else {
-			// Events found no dated edition: the answer fell back to web search, not to memory.
+		const overlay = await openFullscreen(page, eventsCard);
+		await expect(overlay).not.toContainText(EMBED_NOT_FOUND);
+		await page.waitForTimeout(1_500);
+		const eventsFoundNothing = await overlay.getByTestId('search-no-results-message').isVisible();
+		await testInfo.attach('events-fullscreen', { body: await page.screenshot(), contentType: 'image/png' });
+		await closeFullscreen(page, overlay);
+
+		if (eventsFoundNothing) {
+			// Events found no dated edition: the answer must fall back to web search, never to memory.
+			log('Events found no dated edition; expecting the web search fallback.');
+			const webSearchCard = answer.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]').first();
+			await expect(webSearchCard, 'web search ran as the fallback after an empty Events result').toBeVisible({ timeout: 60_000 });
 			await expect(webSearchCard).toHaveAttribute('data-status', 'finished', { timeout: 120_000 });
-			log('Events found no dated edition: the answer fell back to a web search card.');
 			await webSearchCard.evaluate(element => element.scrollIntoView({ block: 'center' }));
 			await testInfo.attach('answer-with-web-search-fallback', { body: await page.screenshot(), contentType: 'image/png' });
-			const overlay = await openFullscreen(page, webSearchCard);
-			await expect(overlay).not.toContainText(EMBED_NOT_FOUND);
+			const webOverlay = await openFullscreen(page, webSearchCard);
+			await expect(webOverlay).not.toContainText(EMBED_NOT_FOUND);
 			await page.waitForTimeout(1_500);
 			await testInfo.attach('web-search-fallback-fullscreen', { body: await page.screenshot(), contentType: 'image/png' });
-			await closeFullscreen(page, overlay);
+			await closeFullscreen(page, webOverlay);
+		} else {
+			log('Events found events: the Events search card lists them.');
 		}
 
 		// A header image bubble opens fullscreen without "Embed not found".

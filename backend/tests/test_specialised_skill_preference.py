@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from backend.apps.ai.processing.specialised_skill_preference import (
     empty_specialised_result_note,
+    require_web_search_fallback,
     specialised_first_instruction,
 )
 
@@ -59,3 +60,14 @@ def test_no_fallback_note_when_results_exist_or_web_search_is_not_offered() -> N
     assert empty_specialised_result_note("news-search", OFFERED, [{"id": "1", "results": []}]) is None
     assert empty_specialised_result_note(
         "events-search", OFFERED, [{"id": "1", "results": [], "error": "unavailable"}]) is None
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+def test_iteration_after_an_empty_specialised_result_must_call_web_search() -> None:
+    tools = [{"function": {"name": name}} for name in ("events-search", "web-search", "web-read")]
+    assert require_web_search_fallback(tools, "auto") == ([{"function": {"name": "web-search"}}], "required")
+    # A budget stop or another required tool keeps its choice; no web search offered changes nothing.
+    assert require_web_search_fallback(tools, "none") == (tools, "none")
+    assert require_web_search_fallback(tools, "required") == (tools, "required")
+    assert require_web_search_fallback(tools[:1], "auto") == (tools[:1], "auto")
+    assert require_web_search_fallback(None, "auto") == (None, "auto")

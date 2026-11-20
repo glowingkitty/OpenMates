@@ -31,6 +31,7 @@ from backend.shared.python_utils.calendar_action_journal import calendar_undo_pa
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.processing.specialised_skill_preference import (
     empty_specialised_result_note,
+    require_web_search_fallback,
     specialised_first_instruction,
 )
 from backend.apps.ai.processing.preprocessor import (
@@ -6586,6 +6587,10 @@ async def handle_main_processing(
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
+    # Specialised skills that found nothing and web-search runs of this turn: the next iteration
+    # must call web-search as the fallback unless web search already ran.
+    empty_specialised_skills: set[str] = set()
+    web_search_ran: set[str] = set()
     delegated_primary_read = DelegatedPrimaryReadState(
         enabled=bool((request_data.is_sub_chat or root_primary_read_required) and request_data.orchestration_id
                      and request_data.user_id_hash and not getattr(request_data, "is_anonymous", False)
@@ -6954,6 +6959,14 @@ async def handle_main_processing(
             iteration_tools, current_tool_choice = delegated_primary_read.select_tools(
                 iteration_tools, current_tool_choice, HARD_LIMIT_SKILL_CALLS - total_skill_calls,
             )
+        if empty_specialised_skills and not web_search_ran and not force_no_tools:
+            iteration_tools, current_tool_choice = require_web_search_fallback(iteration_tools, current_tool_choice)
+            if current_tool_choice == "required":
+                logger.info(
+                    f"{log_prefix} [SPECIALISED_FIRST] Requiring web-search after "
+                    f"{sorted(empty_specialised_skills)} found nothing"
+                )
+            empty_specialised_skills.clear()
         iteration_allowed_tool_names = (
             {tool["function"]["name"] for tool in iteration_tools}
             if current_tool_choice == "required" and delegated_primary_read.enabled
@@ -11570,7 +11583,10 @@ async def handle_main_processing(
                             tool_name, allowed_tool_names, filtered_results_with_refs,
                         )
                         if _fallback_note:
+                            empty_specialised_skills.add(tool_name)
                             logger.info(f"{log_prefix} [SPECIALISED_FIRST] '{tool_name}' found nothing; web search named as fallback")
+                        if tool_name == "web-search":
+                            web_search_ran.add(tool_name)
 
                         if len(filtered_results_with_refs) == 1 and not shopping_visual_metadata:
                             # Single result - flatten and encode filtered result as TOON for LLM inference
