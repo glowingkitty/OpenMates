@@ -1537,7 +1537,8 @@ def provision_account(
         token,
     )
     mapped["E2E_SIGNUP_INVITE_CODE"] = fixture_invite
-    # One single-use invite with gifted credits per provisioned set. Isolated CI
+    # One invite with gifted credits per provisioned set (two uses: the signup
+    # case and its Playwright retry each sign up a fresh account). Isolated CI
     # runs the self-hosted edition (no billing routes, so no gift cards); a fresh
     # signup with this invite accepts its gift through the product's own
     # /v1/auth/accept-gift, so paid features (voice calls) work without patching
@@ -1546,7 +1547,7 @@ def provision_account(
     gifted_invite = f"{gifted_chars[:4]}-{gifted_chars[4:8]}-{gifted_chars[8:]}"
     request(
         "http://localhost:8055/items/invite_codes",
-        {"code": gifted_invite, "remaining_uses": 1, "is_admin": False, "gifted_credits": FIXTURE_CREDITS},
+        {"code": gifted_invite, "remaining_uses": 2, "is_admin": False, "gifted_credits": FIXTURE_CREDITS},
         token,
     )
     mapped["E2E_SIGNUP_GIFTED_INVITE_CODE"] = gifted_invite
