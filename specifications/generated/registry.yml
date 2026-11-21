@@ -1071,7 +1071,7 @@ specifications:
     version: 18
     status: draft
     path: features/video-call
-    fingerprint: 95417c85f3a3ec23b1f8db4cd958603ddc5cf37fcec66c8e31b34fbaf4a2b6b6
+    fingerprint: 196e545a9b7d04abdc4845a30f8eaf9332d41ab9b8a45da7e6e58fdc1f56eba2
     required_applies_to:
     - gui.web
     - gui.apple
@@ -14960,6 +14960,22 @@ assertions:
     specification_id: feature.video-call
     type: behavior
     fingerprint: 8bc1ba5a1e96cbf6c8db1be7e96b6642677932747997e7a79d2fc9df532cc041
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  video-call.chat.stt-special-terms:
+    specification: feature.video-call@18
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: ce1a4738e8c8dfd4e58c46fef79cd569cb91c1e65cec592d5ceb76b8b66d7683
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  video-call.chat.pasted-text-not-read-aloud:
+    specification: feature.video-call@18
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: bbe8dabefe514ecd7efc3920d8c2f06109df82a9f499923f0caf996f07ad6eea
     required_applies_to:
     - gui.web
     - gui.apple

@@ -50,6 +50,14 @@ class VoxtralVoiceSession:
         self._unflushed_audio = False
         self._last_audio_sent = monotonic()
         self._idle_audio_task: asyncio.Task[None] | None = None
+        self._ready = False
+
+    async def set_context_bias(self, terms: list[str]) -> None:
+        """Send the call's special terms as recognition hints; held in memory only."""
+        async with self._send_lock:
+            if self._socket is None:
+                raise RuntimeError("Voice transcription unavailable")
+            await self._socket.send_json({"type": "session.update", "session": {"context_bias": terms}})
 
     async def open(self) -> None:
         self._http = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=None, sock_connect=10))
@@ -68,6 +76,7 @@ class VoxtralVoiceSession:
             if (await asyncio.wait_for(self.receive(), 10)).get("type") != "session.updated":
                 raise RuntimeError("Voice transcription settings unavailable")
             self._last_audio_sent = monotonic()
+            self._ready = True
             self._idle_audio_task = asyncio.create_task(self._maintain_idle_audio())
         except BaseException:
             await self.close()
@@ -118,12 +127,17 @@ class VoxtralVoiceSession:
     async def receive(self) -> dict[str, Any]:
         if self._socket is None:
             raise RuntimeError("Voice transcription unavailable")
-        message = await self._socket.receive()
-        if message.type != aiohttp.WSMsgType.TEXT:
-            raise RuntimeError("Voice transcription disconnected")
-        event = json.loads(message.data)
-        if not isinstance(event, dict):
-            raise RuntimeError("Voice transcription failed")
+        while True:
+            message = await self._socket.receive()
+            if message.type != aiohttp.WSMsgType.TEXT:
+                raise RuntimeError("Voice transcription disconnected")
+            event = json.loads(message.data)
+            if not isinstance(event, dict):
+                raise RuntimeError("Voice transcription failed")
+            # Acknowledgements of mid-call hint updates are not call events.
+            if self._ready and event.get("type") == "session.updated":
+                continue
+            break
         if event.get("type") == "error":
             details = event.get("error")
             code = details.get("code") if isinstance(details, dict) else None

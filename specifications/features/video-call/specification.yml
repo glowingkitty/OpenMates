@@ -270,6 +270,18 @@ assertions:
     answer model.
   depends_on:
   - examples.migration_typed_normal_turn
+- id: video-call.chat.stt-special-terms
+  type: behavior
+  must: A chat may keep a short list of special terms (names, product words), stored client-encrypted with the chat like
+    other chat content. The call device sends the list in plaintext only over the authenticated call connection, the same
+    exposure as the call audio. The server validates it (bounded count and length), passes it to speech recognition as
+    recognition hints for that call only, keeps it in memory and never persists or logs it. Invalid lists are rejected
+    without ending the call.
+- id: video-call.chat.pasted-text-not-read-aloud
+  type: behavior
+  must: Text pasted into the call composer is marked as pasted on the call connection. The assistant must not read pasted
+    text aloud; it summarises it or refers to it. Typed text is still answered aloud and the mark is held server-side for
+    that call turn only.
 - id: video-call.audio.single-owner
   type: invariant
   must: The call owns microphone capture and the shared assistant speech player while connecting or active. Composer

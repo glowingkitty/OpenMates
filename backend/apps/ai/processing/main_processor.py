@@ -4470,6 +4470,13 @@ async def handle_main_processing(
         heard_context = build_voice_heard_context(getattr(request_data, "voice_heard_boundary", None), request_data.message_history)
         if heard_context:
             volatile_prompt_tail.append(heard_context)
+        from backend.shared.python_utils.voice_call_pasted import is_pasted, pasted_text_context
+
+        pasted_context = pasted_text_context(
+            cache_service is not None and await is_pasted(
+                cache_service, getattr(request_data, "voice_call_id", None), getattr(request_data, "message_id", None)))
+        if pasted_context:
+            volatile_prompt_tail.append(pasted_context)
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))

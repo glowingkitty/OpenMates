@@ -48,9 +48,24 @@ class Profile:
         return self.write_success
 
 
+class _SetRedis:
+    def __init__(self, sets):
+        self.sets = sets
+
+    async def scard(self, key): return len(self.sets.get(key, ()))
+    async def sadd(self, key, value): self.sets.setdefault(key, set()).add(value)
+    async def expire(self, key, ttl): return True
+    async def sismember(self, key, value): return value in self.sets.get(key, ())
+
+
 class Cache:
     def __init__(self):
         self.values = {}
+        self.sets = {}
+
+    @property
+    async def client(self):
+        return _SetRedis(self.sets)
 
     async def get(self, key):
         return self.values.get(key)
@@ -138,6 +153,9 @@ class Provider:
 
     async def close(self):
         self.closed = True
+
+    async def set_context_bias(self, terms):
+        self.terms = terms
 
     def push(self, kind, **kwargs):
         self.events.put_nowait({"type": kind, **kwargs})
@@ -917,6 +935,36 @@ async def test_typed_request_accepted_once_and_identical_retry_does_not_repeat_f
     assert (await socket.event("text_input_rejected"))["code"] == "duplicate_message_id"
 
 
+# contract-test: supporting surface=rest_api assertions=video-call.chat.pasted-text-not-read-aloud
+async def test_pasted_text_input_marks_only_that_turn_and_still_interrupts(runtime):
+    from backend.shared.python_utils.voice_call_pasted import is_pasted
+
+    socket, _, _ = await runtime.start()
+    cache = socket.app.state.cache_service
+    pasted_id, _ = route._ordered_message_id()
+    typed_id, _ = route._ordered_message_id()
+    now = int(time.time())
+    socket.push({"type": "text_input", "message_id": pasted_id, "text": "Long pasted body", "created_at": now, "pasted": True})
+    await socket.event("text_input.accepted")
+    socket.push({"type": "text_input", "message_id": typed_id, "text": "Typed question", "created_at": now})
+    await socket.until(lambda events: len([e for e in events if e["type"] == "text_input.accepted"]) == 2)
+    call_id = next(e["call_id"] for e in socket.sent if e.get("type") == "text_input.accepted")
+    assert await is_pasted(cache, call_id, pasted_id)
+    assert not await is_pasted(cache, call_id, typed_id)
+    assert len(socket.finals()) == 2
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.stt-special-terms
+async def test_special_terms_reach_provider_as_hints_and_invalid_lists_are_rejected(runtime):
+    socket, provider, task = await runtime.start()
+    socket.push({"type": "stt_terms", "terms": ["Orbitex", " orbitex ", "Kessler  Lab"]})
+    accepted = await socket.event("stt_terms.accepted")
+    assert accepted["count"] == 2 and provider.terms == ["Orbitex", "Kessler Lab"]
+    socket.push({"type": "stt_terms", "terms": ["x" * 65]})
+    assert (await socket.event("stt_terms_rejected"))["code"] == "invalid_terms"
+    assert provider.terms == ["Orbitex", "Kessler Lab"] and not task.done()
+
+
 # contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.chat.launch-and-provider
 async def test_mute_keeps_provider_open_and_resumed_pcm_in_order(runtime):
     socket, provider, task = await runtime.start()
@@ -1263,6 +1311,35 @@ async def test_cleanup_finish_proves_no_ready_only_before_any_ready_send_attempt
     assert [item["mode"] for item in operations] == ["start", "finish"]
     assert operations[-1]["ready_exposed"] is (failure == "ready_transport")
     assert any(event["type"] == "ready" for event in socket.sent) is (failure == "ready_transport")
+
+
+# contract-test: direct surface=rest_api assertions=video-call.chat.pasted-text-not-read-aloud
+@pytest.mark.asyncio
+async def test_pasted_call_turn_marker_drives_the_no_read_aloud_instruction():
+    from backend.shared.python_utils.voice_call_pasted import (
+        PASTED_TEXT_INSTRUCTION, is_pasted, mark_pasted, pasted_text_context)
+
+    members: dict[str, set[str]] = {}
+
+    class FakeRedis:
+        async def scard(self, key): return len(members.get(key, ()))
+        async def sadd(self, key, value): members.setdefault(key, set()).add(value)
+        async def expire(self, key, ttl): return True
+        async def sismember(self, key, value): return value in members.get(key, ())
+
+    class FakeCache:
+        @property
+        async def client(self): return FakeRedis()
+
+    cache = FakeCache()
+    await mark_pasted(cache, "call-1", "turn-pasted")
+    assert await is_pasted(cache, "call-1", "turn-pasted")
+    assert not await is_pasted(cache, "call-1", "turn-typed")
+    assert not await is_pasted(cache, "call-2", "turn-pasted")
+    assert not await is_pasted(cache, None, "turn-pasted")
+    assert pasted_text_context(True) == PASTED_TEXT_INSTRUCTION
+    assert "Do not read the pasted text aloud" in PASTED_TEXT_INSTRUCTION
+    assert pasted_text_context(False) == ""
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.pause-verdict

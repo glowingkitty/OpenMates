@@ -999,6 +999,37 @@ describe('integrated voice call typed turns', () => {
     harness.handleMessage(final); expect(canonical.send).toHaveBeenCalledOnce(); controller.hangup();
   });
 
+  // contract-test: direct surface=gui.web assertions=video-call.chat.pasted-text-not-read-aloud
+  it('flags pasted call text in the text_input frame and leaves typed text unflagged', async () => {
+    const pasted = liveController();
+    void pasted.controller.submitText('chat-1', 'Quarterly report body', { pasted: true });
+    await vi.waitFor(() => expect(pasted.socket.send).toHaveBeenCalledOnce());
+    expect(JSON.parse(pasted.socket.send.mock.calls[0][0] as string)).toMatchObject({ type: 'text_input', pasted: true });
+    pasted.controller.hangup();
+    const typed = liveController();
+    void typed.controller.submitText('chat-1', 'Hello there');
+    await vi.waitFor(() => expect(typed.socket.send).toHaveBeenCalledOnce());
+    expect(JSON.parse(typed.socket.send.mock.calls[0][0] as string)).not.toHaveProperty('pasted');
+    typed.controller.hangup();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.stt-special-terms
+  it('sends special terms only while the call is live and again after a resume', () => {
+    const idle = new VoiceCallController();
+    const idleSocket = { readyState: 1, send: vi.fn(), close: vi.fn() };
+    (idle as unknown as Harness).socket = idleSocket;
+    idle.setSpecialTerms(['Orbitex']);
+    expect(idleSocket.send).not.toHaveBeenCalled();
+
+    const { controller, harness, socket } = liveController();
+    controller.setSpecialTerms(['Orbitex', 'Kessler Lab']);
+    expect(JSON.parse(socket.send.mock.calls[0][0] as string)).toEqual(
+      { type: 'stt_terms', call_id: 'call-1', terms: ['Orbitex', 'Kessler Lab'] });
+    (harness as unknown as { adoptResumedCall(id: string): void }).adoptResumedCall('call-1');
+    expect(socket.send.mock.calls.map((c) => JSON.parse(c[0] as string).type)).toEqual(['stt_terms', 'stt_terms']);
+    controller.hangup();
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.audio.complete-turn-admission
   it('shows interim speech as a live composer transcript until the final turn becomes a chat message', async () => {
     const { controller, harness } = liveController();

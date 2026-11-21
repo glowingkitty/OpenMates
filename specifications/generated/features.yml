@@ -10014,18 +10014,18 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 57
+  assertions: 59
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 31
+        passing: 33
         failing: 6
         not_run: 10
         missing: 11
-        counted: 58
+        counted: 60
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -10083,8 +10083,8 @@ features:
         passing: 30
         failing: 0
         not_run: 0
-        missing: 19
-        counted: 49
+        missing: 21
+        counted: 51
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift
@@ -10155,11 +10155,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 13
+        passing: 14
         failing: 0
         not_run: 6
         missing: 0
-        counted: 19
+        counted: 20
       key_tests: []
       e2e_tests: []
       key_unit_tests:

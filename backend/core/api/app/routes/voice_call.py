@@ -25,6 +25,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 from backend.core.api.app.models.user import User
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.python_utils.voice_call_pasted import mark_pasted
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.voice_call_support import (
     LOCK_RENEW_SECONDS, _acquire_lock, _authoritative_credits, _billing,
@@ -32,6 +33,7 @@ from backend.core.api.app.routes.voice_call_support import (
 )
 from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.utils.server_mode import is_payment_enabled
+from backend.core.api.app.routes.voice_call_terms import parse_terms
 from backend.shared.providers.voxtral_voice import VoxtralVoiceSession, VOXTRAL_VOICE_MODEL, STREAMING_DELAY_MS
 from backend.shared.python_utils.voice_pause_decision import PAUSE_WAIT_SECONDS, PauseDecision, as_pause_decision, classify_voice_pause
 from backend.shared.providers.live_voice import LiveVoiceSession
@@ -985,10 +987,22 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 turn = _SpeechTurn(identity, created, assistant["assistant_message_id"],
                                     assistant["text"], bool(assistant["speaking"] or assistant["generating"]),
                                     assistant_task_id=assistant["assistant_task_id"], text=text)
+                                if event.get("pasted") is True:
+                                    await mark_pasted(websocket.app.state.cache_service, call_id, identity)
                                 await interrupt(turn, "text_input")
                                 await transcript(turn, final=True)
                                 seen_text_ids[identity] = (text, created)
                             await send({"type": "text_input.accepted", "call_id": call_id, "message_id": identity})
+                elif kind == "stt_terms":
+                    set_bias = getattr(provider, "set_context_bias", None)
+                    try:
+                        terms = parse_terms(event)
+                    except ValueError:
+                        await send({"type": "stt_terms_rejected", "call_id": call_id, "code": "invalid_terms"})
+                    else:
+                        if set_bias is not None:
+                            await set_bias(terms)
+                        await send({"type": "stt_terms.accepted", "call_id": call_id, "count": len(terms)})
                 elif kind in {"camera_state", "camera_frame", "source_frame_saved", "source_frame_failed"}:
                     if event.get("call_id") != call_id:
                         raise PermissionError("Visual call binding mismatch")

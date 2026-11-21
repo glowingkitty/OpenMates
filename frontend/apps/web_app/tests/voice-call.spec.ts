@@ -13,6 +13,7 @@ const { withMockMarker } = require('./signup-flow-helpers');
 const USER_SPEECH = 'How do I make ramen?';
 const ASSISTANT_SPEECH = 'For ramen, simmer the broth and cook the noodles.';
 const PASTED_TEXT = 'Please use this pasted recipe: noodles, broth, mushrooms and ginger.';
+const PASTED_RECIPE = 'Soup for two: simmer broth with ginger for ten minutes, add noodles and mushrooms.';
 // Tap-to-listening includes the encrypted chat bootstrap and provider readiness;
 // on a loaded CI runner that took 5.2 s, just over Playwright's 5 s default.
 // Call latency itself is measured by the dev latency probe, not this wait.
@@ -97,6 +98,7 @@ interface SocketObservation {
   audioNonzero?: boolean;
   startupAllowanceMs?: number;
   messageId?: string;
+  pasted?: boolean;
   requestId?: string;
   turnId?: string;
   preflightId?: string;
@@ -468,6 +470,7 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
           userMessageId:payload.user_message_id,taskId:payload.task_id??payload.assistant_task_id,
           taskStatus:taskStatuses.has(payload.status)?payload.status:undefined,
           ...(event.type==='start'?{startupAllowanceMs:payload.startup_audio_allowance_ms}:{}),
+          ...(event.type==='text_input'?{pasted:payload.pasted===true}:{}),
           ...(event.type==='error'?{code:typeof payload.code==='string'&&/^[a-z_]{1,64}$/.test(payload.code)?payload.code:'unknown',stage:typeof payload.stage==='string'&&/^[a-z_]{1,64}$/.test(payload.stage)?payload.stage:'unknown'}:{}),
           ...(event.type==='mic_audio'?{audioSamples:atob(payload.data).length/2,audioBatch,audioNonzero:/[^\0]/.test(atob(payload.data))}:{}),
           ...(['encrypted_chat_metadata','voice_call_chat_prepare'].includes(event.type)?{ciphertextLength:typeof payload.encrypted_chat_key==='string'?payload.encrypted_chat_key.length:0,
@@ -1563,6 +1566,22 @@ async function assertOpenOriginalSource(page: Page, thumbnail: Locator, sourceId
   await expect(page.getByTestId('image-embed-fullscreen')).toHaveCount(0);
 }
 
+// Pastes plain text into the composer the way a browser does (a ClipboardEvent the
+// editor handles), then sends it into the live call.
+async function sendPastedCallText(page: Page, text: string): Promise<string> {
+  const before = voiceFrames(await evidence(page), 'text_input').length;
+  const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
+  await editor.click();
+  await editor.evaluate((node, value) => {
+    const data = new DataTransfer(); data.setData('text/plain', value);
+    node.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+  }, text);
+  await expect(editor).toContainText(text);
+  await page.getByTestId('composer-send-button').click();
+  await expect.poll(async () => voiceFrames(await evidence(page), 'text_input').length).toBe(before + 1);
+  return voiceFrames(await evidence(page), 'text_input').at(-1)!.messageId!;
+}
+
 async function sendCameraCallText(page: Page, text: string): Promise<string> {
   const before = voiceFrames(await evidence(page), 'text_input').length;
   const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
@@ -2469,7 +2488,7 @@ test.describe('Voice mode through ordinary chat', () => {
     await testInfo.attach('interrupted-call-cleanup',{body:JSON.stringify({accepted:results.filter(result=>result.chat_id===chatId)}),contentType:'application/json'});
   });
 
-  // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.call-events,video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent
+  // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.chat.typed-input,video-call.chat.pasted-text-not-read-aloud,video-call.chat.call-events,video-call.audio.complete-turn-admission,video-call.audio.spoken-rich-response,video-call.audio.single-owner,video-call.lifecycle.recovery-and-billing,chats.message.identity-idempotent
   test('uses one canonical turn for voice and typed input, preserves rich replies and retains its chat across navigation and reload',async({page},testInfo)=>{
     test.setTimeout(330_000);
     const imageProxyFixture = await installVoiceFixtureImageProxy(page);
@@ -2584,6 +2603,15 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(page.getByTestId('message-user').filter({hasText:PASTED_TEXT})).toHaveCount(1);
     await expect(page.getByTestId('message-assistant').filter({hasText:'I received your text: '+PASTED_TEXT})).toHaveCount(1);
     await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeEmpty();
+    // Pasted text in a call is marked so the assistant summarises it instead of
+    // reading it aloud; typed text is not marked (feature.video-call pasted-text-not-read-aloud).
+    const pastedId=await sendPastedCallText(page,PASTED_RECIPE);
+    await waitForCanonicalAssistant(page,pastedId);
+    await expect(page.getByTestId('message-user').filter({hasText:PASTED_RECIPE})).toHaveCount(1);
+    await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeEmpty();
+    const textInputs=voiceFrames(await evidence(page),'text_input');
+    expect(textInputs.find(frame=>frame.messageId===typedId)?.pasted).toBe(false);
+    expect(textInputs.find(frame=>frame.messageId===pastedId)?.pasted).toBe(true);
     const richId=await sendCameraCallText(page,'Show voice rich results');
     await waitForCanonicalAssistant(page,richId);
     const rich=page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'});
@@ -2599,12 +2627,13 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(finals.filter(frame=>frame.messageId===richId)).toHaveLength(1);
     expect(sends.filter(frame=>frame.messageId===typedId)).toHaveLength(1);
     expect(sends.filter(frame=>frame.messageId===richId)).toHaveLength(1);
+    expect(sends.filter(frame=>frame.messageId===pastedId)).toHaveLength(1);
     expect(sends.every(frame=>frame.autoSpeak===true&&frame.forcedModel===false)).toBe(true);
     expect(protocol.sent.filter(frame=>frame.type==='call_message_completed')).toHaveLength(0);
     expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='audio_chunk')).toHaveLength(0);
     expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='assistant')).toHaveLength(0);
     const messageIds=await page.locator('[data-testid="message-user"],[data-testid="message-assistant"]').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-message-id')!).filter(Boolean));
-    expect(messageIds).toHaveLength(6);
+    expect(messageIds).toHaveLength(8);
     await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-laptop.png')});
     const dismiss=page.getByTestId('input-dismiss-button');if(await dismiss.isVisible())await dismiss.click();
     await scrollChatHistoryToStart(page,testInfo);

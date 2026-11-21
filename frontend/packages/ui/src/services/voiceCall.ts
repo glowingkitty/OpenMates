@@ -95,7 +95,7 @@ export interface VoiceCallLiveTranscript {
 }
 export interface VoiceCallControllerLike extends Readable<VoiceCallState> {
   start(chatId?: string, onBound?: (chatId: string) => void, draftReady?: Promise<boolean>): Promise<void>;
-  submitText(chatId: string, text: string): Promise<boolean>;
+  submitText(chatId: string, text: string, options?: { pasted?: boolean }): Promise<boolean>;
   setMuted(muted: boolean): void;
   setWaiting(waiting: boolean): void;
   setMinimized(minimized: boolean): void;
@@ -272,6 +272,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private mediaIds = new Set<string>();
   private presentedMediaIds = new Set<string>();
   private sourceFrames = new Map<string, Promise<void>>();
+  /** Special terms for speech recognition; sent when live and again after a resume. */
+  private specialTerms: string[] | null = null;
   private pendingTyped = new Map<string, {
     callId: string; chatId: string; resolve: (accepted: boolean) => void;
     timer: ReturnType<typeof setTimeout>;
@@ -719,12 +721,25 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.fail('connection_lost');
   }
 
+  private sendSpecialTerms(): void {
+    const callId = this.state.callId;
+    if (this.specialTerms === null || this.state.status !== 'live' || !callId) return;
+    this.send({ type: 'stt_terms', call_id: callId, terms: this.specialTerms });
+  }
+
+  /** Sets the call's special terms (names, product words) as recognition hints. */
+  setSpecialTerms(terms: string[]): void {
+    this.specialTerms = [...terms];
+    this.sendSpecialTerms();
+  }
+
   private adoptResumedCall(callId: string): void {
     setActiveVoiceCallId(callId);
     this.clockUpdatedAt = performance.now();
     this.update({ callId, connection: this.audio?.captureInterrupted ? 'paused' : null, error: null });
     if (this.state.chatId) assistantSpeechController.setCallOwner(this.state.chatId, callId);
     this.audioGate?.setLive(true);
+    this.sendSpecialTerms();
   }
 
   private handleMessage(message: Record<string, unknown>): void {
@@ -770,6 +785,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.recordLifecycle('started');
         this.cues.play('connected');
         this.audioGate?.setLive(true);
+        this.sendSpecialTerms();
         this.background?.start();
         // Model loading and warmup run in the background after a normal start.
         this.audioGate?.start();
@@ -1061,7 +1077,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
     }).catch(() => {});
   }
 
-  async submitText(chatId: string, text: string): Promise<boolean> {
+  async submitText(chatId: string, text: string, options: { pasted?: boolean } = {}): Promise<boolean> {
     if (this.cleanupAttempt?.chatId === chatId && text.trim()) this.cleanupAttempt.contentAttempted = true;
     const callId = this.state.callId;
     if (this.state.status !== 'live' || this.state.chatId !== chatId || !callId ||
@@ -1073,7 +1089,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
         this.fail('connection_lost');
       }, 20_000);
       this.pendingTyped.set(id, { callId, chatId, resolve, timer });
-      if (!this.send({ type: 'text_input', message_id: id, text, created_at: createdAt })) {
+      if (!this.send({ type: 'text_input', message_id: id, text, created_at: createdAt, ...(options.pasted ? { pasted: true } : {}) })) {
         this.fail('connection_lost');
       }
     });

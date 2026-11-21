@@ -303,6 +303,18 @@
 
     const callLiveTranscript = $derived(callOwnsComposer ? $voiceCallController.liveTranscript ?? null : null);
 
+    // Text of the latest clipboard paste; a call text submit that still contains it
+    // is flagged `pasted` so the assistant summarises it instead of reading it aloud.
+    let lastPastedCallText = '';
+    const rememberPastedCallText = (event: ClipboardEvent) => {
+        // The editor and the composer both see one paste; the second sees no clipboard
+        // data and must not erase what the first remembered.
+        if (!event.clipboardData) return;
+        lastPastedCallText = event.clipboardData.getData('text/plain')?.trim() ?? '';
+        // Lengths only, never the pasted text.
+        console.info('[VoiceCall] Paste remembered', { length: lastPastedCallText.length, hasData: !!event.clipboardData });
+    };
+
     function plainCallTextOnly(): boolean {
         if (!editor || editor.isDestroyed) return false;
         const allowed = new Set(['doc', 'paragraph', 'text', 'hardBreak']);
@@ -2472,6 +2484,7 @@
             editorProps: {
                 // Handle paste events at the ProseMirror level to intercept before default handling
                 handlePaste: (view, event, _slice) => {
+                    rememberPastedCallText(event);
                     // ── Embed paste detection (highest priority) ───────────────────────
                     // Two detection paths:
                     //
@@ -4556,6 +4569,7 @@
     }
 
     async function handlePaste(event: ClipboardEvent) {
+        rememberPastedCallText(event);
         if (!$authStore.isAuthenticated && hasClipboardFiles(event)) {
             setPendingAnonymousFileAttachment(true);
         }
@@ -6157,7 +6171,9 @@
             }
             sendClickInProgress = true;
             try {
-                const accepted = await voiceCallController.submitText(chatId, submittedText);
+                const pasted = lastPastedCallText.length > 0 && submittedText.includes(lastPastedCallText);
+                console.info('[VoiceCall] Call text submit', { length: submittedText.length, pastedLength: lastPastedCallText.length, pasted });
+                const accepted = await voiceCallController.submitText(chatId, submittedText, { pasted });
                 if (!accepted) throw new Error('Call transport unavailable');
                 if (editor === submittedEditor && currentChatId === chatId && submittedEditor.getText().trim() === submittedText) {
                     await clearMessageField(false, false);
