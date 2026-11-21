@@ -239,7 +239,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | [AI Request Observability](#ai-request-observability) | not run 0/2 | — |  | not run 0/10 | — | partial 2/7 | — | — | on (no flag) | on (no flag) | untagged-main |
 | [Automated Security Monitoring and Guarded Remediation](#security-monitoring) | — | — |  | impl | — | — | — | — | on (no flag) | on (no flag) | unverified |
-| [Cost-Safe Daily AI Inference Testing](#daily-ai-test-inference) | not run 0/1 | — |  | partial 3/10 | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
+| [Cost-Safe Daily AI Inference Testing](#daily-ai-test-inference) | not run 0/2 | — |  | partial 3/10 | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Daily Test Orchestration And Recovery](#test-orchestration) | — | — |  | not run 0/8 | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [External Status Monitoring And Public Status Page](#external-status-monitoring) | — | — |  | — | — | partial 2/10 | — | — | on (no flag) | on (no flag) | unverified |
 | [Operational Monitoring And Operator Alerts](#operational-monitoring) | **live** 1/1 | — |  | not run 0/17 | — | **FAIL** 2/17 | — | — | on (no flag) | on (no flag) | untagged-main |
@@ -1280,7 +1280,7 @@ Daily full-pipeline tests without paid calls, plus capped real-inference canarie
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | not run 0/1 | 0 pass · 0 fail · 1 not run · 0 no test | 1 unit test file(s), e.g. [test_message_received_test_markers.py](../../backend/tests/test_message_received_test_markers.py) |
+| Web | not run 0/2 | 0 pass · 0 fail · 2 not run · 0 no test | [real-inference-gemini-chat.spec.ts](../../frontend/apps/web_app/tests/real-inference-gemini-chat.spec.ts)<br>1 unit test file(s), e.g. [test_message_received_test_markers.py](../../backend/tests/test_message_received_test_markers.py) |
 | Apple | — | — | — |
 | CLI | partial 3/10 | 3 pass · 0 fail · 6 not run · 1 no test | [daily-ai-fixed-canary.spec.ts](../../frontend/apps/web_app/tests/daily-ai-fixed-canary.spec.ts)<br>[daily-ai-rotating-canary.spec.ts](../../frontend/apps/web_app/tests/daily-ai-rotating-canary.spec.ts)<br>5 unit test file(s), e.g. [test_daily_ai_test_budget.py](../../backend/tests/test_daily_ai_test_budget.py), [test_caching_llm_wrapper.py](../../backend/tests/test_caching_llm_wrapper.py) |
 | TUI | — | — | — |

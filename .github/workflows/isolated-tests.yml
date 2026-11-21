@@ -97,6 +97,10 @@ jobs:
   test:
     if: github.event_name == 'workflow_dispatch' && !startsWith(inputs.mode, 'apple-')
     runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || inputs.runner_label != '' && fromJSON(format('["openmates-e2b","{0}"]', inputs.runner_label)) || (inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
+    # Real-inference specs (one per job, real-inference-* names; TASK-5616) run in
+    # the protected environment whose dev-only provider keys exist only for the
+    # dev branch. Every other job runs without an environment and gets no keys.
+    environment: ${{ inputs.mode == 'e2e' && startsWith(inputs.specs_json, '["real-inference-') && 'real-inference' || '' }}
     timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-') || inputs.web_rust_core == 'true') && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
@@ -805,6 +809,12 @@ jobs:
           --directory test-results/ci-preparation
       - name: Start isolated backend
         if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        env:
+          # Only this step and the diagnostics step see the dev-only keys; they
+          # pass by name into the run's throwaway Vault (empty outside real-inference).
+          OPENMATES_REAL_GOOGLE_AI_STUDIO_API_KEY: ${{ secrets.OPENMATES_REAL_GOOGLE_AI_STUDIO_API_KEY }}
+          OPENMATES_REAL_MISTRAL_AI_API_KEY: ${{ secrets.OPENMATES_REAL_MISTRAL_AI_API_KEY }}
+          OPENMATES_REAL_BRAVE_API_KEY: ${{ secrets.OPENMATES_REAL_BRAVE_API_KEY }}
         run: |
           python3 ../tooling/scripts/ci_environment.py start
           python3 ../tooling/scripts/ci_environment.py verify

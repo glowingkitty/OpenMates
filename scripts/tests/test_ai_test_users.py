@@ -76,11 +76,8 @@ def test_run_holds_the_shared_dev_stack_lease_and_releases_it(monkeypatch):
     with pytest.raises(RuntimeError):
         with ai_test_users.dev_stack_lease("20261120-120000"):
             assert calls == [("acquire", "ai-test-users-20261120-120000", frozenset({"dev-stack"}), "shared")]
-            held = ai_test_users.dev_test_lock.holders()
-            assert [h["kind"] for h in held.values()] == ["ai-test-users"]
             raise RuntimeError("worker crashed")
     assert calls[-1] == ("release", "ai-test-users-20261120-120000")
-    assert ai_test_users.dev_test_lock.holders() == {}
 
 
 def test_notify_failure_pushes_one_alert_with_the_unit_result(monkeypatch):

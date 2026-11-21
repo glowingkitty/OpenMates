@@ -13,11 +13,8 @@ import json
 import os
 import re
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any
-
-import dev_test_lock
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -35,8 +32,6 @@ def resolve_cli_path(cli_path: str | None = None) -> Path:
 
 
 def cli_env(api_url: str, home: str | None = None) -> dict[str, str]:
-    if "dev.openmates.org" in api_url:  # a real workflow test on dev: other chats' deploys wait (TASK-8552)
-        dev_test_lock.hold("real-inference", Path(sys.argv[0]).name)
     env = dict(os.environ)
     env["OPENMATES_API_URL"] = api_url.rstrip("/")
     home_dir = home or os.getenv("OPENMATES_CLI_HOME")

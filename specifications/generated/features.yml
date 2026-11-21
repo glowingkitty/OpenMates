@@ -23969,11 +23969,12 @@ features:
       assertions:
         passing: 0
         failing: 0
-        not_run: 1
+        not_run: 2
         missing: 0
-        counted: 1
+        counted: 2
       key_tests: []
-      e2e_tests: []
+      e2e_tests:
+      - frontend/apps/web_app/tests/real-inference-gemini-chat.spec.ts
       key_unit_tests:
       - backend/tests/test_message_received_test_markers.py
       unit_test_files: 1

@@ -342,9 +342,6 @@ def registered_waiters(state: Path) -> list[Waiter]:
 
 def collect(sources: Sources, now: float) -> dict[str, list[Waiter]]:
     """chat id -> its waiters now, with CI jobs that ended since last cycle as ready waiters."""
-    import dev_test_lock  # imports this module; fires the dev-test-lock waiters once dev is free
-
-    dev_test_lock.sweep(sources.state, now)
     settle_timers(sources.state, now, sources.usage)
     expire(sources.state, now)
     current = (disk_waiters(sources.ledger or default_ledger(), now)

@@ -259,6 +259,16 @@ def workflow_core_specs(harness_manifest: dict, candidate_root: Path) -> set[str
 
 
 QUEUES = "persistence,health_check,server_stats,user_init,user_tasks,email,push"
+# Real-inference runs (TASK-5616): Vault provider -> (field, job env name). The
+# values come only from the protected `real-inference` GitHub environment
+# (dev-only keys) and are passed to compose by name, never written to the profile.
+REAL_INFERENCE_PROVIDERS = {
+    "google_ai_studio": ("api_key", "OPENMATES_REAL_GOOGLE_AI_STUDIO_API_KEY"),
+    "mistral_ai": ("api_key", "OPENMATES_REAL_MISTRAL_AI_API_KEY"),
+    "brave": ("api_key", "OPENMATES_REAL_BRAVE_API_KEY"),
+}
+REAL_INFERENCE_SPEC_PREFIX = "real-inference-"
+REAL_INFERENCE_AI_QUEUES = "app_ai,app_ai_routing"
 STACK_START_RETRY_DELAYS = (5, 15)
 TRANSIENT_REGISTRY_FAILURE = re.compile(
     r"connection reset by peer|tls handshake timeout|i/o timeout|"
@@ -277,7 +287,7 @@ POSTGRES_IMAGE = (
     "fb9065b6e3e213bdc07edd372a5b2a26245840b7fb65d1fd8b6700106d51805c"
 )
 MAILPIT_IMAGE = "axllent/mailpit:v1.27.4@sha256:df6c2541907e1be6fac21f509927cf6ed771617a1f4b361ef66d97bd05593d2d"
-VAULT_INITIALIZE = """import asyncio, os, pathlib, requests
+VAULT_INITIALIZE = """import asyncio, json, os, pathlib, requests
 from backend.core.vault.setup.vault_setup.policies import PolicyManager
 from backend.core.api.app.utils.vault_token_check import validate_token_file
 url='http://vault:8200/v1/'
@@ -303,6 +313,12 @@ if os.environ.get('CI_STORAGE_ACCESS_KEY'):
           'private_key':base64.urlsafe_b64encode(vapid.private_numbers().private_value.to_bytes(32,'big')).decode().rstrip('=')}
     response=requests.post(url+'kv/data/providers/vapid',headers=headers,json={'data':data},timeout=15)
     response.raise_for_status()
+if os.environ.get('CI_REAL_INFERENCE') == '1':
+    for provider,(field,name) in json.loads(os.environ['CI_REAL_INFERENCE_PROVIDERS']).items():
+        value=os.environ.get(name,'')
+        assert value.strip(), 'Real-inference key missing: '+name
+        response=requests.post(url+'kv/data/providers/'+provider,headers=headers,json={'data':{field:value}},timeout=15)
+        response.raise_for_status()
 class Client:
     async def vault_request(self, method, path, data):
         response=requests.request(method, url+path, headers=headers, json=data, timeout=15)
@@ -349,6 +365,8 @@ try:
     keys=response.json().get('data',{}).get('keys',[])
     assert isinstance(keys,list) and all(isinstance(key,str) for key in keys), 'Invalid provider namespace'
     expected=['core_server','hetzner','vapid']
+    if os.environ.get('CI_REAL_INFERENCE') == '1':
+        expected=sorted(expected+list(json.loads(os.environ['CI_REAL_INFERENCE_PROVIDERS'])))
     missing=len(set(expected)-set(keys)); unexpected=sum(key not in expected for key in keys)
     assert sorted(keys) == expected, 'Unexpected provider key namespace in isolated Vault'
 except Exception as error:
@@ -979,8 +997,25 @@ def compose_profile(
     private_backend: bool = False,
     web_read_fixture: bool = False,
     rust_owned_send_gate: bool = False,
+    real_inference: bool = False,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
+    if real_inference and (
+        ai_fixtures
+        or public_provider
+        or storage_capacity
+        or billing_profile is not None
+        or voice_camera
+        or workflows
+        or workflow_runtime
+        or web_read_fixture
+        or offline_preview
+        or storage_accountability
+        or rust_owned_send_gate
+    ):
+        raise ValueError(
+            "Real-inference runs use their own profile, never mixed with replay fixtures"
+        )
     if web_read_fixture and public_provider:
         raise ValueError("Public-page reader fixture cannot enable a provider proxy")
     if billing_profile not in (None, "legacy", "logical"):
@@ -1056,6 +1091,7 @@ def compose_profile(
         or storage_accountability
         or workflow_runtime
         or telemetry_proxy
+        or real_inference
     )
     if workflows and isolate_backend:
         raise ValueError(
@@ -1576,6 +1612,32 @@ def compose_profile(
         # Port3128 is internal only. All other provider authorities are denied;
         # API/AI workers still cannot use direct outbound network connections.
 
+    if real_inference:
+        # Real providers, dev-only keys (TASK-5616). The AI worker has no replay
+        # fixtures; every HTTPS request leaves only through the gateway's
+        # allowlist of the providers whose keys the throwaway Vault holds.
+        ai_worker = deepcopy(worker)
+        ai_worker["environment"]["CELERY_QUEUES"] = REAL_INFERENCE_AI_QUEUES
+        ai_worker["command"] = [
+            part.replace(f"--queues={QUEUES}", f"--queues={REAL_INFERENCE_AI_QUEUES}")
+            for part in worker["command"]
+        ]
+        ai_worker["mem_limit"] = 1536 * MIB
+        services["ai-worker"] = ai_worker
+        services["runner-gateway"]["environment"][
+            "OPENMATES_CI_REAL_INFERENCE_PROXY"
+        ] = "1"
+        for service in (api, worker, ai_worker):
+            service["environment"]["HTTPS_PROXY"] = "http://runner-gateway:3128"
+            service["environment"]["OPENMATES_CI_REAL_INFERENCE"] = "1"
+        vault_init = services["vault-init"]["environment"]
+        vault_init["CI_REAL_INFERENCE"] = "1"
+        vault_init["CI_REAL_INFERENCE_PROVIDERS"] = json.dumps(REAL_INFERENCE_PROVIDERS)
+        for _field, name in REAL_INFERENCE_PROVIDERS.values():
+            # None: compose takes the value from the start step's environment,
+            # so the key never lands in the profile file or its artifacts.
+            vault_init[name] = None
+
     if workflows or workflow_runtime:
         workflow_queues = QUEUES + ",workflow"
         worker["environment"]["CELERY_QUEUES"] = workflow_queues
@@ -1896,6 +1958,31 @@ def start_with_evidence():
         destination.write_text(json.dumps(report, indent=2))
 
 
+def redact_real_inference_logs(output: str, profile: dict, environ) -> str:
+    """Keep dev-only provider keys out of uploaded stack logs (TASK-5616).
+
+    The keyed values are replaced when this step has them; per-spec log
+    collection runs without them, so real-inference runs also drop outgoing
+    request lines and key-shaped tokens and query parameters.
+    """
+    for _field, name in REAL_INFERENCE_PROVIDERS.values():
+        value = environ.get(name, "")
+        if len(value) > 8:
+            output = output.replace(value, "<REDACTED>")
+    if profile["services"]["api"]["environment"].get("OPENMATES_CI_REAL_INFERENCE") != "1":
+        return output
+    output = "\n".join(
+        line for line in output.splitlines() if '"name": "httpx"' not in line
+    )
+    output = re.sub(r"AIza[0-9A-Za-z_\-]{35}", "<REDACTED>", output)
+    output = re.sub(r"(?i)([?&](?:key|api_key|apikey)=)[^&\s\"']+", r"\1<REDACTED>", output)
+    return re.sub(
+        r"(?i)(x-goog-api-key|x-subscription-token|authorization)([\"']?\s*[:=]\s*[\"']?)(bearer\s+)?[^\s\"',}]+",
+        r"\1\2<REDACTED>",
+        output,
+    )
+
+
 def validate_ai_worker_queues(
     command: list[str], environment_queues: str, *, voice_camera: bool
 ) -> list[str]:
@@ -2098,6 +2185,16 @@ def main():
         )
         mail_specs = mail_capture_specs(manifest, Path(SOURCE))
         needs_public_provider = bool(public_specs.intersection(selected))
+        # Trusted harness list only: a candidate cannot add itself to the keyed group.
+        real_specs = set(manifest["groups"].get("real_inference", {}).get("specs", []))
+        needs_real_inference = bool(real_specs.intersection(selected))
+        if needs_real_inference and not (
+            set(selected).issubset(real_specs)
+            and all(spec.startswith(REAL_INFERENCE_SPEC_PREFIX) for spec in selected)
+        ):
+            raise RuntimeError(
+                "Real-inference specs run in their own batch and carry the real-inference- prefix"
+            )
         declared_workflow_specs = workflow_specs(manifest, Path(SOURCE))
         declared_workflow_core_specs = workflow_core_specs(manifest, Path(SOURCE))
         needs_workflows = bool(declared_workflow_specs.intersection(selected))
@@ -2137,6 +2234,7 @@ def main():
             object_storage=needs_storage,
             uploads=needs_uploads,
             public_provider=needs_public_provider,
+            real_inference=needs_real_inference,
             workflows=needs_workflows,
             workflow_runtime=needs_workflow_core,
             account_emails=account_emails,
@@ -2210,6 +2308,15 @@ def main():
             json.dumps(evidence)
         )
     elif action == "start":
+        profile = json.loads(COMPOSE_PATH.read_text())
+        if profile["services"]["api"]["environment"].get("OPENMATES_CI_REAL_INFERENCE") == "1":
+            missing = [name for _field, name in REAL_INFERENCE_PROVIDERS.values()
+                       if not os.environ.get(name, "").strip()]
+            if missing:
+                raise RuntimeError(
+                    "Real-inference keys absent (protected real-inference environment): "
+                    + ", ".join(missing)
+                )
         # Compose's wait limit may not bound one-shot dependency startup.
         start_with_evidence()
     elif action == "verify":
@@ -2354,6 +2461,11 @@ def main():
                     "Fixture AI profile must reject external network access"
                 )
             evidence["provider_egress"] = "rejected-internal-network"
+            if profile["services"]["api"]["environment"].get("OPENMATES_CI_REAL_INFERENCE") == "1":
+                # Names only: which dev-only keys this run's Vault holds and the
+                # only hosts its gateway lets through.
+                evidence["provider_egress"] = "real-inference-allowlist"
+                evidence["real_inference_providers"] = sorted(REAL_INFERENCE_PROVIDERS)
         if (
             profile["services"]["api"]["environment"].get(
                 "OPENMATES_STORAGE_CAPACITY_FIXTURES"
@@ -2777,6 +2889,7 @@ def main():
                         and len(str(value)) > 8
                     ):
                         output = output.replace(str(value), "<REDACTED>")
+            output = redact_real_inference_logs(output, profile, os.environ)
             label = os.environ.get("CI_DIAGNOSTIC_LABEL", "")
             if label and not re.fullmatch(r"spec-[0-9]{1,3}", label):
                 raise ValueError("Invalid bounded diagnostic label")

@@ -1343,6 +1343,13 @@
       "specs": [
         "components/chat-orchestration-event-notice.spec.ts"
       ]
+    },
+    "real_inference": {
+      "execution": "e2e",
+      "enabling_work": "Real provider inference in the run's own isolated stack. Only the protected real-inference GitHub environment (dev branch) supplies the dev-only provider keys, which reach only that run's throwaway Vault; the stack's only egress is the gateway's HTTPS allowlist for those providers. Own batch; never mixed with replay fixtures.",
+      "specs": [
+        "real-inference-gemini-chat.spec.ts"
+      ]
     }
   },
   "holds": {

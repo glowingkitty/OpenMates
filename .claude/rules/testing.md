@@ -94,10 +94,17 @@ paths:
     never the daily batch). Runs at 90% of the 8 GB sandbox or with an OOM
     kill go to Discord and `logs/ci-coordinator/e2b/memory-alerts.jsonl`;
     `ci_e2b_runner.py memory` lists runs by peak memory.
-- Real AI inference: only on the dev server, never in CI. Deploy the candidate
-  via the session helper first, use disposable Projects and isolated
-  CLI state, select `@Gemini-3.8-Flash` (unless the user names another model)
-  and fail if the persisted assistant model differs. Record revision + results.
+- Real AI inference: in isolated CI, never waiting on dev. Write it as a
+  `real-inference-*.spec.ts` spec in the `real_inference` group of
+  `scripts/ci_coverage_manifest.json` and submit it like any e2e spec (one per
+  job). The job gets its own stack, the protected `real-inference` environment's
+  dev-only keys (Google AI Studio, Mistral, Brave) and egress only to those
+  providers; never add a provider whose key is shared with production. There is
+  no dev test lock: deploys and dev restarts never wait for a test. The dev-host
+  `*_real_test.py` runners remain for manual checks against dev. Either way: use
+  disposable Projects and isolated CLI state, select `@Gemini-3.8-Flash` (unless
+  the user names another model) and fail if the persisted assistant model
+  differs. Record revision + results. Dev-host runs:
   Account: the personal dev test account (`OPENMATES_PERSONAL_TEST_ACOUNT_*`,
   lease `playwright-account:personal-dev`); when that lease is busy,
   `scripts/dev_test_account.py` creates a throwaway account for the test, backs

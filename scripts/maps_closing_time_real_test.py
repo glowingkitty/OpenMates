@@ -24,7 +24,7 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from scripts import cli_video_capture, dev_test_lock, sessions  # noqa: E402
+from scripts import cli_video_capture, sessions  # noqa: E402
 from scripts.project_names import natural_project_name  # noqa: E402
 
 API = "https://api.dev.openmates.org"
@@ -146,7 +146,6 @@ def test_maps_closing_time_live() -> None:
     state = args.output / "state"
     shutil.copytree(args.source_state, state)
     state.chmod(0o700)
-    dev_test_lock.hold("real-inference", "maps_closing_time_real_test.py", args.session)  # TASK-8552
     for name in ("OPENMATES_API_KEY", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID"):
         os.environ.pop(name, None)
     os.environ.update(OPENMATES_STATE_DIR=str(state), OPENMATES_PROFILE="", OPENMATES_API_URL=API)

@@ -42,7 +42,6 @@ import ai_test_users_scenarios as scenarios
 import ai_test_users_video as video  # noqa: E402
 import ai_test_users_schedule as schedule  # noqa: E402
 import dev_test_account  # noqa: E402
-import dev_test_lock  # noqa: E402
 from ai_test_users_personas import PERSONAS, select  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -74,13 +73,10 @@ def dev_stack_lease(run_id: str):
 
     renewer = threading.Thread(target=renew, name="dev-stack-lease", daemon=True)
     renewer.start()
-    # Deploys and restarts by other chats wait while the run uses dev (TASK-8552).
-    lock = dev_test_lock.take("ai-test-users", f"AI test users run {run_id}")
     try:
         yield
     finally:
         stop.set()
-        dev_test_lock.release(lock)
         sessions.release_test_resource_lease(lease_id)
 
 

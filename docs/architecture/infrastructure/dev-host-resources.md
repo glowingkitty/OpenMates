@@ -410,23 +410,24 @@ rotation in `/etc/docker/daemon.json` (validated with `dockerd --validate`;
 active after the next Docker restart, which the script does not do). The ext4 root reserve is lowered
 once by hand to 3 GiB (`sudo tune2fs -r 786432 <root device>`).
 
-## 6. Dev test lock (`scripts/dev_test_lock.py`, TASK-8552)
+## 6. Real-inference tests run in isolated CI, not on dev (TASK-5616)
 
-While a real voice call test, a real-inference E2E test or an AI test user run uses dev,
-`sessions.py deploy` and `sessions.py docker restart` do nothing (exit code 75) and register a
-`dev-test-lock-<chat>` handoff waiter for the calling chat. The chat keeps coding; when the lock is
-released every waiting chat is woken through the chat waiters and runs its command again.
+The dev test lock (TASK-8552) is gone: deploys and dev restarts never wait for a test. Tests that
+need real AI inference are `real-inference-*.spec.ts` specs in the `real_inference` group of
+`scripts/ci_coverage_manifest.json`, submitted like any e2e spec
+(`ci_coordinator.py submit --mode e2e --spec real-inference-<name>.spec.ts`), one per job.
+Each run gets its own throwaway stack:
 
-- Holders: `personal_dev_leases` (most `*_real_test.py`, voice call tests included),
-  `workflow_schedule_real_test.acquire_leases`, `workflow_real_test_helpers.cli_env` (dev URL),
-  `maps_closing_time_real_test.py` and `ai_test_users.dev_stack_lease`. Anything else:
-  `dev_test_lock.py run --kind voice-call|real-inference|ai-test-users -- <command>`.
-- Several tests may hold it at once; dev is free when the last leaves. A holder ends with its
-  process (at exit; a killed one is swept by the lifecycle within a minute) and at the latest
-  45 minutes after it took the lock (no renewal).
-- `python3 scripts/dev_test_lock.py status` and the dev connector's host_status show who holds it
-  since when. `release --all` drops a stuck lock.
-- Temporary: it goes away when the test setup moves into OpenMates itself.
+- The job uses the protected `real-inference` GitHub environment (dispatch from `dev` only). Its
+  dev-only provider keys reach only the step that starts the stack and the diagnostics step,
+  never dependency installs or the Playwright process, and pass by name into the run's own
+  Vault (`REAL_INFERENCE_PROVIDERS` in `scripts/ci_environment.py`).
+- The stack's network stays internal; HTTPS leaves only through the runner gateway's allowlist
+  of exactly those providers' hosts (`REAL_INFERENCE_HOSTS` in `scripts/ci_tcp_gateway.py`).
+- Uploaded stack logs drop outgoing request lines and redact key-shaped values.
+
+The dev-host `*_real_test.py` runners still work against dev for manual checks, without any
+lock; a deploy or restart may interrupt them.
 
 ## Setup
 
