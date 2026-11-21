@@ -135,6 +135,33 @@ export function formatDuration(ms: number | undefined): string {
   return `${Math.floor(seconds / 60)} min ${Math.round(seconds % 60)} s`;
 }
 
+/**
+ * Time the tests themselves ran: the sum of the per-test times, or undefined when
+ * there are no tests or any has no time. The run's `durationMs` also counts setup
+ * (install, server start) before the tests, which a browser test video does not show.
+ */
+export function testsDurationMs(view: TestResultView): number | undefined {
+  if (view.tests.length === 0 || view.tests.some((t) => t.durationMs === undefined)) return undefined;
+  return view.tests.reduce((sum, t) => sum + (t.durationMs ?? 0), 0);
+}
+
+/** Setup shorter than this is not worth a second time in the subtitle. */
+const SETUP_SHOWN_FROM_MS = 1000;
+
+/**
+ * Durations for the card and the fullscreen: `tests` is what the video and the
+ * test list cover; `withSetup` is the whole run, set only when setup took at
+ * least a second, so "2.0 s" never sits unexplained next to a 19.6 s run.
+ */
+export function testResultDurations(view: TestResultView): { tests: string; withSetup: string } {
+  const tests = testsDurationMs(view);
+  if (tests === undefined || view.durationMs === undefined) return { tests: formatDuration(view.durationMs), withSetup: '' };
+  return {
+    tests: formatDuration(tests),
+    withSetup: view.durationMs - tests >= SETUP_SHOWN_FROM_MS ? formatDuration(view.durationMs) : '',
+  };
+}
+
 /** Row status as shown on a step or test: anything not passed/skipped counts as failed. */
 export function rowStatus(status: string): TestResultRowStatus {
   if (status === 'passed' || status === 'skipped' || status === 'error') return status;

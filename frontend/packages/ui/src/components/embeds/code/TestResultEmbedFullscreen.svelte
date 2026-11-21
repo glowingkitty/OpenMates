@@ -17,6 +17,7 @@
     activeStepIndex,
     findEvidence,
     formatDuration,
+    testResultDurations,
     parseTestResult,
     resolveArtifactEvidenceUrl,
     testResultTitle,
@@ -56,7 +57,10 @@
   let view = $derived(parseTestResult(data.decodedContent));
   let title = $derived(testResultTitle(view, $text('embeds.code.test_result.title')));
   let statusLabel = $derived($text(`embeds.code.test_result.status_${view.runStatus}`));
-  let subtitle = $derived([statusLabel, formatDuration(view.durationMs)].filter(Boolean).join(' · '));
+  let durations = $derived(testResultDurations(view));
+  let subtitle = $derived([statusLabel, durations.tests,
+    durations.withSetup ? $text('embeds.code.test_result.with_setup', { values: { duration: durations.withSetup } }) : '',
+  ].filter(Boolean).join(' · '));
 
   let videoEl = $state<HTMLVideoElement | undefined>();
   let videoUrl = $state<string | null>(null);

@@ -131,6 +131,19 @@ test.describe('test result fullscreen', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence
+	test('the time shown matches the test video; the whole run with setup is named separately', async ({ page }, testInfo) => {
+		// TASK-3334: the run took 19.6 s including install and server start, the test and its video 8 s.
+		await open(page, FULLSCREEN, undefined, '1100');
+		const subtitle = page.getByTestId('embed-header-subtitle').first();
+		await expect(subtitle).toContainText('8.0 s', { timeout: 30_000 });
+		await expect(subtitle).toContainText('19.6 s with setup');
+		await testInfo.attach('fullscreen-durations', { body: await page.screenshot(), contentType: 'image/png' });
+		await open(page, PREVIEW);
+		await expect(page.getByTestId('test-result-preview-duration')).toHaveText('8.0 s', { timeout: 30_000 });
+		await testInfo.attach('card-duration', { body: await page.screenshot(), contentType: 'image/png' });
+	});
+
+	// contract-test: supporting surface=gui.web assertions=code-run.tests.recorded-evidence
 	test('browser failed step shows its error and failed status', async ({ page }, testInfo) => {
 		await open(page, FULLSCREEN, 'browserFailed', '1100');
 		const last = page.getByTestId('test-result-step-3');

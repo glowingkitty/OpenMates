@@ -12,9 +12,9 @@
   import { text } from '../../../i18n/translations';
   import {
     findEvidence,
-    formatDuration,
     parseTestResult,
     resolveArtifactEvidenceUrl,
+    testResultDurations,
     testResultTitle,
     type EvidenceUrlResolver,
   } from './testResultContent';
@@ -129,7 +129,7 @@
           <span class="tr-count-passed">{view.passed} {$text('embeds.code.test_result.status_passed')}</span>
           <span class="tr-count-failed" class:tr-count-zero={view.failed === 0} data-testid="test-result-preview-count-failed">{view.failed} {$text('embeds.code.test_result.status_failed')}</span>
           {#if view.skipped > 0}<span>{view.skipped} {$text('embeds.code.test_result.status_skipped')}</span>{/if}
-          {#if view.durationMs !== undefined}<span>{formatDuration(view.durationMs)}</span>{/if}
+          {#if testResultDurations(view).tests}<span data-testid="test-result-preview-duration">{testResultDurations(view).tests}</span>{/if}
         </p>
       </div>
     </div>
