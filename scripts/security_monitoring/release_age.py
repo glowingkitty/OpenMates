@@ -1,13 +1,14 @@
 """Release-age policy for automated security monitoring.
 
 Routine updates wait 7 days; security fixes use the oldest fixing version and
-the 72-hour / emergency / mitigate rules. Spec:
+the 7-day / emergency / mitigate rules (owner decision 21 Nov: security bumps
+also wait 7 days unless the flaw is actively exploited, e.g. CISA KEV). Spec:
 specifications/architecture/security-monitoring/specification.yml
 (security-monitoring.release-age.routine and .security-priority).
 
 CLI:
   release_age.py select --ecosystem npm --name zod --current 4.6.2 \
-      --fixed 4.6.6 --fixed 4.7.1 --urgent-reachable-exposed false
+      --fixed 4.6.6 --fixed 4.7.1 --actively-exploited false
   release_age.py check-routine --base origin/dev
 """
 
@@ -30,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import release_age_artifacts as artifacts  # noqa: E402 - sibling module needs the path insert above
 
 ROUTINE_AGE = timedelta(days=7)
-SECURITY_AGE = timedelta(hours=72)
+SECURITY_AGE = timedelta(days=7)
 USER_AGENT = "openmates-release-age (security monitoring)"
 OSV_QUERY_URL = "https://api.osv.dev/v1/query"
 INSTALL_SCRIPTS = ("preinstall", "install", "postinstall")
@@ -123,13 +124,28 @@ def integrity_reasons(lookup: Lookup, ecosystem: str, name: str, version: str) -
     return reasons
 
 
+def kev_cves() -> set[str]:
+    """CVE ids in the CISA Known Exploited Vulnerabilities catalog (official URL, then official mirror)."""
+    from security_monitoring.sources import feeds  # noqa: PLC0415 - only needed for the actively-exploited path
+    from security_monitoring.sources.fetch import FetchError  # noqa: PLC0415 - same
+
+    def fetch(url: str, _opts: Any) -> Any:
+        try:
+            return _fetch_json(url)
+        except RegistryLookupError as error:
+            raise FetchError("network_error") from error
+
+    entries, _note = feeds.fetch_kev(fetch)
+    return {str(entry["cveID"]).upper() for entry in entries}
+
+
 def select_fix_version(
     ecosystem: str,
     name: str,
     current_version: str,
     fixed_versions: list[str],
     *,
-    urgent_reachable_exposed: bool,
+    actively_exploited: bool,
     now: datetime,
     lookup: Lookup | None = None,
 ) -> FixVersionDecision:
@@ -149,15 +165,15 @@ def select_fix_version(
     age = now - published
     hours = age.total_seconds() / 3600
     if age >= SECURITY_AGE:
-        return FixVersionDecision(version, "immediate", [f"oldest fixing version {version} is {hours:.0f}h old (>=72h)"])
-    reasons = [f"oldest fixing version {version} is only {hours:.0f}h old (<72h)"]
-    if not urgent_reachable_exposed:
-        reasons.append("not urgent+reachable+exposed; apply allowlisted mitigation and schedule the bump")
+        return FixVersionDecision(version, "immediate", [f"oldest fixing version {version} is {hours / 24:.1f} days old (>=7 days)"])
+    reasons = [f"oldest fixing version {version} is only {hours / 24:.1f} days old (<7 days)"]
+    if not actively_exploited:
+        reasons.append("not actively exploited; apply allowlisted mitigation and take the bump once it is 7 days old")
         return FixVersionDecision(version, "mitigate", reasons)
     failures = integrity_reasons(lookup, ecosystem, name, version)
     if failures:
         return FixVersionDecision(version, "mitigate", reasons + failures)
-    reasons.append("urgent reachable exposed issue and all integrity checks passed")
+    reasons.append("actively exploited flaw and all integrity checks passed")
     return FixVersionDecision(version, "emergency", reasons)
 
 
@@ -289,7 +305,8 @@ def main(argv: list[str] | None = None) -> int:
     select.add_argument("--name", required=True)
     select.add_argument("--current", required=True)
     select.add_argument("--fixed", action="append", required=True)
-    select.add_argument("--urgent-reachable-exposed", type=_parse_bool, required=True)
+    select.add_argument("--actively-exploited", type=_parse_bool, required=True,
+                        help="true only for a flaw in CISA KEV or with confirmed exploitation")
     check = sub.add_parser("check-routine", help="fail if changed deps/images are younger than 7 days")
     check.add_argument("--base", required=True, help="base git ref to diff against HEAD")
     check.add_argument("--head", default="HEAD")
@@ -297,7 +314,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "select":
         decision = select_fix_version(
             args.ecosystem, args.name, args.current, args.fixed,
-            urgent_reachable_exposed=args.urgent_reachable_exposed, now=datetime.now(timezone.utc),
+            actively_exploited=args.actively_exploited, now=datetime.now(timezone.utc),
         )
         print(json.dumps(asdict(decision), indent=2))
         return 0

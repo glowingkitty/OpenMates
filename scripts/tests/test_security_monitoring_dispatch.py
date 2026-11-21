@@ -1,6 +1,6 @@
 """Contracts for the hourly security watcher dispatch, triage launcher and auto-fix guard.
 
-Every external effect is faked: no test launches claude, posts to Discord,
+Every external effect is faked: no test launches claude, 
 sends email, creates a Task or touches operator state.
 """
 
@@ -19,14 +19,14 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import security_monitoring_fakes as fx  # noqa: E402 - tests dir added above
 
-from security_monitoring import autofix, triage  # noqa: E402
+from security_monitoring import autofix, health, triage  # noqa: E402
 from security_monitoring.state import Store  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def isolated_environment(monkeypatch):
     """Never inherit operator configuration in offline regressions."""
-    for name in ("DRY_RUN", "SECURITY_MONITORING_DIR", "DISCORD_WEBHOOK_SECURITY", "SECURITY_REPORTING_DIR"):
+    for name in ("DRY_RUN", "SECURITY_MONITORING_DIR", "SECURITY_REPORTING_DIR"):
         monkeypatch.delenv(name, raising=False)
 
 
@@ -85,7 +85,6 @@ def test_not_affected_verdict_suppresses_until_fingerprint_changes(cfg, store):
     fx.run(cfg, world, store, channels, now=fx.NOW + timedelta(days=1, hours=1))
     assert len(world.triage_calls) == 2
     assert world.triage_calls[1][0][1] == "new affected asset version"
-    assert not [m for m in channels.discord if "PYSEC-2026-1" in m["content"]]
     assert not [m for m in channels.email if "PYSEC-2026-1" in m["text"]]
 
 
@@ -97,7 +96,6 @@ def test_operator_inaction_for_many_hours_starts_no_new_chat_or_message(cfg, sto
     for hour in range(12):
         fx.run(cfg, world, store, channels, now=fx.NOW + timedelta(hours=hour))
     assert len(world.triage_calls) == 1
-    assert len(channels.discord) == 1
     assert len(channels.email) == 1
     assert len(store.unresolved_incidents("advisory")) == 1
 
@@ -150,7 +148,7 @@ def test_triage_timeout_is_failed_alerted_and_never_not_affected(cfg, store):
     assert store.dispatches_with_status("failed")
     health = store.unresolved_incidents("health")
     assert health and health[0]["details"]["signal"] == "triage_failed"
-    assert len(channels.discord) == 1 and len(channels.email) == 1
+    assert channels.email == []  # a failed triage waits for the daily email ("New"), it is not urgent
 
 
 # Monitoring coverage: security-monitoring.triage.read-only-structured
@@ -229,7 +227,7 @@ def test_forbidden_target_path_is_refused_and_downgraded_to_fix_soon_task(cfg, s
     assert world.fix_calls == []
     incident = store.unresolved_incidents("advisory")[0]
     assert incident["details"]["outcome"] == "affected_fix_soon"
-    assert len(channels.tasks) == 1 and len(channels.discord) == 1
+    assert len(channels.tasks) == 1
     assert channels.email == []
     assert "Apply the proposed fix manually" in channels.tasks[0][1]
 
@@ -306,7 +304,9 @@ def test_source_failure_and_stale_host_alert_once_and_mark_incomplete(cfg, store
     first = fx.run(cfg, world, store, channels)
     fx.run(cfg, world, store, channels, now=fx.NOW + timedelta(hours=1))
     assert first.outcome == "incomplete"
-    assert len(channels.discord) == 2  # one source alert + one stale-host alert, not repeated
+    assert channels.email == []  # source failure and stale host report go to the daily email, not an immediate one
+    signals = sorted(i["details"]["signal"] for i in store.unresolved_incidents("health"))
+    assert signals == ["source_failed", "stale_host_report"]  # opened once each, not repeated
     assert world.ledger_calls[0]["outcome"] == "incomplete"
     assert world.ledger_calls[0]["source"] == "security_monitoring"
     world.statuses = [{"name": "osv", "ok": True, "error_code": None, "item_count": 0}]
@@ -338,7 +338,7 @@ def test_dry_run_writes_nothing_and_launches_nothing(tmp_path):
     default_report = dispatch.run_hourly(cfg, deps=deps, now=fx.NOW)  # default in-memory store and dry-run notifier
     assert any(line.startswith("would notify") or "would launch" in line for line in default_report.planned)
     assert world.triage_calls == [] and world.fix_calls == []
-    assert channels.discord == [] and channels.email == [] and channels.tasks == []
+    assert channels.email == [] and channels.tasks == []
     assert any("would launch one triage chat" in line for line in report.planned)
     assert world.ledger_calls[0]["dry_run"] is True
     assert not cfg.state_dir.exists()
@@ -374,11 +374,11 @@ def test_unsupported_source_is_a_digest_gap_not_an_hourly_alert(cfg, store):
                                 "item_count": 0, "supported": False}])
     channels = fx.Channels()
     report = fx.run(cfg, world, store, channels)
-    assert report.outcome == "complete" and channels.discord == [] and channels.email == []
+    assert report.outcome == "complete" and channels.email == []
     assert report.coverage_gaps == ["vendor:vercel:no_machine_readable_bulletin_feed"]
     assert "unsupported:vendor:vercel" in world.ledger_calls[0]["coverage"]["sanitized_failure_codes"]
     text = health.render_digest(health.digest_data(store, fx.NOW + timedelta(minutes=5))).email_payload()["text"]
-    assert "Coverage gap vendor:vercel" in text
+    assert "Standing coverage gaps: vendor:vercel" in text
 
 
 # Monitoring coverage: security-monitoring.sources.hourly-deterministic
@@ -403,3 +403,30 @@ def test_agent_chats_cannot_read_host_credential_stores() -> None:
     for module in (triage, autofix):
         denies = next(value for name, value in vars(module).items() if name.endswith("DISALLOWED_TOOLS"))
         assert set(CREDENTIAL_READ_DENIES) <= set(denies)
+
+
+# Monitoring coverage: security-monitoring.config-guard.hooks-and-settings
+# contract-test: infrastructure
+def test_command_hook_change_emails_once_and_plain_config_edit_waits_for_digest(cfg, store):
+    from security_monitoring.config_guard import ConfigChange
+
+    world = fx.World()
+    deps = world.deps()
+    changes = [
+        ConfigChange(commit="a" * 40, author="Example Author", date="2026-11-21", path=".claude/settings.json", status="M",
+                     risk="command_hook_added", reason="hooks.PreToolUse command added"),
+        ConfigChange(commit="b" * 40, author="Example Author", date="2026-11-21", path=".claude/skills/x/SKILL.md", status="M",
+                     risk="config_changed", reason="markdown edit"),
+    ]
+    calls: list[bool] = []
+    deps.config_changes = lambda root, now, dry_run: (calls.append(dry_run), changes if len(calls) == 1 else [])[1]
+    channels = fx.Channels()
+    from security_monitoring import dispatch
+
+    for hour in range(2):
+        dispatch.run_hourly(cfg, deps=deps, store=store, notifier=fx.notifier(cfg, store, channels), now=fx.NOW + timedelta(hours=hour))
+    assert len(channels.email) == 1 and "command hook" in channels.email[0]["subject"]
+    assert ".claude/settings.json" in channels.email[0]["text"]
+    assert [i["details"]["signal_kind"] for i in store.unresolved_incidents("intrusion")] == ["command_hook_added"]
+    new = [i["subject"] for i in health.digest_data(store, fx.NOW + timedelta(hours=3))["new_incidents"]]
+    assert any("SKILL.md" in subject for subject in new)

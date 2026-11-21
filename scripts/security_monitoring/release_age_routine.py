@@ -3,9 +3,10 @@
 Diffs requirements*.txt, Cargo.lock and Dockerfile/compose image references
 between two git refs and fails when any newly introduced or changed version is
 younger than 7 days (security-monitoring.release-age.routine). A commit trailer
-``Security-Fix: <advisory-id>`` switches the change to the security-fix rule
-(at least 72 hours old), and lets registries without a publication-time API
-pass with a warning. npm is enforced by pnpm ``minimumReleaseAge``.
+``Security-Fix: <advisory-id>`` keeps the 7-day rule (owner decision 21 Nov)
+unless that advisory is a CVE in the CISA KEV catalog (actively exploited),
+which may use a younger fixed version; it also lets registries without a
+publication-time API pass with a warning. npm is enforced by pnpm ``minimumReleaseAge``.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import subprocess
 import sys
 import tomllib
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 import release_age as policy
@@ -131,10 +132,13 @@ def evaluate(
     lookup: policy.Lookup,
     docker_lookup: DockerLookup = dockerhub_published,
     security_fix: str | None = None,
+    actively_exploited: bool = False,
 ) -> tuple[list[str], list[str]]:
     """Return (violations, warnings) for (file, entry) pairs."""
-    minimum = policy.SECURITY_AGE if security_fix else policy.ROUTINE_AGE
-    rule = f"72h security-fix rule ({security_fix})" if security_fix else "7-day routine rule"
+    exploited = bool(security_fix) and actively_exploited
+    minimum = timedelta(0) if exploited else (policy.SECURITY_AGE if security_fix else policy.ROUTINE_AGE)
+    rule = (f"actively exploited security fix ({security_fix})" if exploited
+            else f"7-day security-fix rule ({security_fix})" if security_fix else "7-day routine rule")
     violations: list[str] = []
     warnings: list[str] = []
     for path, (ecosystem, name, version) in entries:
@@ -190,7 +194,9 @@ def run(base: str, head: str) -> int:
     entries = collect(base, head)
     fix = security_fix_id(base, head)
     print(f"release-age: {len(entries)} changed dependency/image entries between {base} and {head}" + (f" (Security-Fix {fix})" if fix else ""))
-    violations, warnings = evaluate(entries, now=datetime.now(timezone.utc), lookup=policy.NetworkLookup(), security_fix=fix)
+    exploited = bool(fix) and fix.upper() in policy.kev_cves()
+    violations, warnings = evaluate(entries, now=datetime.now(timezone.utc), lookup=policy.NetworkLookup(),
+                                    security_fix=fix, actively_exploited=exploited)
     for warning in warnings:
         print(f"::warning::{warning}")
     for violation in violations:

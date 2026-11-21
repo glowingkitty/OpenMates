@@ -22,11 +22,23 @@ Return only the JSON object required by the schema.
 - Never deploy to production, patch or reboot servers, rotate secrets, push,
   commit with git directly, or edit the canonical checkout.
 
+## Daily patch/minor lane
+A request with `"lane": "daily_patch_minor"` covers every advisory in
+`advisory_ids` / `incident_ids` of one package. `target_version` is already
+the highest proposed fix on the current major line and was checked against
+the 7-day rule; still run step 2. If the bump needs anything beyond a version
+change and its lockfile (code changes, a new major of a sibling package):
+`status: refused`, `refusal_code: other`, and the daily email lists it as a
+decision. Sibling packages named in `mitigation` that must move together
+(for example an SDK pinning its API package) may be bumped in the same files.
+Rust crates: `python3 scripts/heavy_slot.py run -- cargo update -p <crate> --precise <version>`
+in the directory of the `Cargo.lock` named in `target_files`.
+
 ## Steps
 1. `python3 scripts/sessions.py start --mode bug --task "security fix <advisory id>"`;
    work only in the returned worktree and note the session id.
 2. For `dependency_bump` with `release_age_required: true`, run before editing:
-   `python3 scripts/security_monitoring/release_age.py select --ecosystem <ecosystem> --name <package> --current <from_version> --fixed <target_version> --urgent-reachable-exposed <true|false>`
+   `python3 scripts/security_monitoring/release_age.py select --ecosystem <ecosystem> --name <package> --current <from_version> --fixed <target_version> --actively-exploited <true|false>`
    (repeat `--fixed` per known fixing version). Use the returned `version`.
    If `mode` is `mitigate` or no version is returned, apply the request's
    `mitigation` as a `config_mitigation` instead (if none:

@@ -8,10 +8,13 @@ summary: >
   signals and vendor incidents against an explicit inventory of everything
   OpenMates runs and builds with. Only relevant matches start a read-only AI
   triage that judges applicability, reachability, exploitability and blast
-  radius. Urgent verdicts start a separate guarded fix that deploys to dev only,
-  and deterministic Discord and email notifications tell the operator what was
-  done and which actions remain manual. Servers report their software state
-  privately to the dev server, and SSH intrusion signals alert immediately.
+  radius. Patch and minor security bumps that are at least 7 days public are
+  fixed by a guarded lane that deploys to dev only. One daily email lists what
+  is new, then everything still open; only urgent items get their own email.
+  Servers report their software state privately to the dev server, install OS
+  security updates and reboot only when required in fixed windows, and the
+  images that actually run are scanned by digest. Changes to hooks and settings
+  files and package installs by dev chats are guarded.
 
 scope:
   includes:
@@ -22,9 +25,13 @@ scope:
     - Read-only AI triage with a structured verdict and durable not-affected records.
     - Release-age policy for routine updates and prioritized security fixes.
     - Guarded automatic fixes deployed to the dev branch and dev server only.
-    - Deterministic Discord and email notifications, health signals and operator checklists.
+    - Deterministic email notifications (daily email plus immediate urgent emails), health signals and operator checklists.
+    - Automatic OS security updates and reboot-when-required windows on every server.
+    - Vulnerability scans of the running image digests and direct runtime version checks.
+    - A guard for changes to hook, settings and automation files, and a release-age gate for installs run by dev chats.
   excludes:
-    - Automatic production deploys, production or upload or preview server patching, reboots, or secret rotation.
+    - Automatic production deploys or secret rotation. A production reboot outside its Sunday window.
+    - A Discord security channel (owner decision 21 Nov; email stays).
     - Inbound management access to servers from the dev server, or any public endpoint for host reports.
     - Third-party root-privileged monitoring agents on servers.
     - Replacing the existing deterministic ledger, digest and critical-alert semantics of architecture.security-reporting, which this Specification reuses.
@@ -86,7 +93,7 @@ assertions:
     depends_on: [models.HostReport]
   - id: security-monitoring.ssh.vulnerability-and-intrusion
     type: security
-    must: OpenSSH, its linked libraries and the kernel are matched against advisories using each server's exact versions, and triage receives the effective sshd settings (password and root login, port, connection and grace limits) to judge exposure. Deterministically and without waiting for triage, an immediate Discord and email alert is raised when a host report shows a successful SSH login with a key fingerprint not on the expected list, a new authorized key, a changed SSH configuration checksum, a new local account or sudoers entry, or a package file whose content no longer matches its package. Each alert is raised once per change and stays open until the operator acknowledges it or a later report shows the expected state.
+    must: OpenSSH, its linked libraries and the kernel are matched against advisories using each server's exact versions, and triage receives the effective sshd settings (password and root login, port, connection and grace limits) to judge exposure. Deterministically and without waiting for triage, an immediate email alert is raised when a host report shows a successful SSH login with a key fingerprint not on the expected list, a new authorized key, a changed SSH configuration checksum, a new local account or sudoers entry, or a package file whose content no longer matches its package. Each alert is raised once per change and stays open until the operator acknowledges it or a later report shows the expected state.
     depends_on: [models.HostReport]
   - id: security-monitoring.triage.read-only-structured
     type: behavior
@@ -102,22 +109,34 @@ assertions:
   - id: security-monitoring.release-age.routine
     type: invariant
     must: Routine dependency and base-image updates use only versions published at least 7 days earlier across npm, PyPI, crates and container image digests, enforced deterministically in package-manager configuration where supported and in the supply-chain check otherwise. Newly introduced transitive dependencies meet the same age. The Dependabot routine cooldown is 7 days.
+  - id: security-monitoring.release-age.install-time
+    type: security
+    must: Package installs that a dev chat runs itself follow the same 7-day rule. The Bash guard refuses npm, pnpm and yarn installs with package arguments, pip installs without required hashes, uv add, cargo add and cargo install of a registry crate unless the exact version was checked by the install age checker, which re-verifies the publication time itself so a claimed check cannot be faked. A younger version is allowed only when it fixes a CVE in the CISA known-exploited catalog. Lockfile installs, hash-checked requirement installs and local paths stay allowed. Lookup failures refuse the install.
   - id: security-monitoring.release-age.security-priority
     type: behavior
-    must: Security fixes bypass the routine wait. The fix selects the oldest version that resolves the advisory, not the latest. Age is measured from the fixed version's publication. A fixed version at least 72 hours old may be applied immediately. A younger version may be applied only for an urgent verdict that found the issue reachable and either internet-facing or known exploited, and only if deterministic checks pass, namely no malicious-package record, the same publisher or trusted-publishing identity as the previous version, and no new install scripts, dependencies, or obfuscated or binary content in the diff from the previous version. Otherwise an allowlisted mitigation is applied, and the version bump is scheduled once it qualifies.
+    must: The fix selects the oldest version that resolves the advisory, not the latest. Age is measured from the fixed version's publication. Owner decision 21 Nov - a fixed version is taken only once it has been public for 7 days. A younger version may be applied only when the flaw is actively exploited (CISA known-exploited catalog or confirmed exploitation), and only if deterministic checks pass, namely no malicious-package record, the same publisher or trusted-publishing identity as the previous version, and no new install scripts, dependencies, or obfuscated or binary content in the diff from the previous version. Otherwise an allowlisted mitigation is applied, and the version bump is taken once it qualifies.
   - id: security-monitoring.autofix.guarded-dev-only
     type: security
-    must: Only an urgent verdict with an allowlisted fix class (dependency or lockfile bump, base-image digest bump, malicious-package removal, configuration mitigation) starts a separate fix chat. It works in its own session workspace, cannot modify agent configuration, CI workflows, deployment templates, secrets or the security monitoring code itself, must pass the release-age rules and isolated CI, and publishes only to the dev branch and dev server through the standard session deploy. A failed dev smoke check after deploy reverts the change. Auto-fixes are rate limited per day. Production deploys, server patching, reboots and secret rotation are never performed automatically and are listed as manual actions.
+    must: An urgent verdict, and once a day every open fix-soon or low verdict whose proposed fix is a patch or minor version bump (owner decision 21 Nov), with an allowlisted fix class (dependency or lockfile bump, base-image digest bump, malicious-package removal, configuration mitigation) starts a separate fix chat, one per package, covering all open advisories of that package with the oldest version that fixes them all. Major bumps, code changes and items without a proposed fix are listed once as decisions in the daily email instead. Each fix chat's transcript is kept on the dev server so a refusal can be explained. It works in its own session workspace, cannot modify agent configuration, CI workflows, deployment templates, secrets or the security monitoring code itself, must pass the release-age rules and isolated CI, and publishes only to the dev branch and dev server through the standard session deploy. A failed dev smoke check after deploy reverts the change. Auto-fixes are rate limited per day. Production deploys, server patching, reboots and secret rotation are never performed automatically and are listed as manual actions.
     depends_on: [models.TriageVerdict.proposed_fix]
   - id: security-monitoring.notifications.deterministic-dual-channel
     type: behavior
-    must: Notifications are rendered by deterministic templates from verdict and run records, never written or sent by an agent, and delivered to a dedicated security Discord webhook and through the security-reporting email delivery. Urgent verdicts and SSH or host intrusion alerts send Discord and email immediately. Fix-soon verdicts send Discord immediately, create an OpenMates Task, and appear in the email digest. Low and not-affected outcomes appear only in the daily digest. Each immediate message states the advisory, affected environments, verdict with evidence summary, what was done automatically (commit and dev deploy state), and an explicit operator checklist of remaining manual actions. Each incident notifies once per channel.
+    must: Notifications are rendered by deterministic templates from verdict and run records, never written or sent by an agent, and delivered only through the security-reporting email delivery (owner decision 21 Nov, no Discord security channel; GitHub's own security emails are unchanged). Urgent items - urgent verdicts (critical, reachable or actively exploited), SSH, host or command-hook intrusion alerts, and health signals that need the operator now (watcher stopped, an auto-fix guard violation or failed dev smoke, an exhausted limit with urgent work pending) - each get their own email immediately. Fix-soon verdicts create an OpenMates Task. Everything else waits for the daily email, which starts with "New" (incidents opened or fixed since the previous daily email), then "Still open" (every unresolved incident, one line each, several advisories on one package collapsed into one line), then a short watcher and coverage footer, so nothing is forgotten and nothing is repeated in full. Each immediate message states the advisory, affected environments, verdict with evidence summary, what was done automatically (commit and dev deploy state), and an explicit operator checklist of remaining manual actions. Each incident notifies once per channel.
   - id: security-monitoring.health.no-silent-failure
     type: failure
-    must: A failed or incomplete source query, failed or timed-out triage, a fix that fails CI or is reverted, a stale host report, a stopped watcher, or an exhausted run or fix limit with pending urgent work each produce an immediate deterministic Discord and email alert. The daily digest confirms the watcher ran and lists coverage, so absence of alerts is never the only evidence of safety.
+    must: A failed or incomplete source query, failed or timed-out triage, a fix that fails CI or is reverted, a stale host report, a stopped watcher, or an exhausted run or fix limit with pending urgent work each open a deterministic health incident. A stopped watcher, a guard violation, a failed dev smoke after a fix and an exhausted limit with urgent work pending email immediately; the others appear under "New" in the next daily email and stay under "Still open" until resolved. The daily email confirms the watcher ran and lists coverage, so absence of alerts is never the only evidence of safety.
+  - id: security-monitoring.config-guard.hooks-and-settings
+    type: security
+    must: Every hourly run checks the new dev commits for changes to hook, settings and automation files (.claude settings, hooks, agents, skills, rules and commands, .vscode tasks and settings, .githooks, .husky, MCP configuration, CI workflows and actions, package.json lifecycle scripts) and compares the real git hooks directory and core.hooksPath of the dev checkout with a stored baseline. A change that can run commands (an added or changed hook command, MCP server, broad permission or env entry, lifecycle script, hook executable or git hook) is an urgent email that stays open until acknowledged; any other matching change is listed once under "New" in the daily email. Each change is reported once.
+  - id: security-monitoring.images.running-digests
+    type: behavior
+    must: Once a day the image digests that actually run - on dev from the container runtime, on core, upload and preview from their host reports - are scanned for vulnerable OS packages and libraries, including vendored copies with their path inside the image, and each image's runtimes (node, python, openssl, caddy, nginx, brotli) are read directly from the image and matched against advisories, because image scanners miss runtimes they do not package. Results are cached per digest for 24 hours. An image that could not be scanned or read, and a server without reported digests, is incomplete coverage, never a clean result.
+  - id: security-monitoring.os.reboot-windows
+    type: behavior
+    must: Every server installs OS security updates automatically and reboots only when an update requires one, in fixed Europe/Berlin windows - preview daily 03:30, upload daily 03:45, dev daily 04:00 and production only on Sundays 04:30. A dev reboot waits while tests, CI waits or heavy jobs run, or a hold file is present, retrying every 15 minutes until 06:00 and otherwise the next day. For an actively exploited flaw that needs a production reboot before Sunday, the operator gets one question asking for an earlier reboot; production is never rebooted outside its window without that answer. After every reboot the host reporter sends a report so the dev server confirms the server came back.
   - id: security-monitoring.content.boundary
     type: privacy
-    must: Discord and email messages contain advisory identifiers, affected asset names and versions, environments, verdicts, commit references and checklists only. They never contain secrets, credentials, raw host reports, server IP addresses, login source addresses, raw agent transcripts, exploit code or user data. Host reports and triage transcripts stay on the dev server outside git with bounded retention.
+    must: Security emails contain advisory identifiers, affected asset names and versions, environments, verdicts, commit references and checklists only. They never contain secrets, credentials, raw host reports, server IP addresses, login source addresses, raw agent transcripts, exploit code or user data. Host reports and triage transcripts stay on the dev server outside git with bounded retention.
 
 applies_to:
   rest_api:
@@ -134,7 +153,7 @@ applies_to:
       pip: {required: false}
   gui:
     required: false
-    role: Operator Discord and email output only.
+    role: Operator email output only.
     implementations:
       web: {required: false}
       apple: {required: false}
@@ -143,4 +162,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [inventory, matching, host_reports, ssh, triage, triage_dispatch, untrusted_input, release_age, autofix, notifications, health, content_boundary]
+  required_groups: [inventory, matching, host_reports, ssh, triage, triage_dispatch, untrusted_input, release_age, autofix, notifications, health, content_boundary, config_guard, images, reboots]

@@ -19,3 +19,12 @@ paths:
 - `python3 scripts/code_quality_guard.py` checks staged changes for generated
   files, secrets, oversized files, suppressions, broad catches and cross-skill
   or store-internal imports.
+- Package installs (owner, 21 Nov): a version is installable only after 7 days
+  public (npm: `minimumReleaseAge` in `pnpm-workspace.yaml`; CI:
+  `supply-chain-guard.yml`), unless it fixes a CISA-KEV exploited flaw; pip uses
+  hashes. The Bash hook (`scripts/install_age_hook.py`) refuses ad-hoc
+  `npm/pnpm/yarn add`, `pip install`, `uv add`, `cargo add/install`. Run
+  `python3 scripts/install_age_guard.py check --ecosystem <npm|PyPI|crates.io>
+  --name <pkg> [--version V] [--kev CVE]`, then re-run with the prefix
+  `OPENMATES_AGE_CHECKED=<eco>:<pkg>@<V>` and the exact `<pkg>@<V>` spec (the
+  hook re-checks). Lockfile/frozen installs and `pip -r X --require-hashes` stay allowed.

@@ -16,11 +16,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import subprocess
 import sys
 from typing import Any, Callable, Mapping
 
 from security_monitoring import autofix, notify, records, triage
-from security_monitoring.config import Settings, dotenv_value, git_head
+from security_monitoring.config import Settings, git_head
 from security_monitoring.models import Inventory, Observation, TriageVerdict
 from security_monitoring.state import Store, utc
 
@@ -44,6 +45,31 @@ class Deps:
     run_fix: Callable[..., autofix.FixOutcome] = autofix.run_fix
     report_scan: Callable[..., Any] | None = None
     seed_expected_keys: Callable[[Path, Any], tuple[dict[str, set[str]], list[dict[str, str]]]] | None = None
+    config_changes: Callable[[Path, datetime, bool], list[Any]] | None = None
+    ask_operator: Callable[[str, str], bool] | None = None
+
+
+PROD_REBOOT_QUESTION = "Reboot production before Sunday for an actively exploited OS flaw?"
+PROD_REBOOT_RECOMMENDATION = "yes: run the runbook's KEV reboot step tonight"
+
+
+def ask_operator_push(question: str, recommendation: str) -> bool:
+    """One question push to the operator through the shared agent_question script."""
+    script = Path(__file__).resolve().parents[1] / "agent_question.py"
+    result = subprocess.run([sys.executable, str(script), "ask", "--question", question, "--recommendation", recommendation,
+                             "--no-proof", "security monitor question, nothing to show"],
+                            capture_output=True, text=True, check=False, timeout=120)
+    return result.returncode == 0
+
+
+def scan_config_changes(root: Path, now: datetime, dry_run: bool) -> list[Any]:
+    """Hook/settings change guard; a dry run scans from the stored cursor without moving it."""
+    from security_monitoring import config_guard
+
+    if dry_run:
+        cursor = config_guard.load_state(root).get("cursor")
+        return config_guard.run_scan(root, since=cursor, now=utc(now)) if cursor else []
+    return config_guard.run_scan(root, now=utc(now))
 
 
 def default_deps() -> Deps:
@@ -55,6 +81,8 @@ def default_deps() -> Deps:
     from security_scan_reporting import report_scan
 
     return Deps(
+        config_changes=scan_config_changes,
+        ask_operator=ask_operator_push,
         load_host_reports=host_reports.load_latest,
         load_previous_host_reports=host_reports.load_previous,
         stale_roles=host_reports.stale_roles,
@@ -143,6 +171,7 @@ class Dispatcher:
         batch = self._select_batch(observations)
         if batch:
             self._dispatch(batch, inventory, reports)
+        self._config_guard()
         self._retry_undelivered()
         self._channel_health()
         failed_sources = [s for s in status_dicts if not s["ok"] and s["supported"]]
@@ -341,7 +370,29 @@ class Dispatcher:
             self.report.incidents_opened.append(incident_id)
         if verdict.outcome == "urgent":
             self._maybe_fix(incident_id, observation, verdict)
+            self._maybe_ask_prod_reboot(observation)
         self._notify(incident_id)
+
+    def _maybe_ask_prod_reboot(self, observation: Observation) -> None:
+        """Owner decision 21 Nov: an actively exploited OS flaw on production gets one question
+        asking for a reboot before the Sunday window; production is never rebooted without it."""
+        if not observation.advisory.known_exploited or not any(
+                asset.kind in ("os_package", "kernel") and "prod" in asset.environments for asset in observation.assets):
+            return
+        key = f"prod_reboot_ask:{observation.advisory.advisory_id}"
+        if self.store.get_meta(key) is not None:
+            return
+        if self.settings.dry_run or self.deps.ask_operator is None:
+            self.plan(f"would ask the operator to reboot production early for {observation.advisory.advisory_id}")
+            return
+        sent = self.deps.ask_operator(PROD_REBOOT_QUESTION, PROD_REBOOT_RECOMMENDATION)
+        if sent:
+            self.store.set_meta(key, utc(self.now))
+        else:
+            self.raise_health(f"prod_reboot_ask:{observation.advisory.advisory_id}", "operator_question_failed",
+                              "Could not send the early production reboot question for an actively exploited OS flaw.",
+                              advisory_ids=[observation.advisory.advisory_id],
+                              checklist=["Decide on an early production reboot (runbook section E)"])
 
     def _advisory_details(self, observation: Observation, reason: str, verdict: TriageVerdict) -> dict[str, Any]:
         environments = sorted(set(verdict.environments_assessed) | {e for a in observation.assets for e in a.environments})
@@ -387,7 +438,7 @@ class Dispatcher:
                                       known_exploited=observation.advisory.known_exploited)
         fix_run_id = f"fix-{incident_id}-{self.now.strftime('%Y%m%dT%H%M%SZ')}"
         self.store.record_agent_run(fix_run_id, "fix", self.now)
-        outcome = self.deps.run_fix(settings=self.settings, request=request)
+        outcome = self.deps.run_fix(settings=self.settings, request=request, transcript_id=fix_run_id)
         self.store.finish_agent_run(fix_run_id, outcome.status, datetime.now(timezone.utc),
                                     {"reason": outcome.reason, "commit": outcome.commit, "forbidden_files": list(outcome.forbidden_files)})
         self.report.fixes[incident_id] = outcome.status
@@ -423,13 +474,40 @@ class Dispatcher:
             if any(state not in {"already_sent"} for state in outcomes.values()):
                 self.report.notifications[incident["incident_id"]] = outcomes
 
+    def _config_guard(self) -> None:
+        """Changes to hooks, settings, CI workflows or git hooks (owner decision 21 Nov, 6c).
+
+        A change that can run commands (hook command, MCP server, broad permission, env,
+        lifecycle script, hook executable, real .git/hooks) is an immediate email that
+        stays open until acknowledged; other config edits are listed once under "New".
+        """
+        if self.deps.config_changes is None:
+            return
+        for change in self.deps.config_changes(self.settings.project_root, self.now, self.settings.dry_run):
+            ref = change.commit[:12] if change.commit else "git-hooks"
+            detail = f"{change.path} ({change.status}): {change.reason}; commit {ref} by {change.author or 'unknown'}"
+            if change.risk == "command_hook_added":
+                incident_id, created = self.store.open_incident(
+                    "intrusion", f"config:{ref}:{change.path}", "critical",
+                    {"role": "dev repository", "signal_kind": "command_hook_added", "change_id": ref, "safe_detail": detail},
+                    self.now,
+                )
+                if created:
+                    self.report.incidents_opened.append(incident_id)
+                    self._notify(incident_id)
+            else:
+                self.raise_health(f"config:{ref}:{change.path}", "config_changed", detail, resolve_after_notify=True,
+                                  checklist=["Review the config change if it was not expected"])
+
     def _channel_health(self) -> None:
+        # The Discord security channel was removed (owner decision 21 Nov); close its old "not configured" alert.
+        self.store.resolve_incident_key("health:channel_unavailable:discord", self.now)
         for channel in sorted(self.notifier.unavailable_channels):
             key = f"health:channel_unavailable:{channel}"
             incident_id, created = self.store.open_incident(
                 "health", key, "high",
                 {"signal": "notification_channel_unavailable", "summary": f"Security notifications cannot use {channel}: not configured.",
-                 "checklist": [f"Configure {notify.DISCORD_WEBHOOK_ENV} in the dev-host .env" if channel == "discord" else "Configure the security email destination"]},
+                 "checklist": ["Configure the security email destination (SERVER_OWNER_EMAIL / ADMIN_NOTIFY_EMAIL)"]},
                 self.now,
             )
             if created:
@@ -447,8 +525,43 @@ def _status_dict(status: Any) -> dict[str, Any]:
 
 
 def build_notifier(settings: Settings, store: Store, **overrides: Any) -> notify.Notifier:
-    webhook = dotenv_value(settings.project_root, notify.DISCORD_WEBHOOK_ENV)
-    return notify.Notifier(store=store, ledger_path=settings.delivery_ledger, webhook_url=webhook, dry_run=settings.dry_run, **overrides)
+    return notify.Notifier(store=store, ledger_path=settings.delivery_ledger, dry_run=settings.dry_run, **overrides)
+
+
+def run_fix_batch(settings: Settings, *, deps: Deps | None = None, store: Store | None = None,
+                  notifier: notify.Notifier | None = None, now: datetime | None = None) -> dict[str, Any]:
+    """Daily patch/minor fix lane (fix_batch.run_batch) with the hourly run's guards and alerts."""
+    from security_monitoring import fix_batch
+
+    owned = store is None
+    store = store or Store.open(settings.state_db, dry_run=settings.dry_run)
+    try:
+        dispatcher = Dispatcher(settings=settings, store=store, deps=deps or default_deps(),
+                                notifier=notifier or build_notifier(settings, store), now=now or datetime.now(timezone.utc))
+        summary = fix_batch.run_batch(dispatcher)
+        summary["planned"] = dispatcher.report.planned + [f"would notify {p['channel']}: {p['title']}" for p in dispatcher.notifier.planned]
+        return summary
+    finally:
+        if owned:
+            store.close()
+
+
+def run_image_report(settings: Settings, *, store: Store | None = None, notifier: notify.Notifier | None = None,
+                     now: datetime | None = None, **kwargs: Any) -> dict[str, Any]:
+    """Daily running-image scan and runtime version check (image_report.run_report)."""
+    from security_monitoring import image_report
+
+    owned = store is None
+    store = store or Store.open(settings.state_db, dry_run=settings.dry_run)
+    try:
+        dispatcher = Dispatcher(settings=settings, store=store, deps=default_deps(),
+                                notifier=notifier or build_notifier(settings, store), now=now or datetime.now(timezone.utc))
+        summary = image_report.run_report(dispatcher, **kwargs)
+        summary["planned"] = dispatcher.report.planned + [f"would notify {p['channel']}: {p['title']}" for p in dispatcher.notifier.planned]
+        return summary
+    finally:
+        if owned:
+            store.close()
 
 
 def run_hourly(settings: Settings, *, deps: Deps | None = None, store: Store | None = None,
@@ -467,4 +580,4 @@ def run_hourly(settings: Settings, *, deps: Deps | None = None, store: Store | N
             store.close()
 
 
-__all__ = ["Deps", "Dispatcher", "RunReport", "build_notifier", "default_deps", "run_hourly", "utc"]
+__all__ = ["Deps", "Dispatcher", "RunReport", "build_notifier", "default_deps", "run_fix_batch", "run_hourly", "run_image_report", "utc"]

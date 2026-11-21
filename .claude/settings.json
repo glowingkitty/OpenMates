@@ -31,7 +31,17 @@
       "mcp__claude-code-remote__interrupt_session",
       "mcp__claude-code-remote__unarchive_session",
       "mcp__claude-code-remote__fire_trigger",
-      "mcp__claude-code-remote__get_trigger"
+      "mcp__claude-code-remote__get_trigger",
+      "Read(~/.ssh/id_*)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.claude/.credentials.json)",
+      "Read(~/.config/opencode/secrets.env)",
+      "Read(~/.git-credentials)",
+      "Read(~/.netrc)",
+      "Read(~/.docker/config.json)",
+      "Read(~/.vault-token)",
+      "Read(~/.local/share/openmates-quarantine/**)"
     ]
   },
   "hooks": {

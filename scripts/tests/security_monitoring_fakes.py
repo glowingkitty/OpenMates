@@ -1,6 +1,6 @@
 """Offline fakes for security monitoring orchestration tests.
 
-No helper here launches claude, posts to Discord, sends email or creates a
+No helper here launches claude, sends email or creates a
 Task; every external effect is captured in memory. Addresses use RFC 5737 and
 RFC 3849 documentation ranges only.
 """
@@ -102,7 +102,7 @@ class World:
                          for obs, _ in observations)
         return triage.TriageResult("ok", None, verdicts)
 
-    def run_fix(self, *, settings: Settings, request: dict[str, Any]) -> autofix.FixOutcome:
+    def run_fix(self, *, settings: Settings, request: dict[str, Any], transcript_id: str | None = None) -> autofix.FixOutcome:
         self.fix_calls.append(dict(request))
         return self.fix_outcome
 
@@ -125,13 +125,8 @@ class World:
 
 @dataclass
 class Channels:
-    discord: list[dict[str, Any]] = field(default_factory=list)
     email: list[dict[str, str]] = field(default_factory=list)
     tasks: list[tuple[str, str]] = field(default_factory=list)
-
-    def discord_post(self, url: str, payload: dict[str, Any]) -> dict[str, str]:
-        self.discord.append(payload)
-        return {"message_id": str(len(self.discord))}
 
     def email_sender(self, request: dict[str, str]) -> SendResult:
         self.email.append(request)
@@ -142,9 +137,9 @@ class Channels:
         return f"TASK-{len(self.tasks)}"
 
 
-def notifier(cfg: Settings, store: Store, channels: Channels, *, webhook: str = "https://discord.example.invalid/webhook") -> notify.Notifier:
-    return notify.Notifier(store=store, ledger_path=cfg.delivery_ledger, webhook_url=webhook, dry_run=cfg.dry_run,
-                           discord_post=channels.discord_post, email_sender=channels.email_sender,
+def notifier(cfg: Settings, store: Store, channels: Channels) -> notify.Notifier:
+    return notify.Notifier(store=store, ledger_path=cfg.delivery_ledger, dry_run=cfg.dry_run,
+                           email_sender=channels.email_sender,
                            task_creator=channels.task_creator)
 
 

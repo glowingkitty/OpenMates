@@ -107,6 +107,8 @@ class Settings:
     dev_smoke_command: str = "python3 scripts/tests.py run --hourly-dev"
     dry_run: bool = False
     no_agents: bool = False
+    # ISO date/time before which the daily patch/minor fix lane only plans (operator hold, e.g. a recording freeze).
+    fix_batch_paused_until: str = ""
 
     @property
     def state_db(self) -> Path:
@@ -148,6 +150,8 @@ def load_settings(*, project_root: Path | None = None, dry_run: bool | None = No
         dev_smoke_command=os.environ.get("SECURITY_MONITORING_DEV_SMOKE_CMD", "python3 scripts/tests.py run --hourly-dev"),
         dry_run=dry_run_enabled() if dry_run is None else dry_run,
         no_agents=no_agents,
+        fix_batch_paused_until=(os.environ.get("SECURITY_MONITORING_FIX_BATCH_PAUSED_UNTIL")
+                                or dotenv_value(root, "SECURITY_MONITORING_FIX_BATCH_PAUSED_UNTIL")),
     )
 
 

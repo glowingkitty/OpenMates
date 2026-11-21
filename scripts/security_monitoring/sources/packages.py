@@ -62,7 +62,8 @@ def _osv_severity(record: Mapping[str, Any]) -> str:
 
 def _osv_queries(inventory: Inventory) -> list[tuple[str, str, str]]:
     queries = {(asset.ecosystem, asset.name, asset.version) for asset in inventory.assets
-               if asset.usage == "used" and asset.kind == "package" and asset.version and asset.ecosystem in OSV_ECOSYSTEMS}
+               if asset.usage == "used" and asset.kind == "package" and asset.version and asset.ecosystem in OSV_ECOSYSTEMS
+               and not (asset.ecosystem == "SwiftURL" and re.fullmatch(r"[0-9a-f]{7,40}", asset.version))}  # commit pins carry no version
     return sorted(queries)  # type: ignore[arg-type]  # version filtered non-empty above
 
 

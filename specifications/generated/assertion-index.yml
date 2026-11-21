@@ -14388,7 +14388,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.ssh.vulnerability-and-intrusion:
     specification: architecture.security-monitoring@1
-    fingerprint: d0c5b06277468c52cfe41a8c3177458bcc8cb37c38ea66c2557ddfee8506baa0
+    fingerprint: af544d31a76b3c13c8adbc11a4cd09b68a365b1a6566a2cf8f96ec7ab99df99b
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14412,7 +14412,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.triage.untrusted-input:
     specification: architecture.security-monitoring@1
-    fingerprint: 8d7e21ab989c5ffe63e84d3954d33679e880475b77818f08efcd801195c561a2
+    fingerprint: ba9e505695bbe30e7d50bb13963bb97324bb9a9bc0ca9cfffa01c20c8d9d6c36
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14420,7 +14420,15 @@ assertions:
     current_direct_proof: false
   security-monitoring.release-age.routine:
     specification: architecture.security-monitoring@1
-    fingerprint: d66975f3dbad0db7ea597ec1de6b723facd7ac24ba1b24a1ef60821957a9df6c
+    fingerprint: 52444ee10bbc7765f4e450a6d4616cfe5f5ec4898467e955ffa3b5ddd159ce27
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.release-age.install-time:
+    specification: architecture.security-monitoring@1
+    fingerprint: 94c796a963c0f59533f69b3ecf50a2220ad91fa02518be51affbdee44794a921
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14428,7 +14436,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.release-age.security-priority:
     specification: architecture.security-monitoring@1
-    fingerprint: e2608bf6aca26cd8082b669af7da42f247a8d6d6d4e315921d35ab4aa3da520a
+    fingerprint: 0013fe598d11d6dcf73bcc19312fc5819d20fdbb904938de9854d5a128f94afe
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14436,7 +14444,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.autofix.guarded-dev-only:
     specification: architecture.security-monitoring@1
-    fingerprint: 4053f87cfad29737b5d09d944f3e4d9c1a61b59ebb36286c4ce6e51501d09fc9
+    fingerprint: eadf86a506597560fe0e69125ebe50857862656d5a2067f73f4fd0b04a175d6c
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14444,7 +14452,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.notifications.deterministic-dual-channel:
     specification: architecture.security-monitoring@1
-    fingerprint: 2c0bf4ba80453a140a4971381ab0f5a809b07937904f1045108f92f2e200bf7c
+    fingerprint: b4bce644a98e3236fc4c241b03e3d4cadcef1fd675e4c58bd33a2e417fe2b3cd
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14452,7 +14460,31 @@ assertions:
     current_direct_proof: false
   security-monitoring.health.no-silent-failure:
     specification: architecture.security-monitoring@1
-    fingerprint: 260391090d3e1b456e6ea9f8c25162d81c228316829a4b857474c9a5d156d5dc
+    fingerprint: acadf6e0e1cee72963ce3d2d4424ab5ffdf886ba5396441c6a6e17d4c2f3a58e
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.config-guard.hooks-and-settings:
+    specification: architecture.security-monitoring@1
+    fingerprint: 4f42de1805429a6178beb79ce54e08955c4215a4a5506bf9223e2bb0f440ec2a
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.images.running-digests:
+    specification: architecture.security-monitoring@1
+    fingerprint: d017563d431d3f5912ef4ef583d44afcd91ff04443f76ece8a994c766b75535f
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.os.reboot-windows:
+    specification: architecture.security-monitoring@1
+    fingerprint: ec68cc9d68bc79b23989200dfd2b0cc9eca73793f6bf5ff0107cab606b40dbe7
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14460,7 +14492,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.content.boundary:
     specification: architecture.security-monitoring@1
-    fingerprint: 84fb5ff1244b9e428d7e96480748e14277e04bdcac53bd79bd50358cb5e08e21
+    fingerprint: cad9deea2e8382a0a69a5158e0542dded9a657ed3d7790213c593b4f691f2d9f
     direct_tests: []
     supporting_tests: []
     tests: []
