@@ -2188,6 +2188,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     client_payload = {
                         "chat_id": chat_id,
                         "message_id": ai_task_id, # AI's message ID
+                        # The running task, so every device can stop it and match its final.
+                        "task_id": ai_task_id,
                         "user_message_id": user_message_id,
                         "turn_id": redis_payload.get("turn_id"),
                         "category": category,

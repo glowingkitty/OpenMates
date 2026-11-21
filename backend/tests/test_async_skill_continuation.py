@@ -1393,3 +1393,28 @@ async def test_queued_followup_becomes_latest_turn_only_when_dispatched() -> Non
     assert store[async_skill_latest_user_turn_key("u", "c")] == "follower"
     assert queued_turn_pending_key("u", "c", "follower") not in store
     assert await claim_queued_turn_as_latest(Cache(), request) is False
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.executor-answers
+def test_failed_project_file_result_tells_model_to_stop_retrying(async_skill_continuation):
+    context = {
+        "app_id": "projects",
+        "skill_id": "create_file",
+        "tool_name": "project_create_file",
+        "tool_arguments": {"path": "web-app/index.html"},
+    }
+    failed = async_skill_continuation._build_completed_tool_result_message(
+        context=context,
+        completed_results=[{"code": "pii_mapping_unavailable", "operation_id": "op-1"}],
+        result_status="failed",
+        request_metadata={},
+    )
+    finished = async_skill_continuation._build_completed_tool_result_message(
+        context=context, completed_results=[{"path": "web-app/index.html"}],
+        result_status="finished", request_metadata={},
+    )
+
+    assert "Do not call the same Project file tool again" in failed
+    assert "do not write the file contents into the chat instead" in failed
+    assert "pii_mapping_unavailable" in failed
+    assert "Do not call the same Project file tool again" not in finished

@@ -796,7 +796,11 @@ export function handleAIMessageUpdateImpl(
     // which caused the typing indicator to persist forever if:
     // 1. ai_task_initiated event was missed (websocket hiccup)
     // 2. Task IDs didn't match for some reason
-    aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+    // A resumed turn's final carries the shared assistant message id, while
+    // typing is keyed to the running task id; match either, or the same turn.
+    aiTypingStore.clearTypingForTurn(
+      payload.chat_id, [payload.message_id, payload.task_id], payload.user_message_id,
+    );
     console.info(
       `[ChatSyncService:AI] Typing status cleared for chat ${payload.chat_id} (message_id: ${payload.message_id})`,
     );
@@ -1166,7 +1170,9 @@ export async function handleAIBackgroundResponseCompletedImpl(
     // Clear typing status using message_id (which is what setTyping stores as aiMessageId)
     // Previously used task_id which caused mismatch - typing indicator wouldn't clear
     if (!interimContinuation && !staleTask) {
-      aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+      aiTypingStore.clearTypingForTurn(
+        payload.chat_id, [payload.message_id, payload.task_id], payload.user_message_id,
+      );
     }
 
     // Dispatch chatUpdated event to notify UI (e.g., update chat list)
@@ -1334,6 +1340,18 @@ export async function handleAITypingStartedImpl( // Changed to async
     payload.provider_name,
     payload.server_region,
   );
+
+  // Every device learns the running task here: a device other than the sender
+  // never gets ai_task_initiated, and a resumed turn (async skill or Project
+  // file job continuation) runs as a new task. Without this the turn shows no
+  // stop button and its final is ignored as stale, so typing never clears.
+  const runningTaskId = payload.task_id || payload.message_id;
+  if (runningTaskId) {
+    serviceInstance.activeAITasks.set(payload.chat_id, {
+      taskId: runningTaskId,
+      userMessageId: payload.user_message_id,
+    });
+  }
 
   // DUAL-PHASE ARCHITECTURE: Always send encrypted user message storage
   // For NEW chats (with icon_names): Also handle metadata encryption

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import re
 from typing import Any
 
 from fastapi import WebSocket
@@ -128,6 +130,16 @@ async def handle_project_file_operation_claim(
         _end_ws_span(span, token)
 
 
+logger = logging.getLogger(__name__)
+_RESULT_CODE = re.compile(r"^[a-z0-9_]{1,64}$")
+
+
+def _result_code(result: dict[str, Any]) -> str:
+    """The stable error code of a client result, never any file content."""
+    code = result.get("code")
+    return code if isinstance(code, str) and _RESULT_CODE.match(code) else "-"
+
+
 async def handle_project_file_operation_result(
     *,
     websocket: WebSocket,
@@ -142,6 +154,13 @@ async def handle_project_file_operation_result(
     span, token = _start_ws_span("project_file_operation_result", user_id, payload, user_otel_attrs)
     try:
         submitted = ProjectFileOperationResult.model_validate(payload)
+        if submitted.status not in {"completed", "awaiting_approval"}:
+            # A failed client job otherwise leaves no trace on the server; the
+            # code (never content) tells which client step refused it.
+            logger.info(
+                "Project file operation %s result status=%s code=%s",
+                submitted.operation_id, submitted.status, _result_code(submitted.result),
+            )
         if not manager.can_execute_project_file_job(
             user_id, device_fingerprint_hash, submitted.chat_id
         ):

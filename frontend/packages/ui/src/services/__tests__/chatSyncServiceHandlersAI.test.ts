@@ -376,6 +376,7 @@ const mockEmbedStore = vi.hoisted(() => ({
 const mockAiTypingStore = vi.hoisted(() => ({
   clearTyping: vi.fn(),
   clearTypingForChat: vi.fn(),
+  clearTypingForTurn: vi.fn(),
   setTyping: vi.fn(),
   subscribe: vi.fn((run: (value: unknown) => void) => {
     run(null);
@@ -829,7 +830,7 @@ describe("async skill continuation task lifecycle", () => {
 
     handleAIMessageUpdateImpl(service, finalChunk("task-1", true));
     expect(activeAITasks.get("chat-1")?.taskId).toBe("task-1");
-    expect(mockAiTypingStore.clearTyping).not.toHaveBeenCalled();
+    expect(mockAiTypingStore.clearTypingForTurn).not.toHaveBeenCalled();
     expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "aiMessageChunk" }));
     expect(service.dispatchEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
 
@@ -837,12 +838,12 @@ describe("async skill continuation task lifecycle", () => {
     service.dispatchEvent = vi.fn();
     handleAIMessageUpdateImpl(service, finalChunk("task-1"));
     expect(activeAITasks.get("chat-1")?.taskId).toBe("task-2");
-    expect(mockAiTypingStore.clearTyping).not.toHaveBeenCalled();
+    expect(mockAiTypingStore.clearTypingForTurn).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
 
     handleAIMessageUpdateImpl(service, finalChunk("task-2"));
     expect(activeAITasks.has("chat-1")).toBe(false);
-    expect(mockAiTypingStore.clearTyping).toHaveBeenCalledWith("chat-1", "assistant-task-2");
+    expect(mockAiTypingStore.clearTypingForTurn).toHaveBeenCalledWith("chat-1", ["assistant-task-2", "task-2"], "user-1");
     expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
   });
 
@@ -857,6 +858,25 @@ describe("async skill continuation task lifecycle", () => {
     await handleAITaskCancelRequestedImpl(service, { task_id: "task-1", status: "revocation_sent" });
     expect(activeAITasks.has("chat-1")).toBe(false);
     expect(mockAiTypingStore.clearTypingForChat).toHaveBeenCalledWith("chat-1");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+  it("a device that only saw typing-started can stop the resumed turn and its final clears Thinking", async () => {
+    // A second device never gets ai_task_initiated; each resumed turn runs as a
+    // new task whose final carries the shared assistant message id.
+    const activeAITasks = new Map<string, { taskId: string; userMessageId: string }>();
+    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mockChatDB.getChat.mockResolvedValue(null);
+    await handleAITypingStartedImpl(service, {
+      chat_id: "chat-1", message_id: "task-2", task_id: "task-2", user_message_id: "user-1", category: "software_development",
+    });
+    expect(activeAITasks.get("chat-1")).toEqual({ taskId: "task-2", userMessageId: "user-1" });
+
+    service.dispatchEvent = vi.fn();
+    handleAIMessageUpdateImpl(service, { ...finalChunk("task-2"), message_id: "assistant-shared" });
+    expect(activeAITasks.has("chat-1")).toBe(false);
+    expect(mockAiTypingStore.clearTypingForTurn).toHaveBeenCalledWith("chat-1", ["assistant-shared", "task-2"], "user-1");
     expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
   });
 });
@@ -891,7 +911,7 @@ describe("handleAIBackgroundResponseCompletedImpl", () => {
       message_id: "assistant-1", content: "Interim reference",
     }));
     expect(activeAITasks.get("chat-1")?.taskId).toBe("task-1");
-    expect(mockAiTypingStore.clearTyping).not.toHaveBeenCalled();
+    expect(mockAiTypingStore.clearTypingForTurn).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: "aiTaskEnded" }));
   });
 
@@ -916,7 +936,7 @@ describe("handleAIBackgroundResponseCompletedImpl", () => {
 
     expect(service.sendCompletedAIResponse).not.toHaveBeenCalled();
     expect(activeAITasks.has("chat-1")).toBe(true);
-    expect(mockAiTypingStore.clearTyping).not.toHaveBeenCalled();
+    expect(mockAiTypingStore.clearTypingForTurn).not.toHaveBeenCalled();
     expect(service.dispatchEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: "aiTaskEnded" }),
     );
@@ -942,7 +962,7 @@ describe("handleAIBackgroundResponseCompletedImpl", () => {
     expect(mockChatDB.saveMessage).not.toHaveBeenCalled();
     expect(service.sendCompletedAIResponse).not.toHaveBeenCalled();
     expect(activeAITasks.get("chat-1")?.taskId).toBe("task-1");
-    expect(mockAiTypingStore.clearTyping).not.toHaveBeenCalled();
+    expect(mockAiTypingStore.clearTypingForTurn).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=chats.completion.pending-delivery,chats.local-state.precedence
@@ -1031,6 +1051,7 @@ describe("handleAITypingStartedImpl", () => {
     mockChatDB.getChat.mockResolvedValue(existingChat);
     const service = {
       dispatchEvent: vi.fn(),
+      activeAITasks: new Map(),
     } as unknown as ChatSynchronizationService;
 
     await handleAITypingStartedImpl(service, {
@@ -1063,6 +1084,7 @@ describe("handleAITypingStartedImpl", () => {
     mockChatDB.getChat.mockResolvedValue(existingChat);
     const service = {
       dispatchEvent: vi.fn(),
+      activeAITasks: new Map(),
     } as unknown as ChatSynchronizationService;
 
     await handleAITypingStartedImpl(service, {
@@ -1101,6 +1123,7 @@ describe("handleAITypingStartedImpl", () => {
     mockChatDB.getChat.mockResolvedValue(existingChat);
     const service = {
       dispatchEvent: vi.fn(),
+      activeAITasks: new Map(),
     } as unknown as ChatSynchronizationService;
 
     await handleAITypingStartedImpl(service, {
@@ -1152,6 +1175,7 @@ describe("handleAITypingStartedImpl", () => {
     mockChatDB.getChat.mockResolvedValue(existingChat);
     const service = {
       dispatchEvent: vi.fn(),
+      activeAITasks: new Map(),
     } as unknown as ChatSynchronizationService;
 
     await handleAITypingStartedImpl(service, {

@@ -106,7 +106,17 @@ export function createProjectFileJobRunner(deps: ProjectFileJobRunnerDeps) {
 		if (result.privacy) {
 			deps.storage.setItem(privacyStorageKey(result.privacy.chat_id, result.privacy.project_id), result.privacy.ciphertext);
 		}
-		for (const frame of result.frames) await deps.send(frame.name, frame.payload);
+		for (const frame of result.frames) {
+			// A refused job is otherwise invisible in the browser log; the code
+			// names the core step that refused it (never any file content).
+			if (frame.name === 'project_file_operation_result' && isRecord(frame.payload)
+				&& frame.payload.status !== 'completed' && frame.payload.status !== 'awaiting_approval') {
+				const outcome = isRecord(frame.payload.result) ? frame.payload.result.code : undefined;
+				console.warn('[ProjectFiles] Job not completed', frame.payload.status,
+					typeof outcome === 'string' ? outcome : '-');
+			}
+			await deps.send(frame.name, frame.payload);
+		}
 		for (const change of result.applied) applied(change);
 		for (const notice of result.notices) console.info('[ProjectFiles]', notice);
 		for (const item of result.prompts) {

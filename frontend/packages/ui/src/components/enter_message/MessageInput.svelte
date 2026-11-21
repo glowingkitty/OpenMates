@@ -2795,6 +2795,8 @@
         // AI Task related updates
         updateActiveAITaskStatus(); // Initial check
         chatSyncService.addEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
+        // A resumed turn or another device's turn is only learned from typing-started.
+        chatSyncService.addEventListener('aiTypingStarted', handleAiTaskOrChatChange);
         chatSyncService.addEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
         chatSyncService.addEventListener('messageQueued', handleMessageQueued as EventListener);
         // Consider 'aiTaskCancellationAcknowledged' for more granular UI if needed
@@ -4059,6 +4061,7 @@
         window.removeEventListener('language-changed', languageChangeHandler);
         window.removeEventListener('language-changed-complete', languageChangeHandler);
         chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
+        chatSyncService.removeEventListener('aiTypingStarted', handleAiTaskOrChatChange);
         chatSyncService.removeEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
         chatSyncService.removeEventListener('messageQueued', handleMessageQueued as EventListener);
         if (embedUpdatedFromServerHandler) {

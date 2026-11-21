@@ -2259,7 +2259,7 @@ features:
       - backend/tests/test_cancelled_reply_recovery.py
       - backend/tests/test_chat_failure_notifications.py
       - backend/tests/test_preprocessor_context_startup.py
-      unit_test_files: 21
+      unit_test_files: 22
     apple:
       status: partial
       source: tests
@@ -15988,9 +15988,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 19
+        passing: 20
         failing: 14
-        not_run: 8
+        not_run: 7
         missing: 18
         counted: 59
       failing_tests:
