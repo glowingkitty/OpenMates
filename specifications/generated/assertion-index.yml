@@ -94504,7 +94504,7 @@ assertions:
     current_direct_proof: false
   chat-navigation.sidebar.close-at-menu-position:
     specification: feature.chat-navigation@3
-    fingerprint: 5bbc5e171fcc4738e28b432fbf69c9db5f4215dd80f25f10d6ff41057fce958d
+    fingerprint: 29b6a357c20c1db323f4fc13a1f8415456e5fb4506884039446417ff884af727
     direct_tests:
     - &id11847
       path: frontend/apps/web_app/tests/chat-sidebar-overlay.spec.ts
@@ -174594,7 +174594,7 @@ assertions:
     current_direct_proof: false
   settings-ui.overlay.eased-motion:
     specification: feature.settings-ui@1
-    fingerprint: edfbc626a5bcf5286c39511b4782e3fc6e7f6736611ded01a77233faa74d0b8c
+    fingerprint: 28ad17ae8f55c9ba7c63aefb2bc6393083d72c4e77a54f97f48943e0c3c6e194
     direct_tests:
     - &id22096
       path: frontend/apps/web_app/tests/settings-overlay-motion.spec.ts

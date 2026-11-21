@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.chat-navigation
 version: 3
-status: draft
+status: approved
 title: Chat Navigation
 summary: First-party chat navigation follows sidebar order, keeps running parent chats
   globally first, and provides readable nested Project navigation and chat organization.
@@ -135,8 +135,6 @@ assertions:
   must: On every screen size the sidebar's top bar has one button order, with the close
     button first at exactly the position of the header menu button and search at the
     other end, so the same spot opens and closes the sidebar.
-  depends_on:
-  - examples.sidebar_overlay
 - id: chat-navigation.sidebar.width-transition
   type: behavior
   must: On larger viewports the sidebar stays side by side with the chat; opening grows

@@ -913,7 +913,7 @@ A compact timeline to preview and jump to any exchange in a long chat.
 
 Sidebar chat navigation with running chats first and nested Project navigation.
 
-- Specifications: [feature.chat-navigation](../../specifications/features/chat-navigation/specification.yml) (draft) · 13 assertion(s)
+- Specifications: [feature.chat-navigation](../../specifications/features/chat-navigation/specification.yml) (approved) · 13 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.8.0-alpha
 
 <details><summary>Tests per surface</summary>
@@ -2648,7 +2648,7 @@ First-party clients may assert which account they expect a request or WebSocket 
 
 The settings shell on web and Apple: navigation, sections and footer.
 
-- Specifications: [feature.settings-ui](../../specifications/features/settings-ui/specification.yml) (draft) · 10 assertion(s)
+- Specifications: [feature.settings-ui](../../specifications/features/settings-ui/specification.yml) (approved) · 10 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.8.0-alpha
 
 <details><summary>Tests per surface</summary>

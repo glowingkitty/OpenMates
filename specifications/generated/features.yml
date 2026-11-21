@@ -2034,7 +2034,7 @@ features:
   description: Sidebar chat navigation with running chats first and nested Project navigation.
   specifications:
   - id: feature.chat-navigation
-    status: draft
+    status: approved
     path: specifications/features/chat-navigation
   apps: []
   product_features: []
@@ -8667,7 +8667,7 @@ features:
   description: 'The settings shell on web and Apple: navigation, sections and footer.'
   specifications:
   - id: feature.settings-ui
-    status: draft
+    status: approved
     path: specifications/features/settings-ui
   apps: []
   product_features: []

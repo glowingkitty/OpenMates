@@ -78,13 +78,13 @@ footer:
 
 overlay_motion:
   - id: small-screen-overlay-open-close
-    given: {surface: web, viewport: small, settings_open: false}
-    when: {user_opens_settings_then_closes_from_the_same_spot: true}
-    expect: {panel_slides_from_inline_end: true, same_easing_and_duration_as_sidebar: true, dim_backdrop_fades_with_panel: true, close_button_at_opener_position: true, backdrop_tap_closes: true}
+    given: A small screen where the settings menu is an overlay, with the menu closed.
+    when: The user opens the settings menu from the settings button, then closes it from the same spot or by tapping the dim backdrop.
+    then: The menu slides in from the inline-end edge with the chat sidebar's ease-in-out curve and duration while the dim backdrop fades in, its close button sits exactly on the settings button, and closing reverses the motion.
   - id: small-screen-overlay-reduced-motion
-    given: {surface: web, viewport: small, prefers_reduced_motion: true}
-    when: {user_opens_settings: true}
-    expect: {animation_frames_between_closed_and_open: 0}
+    given: A small screen where the user prefers reduced motion.
+    when: The user opens the settings menu.
+    then: The menu and the backdrop appear without any animated frames in between.
 
 apple_parity:
   - id: native-route-inventory

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.settings-ui
 version: 1
-status: draft
+status: approved
 title: Settings UI
 summary: >
   First-party web and Apple settings provide a localized, accessible, role-aware
