@@ -132,8 +132,9 @@ assertions:
   - examples.sidebar_overlay
 - id: chat-navigation.sidebar.close-at-menu-position
   type: behavior
-  must: In the overlay layout the sidebar close button sits at exactly the position
-    of the header menu button, so the same spot opens and closes the sidebar.
+  must: On every screen size the sidebar's top bar has one button order, with the close
+    button first at exactly the position of the header menu button and search at the
+    other end, so the same spot opens and closes the sidebar.
   depends_on:
   - examples.sidebar_overlay
 - id: chat-navigation.sidebar.width-transition

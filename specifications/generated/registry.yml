@@ -660,7 +660,7 @@ specifications:
     version: 3
     status: draft
     path: features/chat-navigation
-    fingerprint: 5ee93b07f26e503833fceed76adf9d6a907dcf92f0264d90082589e660bbf747
+    fingerprint: eab33605caff32cbb2e51c2ab9c1ccef872ebeabc66d2208322a16f14a96ae81
     required_applies_to:
     - cli
     - gui.web
@@ -993,7 +993,7 @@ specifications:
     version: 1
     status: draft
     path: features/settings-ui
-    fingerprint: 0d46d49603f01868d9e86863743335f053993342610e82762c6e57c7cdfe2c12
+    fingerprint: 6a0b8d7d380072640fbbc7ea415f5e4f2f4c065f3783b823922e1fee5396495b
     required_applies_to:
     - gui.web
     - gui.apple
@@ -9128,7 +9128,7 @@ assertions:
     specification: feature.chat-navigation@3
     specification_id: feature.chat-navigation
     type: behavior
-    fingerprint: 1c1e9e05c9aff2c396d4ecdb4aa7170a7fbbcdf429bd96ec6d095d6c60f7b41c
+    fingerprint: a440cfebca8b0347dc84231da7dca608bc91d69d0c578cb09f98ce7bd4201afc
     required_applies_to:
     - cli
     - gui.web
@@ -9137,7 +9137,7 @@ assertions:
     specification: feature.chat-navigation@3
     specification_id: feature.chat-navigation
     type: behavior
-    fingerprint: 2a5af5c3beaa4ac5ff77987899b6df384a7e8a0c334594386ceaacbe1b87d8f0
+    fingerprint: 5bbc5e171fcc4738e28b432fbf69c9db5f4215dd80f25f10d6ff41057fce958d
     required_applies_to:
     - cli
     - gui.web
@@ -9146,7 +9146,7 @@ assertions:
     specification: feature.chat-navigation@3
     specification_id: feature.chat-navigation
     type: behavior
-    fingerprint: 5c3082bb2a900cda4a3acb4b7867ea61ab4dc2a88ef8dbe3e7e822690bb04957
+    fingerprint: f6dde06fe2263dd0a810426142a9b2f0bd1081d1e82d2f1078d194205695137f
     required_applies_to:
     - cli
     - gui.web
@@ -9155,7 +9155,7 @@ assertions:
     specification: feature.chat-navigation@3
     specification_id: feature.chat-navigation
     type: behavior
-    fingerprint: 30166d6f42e2883cd1a9cc649e478607ab1acb107902bef3d41cf02e39453b90
+    fingerprint: 9ae4dc8d287f2069477dc89528cafd1f7f972257185d3193dbb699c4710a89ba
     required_applies_to:
     - cli
     - gui.web
@@ -13763,6 +13763,14 @@ assertions:
     specification_id: feature.settings-ui
     type: behavior
     fingerprint: 1c987bfd3b9e82b4003a1e8d3c5b6a49e72d089f58a2fa4a8803abf25a87a9e1
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  settings-ui.overlay.eased-motion:
+    specification: feature.settings-ui@1
+    specification_id: feature.settings-ui
+    type: behavior
+    fingerprint: edfbc626a5bcf5286c39511b4782e3fc6e7f6736611ded01a77233faa74d0b8c
     required_applies_to:
     - gui.web
     - gui.apple

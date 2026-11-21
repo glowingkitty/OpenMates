@@ -76,6 +76,16 @@ footer:
     given: {surface: web, self_hosted: true}
     expect: {legal_group_visible: false, events_group_visible: true, contact_group_visible: true}
 
+overlay_motion:
+  - id: small-screen-overlay-open-close
+    given: {surface: web, viewport: small, settings_open: false}
+    when: {user_opens_settings_then_closes_from_the_same_spot: true}
+    expect: {panel_slides_from_inline_end: true, same_easing_and_duration_as_sidebar: true, dim_backdrop_fades_with_panel: true, close_button_at_opener_position: true, backdrop_tap_closes: true}
+  - id: small-screen-overlay-reduced-motion
+    given: {surface: web, viewport: small, prefers_reduced_motion: true}
+    when: {user_opens_settings: true}
+    expect: {animation_frames_between_closed_and_open: 0}
+
 apple_parity:
   - id: native-route-inventory
     given: {web_base_routes: current, apple_native_routes: current}

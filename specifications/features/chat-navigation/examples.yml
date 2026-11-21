@@ -213,10 +213,12 @@ sidebar_overlay:
 - id: desktop-width-transition
   assertion_ids:
   - chat-navigation.sidebar.width-transition
+  - chat-navigation.sidebar.close-at-menu-position
   given: A desktop-width viewport with the sidebar closed.
   when: The user opens the sidebar.
   then: The sidebar grows in width while the chat area narrows with the same easing,
-    and closing reverses it without a layout jump.
+    its close button sits exactly where the menu button was (search on the other
+    side, as on phones), and closing reverses it without a layout jump.
 - id: keyboard-and-focus
   assertion_ids:
   - chat-navigation.sidebar.keyboard-focus

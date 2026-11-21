@@ -8658,7 +8658,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 9
+  assertions: 10
   surfaces:
     web:
       status: failing
@@ -8667,9 +8667,9 @@ features:
       assertions:
         passing: 1
         failing: 7
-        not_run: 0
+        not_run: 1
         missing: 1
-        counted: 9
+        counted: 10
       failing_tests:
       - frontend/apps/web_app/tests/report-issue-flow.spec.ts › Report issue form submits successfully and shows confirmation
       - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts › guest settings routes replace AI after opening a dynamic
@@ -8702,6 +8702,7 @@ features:
       - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
       - frontend/apps/web_app/tests/report-issue-flow.spec.ts
       - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+      - frontend/apps/web_app/tests/settings-overlay-motion.spec.ts
       - frontend/apps/web_app/tests/settings-privacy-pii-deep-link.spec.ts
       - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
       - frontend/apps/web_app/tests/skill-weather-forecast.spec.ts
@@ -8722,8 +8723,8 @@ features:
         passing: 6
         failing: 0
         not_run: 0
-        missing: 3
-        counted: 9
+        missing: 4
+        counted: 10
       key_tests: []
       e2e_tests:
       - apple/OpenMatesMacUITests/SettingsMacPrivacyParityUITests.swift

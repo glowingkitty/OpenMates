@@ -425,6 +425,7 @@
         "landing-guest-workflows.spec.ts",
         "settings-chat-viewport.spec.ts",
         "chat-sidebar-overlay.spec.ts",
+        "settings-overlay-motion.spec.ts",
         "composer-mobile-keyboard.spec.ts",
         "components/report-issue-confirmation.spec.ts",
         "components/report-issue-composer.spec.ts",

@@ -4010,15 +4010,19 @@
 					onVisibleChatReady={(chatId) => { visibleChatReadyId = chatId; }}
 				/>
 			</div>
-			{#if settingsOverlayOpen}
-				<button
-					class="settings-chat-backdrop"
-					data-testid="settings-chat-backdrop"
-					aria-label={$text('common.close')}
-					onclick={() => settingsMenuVisible.set(false)}
-				></button>
-			{/if}
 		</div>
+		<!-- Dim backdrop behind the settings overlay (small screens): tapping it closes the menu. -->
+		<button
+			class="settings-chat-backdrop"
+			class:visible={settingsOverlayOpen}
+			class:edge-dragging={edgeSwipeDragging &&
+				(edgeSwipeTarget === 'open-settings' || edgeSwipeTarget === 'close-settings')}
+			data-testid="settings-chat-backdrop"
+			style={`--settings-drag-progress: ${edgeSwipeProgress};`}
+			tabindex="-1"
+			aria-hidden="true"
+			onclick={() => window.dispatchEvent(new CustomEvent('closeSettingsMenu'))}
+		></button>
 		<div class="settings-wrapper">
 			<Settings isLoggedIn={$authStore.isAuthenticated} on:chatSelected={handleChatSelected} />
 		</div>
@@ -4350,16 +4354,59 @@
 		min-width: 0;
 	}
 
-	/* Catch pointer input before it reaches chat controls; Settings sits above
-	   this local stacking context and retains its existing close/reset path. */
+	/* Dim backdrop behind the settings overlay. It fades with the same duration and easing as the
+	   panel slides, sits below the panel and the profile/close button, and catches pointer input
+	   before it reaches the chat. Hidden (and not clickable) unless the overlay is open. */
 	.settings-chat-backdrop {
-		position: absolute;
+		display: block;
+		position: fixed;
 		inset: 0;
-		z-index: 1;
+		width: 100%;
+		height: 100%;
+		min-width: 0;
+		margin: 0;
+		z-index: calc(var(--z-index-modal) - 1);
 		border: 0;
+		border-radius: 0;
 		padding: 0;
-		background: transparent;
+		background: rgba(0, 0, 0, 0.45);
+		opacity: 0;
+		visibility: hidden;
 		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		transition:
+			opacity var(--sidebar-duration) var(--sidebar-ease),
+			visibility 0s linear var(--sidebar-duration);
+	}
+
+	.settings-chat-backdrop.visible {
+		opacity: 1;
+		visibility: visible;
+		transition:
+			opacity var(--sidebar-duration) var(--sidebar-ease),
+			visibility 0s linear 0s;
+	}
+
+	.settings-chat-backdrop.edge-dragging {
+		opacity: var(--settings-drag-progress);
+		visibility: visible;
+		transition: none;
+	}
+
+	/* The global button hover/active look (orange, scaled, shadow) must not show on a backdrop. */
+	.settings-chat-backdrop:hover,
+	.settings-chat-backdrop:active,
+	.sidebar-backdrop:hover,
+	.sidebar-backdrop:active {
+		background: rgba(0, 0, 0, 0.45);
+		scale: none;
+		filter: none;
+	}
+
+	/* The overlay's backdrop is the dim; the chat itself is no longer washed out. ActiveChat still
+	   sets its legacy `dimmed` class (opacity 0.3) on small screens; this wins until that code is removed. */
+	.main-content :global(.active-chat-container.dimmed) {
+		opacity: 1 !important;
 	}
 
 	.main-content.edge-dragging.menu-closed,

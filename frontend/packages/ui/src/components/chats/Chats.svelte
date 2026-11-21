@@ -100,16 +100,6 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
-	// Phone/small viewports show the sidebar as an overlay: its close button takes the
-	// menu button's place on the left, so it comes first in DOM (and tab) order too.
-	let overlayLayout = $state(false);
-	onMount(() => {
-		const query = window.matchMedia('(max-width: 600px)');
-		overlayLayout = query.matches;
-		const onChange = (event: MediaQueryListEvent) => { overlayLayout = event.matches; };
-		query.addEventListener('change', onChange);
-		return () => query.removeEventListener('change', onChange);
-	});
 	let sidebarProjects = $state<SidebarProject[]>([]);
 	let projectLocation = $state<ChatProjectLocation | null>(null);
 	let projectLoadError = $state(false);
@@ -4247,14 +4237,9 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 							{$text('common.cancel')}
 						</button>
 					{:else}
-						<!-- Search button + close button (close first in the overlay layout) -->
-						{#if overlayLayout}
-							{@render closeButton()}
-							{@render searchButton()}
-						{:else}
-							{@render searchButton()}
-							{@render closeButton()}
-						{/if}
+						<!-- Close first (it takes the menu button's place), search at the end, on every screen size -->
+						{@render closeButton()}
+						{@render searchButton()}
 					{/if}
 				</div>
 			{/if}
@@ -4725,52 +4710,42 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
         background-color: rgba(128, 128, 128, 0.7);
     }
 
+    /* The bar uses the header's geometry on every screen size, so the close button lands
+       exactly on the menu button that opened the sidebar: one tap spot opens and closes. */
     .top-buttons-container {
         flex-shrink: 0;
         z-index: var(--z-index-dropdown-1);
         background-color: var(--color-grey-20);
-        padding: var(--spacing-8) var(--spacing-10);
+        padding: var(--spacing-4) var(--spacing-10);
+        /* Side by side, the chat area (and its header) sits one sidebar margin from the screen edge
+           while the sidebar is closed; the close button must land where the menu button was. */
+        padding-inline-start: calc(var(--spacing-10) + var(--sidebar-margin, 0px));
         border-bottom: 1px solid var(--color-grey-30);
+    }
+
+    /* Overlay sidebar (phones): the header sits at the screen edge. */
+    @media (max-width: 600px) {
+        .top-buttons-container {
+            padding-inline-start: var(--spacing-10);
+        }
     }
 
     .top-buttons {
         position: relative;
-        height: 32px; /* Ensure container fits buttons */
-        display: flex; /* Use flexbox for easier alignment if needed */
-        justify-content: flex-end; /* Align close button to the right */
+        height: 2.75rem; /* same as the header's nav row */
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
     }
 
     .top-button {
-        /* Removed absolute positioning if using flexbox */
         display: flex;
         align-items: center;
     }
 
-    .top-button.right {
-       /* Logical property: pushes close button to inline-end (right in LTR, left in RTL) */
-       margin-inline-start: auto;
-    }
-
-    /* Overlay layout (phones): close button first, search at the end, and the bar
-       uses the header's geometry so the close button lands exactly on the menu button. */
-    @media (max-width: 600px) {
-        .top-buttons-container {
-            padding: var(--spacing-4) var(--spacing-10);
-        }
-
-        .top-buttons {
-            height: 2.75rem; /* same as the header's nav row */
-            align-items: center;
-            justify-content: flex-start;
-        }
-
-        .top-button.right {
-            margin-inline-start: 0;
-        }
-
-        .top-button.icon_search {
-            margin-inline-start: auto;
-        }
+    /* Search sits at the inline-end (right in LTR, left in RTL). */
+    .top-button.icon_search {
+        margin-inline-start: auto;
     }
 
     .select-mode-button {
