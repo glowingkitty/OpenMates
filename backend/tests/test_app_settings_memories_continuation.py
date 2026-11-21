@@ -18,13 +18,21 @@ directus_stub = ModuleType("backend.core.api.app.services.directus")
 directus_stub.DirectusService = object
 encryption_stub = ModuleType("backend.core.api.app.utils.encryption")
 encryption_stub.EncryptionService = object
-sys.modules.setdefault("backend.core.api.app.services.cache", cache_stub)
-sys.modules.setdefault("backend.core.api.app.services.directus", directus_stub)
-sys.modules.setdefault("backend.core.api.app.utils.encryption", encryption_stub)
-
-handler = importlib.import_module(
-    "backend.core.api.app.routes.handlers.websocket_handlers.app_settings_memories_confirmed_handler"
-)
+# The stubs stand in only while the handler is imported. Left in sys.modules they
+# would shadow the real packages for every test collected in the same run.
+_stubs = {
+    "backend.core.api.app.services.cache": cache_stub,
+    "backend.core.api.app.services.directus": directus_stub,
+    "backend.core.api.app.utils.encryption": encryption_stub,
+}
+_inserted = [name for name, stub in _stubs.items() if sys.modules.setdefault(name, stub) is stub]
+try:
+    handler = importlib.import_module(
+        "backend.core.api.app.routes.handlers.websocket_handlers.app_settings_memories_confirmed_handler"
+    )
+finally:
+    for _name in _inserted:
+        sys.modules.pop(_name, None)
 
 
 class _FakeApplyAsyncTask:

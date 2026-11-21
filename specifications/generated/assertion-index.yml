@@ -111081,7 +111081,7 @@ assertions:
       surface: rest_api
     - &id13992
       path: backend/tests/test_app_settings_memories_continuation.py
-      line: 117
+      line: 125
       name: test_app_settings_memories_continuation_preserves_request_context
       surface: rest_api
     - &id13993
@@ -199430,22 +199430,22 @@ assertions:
       surface: gui.apple
     - &id25244
       path: backend/tests/test_app_settings_memories_continuation.py
-      line: 189
+      line: 197
       name: test_paused_call_turn_stores_its_spoken_delivery_for_the_continuation
       surface: rest_api
     - &id25245
       path: backend/tests/test_app_settings_memories_continuation.py
-      line: 211
+      line: 219
       name: test_memory_approval_during_an_active_call_continues_as_the_same_spoken_turn
       surface: rest_api
     - &id25246
       path: backend/tests/test_app_settings_memories_continuation.py
-      line: 230
+      line: 238
       name: test_memory_approval_after_the_call_ended_continues_as_a_text_turn
       surface: rest_api
     - &id25247
       path: backend/tests/test_app_settings_memories_continuation.py
-      line: 245
+      line: 253
       name: test_typed_turn_continuation_keeps_its_own_speech_preference
       surface: rest_api
     - &id25248
