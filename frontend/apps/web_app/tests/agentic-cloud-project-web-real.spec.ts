@@ -62,7 +62,9 @@ const MODEL_QUERY = 'gemini-3.8-flash';
 const MODEL_NAME = /Gemini 3\.8 Flash/i;
 
 // Same prompt texts as cli-native-agentic-app-real.spec.ts; the model mention is inserted as a real mention.
-const PROMPT = 'Build me a simple recipe web app where I can add recipes with ingredients and steps and see them in a list. Keep it small.';
+// The first turn only writes the files: the install/build turn below must be the one whose commands
+// change the Project (lockfile synced back as a new diff card), so the model must not run them early.
+const PROMPT = 'Build me a simple recipe web app where I can add recipes with ingredients and steps and see them in a list. Keep it small. Just write the files for now, I will ask you to install and build it next.';
 const COMMAND_PROMPT = 'Install the app dependencies and run its production build in web-app, then tell me whether the build passed and which files the commands changed.';
 const TEST_PROMPT = 'Add a browser test that adds one recipe and checks it appears in the list, run it, and commit when it passes.';
 const SPEC_PROMPT = 'Write a Specification with Checks for adding a search box that filters recipes by name, then write a Plan for it.';
