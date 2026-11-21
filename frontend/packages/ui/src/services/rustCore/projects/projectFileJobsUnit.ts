@@ -2,8 +2,10 @@
  * `projectFileJobs` namespace installer of the shared Rust core Worker
  * (VITE_OPENMATES_RUST_CORE builds only). Marshalling only: each call runs on
  * the ADMITTED client of the bound history `core` lease, borrowed through
- * coreClientBorrow (per-chat job state lives on that Client, so every call uses
- * it). The core decides frames, prompts and applied changes; results are
+ * coreClientBorrow. Per-chat job state (privacy layer, approvals) lives on the
+ * borrowed Client and several Worker clients exist, so `step` and `decide` carry
+ * the privacy inputs and install them (set_mappings, set_privacy) inside the
+ * SAME borrow as the call they protect. The core decides frames, prompts and applied changes; results are
  * validated for shape and refused when a frame is not claim/result/reject.
  */
 import type { UnitInstallContext } from '../host/sharedWorkerProtocol';
@@ -17,6 +19,8 @@ import {
 
 /** Bounded wait for the history dispatcher to become idle. */
 export const PROJECT_FILE_JOBS_BORROW_TIMEOUT_MS = 10_000;
+/** Chats whose client affinity is remembered (the core keeps 8 chats' file-job state). */
+const AFFINITY_CHATS = 32;
 
 /** BrowserCoreClient export of browser_project_file_jobs.rs (steps resolve to JSON). */
 export interface ProjectFileJobsClient {
@@ -28,7 +32,7 @@ export interface ProjectFileJobsClient {
 }
 
 export interface ProjectFileJobsDeps {
-	borrow(principal: string, signal: AbortSignal, timeoutMs: number): Promise<CoreClientBorrow | CoreBorrowRefusal>;
+	borrow(principal: string, signal: AbortSignal, timeoutMs: number, prefer?: object): Promise<CoreClientBorrow | CoreBorrowRefusal>;
 }
 
 const CODE = /^[a-z][a-z0-9_]{0,63}$/;
@@ -86,18 +90,59 @@ export function parseProjectCreateResult(raw: unknown): ProjectCreateResult | nu
 	return value as ProjectCreateResult;
 }
 
+/** Validated privacy inputs of a step/decide request (shapes owned by the core). */
+interface PrivacyInputs { projectId: string; enabled: boolean; memories: unknown[]; sealed: string | null; mappings: unknown[] }
+
+function parsePrivacy(raw: unknown): PrivacyInputs {
+	if (!isRecord(raw)) throw new UnitRefusal('project_file_jobs_bad_privacy');
+	if (typeof raw.projectId !== 'string' || !raw.projectId) throw new UnitRefusal('project_file_jobs_bad_project');
+	if (typeof raw.enabled !== 'boolean') throw new UnitRefusal('project_file_jobs_bad_enabled');
+	if (!Array.isArray(raw.memories)) throw new UnitRefusal('project_file_jobs_bad_memories');
+	if (raw.sealed !== null && typeof raw.sealed !== 'string') throw new UnitRefusal('project_file_jobs_bad_sealed');
+	if (!Array.isArray(raw.mappings)) throw new UnitRefusal('project_file_jobs_bad_mappings');
+	return raw as unknown as PrivacyInputs;
+}
+
+/**
+ * Installs the chat's privacy layer on the borrowed client. A set_privacy
+ * refusal does not stop the call: the core then has no layer and answers the
+ * job fail-closed; the code is returned so the page can log it.
+ */
+async function installPrivacy(client: ProjectFileJobsClient, handle: string, generation: number,
+	chatId: string, privacy: PrivacyInputs): Promise<string | undefined> {
+	await client.project_file_job_set_mappings(handle, generation, chatId, JSON.stringify(privacy.mappings));
+	try {
+		await client.project_file_job_set_privacy(handle, generation, chatId, privacy.projectId, privacy.enabled,
+			JSON.stringify(privacy.memories), privacy.sealed);
+		return undefined;
+	} catch (error) {
+		return code(error);
+	}
+}
+
 const defaultDeps = (): ProjectFileJobsDeps => ({
-	borrow: (principal, signal, timeoutMs) => borrowCoreClient(principal, signal, timeoutMs)
+	borrow: (principal, signal, timeoutMs, prefer) => borrowCoreClient(principal, signal, timeoutMs, undefined, { prefer })
 });
 
 export function createProjectFileJobsHandlers(principal: string, deps: ProjectFileJobsDeps,
 	lifetime: AbortSignal): UnitHandlers<ProjectFileJobsProtocol> {
-	/** Runs `work` on the one borrowed admitted client; refusals are stable codes. */
-	async function withClient<T>(work: (client: ProjectFileJobsClient, handle: string, generation: number) => Promise<T>): Promise<T> {
-		const borrow = await deps.borrow(principal, lifetime, PROJECT_FILE_JOBS_BORROW_TIMEOUT_MS);
+	/**
+	 * The client that last ran each chat's file job. Pending write/read approvals
+	 * live in that core Client's per-chat state, so the chat's next step and the
+	 * user's answer must reach the same client (several Worker clients exist).
+	 * Weak: a retired client is not kept alive; bounded like the core's chat set.
+	 */
+	const affinity = new Map<string, WeakRef<object>>();
+	/** Runs `work` on the one borrowed admitted client of `chatId`; refusals are stable codes. */
+	async function withClient<T>(chatId: string,
+		work: (client: ProjectFileJobsClient, handle: string, generation: number) => Promise<T>): Promise<T> {
+		const borrow = await deps.borrow(principal, lifetime, PROJECT_FILE_JOBS_BORROW_TIMEOUT_MS, affinity.get(chatId)?.deref());
 		if (borrow === 'none') throw new UnitRefusal('not_admitted');
 		if (borrow === 'busy') throw new UnitRefusal('core_busy');
 		if (borrow === 'local') throw new UnitRefusal('local_session');
+		affinity.delete(chatId);
+		affinity.set(chatId, new WeakRef(borrow.client));
+		if (affinity.size > AFFINITY_CHATS) affinity.delete(affinity.keys().next().value as string);
 		try {
 			return await work(borrow.client as unknown as ProjectFileJobsClient, borrow.status.handle, borrow.status.generation);
 		} catch (error) {
@@ -108,34 +153,31 @@ export function createProjectFileJobsHandlers(principal: string, deps: ProjectFi
 	}
 	return {
 		async step(payload) {
-			const request = payload as { kind?: unknown; event?: unknown; interactive?: unknown } | null;
+			const request = payload as { kind?: unknown; event?: unknown; interactive?: unknown; privacy?: unknown } | null;
 			if (typeof request?.kind !== 'string' || !KINDS.has(request.kind)) throw new UnitRefusal('project_file_jobs_bad_kind');
 			if (!isRecord(request.event)) throw new UnitRefusal('project_file_jobs_bad_event');
 			if (typeof request.interactive !== 'boolean') throw new UnitRefusal('project_file_jobs_bad_interactive');
+			if (typeof request.event.chat_id !== 'string' || !request.event.chat_id) throw new UnitRefusal('project_file_jobs_bad_chat');
+			const privacy = parsePrivacy(request.privacy);
 			const { kind, event, interactive } = request as { kind: string; event: Record<string, unknown>; interactive: boolean };
-			return withClient(async (client, handle, generation) =>
-				parseProjectFileJobStep(await client.project_file_job_step(handle, generation, kind, JSON.stringify(event), interactive)));
+			const chatId = event.chat_id as string;
+			return withClient(chatId, async (client, handle, generation) => {
+				const privacyError = await installPrivacy(client, handle, generation, chatId, privacy);
+				const step = parseProjectFileJobStep(await client.project_file_job_step(handle, generation, kind, JSON.stringify(event), interactive));
+				return privacyError ? { ...step, privacyError } : step;
+			});
 		},
 		async decide(payload) {
-			const request = payload as { chatId?: unknown; operationId?: unknown; accept?: unknown } | null;
+			const request = payload as { chatId?: unknown; operationId?: unknown; accept?: unknown; privacy?: unknown } | null;
 			if (typeof request?.chatId !== 'string' || !request.chatId) throw new UnitRefusal('project_file_jobs_bad_chat');
 			if (typeof request.operationId !== 'string' || !request.operationId) throw new UnitRefusal('project_file_jobs_bad_operation');
 			if (typeof request.accept !== 'boolean') throw new UnitRefusal('project_file_jobs_bad_accept');
+			const privacy = parsePrivacy(request.privacy);
 			const { chatId, operationId, accept } = request as { chatId: string; operationId: string; accept: boolean };
-			return withClient(async (client, handle, generation) =>
-				parseProjectFileJobStep(await client.project_file_job_decide(handle, generation, chatId, operationId, accept)));
-		},
-		async setPrivacy(payload) {
-			const request = payload as { chatId?: unknown; projectId?: unknown; enabled?: unknown; memories?: unknown; sealed?: unknown } | null;
-			if (typeof request?.chatId !== 'string' || !request.chatId) throw new UnitRefusal('project_file_jobs_bad_chat');
-			if (typeof request.projectId !== 'string' || !request.projectId) throw new UnitRefusal('project_file_jobs_bad_project');
-			if (typeof request.enabled !== 'boolean') throw new UnitRefusal('project_file_jobs_bad_enabled');
-			if (!Array.isArray(request.memories)) throw new UnitRefusal('project_file_jobs_bad_memories');
-			if (request.sealed !== null && typeof request.sealed !== 'string') throw new UnitRefusal('project_file_jobs_bad_sealed');
-			const { chatId, projectId, enabled, memories, sealed } = request as { chatId: string; projectId: string; enabled: boolean; memories: unknown[]; sealed: string | null };
-			return withClient(async (client, handle, generation) => {
-				await client.project_file_job_set_privacy(handle, generation, chatId, projectId, enabled, JSON.stringify(memories), sealed);
-				return { ok: true as const };
+			return withClient(chatId, async (client, handle, generation) => {
+				const privacyError = await installPrivacy(client, handle, generation, chatId, privacy);
+				const step = parseProjectFileJobStep(await client.project_file_job_decide(handle, generation, chatId, operationId, accept));
+				return privacyError ? { ...step, privacyError } : step;
 			});
 		},
 		async createStep(payload) {
@@ -143,18 +185,10 @@ export function createProjectFileJobsHandlers(principal: string, deps: ProjectFi
 			if (typeof request?.kind !== 'string' || !CREATE_KINDS.has(request.kind)) throw new UnitRefusal('project_create_bad_kind');
 			if (!isRecord(request.event)) throw new UnitRefusal('project_create_bad_event');
 			const { kind, event } = request as { kind: string; event: Record<string, unknown> };
-			return withClient(async (client, handle, generation) =>
+			// Creation state (requested → confirmed) is per chat in the core as well.
+			const chatId = typeof event.chat_id === 'string' ? event.chat_id : '';
+			return withClient(chatId, async (client, handle, generation) =>
 				({ result: parseProjectCreateResult(await client.project_create_step(handle, generation, kind, JSON.stringify(event))) }));
-		},
-		async setMappings(payload) {
-			const request = payload as { chatId?: unknown; mappings?: unknown } | null;
-			if (typeof request?.chatId !== 'string' || !request.chatId) throw new UnitRefusal('project_file_jobs_bad_chat');
-			if (!Array.isArray(request.mappings)) throw new UnitRefusal('project_file_jobs_bad_mappings');
-			const { chatId, mappings } = request as { chatId: string; mappings: unknown[] };
-			return withClient(async (client, handle, generation) => {
-				await client.project_file_job_set_mappings(handle, generation, chatId, JSON.stringify(mappings));
-				return { ok: true as const };
-			});
 		}
 	};
 }

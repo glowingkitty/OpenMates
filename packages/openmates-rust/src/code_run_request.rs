@@ -263,12 +263,39 @@ fn artifact_lines(value: &Value, skipped: bool) -> Vec<String> {
         .collect()
 }
 
-/// Human output of a final run status: output text, artifacts, skipped artifacts.
+/// Joined `text` of the status record's `events` of one `kind`, in order.
+///
+/// The `/v1/code/run/{id}` record stores the program's output as events
+/// (`status` | `stdout` | `stderr`), not as one field. Like the npm CLI,
+/// `stdout` goes to stdout and `stderr` to stderr; the final status carries
+/// only the sandbox's progress lines in `status` events, which are not shown.
+fn event_text(status: &Value, kind: &str) -> String {
+    status["events"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|event| event["kind"].as_str() == Some(kind))
+        .filter_map(|event| event["text"].as_str())
+        .collect()
+}
+
+/// The program's stderr of a final run status (its `stderr` events), for the
+/// shell's stderr stream; empty when the run wrote none.
+pub fn final_status_stderr(status: &Value) -> String {
+    event_text(status, "stderr")
+}
+
+/// Human output of a final run status: program stdout (an `output` field when
+/// present, else the record's `stdout` events), artifacts, skipped artifacts.
 pub fn format_final_status(status: &Value) -> String {
     let mut out = String::new();
-    if let Some(text) = status["output"].as_str().filter(|s| !s.is_empty()) {
-        out.push_str(text);
-        if !text.ends_with('\n') {
+    let stdout = status["output"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map_or_else(|| event_text(status, "stdout"), str::to_owned);
+    if !stdout.is_empty() {
+        out.push_str(&stdout);
+        if !stdout.ends_with('\n') {
             out.push('\n');
         }
     }

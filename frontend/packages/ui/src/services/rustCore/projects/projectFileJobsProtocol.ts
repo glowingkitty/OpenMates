@@ -38,6 +38,13 @@ export interface ProjectFileJobStep {
 	applied: ProjectFileJobApplied[];
 	notices: string[];
 	privacy?: ProjectFileJobPrivacy;
+	/** Stable code when installing the privacy layer was refused; the core then answered fail-closed. */
+	privacyError?: string;
+}
+
+/** Privacy inputs installed on the borrowed client inside the same borrow as the step/decide. */
+export interface ProjectFileJobPrivacyInputs {
+	projectId: string; enabled: boolean; memories: unknown[]; sealed: string | null; mappings: unknown[];
 }
 
 /** Assistant Project creation frames the core handles (`Client::project_create_step`). */
@@ -48,20 +55,12 @@ export type ProjectCreateResult = Record<string, unknown> & { chat_id: string; r
 
 export type ProjectFileJobsProtocol = {
 	step: {
-		request: { kind: ProjectFileJobEventKind; event: Record<string, unknown>; interactive: boolean };
+		request: { kind: ProjectFileJobEventKind; event: Record<string, unknown>; interactive: boolean; privacy: ProjectFileJobPrivacyInputs };
 		response: ProjectFileJobStep;
 	};
 	decide: {
-		request: { chatId: string; operationId: string; accept: boolean };
+		request: { chatId: string; operationId: string; accept: boolean; privacy: ProjectFileJobPrivacyInputs };
 		response: ProjectFileJobStep;
-	};
-	setPrivacy: {
-		request: { chatId: string; projectId: string; enabled: boolean; memories: unknown[]; sealed: string | null };
-		response: { ok: true };
-	};
-	setMappings: {
-		request: { chatId: string; mappings: unknown[] };
-		response: { ok: true };
 	};
 	createStep: {
 		request: { kind: ProjectCreateEventKind; event: Record<string, unknown> };

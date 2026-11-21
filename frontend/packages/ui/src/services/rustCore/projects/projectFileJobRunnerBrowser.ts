@@ -11,7 +11,7 @@ import { broadcastProjectFilesChanged } from '../../projectBrowserEvents';
 import { retainedPreparedPrivacyMemories } from '../../preparedPrivacyForSend';
 import { chatPiiMappings } from '../memory/memoryPrivacy';
 import {
-	decideProjectFileJob, setProjectFileJobMappings, setProjectFileJobPrivacy, stepProjectFileJob
+	decideProjectFileJob, stepProjectFileJob
 } from './projectFileJobsClient';
 import { createProjectFileJobRunner, type ProjectFileJobRunnerDeps } from './projectFileJobRunner';
 
@@ -24,8 +24,6 @@ export function createBrowserProjectFileJobRunner(options: {
 		isActiveChat: options.isActiveChat,
 		step: stepProjectFileJob,
 		decide: decideProjectFileJob,
-		setMappings: setProjectFileJobMappings,
-		setPrivacy: setProjectFileJobPrivacy,
 		chatMappings: chatPiiMappings,
 		privacyMemories: retainedPreparedPrivacyMemories,
 		privacyEnabled: () => get(personalDataStore.settings).masterEnabled,

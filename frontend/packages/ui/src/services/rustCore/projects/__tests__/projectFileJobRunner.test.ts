@@ -18,8 +18,6 @@ function setup(overrides: Partial<ProjectFileJobRunnerDeps> = {}) {
 		isActiveChat: () => true,
 		step: vi.fn(async () => EMPTY),
 		decide: vi.fn(async () => EMPTY),
-		setMappings: vi.fn(async () => undefined),
-		setPrivacy: vi.fn(async () => undefined),
 		chatMappings: vi.fn(async () => [{ placeholder: 'x' }]),
 		privacyMemories: () => [],
 		privacyEnabled: () => true,
@@ -46,13 +44,14 @@ describe('projectFileJobRunner', () => {
 		await runner.request(EVENT);
 		expect(order.slice(0, 2)).toEqual(['persist', 'send:project_file_operation_result']);
 		expect(store.get('openmates_project_file_privacy:["c1","p1"]')).toBe('sealed');
-		// Reinstalled each step (the core may have dropped the chat or restarted),
-		// with the blob the previous step persisted.
-		expect(deps.setPrivacy).toHaveBeenCalledTimes(2);
-		expect(deps.setPrivacy).toHaveBeenNthCalledWith(1, 'c1', 'p1', true, [], null);
-		expect(deps.setPrivacy).toHaveBeenNthCalledWith(2, 'c1', 'p1', true, [], 'sealed');
-		expect(deps.setMappings).toHaveBeenCalledTimes(2);
-		expect(deps.step).toHaveBeenCalledWith('project_file_operation_request', EVENT, true);
+		// Sent with every step (the core may have dropped the chat or restarted),
+		// carrying the blob the previous step persisted; installed in the unit's borrow.
+		const mappings = [{ placeholder: 'x' }];
+		expect(deps.step).toHaveBeenCalledTimes(2);
+		expect(deps.step).toHaveBeenNthCalledWith(1, 'project_file_operation_request', EVENT, true,
+			{ projectId: 'p1', enabled: true, memories: [], sealed: null, mappings });
+		expect(deps.step).toHaveBeenNthCalledWith(2, 'project_file_operation_request', EVENT, true,
+			{ projectId: 'p1', enabled: true, memories: [], sealed: 'sealed', mappings });
 	});
 
 	it('answers a write prompt through decide and sends the resulting frames', async () => {
@@ -65,7 +64,8 @@ describe('projectFileJobRunner', () => {
 		await runner.request(EVENT);
 		await vi.waitFor(() => expect(deps.send).toHaveBeenCalledWith('project_file_operation_claim', { operation_id: 'op1' }));
 		expect(deps.requestWrite).toHaveBeenCalledWith({ projectId: 'p1', chatId: 'c1', mutation });
-		expect(deps.decide).toHaveBeenCalledWith('c1', 'op1', true);
+		expect(deps.decide).toHaveBeenCalledWith('c1', 'op1', true,
+			{ projectId: 'p1', enabled: true, memories: [], sealed: null, mappings: [{ placeholder: 'x' }] });
 		expect(deps.onApplied).toHaveBeenCalledWith({ projectId: 'p1', chatId: 'c1', mutation });
 		expect(deps.onFilesChanged).toHaveBeenCalledWith('p1');
 	});
@@ -76,7 +76,7 @@ describe('projectFileJobRunner', () => {
 			requestRead: vi.fn(async () => false)
 		});
 		await runner.request(EVENT);
-		await vi.waitFor(() => expect(deps.decide).toHaveBeenCalledWith('c1', 'op1', false));
+		await vi.waitFor(() => expect(deps.decide).toHaveBeenCalledWith('c1', 'op1', false, expect.objectContaining({ projectId: 'p1' })));
 		expect(deps.requestRead).toHaveBeenCalledWith({ projectId: 'p1', sourceId: 's1', chatId: 'c1', operationId: 'op1', path: '.env' });
 	});
 
@@ -95,14 +95,12 @@ describe('projectFileJobRunner', () => {
 		const failed = { name: 'project_file_operation_result' as const,
 			payload: { operation_id: 'op1', status: 'failed', result: { code: 'pii_mapping_unavailable' } } };
 		const { deps, runner } = setup({
-			setPrivacy: vi.fn(async () => { throw Object.assign(new Error('secret'), { code: 'pii_mapping_unavailable' }); }),
-			step: vi.fn(async () => ({ ...EMPTY, frames: [failed] }))
+			step: vi.fn(async () => ({ ...EMPTY, frames: [failed], privacyError: 'pii_mapping_unavailable' }))
 		});
 		await runner.request(EVENT);
-		expect(deps.step).toHaveBeenCalledWith('project_file_operation_request', EVENT, true);
+		expect(deps.step).toHaveBeenCalledTimes(1);
 		expect(deps.send).toHaveBeenCalledWith('project_file_operation_result', failed.payload);
 		expect(warn).toHaveBeenCalledWith('[ProjectFiles] Privacy layer unavailable', 'pii_mapping_unavailable');
-		expect(JSON.stringify(warn.mock.calls)).not.toContain('secret');
 		warn.mockRestore();
 	});
 });

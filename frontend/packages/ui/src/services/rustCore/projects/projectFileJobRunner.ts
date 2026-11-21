@@ -11,16 +11,14 @@ import { PROJECT_FILE_PRIVACY_PREFIX } from '../../projectFilePrivacyStorage';
 import type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from '../../projectFileJobTypes';
 import type { ProjectFileMutation } from '../../../utils/projectFileMutationProtocol';
 import type {
-	ProjectFileJobApplied, ProjectFileJobEventKind, ProjectFileJobPrompt, ProjectFileJobStep
+	ProjectFileJobApplied, ProjectFileJobEventKind, ProjectFileJobPrivacyInputs, ProjectFileJobPrompt, ProjectFileJobStep
 } from './projectFileJobsProtocol';
 
 export interface ProjectFileJobRunnerDeps {
 	send: (event: string, payload: Record<string, unknown>) => void | Promise<void>;
 	isActiveChat: (chatId: string) => boolean;
-	step: (kind: ProjectFileJobEventKind, event: Record<string, unknown>, interactive: boolean) => Promise<ProjectFileJobStep>;
-	decide: (chatId: string, operationId: string, accept: boolean) => Promise<ProjectFileJobStep>;
-	setMappings: (chatId: string, mappings: unknown[]) => Promise<void>;
-	setPrivacy: (chatId: string, projectId: string, enabled: boolean, memories: unknown[], sealed: string | null) => Promise<void>;
+	step: (kind: ProjectFileJobEventKind, event: Record<string, unknown>, interactive: boolean, privacy: ProjectFileJobPrivacyInputs) => Promise<ProjectFileJobStep>;
+	decide: (chatId: string, operationId: string, accept: boolean, privacy: ProjectFileJobPrivacyInputs) => Promise<ProjectFileJobStep>;
 	chatMappings: (chatId: string) => Promise<unknown[]>;
 	privacyMemories: () => unknown[];
 	privacyEnabled: () => boolean;
@@ -59,17 +57,21 @@ export function createProjectFileJobRunner(deps: ProjectFileJobRunnerDeps) {
 	}
 
 	/**
-	 * Installs the chat's privacy layer before every step. The core keeps a
-	 * bounded set of chats and a Worker restart loses it, so a one-time install
-	 * could let a later job run without redaction. On a failure the core has no
-	 * layer for the chat and answers the job fail-closed (`pii_mapping_unavailable`,
-	 * nothing read), so the event is still handed to it: the assistant then gets
-	 * an error within seconds instead of waiting for an executor.
+	 * Reads the chat's privacy inputs. They travel WITH every step/decide and the
+	 * unit installs them on the very core client that runs it (several Worker
+	 * clients exist; a layer set on another one would be missing). The core keeps
+	 * a bounded set of chats and a Worker restart loses it, so they are sent
+	 * every time. If installing fails the core answers the job fail-closed
+	 * (`pii_mapping_unavailable`, nothing read) and the unit reports the code.
 	 */
-	async function preparePrivacy(chatId: string, projectId: string): Promise<void> {
-		await deps.setMappings(chatId, await deps.chatMappings(chatId));
-		await deps.setPrivacy(chatId, projectId, deps.privacyEnabled(), deps.privacyMemories(),
-			deps.storage.getItem(privacyStorageKey(chatId, projectId)));
+	async function privacyInputs(chatId: string, projectId: string): Promise<ProjectFileJobPrivacyInputs> {
+		return {
+			projectId,
+			enabled: deps.privacyEnabled(),
+			memories: deps.privacyMemories(),
+			sealed: deps.storage.getItem(privacyStorageKey(chatId, projectId)),
+			mappings: await deps.chatMappings(chatId)
+		};
 	}
 
 	function applied(change: ProjectFileJobApplied): void {
@@ -98,11 +100,13 @@ export function createProjectFileJobRunner(deps: ProjectFileJobRunnerDeps) {
 			});
 		}
 		if (!active(item.chat_id)) return;
-		await enqueue(item.chat_id, async () => process(await deps.decide(item.chat_id, item.operation_id, accepted)));
+		await enqueue(item.chat_id, async () =>
+			process(await deps.decide(item.chat_id, item.operation_id, accepted, await privacyInputs(item.chat_id, item.project_id))));
 	}
 
 	/** Persist the sealed blob FIRST, then send frames; prompts wait for the user off the queue. */
 	async function process(result: ProjectFileJobStep): Promise<void> {
+		if (result.privacyError) console.warn('[ProjectFiles] Privacy layer unavailable', result.privacyError);
 		if (result.privacy) {
 			deps.storage.setItem(privacyStorageKey(result.privacy.chat_id, result.privacy.project_id), result.privacy.ciphertext);
 		}
@@ -131,12 +135,7 @@ export function createProjectFileJobRunner(deps: ProjectFileJobRunnerDeps) {
 		}
 		const { chat_id: chatId, project_id: projectId } = payload as { chat_id: string; project_id: string };
 		return enqueue(chatId, async () => {
-			try {
-				await preparePrivacy(chatId, projectId);
-			} catch (error) {
-				console.warn('[ProjectFiles] Privacy layer unavailable', codeOf(error));
-			}
-			await process(await deps.step(kind, payload, true));
+			await process(await deps.step(kind, payload, true, await privacyInputs(chatId, projectId)));
 		});
 	}
 

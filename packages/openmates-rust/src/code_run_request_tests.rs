@@ -81,3 +81,17 @@ fn final_status_formatting() {
     );
     assert_eq!(format_final_status(&json!({})), "");
 }
+
+#[test]
+fn final_status_prints_stdout_events_of_the_server_record() {
+    // Shape of a finished /v1/code/run/{id} record: no `output` field.
+    let status = json!({"status":"finished","exit_code":0,"events":[
+        {"kind":"status","text":"Queued code run...\n"},
+        {"kind":"stdout","text":"Lemon pancakes for 6:\n"},
+        {"kind":"stderr","text":"warning: rounded\n"},
+        {"kind":"stdout","text":"flour_g: 600\n"},
+        {"kind":"status","text":"Finished.\n"}]});
+    assert_eq!(format_final_status(&status), "Lemon pancakes for 6:\nflour_g: 600\n");
+    assert_eq!(final_status_stderr(&status), "warning: rounded\n");
+    assert_eq!(final_status_stderr(&json!({})), "");
+}

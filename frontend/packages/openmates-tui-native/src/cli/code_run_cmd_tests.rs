@@ -70,15 +70,20 @@ fn out_of_scope_flags_are_refused_with_a_typed_error() {
 #[tokio::test]
 async fn human_output_prints_status_line_output_and_succeeds() {
     let i = invocation(&[("code", json!("print(1)")), ("language", json!("python"))]);
-    let out = flow(&i, |_| async { Ok(finished("1\n", 0)) }).await.unwrap_or_else(|_| panic!("run"));
+    let mut progress = String::new();
+    let out = flow(&i, |line| progress.push_str(line), |_| async { Ok(finished("1\n", 0)) })
+        .await
+        .unwrap_or_else(|_| panic!("run"));
     assert_eq!((out.exit_code, out.stdout.as_str()), (0, "1\n"));
-    assert_eq!(out.stderr, "Starting Code Run for main.py (1 file)...\n");
+    // The starting line is printed before the request, not after the run's output.
+    assert_eq!(progress, "Starting Code Run for main.py (1 file)...\n");
+    assert_eq!(out.stderr, "");
 }
 
 #[tokio::test]
 async fn failed_run_exits_nonzero_and_json_embeds_final() {
     let i = invocation(&[("code", json!("x")), ("language", json!("python")), ("json", json!(true))]);
-    let out = flow(&i, |_| async { Ok(finished("boom", 3)) }).await.unwrap_or_else(|_| panic!("run"));
+    let out = flow(&i, |_| panic!("json mode prints no progress"), |_| async { Ok(finished("boom", 3)) }).await.unwrap_or_else(|_| panic!("run"));
     assert_eq!(out.exit_code, 1);
     assert_eq!(out.stderr, "Code Run finished with exit code 3.\n");
     let printed: Value = serde_json::from_str(&out.stdout).unwrap_or_default();
@@ -89,7 +94,7 @@ async fn failed_run_exits_nonzero_and_json_embeds_final() {
 #[tokio::test]
 async fn consent_required_refuses_with_exit_two_without_a_tty() {
     let i = invocation(&[("code", json!("x")), ("language", json!("python"))]);
-    let out = flow(&i, |_| async { Err(Error::Unavailable { code: "e2b_consent_required", reason: "r" }) })
+    let out = flow(&i, |_| {}, |_| async { Err(Error::Unavailable { code: "e2b_consent_required", reason: "r" }) })
         .await
         .unwrap_or_else(|_| panic!("refusal"));
     assert_eq!(out.exit_code, 2);
@@ -99,7 +104,7 @@ async fn consent_required_refuses_with_exit_two_without_a_tty() {
 #[tokio::test]
 async fn allow_flag_sends_upload_consent_from_the_start() {
     let i = invocation(&[("code", json!("x")), ("allow-e2b-upload", json!(true))]);
-    let out = flow(&i, |body| async move {
+    let out = flow(&i, |_| {}, |body| async move {
         assert_eq!(body["allow_e2b_upload"], true);
         Ok(finished("ok", 0))
     })
@@ -187,4 +192,24 @@ async fn session_path_consent_refusal_exits_two_without_a_tty() {
     assert_eq!(out.exit_code, 2);
     assert!(out.stderr.contains("Nothing was uploaded."));
     drop(server.await);
+}
+
+#[tokio::test]
+async fn server_record_events_print_stdout_and_stderr_on_their_streams() {
+    // The /v1/code/run/{id} record has no `output` field; text arrives as events.
+    let i = invocation(&[("code", json!("x")), ("language", json!("python"))]);
+    let record = json!({"data":{"results":[{"execution_id":"e","status_path":"/v1/code/run/e",
+        "final":{"status":"finished","exit_code":0,"events":[
+            {"kind":"status","text":"Queued code run...\n"},
+            {"kind":"stdout","text":"Lemon pancakes for 6:\n"},
+            {"kind":"stderr","text":"note: rounded\n"},
+            {"kind":"stdout","text":"  flour_g: 600\n"}]}}]}});
+    let out = flow(&i, |_| {}, |_| {
+        let record = record.clone();
+        async move { Ok(record) }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("run"));
+    assert_eq!((out.exit_code, out.stdout.as_str()), (0, "Lemon pancakes for 6:\n  flour_g: 600\n"));
+    assert_eq!(out.stderr, "note: rounded\n");
 }

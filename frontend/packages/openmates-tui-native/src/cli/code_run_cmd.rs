@@ -159,6 +159,9 @@ fn finish(i: &Invocation, response: &Value, mut stderr: String) -> Result<CliOut
             exit_code: 0,
         }
     };
+    if !i.boolean("json") {
+        stderr.push_str(&super::terminal_text(&core::final_status_stderr(status)));
+    }
     let state = status["status"].as_str().unwrap_or("unknown");
     let code = status["exit_code"].as_i64();
     if state != "finished" || code != Some(0) {
@@ -179,8 +182,23 @@ fn consent_allowed(i: &Invocation) -> bool {
         )
 }
 
+/// Print a progress line on stderr right away (not with the buffered final
+/// output), so it appears before the run's own output.
+fn print_progress(line: &str) {
+    use std::io::Write;
+    let mut stderr = std::io::stderr();
+    // Best effort, like the other CLI progress lines: a closed stderr must not fail the run.
+    let _ = stderr.write_all(line.as_bytes());
+    let _ = stderr.flush();
+}
+
 /// Build, send (with the E2B consent step) and render one Code Run.
-async fn flow<F, Fut>(i: &Invocation, mut send: F) -> Result<CliOutput, CliError>
+/// `progress` receives the starting line once, before the billable request.
+async fn flow<F, Fut>(
+    i: &Invocation,
+    progress: impl FnOnce(&str),
+    mut send: F,
+) -> Result<CliOutput, CliError>
 where
     F: FnMut(Value) -> Fut,
     Fut: Future<Output = Result<Value, Error>>,
@@ -198,9 +216,12 @@ where
             if count == 1 { "" } else { "s" }
         )
     };
+    if !starting.is_empty() {
+        progress(&starting);
+    }
     loop {
         match send(body.clone()).await {
-            Ok(response) => return finish(i, &response, starting),
+            Ok(response) => return finish(i, &response, String::new()),
             Err(error) => {
                 let error = CliError::Client(error);
                 let Some(refusal) = e2b_consent_cmd::refusal_output(&error) else {
@@ -228,7 +249,10 @@ pub(super) async fn execute(
     }
     client.set_operation_cancel(cancel.clone());
     let sdk = &*client;
-    let output = flow(i, |body| async move { sdk.apps().code().run(body).await }).await;
+    let output = flow(i, print_progress, |body| async move {
+        sdk.apps().code().run(body).await
+    })
+    .await;
     if cancel.is_cancelled() {
         return Err(Error::Cancelled.into());
     }
@@ -245,7 +269,7 @@ pub(super) async fn execute_session(
 ) -> Result<CliOutput, CliError> {
     check_flags(i)?;
     let client = tokio::sync::Mutex::new(client);
-    flow(i, |body| {
+    flow(i, print_progress, |body| {
         let client = &client;
         async move { client.lock().await.run_code_with_status(body, admission).await }
     })

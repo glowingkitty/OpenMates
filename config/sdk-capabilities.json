@@ -1014,6 +1014,7 @@
             "code_run_request.MAX_TOTAL_BYTES",
             "code_run_request.build_direct_request",
             "code_run_request.default_filename",
+            "code_run_request.final_status_stderr",
             "code_run_request.format_final_status",
             "code_run_request.infer_language",
             "code_run_request.inline_file",

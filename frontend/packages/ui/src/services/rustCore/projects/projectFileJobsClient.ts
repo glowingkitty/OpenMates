@@ -10,7 +10,7 @@ import { requireSharedRustCore, type SharedRustCore } from '../host/sharedCoreRe
 import { createUnitPort, UnitPortError, type UnitPort } from '../host/unitPort';
 import { withServerSession } from './projectTimelineClient';
 import {
-	PROJECT_FILE_JOBS_UNIT_CLOSE, type ProjectCreateEventKind, type ProjectCreateResult, type ProjectFileJobEventKind, type ProjectFileJobStep, type ProjectFileJobsProtocol
+	PROJECT_FILE_JOBS_UNIT_CLOSE, type ProjectCreateEventKind, type ProjectCreateResult, type ProjectFileJobEventKind, type ProjectFileJobPrivacyInputs, type ProjectFileJobStep, type ProjectFileJobsProtocol
 } from './projectFileJobsProtocol';
 
 export const PROJECT_FILE_JOBS_ENABLED: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
@@ -20,7 +20,6 @@ const BIND_POLL_MS = 50;
 /** A step may run a file read/write against the project; bounded like other core writes. */
 const STEP_TIMEOUT_MS = 60_000;
 const DECIDE_TIMEOUT_MS = 60_000;
-const MAPPINGS_TIMEOUT_MS = 10_000;
 /** Creation encrypts and stores a Project and its focus (several REST calls). */
 const CREATE_TIMEOUT_MS = 60_000;
 
@@ -66,27 +65,16 @@ async function unit(): Promise<UnitPort<ProjectFileJobsProtocol>> {
 	return (await opening).unit;
 }
 
-/** Handle one `project_file_operation_available` / `_request` event; resolves with the frames, prompts and applied changes. */
+/** Handle one `project_file_operation_available` / `_request` event (privacy is installed in the same core borrow); resolves with the frames, prompts and applied changes. */
 export function stepProjectFileJob(kind: ProjectFileJobEventKind, event: Record<string, unknown>,
-	interactive: boolean): Promise<ProjectFileJobStep> {
-	return withServerSession(async () => (await unit()).request('step', { kind, event, interactive }, { timeoutMs: STEP_TIMEOUT_MS }));
+	interactive: boolean, privacy: ProjectFileJobPrivacyInputs): Promise<ProjectFileJobStep> {
+	return withServerSession(async () => (await unit()).request('step', { kind, event, interactive, privacy }, { timeoutMs: STEP_TIMEOUT_MS }));
 }
 
 /** Apply the user's accept/decline of a pending prompt. */
-export function decideProjectFileJob(chatId: string, operationId: string, accept: boolean): Promise<ProjectFileJobStep> {
-	return withServerSession(async () => (await unit()).request('decide', { chatId, operationId, accept }, { timeoutMs: DECIDE_TIMEOUT_MS }));
-}
-
-/** Set the chat's privacy mappings the core uses to restore file writes. */
-export async function setProjectFileJobMappings(chatId: string, mappings: unknown[]): Promise<void> {
-	await withServerSession(async () => (await unit()).request('setMappings', { chatId, mappings }, { timeoutMs: MAPPINGS_TIMEOUT_MS }));
-}
-
-/** Install the chat's privacy layer; a rejection means the chat's file jobs must not run. */
-export async function setProjectFileJobPrivacy(chatId: string, projectId: string, enabled: boolean,
-	memories: unknown[], sealed: string | null): Promise<void> {
-	await withServerSession(async () => (await unit()).request('setPrivacy',
-		{ chatId, projectId, enabled, memories, sealed }, { timeoutMs: MAPPINGS_TIMEOUT_MS }));
+export function decideProjectFileJob(chatId: string, operationId: string, accept: boolean,
+	privacy: ProjectFileJobPrivacyInputs): Promise<ProjectFileJobStep> {
+	return withServerSession(async () => (await unit()).request('decide', { chatId, operationId, accept, privacy }, { timeoutMs: DECIDE_TIMEOUT_MS }));
 }
 
 /** Handle one assistant Project creation frame; resolves with the `project_create_result` payload to send, or null. */

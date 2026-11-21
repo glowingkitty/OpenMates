@@ -11897,6 +11897,7 @@ features:
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
+      - frontend/apps/web_app/tests/cli-native-code-run-real.spec.ts
       - frontend/apps/web_app/tests/cli-native-code-run.spec.ts
       - frontend/apps/web_app/tests/cli-project-file-chat.spec.ts
       key_unit_tests:
@@ -24690,6 +24691,7 @@ features:
       - frontend/apps/web_app/tests/cli-native-apps.spec.ts
       - frontend/apps/web_app/tests/cli-native-billing.spec.ts
       - frontend/apps/web_app/tests/cli-native-chats.spec.ts
+      - frontend/apps/web_app/tests/cli-native-code-run-real.spec.ts
       - frontend/apps/web_app/tests/cli-native-code-run.spec.ts
       - frontend/apps/web_app/tests/cli-native-content.spec.ts
       - frontend/apps/web_app/tests/cli-native-misc.spec.ts
