@@ -44,6 +44,7 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+// contract-test: direct surface=gui.web assertions=notifications.delivery.foreground-chat-suppression
 test('background chat notification shows and allows reply', async ({ page }: { page: any }) => {
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
@@ -147,6 +148,10 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	logStep(`Notification preview: "${previewText}"`);
 	expect(previewText).toBeTruthy();
 	expect(previewText!.trim().length).toBeGreaterThan(0);
+	// A text answer must never leave the generic fallback as the notice body.
+	expect(previewText!.trim()).not.toBe('New AI response ready');
+	// The chat title is shown in the header (title text of the notice).
+	await expect(notification.locator('.notification-title')).not.toHaveText('');
 
 	// Avatar rendering is style/theme-dependent. The behavioral contract here is
 	// that a notification appears with non-empty response preview and remains

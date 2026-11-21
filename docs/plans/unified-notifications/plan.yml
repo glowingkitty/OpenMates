@@ -43,6 +43,7 @@ scope:
     - Device-sealed "<icon> <summary>" title and in "<chat title>" body in the APNs encrypted envelope, default on, opt-out via push preference includeChatTitle; optional device-sealed answer preview, default off (includePreview) (TASK-390).
     - Notification type and summary from the existing post-processing call, benchmarked on synthetic replies (backend/scripts/benchmark_notification_summary_models.py), never billed to users (TASK-390).
     - Opt-in email content (subject summary, chat title, first lines, open-chat link), default off, with plain-text-in-mailbox wording; warning in settings when email and push are both off (TASK-390).
+    - In-app chat notice on web uses the same summary headline (post_processing_completed carries notification_headline to the user's own clients, display only, never stored); the notice upgrades in place and shows the mate image; the generic "New AI response ready" is only the last-resort text (TASK-390 follow-up).
   out:
     - Restoring browser Web Push service worker support.
     - Android FCM or UnifiedPush implementation.

@@ -14,7 +14,7 @@ import pytest
 
 from backend.apps.ai.processing import postprocessor
 from backend.apps.ai.processing.notification_summary import (
-    SUMMARY_HARD_LIMIT, notification_headline, sanitize_notification_fields,
+    SUMMARY_HARD_LIMIT, headline_or_none, notification_headline, sanitize_notification_fields,
 )
 from backend.apps.ai.processing.postprocessor import handle_postprocessing
 from backend.core.api.app.services.notification_headline_handoff import (
@@ -187,3 +187,9 @@ def test_push_content_matrix(prefs, headline, hidden, expected):
                                    preview_text="The beds are planned.", hidden=hidden)
     assert (content.title, content.context, content.body) == expected
     assert (content.sealed_title is None) == (content.title == GENERIC_PUSH_TITLE)
+
+
+def test_headline_or_none_is_the_icon_line_or_nothing():
+    assert headline_or_none("done", "Built the recipe app") == "✅ Built the recipe app"
+    assert headline_or_none("question", None) is None
+    assert headline_or_none("weird", "x") is None

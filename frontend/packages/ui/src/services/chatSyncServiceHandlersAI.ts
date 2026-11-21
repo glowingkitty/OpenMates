@@ -1280,7 +1280,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
         chatTitle,
         messagePreview,
         undefined, // avatarUrl - not used, we use category-based profile images
-        category || undefined, // Pass mate category for profile image rendering
+        category || chat.category || undefined, // Mate category for the profile image
       );
     }
 
@@ -2678,6 +2678,8 @@ export async function handlePostProcessingCompletedImpl(
       status?: "backlog" | "todo" | "in_progress" | "blocked" | "done";
       assignee_type?: "user" | "openmates";
     }>;
+    /** "✅ summary" line for the in-app chat notice (absent when the model gave none). */
+    notification_headline?: string;
     task_update_proposals?: Array<{
       task_id: string;
       title?: string | null;
@@ -2733,6 +2735,27 @@ export async function handlePostProcessingCompletedImpl(
         `[ChatSyncService:AI] Ignoring post-processing results for deleted/missing chat ${payload.chat_id}`,
       );
       return;
+    }
+    // The notice appeared at completion with a reply excerpt; now that the summary
+    // exists, show it instead. Display only: it never reaches storage or the server.
+    if (
+      payload.notification_headline && ownerIsCurrent() && turnIsCurrent() &&
+      !isChatVisiblyActive(payload.chat_id) && !chat.is_sub_chat && !chat.parent_id
+    ) {
+      // The mate image needs the category; a first-turn notice may have been shown before it existed.
+      let noticeCategory: string | undefined = chat.category || undefined;
+      if (!noticeCategory && chat.encrypted_category) {
+        try {
+          await chatKeyManager.withKey(payload.chat_id, "decrypt-notice-category", async (noticeKey) => {
+            noticeCategory = (await decryptWithChatKey(chat.encrypted_category!, noticeKey)) || undefined;
+          });
+        } catch (categoryError) {
+          console.debug("[ChatSyncService:AI] Could not decrypt category for the chat notice:", categoryError);
+        }
+      }
+      if (isCurrent() && !isChatVisiblyActive(payload.chat_id)) {
+        notificationStore.applyChatHeadline(payload.chat_id, payload.notification_headline, noticeCategory);
+      }
     }
     if (ownerIsCurrent() && turnIsCurrent()) {
       void persistPostProcessingComposerFallback(payload, serviceInstance, (suggestion) => {

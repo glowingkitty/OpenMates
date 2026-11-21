@@ -176,6 +176,15 @@ function getNotificationOutroDuration(): number {
     : NOTIFICATION_OUTRO_DURATION_MS;
 }
 
+const PENDING_HEADLINE_MS = 30_000;
+const pendingHeadlines = new Map<string, { headline: string; expires: number }>();
+
+function takePendingHeadline(chatId: string): string | undefined {
+  const pending = pendingHeadlines.get(chatId);
+  pendingHeadlines.delete(chatId);
+  return pending && pending.expires > Date.now() ? pending.headline : undefined;
+}
+
 export const notificationStore = {
   subscribe,
 
@@ -491,7 +500,7 @@ export const notificationStore = {
   ) =>
     notificationStore.addNotificationWithOptions("chat_message", {
       title: chatTitle,
-      message,
+      message: takePendingHeadline(chatId) ?? message,
       chatId,
       chatTitle,
       avatarUrl,
@@ -499,6 +508,28 @@ export const notificationStore = {
       duration: 10000, // 10 seconds - enough time to read the preview and decide to reply
       dismissible: true,
     }),
+
+  /**
+   * Replace the reply excerpt of a chat's live notice with the summary headline
+   * ("✅ Added 4 models, 3 tests pass") once post-processing delivers it, and fill in
+   * the mate image when the notice was created without a category.
+   * The notice is shown at completion, before post-processing finishes, so this
+   * updates it in place. Returns false when no live notice exists (nothing is shown).
+   */
+  applyChatHeadline: (chatId: string, headline: string, category?: string): boolean => {
+    let updated = false;
+    update((state) => ({
+      notifications: state.notifications.map((n) => {
+        if (n.type !== "chat_message" || n.chatId !== chatId || n.isExiting) return n;
+        updated = true;
+        return { ...n, message: headline, category: n.avatarUrl ? n.category : (n.category || category) };
+      }),
+    }));
+    // Post-processing can finish before the completion notice is created: keep the
+    // headline briefly so that notice starts with it instead of a reply excerpt.
+    if (!updated) pendingHeadlines.set(chatId, { headline, expires: Date.now() + PENDING_HEADLINE_MS });
+    return updated;
+  },
 };
 
 // Example Usage:

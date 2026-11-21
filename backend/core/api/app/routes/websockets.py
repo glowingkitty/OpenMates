@@ -2257,6 +2257,14 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "source_metadata_v": redis_payload.get("source_metadata_v"),
                     }
 
+                    # Notification headline ("✅ summary") for the user's own open clients: the
+                    # in-app chat notice shows it instead of a reply excerpt. Absent when the
+                    # model gave no usable type/summary (the client then keeps its fallback).
+                    from backend.apps.ai.processing.notification_summary import headline_or_none
+                    headline = headline_or_none(redis_payload.get("notification_type"), redis_payload.get("notification_summary"))
+                    if headline:
+                        client_payload["notification_headline"] = headline
+
                     # OPE-265: Include updated title when post-processing detected conversation drift
                     updated_title = redis_payload.get("updated_chat_title")
                     if updated_title:

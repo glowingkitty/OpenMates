@@ -7786,10 +7786,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 14
+        passing: 15
         failing: 9
         not_run: 1
-        missing: 4
+        missing: 3
         counted: 28
       failing_tests:
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts › shows notification and submits details only after
@@ -7804,6 +7804,7 @@ features:
         state for notification suppression
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/background-chat-notification.spec.ts
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       - frontend/apps/web_app/tests/components/event-sounds.spec.ts

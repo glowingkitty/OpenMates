@@ -256,3 +256,43 @@ describe("duplicate notification groups", () => {
     expect(notifications()).toMatchObject([{ count: 1 }]);
   });
 });
+
+describe("chat notice summary headline", () => {
+  // contract-test: supporting surface=gui.web assertions=notifications.delivery.foreground-chat-suppression
+  it("replaces the reply excerpt of a live notice and fills in the mate category", () => {
+    notificationStore.chatMessage("chat-1", "Simple recipe web app", "New AI response ready");
+    expect(notificationStore.applyChatHeadline("chat-1", "✅ Built a recipe app with search", "software_development")).toBe(true);
+    expect(notifications()).toMatchObject([
+      { chatTitle: "Simple recipe web app", message: "✅ Built a recipe app with search", category: "software_development" },
+    ]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.delivery.foreground-chat-suppression
+  it("keeps a category the notice already has and leaves other chats alone", () => {
+    notificationStore.chatMessage("chat-1", "One", "excerpt", undefined, "cooking_food");
+    notificationStore.chatMessage("chat-2", "Two", "other excerpt");
+    notificationStore.applyChatHeadline("chat-1", "ℹ️ Pasta needs 10 minutes", "software_development");
+    expect(notifications()).toMatchObject([
+      { chatId: "chat-1", message: "ℹ️ Pasta needs 10 minutes", category: "cooking_food" },
+      { chatId: "chat-2", message: "other excerpt" },
+    ]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.delivery.foreground-chat-suppression
+  it("starts a notice created after the headline with that headline, once", () => {
+    expect(notificationStore.applyChatHeadline("chat-3", "❓ Which database should it use?")).toBe(false);
+    notificationStore.chatMessage("chat-3", "Three", "New AI response ready");
+    expect(notifications()[0].message).toBe("❓ Which database should it use?");
+    notificationStore.clearAllNotifications();
+    notificationStore.chatMessage("chat-3", "Three", "next excerpt");
+    expect(notifications()[0].message).toBe("next excerpt");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.delivery.foreground-chat-suppression
+  it("drops a pending headline after 30 seconds", () => {
+    notificationStore.applyChatHeadline("chat-4", "✅ Done");
+    vi.advanceTimersByTime(31_000);
+    notificationStore.chatMessage("chat-4", "Four", "excerpt");
+    expect(notifications()[0].message).toBe("excerpt");
+  });
+});

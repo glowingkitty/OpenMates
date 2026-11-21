@@ -54,3 +54,9 @@ def _shorten(summary: str) -> str:
 def notification_headline(notification_type: str, summary: str) -> str:
     """Icon plus summary, for example "✅ Gemini 4 models added, 3 tests pass"."""
     return f"{NOTIFICATION_ICONS[notification_type]} {summary}"
+
+
+def headline_or_none(notification_type: Any, summary: Any) -> Optional[str]:
+    """The icon + summary line when both parts are valid, otherwise None (generic text)."""
+    kind, clean = sanitize_notification_fields({"notification_type": notification_type, "notification_summary": summary})
+    return notification_headline(kind, clean) if kind and clean else None
