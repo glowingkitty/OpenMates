@@ -1853,11 +1853,17 @@ struct MainAppView: View {
             workspaceMaintenanceResume?.cancel()
             NativeWorkspaceOfflineRuntime.pauseMaintenance()
             TeamWorkspaceOfflineRetention.pause()
+            // Lost while in use (a readmit failed): keep re-admitting so the
+            // socket returns without waiting for a scene change. TASK-1410.
+            if scenePhase == .active {
+                authManager.recoverNetworkAuthorityWhileForeground { Self.isAppForeground }
+            }
             return
         }
         guard authority != nil, oldValue == nil, authManager.hasNetworkAuthority,
               didBootstrapAuthenticatedSession else { return }
         openPendingWorkflowWidgetRun()
+        wsManager.admitFreshRetryBudget()
         connectWebSocket()
         openPendingWorkflowCompletion()
         maintainOfflineWorkspaces(force: true)
@@ -2197,9 +2203,12 @@ struct MainAppView: View {
             showAuthSheet = true
             return
         }
-        if newValue == .active, isAuthenticated, !authManager.hasNetworkAuthority,
-           authManager.sessionValidationState == .offlineAuthenticated {
-            Task { await authManager.ensureAdmitted() }
+        if newValue == .active, isAuthenticated, !authManager.hasNetworkAuthority {
+            // Re-admit until the authority returns; its return reconnects the
+            // main socket (networkAuthorityDidChange). TASK-1410.
+            authManager.recoverNetworkAuthorityWhileForeground { Self.isAppForeground }
+        } else if newValue == .background {
+            authManager.stopNetworkAuthorityRecovery()
         }
         configureMemoryActivities()
         if newValue == .active, authManager.hasNetworkAuthority {
@@ -2247,12 +2256,22 @@ struct MainAppView: View {
         case .connected, .connecting, .reconnecting:
             schedulePendingAssistantResponseFlush()
         case .disconnected:
+            wsManager.admitFreshRetryBudget()
             Task {
                 guard authManager.sessionRecoveryContext != nil else { return }
                 await authManager.ensureAdmitted()
                 connectWebSocket()
             }
         }
+    }
+
+    /// The app can still use the network (not suspended in the background).
+    private static var isAppForeground: Bool {
+        #if os(iOS)
+        UIApplication.shared.applicationState != .background
+        #else
+        true
+        #endif
     }
 
     private func websocketConnectionStateDidChange(_ oldValue: WebSocketManager.ConnectionState, _ newValue: WebSocketManager.ConnectionState) {
