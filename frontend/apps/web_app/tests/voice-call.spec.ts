@@ -53,6 +53,7 @@ interface SocketObservation {
   autoSpeak?: boolean;
   forcedModel?: boolean;
   speaking?: boolean;
+  chatStartClipText?: boolean;
   kind?: string;
   speechStatus?: string;
   clipId?: string;
@@ -496,7 +497,9 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
             final:payload.is_final_chunk===true&&!payload.awaiting_async_skill_continuation,
             finalChunk:payload.is_final_chunk===true,awaitingContinuation:payload.awaiting_async_skill_continuation===true,
             interruptedByRevocation:payload.interrupted_by_revocation===true,interruptedBySoftLimit:payload.interrupted_by_soft_limit===true}:{}),
-          ...(event.type==='assistant_state'?{speaking:payload.speaking,language:payload.language}:{}),
+          ...(event.type==='assistant_state'?{speaking:payload.speaking,language:payload.language,
+            // Only whether the playing chat-start clip was reported (EYHC5).
+            chatStartClipText:typeof payload.clip_audio_url==='string'&&payload.clip_audio_url.endsWith('/chat_start-1.mp3')}:{}),
           ...(sent&&event.type==='assistant_speech'?{
             speechAction:speechActions.has(payload.action)?payload.action:undefined}:{}),
           ...(event.type==='assistant_speech_acknowledgement'&&typeof payload.clip_id==='string'&&/^[A-Za-z0-9._-]{1,128}$/.test(payload.clip_id)?{clipId:payload.clip_id}:{}),
@@ -2898,6 +2901,10 @@ test.describe('Voice mode through ordinary chat', () => {
     const acknowledgementClips=async()=>(await evidence(page)).received
       .filter(frame=>frame.type==='assistant_speech_acknowledgement').map(frame=>frame.clipId);
     await expect.poll(acknowledgementClips,{timeout:30_000}).toEqual(['system-de-DE-chat_start-1']);
+    // The call reports the playing clip, so the server can recognise its words
+    // as echo if the microphone picks them up (EYHC5).
+    await expect.poll(async()=>(await evidence(page)).sent.some(frame=>frame.type==='assistant_state'&&frame.chatStartClipText===true),
+      {timeout:15_000}).toBe(true);
     expect((await evidence(page)).received.filter(frame=>frame.type==='assistant_speech_status'&&frame.kind==='waiting_confirmation')).toHaveLength(0);
     await waitForCanonicalAssistant(page,id);
     // After routing no second confirmation follows in the routed Mate's voice.

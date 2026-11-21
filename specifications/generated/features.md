@@ -46,7 +46,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Chat search](#chat-search) | **live** 1/1 | impl |  | impl | impl | — | impl | impl | on (no flag) | on (no flag) | v0.5.0-alpha |
 | [Chat Share Settings](#chat-share-settings) | **FAIL** 1/4 | partial 2/4 | tested 1/1 | not run 0/1 | impl | not run 0/1 | — | — | on (no flag) | on (no flag) | v0.5.0-alpha |
 | [Chat Unread State](#chat-unread) | **FAIL** 0/5 | impl |  | impl | **FAIL** 0/4 | **live** 1/1 | — | — | on (no flag) | on (no flag) | untagged-main |
-| [Chat-bound Voice And Video Calls](#video-call) | **FAIL** 33/60 | partial 30/51 | tested 8/8 | — | — | partial 14/20 | — | — | on (no flag) | on (no flag) | v0.19.0 |
+| [Chat-bound Voice And Video Calls](#video-call) | **FAIL** 33/60 | partial 30/51 | tested 8/8 | — | — | partial 15/20 | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Chats](#chats) | **FAIL** 9/29 | **FAIL** 12/29 | tested 3/3 | **FAIL** 1/29 | **FAIL** 1/5 | **FAIL** 11/15 | not run 0/4 | not run 0/2 | on (no flag) | on (no flag) | v0.5.0-alpha |
 | &nbsp;&nbsp;↳ Sending and delivery | **FAIL** 1/4 | partial 3/4 | tested 1/1 | **FAIL** 0/4 | ? | **live** 2/2 | ? | ? | | | |
 | &nbsp;&nbsp;↳ Streaming replies | **FAIL** 1/4 | **FAIL** 1/4 | ? | **FAIL** 0/4 | not run 0/1 | **live** 2/2 | ? | ? | | | |
@@ -1082,7 +1082,7 @@ Voice and video calls with the assistant, bound to an encrypted chat.
 | Watch | tested 8/8 | 8 pass · 0 fail · 0 not run · 0 no test | [WatchVoiceCallConsentUITests.swift](../../apple/OpenMatesWatchUITests/WatchVoiceCallConsentUITests.swift)<br>[WatchVoiceEvaluationUITests.swift](../../apple/OpenMatesWatchUITests/WatchVoiceEvaluationUITests.swift)<br>5 unit test file(s), e.g. [WatchVoiceCallToolCoordinatorTests.swift](../../apple/OpenMatesTests/WatchVoiceCallToolCoordinatorTests.swift), [WatchChatRuntimeTests.swift](../../apple/OpenMatesTests/WatchChatRuntimeTests.swift) |
 | CLI | — | — | — |
 | TUI | — | — | — |
-| REST API | partial 14/20 | 14 pass · 0 fail · 6 not run · 0 no test | 27 unit test file(s), e.g. [test_voice_realtime_turn.py](../../backend/tests/test_voice_realtime_turn.py), [test_call_message_completed_handler.py](../../backend/tests/test_call_message_completed_handler.py) |
+| REST API | partial 15/20 | 15 pass · 0 fail · 5 not run · 0 no test | 27 unit test file(s), e.g. [test_voice_realtime_turn.py](../../backend/tests/test_voice_realtime_turn.py), [test_voice_status.py](../../backend/tests/test_voice_status.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 

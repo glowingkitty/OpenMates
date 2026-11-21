@@ -261,7 +261,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private assistantMessagesByTask = new Map<string, string>();
   private assistantTasksByMessage = new Map<string, string>();
   private speechActivity = { chatId: null as string | null, messageId: null as string | null,
-    text: '', speaking: false, language: 'en' };
+    text: '', speaking: false, language: 'en', clipAudioUrl: null as string | null };
   private camera: VoiceCallCamera | null = null;
   private cameraGeneration = 0;
   private cameraCollapse: ReturnType<typeof setTimeout> | null = null;
@@ -1012,9 +1012,13 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.assistantMessageId = messageId;
     this.assistantTaskId = taskId;
     this.update({ assistantSpeaking: speaking, assistantMessageId: messageId, assistantGenerating: !!activeTask });
+    const current = speech.chatId === chatId && speech.messageId === messageId;
     this.send({ type: 'assistant_state', speaking, generating: !!activeTask,
       assistant_message_id: messageId, assistant_task_id: taskId,
-      text: speech.chatId === chatId && speech.messageId === messageId ? speech.text.slice(-8_000) : '',
+      text: current ? speech.text.slice(-8_000) : '',
+      // This message's prerecorded clip (also a call prompt): the server knows
+      // its approved words and treats their echo during playback as recapture (EYHC5).
+      clip_audio_url: current ? speech.clipAudioUrl : null,
       language: speech.language });
   }
 
@@ -1314,7 +1318,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.pendingHeardBoundary = null;
     this.assistantMessagesByTask.clear();
     this.assistantTasksByMessage.clear();
-    this.speechActivity = { chatId: null, messageId: null, text: '', speaking: false, language: 'en' };
+    this.speechActivity = { chatId: null, messageId: null, text: '', speaking: false, language: 'en', clipAudioUrl: null };
     this.canonicalService = null;
     if (this.state.callId) void assistantSpeechController.stop();
     assistantSpeechController.setCallOwner(null);

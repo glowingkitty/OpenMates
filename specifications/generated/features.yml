@@ -10160,17 +10160,17 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 14
+        passing: 15
         failing: 0
-        not_run: 6
+        not_run: 5
         missing: 0
         counted: 20
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_voice_realtime_turn.py
-      - backend/tests/test_call_message_completed_handler.py
       - backend/tests/test_voice_status.py
+      - backend/tests/test_call_message_completed_handler.py
       - backend/tests/test_preprocessing_voice_delivery.py
       - backend/tests/test_voice_call_instructions.py
       unit_test_files: 27

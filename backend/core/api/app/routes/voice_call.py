@@ -975,11 +975,18 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     speaking, generating = event.get("speaking"), event.get("generating", False)
                     text, identity = event.get("text", ""), event.get("assistant_message_id")
                     task_id = event.get("assistant_task_id")
+                    clip_audio_url = event.get("clip_audio_url")
                     if (type(speaking) is not bool or type(generating) is not bool or not isinstance(text, str)
                             or len(text) > MAX_TEXT_CHARS or (identity is not None and
                             (not isinstance(identity, str) or not MESSAGE_ID.fullmatch(identity)))
-                            or (task_id is not None and (not isinstance(task_id, str) or not MESSAGE_ID.fullmatch(task_id)))):
+                            or (task_id is not None and (not isinstance(task_id, str) or not MESSAGE_ID.fullmatch(task_id)))
+                            or (clip_audio_url is not None and (not isinstance(clip_audio_url, str) or len(clip_audio_url) > 256))):
                         raise ValueError("Invalid assistant state")
+                    if clip_audio_url:
+                        # A playing prerecorded clip: its approved words join the
+                        # spoken text so its microphone echo is recapture (EYHC5).
+                        from backend.apps.audio.assistant_speech.acknowledgements import prerecorded_clip_text
+                        text = "\n".join(part for part in (prerecorded_clip_text(clip_audio_url), text) if part)
                     assistant.update(speaking=speaking, generating=generating, text=text,
                                      assistant_message_id=identity, assistant_task_id=task_id)
                 elif kind == "text_input":

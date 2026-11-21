@@ -131,10 +131,15 @@ const LIVE_SEAL_ERROR = "Speech is temporarily unavailable.";
 class AssistantSpeechController {
   readonly player = writable<AssistantSpeechPlayerState>(INITIAL_PLAYER_STATE);
   readonly activity = writable({ chatId: null as string | null, messageId: null as string | null,
-    text: "", speaking: false, language: "en" });
+    text: "", speaking: false, language: "en",
+    /** Static asset of a prerecorded clip playing for this message: a live call
+     * reports it so the server can recognise the clip's echo (EYHC5). */
+    clipAudioUrl: null as string | null });
   private callOwner: string | null = null;
   private activeCallId: string | null = null;
   private canonicalSource: { chatId: string; messageId: string; text: string } | null = null;
+  /** The prerecorded clip spoken for a message before (or instead of) its answer. */
+  private acknowledgementClip: { messageId: string; audioUrl: string } | null = null;
   private readonly queue = new AssistantSpeechQueue({
     onStateChange: () => this.publish(),
     onNeedSegment: (segment) => { void this.requestGeneration(segment); },
@@ -376,6 +381,7 @@ class AssistantSpeechController {
 
   async close(): Promise<void> {
     this.canonicalSource = null;
+    this.acknowledgementClip = null;
     if (this.messageId) this.dismissedMessageIds.add(this.messageId);
     this.audioResolutionGeneration += 1;
     this.queue.stop();
@@ -423,6 +429,7 @@ class AssistantSpeechController {
 
   async stop(): Promise<void> {
     this.canonicalSource = null;
+    this.acknowledgementClip = null;
     if (this.messageId) this.rememberStoppedMessage(this.messageId);
     this.audioResolutionGeneration += 1;
     this.queue.stop();
@@ -881,6 +888,7 @@ class AssistantSpeechController {
     this.chatId = payload.chat_id;
     this.messageId = payload.message_id;
     this.error = null;
+    this.acknowledgementClip = { messageId: payload.message_id, audioUrl: payload.audio_url };
     const acknowledgement: AssistantSpeechSegment = {
       id: `acknowledgement:${payload.clip_id}`,
       sequence: -1,
@@ -1048,11 +1056,16 @@ class AssistantSpeechController {
   }
 
   private publish(): void {
-    const source = this.canonicalSource;
+    // A clip for a new answer plays before that answer's text arrives: report
+    // the playing message and its clip, not the previous answer as silent, so
+    // a live call can recognise the clip in its microphone (EYHC5).
+    const clip = this.acknowledgementClip?.messageId === this.messageId ? this.acknowledgementClip : null;
+    const source = clip && this.canonicalSource?.messageId !== this.messageId ? null : this.canonicalSource;
     this.activity.set({
       chatId: source?.chatId ?? this.chatId,
       messageId: source?.messageId ?? this.messageId,
       text: source?.text ?? "",
+      clipAudioUrl: clip?.audioUrl ?? null,
       speaking: this.queue.state.status === "playing" && (!source || source.messageId === this.messageId),
       language: get(locale) || "en",
     });

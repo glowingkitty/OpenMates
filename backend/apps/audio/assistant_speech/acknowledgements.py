@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import re
+
 
 ACKNOWLEDGEMENT_ASSET_ROOT = "/audio/assistant-acknowledgements"
 
@@ -250,3 +252,28 @@ def build_waiting_line_clip(*, line: str, language: str) -> dict[str, object] | 
         "text": WAITING_LINE_TEXTS[locale][line],
         "asset_url": f"{ACKNOWLEDGEMENT_ASSET_ROOT}/{SYSTEM_VOICE_PROFILE_ID}/{locale}/{line}-1.mp3",
     }
+
+
+_CLIP_ASSET = re.compile(
+    rf"^{re.escape(ACKNOWLEDGEMENT_ASSET_ROOT)}/[A-Za-z0-9_-]{{1,64}}/"
+    r"(?P<locale>[a-z]{2}-[A-Z]{2})/(?P<category>[a-z_]{1,32})-(?P<variant>[1-9][0-9]?)\.mp3$"
+)
+
+
+def prerecorded_clip_text(asset_url: str) -> str:
+    """Approved words of a static clip, from its public asset path, or "".
+
+    A live call reports the clip it is playing; the server compares the
+    caller's transcript with these words to recognise microphone echo (EYHC5).
+    """
+    match = _CLIP_ASSET.fullmatch(asset_url)
+    if match is None:
+        return ""
+    locale, category, variant = match["locale"], match["category"], int(match["variant"])
+    if category == CHAT_START_CATEGORY:
+        return CHAT_START_TEXTS.get(locale, "")
+    for catalog in (WAITING_LINE_TEXTS, PERMISSION_PROMPT_TEXTS):
+        if category in catalog.get(locale, {}):
+            return catalog[locale][category]
+    variants = ACKNOWLEDGEMENT_TEXTS.get(locale, {}).get(category, ())
+    return variants[variant - 1] if variant <= len(variants) else ""

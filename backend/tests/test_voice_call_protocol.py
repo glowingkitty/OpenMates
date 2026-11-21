@@ -840,6 +840,25 @@ async def test_short_recapture_of_current_playback_is_discarded_without_an_echo_
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
+async def test_echo_of_a_playing_prerecorded_clip_is_discarded(runtime, monkeypatch):
+    # EYHC5 as reported: the "Starting your chat…" clip played before the answer
+    # had any text, and its echo was saved as the caller's message.
+    async def uncertain(*args):
+        return "uncertain"
+
+    monkeypatch.setattr(route, "_classify", uncertain)
+    socket, provider, _ = await runtime.start()
+    socket.push({"type": "assistant_state", "speaking": True, "text": "", "assistant_message_id": "canonical-assistant",
+                 "clip_audio_url": "/audio/assistant-acknowledgements/system/en-US/chat_start-1.mp3"})
+    await socket.until(lambda events: any(event.get("processing") for event in events))
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Starting your chat.")
+    provider.push("turn.end")
+    assert (await socket.event("transcript.discarded"))["reason"] == "echo"
+    assert not socket.finals() and not runtime.issued and not runtime.completion_texts
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
 @pytest.mark.parametrize("case", ["deliberate", "after_playback"])
 async def test_repeated_assistant_words_stay_a_turn_when_deliberate_or_after_playback(runtime, monkeypatch, case):
     async def verdict(*args):
