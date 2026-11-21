@@ -1118,6 +1118,17 @@ describe('integrated voice call typed turns', () => {
     expect(get(controller).assistantSpeaking).toBe(true); controller.hangup();
   });
 
+  // contract-test: direct surface=gui.web assertions=video-call.audio.single-owner
+  it('reports a spoken memory-request line as speech without a message identity, so the call stays live', async () => {
+    const {controller,harness,socket}=liveController(); harness.bindCanonicalChat(); await vi.waitFor(()=>expect(visual.listeners.size).toBeGreaterThan(0));
+    socket.send.mockClear();
+    assistantSpeechController.activity.set({chatId:'chat-1',messageId:'call-prompt:request-1:request',text:'',speaking:true,language:'en'});
+    const states=socket.send.mock.calls.map(([frame])=>JSON.parse(frame as string)).filter(frame=>frame.type==='assistant_state');
+    expect(states.at(-1)).toMatchObject({speaking:true,assistant_message_id:null,text:''});
+    expect(states.every(frame=>frame.assistant_message_id===null||/^[A-Za-z0-9_-]{1,128}$/.test(frame.assistant_message_id))).toBe(true);
+    expect(get(controller).status).toBe('live'); controller.hangup();
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.video.source-frame-provenance,video-call.audio.complete-turn-admission
   it('waits for the selected encrypted source before admitting its ordinary user turn', async () => {
     const {controller,harness}=liveController(); let release!: (ref:unknown)=>void;

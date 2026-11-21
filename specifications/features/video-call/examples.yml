@@ -486,3 +486,31 @@ orchestration_continuity:
   given: Maya asked in a call to compare three laptops, and the turn waits for three sub-chats.
   when: They finish while the call is still active.
   then: The comparison is spoken in the call in the Mate's voice.
+permission_prompt:
+- id: spoken-memory-request
+  assertion_ids:
+  - video-call.chat.permission-prompt
+  given: Maya is in a voice call and asks "what should I cook tonight, given my diet".
+  when: The turn needs her saved dietary preferences and she taps Allow on the request.
+  then: She hears the "needs you" chime and "I'd like to use your memories for this. Please tap Allow on your screen.",
+    then "Thanks, I'll continue." after the tap, and the answer is spoken.
+- id: memory-request-times-out-in-call
+  assertion_ids:
+  - video-call.chat.permission-prompt
+  given: Maya is in a voice call and a memory request shows its countdown bar.
+  when: She does not tap for about 30 seconds.
+  then: She hears a reminder at about 15 seconds; at about 30 seconds she hears "No problem, I'll answer without your
+    memories.", the chat shows "Memory request timed out, answered without memories" and the spoken answer follows.
+- id: text-chat-continue-without-memories
+  assertion_ids:
+  - video-call.chat.permission-prompt
+  given: Maya types a question in a text chat and a memory request appears.
+  when: She leaves it for a minute, then taps "Continue without memories".
+  then: The request stays open until her tap, and the answer then comes without memories.
+- id: focus-answer-stays-spoken
+  assertion_ids:
+  - video-call.chat.permission-prompt
+  given: Maya is in a voice call and her question activates a focus mode after its countdown.
+  when: The focus mode starts.
+  then: The answer in the focus mode is spoken in the call, not only shown as text.
+

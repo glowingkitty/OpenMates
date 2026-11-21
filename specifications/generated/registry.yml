@@ -1071,7 +1071,7 @@ specifications:
     version: 18
     status: draft
     path: features/video-call
-    fingerprint: 16bb0dd6c4bcc93827ff1e2dddb21b0fecd347cdb5715ead2d09466fe8c52fac
+    fingerprint: 95417c85f3a3ec23b1f8db4cd958603ddc5cf37fcec66c8e31b34fbaf4a2b6b6
     required_applies_to:
     - gui.web
     - gui.apple
@@ -14899,6 +14899,14 @@ assertions:
     required_applies_to:
     - gui.web
     - gui.apple
+  video-call.chat.permission-prompt:
+    specification: feature.video-call@18
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: 58b010ffb849366eb968d5bafd71c86459066d48b6961eb49ea32f7e0afd3328
+    required_applies_to:
+    - gui.web
+    - gui.apple
   video-call.chat.assistant-identity:
     specification: feature.video-call@18
     specification_id: feature.video-call
@@ -15207,7 +15215,7 @@ assertions:
     specification: feature.video-call@18
     specification_id: feature.video-call
     type: invariant
-    fingerprint: c37c5be2b087500c2792c75907bd4c6f9c55aa7e12f985a200f8ca0c87b06ce1
+    fingerprint: b1ab0c22e22fdf8f8ef4ebd4096f991bc65f1e5cebdf2853a8151f305c6f0665
     required_applies_to:
     - gui.web
     - gui.apple

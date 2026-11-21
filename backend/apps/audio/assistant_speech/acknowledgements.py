@@ -113,6 +113,45 @@ ACKNOWLEDGEMENT_TEXTS: dict[str, dict[str, tuple[str, ...]]] = {
 }
 
 
+# Spoken lines of a call request that waits for the user's tap (Memory access
+# and other approvals). Recorded once per Mate voice, so they are played with
+# no inference and no credits. The client plays the local "needs you" chime
+# before the request line, then the reminder at about 15 seconds, the thanks
+# after the tap, and for a Memory request the timeout line when it cancels
+# itself after about 30 seconds.
+PERMISSION_PROMPT_TEXTS: dict[str, dict[str, str]] = {
+    "en-US": {
+        "needs_memory": "I'd like to use your memories for this. Please tap Allow on your screen.",
+        "needs_approval": "I need your OK for this. Please check your screen.",
+        "needs_reminder": "I'm still waiting for your OK on the screen.",
+        "approval_thanks": "Thanks, I'll continue.",
+        "memory_timeout": "No problem, I'll answer without your memories.",
+    },
+    "de-DE": {
+        "needs_memory": "Ich würde dafür gern deine Erinnerungen nutzen. Tippe bitte auf deinem Bildschirm auf Erlauben.",
+        "needs_approval": "Dafür brauche ich dein OK. Schau bitte kurz auf deinen Bildschirm.",
+        "needs_reminder": "Ich warte noch auf dein OK auf dem Bildschirm.",
+        "approval_thanks": "Danke, ich mache weiter.",
+        "memory_timeout": "Kein Problem, ich antworte ohne deine Erinnerungen.",
+    },
+    "es-ES": {
+        "needs_memory": "Me gustaría usar tus recuerdos para esto. Toca Permitir en tu pantalla, por favor.",
+        "needs_approval": "Necesito tu permiso para esto. Mira tu pantalla, por favor.",
+        "needs_reminder": "Sigo esperando tu permiso en la pantalla.",
+        "approval_thanks": "Gracias, sigo.",
+        "memory_timeout": "No pasa nada, responderé sin tus recuerdos.",
+    },
+    "fr-FR": {
+        "needs_memory": "J'aimerais utiliser tes souvenirs pour ça. Touche Autoriser sur ton écran, s'il te plaît.",
+        "needs_approval": "J'ai besoin de ton accord pour ça. Regarde ton écran, s'il te plaît.",
+        "needs_reminder": "J'attends toujours ton accord sur l'écran.",
+        "approval_thanks": "Merci, je continue.",
+        "memory_timeout": "Pas de souci, je réponds sans tes souvenirs.",
+    },
+}
+PERMISSION_PROMPT_VARIANT = 1
+
+
 def build_acknowledgement_clips(
     *,
     voice_profile_id: str,
@@ -156,6 +195,20 @@ def build_chat_start_clip(*, language: str) -> dict[str, object] | None:
         "request_category": CHAT_START_CATEGORY,
         "variant": 1,
         "asset_url": f"{ACKNOWLEDGEMENT_ASSET_ROOT}/{SYSTEM_VOICE_PROFILE_ID}/{locale}/{CHAT_START_CATEGORY}-1.mp3",
+    }
+
+
+def build_permission_prompt_clips(*, voice_profile_id: str, language: str) -> dict[str, str] | None:
+    """Static asset URLs of the waiting-for-your-tap lines in one Mate voice, or None.
+
+    None (unsupported language) keeps the call silent instead of guessing English.
+    """
+    locale = _resolve_locale(language, PERMISSION_PROMPT_TEXTS)
+    if locale is None:
+        return None
+    return {
+        kind: f"{ACKNOWLEDGEMENT_ASSET_ROOT}/{voice_profile_id}/{locale}/{kind}-{PERMISSION_PROMPT_VARIANT}.mp3"
+        for kind in PERMISSION_PROMPT_TEXTS[locale]
     }
 
 

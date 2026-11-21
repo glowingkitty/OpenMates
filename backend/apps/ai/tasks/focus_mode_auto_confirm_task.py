@@ -252,6 +252,13 @@ async def _async_focus_mode_auto_confirm(
         
         if not skill_config_dict or "default_llms" not in skill_config_dict:
             logger.error(f"{log_prefix} Failed to load ask skill config — continuation may fail")
+
+        # A call turn stays spoken after the focus decision; an ended call
+        # continues as an ordinary text turn.
+        from backend.shared.python_utils.voice_call_admission import resumed_voice_delivery
+        voice_delivery = await resumed_voice_delivery(
+            cache_service, pending_context, user_id=user_id, chat_id=chat_id,
+        )
         
         request_data_dict = {
             "chat_id": chat_id,
@@ -299,6 +306,7 @@ async def _async_focus_mode_auto_confirm(
             # This continuation creates a SEPARATE assistant message (new task_id = new message_id).
             # The client renders both messages but visually merges them into one bubble.
             "is_focus_mode_continuation": True,
+            **voice_delivery,
         }
         
         from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload

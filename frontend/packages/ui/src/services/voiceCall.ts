@@ -27,7 +27,7 @@ import {
 } from './voiceCallEmptyChatCleanupQueue';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { getWorkspaceCacheEpoch } from './workspaceCacheLifecycle';
-import { VoiceCallCuePlayer } from './voiceCallCues';
+import { VoiceCallCuePlayer, type VoiceCallCue } from './voiceCallCues';
 import { isWaitingLine, playWaitingLine, replayLastAnswer, waitingLineText } from './voiceCallWaiting';
 import { ensureVoiceCallPrivacyAcknowledgement } from './voiceCallPrivacy';
 import { VoiceCallCamera, type VoiceCallCameraFacing, type VoiceCallVisualSource } from './voiceCallCamera';
@@ -207,6 +207,7 @@ const RESUME_RETRY_DELAYS_MS = [500, 1_000, 2_000, 3_000, 5_000];
 const RESUME_ATTEMPT_TIMEOUT_MS = 15_000;
 const TURN_WRITE_RETRY_DELAYS_MS = [1_500, 4_000, 8_000];
 const TURN_ERROR_OWNERSHIP_GRACE_MS = 5_000;
+const CALL_PROMPT_SPEECH_PREFIX = 'call-prompt:';
 /** How long a hidden page may keep a working microphone before the call is judged unrecoverable. */
 const BACKGROUND_MICROPHONE_CHECK_MS = 1_500;
 
@@ -415,6 +416,8 @@ export class VoiceCallController implements VoiceCallControllerLike {
     // call owns startup. Registration must use the captured composer's saved ID.
     const savedDraft = draftReady?.catch(() => false);
     if (this.state.status === 'connecting' || this.state.status === 'live') return;
+    // Spoken "needs your tap" lines for approvals during this call.
+    void import('./voiceCallPermissionPrompt').then(({ installCallPermissionPrompt }) => installCallPermissionPrompt());
     this.closeResources();
     this.cues.stop();
     if (!supportsAssistantSpeechStream()) {
@@ -977,7 +980,13 @@ export class VoiceCallController implements VoiceCallControllerLike {
     if (this.state.status !== 'live' || !chatId) return;
     const task = this.canonicalService?.activeAITasks.get(chatId);
     const activeTask = task && this.callTurnIds.has(task.userMessageId) ? task : null;
-    const speech = this.speechActivity;
+    // A locally played call prompt (assistantSpeechController.playCallPrompt,
+    // id "call-prompt:<request>:<kind>") is not a stored assistant message:
+    // the server accepts only message ids, so it is reported as speech
+    // without an identity or text (a colon id ended the call).
+    const activity = this.speechActivity;
+    const speech = activity.messageId?.startsWith(CALL_PROMPT_SPEECH_PREFIX)
+      ? { ...activity, messageId: null, text: '' } : activity;
     const speaking = speech.chatId === chatId && speech.speaking;
     const messageId = speaking ? speech.messageId
       : activeTask ? this.assistantMessagesByTask.get(activeTask.taskId) ?? null
@@ -1218,6 +1227,11 @@ export class VoiceCallController implements VoiceCallControllerLike {
       .finally(() => { if (this.mediaLoad === pending) this.mediaLoad = null; });
     this.mediaLoad = pending;
     return pending;
+  }
+
+  /** A local cue on the call's unlocked output; ignored outside a live call. */
+  playCue(cue: VoiceCallCue): void {
+    if (this.state.status === 'live') this.cues.play(cue);
   }
 
   hangup(): void {

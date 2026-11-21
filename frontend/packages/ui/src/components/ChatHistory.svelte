@@ -6,6 +6,7 @@ import { storageArchiveFetch } from "../config/api";
   import { collectHeaderImageRefs } from './embeds/embedPreviewHydration';
   import { embedStore, embedRefIndexVersion } from '../services/embedStore';
   import { publishChatMessageOrder } from '../services/rustCore/embeds/messageEmbedVersion';
+  import { composerDismissRequested } from '../stores/composerFocusStore';
   import { createEventDispatcher, tick, onMount, onDestroy, untrack } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import type { Snippet, SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
@@ -1937,6 +1938,23 @@ import { storageArchiveFetch } from "../config/api";
     $currentConnectedAccountPermissionRequest.chatId === currentChatId
   );
 
+  // A memory request answers the turn the user just sent, often typed in a live
+  // call. The composer stays focused and expanded after that send, which can
+  // push the inline dialog out of view; the first tap on "Include" would then
+  // only collapse the composer, the layout jumps between pointer down and up and
+  // the click never reaches the button. Collapse the composer once when the
+  // dialog appears (the draft stays) and bring the dialog into view.
+  let permissionDialogWrapper = $state<HTMLDivElement | null>(null);
+  let permissionDialogShown = false;
+  $effect(() => {
+    const visible = !!shouldShowPermissionDialog;
+    if (!visible) { permissionDialogShown = false; return; }
+    if (permissionDialogShown) return;
+    permissionDialogShown = true;
+    composerDismissRequested.set(true);
+    void tick().then(() => permissionDialogWrapper?.scrollIntoView({ block: 'nearest' }));
+  });
+
   /**
    * Derived state: Detect unpaired app settings/memories requests.
    * An "unpaired" request is a request system message that has no matching response system message
@@ -3691,7 +3709,7 @@ import { storageArchiveFetch } from "../config/api";
             <!-- Placed BEFORE the spacer so it appears right under the user message, not pushed below -->
             <!-- CRITICAL: Only show dialog if it belongs to the current chat (prevents showing in wrong chat) -->
             {#if shouldShowPermissionDialog}
-                <div class="permission-dialog-wrapper" in:fade={{ duration: 200 }}>
+                <div class="permission-dialog-wrapper" bind:this={permissionDialogWrapper} in:fade={{ duration: 200 }}>
                     <AppSettingsMemoriesPermissionDialog />
                 </div>
             {/if}

@@ -17,6 +17,7 @@ import { encryptWithChatKey } from './encryption/MessageEncryptor';
 import { ensureChatKeySafeForWrite } from './chatKeyWriteGuard';
 import { webSocketService } from './websocketService';
 import { parseVoiceCallHistoryEvent } from './voiceCallLifecycleEvent';
+import { parseMemoryRequestTimedOutEvent } from './memoryRequestTimedOutEvent';
 import {
   RECOMMENDATIONS_IN_BUILD,
   resolveChatRecommendation,
@@ -170,6 +171,7 @@ export async function withoutPresentationOnlyEvents<T extends Pick<Message, 'rol
   const keep = await Promise.all(messages.map(async (message) => {
     if (message.role !== 'system' || typeof message.content !== 'string') return true;
     if (parseVoiceCallHistoryEvent(message.content)) return false;
+    if (parseMemoryRequestTimedOutEvent(message.content)) return false;
     if (await parseMemoryWriteUndoneContent(message.content)) return false;
     return !(await parseContextEntryContent(message.content));
   }));

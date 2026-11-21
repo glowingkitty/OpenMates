@@ -57,7 +57,7 @@
     import { demoMode } from '../../stores/demoModeStore';
     import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus, markAnonymousFreeUsageExhausted } from '../../stores/serverStatusStore';
     import { externalLinks } from '../../config/links';
-    import { composerFocusRequested } from '../../stores/composerFocusStore';
+    import { composerFocusRequested, composerDismissRequested } from '../../stores/composerFocusStore';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -2820,6 +2820,11 @@
             focus();
             composerFocusRequested.set(false);
         });
+        const unsubscribeComposerDismiss = composerDismissRequested.subscribe((requested) => {
+            if (!requested) return;
+            composerDismissRequested.set(false);
+            if (isFocused) dismissFocus();
+        });
 
         // Listen for docs page deep link prefill events (/#message= handler in +page.svelte)
         function handleDocsPrefill(event: Event) {
@@ -2866,6 +2871,7 @@
             unsubscribeAiTyping();
             unsubscribeText();
             unsubscribeComposerFocus();
+            unsubscribeComposerDismiss();
             appsHandoffEditorReady = false;
             unsubscribeAppsHandoff();
             window.removeEventListener('docsMessagePrefill', handleDocsPrefill);

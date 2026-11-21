@@ -856,6 +856,22 @@ class AssistantSpeechController {
     this.queue.disposeStreams();
   }
 
+  /** A ready-made call line (pre-recorded static clip): no inference, no credits.
+   * It plays through the call's one shared player like an acknowledgement. */
+  playCallPrompt(chatId: string, promptId: string, audioUrl: string): void {
+    if (!this.callOwner || chatId !== this.callOwner) {
+      console.info("[AssistantSpeech] Call prompt skipped:", this.callOwner ? "other chat" : "no call owner");
+      return;
+    }
+    if (!audioUrl.startsWith("/audio/assistant-acknowledgements/")) {
+      console.info("[AssistantSpeech] Call prompt skipped: not a static clip");
+      return;
+    }
+    this.handleAcknowledgement({
+      chat_id: chatId, message_id: `call-prompt:${promptId}`, clip_id: promptId, audio_url: audioUrl,
+    });
+  }
+
   private handleAcknowledgement(payload: SpeechAcknowledgementPayload): void {
     if (this.callOwner && payload.chat_id !== this.callOwner) return;
     if (!payload.chat_id || !payload.message_id || !payload.clip_id || !payload.audio_url) return;

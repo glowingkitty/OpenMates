@@ -7,8 +7,9 @@ import { writeFile } from 'node:fs/promises';
 import { clickChatTarget, scrollChatHistoryToStart } from './helpers/chat-scroll';
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing shared helpers use CommonJS. */
 const { expect, test } = require('./helpers/cookie-audit');
-const { loginToTestAccount, startNewChat, waitForChatReady } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, waitForChatReady, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { naturalProjectName } = require('./helpers/project-names');
+const { withMockMarker } = require('./signup-flow-helpers');
 const USER_SPEECH = 'How do I make ramen?';
 const ASSISTANT_SPEECH = 'For ramen, simmer the broth and cook the noodles.';
 const PASTED_TEXT = 'Please use this pasted recipe: noodles, broth, mushrooms and ginger.';
@@ -54,6 +55,9 @@ interface SocketObservation {
   kind?: string;
   speechStatus?: string;
   clipId?: string;
+  promptKind?: string;
+  promptRequestId?: string;
+  promptClips?: string[];
   speechErrorCode?: string;
   speechAction?: 'request'|'generate'|'retry'|'cancel'|'delete';
   recoveryOperation?: string;
@@ -493,6 +497,9 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
           ...(sent&&event.type==='assistant_speech'?{
             speechAction:speechActions.has(payload.action)?payload.action:undefined}:{}),
           ...(event.type==='assistant_speech_acknowledgement'&&typeof payload.clip_id==='string'&&/^[A-Za-z0-9._-]{1,128}$/.test(payload.clip_id)?{clipId:payload.clip_id}:{}),
+          ...(event.type==='voice_call_permission_prompt'?{promptKind:typeof payload.kind==='string'?payload.kind:undefined,
+            promptRequestId:safeId(payload.request_id),
+            promptClips:Object.values(payload.clips??{}).filter((url):url is string=>typeof url==='string'&&url.startsWith('/audio/assistant-acknowledgements/'))}:{}),
           ...(event.type==='assistant_speech_status'?{kind:payload.kind,speechStatus:payload.status,language:payload.language,
             speechErrorCode:payload.error!==undefined||payload.status==='error'
               ?speechErrorCodes.has(payload.error)?payload.error:'unknown':undefined,
@@ -1575,7 +1582,11 @@ test.describe('Voice mode through ordinary chat', () => {
   let callConsole: string[] = [];
   test.beforeEach(async ({page}) => {
     callConsole = [];
-    page.on('console', (message) => { if (message.text().includes('[VoiceCall]')) callConsole.push(`${message.type()}: ${message.text()}`.slice(0, 500)); });
+    const relevant=/\[(VoiceCall|CallPermissionPrompt|AssistantSpeech|PermissionDialog|E2E)\]/;
+    page.on('console', (message) => {
+      if (message.type()!=='debug'&&(relevant.test(message.text())||message.type()==='error')) callConsole.push(`${message.type()}: ${message.text()}`.slice(0, 500));
+    });
+    page.on('pageerror', (error) => { callConsole.push(`pageerror: ${error.message}`.slice(0, 500)); });
   });
   test.afterEach(async ({page: _page}, testInfo) => {
     if (testInfo.status !== testInfo.expectedStatus && callConsole.length) {
@@ -2868,6 +2879,79 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(protocol.sent.filter(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type)&&frame.messageId===id)).toHaveLength(1);
     expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='assistant')).toHaveLength(0);
     await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+  });
+
+
+  // contract-test: direct surface=gui.web assertions=video-call.chat.permission-prompt
+  test('a memory request in a live call is spoken, counts down, is confirmed after the tap and self-cancels at 30 seconds',async({page},testInfo)=>{
+    test.setTimeout(200_000);
+    await page.addInitScript(()=>{
+      const plays:string[]=[];Object.assign(window,{__promptPlays:plays});
+      const play=HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play=function(...args:Parameters<HTMLMediaElement['play']>){
+        // A reused element still reports the previous clip in currentSrc until its
+        // load algorithm runs; the src that was just assigned is the clip being played.
+        plays.push(new URL(this.src||this.currentSrc||'about:blank',location.href).pathname);
+        return play.apply(this,args);
+      };
+    });
+    await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{});
+    const played=async()=>page.evaluate(()=>(window as unknown as {__promptPlays:string[]}).__promptPlays);
+    const playedClip=async(name:string)=>(await played()).some(path=>path.endsWith(`/${name}`));
+    const prompts=async()=>(await evidence(page)).received.filter(frame=>frame.type==='voice_call_permission_prompt');
+    // Ordinary text turn first: the assistant saves the Memory the call turns will ask for.
+    await sendMessage(page,withMockMarker('Please remember my career profile for later.','memory_reuse_save','fast'),()=>{},async()=>{},'save-career-profile');
+    await waitForAssistantMessage(page,{which:'last',logCheckpoint:()=>{}});
+    const saveChatId=await page.getByTestId('active-chat-container').getAttribute('data-current-chat-id');
+    const notice=page.locator('[data-testid="context-entry-event"][data-kind="memory"][data-source="assistant"]');
+    await expect(notice).toHaveCount(1,{timeout:90_000});
+    await startNewChat(page,()=>{});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
+    await page.getByTestId('voice-call-mute').click();
+    const dialog=page.getByTestId('app-settings-memories-permission-dialog');
+    const countdown=page.getByTestId('memory-request-call-countdown');
+
+    // Phase A: the request is spoken and counts down; the tap is confirmed and answered.
+    await sendCameraCallText(page,withMockMarker('Which employer should I mention in my cover letter?','memory_reuse_load','fast'));
+    await expect.poll(async()=>(await prompts()).length,{timeout:90_000}).toBe(1);
+    const first=(await prompts())[0];
+    expect(first.promptKind).toBe('memory');
+    expect(first.promptClips?.some(url=>url.endsWith('/needs_memory-1.mp3'))).toBe(true);
+    await expect(dialog).toBeVisible({timeout:30_000});
+    await expect(countdown).toBeVisible();
+    await expect.poll(()=>playedClip('needs_memory-1.mp3'),{timeout:15_000}).toBe(true);
+    const before=Number(await countdown.getAttribute('aria-valuenow'));
+    await expect.poll(async()=>Number(await countdown.getAttribute('aria-valuenow')),{timeout:10_000}).not.toBe(before);
+    expect(Number(await countdown.getAttribute('aria-valuenow'))).toBeLessThan(before);
+    await testInfo.attach('call-memory-request-countdown',{body:await page.screenshot(),contentType:'image/png'});
+    // The typed turn leaves the composer focused; the dialog must still be on screen
+    // (not only attached) so the user's first tap reaches "Include".
+    await expect(dialog.getByTestId('btn-include')).toBeInViewport();
+    await dialog.getByTestId('btn-include').click();
+    await expect(dialog).not.toBeVisible({timeout:10_000});
+    await expect(countdown).toHaveCount(0);
+    await expect.poll(()=>playedClip('approval_thanks-1.mp3'),{timeout:15_000}).toBe(true);
+    await expect(page.getByTestId('message-assistant').filter({hasText:'Example Retail GmbH'})).toHaveCount(1,{timeout:120_000});
+
+    // Phase B: no tap. The reminder plays, then the request cancels itself at 30 seconds.
+    await sendCameraCallText(page,withMockMarker('Which employer should I mention in my cover letter?','memory_reuse_load','fast'));
+    await expect.poll(async()=>(await prompts()).length,{timeout:90_000}).toBe(2);
+    await expect(dialog).toBeVisible({timeout:30_000});
+    await expect.poll(()=>playedClip('needs_reminder-1.mp3'),{timeout:25_000}).toBe(true);
+    await expect(dialog).not.toBeVisible({timeout:40_000});
+    await expect(page.getByTestId('memory-request-timed-out')).toBeVisible({timeout:20_000});
+    await expect.poll(()=>playedClip('memory_timeout-1.mp3'),{timeout:15_000}).toBe(true);
+    await expect(page.getByTestId('message-assistant')).toHaveCount(2,{timeout:120_000});
+    await testInfo.attach('call-memory-request-timed-out',{body:await page.screenshot(),contentType:'image/png'});
+    await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+
+    // Cleanup: Undo the save notice so reruns start clean.
+    await page.goto(`/#chat-id=${encodeURIComponent(saveChatId as string)}`,{waitUntil:'domcontentloaded'});
+    await expect(notice).toHaveCount(1,{timeout:60_000});
+    await notice.getByTestId('context-entry-event-undo').click();
+    await expect(notice).toHaveAttribute('data-undone','true',{timeout:20_000});
   });
 
 

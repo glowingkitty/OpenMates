@@ -6822,10 +6822,11 @@ async def _consume_main_processing_stream(
                 # Already played when the turn started (explicitly chosen Mate, or
                 # the neutral system clip of a new chat); otherwise it plays now,
                 # in the routed Mate's voice.
-                # A Memory-approval continuation is the same spoken turn: its
-                # paused first task reached this point and confirmed it.
+                # A Memory-approval or focus-decision continuation is the same
+                # spoken turn: its paused first task reached this point and confirmed it.
                 instant_ack_played = (
                     request_data.is_app_settings_memories_continuation
+                    or request_data.is_focus_mode_continuation
                     or _INSTANT_ACK_SENT.pop(assistant_message_id, 0) is None
                     or await publish_instant_voice_acknowledgement(
                         task_id=task_id, request_data=request_data, mate=selected_mate,

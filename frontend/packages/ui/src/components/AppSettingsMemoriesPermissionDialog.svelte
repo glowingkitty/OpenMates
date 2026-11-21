@@ -38,6 +38,12 @@
         handlePermissionDialogExclude
     } from '../services/chatSyncServiceHandlersAppSettings';
     import { chatSyncService } from '../services/chatSyncService';
+    import {
+        callPermissionPrompt,
+        CALL_MEMORY_REQUEST_TIMEOUT_MS,
+        type CallPermissionCountdown
+    } from '../services/voiceCallPermissionPrompt';
+    import { onDestroy } from 'svelte';
 
     interface PermissionPreviewEntry {
         id: string;
@@ -58,9 +64,27 @@
     interface Props {
         previewMode?: boolean;
         previewCategories?: PermissionPreviewCategory[];
+        /** Preview only: show the in-call countdown at this remaining fraction (0..1). */
+        previewCountdownFraction?: number | null;
     }
 
-    let { previewMode = false, previewCategories = [] }: Props = $props();
+    let { previewMode = false, previewCategories = [], previewCountdownFraction = null }: Props = $props();
+
+    // In a voice call a Memory request counts down and then continues without
+    // memories (the safe outcome). Text chats never cancel automatically.
+    const countdownStore = callPermissionPrompt.countdown;
+    let now = $state(Date.now());
+    const clock = setInterval(() => { now = Date.now(); }, 250);
+    onDestroy(() => clearInterval(clock));
+    let liveCountdown = $derived.by((): CallPermissionCountdown | null => {
+        const countdown = $countdownStore;
+        return countdown && countdown.requestId === $currentPermissionRequest?.requestId ? countdown : null;
+    });
+    let countdownFraction = $derived(previewMode
+        ? previewCountdownFraction
+        : liveCountdown
+            ? Math.max(0, Math.min(1, (liveCountdown.deadlineAt - now) / CALL_MEMORY_REQUEST_TIMEOUT_MS))
+            : null);
     
     // --- State ---
     // Track which categories are expanded to show individual entries
@@ -92,6 +116,7 @@
     // Handle "Include" button click - send selected categories and entries
     async function handleConfirm() {
         if (previewMode) return;
+        console.info('[PermissionDialog] Include tapped');
         const requestId = appSettingsMemoriesPermissionStore.getCurrentRequestId();
         const selectedKeys = appSettingsMemoriesPermissionStore.getSelectedKeys();
         const selectedEntryIds = appSettingsMemoriesPermissionStore.getSelectedEntryIdsByCategory();
@@ -100,6 +125,7 @@
             console.warn('[PermissionDialog] No request ID or no selected keys');
             return;
         }
+        callPermissionPrompt.answered(requestId);
         
         appSettingsMemoriesPermissionStore.setLoading(true);
         
@@ -130,6 +156,7 @@
         if (previewMode) return;
         const requestId = appSettingsMemoriesPermissionStore.getCurrentRequestId();
         if (requestId) {
+            callPermissionPrompt.answered(requestId);
             await handlePermissionDialogExclude(chatSyncService, requestId);
         }
         appSettingsMemoriesPermissionStore.clear();
@@ -168,6 +195,7 @@
     <div 
         class="permission-dialog-container" 
         class:preview-mode={previewMode}
+        class:with-countdown={countdownFraction !== null}
         data-testid={previewMode ? 'app-settings-memories-permission-card' : 'app-settings-memories-permission-dialog'}
         role={previewMode ? 'presentation' : 'dialog'}
         aria-labelledby={previewMode ? undefined : 'permission-dialog-title'}
@@ -276,9 +304,23 @@
                 onclick={handleExclude}
                 disabled={$permissionDialogLoading}
             >
-                {$text('chat.permissions.reject_all')}
+                {$text('chat.permissions.continue_without_memories')}
             </button>
         </div>
+        {#if countdownFraction !== null}
+            <!-- In-call countdown: when it runs out the request continues without memories. -->
+            <div
+                class="call-countdown"
+                data-testid="memory-request-call-countdown"
+                role="progressbar"
+                aria-label={$text('chat.permissions.call_countdown_label')}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={Math.round(countdownFraction * 100)}
+            >
+                <div class="call-countdown-bar" style="width: {countdownFraction * 100}%"></div>
+            </div>
+        {/if}
     </div>
 {/if}
 
@@ -295,6 +337,35 @@
         box-shadow: var(--shadow-lg);
         margin-bottom: var(--spacing-6);
         border: 1px solid var(--color-grey-25, #e5e5e5);
+    }
+
+    /* Thin countdown along the bottom edge, like the focus mode's activation bar,
+       but its end means "continue without memories". */
+    /* Room between the buttons and the countdown along the bottom edge. */
+    .permission-dialog-container.with-countdown {
+        padding-bottom: calc(var(--spacing-8) + var(--spacing-6));
+    }
+
+    .call-countdown {
+        position: absolute;
+        left: var(--spacing-8);
+        right: var(--spacing-8);
+        bottom: var(--spacing-6);
+        height: 3px;
+        border-radius: var(--radius-1);
+        background: var(--color-grey-25);
+        overflow: hidden;
+    }
+
+    .call-countdown-bar {
+        height: 100%;
+        background: var(--color-font-tertiary, #8a8a8a);
+        border-radius: var(--radius-1);
+        transition: width 0.25s linear;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .call-countdown-bar { transition: none; }
     }
 
     .permission-dialog-container.preview-mode {

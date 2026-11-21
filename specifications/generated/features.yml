@@ -10013,18 +10013,18 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 56
+  assertions: 57
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 30
+        passing: 31
         failing: 6
         not_run: 10
         missing: 11
-        counted: 57
+        counted: 58
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -10045,6 +10045,7 @@ features:
       - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
       - frontend/apps/web_app/tests/components/chat-message-openmates-identity.spec.ts
       - frontend/apps/web_app/tests/components/chat-message-voice-transcript-status.spec.ts
+      - frontend/apps/web_app/tests/components/memory-request-call-countdown.spec.ts
       - frontend/apps/web_app/tests/components/skill-input-thumbnails.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-apple-parity.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-artifact-progress.spec.ts
@@ -10072,7 +10073,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
       - frontend/packages/ui/src/components/videocall/callAudio.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
-      unit_test_files: 66
+      unit_test_files: 67
     apple:
       status: partial
       source: tests
@@ -10081,8 +10082,8 @@ features:
         passing: 30
         failing: 0
         not_run: 0
-        missing: 18
-        counted: 48
+        missing: 19
+        counted: 49
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift
@@ -10155,9 +10156,9 @@ features:
       assertions:
         passing: 13
         failing: 0
-        not_run: 5
+        not_run: 6
         missing: 0
-        counted: 18
+        counted: 19
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -10166,7 +10167,7 @@ features:
       - backend/tests/test_voice_status.py
       - backend/tests/test_preprocessing_voice_delivery.py
       - backend/tests/test_voice_call_instructions.py
-      unit_test_files: 26
+      unit_test_files: 27
     sdk_npm:
       status: not_planned
       source: intent
@@ -10197,7 +10198,9 @@ features:
       unit_test_files: 0
   notes: Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server;
     the web app with the Rust core opts in and lets the core prepare the turn early, dropping that preparation on turn.resumed.
-    Apple does not opt in yet. The voice-call web spec is the key end-to-end test.
+    Apple does not opt in yet. The voice-call web spec is the key end-to-end test. Spoken tap requests (needs-you chime, ready-made
+    line, 15 s reminder, 30 s memory self-cancel with a timed-out event; video-call.chat.permission-prompt) are web-only so
+    far; the Apple app ignores the voice_call_permission_prompt event.
 - id: webhooks
   name: Webhooks
   kind: core

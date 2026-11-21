@@ -406,6 +406,7 @@
         "components/workflow-graph-reorder-inputs.spec.ts",
         "components/workflow-value-view.spec.ts",
         "components/memory-consent.spec.ts",
+        "components/memory-request-call-countdown.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
         "components/diagram-html-embed.spec.ts",
         "components/password-and-tfa-otp.spec.ts",

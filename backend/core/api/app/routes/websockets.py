@@ -1212,6 +1212,34 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent connected-account permission request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account permission request {request_id}")
+                    elif event_type == "send_voice_call_permission_prompt":
+                        # Spoken "needs your tap" lines of a call: static clip URLs only.
+                        clips = payload.get("clips")
+                        prompt_payload = {
+                            "chat_id": payload.get("chat_id"),
+                            "request_id": payload.get("request_id"),
+                            "voice_call_id": payload.get("voice_call_id"),
+                            "kind": payload.get("kind"),
+                            "clips": clips,
+                        }
+                        if (
+                            isinstance(prompt_payload["chat_id"], str) and isinstance(prompt_payload["request_id"], str)
+                            and prompt_payload["kind"] in {"memory", "approval"} and isinstance(clips, dict)
+                            and set(clips) <= {"request", "reminder", "thanks", "timeout"}
+                            and all(
+                                isinstance(url, str) and url.startswith("/audio/assistant-acknowledgements/")
+                                and ".." not in url
+                                for url in clips.values()
+                            )
+                        ):
+                            for device_id in list(manager.get_connections_for_user(user_id).keys()):
+                                await manager.send_personal_message(
+                                    {"type": "voice_call_permission_prompt", "payload": prompt_payload},
+                                    user_id,
+                                    device_id,
+                                )
+                        else:
+                            logger.warning("Redis Listener: Dropped malformed voice call permission prompt")
                     elif event_type == "send_connected_account_action_receipt":
                         chat_id = payload.get("chat_id")
                         action_id = payload.get("action_id")

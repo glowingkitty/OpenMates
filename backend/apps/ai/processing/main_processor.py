@@ -26,6 +26,7 @@ import yaml
 from backend.shared.app_packages.billing import is_installed_only_group
 from backend.shared.python_utils.recent_work_summary_client import authoritative_context_turn_id
 from backend.shared.python_utils.calendar_action_journal import calendar_undo_payload
+from backend.shared.python_utils.voice_call_admission import paused_voice_delivery
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -4065,6 +4066,8 @@ async def handle_main_processing(
                     "team_id_hash": request_data.team_id_hash,
                     "team_workspace_type": request_data.team_workspace_type,
                     "team_object_id_hash": request_data.team_object_id_hash,
+                    # A call turn stays spoken after the focus decision.
+                    **paused_voice_delivery(request_data),
                 }
                 await cache_service.store_pending_focus_activation(
                     chat_id=request_data.chat_id,
@@ -4307,6 +4310,9 @@ async def handle_main_processing(
                     encryption_service=encryption_service,
                     user_vault_key_id=user_vault_key_id,
                     log_prefix=log_prefix,
+                    mates=all_mates_configs,
+                    answering_mate_id=preprocessing_results.selected_mate_id,
+                    output_language=preprocessing_results.output_language,
                 )
 
                 if request_id:
@@ -6380,6 +6386,8 @@ async def handle_main_processing(
                     "team_id_hash": request_data.team_id_hash,
                     "team_workspace_type": request_data.team_workspace_type,
                     "team_object_id_hash": request_data.team_object_id_hash,
+                    # A call turn stays spoken after the focus decision.
+                    **paused_voice_delivery(request_data),
                 }
                 pending_context_stored = await cache_service.store_pending_focus_activation(
                     chat_id=request_data.chat_id,
@@ -10682,6 +10690,19 @@ async def handle_main_processing(
                                 preprocessing_resume_ref=getattr(request_data, "preprocessing_resume_ref", None),
                             )
                             if request_id:
+                                # A call turn says out loud that it waits for the user's tap.
+                                from backend.apps.ai.assistant_speech.call_permission_prompt import (
+                                    build_call_permission_prompt, publish_call_permission_prompt,
+                                )
+                                await publish_call_permission_prompt(
+                                    cache_service=cache_service, user_id=request_data.user_id, log_prefix=log_prefix,
+                                    payload=build_call_permission_prompt(
+                                        request_data=request_data, mates=all_mates_configs,
+                                        mate_id=preprocessing_results.selected_mate_id or request_data.mate_id,
+                                        language=preprocessing_results.output_language,
+                                        request_id=request_id, kind="approval",
+                                    ),
+                                )
                                 yield {"__awaiting_connected_account_permission__": True, "request_id": request_id}
                                 return
                             current_message_history.append({

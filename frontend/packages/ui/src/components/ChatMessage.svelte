@@ -46,6 +46,7 @@
   import { localChatTitle, openLinkedChat } from '../services/chatOrchestrationNavigation';
   import type { OrchestrationEvent } from '../services/rustCore/crypto/orchestrationOps';
   import { parseVoiceCallHistoryEvent } from '../services/voiceCallLifecycleEvent';
+  import { parseMemoryRequestTimedOutEvent } from '../services/memoryRequestTimedOutEvent';
   import SystemMessageNotice from './SystemMessageNotice.svelte';
   import { parseFocusPhaseEvent } from '../types/focusPhases';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
@@ -1254,6 +1255,7 @@
 
   let phaseEvent = $derived(parseFocusPhaseEvent(systemRawContent()));
   let voiceCallEvent = $derived(parseVoiceCallHistoryEvent(systemRawContent()));
+  let memoryRequestTimedOut = $derived(role === 'system' && !!parseMemoryRequestTimedOutEvent(systemRawContent()));
   // Chat orchestration events are parsed by the Rust core (async); the notice renders once parsed.
   let orchestrationEvent = $state<OrchestrationEvent | null>(null);
   let orchestrationTitle = $state<string | null>(null);
@@ -3359,6 +3361,7 @@
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
         {#if voiceCallEvent}<VoiceCallEventNotice event={voiceCallEvent} />
+        {:else if memoryRequestTimedOut}<span class="system-message-text" data-testid="memory-request-timed-out">{$text('voice_call_events.memory_request_timed_out')}</span>
         {:else if orchestrationEvent}<ChatOrchestrationEventNotice event={orchestrationEvent} title={orchestrationTitle} onOpen={(id) => void openLinkedChat(id)} />
         {:else if phaseEvent}<FocusPhaseNotice event={phaseEvent} />
         {:else if anonymousFeatureNotice}
