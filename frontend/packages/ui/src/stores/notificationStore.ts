@@ -523,13 +523,15 @@ export const notificationStore = {
    * The notice is shown at completion, before post-processing finishes, so this
    * updates it in place. Returns false when no live notice exists (nothing is shown).
    */
-  applyChatHeadline: (chatId: string, headline: string, category?: string): boolean => {
+  applyChatHeadline: (chatId: string, headline: string, category?: string, chatTitle?: string): boolean => {
     let updated = false;
     update((state) => ({
       notifications: state.notifications.map((n) => {
         if (n.type !== "chat_message" || n.chatId !== chatId || n.isExiting) return n;
         updated = true;
-        return { ...n, message: headline, category: n.avatarUrl ? n.category : (n.category || category) };
+        // A notice raised before the chat had its title shows the placeholder; the real title replaces it.
+        const title = chatTitle ? { chatTitle, title: chatTitle } : {};
+        return { ...n, ...title, message: headline, category: n.avatarUrl ? n.category : (n.category || category) };
       }),
     }));
     // Post-processing can finish before the completion notice is created: keep the

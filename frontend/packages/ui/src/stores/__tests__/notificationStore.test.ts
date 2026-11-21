@@ -268,6 +268,13 @@ describe("chat notice summary headline", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=notifications.delivery.foreground-chat-suppression
+  it("replaces the placeholder title of a notice raised before the chat had its title", () => {
+    notificationStore.chatMessage("chat-1", "New message", "New AI response ready");
+    notificationStore.applyChatHeadline("chat-1", "✅ Built a recipe app", undefined, "Simple recipe web app");
+    expect(notifications()).toMatchObject([{ chatTitle: "Simple recipe web app", title: "Simple recipe web app", message: "✅ Built a recipe app" }]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.delivery.foreground-chat-suppression
   it("keeps a category the notice already has and leaves other chats alone", () => {
     notificationStore.chatMessage("chat-1", "One", "excerpt", undefined, "cooking_food");
     notificationStore.chatMessage("chat-2", "Two", "other excerpt");

@@ -2762,8 +2762,18 @@ export async function handlePostProcessingCompletedImpl(
           console.debug("[ChatSyncService:AI] Could not decrypt category for the chat notice:", categoryError);
         }
       }
+      let noticeTitle: string | undefined = chat.title || undefined;
+      if (!noticeTitle && chat.encrypted_title) {
+        try {
+          await chatKeyManager.withKey(payload.chat_id, "decrypt-notice-title", async (noticeKey) => {
+            noticeTitle = (await decryptWithChatKey(chat.encrypted_title!, noticeKey)) || undefined;
+          });
+        } catch (titleError) {
+          console.debug("[ChatSyncService:AI] Could not decrypt title for the chat notice:", titleError);
+        }
+      }
       if (ownerIsCurrent() && !isChatVisiblyActive(payload.chat_id)) {
-        const shown = notificationStore.applyChatHeadline(payload.chat_id, payload.notification_headline, noticeCategory);
+        const shown = notificationStore.applyChatHeadline(payload.chat_id, payload.notification_headline, noticeCategory, noticeTitle);
         console.info("[Notifications] Chat notice headline", { chatID: payload.chat_id, shown });
       }
     } else {
