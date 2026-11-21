@@ -314,6 +314,10 @@ test.describe('Layered focuses over the Project focus (real inference, dev only)
     proof = createVideoProofRuntime(proofContract, {
       device: 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot({ type: 'png' }),
     });
+    // Content-free counts from the send path show where a stored Focus drops out.
+    page.on('console', (message) => {
+      if (message.text().startsWith('[ProjectFocusContext]')) console.log(message.text());
+    });
     await loginToTestAccount(page);
     let projectId = '';
     try {
