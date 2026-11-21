@@ -100,6 +100,16 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
+	// Phone/small viewports show the sidebar as an overlay: its close button takes the
+	// menu button's place on the left, so it comes first in DOM (and tab) order too.
+	let overlayLayout = $state(false);
+	onMount(() => {
+		const query = window.matchMedia('(max-width: 600px)');
+		overlayLayout = query.matches;
+		const onChange = (event: MediaQueryListEvent) => { overlayLayout = event.matches; };
+		query.addEventListener('change', onChange);
+		return () => query.removeEventListener('change', onChange);
+	});
 	let sidebarProjects = $state<SidebarProject[]>([]);
 	let projectLocation = $state<ChatProjectLocation | null>(null);
 	let projectLoadError = $state(false);
@@ -4167,6 +4177,24 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 					</div>
 				{/if}
 			{/snippet}
+{#snippet searchButton()}
+	<button
+		class="clickable-icon icon_search top-button"
+		data-testid="search-button"
+		aria-label="Search"
+		onclick={() => openSearch()}
+		use:tooltip
+	></button>
+{/snippet}
+{#snippet closeButton()}
+	<button
+		class="clickable-icon icon_close top-button right"
+		data-testid="chats-close-button"
+		aria-label={$text('common.close')}
+		onclick={handleClose}
+		use:tooltip
+	></button>
+{/snippet}
 <div class="activity-history-wrapper" data-testid="activity-history-wrapper">
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
@@ -4219,21 +4247,14 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 							{$text('common.cancel')}
 						</button>
 					{:else}
-						<!-- Search button + close button -->
-						<button
-							class="clickable-icon icon_search top-button"
-							data-testid="search-button"
-							aria-label="Search"
-							onclick={() => openSearch()}
-							use:tooltip
-						></button>
-						<button
-							class="clickable-icon icon_close top-button right"
-							data-testid="chats-close-button"
-							aria-label={$text('common.close')}
-							onclick={handleClose}
-							use:tooltip
-						></button>
+						<!-- Search button + close button (close first in the overlay layout) -->
+						{#if overlayLayout}
+							{@render closeButton()}
+							{@render searchButton()}
+						{:else}
+							{@render searchButton()}
+							{@render closeButton()}
+						{/if}
 					{/if}
 				</div>
 			{/if}
@@ -4728,6 +4749,28 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     .top-button.right {
        /* Logical property: pushes close button to inline-end (right in LTR, left in RTL) */
        margin-inline-start: auto;
+    }
+
+    /* Overlay layout (phones): close button first, search at the end, and the bar
+       uses the header's geometry so the close button lands exactly on the menu button. */
+    @media (max-width: 600px) {
+        .top-buttons-container {
+            padding: var(--spacing-4) var(--spacing-10);
+        }
+
+        .top-buttons {
+            height: 2.75rem; /* same as the header's nav row */
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .top-button.right {
+            margin-inline-start: 0;
+        }
+
+        .top-button.icon_search {
+            margin-inline-start: auto;
+        }
     }
 
     .select-mode-button {

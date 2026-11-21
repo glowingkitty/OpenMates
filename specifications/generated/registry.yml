@@ -660,7 +660,7 @@ specifications:
     version: 3
     status: draft
     path: features/chat-navigation
-    fingerprint: 9b2a86648814262bbf19e071e996ae6c19d023f286548c389625473a2e604155
+    fingerprint: 5ee93b07f26e503833fceed76adf9d6a907dcf92f0264d90082589e660bbf747
     required_applies_to:
     - cli
     - gui.web
@@ -9120,6 +9120,42 @@ assertions:
     specification_id: feature.chat-navigation
     type: behavior
     fingerprint: 304d60ef7ef67fda3489baaf82ca7febf87610c959e35f520fa2f0bbfabb3aa0
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  chat-navigation.sidebar.overlay-motion:
+    specification: feature.chat-navigation@3
+    specification_id: feature.chat-navigation
+    type: behavior
+    fingerprint: 1c1e9e05c9aff2c396d4ecdb4aa7170a7fbbcdf429bd96ec6d095d6c60f7b41c
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  chat-navigation.sidebar.close-at-menu-position:
+    specification: feature.chat-navigation@3
+    specification_id: feature.chat-navigation
+    type: behavior
+    fingerprint: 2a5af5c3beaa4ac5ff77987899b6df384a7e8a0c334594386ceaacbe1b87d8f0
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  chat-navigation.sidebar.width-transition:
+    specification: feature.chat-navigation@3
+    specification_id: feature.chat-navigation
+    type: behavior
+    fingerprint: 5c3082bb2a900cda4a3acb4b7867ea61ab4dc2a88ef8dbe3e7e822690bb04957
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  chat-navigation.sidebar.keyboard-focus:
+    specification: feature.chat-navigation@3
+    specification_id: feature.chat-navigation
+    type: behavior
+    fingerprint: 30166d6f42e2883cd1a9cc649e478607ab1acb107902bef3d41cf02e39453b90
     required_applies_to:
     - cli
     - gui.web

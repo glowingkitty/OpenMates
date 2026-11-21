@@ -2043,7 +2043,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 9
+  assertions: 13
   surfaces:
     web:
       status: failing
@@ -2052,9 +2052,9 @@ features:
       assertions:
         passing: 5
         failing: 4
-        not_run: 0
+        not_run: 4
         missing: 0
-        counted: 9
+        counted: 13
       failing_tests:
       - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts › groups saved chats, navigates deep folders and reveals
         running descendants globally
@@ -2064,6 +2064,7 @@ features:
       e2e_tests:
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       - frontend/apps/web_app/tests/chat-menu-parity.spec.ts
+      - frontend/apps/web_app/tests/chat-sidebar-overlay.spec.ts
       - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
       - frontend/apps/web_app/tests/components/chat-context-menu-preview.spec.ts
       - frontend/apps/web_app/tests/components/chat-project-navigation.spec.ts
@@ -2076,12 +2077,12 @@ features:
       - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
       - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
       key_unit_tests:
+      - frontend/apps/web_app/src/lib/sidebarOverlay.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceReconnect.test.ts
       - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
       - frontend/packages/ui/src/utils/__tests__/chatProjectNavigation.test.ts
       - frontend/packages/ui/src/components/__tests__/chatHistoryWindowPruning.test.ts
-      - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
-      unit_test_files: 17
+      unit_test_files: 18
     apple:
       status: partial
       source: tests
@@ -2090,8 +2091,8 @@ features:
         passing: 7
         failing: 0
         not_run: 0
-        missing: 2
-        counted: 9
+        missing: 6
+        counted: 13
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/ChatFlowParityUITests.swift
@@ -2122,8 +2123,8 @@ features:
         passing: 0
         failing: 0
         not_run: 6
-        missing: 3
-        counted: 9
+        missing: 7
+        counted: 13
       key_tests: []
       e2e_tests: []
       key_unit_tests:
