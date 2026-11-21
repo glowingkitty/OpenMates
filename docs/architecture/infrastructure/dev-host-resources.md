@@ -91,6 +91,19 @@ with their resume command), `events.jsonl`. The connector reports archiving with
 the daily meeting briefing ("Chats waiting on you") and the connector's
 chat_changes.
 
+### Only done, asking or waiting chats are closed (TASK-7707)
+
+Owner rule 2026-11-21: the lifecycle closes a chat only when it reported done (✅ push), asked
+the owner (❓ push or a closing question) or registered a waiter. A turn that ends any other way
+gets a continue prompt typed into its pane (`scripts/claude_chat_continue.py`: once per turn
+end, retried after 10 minutes, at most 3 in a row without tool work); a chat that cannot be
+woken or does not act keeps running and is listed as stalled. Running background sub-agents
+keep their chat open. The cap never suspends such a chat; memory pressure may, and then a
+timer waiter reopens it after 30 minutes. The zellij tidy leaves a session alone when its pane
+listing is incomplete (no terminal pane, panes without tab, or a live pane missing) and closes
+an empty tab only after seeing it empty twice: on 2026-11-20 it closed every tab of the
+`claude` session twice, with working chats in them.
+
 ### Waiting on background work
 
 A chat that waits on something is never stopped as idle, done or by the cap

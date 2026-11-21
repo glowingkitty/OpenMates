@@ -20,10 +20,19 @@ starve the host-resources guard. This script keeps them in check:
                 of its turn: a zellij-pane chat gets `/exit` (a clean exit archives its
                 Claude app session), otherwise it is stopped and listed as done with
                 `reported_done`, and the dev connector archives it without approval.
-  done          finished with nothing open and idle for `done_hours` (default 24):
-                listed in the status file so the connector archives it in the Claude
-                app (one implementation, in the connector) and it stops counting
-                against the app's session limit.
+  continued     owner rule 2026-11-21 (TASK-7707): a chat is closed only when it reported
+                done (✅), asked the owner (❓ or a closing question) or registered a waiter.
+                A turn that ends any other way ("Next: fix the foreground reconnect") means
+                the chat is still at work: a zellij-pane chat gets one continue prompt per
+                turn end (scripts/claude_chat_continue.py; retried after 10 minutes, at most
+                3 in a row without tool work), and one that cannot be woken or does not act
+                keeps running and is listed as stalled. The cap never suspends it; only a host
+                short on memory stops it, with a timer waiter that reopens it 30 minutes later.
+                On 2026-11-20 the old rule (stop 3 minutes after any turn end) closed
+                4b5c74d7, 061eb4be and 18693e46 in the middle of their work.
+  done          listed in the status file so the connector archives it in the Claude app
+                (one implementation, in the connector) and it stops counting against the
+                app's session limit.
 
 Cap: at most `max_running` (default 20) chat processes run at once. Beyond that, the
 longest-idle chat that may be suspended is stopped first. `admit` makes room for a
@@ -42,6 +51,8 @@ A chat is never stopped when any of these hold (hard rules, also for the cap):
   * it is the chat running this script,
   * its state is not `idle` (working, or waiting for a permission or an answer),
   * a child process other than its tool (MCP) servers runs (a background command),
+  * a background sub-agent of its process has not reported back (they run inside the chat's
+    own process; 70004807's lane-worker died mid tool call on 2026-11-20),
   * its last turn is a message without a reply, including a prompt a hook refused,
   * it waits on background work: a waiter that has not timed out (a disk-coordinator
     request, a queued or running CI job of its sessions.py session, or a registered
@@ -107,6 +118,7 @@ from pathlib import Path
 # The systemd units run this as `python3 -I -S`, which does not put the script's folder on
 # sys.path; without this the sibling import fails and the lifecycle (idle stop, cap of 20) stops.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import claude_chat_continue  # noqa: E402  (path set above)
 import claude_chat_pending  # noqa: E402  (path set above)
 import claude_chat_waiters  # noqa: E402  (path set above)
 import worktree_wip  # noqa: E402  (path set above)
@@ -194,13 +206,16 @@ class Chat:
     waiters: list = field(default_factory=list)  # claude_chat_waiters.Waiter: disk, CI, handoff, background
     pushed_question: str = ""  # a ❓ push sent after the user's last prompt (open until they answer)
     pushed_done: str = ""  # "done" (✅ after the last prompt) or "parked" (✅ with --paused-until)
+    agents: list[str] = field(default_factory=list)  # background sub-agents still at work (claude_chat_continue)
+    transcript: str = ""  # path of its main transcript
 
 
 @dataclass
 class Decision:
-    action: str  # keep | stop | done | archive
+    action: str  # keep | continue | stop | done | archive
     reason: str
     hard: bool = False  # kept by a hard rule (the cap may not override it)
+    reopen: bool = False  # stopped in the middle of its work: a timer waiter reopens it (claude_chat_continue)
 
     @property
     def close(self) -> bool:
@@ -231,6 +246,8 @@ def hard_blocker(chat: Chat, own_session_id: str, now: float | None = None) -> s
     busy = [command for command in chat.children if TOOL_SERVER_MARKER not in command.lower()]
     if busy:
         return f"background process running: {busy[0][:60]}"
+    if chat.agents:  # they run inside the chat's process: stopping it kills them (TASK-7707)
+        return f"background sub-agent running: {chat.agents[0][:60]}"
     now = time.time() if now is None else now
     if waiting := [waiter for waiter in chat.waiters if waiter.blocks_stop(now)]:
         return "waits on " + "; ".join(waiter.label(now) for waiter in waiting[:3])
@@ -259,9 +276,20 @@ def decide(chat: Chat, now: float, config: dict, own_session_id: str, idle_minut
             return Decision("stop", "parked itself (✅ with a resume date)")
     if asks(chat):
         return Decision("stop", "waits on your answer (process stopped; the answer reopens it)")
-    if idle > config["done_hours"] * 3600:
-        return Decision("done", f"idle {idle / 3600:.1f}h, finished")
-    return Decision("stop", f"idle {idle / 60:.0f} min")
+    if chat.waiters:  # a waiter that timed out: it still reopens the chat when it fires
+        return Decision("stop", f"idle {idle / 60:.0f} min, its waiter reopens it")
+    # Owner rule 2026-11-21 (TASK-7707): no ✅, no question, no waiter means the chat is still at
+    # work ("Next: fix the foreground reconnect"); it is woken to continue, never closed. Only a
+    # host short on memory may stop it, and then a timer waiter reopens it.
+    if idle_minutes is not None:
+        return Decision("stop", f"idle {idle / 60:.0f} min, host short on memory; reopens in "
+                        f"{claude_chat_continue.REOPEN_MINUTES:.0f} min to continue", reopen=True)
+    return Decision("continue", f"idle {idle / 60:.0f} min without ✅, question or waiter: woken to continue")
+
+
+def closable(chat: Chat) -> bool:
+    """It reported done, asked the owner or waits on a waiter: stopping it loses nothing."""
+    return bool(chat.pushed_done or asks(chat) or chat.waiters)
 
 
 def cap_victims(chats: list[Chat], now: float, config: dict, own_session_id: str, room: int = 0) -> list[Chat]:
@@ -272,7 +300,7 @@ def cap_victims(chats: list[Chat], now: float, config: dict, own_session_id: str
     minimum = config["cap_min_idle_minutes"] * 60
     question_minimum = config["cap_question_idle_hours"] * 3600
     eligible = [chat for chat in chats if hard_blocker(chat, own_session_id, now) is None
-                and now - chat.last_activity > minimum]
+                and now - chat.last_activity > minimum and closable(chat)]
     plain = [chat for chat in eligible if not asks(chat)]
     asking = [chat for chat in eligible if asks(chat) and now - chat.last_activity > question_minimum]
     by_idle = lambda chat: chat.last_activity  # noqa: E731 - sort key, oldest activity first
@@ -513,6 +541,10 @@ def live_chats(claude_home: Path, config: dict, waiters: dict[str, list] | None 
             model=_flag(args, "--model"), undelivered=pending.undelivered, refusal_kept=pending.refusal_kept,
             refusal_at=pending.refusal_at, waiters=waiters.get(session_id) or waiters.get(UNREADABLE) or [],
         )
+        started = float(record.get("startedAt") or 0) / 1000
+        for transcript in (claude_home / "projects").glob(f"*/{session_id}.jsonl"):
+            chat.transcript = str(transcript)
+            chat.agents = claude_chat_continue.running_agents(transcript, started, time.time())
         if (questions_dir() / f"{session_id}.json").exists():
             prompt_at = last_prompt_at(claude_home, session_id)
             chat.pushed_question = pushed_question(session_id, prompt_at)
@@ -696,15 +728,20 @@ HEADLESS_PLUGINS = frozenset({"zellij:link"})  # background plugins nobody needs
 
 
 def close_dead_panes(sessions: list[str], directory: Path, now: float, owners: dict[str, set[str]] | None = None,
-                     run=None) -> list[str]:
+                     run=None, protected: dict[str, set[str]] | None = None) -> list[str]:
     """Tidy the managed zellij sessions; returns what was closed.
 
     * A terminal pane whose process ended (exited, held, or no live process with its
       pane id) is closed once seen dead in two cycles DEAD_PANE_SECONDS apart (a new tab
       has no process for a moment). The tab goes with it when it was the tab's only pane:
       `close-pane` from the CLI leaves an empty tab behind.
-    * Empty tabs are closed.
+    * Empty tabs are closed once seen empty in two cycles DEAD_PANE_SECONDS apart.
     * The `zellij:link` background plugin is closed.
+    * A session whose pane listing is incomplete is left alone this cycle: no terminal pane, a
+      pane without its tab, or a live pane (a process with its ZELLIJ_PANE_ID, or a live chat
+      the lifecycle knows: `protected`) missing from it. 2026-11-20 18:32 and 22:14 the tidy
+      closed every tab of the `claude` session as "empty", with chats 70004807 and 4508e325
+      working in them (TASK-7707).
     2026-11-20: the `claude` session held 58 dead panes and 57 empty tabs of 72 and its
     link plugin thread had used 43 CPU hours; closing them took the server from about 110%
     CPU and 900 MB to 29% and 180 MB, with every chat still running.
@@ -721,6 +758,13 @@ def close_dead_panes(sessions: list[str], directory: Path, now: float, owners: d
             panes = json.loads(listing.stdout or "[]")
         except ValueError:
             continue
+        terminals = [pane for pane in panes if not pane.get("is_plugin")]
+        listed = {str(pane.get("id")) for pane in terminals}
+        live = owners.get(session, set()) | (protected or {}).get(session, set())
+        if not terminals or any(pane.get("tab_id") is None for pane in terminals) or not live <= listed:
+            log_event(directory, {"event": "zellij_tidy_skipped", "session": session,
+                                  "why": "pane listing incomplete", "missing": sorted(live - listed)[:20]})
+            continue
         per_tab: dict[int, int] = {}
         for pane in panes:
             per_tab[pane.get("tab_id")] = per_tab.get(pane.get("tab_id"), 0) + 1
@@ -731,6 +775,8 @@ def close_dead_panes(sessions: list[str], directory: Path, now: float, owners: d
                     closed.append(f"{session} plugin_{pane['id']} ({pane['plugin_url']})")
                 continue
             pane_id = f"terminal_{pane['id']}"
+            if str(pane["id"]) in (protected or {}).get(session, set()):
+                continue  # a live chat the lifecycle knows, whatever the listing says
             if str(pane["id"]) in owners.get(session, set()) and not (pane.get("exited") or pane.get("is_held")):
                 continue
             key = f"{session} {pane_id}"
@@ -750,7 +796,14 @@ def close_dead_panes(sessions: list[str], directory: Path, now: float, owners: d
         used = {pane.get("tab_id") for pane in panes}
         for line in tabs.stdout.splitlines()[1:]:
             tab = line.split()[0] if line.split() else ""
-            if tab.isdigit() and int(tab) not in used and not run(session, "close-tab", "--tab-id", tab).returncode:
+            if not tab.isdigit() or int(tab) in used:
+                continue
+            key = f"{session} tab {tab}"
+            first = marks.get(key)
+            if not first or now - _iso(first) < DEAD_PANE_SECONDS:
+                seen[key] = first or _utc(now)
+                continue
+            if not run(session, "close-tab", "--tab-id", tab).returncode:
                 closed.append(f"{session} empty tab {tab}")
     save_marks(directory, "dead_panes.json", seen)
     if closed:
@@ -821,6 +874,42 @@ def stalled_chats(live: list[Chat], registry: dict[str, dict], claude_home: Path
                 tasks=pending.undelivered, stopped=True, resume=entry.get("resume", "")))
     if act:
         save_marks(directory, "woken.json", woken)
+    return stalled
+
+
+CONTINUE_MARKS = "continue_woken.json"
+
+
+def continue_unfinished(chats: list[Chat], directory: Path, now: float, keep: set[str]) -> list[dict]:
+    """Wake chats whose turn ended without ✅, question or waiter; returns the stalled ones (TASK-7707).
+
+    A zellij-pane chat gets claude_chat_continue.CONTINUE_PROMPT once per turn end (again after
+    RETRY_MINUTES when the line did not take, at most MAX_WAKES in a row without tool work).
+    A chat that cannot be woken here, or did not act on MAX_WAKES wakes, stays running and is
+    listed as stalled for the owner. `keep`: chats still marked (the rest are forgotten)."""
+    marks = load_marks(directory, CONTINUE_MARKS)
+    marks = {chat_id: mark for chat_id, mark in marks.items() if chat_id in keep}
+    stalled = []
+    for chat in chats:
+        mark = marks.get(chat.session_id) or {}
+        worked = bool(mark) and bool(chat.transcript) and claude_chat_continue.worked_since(
+            Path(chat.transcript), float(mark.get("at", 0)))
+        step = claude_chat_continue.next_wake(marks, chat.session_id, chat.last_activity, now, worked)
+        if step == "wait":
+            continue
+        if step == "wake" and chat.kind == "pane" and wake(chat, claude_chat_continue.CONTINUE_PROMPT):
+            claude_chat_continue.record_wake(marks, chat.session_id, chat.last_activity, now)
+            log_event(directory, {"event": "woken_to_continue", "session_id": chat.session_id,
+                                  "title": chat.title or chat.name,
+                                  "count": marks[chat.session_id]["count"]})
+            continue
+        why = (f"ended {claude_chat_continue.MAX_WAKES} turns in a row without ✅, question or waiter "
+               "although woken to continue" if step == "stalled"
+               else "ended its turn without ✅, question or waiter and cannot be woken here (no zellij pane)"
+               if chat.kind != "pane" else "ended its turn without ✅, question or waiter; the wake failed")
+        stalled.append(_stalled_entry(chat.session_id, chat.title or chat.name, chat.kind, chat.last_activity,
+                                      f"{why}: it keeps running; look at it or answer it (connector send_message)"))
+    save_marks(directory, CONTINUE_MARKS, marks)
     return stalled
 
 
@@ -926,6 +1015,7 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
     idle_minutes = (min(config["pressure_idle_minutes"], config["idle_stop_minutes"])
                     if getattr(args, "pressure", False) else None)
     plan: list[tuple[Chat, Decision]] = []
+    continuing: list[Chat] = []
     for chat in live:
         decision = decide(chat, now, config, own, idle_minutes)
         if args.command == "list":
@@ -933,8 +1023,14 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
                   f"{chat.kind}): {decision.reason}")
         elif decision.close:
             plan.append((chat, decision))
+        elif decision.action == "continue":
+            continuing.append(chat)
     if args.command == "list":
         return live, 0
+    unfinished = [chat.session_id for chat in live if not closable(chat)]  # their wake counts stay
+    continue_stalled = ([] if args.dry_run else continue_unfinished(continuing, directory, now, set(unfinished)))
+    for chat in continuing if args.dry_run else []:
+        print(f"would wake {chat.title or chat.name} ({chat.session_id[:8]}) to continue")
     chosen = {chat.session_id for chat, _ in plan}
     remaining = [chat for chat in live if chat.session_id not in chosen]
     for chat in cap_victims(remaining, now, config, own, room):
@@ -962,15 +1058,22 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
                 registry[chat.session_id]["reported_done"] = True  # the connector archives it without approval
             if exited:
                 registry[chat.session_id]["archived_at"] = _utc(now)
+            if decision.reopen and claude_chat_waiters.UUID_RE.match(chat.session_id):
+                claude_chat_waiters.add(directory, chat.session_id, "timer", claude_chat_continue.REOPEN_MESSAGE,
+                                        at=now + claude_chat_continue.REOPEN_MINUTES * 60)
     left = [chat for chat in live if chat.session_id not in stopped]
     if not args.dry_run:
         save_registry(directory, registry)
-        close_dead_panes(list(config["zellij_sessions"]), directory, now)
+        protected: dict[str, set[str]] = {}
+        for chat in left:
+            if chat.pane_id:
+                protected.setdefault(chat.zellij_session, set()).add(chat.pane_id)
+        close_dead_panes(list(config["zellij_sessions"]), directory, now, protected=protected)
         waiters.pop(UNREADABLE, None)
         wake_failures = wake_waiting(waiters, left, registry, directory, now, config)
         stalled = stalled_chats(left, registry, args.claude_home, now, directory, act=True)
         live_map = {chat.session_id: chat for chat in left}
-        for entry in (unfinished_stalled(registry) + wake_failures
+        for entry in (continue_stalled + unfinished_stalled(registry) + wake_failures
                       + claude_chat_waiters.stalled_entries(waiters, live_map, registry, now)):
             if entry["session_id"] not in {item["session_id"] for item in stalled}:
                 stalled.append(entry)

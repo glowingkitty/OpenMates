@@ -34,18 +34,23 @@ def iso(ts: float) -> str:
     return datetime.fromtimestamp(ts, timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def test_a_finished_turn_releases_its_slot_within_minutes_and_is_done_after_a_day():
-    """Owner, 2026-11-20: after the usage reset 13 of 20 slots were held by idle chats for about an hour."""
-    assert lc.decide(chat(), NOW, CONFIG, "other").action == "stop"
-    assert lc.decide(chat(last_activity=NOW - 30 * HOUR), NOW, CONFIG, "other").action == "done"
-    assert lc.decide(chat(last_activity=NOW - 5 * 60), NOW, CONFIG, "other").action == "stop"
-    assert lc.decide(chat(last_activity=NOW - 2 * 60), NOW, CONFIG, "other").action == "keep"  # just ended its turn
+def test_a_finished_turn_releases_its_slot_within_minutes_only_when_done_asked_or_waiting():
+    """Owner, 2026-11-20: idle chats held 13 of 20 slots. Owner, 2026-11-21 (TASK-7707): a chat is
+    closed only when it reported done, asked or registered a waiter; any other turn end is woken."""
+    done = dict(pushed_done="done")
+    assert lc.decide(chat(**done), NOW, CONFIG, "other").action == "archive"
+    assert lc.decide(chat(last_activity=NOW - 5 * 60, **done), NOW, CONFIG, "other").action == "archive"
+    assert lc.decide(chat(last_activity=NOW - 2 * 60, **done), NOW, CONFIG, "other").action == "keep"  # just ended
+    assert lc.decide(chat(), NOW, CONFIG, "other").action == "continue"  # no ✅: never closed
+    assert lc.decide(chat(last_activity=NOW - 30 * HOUR), NOW, CONFIG, "other").action == "continue"
 
 
 def test_idle_limit_and_pressure_limit_are_configurable():
     config = dict(CONFIG, idle_stop_minutes=180)
     assert lc.decide(chat(), NOW, config, "other").action == "keep"
-    assert lc.decide(chat(), NOW, config, "other", idle_minutes=15).action == "stop"
+    pressed = lc.decide(chat(), NOW, config, "other", idle_minutes=15)
+    assert pressed.action == "stop" and pressed.reopen  # mid-work under memory pressure: a timer reopens it
+    assert not lc.decide(chat(pushed_done="done"), NOW, config, "other", idle_minutes=15).reopen
 
 
 @pytest.mark.parametrize(("overrides", "fragment"), [
@@ -90,9 +95,9 @@ def test_cap_suspends_longest_idle_first_and_never_breaks_hard_rules():
     config = dict(CONFIG, max_running=3)
     chats = [
         chat(session_id="busy", status="busy", last_activity=NOW - 9 * HOUR),
-        chat(session_id="old", last_activity=NOW - 5 * HOUR),
-        chat(session_id="recent", last_activity=NOW - 30),
-        chat(session_id="mid", last_activity=NOW - 2 * HOUR),
+        chat(session_id="old", last_activity=NOW - 5 * HOUR, pushed_done="done"),
+        chat(session_id="recent", last_activity=NOW - 30, pushed_done="done"),
+        chat(session_id="mid", last_activity=NOW - 2 * HOUR, pushed_done="parked"),
         chat(session_id="held", last_speaker="user", last_text=lc.REFUSED_PREFIX, last_activity=NOW - 8 * HOUR),
     ]
     victims = lc.cap_victims(chats, NOW, config, "other")
@@ -106,8 +111,16 @@ def test_cap_suspends_open_question_chats_last_and_only_after_hours_without_answ
     asking = "Should I deploy it?"
     chats = [chat(session_id="q-old", last_text=asking, last_activity=NOW - 6 * HOUR),
              chat(session_id="q-new", last_text=asking, last_activity=NOW - 1 * HOUR),
-             chat(session_id="plain", last_activity=NOW - 20 * 60)]
+             chat(session_id="plain", last_activity=NOW - 20 * 60, pushed_done="done")]
     assert [victim.session_id for victim in lc.cap_victims(chats, NOW, config, "other")] == ["plain", "q-old"]
+
+
+def test_cap_never_suspends_a_chat_in_the_middle_of_its_work():
+    """TASK-7707: 4b5c74d7 and 061eb4be ended a turn announcing their next step and were closed."""
+    config = dict(CONFIG, max_running=1)
+    chats = [chat(session_id="working", last_text="Next: fix the foreground reconnect.", last_activity=NOW - 9 * HOUR),
+             chat(session_id="done", pushed_done="done", last_activity=NOW - 20 * 60)]
+    assert [victim.session_id for victim in lc.cap_victims(chats, NOW, config, "other")] == ["done"]
 
 
 def test_last_turn_skips_compaction_summaries_and_tool_results_and_sees_refusals():
@@ -457,7 +470,7 @@ def test_a_question_pushed_to_discord_stays_open_until_the_user_answers(tmp_path
     pushed = chat(pushed_question=asked, last_text="Pushed the decision to Discord; stopping here.")
     assert lc.decide(pushed, NOW, CONFIG, "").reason.startswith("waits on your answer")
     assert lc.decide(chat(last_activity=NOW - 30 * HOUR, pushed_question=asked), NOW, CONFIG, "").action == "stop"
-    assert lc.decide(chat(last_activity=NOW - 30 * HOUR), NOW, CONFIG, "").action == "done"  # without the push
+    assert lc.decide(chat(last_activity=NOW - 30 * HOUR), NOW, CONFIG, "").action == "continue"  # without it
     assert lc.open_question(pushed) == "Make resends quiet?"
     # answered (a prompt after the push), or finished with a ✅ push: no longer open
     assert lc.pushed_question("chat-a", last_prompt_at=NOW - 2 * HOUR, markers=markers) == ""
@@ -532,11 +545,33 @@ def test_dead_panes_empty_tabs_and_the_link_plugin_are_closed_but_live_panes_nev
                       {"claude": [0, 1, 2, 5], "socialhub": [0]})
     owners = {"claude": {"1", "9"}, "socialhub": {"4"}}
     first = lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW, owners, fake)
-    assert first == ["claude plugin_0 (zellij:link)", "claude empty tab 5"]  # dead panes wait for a second sighting
+    assert first == ["claude plugin_0 (zellij:link)"]  # dead panes and empty tabs wait for a second sighting
     assert lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW + 30, owners, fake) == [
-        "claude plugin_0 (zellij:link)", "claude empty tab 5"]  # too soon for the panes
+        "claude plugin_0 (zellij:link)"]  # too soon
     closed = lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW + lc.DEAD_PANE_SECONDS, owners, fake)
+    assert "claude empty tab 5" in closed
     assert "claude terminal_2" in closed and "claude terminal_3" in closed and "socialhub terminal_4" in closed
     assert ("claude", "close-tab", "1") in fake.closed  # its only pane: the tab goes with it
     assert ("claude", "close-pane", "terminal_3") in fake.closed  # tab 2 keeps its live pane 9
     assert not any(target in ("terminal_1", "terminal_9") for _, _, target in fake.closed)
+
+
+@pytest.mark.parametrize(("listing", "owners"), [
+    ([], {"1"}),  # nothing listed (2026-11-20 22:14: every tab closed as "empty")
+    ([{"id": 1, "is_plugin": False, "exited": False, "is_held": False}], {"1"}),  # panes without their tab
+    ([term(1, 0)], {"1", "7"}),  # a live pane (chat 70004807's) missing from the listing
+])
+def test_tidy_leaves_a_session_alone_when_its_pane_listing_is_incomplete(tmp_path, listing, owners):
+    """TASK-7707: the tidy closed the tabs of working chats 70004807 (18:32) and 4508e325 (22:14)."""
+    fake = FakeZellij({"claude": listing}, {"claude": [0, 1, 2, 3]})
+    for later in (0, lc.DEAD_PANE_SECONDS, 2 * lc.DEAD_PANE_SECONDS):
+        assert lc.close_dead_panes(["claude"], tmp_path, NOW + later, {"claude": owners}, fake) == []
+    assert fake.closed == []
+
+
+def test_tidy_never_closes_a_live_chats_pane_even_when_its_process_looks_gone(tmp_path):
+    fake = FakeZellij({"claude": [term(1, 0), term(2, 1)]}, {"claude": [0, 1]})
+    for later in (0, lc.DEAD_PANE_SECONDS):
+        lc.close_dead_panes(["claude"], tmp_path, NOW + later, {"claude": set()}, fake, protected={"claude": {"2"}})
+    assert ("claude", "close-tab", "0") in fake.closed  # pane 1: dead, alone in its tab
+    assert not any(target in ("1", "terminal_2") for _, _, target in fake.closed)

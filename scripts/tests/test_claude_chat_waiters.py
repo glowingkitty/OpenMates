@@ -66,7 +66,7 @@ def sources(tmp_path: Path, rows=(), sessions=None) -> cw.Sources:
 def test_the_d2a774d9_case_a_parked_disk_wait_keeps_the_idle_chat_running(tmp_path):
     found = cw.collect(sources(tmp_path, [disk_wait()]), NOW)
     target = chat(waiters=found[CHAT])
-    assert lc.decide(chat(), NOW, CONFIG, "other").action == "stop"  # what happened on 2026-11-15
+    assert lc.decide(chat(), NOW, CONFIG, "other").action == "continue"  # stopped on 2026-11-15; woken since TASK-7707
     decision = lc.decide(target, NOW, CONFIG, "other")
     assert decision.action == "keep" and decision.hard
     assert "waits on disk: disk space for ci-source:fe65" in decision.reason
