@@ -11,6 +11,9 @@
 <script lang="ts">
   import { getContext } from 'svelte';
   import EmbedPreviewLarge from '../embeds/EmbedPreviewLarge.svelte';
+  import { createEmbedCarouselScope } from '../embeds/embedCarouselScope';
+
+  const carouselScope = createEmbedCarouselScope();
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   import { embedStore } from '../../services/embedStore';
@@ -73,6 +76,7 @@
           carouselIndex={0}
           carouselTotal={1}
           runRef={`interactive-question-${embedId}`}
+          {carouselScope}
         />
       </div>
     {/each}

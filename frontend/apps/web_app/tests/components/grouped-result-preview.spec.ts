@@ -174,3 +174,30 @@ for (const app of ['home', 'events']) for (const theme of ['light', 'dark']) for
     await testInfo.attach(`${app}-grouped-${theme}-${width}`, { body: await fixture.screenshot(), contentType: 'image/png' });
   });
 }
+
+// Issue X83Z4: a second, narrow rendering of the same carousel run must not
+// size the wide carousel's shell, or the 400px card paints over what follows.
+// contract-test: supporting surface=gui.web assertions=chats.layout.responsive-history
+test('a narrow copy of the same large carousel does not shrink the wide shell', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1100, height: 1400 });
+  await page.goto('/dev/preview/embeds/GroupedResultPreviewHarness?chrome=0&context=chat&theme=dark&width=1100&variant=narrowCopy');
+  await waitForComponentPreview(page);
+  const fixture = page.getByTestId('grouped-result-fixture');
+  await expect(fixture).toHaveAttribute('data-ready', 'true');
+  const wide = page.getByTestId('large-group');
+  const narrow = page.getByTestId('narrow-large-group');
+  await expect(wide.getByTestId('embed-preview-large').getByTestId('embed-preview')).toHaveCSS('height', '400px');
+  await expect(narrow.getByTestId('embed-preview-large').getByTestId('embed-preview')).toHaveCSS('height', '200px');
+  for (const group of [wide, narrow]) {
+    const shell = group.getByTestId('embed-preview-large');
+    const card = shell.getByTestId('embed-preview');
+    // The shell contains its own card; the content after it starts below the card.
+    await expect.poll(async () => {
+      const [shellBox, cardBox] = [await shell.boundingBox(), await card.boundingBox()];
+      return Math.round(shellBox!.y + shellBox!.height - (cardBox!.y + cardBox!.height));
+    }).toBeGreaterThanOrEqual(0);
+  }
+  const [wideCard, narrowTop] = [await wide.getByTestId('embed-preview-large').getByTestId('embed-preview').boundingBox(), (await narrow.boundingBox())!.y];
+  expect(narrowTop).toBeGreaterThanOrEqual(wideCard!.y + wideCard!.height);
+  await testInfo.attach('large-carousel-with-narrow-copy-1100', { body: await fixture.screenshot(), contentType: 'image/png' });
+});

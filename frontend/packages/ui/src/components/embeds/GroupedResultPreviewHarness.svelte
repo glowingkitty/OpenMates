@@ -7,13 +7,18 @@
   import { embedStore } from '../../services/embedStore';
   import EmbedPreviewLarge from './EmbedPreviewLarge.svelte';
   import EmbedReferencePreview from './EmbedReferencePreview.svelte';
+  import { createEmbedCarouselScope } from './embedCarouselScope';
   import type { EmbedNodeAttributes } from '../../message_parsing/types';
 
-  let { app = 'home', skillCalls = false, skillStatus = 'processing' }: {
+  let { app = 'home', skillCalls = false, skillStatus = 'processing', narrowCopy = false }: {
     app?: 'home' | 'events' | 'code';
     skillCalls?: boolean;
     skillStatus?: 'processing' | 'finished';
+    /** Also render the same run in a second, narrow message view (issue X83Z4). */
+    narrowCopy?: boolean;
   } = $props();
+  const largeScope = createEmbedCarouselScope();
+  const narrowScope = createEmbedCarouselScope();
   let compact: HTMLDivElement;
   let ready = $state(false);
   const ids = [1, 2, 3].map(index => `e4336790-2200-4000-8000-00000000000${index}`);
@@ -79,8 +84,13 @@
   <section data-testid="compact-group"><div bind:this={compact} class="embed-group-container"></div></section>
   {#if ready && !skillCalls}
     <section data-testid="large-group">
-      {#each ids as id, index}<EmbedPreviewLarge embedRef={id} embedId={id} carouselIndex={index} carouselTotal={ids.length} runRef="grouped-result-fixture" />{/each}
+      {#each ids as id, index}<EmbedPreviewLarge embedRef={id} embedId={id} carouselIndex={index} carouselTotal={ids.length} runRef="grouped-result-fixture" carouselScope={largeScope} />{/each}
     </section>
+    {#if narrowCopy}
+      <section data-testid="narrow-large-group" class="narrow-copy">
+        {#each ids as id, index}<EmbedPreviewLarge embedRef={id} embedId={id} carouselIndex={index} carouselTotal={ids.length} runRef="grouped-result-fixture" carouselScope={narrowScope} />{/each}
+      </section>
+    {/if}
     <section data-testid="ungrouped-result"><EmbedReferencePreview embedRef={ids[0]} embedId={ids[0]} variant="small" /></section>
   {/if}
 </div>
@@ -89,4 +99,5 @@
   @import '../enter_message/EmbeddPreview.styles.css';
   .fixture { width:100%; max-width:900px; min-width:0; box-sizing:border-box; padding:12px; display:grid; gap:40px; }
   section { min-width:0; }
+  .narrow-copy { width:360px; max-width:100%; }
 </style>

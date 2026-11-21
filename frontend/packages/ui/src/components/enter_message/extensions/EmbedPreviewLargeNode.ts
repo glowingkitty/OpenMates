@@ -19,6 +19,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { mount, unmount } from "svelte";
 import EmbedPreviewLarge from "../../embeds/EmbedPreviewLarge.svelte";
+import { embedCarouselScopeFor } from "../../embeds/embedCarouselScope";
 import { EMBED_SOURCE_CHAT_CONTEXT } from "../../../types/embedFullscreen";
 import { hasStableLargePreviewIdentity } from "./streamingNodeIdentity";
 import { incrementStreamingRenderMetric } from "../../../message_parsing/streamingRenderMetrics";
@@ -152,6 +153,9 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
   addNodeView() {
     return (nodeViewProps) => {
       const sourceChatId = this.options.chatId ?? null;
+      // All slides of a run live in the same editor; another editor rendering
+      // the same message must not share their measured bounds.
+      const carouselScope = embedCarouselScopeFor(this.editor);
       let node = nodeViewProps.node;
       const dom = document.createElement("div");
       dom.setAttribute("contenteditable", "false");
@@ -178,6 +182,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
           carouselIndex: node.attrs.carouselIndex as number,
           carouselTotal: node.attrs.carouselTotal as number,
           runRef: node.attrs.runRef as string,
+          carouselScope,
           bodyHidden: node.attrs.bodyHidden === true,
         };
       }
