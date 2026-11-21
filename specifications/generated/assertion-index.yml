@@ -698,7 +698,7 @@ assertions:
       surface: rest_api
     - &id092
       path: frontend/apps/web_app/tests/image-upload-svg-generate-real.spec.ts
-      line: 85
+      line: 106
       name: 'an uploaded photo plus '
       surface: gui.web
     supporting_tests:
@@ -119092,7 +119092,7 @@ assertions:
       surface: gui.web
     - &id15098
       path: frontend/apps/web_app/tests/image-upload-svg-generate-real.spec.ts
-      line: 85
+      line: 106
       name: 'an uploaded photo plus '
       surface: gui.web
     supporting_tests: []
