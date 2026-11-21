@@ -119,6 +119,12 @@ services:
       INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       PUBLIC_URL: "http://localhost:8055"
       LOG_LEVEL: "info"
+      # Directus realtime is unused: OpenMates talks to Directus only over internal REST.
+      # Pinned off so a changed default cannot open the WebSocket interface (GHSA-97xr-jchp-xm3c).
+      WEBSOCKETS_ENABLED: "false"
+      WEBSOCKETS_REST_ENABLED: "false"
+      WEBSOCKETS_GRAPHQL_ENABLED: "false"
+      WEBSOCKETS_LOGS_ENABLED: "false"
       CACHE_ENABLED: "true"
       CACHE_STORE: "redis"
       REDIS_HOST: "cache"
