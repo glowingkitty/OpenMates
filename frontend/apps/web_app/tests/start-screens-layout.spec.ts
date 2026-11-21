@@ -3,7 +3,7 @@
 export {};
 
 /**
- * Start screens layout (TASK-1321): Chats, Apps and Workflows share one start-screen layout
+ * Start screens layout (TASK-1321): Chats, Apps, Workflows and (signed in) Projects share one start-screen layout
  * for signed-out visitors and signed-in users at phone, tablet and desktop widths.
  *
  * Each screen: no Daily Inspiration banner; a greeting with one short call to action; one
@@ -35,7 +35,7 @@ const L = ['web-laptop'];
 
 const START_SCREENS_PROOF = defineVideoProof({
 	id: 'start-screens-layout',
-	title: 'Chats, Apps and Workflows start screens share one layout',
+	title: 'Chats, Apps, Workflows and Projects start screens share one layout',
 	surface: 'web',
 	devices: L,
 	domain: 'app.dev.openmates.org',
@@ -43,12 +43,14 @@ const START_SCREENS_PROOF = defineVideoProof({
 		{ id: 'chats', text: 'Chats: greeting, a row of large cards ending with Show all and Search, suggestions below.', checkpoint: 'chats-start', devices: L },
 		{ id: 'apps', text: 'Apps: "Explore the apps OpenMates can use" above the same row, ending with Show all apps and Search.', checkpoint: 'apps-start', devices: L },
 		{ id: 'workflows', text: 'Workflows: the same row ending with Show templates, workflow prompt suggestions below.', checkpoint: 'workflows-start', devices: L },
+		{ id: 'projects', text: 'Projects: no banner; projects and project inspirations in the same row, ending with Show all projects and Search.', checkpoint: 'projects-start', devices: L },
 		{ id: 'suggestion', text: 'Tapping a workflow suggestion fills the describe-a-workflow composer.', checkpoint: 'workflow-suggestion-filled', devices: L }
 	],
 	assertions: [
 		{ id: 'start.chats_layout', checkpoint: 'chats-start', visual: 'No banner; the row ends with the Show all and Search tile; three suggestions sit below it.', devices: L },
 		{ id: 'start.apps_layout', checkpoint: 'apps-start', visual: 'The Apps heading reads "Explore the apps OpenMates can use"; app cards have the chat card size.', devices: L },
 		{ id: 'start.workflows_layout', checkpoint: 'workflows-start', visual: 'The Workflows row ends with Show templates; prompt suggestions sit below it.', devices: L },
+		{ id: 'start.projects_layout', checkpoint: 'projects-start', visual: 'The Projects row has no banner above it and ends with Show all projects and Search.', devices: L },
 		{ id: 'start.workflow_suggestion', checkpoint: 'workflow-suggestion-filled', visual: 'The describe-a-workflow composer contains the tapped suggestion.', devices: L }
 	],
 	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
@@ -64,7 +66,7 @@ const VIEWPORTS = [
 const SHORT_PHONE = { name: 'short-phone', width: 390, height: 631 };
 
 type Screen = {
-	name: 'chats' | 'apps' | 'workflows';
+	name: 'chats' | 'apps' | 'workflows' | 'projects';
 	path: string;
 	actionsTestId: string;
 	suggestionsTestId: string | null;
@@ -74,7 +76,7 @@ type Screen = {
 };
 
 /** Header switcher value / tab href of each start screen. */
-const SCREEN_HREFS: Record<Screen['name'], string> = { chats: '/', apps: '/#apps', workflows: '/#workflows' };
+const SCREEN_HREFS: Record<Screen['name'], string> = { chats: '/', apps: '/#apps', workflows: '/#workflows', projects: '/#projects' };
 
 const SCREENS: Screen[] = [
 	{
@@ -107,12 +109,24 @@ const SCREENS: Screen[] = [
 	}
 ];
 
-/** The three start rows may differ in height on screen by at most this much at one width. */
+/** Projects needs an account, so it is checked in the signed-in pass only (TASK-1321). */
+const PROJECTS_SCREEN: Screen = {
+	name: 'projects',
+	path: '/projects',
+	actionsTestId: 'projects-start-row-actions',
+	suggestionsTestId: null,
+	headingTestId: 'projects-home-heading',
+	subtitleText: /What do you want to organize next\?/,
+	actionIds: () => ['projects-show-all', 'projects-search']
+};
+const SIGNED_IN_SCREENS: Screen[] = [...SCREENS, PROJECTS_SCREEN];
+
+/** The start rows may differ in height on screen by at most this much at one width. */
 const ROW_TOP_TOLERANCE_PX = 40;
 
 /**
  * Asserts the shared start-screen layout of one screen, attaches its screenshot and returns
- * the row's top edge so the caller can compare it across Chats, Apps and Workflows.
+ * the row's top edge so the caller can compare it across the start screens.
  */
 async function expectStartScreen(page: any, testInfo: any, screen: Screen, viewport: (typeof VIEWPORTS)[number], signedIn: boolean): Promise<number> {
 	const actions = page.getByTestId(screen.actionsTestId);
@@ -162,7 +176,11 @@ async function expectStartScreen(page: any, testInfo: any, screen: Screen, viewp
 	expect(cardCount).toBeLessThanOrEqual(10);
 	if (cardCount > 0) {
 		const rowBox = await row.boundingBox();
-		const first = await children.first().boundingBox();
+		// Inspiration cards sit in a `display: contents` placement wrapper (no box of its own),
+		// so measure the first card itself.
+		const firstCard = row.locator(':scope > :not(.workflow-card-placement), :scope > .workflow-card-placement > *').first();
+		const first = await firstCard.boundingBox();
+		expect(first, `first start-row card of ${screen.name} at ${viewport.name} has no box`).not.toBeNull();
 		const expectedWidth = viewport.width <= 480 ? Math.min(280, viewport.width * 0.76) : 300;
 		expect(Math.abs(first.width - expectedWidth)).toBeLessThanOrEqual(1);
 		expect(Math.abs(first.height - 200)).toBeLessThanOrEqual(1);
@@ -227,7 +245,7 @@ async function expectGreetingBelowTopButtons(page: any, heading: any, viewportNa
 	).toBeGreaterThanOrEqual(buttonsBox.y + buttonsBox.height - 1);
 }
 
-/** Chats, Apps and Workflows show their rows at the same height on screen. */
+/** All start screens show their rows at the same height on screen. */
 function expectAlignedRows(rowTops: number[], viewportName: string) {
 	const spread = Math.max(...rowTops) - Math.min(...rowTops);
 	expect(spread, `start rows at ${viewportName} sit at ${rowTops.map(Math.round).join(', ')}px`).toBeLessThanOrEqual(ROW_TOP_TOLERANCE_PX);
@@ -254,7 +272,7 @@ test.describe('start screens layout', () => {
 	});
 
 	// contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-actions,daily-inspiration.start-row-suggestions,workspace-shell.start.available-space-cards,workflows-ui.home.prompt-suggestions
-	test('signed-in Chats, Apps and Workflows share the start-screen layout at every width', async ({ page }: { page: any }, testInfo: any) => {
+	test('signed-in Chats, Apps, Workflows and Projects share the start-screen layout at every width', async ({ page }: { page: any }, testInfo: any) => {
 		test.slow();
 		test.setTimeout(300000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -272,7 +290,7 @@ test.describe('start screens layout', () => {
 		for (const viewport of [VIEWPORTS[0], VIEWPORTS[1], VIEWPORTS[2]]) {
 			await page.setViewportSize({ width: viewport.width, height: viewport.height });
 			const rowTops: number[] = [];
-			for (const screen of SCREENS) {
+			for (const screen of SIGNED_IN_SCREENS) {
 				await page.goto(getE2EDebugUrl(screen.path), { waitUntil: 'domcontentloaded' });
 				if (viewport.name !== 'desktop') {
 					rowTops.push(await expectStartScreen(page, testInfo, screen, viewport, true));

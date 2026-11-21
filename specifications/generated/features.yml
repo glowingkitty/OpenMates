@@ -4705,9 +4705,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 7
+        passing: 8
         failing: 0
-        not_run: 6
+        not_run: 5
         missing: 1
         counted: 14
       key_tests: []

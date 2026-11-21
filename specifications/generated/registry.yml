@@ -752,7 +752,7 @@ specifications:
     version: 3
     status: draft
     path: features/daily-inspiration
-    fingerprint: af31e00b6df1f5a9c7e8d29b5ac524a77dc0052377b874962dd416c412b5b83c
+    fingerprint: ce9214db6361ee8d6f9f40ed54805088713544517d26b21c66999c8da8703bd9
     required_applies_to:
     - rest_api
     - gui.web
@@ -10185,7 +10185,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: 910a51be643f556b720c6d53c5723cff3ec8ee3059bf0f2c933ff9daa9e3ac86
+    fingerprint: 79d0364e0739fad11b1abffce00a97c5c6ede37dbc25c00c9ffd623307731ba0
     required_applies_to:
     - rest_api
     - gui.web

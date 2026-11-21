@@ -116,6 +116,64 @@ test.describe('Responsive workspace homes', () => {
 	}
 
 	for (const size of [{ width: 390, height: 844 }, { width: 820, height: 1180 }, { width: 1280, height: 800 }]) {
+		// contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-actions
+		test(`project start row ends with Show all projects and Search at ${size.width}px (TASK-1321)`, async ({ page }, testInfo) => {
+			await page.setViewportSize(size);
+			await page.goto('/dev/preview/projects/ProjectsPage?variant=landing&theme=light&chrome=0');
+			await waitForComponentPreview(page);
+			const row = page.getByTestId('project-mixed-row');
+			await expect(row.getByTestId('project-landing-card').first()).toBeVisible();
+			// The actions are the last item of the row, after every project and inspiration card.
+			const actionsTile = page.getByTestId('projects-start-row-actions');
+			await expect(actionsTile).toBeAttached();
+			await expect(actionsTile.getByTestId('projects-show-all')).toHaveText(/Show all projects/);
+			await expect(actionsTile.getByTestId('projects-search')).toHaveText(/Search/);
+			const lastItemIsActions = await page.evaluate(() => {
+				const tile = document.querySelector('[data-testid="projects-start-row-actions"]');
+				const cards = [...document.querySelectorAll('[data-testid="project-mixed-row"] [data-testid="project-landing-card"], [data-testid="project-mixed-row"] [data-testid="project-inspiration-card"]')];
+				if (!tile || cards.length === 0) return false;
+				const tileLeft = tile.getBoundingClientRect().left;
+				return cards.every((card) => card.getBoundingClientRect().left < tileLeft);
+			});
+			expect(lastItemIsActions).toBe(true);
+			await actionsTile.scrollIntoViewIfNeeded();
+			await testInfo.attach(`project-row-actions-${size.width}.png`, { body: await page.screenshot(), contentType: 'image/png' });
+
+			await actionsTile.getByTestId('projects-show-all').click();
+			const allView = page.getByTestId('all-projects-view');
+			await expect(allView).toBeVisible();
+			await expect(allView.getByRole('heading', { name: 'All projects' })).toBeVisible();
+			const allCount = await page.getByTestId('all-projects-grid').getByTestId('project-landing-card').count();
+			expect(allCount).toBeGreaterThan(0);
+			await testInfo.attach(`project-all-${size.width}.png`, { body: await page.screenshot(), contentType: 'image/png' });
+
+			await page.getByTestId('projects-back-to-recent').click();
+			await expect(allView).toHaveCount(0);
+			await expect(page.getByTestId('projects-start-row-actions')).toBeAttached();
+
+			await page.getByTestId('projects-start-row-actions').getByTestId('projects-search').click();
+			const search = page.getByTestId('projects-search-input');
+			await expect(search).toBeFocused();
+			await search.fill('zz no such project');
+			await expect(page.getByTestId('projects-all-items-empty')).toHaveText('No projects match your search.');
+			await search.fill('');
+			const grid = page.getByTestId('all-projects-grid');
+			await expect(grid.getByTestId('project-landing-card')).toHaveCount(allCount);
+			// A single search hit stays centred under the heading, and so does the search box.
+			const firstTitle = ((await grid.getByTestId('project-landing-card').first().textContent()) ?? '').trim();
+			await search.fill(firstTitle);
+			const hits = grid.getByTestId('project-landing-card');
+			if ((await hits.count()) === 1) {
+				const [gridBox, hitBox] = await Promise.all([grid.boundingBox(), hits.first().boundingBox()]);
+				expect(Math.abs(hitBox!.x + hitBox!.width / 2 - (gridBox!.x + gridBox!.width / 2))).toBeLessThanOrEqual(2);
+			}
+			const [viewBox, searchBox] = await Promise.all([allView.boundingBox(), search.boundingBox()]);
+			expect(Math.abs(searchBox!.x + searchBox!.width / 2 - (viewBox!.x + viewBox!.width / 2))).toBeLessThanOrEqual(2);
+			await testInfo.attach(`project-search-${size.width}.png`, { body: await page.screenshot(), contentType: 'image/png' });
+		});
+	}
+
+	for (const size of [{ width: 390, height: 844 }, { width: 820, height: 1180 }, { width: 1280, height: 800 }]) {
 		// contract-test: direct surface=gui.web assertions=workspace-shell.start.available-space-cards
 		test(`workflow start row matches the Chats start row at ${size.width}px`, async ({ page }, testInfo) => {
 			await page.setViewportSize(size);

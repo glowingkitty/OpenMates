@@ -357,6 +357,23 @@
     icon: 'folder',
     source: 'recent',
   })));
+  // Start-screen end-of-row actions (same pattern as Apps and Workflows, TASK-1321):
+  // "Show all projects" opens the shell's all-items grid; "Search" opens it with a filter.
+  let showAllProjects = $state(false);
+  let projectSearchOpen = $state(false);
+  let projectSearchQuery = $state('');
+  let projectSearchInput = $state<HTMLInputElement | null>(null);
+  let normalizedProjectSearch = $derived(projectSearchQuery.trim().toLocaleLowerCase());
+  let allProjectItems = $derived<ProjectContinueItem[]>(sortedProjects
+    .filter((project) => !normalizedProjectSearch || (project.name || 'Untitled project').toLocaleLowerCase().includes(normalizedProjectSearch))
+    .map((project) => ({
+      id: project.project_id,
+      title: project.name || 'Untitled project',
+      category: 'productivity',
+      appId: 'projects',
+      icon: 'folder',
+      source: 'recent',
+    })));
   let projectTabs = $derived([
     { id: 'overview', icon: 'project', label: 'Overview' },
     { id: 'folders', icon: 'files', label: 'Files' },
@@ -861,8 +878,25 @@
   }
 
   function openProjectsHome(): void {
+    closeAllProjects();
     clearSelectedProject();
     setProjectUrlState(null);
+  }
+
+  function openAllProjects(): void {
+    showAllProjects = true;
+  }
+
+  function openProjectSearch(): void {
+    showAllProjects = true;
+    projectSearchOpen = true;
+    void tick().then(() => projectSearchInput?.focus());
+  }
+
+  function closeAllProjects(): void {
+    showAllProjects = false;
+    projectSearchOpen = false;
+    projectSearchQuery = '';
   }
 
   async function openProjectFromCard(item: ProjectContinueItem): Promise<void> {
@@ -2817,7 +2851,33 @@
           onActionItem={openProjectFromCard}
           onContinueItem={openProjectFromCard}
           onStartInspiration={handleStartProjectInspiration}
+          showAllMode={showAllProjects}
+          showAllLabel="Show all projects"
+          showAllTestId="projects-show-all"
+          allItemsHeading="All projects"
+          allItemsEmptyLabel={normalizedProjectSearch ? 'No projects match your search.' : 'No projects yet.'}
+          allItems={allProjectItems}
+          allItemsViewTestId="all-projects-view"
+          allItemsGridTestId="all-projects-grid"
+          allItemsToolbarTestId="projects-all-toolbar"
+          allItemTestId="project-landing-card"
+          backLabel="Back to recent"
+          backTestId="projects-back-to-recent"
+          searchLabel="Search"
+          searchTestId="projects-search"
+          onShowAll={openAllProjects}
+          onBackToRecent={closeAllProjects}
+          onSearchAll={openProjectSearch}
+          onAllItem={openProjectFromCard}
         >
+          <svelte:fragment slot="all-items-controls">
+            {#if projectSearchOpen}
+              <label class="projects-all-search" for="projects-all-search-input">
+                <span class="visually-hidden">Search projects</span>
+                <input id="projects-all-search-input" type="search" placeholder="Search projects" bind:value={projectSearchQuery} bind:this={projectSearchInput} data-testid="projects-search-input" />
+              </label>
+            {/if}
+          </svelte:fragment>
           <svelte:fragment slot="composer">
             <WorkspacePromptComposer
               surface="projects"
@@ -2999,6 +3059,33 @@
 <svelte:window onkeydown={handleRemoteFullscreenKeydown} />
 
 <style>
+  .projects-all-search {
+    display: flex;
+    width: min(420px, 100%);
+    margin: 0 auto 16px;
+  }
+
+  .projects-all-search input {
+    width: 100%;
+    /* The global search-input style caps the width; the label sets it here. */
+    max-width: none;
+    padding: 10px 16px;
+    border: 1px solid var(--color-grey-30);
+    border-radius: 999px;
+    background: var(--color-grey-0);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-p);
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
   .projects-workspace-layout {
     position: relative;
     display: flex;

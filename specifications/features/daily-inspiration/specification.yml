@@ -349,7 +349,9 @@ assertions:
   type: behavior
   must: The browse actions are the last item of the start row, after the cards, in a tile of card
     height. Signed in, Chats offers "Show all chats" and "Search"; signed out, "Select interests" and
-    "Show all examples". No browse links or buttons sit below the row.
+    "Show all examples". Apps offers "Show all apps" and "Search", Workflows "Show templates", and
+    Projects "Show all projects" and "Search" (both open the full project grid; Search adds a filter
+    box). No browse links or buttons sit below the row.
   depends_on:
   - models.StartRow
   - examples.start_row

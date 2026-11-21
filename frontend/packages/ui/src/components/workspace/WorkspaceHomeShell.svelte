@@ -936,7 +936,9 @@
   .workspace-all-items-grid {
     --workspace-all-items-fade-size: 34px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 300px));
+    /* auto-fit drops empty tracks, so a short list (one project, one search hit) stays
+       centred under the heading instead of sitting in the first column. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 300px));
     justify-content: center;
     gap: var(--spacing-8);
     max-height: min(58vh, 620px);
@@ -1390,6 +1392,8 @@
 
     .workspace-all-items-grid {
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+      /* Cards keep their own max width; centre each one in its column. */
+      justify-items: center;
       max-height: min(56vh, 560px);
     }
 
