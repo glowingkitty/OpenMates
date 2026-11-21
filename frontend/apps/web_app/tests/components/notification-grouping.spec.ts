@@ -92,6 +92,25 @@ for (const selected of profiles) {
 		}
 
 
+		// contract-test: supporting surface=gui.web assertions=notifications.delivery.foreground-chat-suppression
+		test('a chat notice for the chat the user just left through New Chat is not dismissed at once', async ({ page }) => {
+			await openStack(page);
+			const cards = page.getByTestId('notification-stack-item');
+			const chatNotice = { type: 'chat_message', chatId: 'left-chat', chatTitle: 'Recipe app', title: 'Recipe app', message: '✅ Added a recipe list', duration: 0 };
+			await test.step('The user is in the chat, then starts a new one (hash cleared without an event)', async () => {
+				await page.evaluate(() => { window.location.hash = 'chat-id=left-chat'; });
+				await page.evaluate(() => history.replaceState(null, '', location.pathname + location.search));
+			});
+			await test.step('A card for the chat just left is shown', async () => {
+				await inject(page, [chatNotice]);
+				await expect(cards).toHaveCount(1);
+				await expect(cards.first()).toContainText('Added a recipe list');
+				await page.waitForTimeout(1000);
+				await expect(cards).toHaveCount(1);
+				await test.info().attach('chat-notice-after-new-chat', { body: await page.screenshot(), contentType: 'image/png' });
+			});
+		});
+
 		// contract-test: supporting surface=gui.web assertions=notifications.web.stacked-deck,pii.composer.detect-redact-exclude
 		test('a persistent recovery notification keeps its retry action through upward swipes', async ({ page }) => {
 			await openStack(page);

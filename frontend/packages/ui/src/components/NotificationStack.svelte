@@ -69,7 +69,10 @@
 
     // A new-message card for the chat on screen is never shown over it.
     $effect(() => {
-        for (const id of chatNotificationIdsForVisibleChat($notificationStore.notifications, visibleChatId)) {
+        // Read the hash now: the cached `visibleChatId` keeps the chat the user just left
+        // (New Chat clears the hash without an event), which dismissed that chat's fresh card at once.
+        void visibleChatId; // re-run when the visible chat may have changed
+        for (const id of chatNotificationIdsForVisibleChat($notificationStore.notifications, getVisibleHashChatId())) {
             notificationStore.removeNotification(id);
         }
     });
