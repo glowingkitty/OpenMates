@@ -825,7 +825,7 @@ specifications:
     version: 1
     status: draft
     path: features/issue-reporting
-    fingerprint: 33eebf5eb1e357d32ecb4c552d52fa137182cc76679ed26f632837240b7d9392
+    fingerprint: 938ed9816967c0a46ef0bdc021dde7921b8aa4cb29214f633c30ddf5e82a8898
     required_applies_to:
     - rest_api
     - gui.web
@@ -11033,6 +11033,24 @@ assertions:
     specification_id: feature.issue-reporting
     type: behavior
     fingerprint: 37b8c2151351629ed4d64b3fc8ad271cb41280db5f9d0f6be4a74ec8e6b60f1b
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
+  issue-reporting.logs.role-aware-forwarding:
+    specification: feature.issue-reporting@1
+    specification_id: feature.issue-reporting
+    type: privacy
+    fingerprint: 27c8094f240687b2cd5e10a7d38580f59caa416d8d20646215bd06df58c925e9
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
+  issue-reporting.logs.native-performance-metadata:
+    specification: feature.issue-reporting@1
+    specification_id: feature.issue-reporting
+    type: behavior
+    fingerprint: a9fc74c0414a925a97dc27adc984c248645b0f4644388b10a9c6596c91e56483
     required_applies_to:
     - rest_api
     - gui.web

@@ -72,3 +72,23 @@ compact_logs:
     given: Retained client log entries identify the reporter in a structured user field rather than inside the message text.
     when: An authorized investigator loads the issue log view.
     then: Entries for that user are returned and the compact log view is not empty solely because the message text omits the user ID.
+
+role_aware_forwarding:
+  - id: admin-all-levels-by-default
+    given: An administrator is signed in on the Apple app with no debug-log session.
+    when: Diagnostics accumulate info, warning and error entries.
+    then: All of them are sent in batches to the administrator log stream, and none contains message text, keys or tokens.
+  - id: user-warnings-only-until-opt-in
+    given: A non-administrator is signed in and has not opted out of stability logs.
+    when: Diagnostics accumulate info, warning and error entries.
+    then: Only warnings and errors are sent to the default telemetry stream; info entries are sent only after the user starts a debug-log session.
+
+native_performance_metadata:
+  - id: stall-and-reconnect-in-issue-report
+    given: The main thread stalls for more than a quarter second and the main connection reconnects once while the app is in use.
+    when: The user submits an issue report.
+    then: The attached diagnostics contain a stall entry with its duration and the reconnect entries with their reasons and timings.
+  - id: metrickit-scalars
+    given: The operating system delivers a hang and launch-time report for the app.
+    when: The app receives it.
+    then: The buffer gains entries with the hang count and duration and the launch-time figures, without any symbol names, file paths or user data.

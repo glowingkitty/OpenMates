@@ -2191,6 +2191,13 @@ struct MainAppView: View {
     #endif
 
     private func scenePhaseDidChange(_ oldValue: ScenePhase, _ newValue: ScenePhase) {
+        // The frame clock runs only in the foreground, so a resume gap is
+        // never reported as a main-thread stall.
+        if newValue == .background {
+            NativePerformanceMonitor.shared.stopSampling()
+        } else if newValue == .active, oldValue == .background {
+            NativePerformanceMonitor.shared.startSampling()
+        }
         if newValue != .active {
             #if os(macOS)
             if !NSApp.isActive || !appSession.hasVisibleChatWindow { UnreadMessagesStore.shared.setActiveChat(nil) }

@@ -98,6 +98,14 @@ assertions:
     type: behavior
     must: When an authenticated user submits an issue with diagnostic collection enabled, the browser sends privacy-filtered compact client logs with the user's authenticated request, the API accepts them, and authorized issue investigation can retrieve entries associated with that user or issue instead of presenting an empty log view solely because the user identifier is stored as a structured field.
     depends_on: [models.DiagnosticCapture, examples.compact_logs]
+  - id: issue-reporting.logs.role-aware-forwarding
+    type: privacy
+    must: An administrator's app forwards all-level diagnostics to the administrator log stream in background batches by default; every other authenticated user sends only warnings and errors unless they opted out, and all levels only during a debug-log session they started themselves. Every forwarded entry is metadata only (counts, durations, error codes, hashed or prefixed identifiers) and never carries message text, decrypted content, keys or tokens.
+    depends_on: [models.DiagnosticCapture, examples.role_aware_forwarding]
+  - id: issue-reporting.logs.native-performance-metadata
+    type: behavior
+    must: The native Apple app records reconnect reasons and timings, network-permission changes, main-thread stalls, frame hitches and the operating system's hang, crash and launch-time reports as scalar diagnostics in its rolling buffer, so they reach the forwarding modes above and every issue report.
+    depends_on: [models.DiagnosticCapture, examples.native_performance_metadata]
 
 applies_to:
   rest_api:
@@ -121,4 +129,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [shake_entry, role_aware_form, single_text_form, dictation_limits, admin_claude_chat, long_title, successful_submission, compact_logs]
+  required_groups: [shake_entry, role_aware_form, single_text_form, dictation_limits, admin_claude_chat, long_title, successful_submission, compact_logs, role_aware_forwarding, native_performance_metadata]

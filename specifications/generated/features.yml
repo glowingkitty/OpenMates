@@ -5520,7 +5520,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 8
+  assertions: 10
   surfaces:
     web:
       status: failing
@@ -5530,8 +5530,8 @@ features:
         passing: 2
         failing: 4
         not_run: 0
-        missing: 2
-        counted: 8
+        missing: 4
+        counted: 10
       failing_tests:
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts › shows notification and submits details only after
         user confirmation
@@ -5562,16 +5562,17 @@ features:
       assertions:
         passing: 5
         failing: 0
-        not_run: 0
+        not_run: 2
         missing: 3
-        counted: 8
+        counted: 10
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/ChatFlowParityUITests.swift
       - apple/OpenMatesUITests/SettingsFullParityUITests.swift
       key_unit_tests:
       - apple/OpenMatesTests/SettingsFullParityTests.swift
-      unit_test_files: 1
+      - apple/OpenMatesTests/NativePerformanceSignalsTests.swift
+      unit_test_files: 2
       platforms:
       - ios
       - ipados
@@ -5613,8 +5614,8 @@ features:
         passing: 2
         failing: 1
         not_run: 0
-        missing: 5
-        counted: 8
+        missing: 7
+        counted: 10
       failing_tests:
       - frontend/apps/web_app/tests/report-issue-flow.spec.ts › Report issue API accepts long user-written titles
       key_tests: []
