@@ -77,12 +77,24 @@ async def handle_request_embed(
                 }}, user_id, device_fingerprint_hash,
             )
 
-        async def not_found() -> None:
+        async def not_found(reason: str) -> None:
+            # The reason stays server-side: telling the client why would reveal
+            # whether an embed exists outside its access. The log makes a
+            # user-reported "Embed not found" traceable (issue JP9NV).
+            logger.info(
+                f"{log_prefix}Embed not found for user {user_id}: reason={reason} "
+                f"chat_id={payload.get('chat_id')} team_id={payload.get('team_id')} source_only={source_only}"
+            )
             if source_only:
                 await source_response()
             else:
+                # The code lets clients treat a refused background embed read as
+                # a missing embed instead of a server failure.
                 await manager.send_personal_message(
-                    {"type": "error", "payload": {"message": "Embed not found", "status": 404}},
+                    {"type": "error", "payload": {
+                        "message": "Embed not found", "status": 404,
+                        "code": "embed_not_found", "embed_id": embed_id,
+                    }},
                     user_id, device_fingerprint_hash,
                 )
 
@@ -95,7 +107,7 @@ async def handle_request_embed(
             except ValueError:
                 valid_ids = False
             if not valid_ids:
-                await not_found()
+                await not_found("invalid_source_ids")
                 return
         elif not embed_id:
             logger.error(f"{log_prefix}Missing embed_id in request from user {user_id}")
@@ -141,29 +153,29 @@ async def handle_request_embed(
             # Classify the live source chat before choosing Personal or Team ACL.
             chat = await source_chat(chat_id)
             if not chat or chat.get("storage_state") == "deleting":
-                await not_found()
+                await not_found("source_chat_missing_or_deleting")
                 return
             if chat.get("hashed_team_id"):
                 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
                 if not team_id or chat["hashed_team_id"] != hash_id(team_id):
-                    await not_found()
+                    await not_found("team_context_mismatch")
                     return
                 try:
                     await directus_service.team.require_team_role(
                         team_id, user_id, {"owner", "admin", "member", "viewer"},
                     )
                 except TeamPermissionError:
-                    await not_found()
+                    await not_found("team_role_denied")
                     return
                 metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
                 if is_direct_chat(metadata):
                     try:
                         await require_direct_chat_access(directus_service, metadata, user_id, team_id)
                     except (PermissionError, ValueError):
-                        await not_found()
+                        await not_found("direct_chat_denied")
                         return
             elif team_id or chat.get("hashed_user_id") != hashed_user_id:
-                await not_found()
+                await not_found("personal_owner_mismatch")
                 return
             directus_embed = await read_embed()
             if directus_embed and directus_embed.get("hashed_chat_id") != hashed_chat_id:
@@ -172,18 +184,18 @@ async def handle_request_embed(
                     and directus_embed.get("hashed_user_id") == hashed_user_id
                 )
                 if not legacy_owner_embed:
-                    await not_found()
+                    await not_found("embed_chat_mismatch")
                     return
         else:
             # Legacy clients omit chat_id. Resolve the hashed source against
             # fresh, Personal-only chat IDs; an embed author hash alone does not
             # prove current access to a Team chat.
             if team_id:
-                await not_found()
+                await not_found("legacy_request_with_team")
                 return
             directus_embed = await read_embed()
             if not directus_embed or directus_embed.get("hashed_user_id") != hashed_user_id:
-                await not_found()
+                await not_found("legacy_owner_mismatch")
                 return
             hashed_chat_id = directus_embed.get("hashed_chat_id")
             if not hashed_chat_id:
@@ -198,14 +210,14 @@ async def handle_request_embed(
                     and directus_embed.get("encrypted_type")
                 )
                 if not project_only_file:
-                    await not_found()
+                    await not_found("legacy_no_source_chat")
                     return
             if hashed_chat_id:
                 try:
                     personal_chats = await directus_service.chat.get_chat_activity_candidates(user_id)
                 except Exception:
                     logger.error(f"{log_prefix}Failed to verify legacy Personal source", exc_info=True)
-                    await not_found()
+                    await not_found("legacy_source_lookup_failed")
                     return
                 source_id = next((row.get("id") for row in personal_chats
                                   if isinstance(row, dict) and isinstance(row.get("id"), str)
@@ -213,13 +225,13 @@ async def handle_request_embed(
                 chat = await source_chat(source_id) if source_id else None
                 if (not chat or chat.get("storage_state") == "deleting"
                         or chat.get("hashed_team_id") or chat.get("hashed_user_id") != hashed_user_id):
-                    await not_found()
+                    await not_found("legacy_source_not_live")
                     return
                 chat_id = source_id
 
         if source_only:
             if not directus_embed or directus_embed.get("status") == "cancelled":
-                await not_found()
+                await not_found("source_only_missing_or_cancelled")
                 return
             await source_response(chat_id)
             return
@@ -292,13 +304,13 @@ async def handle_request_embed(
                 cached_hashed_chat_id = cached.get("hashed_chat_id")
                 if (cached_chat_id and cached_chat_id not in {chat_id, hashed_chat_id}
                         and hashlib.sha256(str(cached_chat_id).encode()).hexdigest() != hashed_chat_id):
-                    await not_found()
+                    await not_found("cache_chat_mismatch")
                     return
                 if cached_hashed_chat_id and cached_hashed_chat_id != hashed_chat_id:
-                    await not_found()
+                    await not_found("cache_hashed_chat_mismatch")
                     return
                 if not cached_chat_id and not cached_hashed_chat_id and cached.get("hashed_user_id") != hashed_user_id:
-                    await not_found()
+                    await not_found("cache_owner_mismatch")
                     return
 
             # If the cache shows "processing", the embed may have already finished but the
@@ -404,7 +416,7 @@ async def handle_request_embed(
                     # Rejected operational failures are not execution results.
                     # Never expose Vault ciphertext as plaintext TOON: clients
                     # persist legitimate terminal error deliveries.
-                    await not_found()
+                    await not_found("cached_error_status")
                 else:
                     error_payload = {
                         "event": "send_embed_data",
@@ -492,7 +504,7 @@ async def handle_request_embed(
                     return
 
                 logger.warning(f"{log_prefix}Embed not found in cache or Directus")
-                await not_found()
+                await not_found("missing")
                 return
 
             # Cache has non-processing embed data (e.g. vault-encrypted content from

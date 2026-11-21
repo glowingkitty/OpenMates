@@ -626,6 +626,15 @@ describe("request-owned embed errors", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("treats a refused embed read as a missing embed, not a Server error notice (JP9NV)", () => {
+    const toast = vi.spyOn(notificationStore, "error").mockImplementation(() => "toast");
+    defaultError()({ message: "Embed not found", status: 404, code: "embed_not_found", embed_id: "embed-1" });
+    expect(toast).not.toHaveBeenCalled();
+    defaultError()({ message: "Failed to load embed" });
+    expect(toast).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("does not hide unrelated protocol errors carrying an owned request id", () => {
     const toast = vi.spyOn(notificationStore, "error").mockImplementation(() => "toast");
     const release = webSocketService.ownEmbedProtocolRequest("embed-request", vi.fn());

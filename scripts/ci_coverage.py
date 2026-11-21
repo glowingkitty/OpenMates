@@ -49,6 +49,8 @@ CORE_SPECS = frozenset({
     # Schema/CLI metadata only; no provider credentials or AI inference.
     "skill-search-relevance-parity.spec.ts",
     "skill-audio-speech-models.spec.ts",
+    # One WebSocket request_embed for a missing embed: core auth/Directus only, no inference.
+    "embed-not-found-no-toast.spec.ts",
 
     "interface-font-settings.spec.ts",
     "language-settings-flow.spec.ts",

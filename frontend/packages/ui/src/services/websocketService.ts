@@ -507,6 +507,13 @@ class WebSocketService extends EventTarget {
       if (isRecord(payload) && typeof payload.request_id === "string"
         && typeof payload.code === "string" && payload.code.startsWith("embed_")
         && this.messageHandlers.get("error")?.includes(this.ownedEmbedProtocolRequests.get(payload.request_id)!)) return;
+      // A refused or missing embed read (background preview hydration, recovery)
+      // is a missing embed, not a server failure: the embed shows its own state
+      // instead of a "Server error: Embed not found" notice (issue JP9NV).
+      if (isRecord(payload) && payload.code === "embed_not_found") {
+        console.warn("[WebSocketService] Embed read refused as not found:", payload.embed_id);
+        return;
+      }
       if (isRetryableRecoveryProtocolError(payload)) {
         console.debug(
           "[WebSocketService] Received retryable recovery protocol error:",

@@ -791,7 +791,10 @@ test.describe('Teams V1 context isolation', () => {
 				const deniedStart = frames.length;
 				await requestEmbedProbe(page, payload);
 				await waitForFrame(frames, deniedStart, 'received', 'error',
-					(reply) => reply.status === 404 && reply.message === 'Embed not found');
+					(reply) => reply.status === 404 && reply.message === 'Embed not found'
+						&& reply.code === 'embed_not_found' && reply.embed_id === fencedEmbedId);
+				// A refused embed read is a missing embed, not a server failure (issue JP9NV).
+				await expect(page.getByText('Server error: Embed not found', { exact: true })).toHaveCount(0);
 				expect(frames.slice(deniedStart).some((frame) => frame.direction === 'received' &&
 					frame.type === 'send_embed_data' && frame.payload.embed_id === fencedEmbedId)).toBe(false);
 			}

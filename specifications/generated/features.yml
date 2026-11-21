@@ -3234,6 +3234,7 @@ features:
       - frontend/apps/web_app/tests/embed-canonical-replay.spec.ts
       - frontend/apps/web_app/tests/embed-catalog-hyphen-roundtrip.spec.ts
       - frontend/apps/web_app/tests/embed-fullscreen-followup.spec.ts
+      - frontend/apps/web_app/tests/embed-not-found-no-toast.spec.ts
       - frontend/apps/web_app/tests/embed-preview-backfill-replay.spec.ts
       - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
       - frontend/apps/web_app/tests/example-chat-embed-uuid-isolation.spec.ts
