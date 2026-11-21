@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "スクリーンショットが大きすぎます。より小さなウィンドウで試してください。"
       },
+      "screenshot_limit_reached": {
+        "text": "スクリーンショットは最大5枚まで添付できます。"
+      },
       "screenshot_preview_alt": {
         "text": "スクリーンショットのプレビュー"
       },

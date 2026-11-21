@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "Ảnh chụp màn hình quá lớn. Vui lòng thử cửa sổ nhỏ hơn."
       },
+      "screenshot_limit_reached": {
+        "text": "Bạn có thể đính kèm tối đa 5 ảnh chụp màn hình."
+      },
       "screenshot_preview_alt": {
         "text": "Xem trước ảnh chụp màn hình"
       },

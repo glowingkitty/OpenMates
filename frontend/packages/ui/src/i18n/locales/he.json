@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "צילום המסך גדול מדי. כדאי לנסות חלון קטן יותר."
       },
+      "screenshot_limit_reached": {
+        "text": "אפשר לצרף עד 5 צילומי מסך."
+      },
       "screenshot_preview_alt": {
         "text": "תצוגה מקדימה של צילום המסך"
       },

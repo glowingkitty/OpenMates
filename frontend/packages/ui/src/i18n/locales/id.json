@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "Tangkapan layar terlalu besar. Coba jendela yang lebih kecil."
       },
+      "screenshot_limit_reached": {
+        "text": "Anda dapat melampirkan hingga 5 tangkapan layar."
+      },
       "screenshot_preview_alt": {
         "text": "Pratinjau tangkapan layar"
       },

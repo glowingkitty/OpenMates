@@ -13,13 +13,27 @@ const MIN_INTERESTS_TO_CONTINUE = 4;
 async function openGuestWelcome(page: any) {
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 	await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });
-	await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 }
 
 async function visibleExampleIds(page: any): Promise<string[]> {
 	return page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').evaluateAll(
 		(nodes: Element[]) => nodes.map((node) => node.getAttribute('data-chat-id') || '').filter((id) => id.startsWith('example-'))
 	);
+}
+
+/**
+ * The start row holds at most ten cards (TASK-1321): the landing defaults in their exact order,
+ * interleaved with at most two daily inspirations, so at least the first eight defaults show.
+ */
+async function expectLandingDefaultsInRow(page: any, expectedIds: string[]) {
+	await expect.poll(async () => (await visibleExampleIds(page)).length).toBeGreaterThanOrEqual(8);
+	const ids = await visibleExampleIds(page);
+	expect(ids).toEqual(expectedIds.slice(0, ids.length));
+	const cards = page.getByTestId('recent-chats-scroll-container').locator(':scope > :not([data-testid="start-row-actions"])');
+	expect(await cards.count()).toBeLessThanOrEqual(10);
 }
 
 test.describe('Guest interests and real example chats', () => {
@@ -41,10 +55,10 @@ test.describe('Guest interests and real example chats', () => {
 		const expectedIds = landingExamples.map((example: { chatId: string }) => example.chatId);
 		await expect(page.getByTestId('chat-welcome-heading')).toHaveText('Hey there!');
 		await expect(page.getByTestId('guest-interest-prompt')).toHaveText('Explore some example chats:');
-		await expect.poll(() => visibleExampleIds(page)).toEqual(expectedIds);
+		await expectLandingDefaultsInRow(page, expectedIds);
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('chat-welcome-heading')).toHaveText('Hey there!');
-		await expect.poll(() => visibleExampleIds(page)).toEqual(expectedIds);
+		await expectLandingDefaultsInRow(page, expectedIds);
 		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible();
 		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible();
 	});

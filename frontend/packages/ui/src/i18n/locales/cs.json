@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "Snímek obrazovky je příliš velký. Zkuste menší okno."
       },
+      "screenshot_limit_reached": {
+        "text": "Můžete přiložit nejvýše 5 snímků obrazovky."
+      },
       "screenshot_preview_alt": {
         "text": "Náhled snímku obrazovky"
       },

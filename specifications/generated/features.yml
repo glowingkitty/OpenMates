@@ -4683,8 +4683,8 @@ features:
 - id: daily-inspiration
   name: Daily Inspiration
   kind: core
-  description: Personalised daily video and article cards inside the start-screen row (banner for signed-out visitors), with
-    a public default.
+  description: Personalised daily video and article cards inside the start-screen row (signed in and signed out, no banner),
+    with a public default; the row ends with its browse actions and suggestions follow below it.
   specifications:
   - id: feature.daily-inspiration
     status: draft
@@ -4696,7 +4696,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 11
+  assertions: 13
   surfaces:
     web:
       status: partial
@@ -4705,9 +4705,9 @@ features:
       assertions:
         passing: 6
         failing: 0
-        not_run: 4
+        not_run: 6
         missing: 1
-        counted: 11
+        counted: 13
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/inspiration-language.spec.ts
@@ -4720,6 +4720,7 @@ features:
       - frontend/apps/web_app/tests/provider-boundary.spec.ts
       - frontend/apps/web_app/tests/session-503-inspiration-recovery.spec.ts
       - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+      - frontend/apps/web_app/tests/start-screens-layout.spec.ts
       - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
@@ -4736,8 +4737,8 @@ features:
         passing: 6
         failing: 0
         not_run: 0
-        missing: 5
-        counted: 11
+        missing: 7
+        counted: 13
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift
@@ -4785,8 +4786,8 @@ features:
         passing: 0
         failing: 0
         not_run: 4
-        missing: 7
-        counted: 11
+        missing: 9
+        counted: 13
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -5694,6 +5695,7 @@ features:
       - frontend/apps/web_app/tests/components/guest-welcome-preview.spec.ts
       - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
       - frontend/apps/web_app/tests/guest-workspace-navigation.spec.ts
+      - frontend/apps/web_app/tests/header-mobile-layout.spec.ts
       - frontend/apps/web_app/tests/landing-default-examples.spec.ts
       - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
       - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
@@ -10652,6 +10654,7 @@ features:
       - frontend/apps/web_app/tests/projects-flow.spec.ts
       - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
       - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+      - frontend/apps/web_app/tests/start-screens-layout.spec.ts
       - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
       - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
@@ -17873,18 +17876,18 @@ features:
     - platform:tasks
     dev: enabled
     prod: disabled
-  assertions: 29
+  assertions: 30
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 9
+        passing: 10
         failing: 2
         not_run: 7
         missing: 11
-        counted: 29
+        counted: 30
       failing_tests:
       - frontend/apps/web_app/tests/unified-detail-header.spec.ts › Task title and description expose hints, save, and undo
         semantics
@@ -17945,8 +17948,8 @@ features:
         passing: 2
         failing: 0
         not_run: 17
-        missing: 10
-        counted: 29
+        missing: 11
+        counted: 30
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-claude-session-tasks.spec.ts
@@ -17987,8 +17990,8 @@ features:
         passing: 6
         failing: 0
         not_run: 13
-        missing: 10
-        counted: 29
+        missing: 11
+        counted: 30
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/storage-archive-lifecycle.spec.ts
@@ -18008,8 +18011,8 @@ features:
         passing: 0
         failing: 0
         not_run: 9
-        missing: 20
-        counted: 29
+        missing: 21
+        counted: 30
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -18024,8 +18027,8 @@ features:
         passing: 0
         failing: 0
         not_run: 10
-        missing: 19
-        counted: 29
+        missing: 20
+        counted: 30
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -18966,18 +18969,18 @@ features:
     - platform:workflows
     dev: enabled
     prod: enabled
-  assertions: 88
+  assertions: 92
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 31
+        passing: 33
         failing: 17
-        not_run: 16
+        not_run: 18
         missing: 24
-        counted: 88
+        counted: 92
       failing_tests:
       - frontend/apps/web_app/tests/components/workflow-ai-pending-preview.spec.ts › shows a read-only pending workflow at
         laptop and phone widths
@@ -19017,6 +19020,7 @@ features:
       - frontend/apps/web_app/tests/components/workflow-chat-embed.spec.ts
       - frontend/apps/web_app/tests/components/workflow-check-editor.spec.ts
       - frontend/apps/web_app/tests/components/workflow-choice-loop.spec.ts
+      - frontend/apps/web_app/tests/components/workflow-description-clamp.spec.ts
       - frontend/apps/web_app/tests/components/workflow-detail-tabs.spec.ts
       - frontend/apps/web_app/tests/components/workflow-graph-ai-authoring.spec.ts
       - frontend/apps/web_app/tests/components/workflow-graph-reorder-inputs.spec.ts
@@ -19037,6 +19041,7 @@ features:
       - frontend/apps/web_app/tests/landing-guest-workflows.spec.ts
       - frontend/apps/web_app/tests/marketing-landing-workspaces.spec.ts
       - frontend/apps/web_app/tests/notification-email-links.spec.ts
+      - frontend/apps/web_app/tests/start-screens-layout.spec.ts
       - frontend/apps/web_app/tests/tasks-workflow-run-detail.spec.ts
       - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-workflow-side-panel.spec.ts

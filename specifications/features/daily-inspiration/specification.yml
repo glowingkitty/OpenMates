@@ -5,8 +5,8 @@ status: draft
 title: Daily Inspiration
 summary: Daily Inspiration provides personalized and public video and article records, with the same
   public-safe default and static fallback content available to signed-out visitors through an isolated
-  guest source. On the authenticated start screens they appear as cards inside the row of the user's own
-  items instead of in a banner.
+  guest source. On the start screens, signed in or signed out, they appear as cards inside the row of
+  the user's own items (or the example chats for guests) instead of in a banner.
 scope:
   includes:
   - Chat-surface Daily Inspiration state, source priority, navigation, and visible fallback behavior.
@@ -15,12 +15,13 @@ scope:
   - Logged-out public-safe guest source isolation and restoration on logout.
   - Static authenticated fallback content shape for local no-API recovery and slow personalized recovery.
   - Opened/viewed state handling that keeps cards visible while preferring unopened cards.
-  - The authenticated start-screen row rhythm (Chats, Workflows) and its Daily Inspiration card label.
+  - The start-screen row (Chats, Workflows; signed in and signed out) with its rhythm, ten-card limit, Daily
+    Inspiration card label, the browse actions as the row's last item and the suggestions below it.
   - The data contract of recommended-workflow inspirations for the Workflows row (consumer only).
   excludes:
   - Exact LLM prompts, third-party provider ranking internals, or scheduled job timing changes.
   - Master-key derivation, chat encryption protocol design, or Directus schema migrations.
-  - Guest onboarding copy, animation timing, or visual redesign; signed-out visitors keep the banner.
+  - Guest onboarding copy and animation timing.
   - Generating recommended-workflow inspirations; no backend job produces them yet.
 models:
   DailyInspirationRecord:
@@ -132,6 +133,29 @@ models:
       constraints:
         max_count: 10
         order: priority chats, last opened chat, recent chats
+        signed_out: example chats (and the visitor's own anonymous or shared chats); example events leave the row
+    max_cards:
+      type: integer
+      required: true
+      constraints:
+        value: 10
+        counts: own items and inspirations together
+    actions:
+      type: array
+      required: true
+      constraints:
+        position: last item of the row, after the cards
+        signed_in_chats: [show all chats, search]
+        signed_out_chats: [select interests, show all examples]
+    suggestions:
+      type: array
+      required: true
+      constraints:
+        position: below the row (below the upcoming entry when one exists)
+        visible_count: 3
+        style: follow-up suggestions of an open chat
+        source_signed_in: the user's synced new-chat suggestions, newest first; translated defaults when none
+        source_signed_out: translated defaults ranked by selected interests
     inspirations:
       type: daily_inspiration_array
       required: true
@@ -247,7 +271,7 @@ assertions:
 - id: daily-inspiration.guest-isolated
   type: invariant
   must: Signed-out visitors see ordinary public-safe Daily Inspirations from the public default endpoint
-    in the guest banner, or the six-record static fallback with three video and three wiki cards when the
+    as cards in the guest start row, or the six-record static fallback with three video and three wiki cards when the
     endpoint is unavailable. The existing guest-onboarding source marker identifies this isolated guest state but
     no longer implies promotional onboarding cards. Guest state remains isolated from authenticated state;
     logging out restores guest content, and late guest requests never overwrite an authenticated-compatible
@@ -292,11 +316,12 @@ assertions:
   - examples.opened_state
 - id: daily-inspiration.start-row-rhythm
   type: behavior
-  must: The authenticated Chats start screen has no Daily Inspiration banner. Its single row shows the
-    user's own chats (at most ten, reminder-priority chats first, then the last opened chat, then recent
-    chats) with today's unopened video and article inspirations interleaved, two own chats first and then
-    one inspiration after every third own chat; inspirations never repeat and fill the row alone for a
-    user without chats. "Show all" lists only real chats.
+  must: The Chats start screen has no Daily Inspiration banner and no banner heading, signed in or
+    signed out. Its single row shows the user's own chats (reminder-priority chats first, then the last
+    opened chat, then recent chats; for a signed-out visitor the example chats) with today's unopened
+    video and article inspirations interleaved, two own chats first and then one inspiration after every
+    third own chat. The row holds at most ten cards in total, inspirations included; inspirations never
+    repeat and fill the row alone for a user without chats. "Show all" lists only real chats.
   depends_on:
   - models.StartRow
   - examples.start_row
@@ -307,6 +332,25 @@ assertions:
     inspiration card carries a small "Daily inspiration" label, shows its video or article image when one
     exists, opens a new chat from that inspiration when activated, and reports itself as viewed once at
     least half of it is visible.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
+- id: daily-inspiration.start-row-actions
+  type: behavior
+  must: The browse actions are the last item of the start row, after the cards, in a tile of card
+    height. Signed in, Chats offers "Show all chats" and "Search"; signed out, "Select interests" and
+    "Show all examples". No browse links or buttons sit below the row.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
+- id: daily-inspiration.start-row-suggestions
+  type: behavior
+  must: Below the Chats start row (and below the upcoming entry when one exists) three new-chat
+    suggestions appear in the style of the follow-up suggestions of an open chat. Signed-in users see
+    their own synced suggestions, newest first, or the translated defaults when they have none;
+    signed-out visitors see the translated defaults ranked by their selected interests. Tapping one puts
+    it into the composer. While the composer's own suggestion rail is open, these step aside so the
+    same prompts are not listed twice.
   depends_on:
   - models.StartRow
   - examples.start_row

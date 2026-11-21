@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "截图太大。请尝试较小的窗口。"
       },
+      "screenshot_limit_reached": {
+        "text": "最多可附加 5 张截图。"
+      },
       "screenshot_preview_alt": {
         "text": "截图预览"
       },

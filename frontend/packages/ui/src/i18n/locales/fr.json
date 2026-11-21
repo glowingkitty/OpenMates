@@ -19866,6 +19866,9 @@
       "screenshot_size_too_large": {
         "text": "Capture trop grande. Essayez une fenêtre plus petite."
       },
+      "screenshot_limit_reached": {
+        "text": "Vous pouvez joindre jusqu'à 5 captures d'écran."
+      },
       "screenshot_preview_alt": {
         "text": "Aperçu de la capture"
       },

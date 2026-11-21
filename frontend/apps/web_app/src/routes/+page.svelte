@@ -154,6 +154,13 @@
       window.removeEventListener(APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, workflow);
     };
   });
+  // A guest who chose "Describe new workflow" returns to Workflows after signing up.
+  $effect(() => {
+    if (!$authStore.isAuthenticated || $isInSignupProcess) return;
+    if (sessionStorage.getItem('openmates.workflows.describeAfterSignup') !== '1') return;
+    if (workspaceHash === '#workflows') return;
+    replaceState('/#workflows', {}); workspaceHash = '#workflows';
+  });
   $effect(() => {
     const request = appsChatNavigation.request;
     const surface = activeChat;

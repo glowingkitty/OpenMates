@@ -60,8 +60,8 @@ guest_isolation:
 - id: guest-public-defaults-and-fallback
   given: Sam is signed out and opens a new chat.
   when: Public Daily Inspirations arrive, or the request fails.
-  then: Sam sees regular public-safe inspirations in the guest banner; failure shows six static cards with
-    three videos and three wiki items. No promotional intro, signup slide or feature tip appears.
+  then: Sam sees regular public-safe inspirations as cards in the start row between the example chats;
+    failure uses six static records with three videos and three wiki items. No promotional intro, signup slide or feature tip appears.
 - id: guest-auth-transition
   given: Sam is viewing guest inspirations and signs in while a guest request is still pending.
   when: The late guest response arrives and Sam later signs out.
@@ -168,9 +168,22 @@ start_row:
   assertion_ids: [daily-inspiration.start-row-rhythm, daily-inspiration.start-row-cards]
   given: Alex is signed in, has twelve chats and today's set holds three unopened videos and three unopened articles.
   when: Alex opens the Chats start screen on a laptop.
-  then: No banner appears. The row shows large cards in the order chat, chat, inspiration, chat, chat, chat,
-    inspiration, chat, chat, chat, inspiration, chat, chat; each inspiration card shows its image and a small
-    "Daily inspiration" label. "Show all" opens only Alex's chats.
+  then: No banner appears. The row shows ten large cards in the order chat, chat, inspiration, chat, chat,
+    chat, inspiration, chat, chat, chat, then the "Show all chats" and "Search" actions as its last item;
+    each inspiration card shows its image and a small "Daily inspiration" label. "Show all" opens only
+    Alex's chats.
+- id: start-row-signed-out
+  assertion_ids: [daily-inspiration.start-row-rhythm, daily-inspiration.start-row-actions, daily-inspiration.start-row-suggestions]
+  given: Sam is signed out and opens openmates.org on a tablet.
+  when: The Chats start screen loads.
+  then: There is no banner. "Hey there" and one short call to action sit above a row of example chats with
+    inspirations interleaved, ending with "Select interests" and "Show all examples"; the next OpenMates
+    event sits as one compact entry below the row, followed by three suggested prompts.
+- id: start-row-suggestion-fills-composer
+  assertion_ids: [daily-inspiration.start-row-suggestions]
+  given: Alex is signed in and has synced new-chat suggestions.
+  when: Alex taps the first suggestion below the row.
+  then: The newest suggestion is placed in the composer, ready to send.
 - id: start-row-new-user
   assertion_ids: [daily-inspiration.start-row-rhythm]
   given: Robin signed up a minute ago and has no chats.

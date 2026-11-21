@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "Снимок слишком большой. Попробуйте меньшее окно."
       },
+      "screenshot_limit_reached": {
+        "text": "Можно прикрепить не более 5 снимков экрана."
+      },
       "screenshot_preview_alt": {
         "text": "Предпросмотр снимка"
       },

@@ -17,6 +17,8 @@
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import WorkspaceContinueCard from './WorkspaceContinueCard.svelte';
   import AppStoreCard from '../settings/AppStoreCard.svelte';
+  import FollowUpSuggestions from '../FollowUpSuggestions.svelte';
+  import StartScreenRowActions, { type StartScreenRowAction } from '../welcome/StartScreenRowActions.svelte';
   import type { AppMetadata } from '../../types/apps';
   import WorkspaceReportIssueButton from './WorkspaceReportIssueButton.svelte';
   import { getContinueGradientColors, getResumeCardGradientStyle } from '../activeChatUtils';
@@ -25,7 +27,7 @@
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import { resolveIconName } from '../../utils/iconNameResolver';
   import { hasRoomForLargeContinueCards } from '../../utils/continueCardLayout';
-  import { interleaveStartRow, selectWorkflowRowInspirations } from '../../utils/startScreenRow';
+  import { interleaveStartRow, selectWorkflowRowInspirations, START_ROW_MAX_CARDS } from '../../utils/startScreenRow';
   import { sendInspirationViewed } from '../../services/dailyInspirationViewed';
   import { text } from '../../i18n/translations';
   import { activeTeam } from '../../stores/teamStore';
@@ -97,6 +99,8 @@
     onBrowse?: () => void;
     onBackToRecent?: () => void;
     onSearchAll?: () => void;
+    /** Start screens: short prompts shown below the row (FollowUpSuggestions style). */
+    startSuggestions?: { items: string[]; onClick: (suggestion: string) => void };
   };
 
   let {
@@ -144,6 +148,7 @@
     onBrowse,
     onBackToRecent,
     onSearchAll,
+    startSuggestions,
   }: Props = $props();
 
   let restoreWorkspaceDefaults = $state(false);
@@ -153,16 +158,39 @@
   let composerElement: HTMLElement | null = $state(null);
   let composerHeight = $state(0);
   let availableCardHeight = $state(0);
-  /** Start screens without banner and without the compact pill layout. */
+  /** Start screens: no banner, large cards only. */
   const START_SCREEN_SURFACES: ReadonlySet<WorkspaceSurface> = new Set(['apps', 'workflows']);
   let isStartScreen = $derived(START_SCREEN_SURFACES.has(surface));
   let isTallViewport = $derived(isStartScreen || hasRoomForLargeContinueCards(containerWidth, availableCardHeight));
+  // Start screens never fall back to compact pills; isTallViewport stays true for them.
   let workflowRowInspirations = $derived(
     surface === 'workflows' ? selectWorkflowRowInspirations($dailyInspirationStore.inspirations) : []
   );
   let actionRowEntries = $derived(interleaveStartRow(actionItems, workflowRowInspirations));
   let hasShowAllLink = $derived(!!onShowAll && showAllLabel.trim().length > 0 && !showAllMode);
   let hasBrowseLink = $derived(!!onBrowse && browseLabel.trim().length > 0 && !showAllMode);
+  /** Start screens: own cards (action items, else continue items) plus recommended workflows, max 10. */
+  let startRowEntries = $derived(
+    !isStartScreen
+      ? []
+      : actionItems.length > 0
+        ? actionRowEntries
+        : continueItems.slice(0, START_ROW_MAX_CARDS).map((item) => ({ kind: 'own' as const, item }))
+  );
+  let startRowFromActions = $derived(actionItems.length > 0);
+  let startRowActions = $derived.by((): StartScreenRowAction[] => {
+    const actions: StartScreenRowAction[] = [];
+    if (hasShowAllLink) {
+      actions.push({ id: 'show-all', label: showAllLabel, icon: surface === 'workflows' ? 'workflow' : 'layout-grid', testId: showAllTestId, surface, onActivate: handleShowAll });
+    }
+    if (hasBrowseLink) {
+      actions.push({ id: 'browse', label: browseLabel, icon: 'layout-template', testId: browseTestId, onActivate: handleBrowse });
+    }
+    if (onSearchAll) {
+      actions.push({ id: 'search', label: searchLabel, icon: 'search', testId: searchTestId, onActivate: handleSearchAll });
+    }
+    return actions;
+  });
   let hasBrowseControls = $derived(!showAllMode && (hasShowAllLink || hasBrowseLink || !!onSearchAll));
   let hasAllItemsToolbar = $derived(showAllMode && (!!onBackToRecent || !!onSearchAll));
   let showTopButtons = $derived(showReportIssue || hasAllItemsToolbar);
@@ -374,15 +402,68 @@
           avatarTestId={`${surface}-workspace-team-avatar`}
           iconTestId={`${surface}-workspace-background-icon`}
         />
-        <h2>{heading}</h2>
+        <h2 data-testid={`${surface}-home-heading`}>{heading}</h2>
         {#if subtitle}
-          <p class="workspace-subtitle">{subtitle}</p>
+          <p class="workspace-subtitle" data-testid={`${surface}-home-subtitle`}>{subtitle}</p>
         {/if}
       </div>
     </div>
 
-    {#if actionItems.length > 0}
-      <div class="recent-chats-scroll-container" class:centered-row={actionRowEntries.length <= 3} data-testid={actionItemsTestId}>
+    {#if isStartScreen && (startRowEntries.length > 0 || startRowActions.length > 0)}
+      <div class="start-row-section" data-testid={startRowFromActions ? undefined : continueSectionTestId}>
+      <div class="recent-chats-scroll-container large-continue-cards start-row" class:actions-only={startRowEntries.length === 0} data-testid={startRowFromActions ? actionItemsTestId : 'recent-chats-scroll-container'}>
+        {#each startRowEntries as entry (entry.kind === 'own' ? entry.item.id : `inspiration:${entry.item.inspiration_id}`)}
+          {#if entry.kind === 'inspiration'}
+            {@const inspiration = entry.item}
+            <div class="workflow-card-placement" use:trackInspirationView={inspiration.inspiration_id}>
+              <WorkspaceContinueCard
+                title={inspiration.title || inspiration.phrase}
+                summary={inspiration.workflow?.summary ?? null}
+                badge={$text('daily_inspiration.label')}
+                category={inspiration.category}
+                appId={null}
+                icon={inspiration.workflow?.icon ?? 'workflow'}
+                appIconUrl={null}
+                testId="workflow-inspiration-card"
+                href={null}
+                source={null}
+                fluid={false}
+                onActivate={() => handleStartInspiration(inspiration)}
+              />
+            </div>
+          {:else}
+            {@const item = entry.item}
+            <WorkspaceContinueCard
+              title={item.title}
+              summary={item.summary ?? null}
+              badge={item.badge ?? null}
+              category={item.category ?? 'productivity'}
+              appId={surface === 'workflows' ? null : (item.appId ?? surface)}
+              icon={item.icon ?? 'sparkles'}
+              appIconUrl={surface === 'apps' ? appCardIconUrl(item) : null}
+              testId={startRowFromActions ? itemTestId : (continueItemTestId ?? 'resume-chat-large-card')}
+              href={null}
+              source={item.source ?? null}
+              fluid={false}
+              onActivate={() => (startRowFromActions ? handleActionItem(item) : handleContinueItem(item))}
+            />
+          {/if}
+        {/each}
+        {#if startRowActions.length > 0}
+          <StartScreenRowActions testId={`${surface}-start-row-actions`} actions={startRowActions} />
+        {/if}
+      </div>
+      </div>
+      {#if startSuggestions && startSuggestions.items.length > 0}
+        <div class="start-row-suggestions" data-testid={`${surface}-start-suggestions`}>
+          <FollowUpSuggestions suggestions={startSuggestions.items} dismissOnClick={false} onSuggestionClick={startSuggestions.onClick} />
+        </div>
+      {:else}
+        <!-- No suggestions here (Apps): keep their room so the row sits where it does on Chats and Workflows. -->
+        <div class="start-row-suggestions start-row-suggestions-reserve" aria-hidden="true"></div>
+      {/if}
+    {:else if actionItems.length > 0}
+      <div class="recent-chats-scroll-container" data-testid={actionItemsTestId}>
         {#each actionRowEntries as entry (entry.kind === 'own' ? entry.item.id : `inspiration:${entry.item.inspiration_id}`)}
           {#if entry.kind === 'inspiration'}
             {@const inspiration = entry.item}
@@ -547,7 +628,7 @@
         </div>
       </div>
     {/if}
-    {#if hasBrowseControls}
+    {#if hasBrowseControls && !isStartScreen}
       <div class="workspace-link-row" data-testid={`${surface}-workspace-link-row`}>
         {#if hasShowAllLink}
           <button type="button" class="workspace-show-all-link" data-testid={showAllTestId} data-surface={surface} onclick={handleShowAll}>
@@ -1025,6 +1106,7 @@
     max-width: 100%;
   }
   .workflow-card-placement{display:contents}
+  .start-row-section{display:contents}
   .app-store-card-placement{display:block;flex:0 0 auto}
 
   .recent-chats-scroll-container::-webkit-scrollbar {
@@ -1039,13 +1121,6 @@
 
   .recent-chats-scroll-container.secondary {
     padding-top: 8px;
-  }
-
-  @media (min-width: 1100px) {
-    .recent-chats-scroll-container.centered-row {
-      justify-content: center;
-      padding-inline: 48px;
-    }
   }
 
   .resume-chat-card {
@@ -1189,44 +1264,52 @@
     justify-items: center;
   }
 
-  /* Keep the Apps carousel in the scroll layer below the inspiration banner. */
-  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode):not(.all-items-mode) {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode):not(.all-items-mode) .workspace-scroll-layer {
-    height: auto;
-    flex: 1 1 auto;
-    overflow-y: auto;
-  }
-
-  .workspace-home-shell[data-surface='apps']:not(.content-slot-mode):not(.all-items-mode) .workspace-center-content.center-content {
-    position: relative;
-    top: auto;
-    left: auto;
-    transform: none;
-    margin-top: clamp(16px, 3vh, 32px);
-    padding-bottom: var(--spacing-6);
-  }
-
-  @media (min-width: 731px) {
-    .workspace-home-shell[data-surface='apps']:not(.content-slot-mode):not(.all-items-mode) .workspace-center-content.center-content {
-      margin-top: 8px;
-    }
-
-    .workspace-home-shell[data-surface='apps']:not(.content-slot-mode):not(.all-items-mode) .recent-chats-scroll-container {
-      padding-top: 8px;
-      padding-bottom: 4px;
-    }
-  }
-
   .workspace-home-shell.content-slot-mode .workspace-composer-slot {
     background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--color-grey-0) 92%, transparent) 40%, var(--color-grey-0) 100%);
   }
 
-  .large-continue-cards .recent-chats-scroll-container {
+  .large-continue-cards .recent-chats-scroll-container,
+  .recent-chats-scroll-container.large-continue-cards {
     padding: 17.5px 48px 17px calc(50% - 150px);
+  }
+
+  /* Room below the cards so the app cards' drop shadow (0 4px 16px) is not cut off by
+     the scrolling row. */
+  .workspace-home-shell .recent-chats-scroll-container.start-row {
+    padding-bottom: 28px;
+  }
+
+  .start-row-suggestions {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 640px;
+    padding: 0 var(--spacing-8);
+    box-sizing: border-box;
+    pointer-events: auto;
+    text-align: left;
+  }
+
+  /* Three follow-up suggestion lines; matches the suggestions block on Chats and Workflows. */
+  .start-row-suggestions-reserve {
+    height: 4.6rem;
+    pointer-events: none;
+  }
+
+  /* Same phone centring as the Chats start row: cards are min(280px, 76vw) wide. */
+  @media (max-width: 480px) {
+    .workspace-home-shell .recent-chats-scroll-container.start-row {
+      padding-left: calc(50% - min(140px, 38vw));
+      padding-right: var(--spacing-8);
+    }
+  }
+
+  /* Nothing to show yet (e.g. a new account without workflows): the browse actions
+     are the only item of the row and sit centred instead of where the first card would start. */
+  .workspace-home-shell .recent-chats-scroll-container.start-row.actions-only {
+    justify-content: center;
+    padding-left: var(--spacing-8);
+    padding-right: var(--spacing-8);
   }
 
   /* Apps and Workflows start screens (TASK-1321): no banner, the greeting and the
@@ -1237,7 +1320,8 @@
     flex-direction: column;
     height: 100%;
     overflow-y: auto;
-    padding-bottom: var(--workspace-composer-height);
+    /* Apps has no composer: reserve the composer's usual room so every start row lines up. */
+    padding-bottom: max(var(--workspace-composer-height), 96px);
     box-sizing: border-box;
   }
 

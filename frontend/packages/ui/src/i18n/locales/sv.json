@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "Skärmbild för stor. Försök med ett mindre fönster."
       },
+      "screenshot_limit_reached": {
+        "text": "Du kan bifoga upp till 5 skärmbilder."
+      },
       "screenshot_preview_alt": {
         "text": "Förhandsgranskning av skärmbild"
       },

@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "لقطة الشاشة كبيرة جدًا. يرجى تجربة نافذة أصغر."
       },
+      "screenshot_limit_reached": {
+        "text": "يمكنك إرفاق ما يصل إلى 5 لقطات شاشة."
+      },
       "screenshot_preview_alt": {
         "text": "معاينة لقطة الشاشة"
       },

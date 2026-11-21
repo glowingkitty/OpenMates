@@ -18,6 +18,8 @@ export const START_ROW_LEADING_OWN_ITEMS = 2;
 export const START_ROW_OWN_ITEMS_BETWEEN_INSPIRATIONS = 3;
 /** Most recent own items shown in the row; inspirations come on top. */
 export const START_ROW_MAX_OWN_ITEMS = 10;
+/** A start-screen row shows at most this many cards in total (own items plus inspirations). */
+export const START_ROW_MAX_CARDS = 10;
 
 /** Content types of chat inspirations allowed in the Chats row (each starts a chat). */
 const CHAT_ROW_CONTENT_TYPES = new Set(['video', 'wiki']);
@@ -39,7 +41,7 @@ export function interleaveStartRow<Own, Inspiration>(
   inspirations: readonly Inspiration[],
 ): StartRowEntry<Own, Inspiration>[] {
   const own = ownItems.slice(0, START_ROW_MAX_OWN_ITEMS);
-  if (own.length === 0) return inspirations.map((item) => ({ kind: 'inspiration', item }));
+  if (own.length === 0) return inspirations.slice(0, START_ROW_MAX_CARDS).map((item) => ({ kind: 'inspiration', item }));
 
   const entries: StartRowEntry<Own, Inspiration>[] = [];
   let nextInspiration = 0;
@@ -57,7 +59,7 @@ export function interleaveStartRow<Own, Inspiration>(
   if (own.length < START_ROW_LEADING_OWN_ITEMS && nextInspiration < inspirations.length) {
     entries.push({ kind: 'inspiration', item: inspirations[nextInspiration] });
   }
-  return entries;
+  return entries.slice(0, START_ROW_MAX_CARDS);
 }
 
 /**

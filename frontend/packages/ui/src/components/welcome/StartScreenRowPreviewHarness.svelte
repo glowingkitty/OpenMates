@@ -1,13 +1,16 @@
 <!--
   StartScreenRowPreviewHarness.svelte — /dev/preview harness for the start-screen
   row (TASK-1321) with synthetic chats and inspirations. It uses the production
-  rhythm (interleaveStartRow), StartScreenChatCard and StartScreenUpcomingEntry, so
+  rhythm (interleaveStartRow, at most 10 cards), StartScreenChatCard, the row-end
+  StartScreenRowActions, StartScreenUpcomingEntry and the suggestions below, so
   the focused component spec judges the real cards without a signed-in account.
   The route-level E2E covers the wiring inside ActiveChat.
 -->
 <script lang="ts">
   import StartScreenChatCard from './StartScreenChatCard.svelte';
   import StartScreenUpcomingEntry from './StartScreenUpcomingEntry.svelte';
+  import StartScreenRowActions, { type StartScreenRowAction } from './StartScreenRowActions.svelte';
+  import StartScreenChatSuggestions from './StartScreenChatSuggestions.svelte';
   import { interleaveStartRow } from '../../utils/startScreenRow';
 
   type PreviewChat = { id: string; title: string; summary: string; category: string; icon: string; pinned?: boolean };
@@ -18,9 +21,11 @@
     inspirationCount: number;
     showUpcoming: boolean;
     showInspirationMedia: boolean;
+    /** Signed-out actions (Select interests, Show all) instead of Show all / Search. */
+    guest: boolean;
   };
 
-  let { ownCount, inspirationCount, showUpcoming, showInspirationMedia }: Props = $props();
+  let { ownCount, inspirationCount, showUpcoming, showInspirationMedia, guest }: Props = $props();
 
   const CHATS: PreviewChat[] = [
     { id: 'chat-garden', title: 'Balcony herb garden plan', summary: 'Which herbs grow well together on a sunny balcony and how often to water them.', category: 'life_coach_psychology', icon: 'sprout', pinned: true },
@@ -51,6 +56,17 @@
   );
   let entries = $derived(interleaveStartRow(own, inspirations));
   let lastActivated = $state('');
+  let actions = $derived<StartScreenRowAction[]>(
+    guest
+      ? [
+          { id: 'interests', label: 'Select interests', icon: 'heart', testId: 'guest-interest-select-interests', onActivate: () => (lastActivated = 'interests') },
+          { id: 'show-all', label: 'Show all examples', icon: 'messages-square', testId: 'guest-show-all-examples', surface: 'chats', onActivate: () => (lastActivated = 'show-all') },
+        ]
+      : [
+          { id: 'show-all', label: 'Show all chats', icon: 'messages-square', testId: 'chat-show-all', surface: 'chats', onActivate: () => (lastActivated = 'show-all') },
+          { id: 'search', label: 'Search', icon: 'search', testId: 'chat-search', onActivate: () => (lastActivated = 'search') },
+        ]
+  );
 </script>
 
 <div class="start-row-harness" data-testid="start-row-harness" data-last-activated={lastActivated}>
@@ -84,6 +100,7 @@
         />
       {/if}
     {/each}
+    <StartScreenRowActions testId="start-row-actions" {actions} />
   </div>
   {#if showUpcoming}
     <div class="harness-upcoming">
@@ -98,6 +115,12 @@
       />
     </div>
   {/if}
+  <StartScreenChatSuggestions
+    isAuthenticated={false}
+    selectedInterestTagIds={[]}
+    reloadKey="preview"
+    onSuggestionClick={(suggestion) => (lastActivated = `suggestion:${suggestion}`)}
+  />
 </div>
 
 <style>

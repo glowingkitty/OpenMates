@@ -1,9 +1,11 @@
 /**
  * Focused component spec for the start-screen row (TASK-1321).
  * Assertions: daily-inspiration.start-row-rhythm, daily-inspiration.start-row-cards,
+ * daily-inspiration.start-row-actions, daily-inspiration.start-row-suggestions,
  * continue-carousel.upcoming-entry. Synthetic data from StartScreenRowPreviewHarness.preview.ts.
  */
-import { expect, test, type Page, type TestInfo } from '../helpers/cookie-audit';
+import type { Page, TestInfo } from '@playwright/test';
+import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
 
 // playwright-account: not_required reason=isolated_component_preview
@@ -18,8 +20,12 @@ async function openPreview(page: Page, width: number, height: number, variant?: 
 }
 
 async function rowKinds(page: Page): Promise<string[]> {
-  return page.getByTestId('recent-chats-scroll-container').locator(':scope > [data-testid]').evaluateAll((nodes) =>
-    nodes.map((node) => (node.getAttribute('data-testid') === 'start-row-inspiration-card' ? 'inspiration' : 'chat')),
+  return page.getByTestId('recent-chats-scroll-container').locator(':scope > [data-testid]').evaluateAll((nodes: Element[]) =>
+    nodes.map((node: Element) => {
+      const id = node.getAttribute('data-testid');
+      if (id === 'start-row-actions') return 'actions';
+      return id === 'start-row-inspiration-card' ? 'inspiration' : 'chat';
+    }),
   );
 }
 
@@ -39,7 +45,7 @@ test.describe('start-screen row', () => {
     test.setTimeout(60_000);
     await openPreview(page, 1280, 800);
 
-    expect(await rowKinds(page)).toEqual(['chat', 'chat', 'inspiration', 'chat', 'chat', 'chat', 'inspiration', 'chat']);
+    expect(await rowKinds(page)).toEqual(['chat', 'chat', 'inspiration', 'chat', 'chat', 'chat', 'inspiration', 'chat', 'actions']);
     await expect(page.locator('[data-testid="resume-chat-card"]')).toHaveCount(0);
 
     const labels = page.getByTestId('start-row-inspiration-label');
@@ -93,21 +99,72 @@ test.describe('start-screen row', () => {
     await attach(page, testInfo, 'phone-390');
 
     await openPreview(page, 390, 844, 'newUser');
-    expect(await rowKinds(page)).toEqual(['inspiration', 'inspiration', 'inspiration']);
+    expect(await rowKinds(page)).toEqual(['inspiration', 'inspiration', 'inspiration', 'actions']);
     await expectFirstCardCentred(page);
     await attach(page, testInfo, 'phone-390-new-user');
   });
 
   // contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-rhythm,daily-inspiration.start-row-cards
-  test('full row shows ten chats with three inspirations', async ({ page }, testInfo) => {
+  test('full row shows at most ten cards, inspirations included, then the actions', async ({ page }, testInfo) => {
     test.setTimeout(60_000);
     await openPreview(page, 1440, 900, 'fullRow');
     expect(await rowKinds(page)).toEqual([
-      'chat', 'chat', 'inspiration', 'chat', 'chat', 'chat', 'inspiration', 'chat', 'chat', 'chat', 'inspiration', 'chat', 'chat',
+      'chat', 'chat', 'inspiration', 'chat', 'chat', 'chat', 'inspiration', 'chat', 'chat', 'chat', 'actions',
     ]);
     await attach(page, testInfo, 'desktop-1440-full-row');
     await openPreview(page, 1280, 800, 'plainInspirations');
     await expect(page.getByTestId('start-row-inspiration-card').first().getByTestId('start-card-icon')).toBeVisible();
     await attach(page, testInfo, 'desktop-1280-inspiration-without-image');
   });
+
+  // contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-actions,daily-inspiration.start-row-suggestions
+  for (const viewport of [
+    { name: 'phone-390', width: 390, height: 844 },
+    { name: 'tablet-820', width: 820, height: 1180 },
+    { name: 'desktop-1280', width: 1280, height: 800 },
+  ]) {
+    test(`browse actions end the row and suggestions sit below it at ${viewport.name}`, async ({ page }, testInfo) => {
+      test.setTimeout(60_000);
+      for (const mode of ['signed-in', 'guest'] as const) {
+        await openPreview(page, viewport.width, viewport.height, mode === 'guest' ? 'guest' : undefined);
+        const row = page.getByTestId('recent-chats-scroll-container');
+        const actions = row.getByTestId('start-row-actions');
+        await expect(row.locator(':scope > [data-testid]').last()).toHaveAttribute('data-testid', 'start-row-actions');
+        const expectedIds = mode === 'guest'
+          ? ['guest-interest-select-interests', 'guest-show-all-examples']
+          : ['chat-show-all', 'chat-search'];
+        expect(await actions.locator('button').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-testid')))).toEqual(expectedIds);
+        const actionsBox = await actions.boundingBox();
+        expect(actionsBox!.height).toBe(200);
+        // Every action label is shown in full, never cut off with an ellipsis.
+        const clipped = await actions.locator('.start-row-action-label').evaluateAll((nodes: Element[]) =>
+          nodes.filter((node) => node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1).map((node) => node.textContent)
+        );
+        expect(clipped).toEqual([]);
+        // Nothing about browsing sits below the row any more.
+        await expect(page.locator('[data-testid="chat-browse-controls"], [data-testid="guest-example-link-row"]')).toHaveCount(0);
+
+        const suggestions = page.getByTestId('start-screen-suggestions');
+        await expect(suggestions).toBeVisible();
+        const items = suggestions.getByTestId('follow-up-suggestion-item');
+        await expect(items).toHaveCount(3);
+        const rowBox = await row.boundingBox();
+        const suggestionsBox = await suggestions.boundingBox();
+        expect(suggestionsBox!.y).toBeGreaterThan(rowBox!.y + rowBox!.height - 1);
+        expect(suggestionsBox!.x).toBeGreaterThanOrEqual(0);
+        expect(suggestionsBox!.x + suggestionsBox!.width).toBeLessThanOrEqual(viewport.width + 1);
+
+        await actions.scrollIntoViewIfNeeded();
+        await attach(page, testInfo, `${viewport.name}-${mode}-row-end`);
+        await row.evaluate((node) => node.scrollTo({ left: 0 }));
+        await attach(page, testInfo, `${viewport.name}-${mode}`);
+
+        await actions.getByTestId(expectedIds[0]).click();
+        await expect(page.getByTestId('start-row-harness')).toHaveAttribute('data-last-activated', mode === 'guest' ? 'interests' : 'show-all');
+        const firstSuggestion = (await items.first().innerText()).trim();
+        await items.first().click();
+        await expect(page.getByTestId('start-row-harness')).toHaveAttribute('data-last-activated', `suggestion:${firstSuggestion}`);
+      }
+    });
+  }
 });

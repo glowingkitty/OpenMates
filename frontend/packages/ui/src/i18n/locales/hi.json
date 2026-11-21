@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "स्क्रीनशॉट बहुत बड़ा है। कृपया एक छोटी विंडो आज़माएं।"
       },
+      "screenshot_limit_reached": {
+        "text": "आप अधिकतम 5 स्क्रीनशॉट संलग्न कर सकते हैं।"
+      },
       "screenshot_preview_alt": {
         "text": "स्क्रीनशॉट पूर्वावलोकन"
       },

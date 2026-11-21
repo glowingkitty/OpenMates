@@ -278,10 +278,10 @@ test.describe('Apps workspace', () => {
       await page.getByTestId('apps-back-to-recent').click();
       await expect.poll(() => appHash(page)).toBe('#apps');
       await expect(page.getByTestId('apps-daily-inspiration-area')).toHaveCount(0);
-      const homeCard = page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ hasText: /Web/i }).first();
+      const homeCard = page.getByTestId('apps-app-card').filter({ hasText: /Web/i }).first();
       await expect(homeCard).toBeVisible();
-      if (width === 1180) await expect(homeCard).toHaveCSS('height', '129px');
-      else await expect(homeCard).toHaveCSS('height', '44px');
+      // TASK-1321: the same 200px large card as the Chats start row on every width.
+      await expect(homeCard).toHaveCSS('height', '200px');
 
       await page.getByTestId('apps-show-all').click();
       await expect.poll(() => appHash(page)).toBe('#apps/all');
@@ -289,7 +289,7 @@ test.describe('Apps workspace', () => {
       await expect(grid).toHaveCSS('display', 'grid');
       await expect(page.getByTestId('apps-daily-inspiration-area')).toHaveCount(0);
       await expect(page.getByTestId('apps-home-apps')).toHaveCount(0);
-      await expect(page.getByRole('heading', { name: 'What app do you want to use?' })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Explore the apps OpenMates can use' })).toHaveCount(0);
       await expect(page.locator('.workspace-composer-slot, .ProseMirror, textarea')).toHaveCount(0);
       await expect(page.getByTestId('apps-search')).toHaveText('Search');
       await page.getByTestId('apps-search').click();
@@ -415,7 +415,7 @@ test.describe('Apps workspace', () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByTestId('apps-workspace-home')).toBeVisible({ timeout: 30000 });
     const card = page.getByTestId('apps-app-card').filter({ hasText: /Web/i }).first();
-    await expect(card.getByTestId('app-store-card')).toBeVisible();
+    await expect(card).toBeVisible();
     await assertProfileInHeader(page);
     await page.getByTestId('profile-container').click();
     await expect(page.getByTestId('settings-menu')).toBeVisible();
@@ -539,7 +539,7 @@ test.describe('Apps workspace', () => {
           '/', '/#apps', '/#projects', '/#tasks', '/#workflows',
         ]);
       }
-      await page.getByTestId('apps-app-card').getByTestId('app-store-card').filter({ hasText: /Web/i }).first().click();
+      await page.getByTestId('apps-app-card').filter({ hasText: /Web/i }).first().click();
       await expect(requestComposer(page)).toBeVisible({ timeout: 30000 });
       await assertProfileInHeader(page);
       if (width === 1440) await page.getByTestId('chats-nav-link').click();

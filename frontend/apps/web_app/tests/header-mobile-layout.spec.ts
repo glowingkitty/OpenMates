@@ -1,6 +1,6 @@
 // playwright-account: not_required reason=public_guest_header
 /* eslint-disable @typescript-eslint/no-require-imports -- Shared Playwright helpers expose CommonJS exports. */
-import type { Page } from '@playwright/test';
+import type { Browser, Page, TestInfo } from '@playwright/test';
 
 const { expect, test } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
@@ -48,3 +48,53 @@ test('returning guests can open Login from the 320px app header', async ({ page 
 test('returning guests can open Login from the 390px app header', async ({ page }: { page: Page }) => {
   await expectGuestHeaderLogin(page, 390);
 });
+
+for (const viewport of [
+  { name: 'phone', width: 390, height: 844 },
+  { name: 'tablet', width: 820, height: 1180 },
+  { name: 'desktop', width: 1280, height: 800 },
+]) {
+  // contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
+  test(`first-load signed-out header at ${viewport.name} matches the state after reload`, async ({ browser }: { browser: Browser }, testInfo: TestInfo) => {
+    const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
+    const page = await context.newPage();
+    const measure = async () => page.evaluate(() => {
+      const box = (selector: string) => {
+        const element = document.querySelector(selector);
+        const rect = element?.getBoundingClientRect();
+        return rect && rect.width > 0 ? { left: rect.left, right: rect.right } : null;
+      };
+      // Phones show the compact select; tablet and desktop show the icon tab bar instead.
+      return {
+        switcher: box('[data-testid="header-workspace-switcher"]')
+          ?? box('[data-testid="global-header"] .webapp-center-tabs'),
+        login: box('[data-testid="header-login-signup-btn"]'),
+        logoIconShown: [...document.querySelectorAll('[data-testid="global-header"] .mobile-logo-icon')]
+          .some(element => getComputedStyle(element).display !== 'none'),
+      };
+    });
+    try {
+      await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('global-header')).toBeVisible({ timeout: 30000 });
+      await expect(page.getByTestId('header-login-signup-btn')).toBeAttached();
+      await page.evaluate(() => document.fonts.ready);
+      await expect.poll(async () => (await measure()).switcher !== null, { timeout: 15000 }).toBe(true);
+      const first = await measure();
+      await testInfo.attach(`first-load-${viewport.name}`, {
+        body: await page.screenshot(), contentType: 'image/png',
+      });
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('global-header')).toBeVisible({ timeout: 30000 });
+      await expect.poll(async () => (await measure()).switcher !== null, { timeout: 15000 }).toBe(true);
+      const reloaded = await measure();
+      await testInfo.attach(`after-reload-${viewport.name}`, {
+        body: await page.screenshot(), contentType: 'image/png',
+      });
+      if (first.login) expect(first.switcher!.right).toBeLessThanOrEqual(first.login.left + 1);
+      expect(first.logoIconShown).toBe(reloaded.logoIconShown);
+      expect(Math.abs(first.switcher!.left - reloaded.switcher!.left)).toBeLessThanOrEqual(2);
+    } finally {
+      await context.close();
+    }
+  });
+}

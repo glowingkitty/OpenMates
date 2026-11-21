@@ -72,7 +72,12 @@ available_space_cards:
     assertion_ids: [workspace-shell.start.available-space-cards]
     given: Alice opens Projects on a laptop where a tall Daily Inspiration banner leaves only a short area above the composer, then opens the signed-in Chats and Workflows start screens on the same laptop.
     when: Each continuation section appears.
-    then: Projects uses the Chats-relative geometry and compact-card fit threshold, renders compact cards, and keeps its browsing controls visible between the cards and composer, without overlap or page overflow. Chats and Workflows have no banner and show large cards, with their browsing controls visible above the composer.
+    then: Projects uses the Chats-relative geometry and compact-card fit threshold, renders compact cards, and keeps its browsing controls visible between the cards and composer, without overlap or page overflow. Chats and Workflows have no banner and show large cards, with their browse actions as the last item of the row.
+  - id: signed-out-start-screens-match
+    assertion_ids: [workspace-shell.start.available-space-cards]
+    given: Sam is signed out and opens Chats, Apps and Workflows on a phone, a tablet and a laptop.
+    when: Each start screen appears.
+    then: None shows a banner; each shows "Hey there", one call to action and a row of equally sized large cards with the first card centred and the browse actions at the end of the row, followed by suggestions below it.
   - id: container-change-updates-card-size
     assertion_ids: [workspace-shell.start.available-space-cards]
     given: Bob views the Projects workspace with enough content space for large cards, then narrows its container or increases the inspiration banner height.

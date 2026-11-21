@@ -39,7 +39,9 @@ test.describe('Proof video browser architecture', () => {
 		});
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await proof.assert('welcome.shell.visible', async () => {
-			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
+			await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 			await expect(page.getByTestId('message-editor')).toBeVisible();
 			await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 		});

@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "스크린샷이 너무 큽니다. 더 작은 창으로 시도해 주세요."
       },
+      "screenshot_limit_reached": {
+        "text": "스크린샷은 최대 5개까지 첨부할 수 있습니다."
+      },
       "screenshot_preview_alt": {
         "text": "스크린샷 미리보기"
       },

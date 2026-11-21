@@ -135,7 +135,9 @@ async function expectAudioCanPlay(audioLocator: any, label: string): Promise<voi
 
 async function expectGuestWelcome(page: any) {
 	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 	await expect(page.getByTestId('guest-show-all-examples')).toBeVisible({ timeout: 10000 });
 }
@@ -241,9 +243,10 @@ test.describe('Example chats loading for new users', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 		await expectGuestWelcome(page);
-		const previousSlideId = await page
-			.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]')
-			.getAttribute('data-slide-index');
+		// No banner since TASK-1321: Back must return to the same start row.
+		const startRowFirstCard = page.getByTestId('recent-chats-scroll-container').locator('[data-chat-id]').first();
+		const previousFirstCardId = await startRowFirstCard.getAttribute('data-chat-id');
+		expect(previousFirstCardId).toBeTruthy();
 
 		const showAllExamples = page.getByTestId('guest-show-all-examples');
 		await expect(showAllExamples).toBeVisible({ timeout: 10000 });
@@ -288,8 +291,7 @@ test.describe('Example chats loading for new users', () => {
 		await backToRecent.click();
 		await expect(allExamplesView).toHaveCount(0);
 		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible({ timeout: 10000 });
-		await expect(page.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]'))
-			.toHaveAttribute('data-slide-index', previousSlideId ?? '0');
+		await expect(startRowFirstCard).toHaveAttribute('data-chat-id', previousFirstCardId!);
 
 		await page.getByTestId('guest-show-all-examples').click();
 		await expect(page.getByTestId('guest-all-examples-view')).toBeVisible({ timeout: 10000 });

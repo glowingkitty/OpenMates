@@ -110,25 +110,31 @@
       }
       const switcher = node.querySelector<HTMLElement>(".workspace-select-shell");
       const cta = node.querySelector<HTMLElement>(".login-signup-button");
+      // First-visit guests have the CTA collapsed under the intro banner; measure
+      // with its final width so the layout matches the returning-guest state.
+      node.dataset.measuring = "true";
       const left = node.querySelector<HTMLElement>(".left-section");
       const right = node.querySelector<HTMLElement>(".right-section");
-      if (
-        !switcher?.offsetWidth ||
-        !cta?.offsetWidth ||
-        !left ||
-        !right
-      ) return;
-      const switcherBox = switcher.getBoundingClientRect();
-      node.classList.toggle(
-        "guest-crowded",
-        switcherBox.left < left.getBoundingClientRect().right ||
-        switcherBox.right > right.getBoundingClientRect().left,
-      );
+      try {
+        if (!switcher?.offsetWidth || !cta?.offsetWidth || !left || !right) return;
+        const switcherBox = switcher.getBoundingClientRect();
+        node.classList.toggle(
+          "guest-crowded",
+          switcherBox.left < left.getBoundingClientRect().right ||
+          switcherBox.right > right.getBoundingClientRect().left,
+        );
+      } finally {
+        delete node.dataset.measuring;
+      }
     };
     const observer = new ResizeObserver(update);
     observer.observe(node.parentElement!);
     const cta = node.querySelector<HTMLElement>(".login-signup-button");
     if (cta) observer.observe(cta);
+    const switcherEl = node.querySelector<HTMLElement>(".workspace-select-shell");
+    if (switcherEl) observer.observe(switcherEl);
+    // Web fonts change label widths without resizing the observed boxes.
+    void document.fonts.ready.then(update);
     update();
     return {
       update(value: { signedOut: boolean; statusVisible: boolean }) {
@@ -216,8 +222,13 @@
   let projectsEnabled = $derived(
     isWorkspaceFeatureAvailable("platform:projects", disabledFeatures),
   );
+  // Until /v1/features/availability answers, the client-side defaults hide optional
+  // workspaces. The page the visitor is already on rendered, so keep its tab
+  // instead of highlighting Chats on first load (TASK-1321).
+  let availabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let workflowsEnabled = $derived(
-    isWorkspaceFeatureAvailable("platform:workflows", disabledFeatures),
+    isWorkspaceFeatureAvailable("platform:workflows", disabledFeatures) ||
+      (isWorkflowsRoute && !availabilityLoaded),
   );
   let tasksEnabled = $derived(
     isWorkspaceFeatureAvailable("platform:tasks", disabledFeatures) ||
@@ -574,7 +585,7 @@
     </div>
   {:then}
     <div class="container">
-      <nav class:webapp={context === "webapp"} use:fitGuestHeader={{ signedOut: isSignedOut && !$loginInterfaceOpen && !$introBannerVisible, statusVisible: hasConnectionStatus }}>
+      <nav class:webapp={context === "webapp"} use:fitGuestHeader={{ signedOut: isSignedOut && !$loginInterfaceOpen, statusVisible: hasConnectionStatus }}>
         <div class="left-section">
           <!-- Menu button container - always rendered to maintain header height -->
           <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
@@ -1241,6 +1252,14 @@
     padding-inline: 0;
     box-shadow: none;
     transform: translateX(16px);
+  }
+
+  /* Layout measurement (fitGuestHeader) sees the CTA at its final width. The attribute is
+     set from script, so it is :global to keep Svelte from pruning the rule. */
+  nav:global([data-measuring="true"]) .login-signup-button.cta-hidden {
+    max-width: none;
+    padding-inline: var(--spacing-6);
+    transition: none;
   }
 
   /* Docs/Chat tab toggle — centered in header when in docs mode */

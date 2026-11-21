@@ -92,6 +92,21 @@ home.guest_subtitle:
   he: "גלו את האוטומציות של תהליכי העבודה:"
   verified_by_human: []
 
+home.suggestion_1:
+  context: Short example prompt below the workflow start row; fills the describe-a-workflow input when tapped
+  en: Every morning, summarise new emails from my team
+  de: Fasse jeden Morgen neue E-Mails meines Teams zusammen
+  verified_by_human: []
+home.suggestion_2:
+  context: Short example prompt below the workflow start row; fills the describe-a-workflow input when tapped
+  en: Tell me when a product on my wishlist drops in price
+  de: Sag mir Bescheid, wenn ein Produkt auf meiner Wunschliste günstiger wird
+  verified_by_human: []
+home.suggestion_3:
+  context: Short example prompt below the workflow start row; fills the describe-a-workflow input when tapped
+  en: Every Friday, send me a summary of my calendar for next week
+  de: Schicke mir jeden Freitag eine Zusammenfassung meines Kalenders für die nächste Woche
+  verified_by_human: []
 home.show_all:
   context: Show the owner's workflow browse section from workspace home
   en: Show my workflows
@@ -2057,6 +2072,18 @@ builder.description:
 builder.add_description:
   context: Workflow progressive builder control
   en: "Click to add description"
+  verified_by_human: []
+
+builder.description_expand:
+  context: Aria label of the small triangle button that shows the full workflow description in the detail header
+  en: "Show full description"
+  de: "Ganze Beschreibung anzeigen"
+  verified_by_human: []
+
+builder.description_collapse:
+  context: Aria label of the small triangle button that shortens the workflow description in the detail header again
+  en: "Show less of the description"
+  de: "Beschreibung verkürzen"
   verified_by_human: []
 
 builder.workflow_on:

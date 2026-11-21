@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "ภาพหน้าจอใหญ่เกินไป โปรดลองใช้หน้าต่างที่เล็กกว่า"
       },
+      "screenshot_limit_reached": {
+        "text": "คุณแนบภาพหน้าจอได้สูงสุด 5 ภาพ"
+      },
       "screenshot_preview_alt": {
         "text": "ตัวอย่างภาพหน้าจอ"
       },

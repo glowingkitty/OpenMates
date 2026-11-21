@@ -19866,6 +19866,9 @@
       "screenshot_size_too_large": {
         "text": "Captura demasiado grande. Intenta con una ventana más pequeña."
       },
+      "screenshot_limit_reached": {
+        "text": "Puedes adjuntar hasta 5 capturas."
+      },
       "screenshot_preview_alt": {
         "text": "Vista previa de captura"
       },

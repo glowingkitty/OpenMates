@@ -181,16 +181,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
-    import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Guest landing banner (authenticated start screens use the row below)
     import StartScreenChatCard, { type StartScreenCardGestures } from './welcome/StartScreenChatCard.svelte';
     import StartScreenUpcomingEntry from './welcome/StartScreenUpcomingEntry.svelte';
+    import StartScreenRowActions, { type StartScreenRowAction } from './welcome/StartScreenRowActions.svelte';
+    import StartScreenChatSuggestions from './welcome/StartScreenChatSuggestions.svelte';
     import { interleaveStartRow, selectChatRowInspirations, type StartRowEntry } from '../utils/startScreenRow';
-    import { LARGE_CONTINUE_CARDS_MIN_HEIGHT } from '../utils/continueCardLayout';
     import { sendInspirationViewed } from '../services/dailyInspirationViewed';
     import { loadDefaultInspirations } from '../demo_chats/loadDefaultInspirations';
     import GuestInterestTags from './GuestInterestTags.svelte';
-    import EventEmbedPreview from './embeds/events/EventEmbedPreview.svelte';
-    import ActiveChatTaskPreview from './tasks/ActiveChatTaskPreview.svelte';
     import TaskProposalReview from './tasks/TaskProposalReview.svelte';
     import { chatSettingsRouteFor, chatSettingsStore, type ChatSettingsTab } from '../stores/chatSettingsStore';
     import type { UserTaskProposal, UserTaskUpdateProposal } from '../services/userTaskService';
@@ -219,6 +217,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { OpenMatesEvent } from '../data/openmatesEvents';
     import {
         AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS,
+        formatOpenMatesEventSummary,
         getOgExampleResumeChat,
         isOgExampleSharedChatCuttlefish,
     } from './activeChatUtils';
@@ -261,7 +260,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         onVisibleChatReady?: (chatId: string | null) => void;
     } = $props();
 
-    const GUEST_EXAMPLE_SURFACES = new Set<DailyInspirationSurface>(['chats', 'projects', 'workflows']);
     const GUEST_INPUT_LINK_ROTATION_MS = 6500;
     const GuestAllExamplesBackIcon = getLucideIcon('grid-2x2');
     const GuestAllExamplesSearchIcon = getLucideIcon('search');
@@ -1151,7 +1149,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     // Modify handleLogout to track signup state and reset signup step
     async function handleLogout() {
-        const landingIntroResetTokenBeforeLogout = guestLandingIntroResetToken;
         isLoggingOut.set(true);
         
         // Reset signup step to 1
@@ -1179,9 +1176,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 return;
             }
 
-            if (guestLandingIntroResetToken === landingIntroResetTokenBeforeLogout) {
-                resetGuestLandingIntroState();
-            }
+            resetGuestLandingIntroState();
             currentChat = null;
             currentMessages = [];
             followUpSuggestions = [];
@@ -3351,10 +3346,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             .filter((meta) => meta.chat.chat_id !== resumeChatData?.chat_id && !priorityContinueChatIds.has(meta.chat.chat_id))
             .slice(0, remainingSlots);
     });
-    let authRecentOverflowCount = $derived.by(() => {
-        const visibleChatCount = priorityChatItems.length + (hasVisibleResumeChat ? 1 : 0) + visibleRecentChats.length;
-        return Math.max(($userProfile.total_chat_count ?? 0) - visibleChatCount, 0);
-    });
     let recentChatsScrollEl = $state<HTMLElement | null>(null);
     // Set to true the first time the user manually scrolls the carousel so
     // that reactive effects don't snap it back to the initial position.
@@ -3381,7 +3372,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     type OwnStartRowItem =
         | { type: 'priority'; item: PriorityChatContinueItem }
         | { type: 'resume'; chat: Chat }
-        | { type: 'recent'; meta: RecentChatMeta };
+        | { type: 'recent'; meta: RecentChatMeta }
+        | { type: 'example'; meta: RecentChatMeta };
 
     let startRowInspirations = $state<DailyInspiration[]>([]);
     const unsubscribeStartRowInspirations = dailyInspirationStore.subscribe((state) => {
@@ -3393,14 +3385,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // change; authenticated start screens no longer mount it, so the row does.
     let startRowInspirationLoadKey = '';
     $effect(() => {
-        const key = $authStore.isAuthenticated ? `auth:${$locale ?? 'en'}` : '';
-        if (!key || key === startRowInspirationLoadKey) {
-            startRowInspirationLoadKey = key;
-            return;
-        }
+        const isAuthenticated = $authStore.isAuthenticated;
+        const key = `${isAuthenticated ? 'auth' : 'guest'}:${$locale ?? 'en'}`;
+        if (key === startRowInspirationLoadKey) return;
         const isFirstLoad = startRowInspirationLoadKey === '';
         startRowInspirationLoadKey = key;
-        void loadDefaultInspirations({ allowIndexedDB: true, surface: 'chats' }).catch((error) => {
+        // Guests: the app page loads the public defaults on first load; reload only on a language change.
+        if (!isAuthenticated && isFirstLoad) return;
+        void loadDefaultInspirations({ allowIndexedDB: isAuthenticated, surface: 'chats' }).catch((error) => {
             console.error(`[ActiveChat] Failed to ${isFirstLoad ? 'load' : 'reload'} start-row inspirations:`, error);
         });
     });
@@ -3410,16 +3402,69 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         ...(resumeChatData && hasVisibleResumeChat ? [{ type: 'resume' as const, chat: resumeChatData }] : []),
         ...visibleRecentChats.map((meta) => ({ type: 'recent' as const, meta })),
     ]);
-    let authStartRowEntries = $derived.by((): StartRowEntry<OwnStartRowItem, DailyInspiration>[] =>
-        $authStore.isAuthenticated ? interleaveStartRow(ownStartRowItems, startRowInspirations) : []
+    // Guests get the same row: example chats (and their own anonymous or shared chats) with the
+    // inspirations interleaved. Example events leave the row for the entry below it.
+    let guestStartRowVisible = $derived.by(() =>
+        !$authStore.isAuthenticated &&
+        (guestInterestContinueConfirmed || hasAnonymousRecentChats || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others || meta.draftPreview)) &&
+        nonAuthRecentChats.some((meta) => !meta.event)
     );
-    let hasAuthStartRow = $derived(authStartRowEntries.length > 0);
+    let guestStartRowItems = $derived.by((): OwnStartRowItem[] =>
+        nonAuthRecentChats.filter((meta) => !meta.event).map((meta) => ({ type: 'example' as const, meta }))
+    );
+    let startRowEntries = $derived.by((): StartRowEntry<OwnStartRowItem, DailyInspiration>[] => {
+        if ($authStore.isAuthenticated) return interleaveStartRow(ownStartRowItems, startRowInspirations);
+        return guestStartRowVisible ? interleaveStartRow(guestStartRowItems, startRowInspirations) : [];
+    });
+
+    // Browse actions are the last item of the row (TASK-1321); nothing about browsing sits below it.
+    let startRowActions = $derived.by((): StartScreenRowAction[] =>
+        $authStore.isAuthenticated
+            ? [
+                { id: 'show-all', label: $text('chat.welcome.show_all_chats'), icon: 'messages-square', testId: 'chat-show-all', surface: 'chats', onActivate: handleShowAllChats },
+                { id: 'search', label: $text('common.search'), icon: 'search', testId: 'chat-search', onActivate: handleSearchGuestExamples },
+            ]
+            : [
+                { id: 'interests', label: $text('chat.interests.select_interests'), icon: 'heart', testId: 'guest-interest-select-interests', onActivate: handleGuestInterestSelectInterests },
+                { id: 'show-all', label: $text(activeGuestAllExamplesLinkKey), icon: 'messages-square', testId: 'guest-show-all-examples', surface: activeGuestSurface, onActivate: handleShowAllGuestExamples },
+            ]
+    );
+
+    // One compact upcoming entry below the row: a saved event/appointment for signed-in users,
+    // the next OpenMates event for guests.
+    type StartUpcomingEntry = { title: string; timeLabel: string; appId: string; icon: string | null; category: string | null; onActivate: () => void };
+    let startUpcomingEntry = $derived.by((): StartUpcomingEntry | null => {
+        if ($authStore.isAuthenticated) {
+            const item = upcomingEmbedItem;
+            if (!item) return null;
+            return {
+                title: item.title || $text('common.untitled_chat'),
+                timeLabel: item.priority.label,
+                appId: item.appId,
+                icon: item.icon,
+                category: item.category,
+                onActivate: () => void handleOpenPriorityEmbed(item),
+            };
+        }
+        if (!guestStartRowVisible) return null;
+        const event = nonAuthRecentChats.find((meta) => meta.event)?.event;
+        if (!event) return null;
+        return {
+            title: event.title,
+            timeLabel: formatOpenMatesEventSummary(event) ?? '',
+            appId: 'events',
+            icon: 'calendar',
+            category: null,
+            onActivate: () => openOpenMatesEventEmbed(event),
+        };
+    });
 
     function getStartRowEntryKey(entry: StartRowEntry<OwnStartRowItem, DailyInspiration>): string {
         if (entry.kind === 'inspiration') return `inspiration:${entry.item.inspiration_id}`;
         const own = entry.item;
         if (own.type === 'priority') return `priority:${own.item.chat.chat_id}`;
         if (own.type === 'resume') return `resume:${own.chat.chat_id}`;
+        if (own.type === 'example') return `example:${own.meta.chat.chat_id}`;
         return `recent:${own.meta.chat.chat_id}`;
     }
 
@@ -4973,17 +5018,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         viewportHeight = window.innerHeight;
     }
 
-    // chatSide excludes the composer; use the actual room below the banner.
+    // chatSide excludes the composer; its size is the room the start screen has.
     let chatSideWidth = $state(0);
     let chatSideHeight = $state(0);
-    let welcomeBannerHeight = $state(0);
-    // The bound height keeps its last value after the guest banner unmounts on login.
-    let effectiveWelcomeBannerHeight = $derived($authStore.isAuthenticated ? 0 : welcomeBannerHeight);
-    // Short signed-out panes: the banner stays and the row keeps its large cards (TASK-1321), so the guest
-    // welcome is anchored above the composer instead of centred; the row and Show all stay visible.
-    let guestWelcomeAnchoredToComposer = $derived(
-        !$authStore.isAuthenticated && chatSideHeight > 0 && chatSideHeight - effectiveWelcomeBannerHeight < LARGE_CONTINUE_CARDS_MIN_HEIGHT
-    );
 
     // ─── Height-based suggestions overlap detection ──────────────────────────
     // Reliable DOM-measurement approach: measure whether the new-chat suggestions
@@ -5386,6 +5423,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             currentChat,
             currentChat?.chat_id ? hasLiveDraftComposerContent(currentChat.chat_id) : false,
         ),
+     );
+
+     // The composer's suggestion/search rail; while it shows, the start screen's
+     // suggestions below the row step aside so the same prompts are not listed twice.
+     let startScreenComposerRailVisible = $derived(
+        (showWelcome || isActiveDraftOnlyChat) && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment
      );
 
      // Persistence assigns an identity to the existing composer; it must not
@@ -5957,13 +6000,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     let guestInterestSelectorVisible = $state(false);
     let guestAllExamplesVisible = $state(false);
     let guestAllExamplesGridEl = $state<HTMLElement | null>(null);
-    let activeGuestSurface = $state<DailyInspirationSurface>('chats');
+    // Without the guest banner slides the signed-out Chats screen always shows chat examples.
+    const activeGuestSurface: DailyInspirationSurface = 'chats';
     let guestInputLinkIndex = $state(0);
     type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
-    let guestLandingIntroResetToken = $state(0);
-    let lastGuestWorkspaceSlideId = $state<string | null>(null);
-    let guestReturnSlideId = $state<string | null>(null);
     let guestLandingIntroOverlayActive = $derived(
         !$authStore.isAuthenticated && guestLandingIntroPhase !== 'regular'
     );
@@ -5975,11 +6016,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         )
     );
     let guestInterestShuffleToken = $state(0);
-    let lastGuestInspirationShuffleId = $state('');
     let lastGuestPersonalizationKey = '';
-    let showGuestAllExamplesLink = $derived(
-        !$authStore.isAuthenticated && GUEST_EXAMPLE_SURFACES.has(activeGuestSurface)
-    );
     let activeGuestInputLinkKey = $derived(
         guestInputLinkIndex === 0 ? 'chat.welcome.guest_privacy_link' : 'chat.welcome.guest_apps_link'
     );
@@ -6077,26 +6114,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         guestInterestSelectorVisible = true;
     }
 
-    function handleVisibleInspirationChange(inspiration: DailyInspiration) {
-        if ($authStore.isAuthenticated) return;
-        lastGuestWorkspaceSlideId = inspiration.inspiration_id;
-        activeGuestSurface = inspiration.surface ?? 'chats';
-        const nextId = inspiration.inspiration_id;
-        if (!lastGuestInspirationShuffleId) {
-            lastGuestInspirationShuffleId = nextId;
-            return;
-        }
-        if (nextId === lastGuestInspirationShuffleId) return;
-        lastGuestInspirationShuffleId = nextId;
-        guestInterestShuffleToken += 1;
-    }
-
     function resetGuestLandingIntroState() {
-        lastGuestWorkspaceSlideId = null;
-        guestReturnSlideId = null;
         guestAllExamplesVisible = false;
         guestLandingIntroPhase = 'regular';
-        guestLandingIntroResetToken += 1;
     }
 
     $effect(() => {
@@ -8079,12 +8099,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         olderMessageWindowLoading = false;
         showWelcome = true; // Show welcome message for new chat
         if (!$authStore.isAuthenticated) {
-            guestReturnSlideId = closingChat ? lastGuestWorkspaceSlideId : null;
-            if (!guestReturnSlideId) {
-                resetGuestLandingIntroState();
-            }
-            guestAllExamplesVisible = false;
-            guestLandingIntroPhase = 'regular';
+            resetGuestLandingIntroState();
         } else {
             guestLandingIntroPhase = 'regular';
         }
@@ -8941,73 +8956,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         } catch (err) {
             console.error('[ActiveChat] Error creating chat from inspiration:', err);
         }
-    }
-
-    /**
-     * Handler for clicking the video embed area inside a Daily Inspiration banner.
-     *
-     * Opens the video directly in the VideoEmbedFullscreen viewer without first
-     * creating a chat. Works for both authenticated users (embed_id from persistInspirations)
-     * and unauthenticated users (synthetic tmp- embed key, falls back to inline decodedContent).
-     */
-    async function handleInspirationEmbedFullscreen(inspiration: DailyInspiration) {
-        if (!inspiration.video?.youtube_id) {
-            console.debug('[ActiveChat] Inspiration has no video, ignoring embed fullscreen request');
-            return;
-        }
-
-        const storedEmbedId = inspiration.embed_id;
-
-        // For unauthenticated users (or before persistInspirations has run), embed_id is null.
-        // In that case we use a synthetic temporary key based on the youtube_id so
-        // handleEmbedFullscreen can still open the video — it will fall back to the
-        // inline decodedContent we provide below (resolveEmbed returns null for tmp- keys,
-        // which is the intended fallback path).
-        const embedId = storedEmbedId
-            ? `embed:${storedEmbedId}`
-            : `embed:tmp-${inspiration.video.youtube_id}`;
-        const video = inspiration.video;
-        const videoId = video.youtube_id;
-        const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-        // Format duration if available
-        let durationFormatted: string | undefined;
-        if (video.duration_seconds != null) {
-            const mins = Math.floor(video.duration_seconds / 60);
-            const secs = video.duration_seconds % 60;
-            durationFormatted = `${mins}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        console.debug('[ActiveChat] Opening inspiration video in fullscreen:', videoId, 'embedId:', embedId);
-        await handleEmbedFullscreen({
-            detail: {
-                embedId,
-                embedData: {
-                    embed_id: storedEmbedId,
-                    type: 'videos-video',
-                    status: 'finished',
-                },
-                // Pass decodedContent inline as a fallback — handleEmbedFullscreen will
-                // re-load from EmbedStore using the real embedId for up-to-date data.
-                decodedContent: {
-                    url: videoUrl,
-                    video_id: videoId,
-                    title: video.title ?? undefined,
-                    channel_name: video.channel_name ?? undefined,
-                    thumbnail: video.thumbnail_url ?? undefined,
-                    duration_seconds: video.duration_seconds ?? undefined,
-                    duration_formatted: durationFormatted,
-                    view_count: video.view_count ?? undefined,
-                    published_at: video.published_at ?? undefined,
-                },
-                embedType: 'videos-video',
-                attrs: {
-                    url: videoUrl,
-                    title: video.title ?? undefined,
-                    videoId,
-                },
-            },
-        } as CustomEvent);
     }
 
     function openChatDetailsSettings(tab: ChatDetailsTab = 'tasks') {
@@ -14020,33 +13968,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     bind:clientWidth={chatSideWidth}
                     bind:clientHeight={chatSideHeight}
                     class:voice-call-strip-stuck={callControlsReplaceToolbar}
-                    style:--welcome-banner-height={`${effectiveWelcomeBannerHeight}px`}
                     style:--assistant-speech-overlay-reserve={`${assistantSpeechOverlayHeight}px`}
                 >
-                    <!-- Guest landing banner (landing intro + guest Daily Inspiration), shown above the greeting.
-                         Authenticated start screens have no banner: their inspirations are cards in the row (TASK-1321). -->
-                    {#if showWelcome && !$authStore.isAuthenticated}
-                        <div
-                            class="daily-inspiration-area"
-                            class:guest-all-examples-hidden={guestAllExamplesVisible && !$authStore.isAuthenticated}
-                            class:welcome-hiding={hideWelcomeContent}
-                            class:landing-intro-overlay-active={guestLandingIntroOverlayActive}
-                            inert={hideWelcomeContent || (guestAllExamplesVisible && !$authStore.isAuthenticated)}
-                            data-testid="daily-inspiration-area"
-                            bind:clientHeight={welcomeBannerHeight}
-                        >
-                            {#key guestLandingIntroResetToken}
-                                <DailyInspirationBanner
-                                    onStartChat={handleStartChatFromInspiration}
-                                    onEmbedFullscreen={handleInspirationEmbedFullscreen}
-                                    onVisibleInspirationChange={handleVisibleInspirationChange}
-                                    containerWidth={effectiveChatWidth}
-                                    landingIntroResetToken={guestLandingIntroResetToken}
-                                    restoreGuestSlideId={guestReturnSlideId}
-                                />
-                            {/key}
-                        </div>
-                    {/if}
 
                   {#snippet timelineNavigation()}
                     {#if !showWelcome && timelineAvailable && timelineNarrow}
@@ -14283,7 +14206,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             class="center-content"
                             data-testid="welcome-content"
                             class:guest-welcome-content={!$authStore.isAuthenticated}
-                            class:guest-welcome-anchored={guestWelcomeAnchoredToComposer}
                             class:guest-interest-selector-active={!$authStore.isAuthenticated && guestInterestSelectorVisible}
                             class:guest-all-examples-content={guestAllExamplesVisible && !$authStore.isAuthenticated}
                             class:welcome-hiding={hideWelcomeContent}
@@ -14369,15 +14291,17 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                             </div>
                         {/if}
 
-                            <!-- Authenticated start row (TASK-1321): large chat cards only, own chats with
-                                 today's video/article inspirations interleaved. Events sit below the row. -->
-                            {#if hasAuthStartRow}
+                            <!-- Start row (TASK-1321), the same for guests and signed-in users: at most 10 large
+                                 cards (own or example chats with today's video/article inspirations interleaved),
+                                 then the browse actions as the last item. Below the row: an upcoming event entry
+                                 and the new-chat suggestions. -->
+                            {#if startRowEntries.length > 0}
                                 <div
                                     class="recent-chats-scroll-container large-continue-cards start-row"
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
                                 >
-                                    {#each authStartRowEntries as entry (getStartRowEntryKey(entry))}
+                                    {#each startRowEntries as entry (getStartRowEntryKey(entry))}
                                         {#if entry.kind === 'inspiration'}
                                             {@const inspiration = entry.item}
                                             <div class="start-row-slot" use:trackInspirationView={inspiration.inspiration_id}>
@@ -14439,6 +14363,26 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 gestures={getStartCardGestures(resumeChat)}
                                                 onActivate={handleResumeLastChat}
                                             />
+                                        {:else if entry.item.type === 'example'}
+                                            {@const meta = entry.item.meta}
+                                            <StartScreenChatCard
+                                                testId={meta.draftPreview ? 'resume-chat-draft-card' : 'resume-chat-large-card'}
+                                                title={meta.title || $text('common.untitled_chat')}
+                                                summary={meta.summary}
+                                                category={meta.draftPreview ? null : meta.category}
+                                                icon={meta.icon}
+                                                imageBubbles={meta.imageBubbles}
+                                                chatId={meta.chat.chat_id}
+                                                pinned={!!meta.chat.pinned}
+                                                badge={isExampleChat(meta.chat.chat_id)
+                                                    ? { label: $text('chat.header.example_chat'), testId: 'example-chat-badge' }
+                                                    : getSharedChatBadge(meta.chat)}
+                                                preview={meta.draftPreview
+                                                    ? { label: $text('enter_message.draft'), text: meta.draftPreview.slice(0, 120) }
+                                                    : null}
+                                                gestures={getStartCardGestures(meta.chat)}
+                                                onActivate={() => handleOpenRecentChat(meta.chat)}
+                                            />
                                         {:else}
                                             {@const meta = entry.item.meta}
                                             {@const isDraft = !!meta.draftPreview && !meta.title}
@@ -14461,116 +14405,30 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                         {/if}
                                     {/each}
 
-                                    <!-- "+N more" overflow button (auth) -->
-                                    {#if authRecentOverflowCount > 0}
-                                        <button
-                                            class="recent-chat-overflow"
-                                            type="button"
-                                            onclick={() => panelState.toggleChats()}
-                                        >
-                                            +{authRecentOverflowCount}
-                                        </button>
-                                    {/if}
-                                </div>
-                            <!-- Non-auth: scrollable list of example chats (same card design as auth recent chats) -->
-                            {:else if !$authStore.isAuthenticated && (guestInterestContinueConfirmed || hasAnonymousRecentChats || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others || meta.draftPreview)) && nonAuthRecentChats.length > 0}
-                                <div
-                                    class="recent-chats-scroll-container large-continue-cards"
-                                    data-testid="recent-chats-scroll-container"
-                                    bind:this={recentChatsScrollEl}
-                                >
-                                    {#each nonAuthRecentChats as meta (meta.chat.chat_id)}
-                                        {#if meta.event}
-                                            <EventEmbedPreview
-                                                id={meta.event.embed_id}
-                                                event={meta.event}
-                                                isMobile={false}
-                                                onFullscreen={() => openOpenMatesEventEmbed(meta.event!)}
-                                            />
-                                        {:else}
-                                            <StartScreenChatCard
-                                                testId={meta.draftPreview ? 'resume-chat-draft-card' : 'resume-chat-large-card'}
-                                                title={meta.title || $text('common.untitled_chat')}
-                                                summary={meta.summary}
-                                                category={meta.draftPreview ? null : meta.category}
-                                                icon={meta.icon}
-                                                imageBubbles={meta.imageBubbles}
-                                                chatId={meta.chat.chat_id}
-                                                pinned={!!meta.chat.pinned}
-                                                badge={isExampleChat(meta.chat.chat_id)
-                                                    ? { label: $text('chat.header.example_chat'), testId: 'example-chat-badge' }
-                                                    : getSharedChatBadge(meta.chat)}
-                                                preview={meta.draftPreview
-                                                    ? { label: $text('enter_message.draft'), text: meta.draftPreview.slice(0, 120) }
-                                                    : null}
-                                                gestures={getStartCardGestures(meta.chat)}
-                                                onActivate={() => handleOpenRecentChat(meta.chat)}
-                                            />
-                                        {/if}
-                                    {/each}
-                                </div>
-                                <div class="guest-example-link-row" data-testid="guest-example-link-row">
-                                    <button
-                                        type="button"
-                                        class="guest-interest-select-link"
-                                        data-testid="guest-interest-select-interests"
-                                        onclick={handleGuestInterestSelectInterests}
-                                    >
-                                        <span class="guest-link-icon guest-link-icon-heart" aria-hidden="true"></span>
-                                        <span>{$text('chat.interests.select_interests')}</span>
-                                    </button>
-                                    {#if !$authStore.isAuthenticated && showGuestAllExamplesLink}
-                                        <span class="guest-example-link-divider" aria-hidden="true"></span>
-                                        <button
-                                            type="button"
-                                            class="guest-show-all-examples"
-                                            data-testid="guest-show-all-examples"
-                                            data-surface={activeGuestSurface}
-                                            onclick={handleShowAllGuestExamples}
-                                        >
-                                            <span class="guest-link-icon guest-link-icon-surface" aria-hidden="true"></span>
-                                            <span>{$text(activeGuestAllExamplesLinkKey)}</span>
-                                        </button>
-                                    {/if}
+                                    <StartScreenRowActions testId="start-row-actions" actions={startRowActions} />
                                 </div>
                             {/if}
-                            {#if $authStore.isAuthenticated && upcomingEmbedItem}
-                                {@const upcoming = upcomingEmbedItem}
+                            {#if startUpcomingEntry}
+                                {@const upcoming = startUpcomingEntry}
                                 <div class="start-upcoming-row">
                                     <StartScreenUpcomingEntry
-                                        title={upcoming.title || $text('common.untitled_chat')}
-                                        timeLabel={upcoming.priority.label}
+                                        title={upcoming.title}
+                                        timeLabel={upcoming.timeLabel}
                                         appId={upcoming.appId}
                                         icon={upcoming.icon}
                                         category={upcoming.category}
                                         variant="pill"
-                                        onActivate={() => handleOpenPriorityEmbed(upcoming)}
+                                        onActivate={upcoming.onActivate}
                                     />
                                 </div>
                             {/if}
-                            {#if $authStore.isAuthenticated && hasContinueItems}
-                                <div class="guest-example-link-row" data-testid="chat-browse-controls">
-                                    <button
-                                        type="button"
-                                        class="guest-show-all-examples"
-                                        data-testid="chat-show-all"
-                                        data-surface="chats"
-                                        onclick={handleShowAllChats}
-                                    >
-                                        <span class="guest-link-icon guest-link-icon-surface" aria-hidden="true"></span>
-                                        <span>{$text('chat.welcome.show_all_chats')}</span>
-                                    </button>
-                                    <span class="guest-example-link-divider" aria-hidden="true"></span>
-                                    <button
-                                        type="button"
-                                        class="guest-show-all-examples"
-                                        data-testid="chat-search"
-                                        onclick={handleSearchGuestExamples}
-                                    >
-                                        <GuestAllExamplesSearchIcon size={18} color="currentColor" />
-                                        <span>{$text('common.search')}</span>
-                                    </button>
-                                </div>
+                            {#if startRowEntries.length > 0 && !startScreenComposerRailVisible}
+                                <StartScreenChatSuggestions
+                                    isAuthenticated={$authStore.isAuthenticated}
+                                    selectedInterestTagIds={guestInterestContinueConfirmed ? selectedGuestInterestTagIds : []}
+                                    reloadKey={`${$locale ?? 'en'}:${$phasedSyncState.initialSyncCompleted}:${carouselInvalidationCounter}`}
+                                    onSuggestionClick={handleSuggestionClick}
+                                />
                             {/if}
                             {/if}
                         </div>
@@ -14579,10 +14437,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     {/if}
 
                     {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
-                        <ActiveChatTaskPreview
-                            chatId={currentChat.chat_id}
-                            onOpenDetails={openChatDetailsSettings}
-                        />
                         <TaskProposalReview
                             chatId={currentChat.chat_id}
                             proposals={pendingTaskProposals}
@@ -14795,7 +14649,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                          <!-- New-chat suggestions are tied to the active message input. The short
                               recently-focused grace lets suggestion clicks land without keeping the
                               rail visible on the inactive welcome screen. -->
-                         {#if (showWelcome || isActiveDraftOnlyChat) && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
+                         {#if startScreenComposerRailVisible}
                             <div class="suggestions-wrapper composer-suggestions"
                                 data-preserve-composer-focus="true"
                                 data-testid="chat-welcome-suggestions">
@@ -15709,13 +15563,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     .center-content {
         position: absolute;
-        /*
-         * Center vertically in the space below the daily inspiration banner (35vh).
-         * Formula: 50% of chat-side + half the banner height keeps the element
-         * ~40px below the mathematical midpoint of the remaining space on all
-         * viewport sizes, compensating for the variable 35vh banner height.
-         */
-        top: calc(50% + 17.5vh);
+        top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
@@ -15735,13 +15583,20 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         width: 100%;
     }
 
-    .chat-side.welcome-chat-side .center-content:not(.guest-welcome-content) {
-        top: var(--welcome-banner-height);
+    /* Start screen (TASK-1321): no banner for anyone. Greeting, row and suggestions are centred in
+       the pane; on a short pane the block scrolls instead of clipping its top (safe centre). */
+    .chat-side.welcome-chat-side .center-content:not(.guest-all-examples-content) {
+        top: 0;
         bottom: 0;
         transform: translateX(-50%);
-        justify-content: center;
+        justify-content: safe center;
         overflow-y: auto;
         box-sizing: border-box;
+    }
+
+    /* The row keeps its full large-card height; the pane scrolls instead of squeezing it. */
+    .chat-side.welcome-chat-side .center-content:not(.guest-all-examples-content) > * {
+        flex-shrink: 0;
     }
 
     .center-content.guest-welcome-content {
@@ -15751,33 +15606,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         max-width: 100cqw;
     }
 
-    .center-content.guest-interest-selector-active {
-        top: calc(50% + 17.5vh - var(--spacing-24));
-    }
-
-    /* Short signed-out pane (TASK-1321): the large row and Show all sit directly above the composer; extra
-       greeting height runs up under the banner instead of pushing the browse controls behind the composer. */
-    .chat-side.welcome-chat-side .center-content.guest-welcome-anchored:not(.guest-all-examples-content):not(.guest-interest-selector-active) {
-        top: var(--welcome-banner-height);
-        bottom: 0;
-        transform: translateX(-50%);
-        justify-content: flex-end;
-        box-sizing: border-box;
-        padding-bottom: var(--spacing-4);
-    }
-
-    /* The row keeps its full large-card height; only the space above it gives way. */
-    .center-content.guest-welcome-anchored > * {
-        flex-shrink: 0;
-    }
-
     .center-content.guest-all-examples-content {
         top: calc(50% + 30px);
         height: calc(100% - 100px);
-    }
-
-    .daily-inspiration-area.guest-all-examples-hidden {
-        display: none;
     }
 
     .team-profile {
@@ -15824,87 +15655,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         width: 100%;
         flex-shrink: 0;
         pointer-events: auto;
-    }
-
-    .guest-example-link-row {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--spacing-3);
-        margin-top: var(--spacing-1);
-        pointer-events: auto;
-    }
-
-    .guest-interest-select-link,
-    .guest-show-all-examples {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--spacing-2);
-        border: none;
-        background: transparent;
-        padding: var(--spacing-1) 0 0;
-        font: inherit;
-        font-size: 0.92rem;
-        font-weight: 720;
-        cursor: pointer;
-        text-decoration: none;
-        box-shadow: none;
-        filter: none;
-    }
-
-    .guest-interest-select-link {
-        color: var(--color-grey-60);
-    }
-
-    .guest-show-all-examples {
-        color: var(--color-grey-60);
-    }
-
-    .guest-link-icon {
-        width: 14px;
-        height: 14px;
-        display: inline-block;
-        flex-shrink: 0;
-        background: currentColor;
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-size: contain;
-        mask-size: contain;
-    }
-
-    .guest-link-icon-heart {
-        -webkit-mask-image: url('@openmates/ui/static/icons/heart.svg');
-        mask-image: url('@openmates/ui/static/icons/heart.svg');
-    }
-
-    .guest-link-icon-surface {
-        -webkit-mask-image: url('@openmates/ui/static/icons/chat.svg');
-        mask-image: url('@openmates/ui/static/icons/chat.svg');
-    }
-
-    .guest-show-all-examples[data-surface='projects'] .guest-link-icon-surface {
-        -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
-        mask-image: url('@openmates/ui/static/icons/project.svg');
-    }
-
-    .guest-show-all-examples[data-surface='workflows'] .guest-link-icon-surface {
-        -webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
-        mask-image: url('@openmates/ui/static/icons/workflow.svg');
-    }
-
-    .guest-example-link-divider {
-        width: 1px;
-        height: 16px;
-        border-radius: 999px;
-        background: color-mix(in srgb, var(--color-grey-60) 26%, transparent);
-    }
-
-    .guest-show-all-examples:hover,
-    .guest-interest-select-link:hover {
-        text-decoration: underline;
-        text-underline-offset: 3px;
     }
 
     .guest-all-examples-view {
@@ -16139,33 +15889,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         padding: 0 var(--spacing-8);
         box-sizing: border-box;
         pointer-events: auto;
-    }
-
-    /* "+N" overflow pill matching card height */
-    .recent-chat-overflow {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 56px;
-        min-width: 56px;
-        height: 200px;
-        border-radius: var(--radius-8);
-        background: var(--color-grey-20, rgba(0, 0, 0, 0.07));
-        border: 1.5px dashed var(--color-grey-40);
-        font-size: var(--font-size-small);
-        font-weight: 700;
-        color: var(--color-grey-60);
-        cursor: pointer;
-        flex-shrink: 0;
-        transition: background var(--duration-fast) var(--easing-default), color var(--duration-fast) var(--easing-default);
-        pointer-events: auto;
-    }
-
-
-    .recent-chat-overflow:hover {
-        background: var(--color-grey-30, rgba(0, 0, 0, 0.12));
-        color: var(--color-grey-80);
-        border-color: var(--color-grey-50);
     }
 
     /* Read-only indicator for shared chats */
@@ -16421,10 +16144,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         pointer-events: none;
     }
 
-    .chat-side.welcome-chat-side .daily-inspiration-area:not(.welcome-hiding) {
-        pointer-events: auto;
-    }
-
     .active-chat-history-state {
         position: absolute;
         z-index: var(--z-index-raised-1);
@@ -16612,16 +16331,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             /* Global header controls sit above the chat on compact screens. */
             right: 10px;
         }
-        /* On mobile the daily inspiration banner is fixed at 190px (not 35vh).
-           Include the welcome top-buttons row below it so the greeting centers in
-           the remaining space above the message input. */
-        .center-content {
-            top: calc(50% + 127px);
-        }
-
-        .center-content.guest-interest-selector-active {
-            top: calc(50% + 127px - var(--spacing-24));
-        }
     }
 
     /*
@@ -16646,37 +16355,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         flex-direction: row-reverse;
     }
 
-    /*
-     * Daily inspiration area wrapper.
-     * No padding — the banner spans edge-to-edge within the chat-side container.
-     * Horizontal padding is handled inside DailyInspirationBanner.svelte's .banner-inner.
-     */
-    .daily-inspiration-area {
-        --daily-inspiration-area-height: clamp(190px, 50.9383cqi, 420px);
-        flex: 0 0 var(--daily-inspiration-area-height);
-        width: 100%;
-        height: var(--daily-inspiration-area-height);
-        min-height: 250px;
-        max-height: 35dvh;
-        box-sizing: border-box;
-    }
-
-    .daily-inspiration-area.landing-intro-overlay-active {
-        --daily-inspiration-area-height: max(35vh, 240px);
-        min-height: 0;
-        max-height: none;
-    }
-
-    @media (max-width: 730px) {
-        .daily-inspiration-area {
-            min-height: 190px;
-        }
-
-        .daily-inspiration-area.landing-intro-overlay-active {
-            --daily-inspiration-area-height: 190px;
-        }
-    }
-
     /* Welcome content fade transition: on short viewports, the daily inspiration
        and welcome greeting fade out via CSS opacity when the message input is
        focused, instead of being removed from DOM.  This avoids ResizeObserver
@@ -16684,14 +16362,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
        visibility:hidden is delayed by 200ms so it kicks in AFTER opacity reaches
        0, preventing interaction with invisible content.  On fade-in (class
        removed), visibility:visible applies immediately via the base 0s delay. */
-    .daily-inspiration-area,
     .center-content,
     .guest-interest-tags-overlay,
     .top-buttons {
         transition: opacity 200ms ease, visibility 0s 0s;
     }
 
-    .daily-inspiration-area.welcome-hiding,
     .center-content.welcome-hiding,
     .guest-interest-tags-overlay.welcome-hiding,
     .top-buttons.welcome-hiding {
@@ -16704,6 +16380,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     .center-content.welcome-hiding *,
     .top-buttons.welcome-hiding * {
         pointer-events: none !important;
+    }
+
+    /* The start row sets visibility: visible for its own scroll layout; while the welcome
+       hides it must follow the welcome, after the same 200ms fade. */
+    .center-content.welcome-hiding .recent-chats-scroll-container {
+        visibility: hidden;
+        transition: visibility 0s 200ms;
     }
 
     /* Admin debug mode button: highlighted while debug mode is active. */

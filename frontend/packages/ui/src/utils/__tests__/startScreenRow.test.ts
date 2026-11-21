@@ -26,21 +26,22 @@ function inspiration(partial: Partial<DailyInspiration>): DailyInspiration {
 describe('interleaveStartRow', () => {
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.start-row-rhythm
   it('shows two own items, then one inspiration after every third own item', () => {
-    expect(flat(interleaveStartRow(own(10), insp(6)))).toEqual([
-      'c1', 'c2', 'i1', 'c3', 'c4', 'c5', 'i2', 'c6', 'c7', 'c8', 'i3', 'c9', 'c10',
+    expect(flat(interleaveStartRow(own(7), insp(6)))).toEqual([
+      'c1', 'c2', 'i1', 'c3', 'c4', 'c5', 'i2', 'c6', 'c7',
     ]);
   });
 
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.start-row-rhythm
-  it('caps own items at ten while inspirations come on top', () => {
-    const entries = interleaveStartRow(own(14), insp(6));
-    expect(entries.filter((entry) => entry.kind === 'own')).toHaveLength(10);
-    expect(entries.filter((entry) => entry.kind === 'inspiration')).toHaveLength(3);
+  it('shows at most ten cards in total, inspirations included', () => {
+    expect(flat(interleaveStartRow(own(14), insp(6)))).toEqual([
+      'c1', 'c2', 'i1', 'c3', 'c4', 'c5', 'i2', 'c6', 'c7', 'c8',
+    ]);
   });
 
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.start-row-rhythm
   it('shows only inspirations for a user without own items', () => {
     expect(flat(interleaveStartRow([], insp(6)))).toEqual(insp(6));
+    expect(interleaveStartRow([], insp(12))).toHaveLength(10);
   });
 
   // contract-test: supporting surface=gui.web assertions=daily-inspiration.start-row-rhythm

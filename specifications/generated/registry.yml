@@ -752,7 +752,7 @@ specifications:
     version: 3
     status: draft
     path: features/daily-inspiration
-    fingerprint: e5cb164e0cd90fcf609712e502c2816e82f121efd569afcc939ec527c1ab6ac4
+    fingerprint: 0c02d5626cb23f5a0c8088f8e11af2d1c8c18d876d7697512db9787dcc21cea9
     required_applies_to:
     - rest_api
     - gui.web
@@ -1022,7 +1022,7 @@ specifications:
     version: 4
     status: draft
     path: features/tasks
-    fingerprint: fb119110cb0e5fdc9bbc764c6b0e579bbdfaed5b6a89468ef59d8b509947495c
+    fingerprint: e25de4c594fcdd05ba50141c2731db79d2d13cd932cedf10836d27d93893ef3d
     required_applies_to:
     - rest_api
     - cli
@@ -1129,14 +1129,14 @@ specifications:
     version: 12
     status: draft
     path: features/workflows-ui
-    fingerprint: 4c1d808445e4702b2403a28a11eef5b31d49316dd9b675a7396c906abd2dd748
+    fingerprint: 4d117f34ea22cd4b0184463ba42e5571053dcf14b6b2a466860aca04752f8824
     required_applies_to:
     - gui.web
   feature.workspace-shell:
     version: 5
     status: draft
     path: features/workspace-shell
-    fingerprint: 9618f09bbff7ed100cf9d572c74be5d7b6244690ed57617904e95949a00188a6
+    fingerprint: 51d10a9832a0a572a5550a9b284499213f8c3de48801963692099a05565526c3
     required_applies_to:
     - gui.web
   surface.cli:
@@ -10077,7 +10077,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: invariant
-    fingerprint: fee6cea2ed9f7d8a088356fe453c9cdc4b3a48ea728ff1f0f2a45e983e4fe313
+    fingerprint: b032c5a8c5e457e31c83e68d0bd64fc4ad6964e8ec9e6240c4c0667d00b21ab7
     required_applies_to:
     - rest_api
     - gui.web
@@ -10122,7 +10122,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: 9f311bffc431bfb66bcb03e7a76fd3d672443eee173a6be4214be8df8c8590f9
+    fingerprint: 49ac15dfa7c48ff67f7df7a20292e8e50fd7f0cfdc292b5c7619e4ea098d1daf
     required_applies_to:
     - rest_api
     - gui.web
@@ -10131,7 +10131,25 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: 100d3e4efa7b8891100393eb8edefc30548fa409f55a47e2c870359a20d5c3d0
+    fingerprint: 955c1db0ae05d43140a518e79139916112e423c339901305d090b09d0e7a672f
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
+  daily-inspiration.start-row-actions:
+    specification: feature.daily-inspiration@3
+    specification_id: feature.daily-inspiration
+    type: behavior
+    fingerprint: 910a51be643f556b720c6d53c5723cff3ec8ee3059bf0f2c933ff9daa9e3ac86
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
+  daily-inspiration.start-row-suggestions:
+    specification: feature.daily-inspiration@3
+    specification_id: feature.daily-inspiration
+    type: behavior
+    fingerprint: ba45a750c3ec7cdc8f98083cb04bd6c7e73e53b32c9fdc254d2ba8c65c0bee10
     required_applies_to:
     - rest_api
     - gui.web
@@ -10140,7 +10158,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: 923ed45fdb13acbdc25d45c13b613f75327ed561fab9b39eba04673c5698c2df
+    fingerprint: ebd1c3a0c412bf7841bb10c6d01ee661e747597a92a1a8ecdfde7c9d95c01311
     required_applies_to:
     - rest_api
     - gui.web
@@ -14373,6 +14391,17 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  tasks.chat.settings-only:
+    specification: feature.tasks@4
+    specification_id: feature.tasks
+    type: behavior
+    fingerprint: 8707476367509151cdc2749acf99d3f840e20dfbda292441b7fda96915c0e0b6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   tasks.surface.semantic-parity:
     specification: feature.tasks@4
     specification_id: feature.tasks
@@ -16193,6 +16222,34 @@ assertions:
     fingerprint: be6bab7a5dd5b73a03169fa458d8f28719e6d3a0b617d8126e208926be2921e1
     required_applies_to:
     - gui.web
+  workflows-ui.home.prompt-suggestions:
+    specification: feature.workflows-ui@12
+    specification_id: feature.workflows-ui
+    type: behavior
+    fingerprint: d6f2e1a69934270c2bceb218955d36cde66f1406f04e4ed64467546cca752c5b
+    required_applies_to:
+    - gui.web
+  workflows-ui.guest.describe-signup-return:
+    specification: feature.workflows-ui@12
+    specification_id: feature.workflows-ui
+    type: behavior
+    fingerprint: e9a27fe0badfe7874cea97a31c1cc7144f24180a7567f9e14a3facc10f94d633
+    required_applies_to:
+    - gui.web
+  workflows-ui.detail-header.description-clamp:
+    specification: feature.workflows-ui@12
+    specification_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 88112b8db465b16b420d66057496e592db6b125f53afb494fefa79bead73b2fb
+    required_applies_to:
+    - gui.web
+  workflows-ui.canvas.node-label-clamp:
+    specification: feature.workflows-ui@12
+    specification_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 1e4d6486be4782cc056c46906945e7a897ef7af021393ea751256dedd277201f
+    required_applies_to:
+    - gui.web
   workflows-ui.workspace.title-first-draft:
     specification: feature.workflows-ui@12
     specification_id: feature.workflows-ui
@@ -16400,7 +16457,7 @@ assertions:
     specification: feature.workspace-shell@5
     specification_id: feature.workspace-shell
     type: behavior
-    fingerprint: 68828f6a72546f6e476f993f0fbd3e72b9905a614eb61c04703beb3261d17c38
+    fingerprint: 1e87cbd399774a35c2f81c9c3f663d21ad8a2947e17977b9fa81bf216f19875c
     required_applies_to:
     - gui.web
   workspace-shell.kanban.figma-controls:

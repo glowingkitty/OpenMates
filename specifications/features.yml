@@ -308,7 +308,7 @@ features:
   - id: daily-inspiration
     name: "Daily Inspiration"
     kind: core
-    description: "Personalised daily video and article cards inside the start-screen row (banner for signed-out visitors), with a public default."
+    description: "Personalised daily video and article cards inside the start-screen row (signed in and signed out, no banner), with a public default; the row ends with its browse actions and suggestions follow below it."
     specifications: [feature.daily-inspiration]
     release: v0.7.0-alpha
     surfaces: {web: implemented, apple: in_progress, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}

@@ -71,6 +71,7 @@
   backTestId="workflows-back-to-recent" searchTestId="workflows-search"
   onShowAll={guest ? undefined : () => { browseMode = 'workflows'; }} onBrowse={() => { browseMode = 'templates'; }} onBackToRecent={() => { browseMode = 'home'; }}
   onSearchAll={guest ? undefined : () => {}} onActionItem={() => {}}
+  startSuggestions={{ items: [1, 2, 3].map(index => $text(`workflows.home.suggestion_${index}`)), onClick: (suggestion) => { value = suggestion; } }}
   onContinueItem={(item) => { if (guest) selectedGuestTemplate = workflowTemplates.find(template => template.id === item.id) ?? null; }}
   onAllItem={(item) => { if (guest) selectedGuestTemplate = workflowTemplates.find(template => template.id === item.id) ?? null; }}
 >

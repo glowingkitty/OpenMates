@@ -2839,7 +2839,7 @@
       "text": "{skills} skills · {focusModes} focus modes"
     },
     "home_prompt": {
-      "text": "What app do you want to use?"
+      "text": "Explore the apps OpenMates can use"
     },
     "home_greeting": {
       "text": "Hey {name}!"
@@ -24975,6 +24975,9 @@
       "screenshot_size_too_large": {
         "text": "Screenshot too large. Please try a smaller window."
       },
+      "screenshot_limit_reached": {
+        "text": "You can attach up to 5 screenshots."
+      },
       "screenshot_preview_alt": {
         "text": "Screenshot preview"
       },
@@ -29370,6 +29373,12 @@
       "add_description": {
         "text": "Click to add description"
       },
+      "description_expand": {
+        "text": "Show full description"
+      },
+      "description_collapse": {
+        "text": "Show less of the description"
+      },
       "workflow_on": {
         "text": "Workflow on"
       },
@@ -29663,6 +29672,15 @@
       },
       "guest_subtitle": {
         "text": "Explore the workflow automations:"
+      },
+      "suggestion_1": {
+        "text": "Every morning, summarise new emails from my team"
+      },
+      "suggestion_2": {
+        "text": "Tell me when a product on my wishlist drops in price"
+      },
+      "suggestion_3": {
+        "text": "Every Friday, send me a summary of my calendar for next week"
       },
       "show_all": {
         "text": "Show my workflows"

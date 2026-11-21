@@ -135,13 +135,17 @@ async function blurComposerAndWaitForWelcome(page: any) {
 		await composer.evaluate((element: HTMLElement) => element.blur());
 	}
 	await expect(composer).not.toBeFocused();
-	await expect(page.getByTestId('daily-inspiration-area')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('suggestions-wrapper')).toHaveCount(0, { timeout: 3000 });
+	// The start screen shows its own new-chat suggestions below the row (TASK-1321); no
+	// follow-up suggestions of the previously opened chat may leak onto it.
+	await expect(
+		page.locator('xpath=//*[@data-testid="suggestions-wrapper"][not(ancestor::*[@data-testid="start-screen-suggestions"])]')
+	).toHaveCount(0, { timeout: 3000 });
 }
 
 async function expectGuestWelcomeSuppressedForComposer(page: any) {
-	await expect(page.getByTestId('daily-inspiration-area')).not.toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('recent-chats-scroll-container')).not.toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('welcome-content')).not.toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('report-issue-button')).not.toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('guest-input-context-link')).toHaveCount(0);
@@ -150,7 +154,7 @@ async function expectGuestWelcomeSuppressedForComposer(page: any) {
 }
 
 async function expectNewChatWelcomeSuppressedForComposer(page: any) {
-	await expect(page.getByTestId('daily-inspiration-area')).not.toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('recent-chats-scroll-container')).not.toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('welcome-content')).not.toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('report-issue-button')).not.toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('recent-chats-scroll-container')).not.toBeVisible({ timeout: 5000 });
@@ -158,36 +162,15 @@ async function expectNewChatWelcomeSuppressedForComposer(page: any) {
 	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeFocused({ timeout: 5000 });
 }
 
-async function expectCurrentLandingSlide(page: any, slideIndex: number, inspirationId: string) {
-	await expect(page.locator('[data-testid="daily-inspiration-mounted-slide"][data-current="true"]')).toHaveAttribute(
-		'data-slide-index',
-		String(slideIndex),
-		{ timeout: SLIDE_NAVIGATION_TIMEOUT }
-	);
-	const banner = page.getByTestId('daily-inspiration-banner');
-	await expect(banner).toHaveAttribute('data-current-inspiration-id', inspirationId, {
-		timeout: SLIDE_NAVIGATION_TIMEOUT
-	});
-}
-
-async function expectLandingCarouselNavigatesBothDirections(page: any) {
-	const banner = page.getByTestId('daily-inspiration-banner');
-	await expect(banner).toBeVisible({ timeout: 10000 });
-	const inspirationIds = (await banner.getAttribute('data-visible-inspiration-ids'))
-		?.split(',')
-		.filter(Boolean) ?? [];
-	expect(inspirationIds.length, 'guest landing carousel should contain multiple slides').toBeGreaterThan(1);
-
-	await expectCurrentLandingSlide(page, 0, inspirationIds[0]);
-	for (let slideIndex = 1; slideIndex < inspirationIds.length; slideIndex += 1) {
-		await page.getByTestId('daily-inspiration-next').click();
-		await expectCurrentLandingSlide(page, slideIndex, inspirationIds[slideIndex]);
-	}
-
-	for (let slideIndex = inspirationIds.length - 2; slideIndex >= 0; slideIndex -= 1) {
-		await page.getByTestId('daily-inspiration-previous').click();
-		await expectCurrentLandingSlide(page, slideIndex, inspirationIds[slideIndex]);
-	}
+async function expectGuestStartRowHasInspirationCards(page: any) {
+	await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+	await expect(page.getByTestId('daily-inspiration-next')).toHaveCount(0);
+	const row = page.getByTestId('recent-chats-scroll-container');
+	await expect(row).toBeVisible({ timeout: 10000 });
+	const cards = row.getByTestId('start-row-inspiration-card');
+	await expect(cards.first()).toBeVisible({ timeout: SLIDE_NAVIGATION_TIMEOUT });
+	expect(await row.locator('> *').count(), 'start row holds at most 10 cards plus the actions').toBeLessThanOrEqual(11);
+	await expect(row.locator('> *').last()).toHaveAttribute('data-testid', 'start-row-actions');
 	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 }
 
@@ -274,7 +257,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		await page.waitForLoadState('networkidle');
 
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 10000 });
-		await expect(page.getByTestId('daily-inspiration-area')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 10000 });
 		await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
 		await expect(page.getByTestId('report-issue-button')).toBeVisible({ timeout: 10000 });
 
@@ -299,7 +282,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 
 		await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 10000 });
-		await expect(page.getByTestId('daily-inspiration-area')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 15000 });
 
 		const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
@@ -408,8 +391,8 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		await finalNewChatButton.click();
 		await expectBlankUnfocusedComposer(page);
 		await blurComposerAndWaitForWelcome(page);
-		await expectLandingCarouselNavigatesBothDirections(page);
-		console.log('[chat-nav] Ordinary Daily Inspiration carousel navigated from first to last card and back');
+		await expectGuestStartRowHasInspirationCards(page);
+		console.log('[chat-nav] Start row shows inspiration cards without a banner');
 
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 8000 });

@@ -52,24 +52,19 @@ test(`${language} public inspirations remain localized through carousel navigati
 
   await page.goto(`/?lang=${language}`);
   await expect(page.locator('html')).toHaveAttribute('lang', language);
-  const phrase = page.getByTestId('daily-inspiration-phrase').first();
-  const banner = page.getByTestId('daily-inspiration-banner').first();
-  await expect.poll(async () => (await banner.getAttribute('data-visible-inspiration-ids') || '').split(',').length).toBe(6);
-  await expect.poll(async () => phrases.includes((await phrase.innerText()).trim())).toBe(true);
-  const visited = new Set<string>();
-  for (let index = 0; index < 6; index += 1) {
-    const text = (await phrase.innerText()).trim();
-    expect(phrases).toContain(text);
-    visited.add(text);
-    if (index < 5) {
-      await page.getByTestId('daily-inspiration-next').first().click();
-      await expect(phrase).not.toHaveText(text);
-    }
-  }
-  expect(visited.size).toBe(6);
+  await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+  const cards = page.getByTestId('start-row-inspiration-card');
+  const readCardIds = async (): Promise<string[]> =>
+    cards.evaluateAll((nodes: Element[]) => nodes.map((node) => node.getAttribute('data-inspiration-id') || '').filter(Boolean));
+  await expect(cards.first()).toBeVisible();
+  // The start row shows at most 10 cards shared with example chats; inspiration cards carry localized text.
+  expect((await readCardIds()).length).toBeGreaterThan(0);
+  await expect.poll(async () => (await cards.first().innerText()).trim().length).toBeGreaterThan(0);
+  await expect(page.getByTestId('start-row-inspiration-label').first()).toBeVisible();
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', language);
-  await expect.poll(async () => phrases.includes((await phrase.innerText()).trim())).toBe(true);
+  await expect(cards.first()).toBeVisible();
+  expect((await readCardIds()).length).toBeGreaterThan(0);
 });
 
 }
@@ -80,15 +75,13 @@ test('Withheld editorial inventory keeps the six-card guest fallback usable', as
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ inspirations: [] }) })
   );
   await page.goto('/?lang=de');
-  const banner = page.getByTestId('daily-inspiration-banner').first();
-  const phrase = page.getByTestId('daily-inspiration-phrase').first();
-  await expect.poll(async () => (await banner.getAttribute('data-visible-inspiration-ids') || '').split(',').length).toBe(6);
-  await expect(phrase).toBeVisible();
-  const first = (await phrase.innerText()).trim();
-  expect(first).not.toBe('');
-  await page.getByTestId('daily-inspiration-next').first().click();
-  await expect(phrase).not.toHaveText(first);
+  const cards = page.getByTestId('start-row-inspiration-card');
+  await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+  await expect(cards.first()).toBeVisible();
+  await expect.poll(async () => (await cards.first().innerText()).trim().length).toBeGreaterThan(0);
+  const firstId = await cards.first().getAttribute('data-inspiration-id');
+  expect(firstId).toBeTruthy();
   await page.reload();
-  await expect(phrase).toBeVisible();
-  await expect.poll(async () => (await banner.getAttribute('data-visible-inspiration-ids') || '').split(',').length).toBe(6);
+  await expect(cards.first()).toBeVisible();
+  await expect(cards.first()).toHaveAttribute('data-inspiration-id', firstId!);
 });

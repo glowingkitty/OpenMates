@@ -106,6 +106,7 @@
   .processing .resume-large-summary { color: var(--color-font-secondary); }
   .processing .resume-chat-kind-badge { color: var(--color-font-secondary); background: var(--color-grey-20); }
   .processing .resume-large-content { text-shadow: none; }
+  @media (max-width: 480px) { .workspace-continue-card:not(.fluid) { width: min(280px, 76vw); min-width: min(280px, 76vw); max-width: min(280px, 76vw); } }
   .workspace-continue-card.fluid { width: min(100%, 300px); min-width: 0; }
   .workspace-continue-card:active { transform: scale(0.96); transition: transform 0.05s ease-out; }
   .workspace-continue-card:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.5); outline-offset: 2px; }

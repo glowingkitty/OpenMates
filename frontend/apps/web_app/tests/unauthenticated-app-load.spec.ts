@@ -84,27 +84,15 @@ async function focusGuestComposer(page: any) {
 	await expect(page.getByTestId('action-buttons').last()).toBeVisible({ timeout: 10000 });
 }
 
-async function readDailyInspirationPhrase(page: any): Promise<string> {
-	const phrase = page.getByTestId('daily-inspiration-phrase');
-	for (let attempt = 0; attempt < 5; attempt += 1) {
-		if (await phrase.isVisible({ timeout: 1000 }).catch(() => false)) break;
-
-		const nextButton = page.getByTestId('daily-inspiration-next');
-		if (!(await nextButton.isVisible({ timeout: 1000 }).catch(() => false))) break;
-		await nextButton.click();
-	}
-	await expect(phrase).toBeVisible({ timeout: 15000 });
-	const text = (await phrase.textContent())?.trim() ?? '';
-	expect(text.length, 'Daily inspiration phrase should be non-empty').toBeGreaterThan(0);
-	return text;
-}
-
-async function expectDailyInspirationPhraseToChange(page: any, previousPhrase: string): Promise<string> {
-	const phrase = page.getByTestId('daily-inspiration-phrase');
-	await expect
-		.poll(async () => (await phrase.textContent())?.trim() ?? '', { timeout: 3000 })
-		.not.toBe(previousPhrase);
-	return readDailyInspirationPhrase(page);
+async function readStartRowInspirationIds(page: any): Promise<string[]> {
+	const cards = page.getByTestId('start-row-inspiration-card');
+	await expect(cards.first()).toBeVisible({ timeout: 15000 });
+	const ids: string[] = await cards.evaluateAll((nodes: Element[]) =>
+		nodes.map((node) => node.getAttribute('data-inspiration-id') || '')
+	);
+	expect(ids.length, 'Start row should contain inspiration cards').toBeGreaterThan(0);
+	expect(ids.every((id) => id.length > 0)).toBe(true);
+	return ids;
 }
 
 test.describe('Unauthenticated app load', () => {
@@ -166,47 +154,19 @@ test.describe('Unauthenticated app load', () => {
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 10000 });
 		await openGuestNewChat(page);
 
-		// ─── 4. Verify daily inspiration banner appears with content ────────
-		// The banner should load from /v1/default-inspirations for unauthenticated
-		// users. It may take a moment as the server defaults are fetched async.
-		const inspirationBanner = page.getByTestId('daily-inspiration-banner').first();
-		await expect(inspirationBanner).toBeVisible({ timeout: 15000 });
-		await expect(inspirationBanner).not.toHaveAttribute('data-current-inspiration-id', /^openmates-(intro|actionable-events|privacy-safety|mates-focus|provider-cross-platform|signup-cta)$/);
+		// ─── 4. Verify the start row shows inspiration cards (no banner) ────
+		// Inspirations load from /v1/default-inspirations for unauthenticated
+		// users and are interleaved as cards with the example chats.
+		await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
-		console.log('[unauthenticated-load] Daily inspiration banner is visible');
-
-		// Verify the banner has actual text content (not empty / loading placeholder)
-		const bannerText = await inspirationBanner.textContent();
-		expect(
-			bannerText?.trim().length,
-			'Daily inspiration banner should have non-empty text content'
-		).toBeGreaterThan(5);
-		console.log(
-			`[unauthenticated-load] Banner text verified (${bannerText?.trim().length} chars)`
-		);
-
-		// Mobile regression check: horizontal swipe should navigate the carousel,
-		// not trigger the banner click that starts a chat.
-		const phrase = page.getByTestId('daily-inspiration-phrase');
-		const firstPhrase = (await phrase.textContent())?.trim();
-		await expect(page.getByTestId('daily-inspiration-next')).toBeVisible();
-		const box = await inspirationBanner.boundingBox();
-		expect(box, 'Daily inspiration banner must have bounds for swipe test').toBeTruthy();
-		await inspirationBanner.dispatchEvent('touchstart', {
-			touches: [{ identifier: 0, clientX: box!.x + box!.width - 48, clientY: box!.y + box!.height / 2 }],
-			changedTouches: [{ identifier: 0, clientX: box!.x + box!.width - 48, clientY: box!.y + box!.height / 2 }]
-		});
-		await inspirationBanner.dispatchEvent('touchmove', {
-			touches: [{ identifier: 0, clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }],
-			changedTouches: [{ identifier: 0, clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }]
-		});
-		await inspirationBanner.dispatchEvent('touchend', {
-			touches: [],
-			changedTouches: [{ identifier: 0, clientX: box!.x + 48, clientY: box!.y + box!.height / 2 }]
-		});
-		await expect(phrase).not.toHaveText(firstPhrase ?? '', { timeout: 3000 });
-		expect(page.url(), 'Swipe navigation should not start a chat').not.toContain('chat-id=');
-		console.log('[unauthenticated-load] Mobile swipe navigation changed the banner phrase');
+		const inspirationIds = await readStartRowInspirationIds(page);
+		expect(inspirationIds.some((id) => /^openmates-(intro|actionable-events|privacy-safety|mates-focus|provider-cross-platform|signup-cta)$/.test(id))).toBe(false);
+		const firstInspirationCard = page.getByTestId('start-row-inspiration-card').first();
+		await expect(page.getByTestId('start-row-inspiration-label').first()).toBeVisible();
+		expect(((await firstInspirationCard.textContent()) ?? '').trim().length, 'Inspiration card should have text').toBeGreaterThan(5);
+		await expect(page.getByTestId('start-row-actions')).toBeVisible();
+		console.log('[unauthenticated-load] Start row inspiration cards are visible');
 
 		// Public defaults may replace the immediate ordinary fallback. The
 		// banner remains populated if the endpoint is unavailable.
@@ -251,7 +211,7 @@ test.describe('Unauthenticated app load', () => {
 	});
 
 	// contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated,daily-inspiration.public-defaults
-	test('daily inspiration banner keeps a stable initial item across app visits', async ({
+	test('guest start row keeps stable inspiration cards across app visits', async ({
 		page
 	}: {
 		page: any;
@@ -259,27 +219,26 @@ test.describe('Unauthenticated app load', () => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		async function openNewChatAndReadPhrase() {
+		async function openStartAndReadIds() {
 			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 			await page.waitForLoadState('networkidle');
-			await openGuestNewChat(page);
-
-			return readDailyInspirationPhrase(page);
+			await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+			return readStartRowInspirationIds(page);
 		}
 
-		const firstPhrase = await openNewChatAndReadPhrase();
-		const secondPhrase = await openNewChatAndReadPhrase();
+		const firstIds = await openStartAndReadIds();
+		const secondIds = await openStartAndReadIds();
 		await page.evaluate(() => window.dispatchEvent(new Event('language-changed-complete')));
 		await page.waitForTimeout(250);
-		await readDailyInspirationPhrase(page);
-		const thirdPhrase = await openNewChatAndReadPhrase();
+		await readStartRowInspirationIds(page);
+		const thirdIds = await openStartAndReadIds();
 
-		expect(secondPhrase).toBe(firstPhrase);
-		expect(thirdPhrase).toBe(firstPhrase);
+		expect(secondIds).toEqual(firstIds);
+		expect(thirdIds).toEqual(firstIds);
 	});
 
 	// contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,daily-inspiration.public-defaults
-	test('daily inspiration banner navigates with arrows and touch swipes on mobile', async ({
+	test('guest start row shows inspiration cards, scrolls on mobile without starting a chat, and starts one on click', async ({
 		page
 	}: {
 		page: any;
@@ -289,87 +248,27 @@ test.describe('Unauthenticated app load', () => {
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await openGuestNewChat(page);
+		await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+		await expect(page.getByTestId('daily-inspiration-next')).toHaveCount(0);
 
-		const banner = page.getByTestId('daily-inspiration-banner').first();
-		const firstPhrase = await readDailyInspirationPhrase(page);
+		const row = page.getByTestId('recent-chats-scroll-container');
+		await expect(row).toBeVisible({ timeout: 15000 });
+		const idsBefore = await readStartRowInspirationIds(page);
+		expect(idsBefore.length).toBeLessThanOrEqual(10);
 
-		const bannerBox = await banner.boundingBox();
-		expect(bannerBox, 'Daily inspiration banner must have bounds for gesture tests').toBeTruthy();
+		// Horizontal scrolling of the row must not start a chat.
+		await row.evaluate((el: HTMLElement) => el.scrollBy({ left: 200 }));
+		await row.evaluate((el: HTMLElement) => el.scrollBy({ left: -200 }));
+		expect(page.url(), 'Scrolling the start row should not start a chat').not.toContain('chat-id=');
+		expect(await readStartRowInspirationIds(page)).toEqual(idsBefore);
 
-		await page.getByTestId('daily-inspiration-next').click();
-		const secondPhrase = await expectDailyInspirationPhraseToChange(page, firstPhrase);
-
-		await page.getByTestId('daily-inspiration-previous').click();
-		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(firstPhrase, { timeout: 3000 });
-
-		const centerY = bannerBox!.y + bannerBox!.height / 2;
-		await banner.dispatchEvent('touchstart', {
-			touches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }],
-			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
-		});
-		await banner.dispatchEvent('touchmove', {
-			touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
-			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
-		});
-		await banner.dispatchEvent('touchend', {
-			touches: [],
-			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
-		});
-		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(secondPhrase, { timeout: 3000 });
-
-		await banner.dispatchEvent('touchstart', {
-			touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
-			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
-		});
-		await banner.dispatchEvent('touchmove', {
-			touches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }],
-			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
-		});
-		await banner.dispatchEvent('touchend', {
-			touches: [],
-			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
-		});
-		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(firstPhrase, { timeout: 3000 });
-		expect(page.url(), 'Carousel navigation should not start a chat').not.toContain('chat-id=');
-	});
-
-	// contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,daily-inspiration.public-defaults
-	test('daily inspiration banner auto-rotates for unauthenticated users', async ({
-		page
-	}: {
-		page: any;
-	}) => {
-		test.setTimeout(90000);
-		await page.setViewportSize({ width: 390, height: 844 });
-
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await openGuestNewChat(page);
-
-		const firstPhrase = await readDailyInspirationPhrase(page);
-
-		// Speed up the actual progress animation so this test verifies the
-		// animationend-driven carousel path without waiting for the 20s production duration.
-		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
-			el.style.setProperty('--carousel-progress-duration', '250ms');
-		});
-
-		const secondPhrase = await expectDailyInspirationPhraseToChange(page, firstPhrase);
-
-		await page.getByTestId('daily-inspiration-next').click();
-		const manuallyAdvancedPhrase = await expectDailyInspirationPhraseToChange(page, secondPhrase);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(manuallyAdvancedPhrase);
-		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
-			el.style.setProperty('--carousel-progress-duration', '250ms');
-		});
-		const nextAutoPhrase = await expectDailyInspirationPhraseToChange(page, manuallyAdvancedPhrase);
-
-		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
-			el.style.setProperty('--carousel-progress-duration', '250ms');
-		});
-		await expect(page.getByTestId('daily-inspiration-banner')).not.toHaveAttribute('data-current-inspiration-id', /^openmates-(intro|actionable-events|privacy-safety|mates-focus|provider-cross-platform|signup-cta)$/);
-		expect(nextAutoPhrase.length).toBeGreaterThan(0);
+		// Clicking an inspiration card starts the inspiration chat.
+		const card = row.getByTestId('start-row-inspiration-card').first();
+		await card.scrollIntoViewIfNeeded();
+		await card.click();
+		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
+		await expect(row).toHaveCount(0, { timeout: 15000 });
 	});
 
 

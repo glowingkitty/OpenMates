@@ -2804,7 +2804,7 @@
       "text": "{skills} Skills · {focusModes} Fokus-Modi"
     },
     "home_prompt": {
-      "text": "Welche App möchtest du verwenden?"
+      "text": "Entdecke die Apps, die OpenMates nutzen kann"
     },
     "home_greeting": {
       "text": "Hey {name}!"
@@ -24041,6 +24041,9 @@
       "screenshot_size_too_large": {
         "text": "Screenshot zu groß. Bitte versuchen Sie ein kleineres Fenster."
       },
+      "screenshot_limit_reached": {
+        "text": "Du kannst bis zu 5 Screenshots anhängen."
+      },
       "screenshot_preview_alt": {
         "text": "Screenshot-Vorschau"
       },
@@ -27767,6 +27770,12 @@
       "ai_check_status": {
         "text": "Speicherstatus prüfen"
       },
+      "description_expand": {
+        "text": "Ganze Beschreibung anzeigen"
+      },
+      "description_collapse": {
+        "text": "Beschreibung verkürzen"
+      },
       "ai_create_submit": {
         "text": "Workflow erstellen"
       },
@@ -27853,6 +27862,15 @@
       },
       "guest_subtitle": {
         "text": "Entdecke die Workflow-Automatisierungen:"
+      },
+      "suggestion_1": {
+        "text": "Fasse jeden Morgen neue E-Mails meines Teams zusammen"
+      },
+      "suggestion_2": {
+        "text": "Sag mir Bescheid, wenn ein Produkt auf meiner Wunschliste günstiger wird"
+      },
+      "suggestion_3": {
+        "text": "Schicke mir jeden Freitag eine Zusammenfassung meines Kalenders für die nächste Woche"
       },
       "show_all": {
         "text": "Meine Workflows anzeigen"

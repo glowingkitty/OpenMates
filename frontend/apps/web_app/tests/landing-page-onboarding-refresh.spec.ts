@@ -16,7 +16,9 @@ const retiredStoryIds = [
 async function openGuestWelcome(page: any) {
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 	await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
-	await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 }
 
 test.describe('Signed-out new-chat welcome', () => {
@@ -28,9 +30,14 @@ test.describe('Signed-out new-chat welcome', () => {
 		await expect(page.getByTestId('guest-show-all-examples')).toBeVisible();
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 		await expect(page.getByTestId('guest-slide-content')).toHaveCount(0);
-		const bannerId = await page.getByTestId('daily-inspiration-banner').getAttribute('data-current-inspiration-id');
-		expect(bannerId).toBeTruthy();
-		expect(retiredStoryIds).not.toContain(bannerId);
+		const inspirationCards = page.getByTestId('start-row-inspiration-card');
+		await expect(inspirationCards.first()).toBeVisible({ timeout: 15000 });
+		const cardIds = await inspirationCards.evaluateAll((nodes: Element[]) => nodes.map((node) => node.getAttribute('data-inspiration-id') || ''));
+		expect(cardIds.length).toBeGreaterThan(0);
+		for (const id of cardIds) {
+			expect(id).toBeTruthy();
+			expect(retiredStoryIds).not.toContain(id);
+		}
 	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.guest-examples,landing-onboarding.uses-real-chat-shell

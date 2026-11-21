@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "Zrzut ekranu zbyt duży. Spróbuj mniejszego okna."
       },
+      "screenshot_limit_reached": {
+        "text": "Możesz dołączyć do 5 zrzutów ekranu."
+      },
       "screenshot_preview_alt": {
         "text": "Podgląd zrzutu ekranu"
       },

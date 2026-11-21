@@ -1,5 +1,5 @@
 // Preview states for the workflow detail header:
-// /dev/preview/workflows/WorkflowDetailPage?chrome=0[&variant=runs|blank|provisional|previewOnly|draft]
+// /dev/preview/workflows/WorkflowDetailPage?chrome=0[&variant=longDescription|runs|blank|provisional|previewOnly|draft]
 const defaultProps = {
   state: 'saved' as const,
   title: 'Weekly AI events',
@@ -29,6 +29,10 @@ const defaultProps = {
 export default defaultProps;
 export const variants = {
   runs: { ...defaultProps, activeTab: 'runs' as const },
+  longDescription: {
+    ...defaultProps,
+    description: 'Every Monday morning this workflow searches for new AI events in Berlin, compares them with the topics you follow, drops duplicates, ranks the remaining ones by relevance, writes a short summary for each of them and finally sends you one message with the five best events of the week, including dates, venues and registration links, so you never miss a useful meetup again.',
+  },
   blank: { ...defaultProps, canRun: false, enabled: false },
   provisional: {
     state: 'provisional' as const,

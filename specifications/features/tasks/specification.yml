@@ -273,6 +273,10 @@ assertions:
     type: invariant
     must: Task dependency edges use the shared normalized Plan/Task graph, reject self, duplicate, and cyclic edges, and unblock only when every target Task is done or target Plan is completed.
     depends_on: [models.TaskDependency, examples.task_dependencies]
+  - id: tasks.chat.settings-only
+    type: behavior
+    must: A chat's linked Tasks are shown only in that chat's settings (chat details). The open chat shows no task overlay, progress bar or pause control above its messages, whatever the number or state of its linked Tasks.
+    depends_on: [examples.task_chat_presentation]
   - id: tasks.surface.semantic-parity
     type: parity
     must: REST, CLI, SDK, and web preserve encrypted content, native/external Chat context for every allowlisted provider, encrypted blocked explanations, named assignment identities, lifecycle, Activity comments and system entries, tombstones, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
@@ -351,4 +355,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [task_private_content, task_lifecycle, task_assignment_identity, task_blocked_reason, task_external_chat_context, task_dependencies, task_plan_links, task_check_links, task_project_links, task_workflow_projections, task_detail_presentation, task_activity_layout, task_activity_composer, task_activity_encryption, task_activity_attribution, task_activity_lifecycle, task_activity_tombstones, task_activity_authorization, task_execution_capacity, task_execution_order, task_surface_parity]
+  required_groups: [task_private_content, task_lifecycle, task_assignment_identity, task_blocked_reason, task_external_chat_context, task_dependencies, task_plan_links, task_check_links, task_project_links, task_workflow_projections, task_detail_presentation, task_chat_presentation, task_activity_layout, task_activity_composer, task_activity_encryption, task_activity_attribution, task_activity_lifecycle, task_activity_tombstones, task_activity_authorization, task_execution_capacity, task_execution_order, task_surface_parity]

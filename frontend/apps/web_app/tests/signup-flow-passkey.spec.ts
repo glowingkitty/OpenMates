@@ -381,8 +381,10 @@ test(`completes passkey signup and account deletion with stay logged in ${stayLo
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).not.toHaveClass(/visible/, { timeout: 10000 });
 		await expect(settingsMenu).toHaveAttribute('data-active-view', 'main');
-		// Signed-out Chats keeps the Daily Inspiration banner (only signed-in start screens drop it).
-		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
+		// Signed-out Chats shows the same start row as signed-in users (no Daily Inspiration banner).
+		await expect(page.getByTestId('chat-welcome-heading')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 		await expect(page.getByTestId('message-editor')).toBeVisible();
 		logSignupCheckpoint('Returned to logged-out home after account deletion.');

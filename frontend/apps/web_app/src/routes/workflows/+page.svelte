@@ -11,7 +11,7 @@
 <script lang="ts">
   import { APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT, takeAppsWorkspaceWorkflowHandoff,
     isAppsWorkspaceHandoffCurrent, appsWorkflowInstruction, queueAppsWorkspaceChatHandoff } from '@repo/ui/services/appsWorkspaceChatHandoffService';
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { workspacePaneMotion } from '@repo/ui/utils/workspacePaneMotion';
 	import { refreshWorkflowMemorySnapshots } from '@repo/ui/services/workflowMemorySnapshotService';
 	import { derived, get } from 'svelte/store';
@@ -28,6 +28,8 @@
 		authStore,
 		setAuthenticatedState,
 		isInSignupProcess,
+		currentSignupStep,
+		STEP_BASICS,
 		loginInterfaceOpen,
 		chatDB,
 		chatSyncService,
@@ -122,6 +124,7 @@
 	let workflowOpening = $state(false);
 
 	let workflowInputText = $state('');
+	const workflowStartSuggestions = $derived([1, 2, 3].map((index) => $text(`workflows.home.suggestion_${index}`)));
 	let editorInstruction = $state('');
 	let homeComposerFocused = $state(false);
 	let editorComposerFocused = $state(false);
@@ -209,6 +212,30 @@
 	let hasCompletionDestination = $derived.by(() =>
 		!!workflowHashState.workflowId && typeof window !== 'undefined' && isWorkflowCompletionLink(window.location.hash)
 	);
+	const DESCRIBE_AFTER_SIGNUP_KEY = 'openmates.workflows.describeAfterSignup';
+	/** Guest "Describe new workflow": open the sign-up flow at its first step and remember to reopen the describe composer afterwards. */
+	function startGuestDescribeSignup(): void {
+		sessionStorage.setItem(DESCRIBE_AFTER_SIGNUP_KEY, '1');
+		currentSignupStep.set(STEP_BASICS);
+		isInSignupProcess.set(true);
+		loginInterfaceOpen.set(true);
+	}
+	// Abandoned sign-up: forget the pending return so a later ordinary login stays where it is.
+	$effect(() => {
+		if ($authStore.isAuthenticated || $loginInterfaceOpen || $isInSignupProcess) return;
+		sessionStorage.removeItem(DESCRIBE_AFTER_SIGNUP_KEY);
+	});
+	$effect(() => {
+		if (!canRenderWorkflowData || typeof sessionStorage === 'undefined') return;
+		if (sessionStorage.getItem(DESCRIBE_AFTER_SIGNUP_KEY) !== '1') return;
+		sessionStorage.removeItem(DESCRIBE_AFTER_SIGNUP_KEY);
+		void tick().then(() => {
+			const input = document.querySelector<HTMLTextAreaElement>('[data-testid="workflow-input-textarea"]');
+			input?.scrollIntoView({ block: 'center' });
+			input?.focus();
+			homeComposerFocused = true;
+		});
+	});
 	function handleWorkflowLoginSuccess(event: CustomEvent<WorkflowLoginSuccess>): void {
 		completeWorkflowLogin(event.detail, {
 			publishOwner: (userId) => userProfile.update((profile) => ({ ...profile, user_id: userId })),
@@ -1406,6 +1433,7 @@
 						onContinueItem={canRenderWorkflowData ? continueWorkflowFromCard : createWorkflowFromTemplate}
 						onActionItem={startWorkflowFromCard}
 						onAllItem={!canRenderWorkflowData || browseMode === 'templates' ? createWorkflowFromTemplate : continueWorkflowFromCard}
+						startSuggestions={{ items: workflowStartSuggestions, onClick: (suggestion) => { workflowInputText = suggestion; homeComposerFocused = true; } }}
 					>
 						<svelte:fragment slot="top-right">
 							{#if browseMode === 'workflows'}
@@ -1447,7 +1475,7 @@
 							/>
 							</div>
 							{#if !canRenderWorkflowData}
-								<button type="button" class="workflow-guest-signup" data-testid="workflow-guest-signup" aria-label={$text('workflows.builder.new_workflow_placeholder')} onclick={() => { isInSignupProcess.set(true); loginInterfaceOpen.set(true); }}></button>
+								<button type="button" class="workflow-guest-signup" data-testid="workflow-guest-signup" aria-label={$text('workflows.builder.new_workflow_placeholder')} onclick={startGuestDescribeSignup}></button>
 							{/if}
 							</div>
 							{#if draggingWorkflowFile}<span class="workflow-import-hint" role="status">{$text('workflows.builder.file_import_drop_hint')}</span>{/if}

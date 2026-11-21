@@ -24,14 +24,15 @@ test.describe('Responsive workspace homes', () => {
 			await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('');
 			await expect(page.getByTestId('workflow-input-textarea')).toBeVisible();
 			await expect(page.getByTestId('workflow-landing-card')).toHaveCount(4);
-			await expect(page.getByTestId('workflows-show-all')).toBeVisible();
-			await expect(page.getByTestId('workflows-show-templates')).toBeVisible();
-			const [links, composer] = await Promise.all([
-				page.getByTestId('workflows-workspace-link-row').boundingBox(),
-				page.getByTestId('workflow-input-composer').boundingBox(),
-			]);
-			expect(links && composer).toBeTruthy();
-			expect(links!.y + links!.height).toBeLessThanOrEqual(composer!.y + 1);
+			// TASK-1321: the browse actions are the last tile of the row; nothing browse-related sits below it.
+			await expect(page.getByTestId('workflows-workspace-link-row')).toHaveCount(0);
+			const actionsTile = page.getByTestId('workflows-start-row-actions');
+			await expect(actionsTile.getByTestId('workflows-show-all')).toBeAttached();
+			await expect(actionsTile.getByTestId('workflows-show-templates')).toBeAttached();
+			await expect(actionsTile.getByTestId('workflows-search')).toBeAttached();
+			expect(await actionsTile.evaluate(element => element === element.parentElement?.lastElementChild)).toBe(true);
+			await expect(page.getByTestId('workflows-start-suggestions')).toBeVisible();
+			expect(await page.getByTestId('workflows-start-suggestions').locator('button').count()).toBeGreaterThanOrEqual(3);
 			await expect(page.locator('.workspace-subtitle')).toHaveText('What do you want to automate next?');
 			await expect(page.locator('.workspace-continue-label')).toHaveCount(0);
 			const firstCard = page.getByTestId('workflow-landing-card').first();
@@ -99,6 +100,36 @@ test.describe('Responsive workspace homes', () => {
 			expect(cardBox!.y + cardBox!.height).toBeLessThanOrEqual(composerBox!.y + 1);
 			expect(cardBox!.height).toBeLessThan(size.height < 800 ? 120 : 220);
 		}
+	});
+
+	for (const size of [{ width: 390, height: 844 }, { width: 820, height: 1180 }, { width: 1280, height: 800 }]) {
+		// contract-test: direct surface=gui.web assertions=workspace-shell.start.available-space-cards
+		test(`workflow start row matches the Chats start row at ${size.width}px`, async ({ page }, testInfo) => {
+			await page.setViewportSize(size);
+			await page.goto('/dev/preview/workflows/WorkflowHomePreviewHarness?theme=light&chrome=0');
+			await waitForComponentPreview(page);
+			const row = page.getByTestId('workflow-mixed-row');
+			const cards = row.getByTestId('workflow-landing-card');
+			expect(await cards.count()).toBeLessThanOrEqual(10);
+			const [rowBox, cardBox] = await Promise.all([row.boundingBox(), cards.first().boundingBox()]);
+			expect(rowBox && cardBox).toBeTruthy();
+			expect(Math.abs(cardBox!.x + cardBox!.width / 2 - (rowBox!.x + rowBox!.width / 2))).toBeLessThanOrEqual(2);
+			expect(cardBox!.height).toBeCloseTo(200, 0);
+			expect(cardBox!.width).toBeCloseTo(size.width <= 480 ? Math.min(280, 0.76 * size.width) : 300, 0);
+			expect(await row.evaluate(element => getComputedStyle(element).justifyContent)).not.toBe('center');
+			expect(await page.getByTestId('workflows-start-row-actions').evaluate(element => element === element.parentElement?.lastElementChild)).toBe(true);
+			await expect(page.getByTestId('workflows-start-suggestions')).toBeVisible();
+			await testInfo.attach(`workflow-start-row-${size.width}.png`, { body: await page.screenshot(), contentType: 'image/png' });
+		});
+	}
+
+	// contract-test: direct surface=gui.web assertions=workflows-ui.home.prompt-suggestions
+	test('tapping a workflow suggestion fills the describe-a-workflow input', async ({ page }) => {
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto('/dev/preview/workflows/WorkflowHomePreviewHarness?theme=light&chrome=0');
+		await waitForComponentPreview(page);
+		await page.getByTestId('workflows-start-suggestions').locator('button').first().click();
+		await expect(page.getByTestId('workflow-input-textarea')).toHaveValue('Every morning, summarise new emails from my team');
 	});
 
 	// contract-test: direct surface=gui.web assertions=workflows-ui.workspace.owned-library-and-templates

@@ -55,7 +55,7 @@ claims:
 
 # Daily Inspiration
 
-> Delivers a daily 6-card inspiration set (3 videos, 3 Wikipedia article prompts) with zero LLM latency at display time. Signed-in users see the cards inside the start-screen row; signed-out visitors see the banner.
+> Delivers a daily 6-card inspiration set (3 videos, 3 Wikipedia article prompts) with zero LLM latency at display time. Signed-in users and signed-out visitors see the cards inside the start-screen row; no start screen of Chats, Apps or Workflows has a banner.
 
 ## Why This Exists
 
@@ -103,25 +103,31 @@ models only. This does not change account settings or ordinary assistant routing
 
 ### Frontend
 
-- `DailyInspirationBanner.svelte` -- guest-only carousel on the signed-out Chats screen (the landing intro is coupled to it)
+- `DailyInspirationBanner.svelte` -- carousel still used by the Projects and Tasks start screens; Chats, Apps and Workflows no longer render it
 - `startScreenRow.ts` -- `interleaveStartRow()` (row rhythm), `selectChatRowInspirations()` (surface chats, video/wiki, unopened) and `selectWorkflowRowInspirations()` (the recommended-workflow hook, see below)
 - `welcome/StartScreenChatCard.svelte` -- the one large card used by every start-row entry (own chats, priority chats, drafts, inspirations, guest examples); inspiration cards show the video/article image with a small "Daily inspiration" label
-- `welcome/StartScreenUpcomingEntry.svelte` -- compact entry for an upcoming saved event below the row (events are no longer row cards)
-- `dailyInspirationViewed.ts` -- `inspiration_viewed` WebSocket event, once per id per session, sent when half of a card is visible (banner or row)
+- `welcome/StartScreenUpcomingEntry.svelte` -- compact entry for an upcoming saved event (signed in) or the next OpenMates event (signed out) below the row (events are no longer row cards)
+- `welcome/StartScreenRowActions.svelte` -- the browse actions tile, always the last item of the row
+- `welcome/StartScreenChatSuggestions.svelte` + `services/startScreenSuggestions.ts` -- three new-chat suggestions below the row in the follow-up style; the synced-suggestion loader is shared with the composer rail (`NewChatSuggestions.svelte`)
+- `dailyInspirationViewed.ts` -- `inspiration_viewed` WebSocket event, once per id per session, sent when half of a card is visible (row card)
 - `dailyInspirationStore.ts` -- Svelte store for state/navigation and explicit guest/personalized/public/fallback source priority
 - `dailyInspirationDB.ts` -- IndexedDB with AES-GCM encryption, 72h TTL
 - Chat creation: `handleStartChatFromInspiration()` in `ActiveChat.svelte`
 
-### Start-screen row (signed-in Chats, Apps, Workflows)
+### Start-screen row (Chats, Apps, Workflows; signed in and signed out)
 
-Signed-in start screens have no banner. Order from the top: greeting, the row,
-the new-chat suggestions or the upcoming-event entry, "Show all"/"Search", the
-message input. The Chats row holds at most ten own chats (reminder-priority
-chats, then the last opened chat, then recent chats); today's unopened
-inspirations are added on top of those ten: two own chats, one inspiration,
-then one inspiration after every third own chat, never repeating. A user
-without chats sees only the inspirations. "Show all" lists only real chats.
-Apps shows its own items as large cards with no inspirations and no tip.
+No start screen has a banner. Order from the top: greeting ("Hey <name>" or
+"Hey there" plus one call to action), the row, the upcoming-event entry when
+one exists, the suggestions, the message input. The row holds at most ten
+large cards in total (`START_ROW_MAX_CARDS`); its first card is centred and its
+last item is the browse actions tile (Chats: Show all, Search; guests: Select
+interests, Show all; Apps: Show all apps, Search; Workflows: Show templates).
+Chats shows own chats (reminder-priority chats, then the last opened chat, then
+recent chats; guests: the example chats) with today's unopened inspirations
+interleaved: two own chats, one inspiration, then one inspiration after every
+third own chat, never repeating. A user without chats sees only the
+inspirations. "Show all" lists only real chats. Apps shows its own items as
+large cards with no inspirations and no tip.
 
 **Recommended-workflow hook.** The Workflows row uses the same rhythm and label
 with records that satisfy this contract (`DailyInspiration.workflow`):

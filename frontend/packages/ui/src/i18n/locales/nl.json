@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "Schermafbeelding te groot. Probeer een kleiner venster."
       },
+      "screenshot_limit_reached": {
+        "text": "Je kunt maximaal 5 schermafbeeldingen bijvoegen."
+      },
       "screenshot_preview_alt": {
         "text": "Voorbeeld schermafbeelding"
       },

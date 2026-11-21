@@ -922,6 +922,30 @@ assertions:
     label appears.
   depends_on:
   - examples.guest_template_preview
+- id: workflows-ui.home.prompt-suggestions
+  type: behavior
+  must: >-
+    Below the Workflows start row, short workflow prompt suggestions appear in the style of the follow-up
+    suggestions of an open chat. Tapping one puts its text into the describe-a-workflow composer and focuses it.
+- id: workflows-ui.guest.describe-signup-return
+  type: behavior
+  must: >-
+    A signed-out visitor who activates Describe new workflow on the Workflows start screen is taken to the
+    first step of the existing signup flow, never to a broken overlay. After signing up they return to the
+    Workflows start screen with the describe-workflow composer focused so they can continue describing the
+    new workflow.
+- id: workflows-ui.detail-header.description-clamp
+  type: behavior
+  must: >-
+    The Workflow detail header has a fixed height. Its description shows at most three lines, cut with an
+    ellipsis. Only when the text actually overflows, a small downward triangle button (aria-expanded,
+    translated aria-label) appears; activating it shows the full text and rotates the triangle by 180
+    degrees, and the next activation collapses it again. A short description shows no triangle.
+- id: workflows-ui.canvas.node-label-clamp
+  type: behavior
+  must: >-
+    Workflow canvas node titles show at most two lines and are cut automatically with an ellipsis; the full
+    text stays available as the element title and in the node detail view.
 - id: workflows-ui.workspace.title-first-draft
   type: behavior
   must: Submitting a valid short title from the Workflow composer persists and opens a disabled draft in Template,

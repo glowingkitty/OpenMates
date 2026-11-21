@@ -220,20 +220,23 @@ test.describe('Chat composer focus and draft preservation', () => {
     await waitForComponentPreview(page);
     const side = page.getByTestId('chat-side');
     const field = page.getByTestId('message-field');
-    // Exercise focus restoration from the ordinary guest welcome.
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    // Exercise focus restoration from the ordinary guest welcome: no banner, the start row is the welcome.
+    const startRow = page.getByTestId('recent-chats-scroll-container');
+    await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+    await expect(startRow).toBeVisible();
     await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
     await expect(page.locator('.chat-wrapper.landing-intro-content-covered')).toHaveCount(0);
     await expect(page.getByTestId('message-input-wrapper')).toHaveCSS('opacity', '1');
     await expect(field).toBeVisible();
     await expect(field).toHaveCSS('background-color', color);
-    const welcomeArea = page.locator('.daily-inspiration-area');
+    // The welcome area itself stretches to the space above the composer (no banner since
+    // TASK-1321); the start row inside it keeps its measured size while hidden, so nothing
+    // re-lays out when the welcome returns.
+    const welcomeArea = startRow;
     const welcomeHeight = await welcomeArea.evaluate((element) => element.getBoundingClientRect().height);
     // Ordinary pointer focus must hide the welcome before any prefill or overlay.
     await field.click();
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeHidden();
-    await expect(page.locator('.daily-inspiration-area')).toHaveCSS('opacity', '0');
-    await expect(page.locator('.daily-inspiration-area')).toHaveAttribute('inert', '');
+    await expect(startRow).toBeHidden();
     await expect(page.getByTestId('welcome-content')).toBeHidden();
     await expect(page.getByTestId('welcome-content')).toHaveAttribute('inert', '');
     await expect.poll(() => welcomeArea.evaluate((element) => element.getBoundingClientRect().height)).toBe(welcomeHeight);
@@ -252,7 +255,7 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', '');
     await expect(page.getByTestId('message-user')).toHaveCount(0);
     await page.getByTestId('input-dismiss-button').click();
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    await expect(startRow).toBeVisible();
     await expect(suggestions).toBeHidden();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('docsMessagePrefill', { detail: { text: 'Unsent deep link\nKeep this second line', autoSend: false } })));
     await expect(field).toHaveAttribute('data-focused', 'true');
@@ -263,7 +266,7 @@ test.describe('Chat composer focus and draft preservation', () => {
     // the hidden welcome remains measured and the composer must stay reachable.
     await expect.poll(() => welcomeArea.evaluate((element) => element.getBoundingClientRect().height)).toBe(welcomeHeight);
     await expect(field).toBeInViewport({ ratio: 1 });
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeHidden();
+    await expect(startRow).toBeHidden();
     await expect(page.getByTestId('welcome-content')).toBeHidden();
     await expect(suggestions).toBeVisible();
     await expect(suggestions).not.toHaveAttribute('inert', '');
@@ -286,7 +289,7 @@ test.describe('Chat composer focus and draft preservation', () => {
     await expect(side).not.toHaveAttribute('inert', '');
     await expect(page.getByTestId('welcome-content')).not.toHaveAttribute('inert', '');
     await expect(page.getByTestId('welcome-content')).toHaveCSS('opacity', '1');
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    await expect(startRow).toBeVisible();
     await expect(field).toHaveCSS('background-color', color);
     await expect(side).toHaveCSS('opacity', '1');
     await expect(side).toBeVisible();
@@ -298,7 +301,7 @@ test.describe('Chat composer focus and draft preservation', () => {
     await page.getByTestId('input-dismiss-button').click();
     await expect(field).toHaveAttribute('data-focused', 'false');
     await expect(page.getByTestId('message-editor').locator('.ProseMirror')).not.toBeFocused();
-    await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+    await expect(startRow).toBeVisible();
     await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toBeEmpty();
     await expect(page.getByTestId('resume-chat-draft-card').filter({ hasText: 'Keep this second line' }).last()).toBeVisible();
   });
@@ -320,7 +323,7 @@ test('continuation cards match Apple spacing in narrow, short, and tall panes', 
 			`/dev/preview/ActiveChatFocusFixture?chrome=0&theme=${profile.theme}&background=%23dbeafe&width=${profile.width}`
 		);
 		await waitForComponentPreview(page);
-		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 		await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 
 		const carousel = page.getByTestId('recent-chats-scroll-container');
@@ -331,22 +334,31 @@ test('continuation cards match Apple spacing in narrow, short, and tall panes', 
 		await expect(carousel).toHaveCSS('padding-top', profile.large ? '17.5px' : '6px');
 		await expect(carousel).toHaveCSS('padding-bottom', profile.large ? '17px' : '6px');
 		await page.evaluate(() => document.fonts.ready);
-		const [carouselBox, cardBox, browseBox, composerBox] = await Promise.all([
+		// Browsing moved into the row (its last item); the suggestions are what sits below the cards.
+		const actionsTile = carousel.getByTestId('start-row-actions');
+		await expect(carousel.locator(':scope > [data-testid]').last()).toHaveAttribute('data-testid', 'start-row-actions');
+		const [carouselBox, cardBox, browseBox, composerBox, actionsBox] = await Promise.all([
 			carousel.boundingBox(),
 			card.boundingBox(),
-			page.locator('.guest-example-link-row').boundingBox(),
-			page.getByTestId('message-input-wrapper').boundingBox()
+			page.getByTestId('start-screen-suggestions').boundingBox(),
+			page.getByTestId('message-input-wrapper').boundingBox(),
+			actionsTile.boundingBox()
 		]);
-		expect(carouselBox && cardBox && browseBox && composerBox).toBeTruthy();
+		expect(carouselBox && cardBox && browseBox && composerBox && actionsBox).toBeTruthy();
+		expect(actionsBox!.height).toBe(200);
 		expect(cardBox!.y - carouselBox!.y).toBeCloseTo(profile.large ? 17.5 : 6, 0);
 		expect(carouselBox!.y + carouselBox!.height - cardBox!.y - cardBox!.height).toBeCloseTo(
 			profile.large ? 17 : 6,
 			0
 		);
+		// Suggestions follow the row directly (after the upcoming-event entry when there is one).
+		const upcoming = page.getByTestId('start-screen-upcoming-entry');
+		const upcomingHeight = (await upcoming.count()) > 0 ? ((await upcoming.boundingBox())?.height ?? 0) + 24 : 0;
 		expect(browseBox!.y - cardBox!.y - cardBox!.height).toBeGreaterThanOrEqual(0);
-		expect(browseBox!.y - cardBox!.y - cardBox!.height).toBeLessThanOrEqual(24);
+		expect(browseBox!.y - cardBox!.y - cardBox!.height).toBeLessThanOrEqual(24 + upcomingHeight);
 		expect(browseBox!.y + browseBox!.height).toBeLessThanOrEqual(composerBox!.y + 1);
 		await expect(carousel).toBeInViewport();
+		await actionsTile.scrollIntoViewIfNeeded();
 		await expect(page.getByTestId('guest-show-all-examples')).toBeInViewport();
 	}
 });

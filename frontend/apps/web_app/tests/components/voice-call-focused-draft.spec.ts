@@ -26,10 +26,10 @@ for (const { width, direction } of [
     const handset = page.getByTestId('voice-call-start');
     await expect(handset).toBeHidden();
     await expect(page.getByTestId('chat-top-actions')).toHaveAttribute('inert', '');
-    for (const hiddenWelcome of ['welcome-content', 'daily-inspiration-area']) {
-      await expect(page.getByTestId(hiddenWelcome)).toBeHidden();
-      await expect(page.getByTestId(hiddenWelcome)).toHaveAttribute('inert', '');
-    }
+    // The welcome (greeting, start row and suggestions; no banner since TASK-1321) is hidden and inert.
+    await expect(page.getByTestId('welcome-content')).toBeHidden();
+    await expect(page.getByTestId('welcome-content')).toHaveAttribute('inert', '');
+    await expect(page.getByTestId('recent-chats-scroll-container')).toBeHidden();
     await editor.blur();
     await expect(handset).toBeVisible();
     await expect(handset).toBeEnabled();
@@ -57,10 +57,10 @@ for (const { width, direction } of [
     const cancel = page.getByTestId('voice-call-hangup');
     await expect(cancel).toBeVisible();
     await expect(cancel).toBeEnabled();
-    for (const hiddenWelcome of ['welcome-content', 'daily-inspiration-area']) {
-      await expect(page.getByTestId(hiddenWelcome)).toBeHidden();
-      await expect(page.getByTestId(hiddenWelcome)).toHaveAttribute('inert', '');
-    }
+    // The welcome (greeting, start row and suggestions; no banner since TASK-1321) is hidden and inert.
+    await expect(page.getByTestId('welcome-content')).toBeHidden();
+    await expect(page.getByTestId('welcome-content')).toHaveAttribute('inert', '');
+    await expect(page.getByTestId('recent-chats-scroll-container')).toBeHidden();
     await expect.poll(() => cancel.evaluate(button => {
       const bounds = button.getBoundingClientRect();
       const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);

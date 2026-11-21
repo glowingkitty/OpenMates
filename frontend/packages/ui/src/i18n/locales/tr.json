@@ -19839,6 +19839,9 @@
       "screenshot_size_too_large": {
         "text": "Ekran görüntüsü çok büyük. Lütfen daha küçük bir pencere deneyin."
       },
+      "screenshot_limit_reached": {
+        "text": "En fazla 5 ekran görüntüsü ekleyebilirsiniz."
+      },
       "screenshot_preview_alt": {
         "text": "Ekran görüntüsü önizlemesi"
       },
