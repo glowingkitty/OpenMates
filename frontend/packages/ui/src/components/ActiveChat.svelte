@@ -109,6 +109,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Note: STEP_COMPLETION is not imported as it's not a visible step - users go directly to the app after auto top-up
     } from '../stores/signupState';
     import { signupStore } from '../stores/signupStore';
+    import { firstMessageDisplayTitle, resolveChatDisplayTitle } from '../utils/chatDisplayTitle';
+    import { loadFirstMessageDisplayTitle } from '../services/chatFirstMessageTitle';
     import SignupStatusbar from './signup/SignupStatusbar.svelte';
     import { userDB } from '../services/userDB';
 
@@ -3573,7 +3575,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         try {
             const meta = await chatMetadataCache.getDecryptedMetadata(chat);
             const imageBubbles = chat.resume_card_image_bubbles ?? null;
-            return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? sanitizeVisibleDraftPreview(meta?.draftPreview ?? null) };
+            // A chat whose generated title is still pending shows its first message.
+            const title = resolveChatDisplayTitle(meta?.title, isDraftOnly || meta?.title ? null : await loadFirstMessageDisplayTitle(chat.chat_id));
+            return { chat, title, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? sanitizeVisibleDraftPreview(meta?.draftPreview ?? null) };
         } catch {
             return { chat, title: null, category: null, icon: null, summary: null, imageBubbles: null, draftPreview };
         }
@@ -3617,7 +3621,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             const metas: RecentChatMeta[] = await Promise.all(
                 topChats.map((chat) => buildRecentChatMeta(chat))
             );
-            recentChats = metas;
+            // An empty chat (no title, no draft, no user message) is never a card.
+            recentChats = metas.filter((meta) => !!(meta.title || meta.draftPreview));
         } catch (err) {
             console.warn('[ActiveChat] Failed to load recent chats:', err);
         }
@@ -4092,8 +4097,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 return true;
             }
 
-            // Normal path: use cleartext fields as fallback (demo chats have these set directly)
-            const displayTitle = chat.title || decryptedTitle || get(text)('common.untitled_chat');
+            // Normal path: use cleartext fields as fallback (demo chats have these set directly).
+            // Without a generated title yet the card shows the first message, never "Untitled chat".
+            const displayTitle = resolveChatDisplayTitle(chat.title || decryptedTitle,
+                hasTitle ? null : await loadFirstMessageDisplayTitle(chat.chat_id));
+            if (!displayTitle) {
+                console.info(`[ActiveChat] Skipping resume chat without a title or user message: ${chat.chat_id}`);
+                return false;
+            }
             const displayCategory = chat.category || decryptedCategory || null;
             const displayIcon = chat.icon || decryptedIcon || null;
             const displaySummary = chat.chat_summary || decryptedSummary || null;
@@ -5383,12 +5394,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
           message.role === 'user' && message.status === 'queued'));
       // A display-only first-message prefix fills the header until generated
       // encrypted title metadata arrives; it never becomes saved chat metadata.
-      let provisionalChatTitle = $derived.by(() => {
-          const firstUserMessage = currentMessages.find(message => message.chat_id === currentChat?.chat_id && message.role === 'user');
-          return typeof firstUserMessage?.content === 'string'
-              ? formatDraftPreview(firstUserMessage.content).slice(0, 80)
-              : '';
-      });
+      let provisionalChatTitle = $derived(firstMessageDisplayTitle(
+          currentMessages.filter(message => message.chat_id === currentChat?.chat_id)));
       let assistantSpeechOverlayHeight = $state(0);
       let autoSpeakResponse = $state(false);
       let assistantSpeechPreferenceLoad = 0;

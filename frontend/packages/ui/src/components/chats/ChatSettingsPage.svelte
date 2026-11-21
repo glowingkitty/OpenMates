@@ -26,6 +26,7 @@
   import { getExampleChatFileReferences, getExampleChatUsageEntries, isExampleChat } from '../../demo_chats';
   import { authStore } from '../../stores/authStore';
   import { canShareChat } from '../../services/chatSharing';
+  import { firstMessageDisplayTitle } from '../../utils/chatDisplayTitle';
 
   const USAGE_REFRESH_INTERVAL_MS = 5000;
 
@@ -79,7 +80,7 @@
   let messages = $derived(context?.messages ?? []);
   let display = $derived(context?.display ?? null);
   let title = $derived(
-    display?.title || chat?.title || [...messages].reverse().find((message) => message.current_chat_title)?.current_chat_title || 'Untitled chat'
+    display?.title || chat?.title || [...messages].reverse().find((message) => message.current_chat_title)?.current_chat_title || firstMessageDisplayTitle(messages) || 'New chat'
   );
   let summary = $derived(
     cleanDisplaySummary(display?.summary || chat?.chat_summary || null) || 'No summary available yet.'

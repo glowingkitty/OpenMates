@@ -4055,7 +4055,7 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 									handleKeyDown(e, chat);
 								}}
 								aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
-								aria-label={chat.title || $text('common.untitled_chat')}
+								aria-label={chat.title || undefined}
 							>
 								<ChatComponent
 									chat={chat}

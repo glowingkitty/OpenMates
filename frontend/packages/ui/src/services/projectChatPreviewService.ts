@@ -1,6 +1,7 @@
 // Project links keep their original chat lifecycle and authorized local metadata.
 // Hydrate metadata only, with the same identity fences as sidebar activity.
 import { chatDB } from './db';
+import { loadFirstMessageDisplayTitle } from './chatFirstMessageTitle';
 import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from './chatMetadataCache';
 import { chatSyncService } from './chatSyncService';
 import { getActiveTeamContextSnapshot } from '../stores/teamStore';
@@ -56,7 +57,10 @@ export function loadProjectChatPresentation(chatId: string, force = false): Prom
     const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
     if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
     if (!metadata) return null;
-    return { title: metadata.title, summary: metadata.summary, category: metadata.category || 'general_knowledge',
+    // Pending generated title: the first message stands in (utils/chatDisplayTitle.ts).
+    const title = metadata.title || await loadFirstMessageDisplayTitle(chatId);
+    if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
+    return { title, summary: metadata.summary, category: metadata.category || 'general_knowledge',
       icon: metadata.icon || '', teamId };
   }, { force: force || !cache.isFresh(chatId) });
 }

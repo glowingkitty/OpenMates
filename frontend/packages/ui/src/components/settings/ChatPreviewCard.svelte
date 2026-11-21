@@ -12,6 +12,7 @@
     import type { Chat } from '../../types/chat';
     import { getContinueGradientColors, getResumeCardGradientStyle } from '../activeChatUtils';
     import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
+    import { loadFirstMessageDisplayTitle } from '../../services/chatFirstMessageTitle';
 
     interface Props {
         chat: Chat;
@@ -27,7 +28,20 @@
     let gradientColors = $derived(getContinueGradientColors(category, appId));
     let iconName = $derived(getValidIconName(chat.icon || '', category));
     let IconComponent = $derived(getLucideIcon(iconName));
-    let title = $derived(chat.title || $text('common.untitled_chat'));
+    // Pending generated title: show the first message, never "Untitled chat".
+    let firstMessageTitle = $state<string | null>(null);
+    $effect(() => {
+        const chatId = chat.chat_id;
+        firstMessageTitle = null;
+        if (chat.title) return;
+        let current = true;
+        loadFirstMessageDisplayTitle(chatId).then(
+            (value) => { if (current) firstMessageTitle = value; },
+            (error) => console.warn(`[ChatPreviewCard] Could not read the first message of ${chatId}:`, error),
+        );
+        return () => { current = false; };
+    });
+    let title = $derived(chat.title || firstMessageTitle || $text('common.new_chat'));
     let summary = $derived(chat.chat_summary || '');
 </script>
 

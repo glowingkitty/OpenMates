@@ -3068,7 +3068,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 30
+  assertions: 31
   surfaces:
     web:
       status: failing
@@ -3076,15 +3076,17 @@ features:
       intent: implemented
       assertions:
         passing: 10
-        failing: 14
+        failing: 15
         not_run: 4
         missing: 2
-        counted: 30
+        counted: 31
       failing_tests:
       - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts › captures ${dimension.id} stable history manifest
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts › captures ${dimension.id} chat UI umbrella contract
       - frontend/apps/web_app/tests/chat-metadata-recovery.spec.ts › browser renders recovered initial title and summary before
         any assistant completion, then refines both after reconnect
+      - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts › shows the first message while the generated chat
+        title is pending
       - frontend/apps/web_app/tests/components/chat-message-copy.spec.ts › assistant actions reveal gradient labels on hover
         and focus and copy the entire selected response
       - frontend/apps/web_app/tests/components/chat-message-results-width.spec.ts › ${variant} fills the map and calendar
@@ -3169,6 +3171,7 @@ features:
       - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
       - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
       - frontend/apps/web_app/tests/chat-finished-turn-resend.spec.ts
+      - frontend/apps/web_app/tests/chat-first-send-title-and-composer.spec.ts
       - frontend/apps/web_app/tests/chat-flow.spec.ts
       - frontend/apps/web_app/tests/chat-followup-recovery-disabled.spec.ts
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
@@ -3180,6 +3183,7 @@ features:
       - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
       - frontend/apps/web_app/tests/components/agent-context-message.spec.ts
       - frontend/apps/web_app/tests/components/chat-assistant-response-activity.spec.ts
+      - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
       - frontend/apps/web_app/tests/components/chat-header-image-lifecycle.spec.ts
       - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
       - frontend/apps/web_app/tests/components/chat-inline-ratio-math.spec.ts
@@ -3282,7 +3286,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      unit_test_files: 153
+      unit_test_files: 154
     apple:
       status: failing
       source: tests
@@ -3291,8 +3295,8 @@ features:
         passing: 12
         failing: 4
         not_run: 0
-        missing: 14
-        counted: 30
+        missing: 15
+        counted: 31
       failing_tests:
       - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift › testLegacyPreflightAcknowledgementPreservesSendWithoutRecoveryClaim
       - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift › testSavedChatCommitsTheExactPreflightInferencePayload
@@ -3383,8 +3387,8 @@ features:
         passing: 1
         failing: 5
         not_run: 10
-        missing: 14
-        counted: 30
+        missing: 15
+        counted: 31
       failing_tests:
       - frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts › pair login, whoami, chats list, send/stream, cancel,
         follow-up, show, restart, TUI and logout
@@ -6452,7 +6456,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 24
+  assertions: 25
   surfaces:
     web:
       status: failing
@@ -6460,10 +6464,10 @@ features:
       intent: implemented
       assertions:
         passing: 7
-        failing: 12
+        failing: 13
         not_run: 4
         missing: 1
-        counted: 24
+        counted: 25
       failing_tests:
       - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts › captures ${dimension.id} stable history manifest
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts › captures ${dimension.id} chat UI umbrella contract
@@ -6515,6 +6519,7 @@ features:
       - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
       - frontend/apps/web_app/tests/audio-recording-live-provider.spec.ts
       - frontend/apps/web_app/tests/audio-recording.spec.ts
+      - frontend/apps/web_app/tests/chat-first-send-title-and-composer.spec.ts
       - frontend/apps/web_app/tests/chat-focused-scroll.spec.ts
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
       - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
@@ -6582,8 +6587,8 @@ features:
         passing: 9
         failing: 1
         not_run: 1
-        missing: 13
-        counted: 24
+        missing: 14
+        counted: 25
       failing_tests:
       - apple/OpenMatesUITests/ChatHistoryFullParityUITests.swift › testStreamingThinkingAndComposerStopMatchWebContract
       key_tests: []
@@ -7133,6 +7138,7 @@ features:
     - message-input.focus.guest-welcome-suppression
     - message-input.focus.parent-state
     - message-input.focus.workspace-suppression
+    - message-input.send.collapse-at-send
     - message-input.send.ownership
     surfaces:
       web:
@@ -7141,10 +7147,10 @@ features:
         intent: unverified
         assertions:
           passing: 0
-          failing: 3
+          failing: 4
           not_run: 0
           missing: 1
-          counted: 4
+          counted: 5
         failing_tests:
         - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts › failed send keeps the expanded draft and accepted
           retry collapses and blurs
@@ -7172,8 +7178,8 @@ features:
           passing: 3
           failing: 0
           not_run: 1
-          missing: 0
-          counted: 4
+          missing: 1
+          counted: 5
       cli:
         status: unverified
         source: intent

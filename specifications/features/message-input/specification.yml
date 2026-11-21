@@ -350,6 +350,14 @@ assertions:
   depends_on:
   - models.ComposerState
   - models.DraftState.persistence_target
+- id: message-input.send.collapse-at-send
+  type: behavior
+  must: An accepted-for-send web Send collapses the composer, leaves fullscreen and removes text focus at once, on
+    every device (on iPhone Safari the keyboard closes), before asynchronous preparation, persistence or server
+    acceptance, and without saving the outgoing text as a draft. A send that is rejected gives the draft back in the
+    expanded and focused state it was sent from.
+  depends_on:
+  - models.ComposerState
 - id: message-input.privacy-context
   type: privacy
   must: >

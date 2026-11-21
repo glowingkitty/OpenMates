@@ -114,6 +114,7 @@ changes to the documentation (to keep the documentation up to date).
 
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore, resetSettingsNavigation } from '../stores/settingsNavigationStore';
+    import { firstMessageDisplayTitle } from '../utils/chatDisplayTitle';
     
 
     // Create event dispatcher for forwarding events to parent components
@@ -1237,7 +1238,8 @@ changes to the documentation (to keep the documentation up to date).
         chatSettingsContext?.display?.title ||
         chatSettingsContext?.chat.title ||
         [...(chatSettingsContext?.messages ?? [])].reverse().find((message) => message.current_chat_title)?.current_chat_title ||
-        $text('common.untitled_chat')
+        firstMessageDisplayTitle(chatSettingsContext?.messages) ||
+        $text('common.new_chat')
     );
     let chatSettingsCategory = $derived(chatSettingsContext?.display?.category || chatSettingsContext?.chat.category || 'general_knowledge');
     let chatSettingsIcon = $derived(

@@ -6287,6 +6287,9 @@
         // editor document intact until the send is accepted.
         hasContent = false;
         draftPreviewParts = EMPTY_DRAFT_PREVIEW_PARTS;
+        // The composer collapses and drops focus (and the iOS keyboard) right
+        // at Send, not after the send pipeline: a rejected send restores it.
+        const composerStateAtSend = collapseComposerForSend();
 
         // Heavy parsing was flushed before waiting for preview persistence.
         const draftStateBeforeSend = get(draftEditorUIState);
@@ -6410,8 +6413,8 @@
             // send restores the draft and controls, restore this editor's DOM
             // focus without a later blur frame stealing it.
             await tick();
-            if (isFocused && editor === editorAtPreviewWait && currentChatId === chatIdAtPreviewWait && !editor.isDestroyed) {
-                editor.view.focus();
+            if (editor === editorAtPreviewWait && currentChatId === chatIdAtPreviewWait && !editor.isDestroyed) {
+                restoreComposerAfterRejectedSend(composerStateAtSend);
             }
             return false;
         }
@@ -6827,6 +6830,45 @@
         isFocused = true;
         editor.commands.focus('end');
     }
+    type ComposerStateAtSend = { focused: boolean; fullscreen: boolean };
+
+    /** Collapse and blur at Send without saving the outgoing text as a draft. */
+    function collapseComposerForSend(): ComposerStateAtSend {
+        const state = { focused: isMessageFieldFocused || isFocused, fullscreen: isFullscreen };
+        if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
+        restoreEditorFocusTimer = null;
+        preserveComposerFocusOnNextBlur = false;
+        if (preserveComposerFocusResetTimer) clearTimeout(preserveComposerFocusResetTimer);
+        preserveComposerFocusResetTimer = null;
+        forceDraftActionsVisible = false;
+        isFullscreen = false;
+        panelTransitionOverride = '';
+        isMessageFieldFocused = false;
+        isFocused = false;
+        showMentionDropdown = false;
+        if (editor && !editor.isDestroyed) {
+            // view.dom.blur() is synchronous (commands.blur() waits a frame);
+            // Safari keeps the keyboard up while a caret range remains.
+            editor.view.dom.blur();
+            const selection = window.getSelection();
+            if (selection?.anchorNode && editor.view.dom.contains(selection.anchorNode)) selection.removeAllRanges();
+        }
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && messageInputWrapper?.contains(active)) active.blur();
+        if (blurTimeoutId) clearTimeout(blurTimeoutId);
+        blurTimeoutId = null;
+        return state;
+    }
+
+    /** A rejected send gives the draft back in the layout it was sent from. */
+    function restoreComposerAfterRejectedSend(state: ComposerStateAtSend) {
+        if (state.fullscreen) isFullscreen = true;
+        if (!state.focused || !editor || editor.isDestroyed) return;
+        isMessageFieldFocused = true;
+        isFocused = true;
+        editor.view.focus();
+    }
+
     export function dismissFocus() {
         if (restoreEditorFocusTimer) clearTimeout(restoreEditorFocusTimer);
         restoreEditorFocusTimer = null;

@@ -698,6 +698,7 @@
         "chat-saved-followup-admission.spec.ts",
         "chat-reload-followup-send.spec.ts",
         "chat-finished-turn-resend.spec.ts",
+        "chat-first-send-title-and-composer.spec.ts",
         "daily-inspiration-chat-flow.spec.ts",
         "default-model-cli.spec.ts",
         "chat-settings-active-plan.spec.ts",

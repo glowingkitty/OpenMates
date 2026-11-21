@@ -724,7 +724,7 @@ specifications:
     version: 7
     status: draft
     path: features/chats
-    fingerprint: 1ba536acbeb7e5365721df43d94722b171cc29e461704a59bdee05a565d066ed
+    fingerprint: 700f6881b803598a1a7e149aab854919e2a80fbeda9644d3cc18deca9b1f03b5
     required_applies_to:
     - cli
     - gui.web
@@ -877,7 +877,7 @@ specifications:
     version: 13
     status: draft
     path: features/message-input
-    fingerprint: 27fe85c4561352327991e804ef1ae18830b748af0a214650fe8d3d11a1f24b88
+    fingerprint: 5cb8e3c10449c2607d85bcc146c57030ea30f608dd056a52f8e0bb13dda82165
     required_applies_to:
     - gui.web
     - gui.apple
@@ -9650,6 +9650,15 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  chats.titles.first-message-fallback:
+    specification: feature.chats@7
+    specification_id: feature.chats
+    type: behavior
+    fingerprint: 9bf6b80f0dd50600a7393abd013514de3d6602f654f29484ad5e792cc755ff17
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
   chats.offline-outbox.ordered-replay:
     specification: feature.chats@7
     specification_id: feature.chats
@@ -11599,6 +11608,14 @@ assertions:
     specification_id: feature.message-input
     type: behavior
     fingerprint: 0cdd07a0825a9fb6e20341f6ff15595b61d95c56f3e86cda879453e569d4e00a
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  message-input.send.collapse-at-send:
+    specification: feature.message-input@13
+    specification_id: feature.message-input
+    type: behavior
+    fingerprint: 6468071b5ca6466a82dfb7bf1f3b5d5559dacdeab16c37c18670101eeebe439d
     required_applies_to:
     - gui.web
     - gui.apple
