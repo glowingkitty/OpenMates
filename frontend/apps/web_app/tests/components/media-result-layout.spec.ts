@@ -77,7 +77,12 @@ for (const width of [390, 1100]) {
         const maxHeight = await media.evaluate((element) => parseFloat(getComputedStyle(element).maxHeight));
         expect(bounds!.width >= width - 40 || bounds!.height >= maxHeight - 2).toBe(true);
       }
-      if (component.startsWith('videos/')) {
+      if (component === 'videos/VideoEmbedFullscreen' && width < 640) {
+        // Phones: the video uses the full width of its container (issue Y6Y6C),
+        // even when that pushes it under the floating composer; the page scrolls.
+        const container = (await page.locator('.video-container').boundingBox())!;
+        expect(bounds!.width).toBeGreaterThanOrEqual(container.width - 1);
+      } else if (component.startsWith('videos/')) {
         const composer = await page.getByTestId('apps-request-composer').boundingBox();
         expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(composer!.y - 8);
       }
@@ -96,6 +101,63 @@ for (const width of [390, 1100]) {
     });
   });
 }
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+test('YouTube video fullscreen uses the full container width on a phone', async ({ page }, testInfo) => {
+  // Issue Y6Y6C: on an iPhone the height budget shrank the video to about half the width.
+  const fixture = await page.request.get('/images/examples/group1.jpg');
+  const image = await fixture.body();
+  await page.route('**/api/v1/image?*', route => route.fulfill({ contentType: 'image/jpeg', body: image }));
+  // 600px tall: the old height budget limited the video to about 300px of 366px here.
+  await page.setViewportSize({ width: 390, height: 600 });
+  await page.goto('/dev/preview/embeds/videos/VideoEmbedFullscreen?chrome=0&theme=dark&width=390');
+  await waitForComponentPreview(page);
+  const thumbnail = page.locator('.video-thumbnail-wrapper');
+  await expect(thumbnail).toBeVisible();
+  const container = (await page.locator('.video-container').boundingBox())!;
+  const bounds = (await thumbnail.boundingBox())!;
+  expect(container.width).toBeGreaterThan(300);
+  expect(bounds.width).toBeGreaterThanOrEqual(container.width - 1);
+  expect(bounds.height).toBeCloseTo(bounds.width * 9 / 16, 0);
+  await testInfo.attach('VideoEmbedFullscreen-390px-full-width', {
+    body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }),
+    contentType: 'image/png',
+  });
+});
+
+test.describe('chat video card on a touch screen', () => {
+  test.use({ hasTouch: true });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  test('tapping the expand icon opens fullscreen without arming the message long-press menu', async ({ page }, testInfo) => {
+    // The chat message starts its long-press menu timer on touchstart and clears it on
+    // touchend. A chat-result card must hand it both or neither (issue Y6Y6C): before
+    // the fix the card let touchstart through but swallowed touchend, so every tap
+    // opened the embed menu 500 ms later on top of the fullscreen.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/dev/preview/embeds/videos/VideoEmbedPreview?chrome=0&theme=light&width=390&context=chat');
+    await waitForComponentPreview(page);
+    await page.evaluate(() => {
+      const counts = { touchstart: 0, touchend: 0 };
+      (window as unknown as { __touchCounts: typeof counts }).__touchCounts = counts;
+      document.addEventListener('touchstart', () => { counts.touchstart += 1; });
+      document.addEventListener('touchend', () => { counts.touchend += 1; });
+    });
+    const card = page.getByTestId('embed-preview');
+    await expect(card).toHaveClass(/chat-result/);
+    const expand = card.getByTestId('result-preview-expand');
+    await expect(expand).toBeVisible();
+    const box = (await expand.boundingBox())!;
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    const counts = await page.evaluate(() => (window as unknown as { __touchCounts: { touchstart: number; touchend: number } }).__touchCounts);
+    expect(counts.touchstart).toBe(counts.touchend);
+    expect(counts.touchstart).toBe(0);
+    await testInfo.attach('VideoEmbedPreview-chat-after-expand-tap', {
+      body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }),
+      contentType: 'image/png',
+    });
+  });
+});
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
 test('tapping the generated image opens only the image in a new tab right away', async ({ page }) => {

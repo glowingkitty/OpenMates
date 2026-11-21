@@ -980,6 +980,17 @@
     /* Transparent - the actual video is shown by VideoIframe */
   }
   
+  /* Phones: the player always uses the full container width. Laptops keep the
+     height budget above so the video stays above the followup field; on a
+     phone that budget shrank it to a narrow strip, so the fullscreen scrolls
+     instead (issue Y6Y6C). */
+  @media (max-width: 640px) {
+    .video-thumbnail-wrapper,
+    .video-playing-spacer {
+      max-width: 100%;
+    }
+  }
+
   /* ===========================================
      Action Buttons
      =========================================== */

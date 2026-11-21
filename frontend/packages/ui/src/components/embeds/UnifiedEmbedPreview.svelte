@@ -997,7 +997,7 @@
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   oncontextmenu={handleContextMenu}
-  ontouchstart={(event) => { if (!isChatResult) handleTouchStart(event); }}
+  ontouchstart={(event) => { if (isChatResult) { event.stopPropagation(); return; } handleTouchStart(event); }}
   ontouchmove={handleTouchMove}
   ontouchend={handleTouchEnd}
 >
