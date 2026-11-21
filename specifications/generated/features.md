@@ -1094,7 +1094,7 @@ Voice and video calls with the assistant, bound to an encrypted chat.
 
 End-to-end encrypted chats that sync across devices and recover unfinished answers.
 
-- Specifications: [feature.chats](../../specifications/features/chats/specification.yml) (draft) · 31 assertion(s)
+- Specifications: [feature.chats](../../specifications/features/chats/specification.yml) (approved) · 31 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.5.0-alpha
 
 <details><summary>Tests per surface</summary>
@@ -2018,7 +2018,7 @@ Free-form memories (with when-to-use, start and expiry) that the assistant loads
 
 The chat composer: text, attachments, drafts, voice recording, suggestions and send.
 
-- Specifications: [feature.message-input](../../specifications/features/message-input/specification.yml) (draft) · 25 assertion(s)
+- Specifications: [feature.message-input](../../specifications/features/message-input/specification.yml) (approved) · 25 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.5.0-alpha
 
 <details><summary>Tests per surface</summary>

@@ -416,3 +416,9 @@ signed_out_states:
   given: A signed-out visitor with guest chat open types "Capital of France?" and clicks Send, but the on-device privacy runtime never finishes loading.
   when: Fifteen seconds pass without the send reaching the server.
   then: A notification says the send is taking too long, the draft text stays in the composer, an active Send comes back, and the message is never sent twice.
+send_collapse:
+- id: phone-send-closes-keyboard-at-once
+  assertion_ids: [message-input.send.collapse-at-send]
+  given: On an iPhone-sized browser the user has expanded the composer to fullscreen and typed "Plan a relaxed weekend in Lisbon".
+  when: The user taps Send while the message is still being prepared and accepted.
+  then: The composer collapses, leaves fullscreen and loses focus at once so the keyboard closes; the text is not saved as a draft. If the send is then rejected, the text comes back in the expanded, focused composer.

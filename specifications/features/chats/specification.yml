@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.chats
 version: 7
-status: draft
+status: approved
 title: Chats
 summary: 'OpenMates chats preserve client-side encryption boundaries, stable message identities, visible local message
   states, and cross-device completion recovery while synchronizing chat content across first-party clients.

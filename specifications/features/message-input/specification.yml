@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.message-input
 version: 13
-status: draft
+status: approved
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
   recording controls, contextual suggestions, and send/start-new-chat handoff while preserving privacy, accessibility,

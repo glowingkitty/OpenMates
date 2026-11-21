@@ -497,3 +497,9 @@ october_apple_response:
   given: A saved conversation is opened on an Apple phone, tablet or Mac using the current rendered web response as its reference.
   when: History appears, later text streams and the workspace width changes, including with reduced motion enabled.
   then: Canonical content, preview actions and existing paragraph identities remain usable; initial-history and new-chunk presentation do not repeatedly animate earlier content, and reduced motion shows content immediately.
+first_message_title:
+- id: pending-title-shows-first-message
+  assertion_ids: [chats.titles.first-message-fallback]
+  given: The user sends "Plan a relaxed weekend in Lisbon with one museum" as the first message of a new chat and the generated title has not arrived yet.
+  when: The chat header, the sidebar row and the start-screen card for that chat render, before and after the generated title "Lisbon weekend" arrives.
+  then: Each place shows the beginning of the first message, decrypted on the device and never stored or sent, and then "Lisbon weekend"; "Untitled chat" never appears. A chat with no title, draft or message is not shown as a start-screen card.

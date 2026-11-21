@@ -722,9 +722,9 @@ specifications:
     - gui.web
   feature.chats:
     version: 7
-    status: draft
+    status: approved
     path: features/chats
-    fingerprint: 700f6881b803598a1a7e149aab854919e2a80fbeda9644d3cc18deca9b1f03b5
+    fingerprint: 31b45ae3a41940bd405985ef416b1bb7d8e7e33055cc2e2a2d4025c2df377676
     required_applies_to:
     - cli
     - gui.web
@@ -875,9 +875,9 @@ specifications:
     - gui.web
   feature.message-input:
     version: 13
-    status: draft
+    status: approved
     path: features/message-input
-    fingerprint: 5cb8e3c10449c2607d85bcc146c57030ea30f608dd056a52f8e0bb13dda82165
+    fingerprint: ac14e8f5748dee04ed59d9cc53b8f5b9d5290ffc85ef2d9eff91d437947b1367
     required_applies_to:
     - gui.web
     - gui.apple
@@ -9834,7 +9834,7 @@ assertions:
     specification: feature.chats@7
     specification_id: feature.chats
     type: parity
-    fingerprint: c69ab1de115c9d6a8558006eda448a8e4c11b89d0836dc4d2d7e44d3e1868f28
+    fingerprint: f7e78f46b50ee7832ba7ac270e3ac136089de9a537f7332e16b371ad5d861793
     required_applies_to:
     - cli
     - gui.web

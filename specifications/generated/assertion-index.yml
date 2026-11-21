@@ -122299,7 +122299,7 @@ assertions:
     current_direct_proof: false
   chats.surface.semantic-parity:
     specification: feature.chats@7
-    fingerprint: c69ab1de115c9d6a8558006eda448a8e4c11b89d0836dc4d2d7e44d3e1868f28
+    fingerprint: f7e78f46b50ee7832ba7ac270e3ac136089de9a537f7332e16b371ad5d861793
     direct_tests:
     - &id15604
       path: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift

@@ -3057,7 +3057,7 @@ features:
   description: End-to-end encrypted chats that sync across devices and recover unfinished answers.
   specifications:
   - id: feature.chats
-    status: draft
+    status: approved
     path: specifications/features/chats
   apps: []
   product_features:
@@ -6447,7 +6447,7 @@ features:
   description: 'The chat composer: text, attachments, drafts, voice recording, suggestions and send.'
   specifications:
   - id: feature.message-input
-    status: draft
+    status: approved
     path: specifications/features/message-input
   apps: []
   product_features:
