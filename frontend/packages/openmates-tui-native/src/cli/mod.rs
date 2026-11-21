@@ -3,6 +3,7 @@
 mod account;
 mod apps_metadata;
 mod apps_run;
+mod code_run_cmd;
 mod generated_files;
 pub use apps_run::execute_sdk_apps;
 mod chat_project;

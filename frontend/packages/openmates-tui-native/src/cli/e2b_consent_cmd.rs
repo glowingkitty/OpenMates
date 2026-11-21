@@ -59,7 +59,7 @@ pub(super) fn parse_choice(answer: &str) -> Option<E2bConsentChoice> {
         _ => None,
     }
 }
-fn ask(input: &mut impl BufRead, out: &mut impl Write) -> Option<E2bConsentChoice> {
+pub(super) fn ask(input: &mut impl BufRead, out: &mut impl Write) -> Option<E2bConsentChoice> {
     let _ = write!(
         out,
         "{}\n  1) Allow\n  2) Use my own machine\n  3) Not now\nChoice [3]: ",
@@ -72,7 +72,7 @@ fn ask(input: &mut impl BufRead, out: &mut impl Write) -> Option<E2bConsentChoic
 }
 /// True when the send may ask the user: a TTY on stdin and stderr, no `--json`,
 /// and no `--allow-e2b-upload` (which already answers for the caller).
-fn can_prompt(invocation: &Invocation) -> bool {
+pub(super) fn can_prompt(invocation: &Invocation) -> bool {
     !invocation.boolean("json")
         && !invocation.boolean("allow-e2b-upload")
         && std::io::stdin().is_terminal()

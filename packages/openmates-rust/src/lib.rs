@@ -4,6 +4,7 @@
 #![forbid(unsafe_code)]
 pub mod account;
 pub mod chat_state;
+pub mod code_run_request;
 pub mod client;
 pub mod crypto;
 pub mod embed_read;

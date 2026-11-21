@@ -80,6 +80,9 @@ pub async fn execute_sdk_apps(
     if let Some(result) = public(i) {
         return result;
     }
+    if super::code_run_cmd::is_code_run(i) {
+        return super::code_run_cmd::execute(i, client, cancel).await;
+    }
     if i.command_path() != "apps code get_docs" {
         return Err(unsupported(
             i,

@@ -14,7 +14,7 @@ mod draft_clear_tests;
 #[cfg(test)]
 #[path = "saved_show_tests.rs"]
 mod saved_show_tests;
-const GLOBALS: &[&str] = &[
+pub(super) const GLOBALS: &[&str] = &[
     "json",
     "profile",
     "api-url",
@@ -1622,6 +1622,7 @@ async fn app_with_admission(invocation:&Invocation,client:&mut Client,
     admission:&openmates_sdk::client::DirectAppSkillAdmission,
     store:Option<(&crate::runtime_store::RuntimeStore,u64)>)->Result<CliOutput,CliError> {
     admission.check(client)?;
+    if super::code_run_cmd::is_code_run(invocation){return super::code_run_cmd::execute_session(invocation,client,admission).await;}
     let record = record(&invocation.path);
     let record = record
         .filter(|record| record.skill_schema.is_some())

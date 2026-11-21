@@ -22784,8 +22784,10 @@
         }
       ],
       "flags": [
+        "allow-e2b-upload",
         "api-key",
         "api-url",
+        "chat",
         "chat-id",
         "code",
         "dependency-installs",
@@ -22798,17 +22800,23 @@
         "file",
         "files",
         "help",
+        "include",
         "input",
         "json",
         "language",
         "mode",
         "no-download",
+        "no-internet",
         "output",
         "output-dir",
         "overwrite",
         "profile",
+        "repo",
         "selected-embed-ids",
-        "target-embed-id"
+        "source-filename",
+        "target-embed",
+        "target-embed-id",
+        "url"
       ],
       "source_locations": [
         {
@@ -22946,12 +22954,12 @@
       "skill": "run",
       "implementation": {
         "parser": "native_clap",
-        "handler": "client.run_app_skill",
+        "handler": "cli.code_run_cmd.execute",
         "status": "partial",
-        "module": "frontend/packages/openmates-tui-native/src/cli/handlers.rs"
+        "module": "frontend/packages/openmates-tui-native/src/cli/code_run_cmd.rs"
       },
       "gaps": [
-        "Formatting, option variants, and complete protocol parity require validation."
+        "Supports --code, --language, --source-filename, --entry, --file, --dir, --include, --exclude, --no-internet, --allow-e2b-upload, --json with an API key or the logged-in session, polling to the final state and handling the E2B consent. --url, --repo, chat-bound --chat/--target-embed and live websocket streaming are not ported (refused with a typed error)."
       ],
       "platforms": {
         "linux": "not_verified",
