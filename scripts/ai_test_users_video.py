@@ -66,15 +66,17 @@ def sign(keys: list[str], container: str = media.DEFAULT_CONTAINER) -> list[str]
     return json.loads(lines[-1])["urls"]
 
 
-def upload(path: Path, key: str, container: str = media.DEFAULT_CONTAINER) -> dict:
-    """Upload one session video to the 7-day bucket; returns bucket, key and a fresh signed url."""
+def upload(path: Path, key: str, container: str = media.DEFAULT_CONTAINER, content_type: str = "video/webm") -> dict:
+    """Upload one file (a session video, or push proof from push_proof.py) to the 7-day bucket.
+
+    Returns bucket, key and a fresh signed url."""
     content = path.read_bytes()
     if len(content) > media.MAX_MEDIA_BYTES:
         raise RuntimeError(f"video too large ({len(content)} bytes)")
     request = {
         "bucket": BUCKET, "dev_bucket": BUCKET, "key": key,
         "container_path": media.container_path_for(path, key),
-        "content_type": "video/webm", "media_kind": "video",
+        "content_type": content_type, "media_kind": media.media_kind(content_type),
         "sha256": hashlib.sha256(content).hexdigest(),
         "lifecycle_days": LIFECYCLE_DAYS, "expires_in": LINK_SECONDS,
     }

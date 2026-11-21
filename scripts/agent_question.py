@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Tell the user on Discord, in one compact push, that a chat is done or needs their input.
 
-Usage: agent_question.py done --summary "..." [--paused-until DATE] [--task TASK-id] [--dry-run] [--force]
-       agent_question.py ask --question "..." [--recommendation "..."] [--task TASK-id] [--dry-run] [--force]
+Usage: agent_question.py done --summary "..." [--paused-until DATE] [--attach FILE]... [--link URL]...
+                              [--no-proof "<why>"] [--task TASK-id] [--dry-run] [--force]
+       agent_question.py ask --question "..." [--recommendation "..."] [--attach FILE]... [--link URL]...
+                             [--no-proof "<why>"] [--task TASK-id] [--dry-run] [--force]
 
 Two formats the user tells apart at a glance, each one or two sentences (details come from the
 dev connector, which matches the push to its chat through the push log):
@@ -17,6 +19,13 @@ icons the chat wrote are stripped (the script adds exactly one icon). Longer tex
 rewrite instruction (exit 1); after two rejections one cheap model call shortens it, then a cut at a
 word boundary with "…". --option values go to the push log only. Every text is scrubbed (secrets,
 personal data) before it is sent, logged or given to the model.
+
+Proof (scripts/push_proof.py): ``--attach`` puts screenshots and videos into the push as real
+Discord files (compressed, or a 7-day private storage link when over Discord's limit); ``--link``
+adds a signed link to our private proof storage. Both come on top of the short text. A chat that
+changed UI files or ran end-to-end/visual CI jobs must attach proof; its push is refused without
+it unless ``--no-proof "<why>"`` (sent with a loud "No screenshot or video" line). Research,
+backend, security, docs and tooling pushes never need proof.
 
 The webhook URL comes from DISCORD_WEBHOOK_AGENT_QUESTIONS, then DISCORD_WEBHOOK_DAILY_MEETING,
 then DISCORD_WEBHOOK_DEV_NIGHTLY (environment, then the canonical checkout's ``.env``, the same
@@ -47,6 +56,7 @@ from urllib.parse import urlparse
 
 import discord_summary
 import discord_webhook
+import push_proof
 from pending_work_gate import canonical_root
 
 WEBHOOK_KEYS = ("DISCORD_WEBHOOK_AGENT_QUESTIONS", "DISCORD_WEBHOOK_DAILY_MEETING",
@@ -259,14 +269,19 @@ def recently_sent(root: Path, chat_id: str, now: float, kind: str = ASK) -> bool
 
 
 def deliver(url: str, message: str, post: Callable[..., dict | None],
-            sleep: Callable[[float], None] = time.sleep) -> dict:
+            sleep: Callable[[float], None] = time.sleep, files: list[tuple[str, bytes]] | None = None,
+            post_files: Callable[..., dict | None] = discord_webhook.post_files) -> dict:
     """Post each part of the message (split_message), retrying each after the RETRY_DELAYS entries.
 
-    Returns the last confirmed result; raises QuestionError when a part stays unconfirmed."""
+    ``files`` go with the first part as one multipart upload. Returns the last confirmed result;
+    raises QuestionError when a part stays unconfirmed."""
     result: dict | None = None
-    for part in split_message(message):
+    for index, part in enumerate(split_message(message)):
         for delay in (*RETRY_DELAYS, None):
-            result = post(webhook_url=url, payload={"content": part})
+            if index == 0 and files:
+                result = post_files(webhook_url=url, payload={"content": part}, files=files)
+            else:
+                result = post(webhook_url=url, payload={"content": part})
             if result:
                 break
             if delay is not None:
@@ -277,7 +292,7 @@ def deliver(url: str, message: str, post: Callable[..., dict | None],
 
 def record_push(root: Path, message: str, now: float, *, chat_id: str = "", title: str = "", asks: str = "",
                 recommendation: str = "", options: list[str] | None = None, task_id: str = "",
-                source: str = "agent_question", kind: str = "") -> Path:
+                source: str = "agent_question", kind: str = "", proof: dict | None = None) -> Path:
     """Append one delivered push to the push log (one JSON object per line); returns the log path.
 
     kind: "done" or "ask" (derived from a ✅/❓ prefix when not given; other scripts' alerts: "")."""
@@ -287,6 +302,8 @@ def record_push(root: Path, message: str, now: float, *, chat_id: str = "", titl
              "chat_id": chat_id, "title": scrub(title), "asks": scrub(asks or first),
              "recommendation": scrub(recommendation), "options": [scrub(o) for o in options or []],
              "task": scrub(task_id), "text": message}
+    if proof:
+        entry["proof"] = proof  # attached file names, private links, or the --no-proof reason
     path = root / PUSH_LOG
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
@@ -295,7 +312,9 @@ def record_push(root: Path, message: str, now: float, *, chat_id: str = "", titl
 
 def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
          post: Callable[..., dict | None] = discord_webhook.post_message,
-         sleep: Callable[[float], None] = time.sleep) -> str:
+         sleep: Callable[[float], None] = time.sleep,
+         post_files: Callable[..., dict | None] = discord_webhook.post_files,
+         uploader: Callable[[Path, str], str] | None = None) -> str:
     """Send (or, with --dry-run, build) a done or ask push; returns the message text."""
     kind = DONE if args.command == "done" else ASK
     text = args.summary if kind == DONE else args.question
@@ -315,15 +334,34 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
             write_rejections(root, chat_id, kind, rejections + 1)
         raise
     message = build_message(kind, title, body)
+    attach, links = getattr(args, "attach", None) or [], getattr(args, "link", None) or []
+    no_proof = (getattr(args, "no_proof", None) or "").strip()
+    reasons = push_proof.proof_reasons(root, chat_id)
+    if reasons and not attach and not links and not no_proof:
+        raise QuestionError(push_proof.refusal(reasons))
+    if no_proof and not attach and not links:
+        message += f"\n⚠️ No screenshot or video: {discord_summary.clean_text(scrub(no_proof))[:160]}"
     if args.dry_run:
-        return message
+        for raw in attach:
+            push_proof.check_path(raw)
+        return message + "".join(f"\n[attached: {Path(raw).name}]" for raw in attach)
     if not chat_id:
         raise QuestionError("CLAUDE_CODE_SESSION_ID is not set; cannot identify this chat")
     if not args.force and recently_sent(root, chat_id, now, kind):
         raise QuestionError(f"this chat already sent a {args.command} push in the last 20 minutes (use --force)")
-    deliver(webhook(root), message, post, sleep)
+    with push_proof.temporary_workdir() as work:
+        prepared = push_proof.prepare(attach, links, chat_id, Path(work), own_link=own_storage_link,
+                                      **({"uploader": uploader} if uploader else {}))
+        for note in prepared.notes:
+            print(f"agent_question: {note}", file=sys.stderr)
+        message = "\n".join([message, *prepared.link_lines()])
+        deliver(webhook(root), message, post, sleep, files=prepared.files, post_files=post_files)
+    proof = {"files": [name for name, _ in prepared.files], "links": [url for _, url in prepared.links]}
+    if no_proof and prepared.empty:
+        proof = {"no_proof": scrub(no_proof)}
     record_push(root, message, now, chat_id=chat_id, title=title, asks=text, recommendation=recommendation,
-                options=getattr(args, "option", None) or [], task_id=args.task or "", kind=args.command)
+                options=getattr(args, "option", None) or [], task_id=args.task or "", kind=args.command,
+                proof=proof if (proof.get("files") or proof.get("links") or proof.get("no_proof")) else None)
     path = marker_path(root, chat_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     marker = {"ts": now, "question": scrub(text), "kind": kind}
@@ -346,13 +384,20 @@ def main(argv: list[str] | None = None) -> int:
     ask_parser.add_argument("--recommendation")
     ask_parser.add_argument("--option", action="append", help="logged for the connector; not sent")
     for each in (done_parser, ask_parser):
+        each.add_argument("--attach", action="append", metavar="FILE",
+                          help="screenshot or video sent as a Discord file (repeatable); required when the chat "
+                               "changed UI files or ran end-to-end/visual CI jobs")
+        each.add_argument("--link", action="append", metavar="URL",
+                          help="signed link to our private proof storage, sent on top of the text (repeatable)")
+        each.add_argument("--no-proof", metavar="WHY",
+                          help="nothing visual to show despite UI changes or E2E runs; the push says so loudly")
         each.add_argument("--task")
         each.add_argument("--dry-run", action="store_true")
         each.add_argument("--force", action="store_true")
     args = parser.parse_args(argv)
     try:
         message = send(args, canonical_root(), os.environ.get("CLAUDE_CODE_SESSION_ID", ""), time.time())
-    except (QuestionError, discord_summary.SummaryTooLong) as error:
+    except (QuestionError, discord_summary.SummaryTooLong, push_proof.ProofError) as error:
         print(f"agent_question: {error}", file=sys.stderr)
         return 1
     print(message if args.dry_run else ("Done push sent." if args.command == "done" else "Question sent."))

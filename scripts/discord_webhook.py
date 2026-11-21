@@ -82,6 +82,42 @@ def post_attachment(
     return {"message_id": message_id, "attachment_id": attachment_id}
 
 
+def post_files(
+    *,
+    webhook_url: str,
+    payload: dict[str, Any],
+    files: list[tuple[str, bytes]],
+    timeout: int = 120,
+    opener: Callable[..., Any] = urllib.request.urlopen,
+) -> dict[str, Any] | None:
+    """One message with several attachments (``files`` = (filename, content)); None unless Discord
+    confirms the message and every attachment."""
+    if not webhook_url or not files:
+        return None
+    separator = "&" if "?" in webhook_url else "?"
+    post_url = webhook_url if "wait=" in webhook_url else f"{webhook_url}{separator}wait=true"
+    body, content_type = build_multipart_body(
+        payload, [(f"files[{index}]", content, name) for index, (name, content) in enumerate(files)])
+    request = urllib.request.Request(
+        post_url,
+        data=body,
+        headers={"Content-Type": content_type, "User-Agent": "OpenMates-Spec-Demo/1.0"},
+        method="POST",
+    )
+    try:
+        with opener(request, timeout=timeout) as response:
+            raw = response.read()
+        message = json.loads(raw.decode("utf-8")) if raw else {}
+    except (OSError, urllib.error.HTTPError, urllib.error.URLError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    message_id = str(message.get("id") or "")
+    attachments = message.get("attachments")
+    ids = [str(a.get("id") or "") for a in attachments if isinstance(a, dict)] if isinstance(attachments, list) else []
+    if not message_id or len(ids) != len(files) or not all(ids):
+        return None
+    return {"message_id": message_id, "attachment_ids": ids}
+
+
 def post_message(
     *,
     webhook_url: str,

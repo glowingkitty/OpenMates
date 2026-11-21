@@ -163,7 +163,8 @@ def message_text(idle_minutes: int, finished: list[str]) -> str:
             "continue it now. If you are blocked on a decision from the user, send it with "
             "scripts/agent_question.py ask and stop; if the work is finished, send "
             "scripts/agent_question.py done once and stop. Push text: one short sentence (done under 110 "
-            "characters, ask with recommendation under 120), plain words, no ids, no details.")
+            "characters, ask with recommendation under 120), plain words, no ids, no details. After UI changes or "
+            "end-to-end runs add --attach <screenshot or video> (a push without it is refused).")
 
 
 def run(command: str, dry_run: bool, min_minutes: float, max_minutes: float, root: Path, claude_home: Path,

@@ -215,6 +215,26 @@ names and presigned links to our own `openmates-*` buckets on the object storage
 stay intact. Pushes longer than one Discord message go out as up to four parts,
 split between words so links are never cut.
 
+Proof on pushes (`scripts/push_proof.py`, owner decision 21 Nov 2026): `--attach FILE`
+(repeatable) sends screenshots and videos as real files in the same Discord message
+(webhook multipart, at most 10 files and about 9.5 MiB per message). A screenshot over
+4 MiB or over the remaining budget is re-encoded as JPEG and scaled down; a video that
+does not fit is re-encoded once with ffmpeg (H.264, at most 1280 px wide), and if it
+still does not fit it goes to the private 7-day bucket of the AI test users videos
+(`agent-pushes/<chat-id>/…`, signed link valid 7 days) and the push carries the link.
+`--link URL` adds an existing signed link to our own private buckets; other links are
+refused. Attachments and links come on top of the short-text limit. Proof can show
+user-like data, so it goes only to the push webhook and the private bucket, never into
+the repository; `.auth`, `ci-private` and `.env*` paths are refused. The push log
+records attached file names and links under `proof`.
+Proof is required only when the chat has something visual to show: a session of the
+chat changed UI files (`.svelte`, `.css`, `.scss`, `.mjml`, Swift views, Apple asset
+catalogs, email templates; test files excluded), or ran a finished `e2e`, `component`,
+`visual-smoke` or `apple-ui` CI job. Such a push without `--attach`/`--link` is refused
+(exit 1, also in dry runs) unless `--no-proof "<why>"`, which sends a loud "No
+screenshot or video" line. Research, backend, security, docs and tooling pushes are
+never asked for proof; the wording of the push plays no part.
+
 ## 3. Host-resources tick (`scripts/host_resources.py`, every minute)
 
 `host_load_guard.py monitor` (openmates-host-load-guard.timer) samples memory, then:

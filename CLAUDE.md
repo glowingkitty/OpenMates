@@ -86,6 +86,12 @@ when a skill or this file points to it.
   put open follow-ups in the Task first, since a done chat is archived at its turn end.
   Blocked: `python3 scripts/agent_question.py ask --question "..."
   --recommendation "..."`.
+  Proof goes into the push: after UI/visual changes or E2E runs add
+  `--attach <screenshot/video>` (repeatable; CI files are under
+  `test-results/ci-runs/`), sent as Discord files or a private 7-day link, on
+  top of the short text; such a push without proof is refused (`--no-proof
+  "<why>"` only when there is truly nothing to show). Research, backend,
+  security and tooling pushes need none.
   Good: "Production is healthy: both alerts were false alarms (Brevo stats
   timeout, runner error). No fix needed." Bad: "Check production health now: ✅
   Production is healthy: emails are going out (Brevo accepted sends at 12:14 and
