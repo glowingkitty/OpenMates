@@ -1448,3 +1448,24 @@ def test_failed_project_file_result_tells_model_to_stop_retrying(async_skill_con
     assert "do not write the file contents into the chat instead" in failed
     assert "pii_mapping_unavailable" in failed
     assert "Do not call the same Project file tool again" not in finished
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.commands
+async def test_continuation_carries_cloud_command_embed_ids_across_rewrites(monkeypatch, async_skill_continuation):
+    cache = _FakeCache()
+    fake_celery_app = _FakeCeleryApp()
+    monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
+    request = _request()
+    request.completed_command_embed_ids = ["term-1"]
+    await async_skill_continuation.cache_async_skill_continuation_context(
+        cache_service=cache, async_task_id="cmd-2", request_data=request,
+        skill_config_dict=_skill_config_dict(), app_id="code", skill_id="run",
+        tool_name="run", tool_arguments={},
+    )
+    await async_skill_continuation.dispatch_async_skill_continuation(
+        cache_service=cache, async_task_id="cmd-2",
+        completed_results=[{"command_embed_id": "term-2"}, {"command_embed_id": "term-1"}],
+    )
+    payload = fake_celery_app.sent[0]["kwargs"]["request_data_dict"]
+    assert payload["completed_command_embed_ids"] == ["term-1", "term-2"]

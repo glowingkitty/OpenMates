@@ -10859,6 +10859,17 @@ async def _consume_main_processing_stream(
                 f"for application embed {streaming_application_embed_id}"
             )
 
+    # Cloud command cards (command, folder, status, exit code) are shown even
+    # when the model did not link the terminal code embed (code-run.cloud.commands).
+    if request_data.completed_command_embed_ids and not was_revoked_during_stream:
+        referenced_response = append_result_embed_references(
+            aggregated_response or "", "code", request_data.completed_command_embed_ids
+        )
+        if referenced_response != aggregated_response:
+            aggregated_response = referenced_response
+            final_response_chunks = [aggregated_response]
+            logger.info(f"{log_prefix} Added completed cloud command embed reference(s) to the reply")
+
     # Test results of the completed run are shown in the reply even when the
     # model did not link them (they carry the run video and step timeline).
     if request_data.completed_result_embed_ids and not was_revoked_during_stream:

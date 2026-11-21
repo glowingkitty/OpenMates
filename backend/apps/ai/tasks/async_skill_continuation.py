@@ -23,7 +23,7 @@ except ImportError:  # pragma: no cover - test environments may not install opti
     def toon_encode(value: Any) -> str:
         return json.dumps(value, ensure_ascii=False)
 
-from backend.apps.ai.tasks.result_embed_references import completed_result_embed_ids  # noqa: F401 - re-exported for the continuation request
+from backend.apps.ai.tasks.result_embed_references import completed_command_embed_ids, completed_result_embed_ids  # noqa: F401 - re-exported for the continuation request
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
@@ -824,6 +824,10 @@ async def dispatch_async_skill_continuation(
         # A continuation that starts another async skill (e.g. a commit after
         # green tests) is rewritten by the next continuation under the same
         # message id, so the earlier run's test results stay referenced.
+        completed_command_embed_ids=list(dict.fromkeys([
+            *(original_request.completed_command_embed_ids or []),
+            *completed_command_embed_ids(completed_results),
+        ])),
         completed_result_embed_ids=list(dict.fromkeys([
             *(original_request.completed_result_embed_ids or []),
             *completed_result_embed_ids(completed_results),

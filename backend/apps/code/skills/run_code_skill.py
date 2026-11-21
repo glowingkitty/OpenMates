@@ -805,6 +805,7 @@ class RunCodeSkill(BaseSkill):
                 "argv": list(request.argv), "cwd": request.cwd, "timeout_seconds": timeout_seconds,
                 "background": request.background, "ready_url": request.ready_url, "project_id": project_id,
                 "repeat_fingerprint": fingerprint,
+                "parent_embed_id": (kwargs.get("placeholder_embed_ids") or [None])[0],
                 "focus_id_hash": (focus or {}).get("focus_id_hash"),
             },
         )

@@ -11935,9 +11935,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 16
+        passing: 17
         failing: 0
-        not_run: 7
+        not_run: 6
         missing: 15
         counted: 38
       key_tests: []
@@ -11948,7 +11948,7 @@ features:
       - backend/tests/test_code_run_billing_attribution.py
       - backend/tests/test_e2b_code_runner.py
       - backend/tests/test_application_preview_config.py
-      unit_test_files: 27
+      unit_test_files: 30
     sdk_npm:
       status: not_run
       source: tests

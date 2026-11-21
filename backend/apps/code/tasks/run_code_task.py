@@ -25,6 +25,7 @@ import httpx
 from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
+from backend.apps.code.tasks.command_parent_embed import finalize_command_parent_embed
 from backend.apps.code.tasks.test_result_embed import persist_test_result_embed, run_result_embed_id
 from backend.apps.code.tasks import cloud_command_execution as cloud_cmd
 from backend.apps.code.tasks.test_run_execution import execute_test_run, final_test_result
@@ -662,6 +663,12 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
         }
         if payload.get("command_run"):
             completion = cloud_cmd.command_completion(completion, final_status, payload["command_run"])
+            if payload.get("target_embed_id"):
+                completion["command_embed_id"] = payload["target_embed_id"]
+            try:
+                run_async(finalize_command_parent_embed(payload, final_status, cache_service))
+            except (RuntimeError, ValueError) as parent_exc:
+                logger.error("Cloud command parent card for %s not finalized: %s", execution_id, parent_exc, exc_info=True)
             run_async(cloud_cmd.remember_if_succeeded(
                 cache_service, payload=payload, final_status=final_status, completion=completion,
             ))

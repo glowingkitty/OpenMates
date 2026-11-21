@@ -123,7 +123,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Read and search events | ? | ? |  | ? | ? | **live** 1/1 | ? | ? | | | |
 | &nbsp;&nbsp;↳ Create, update and delete | ? | ? |  | ? | ? | **live** 4/4 | ? | ? | | | |
 | &nbsp;&nbsp;↳ Workflows | ? | ? |  | ? | ? | ? | ? | ? | | | |
-| [Code](#code) | **FAIL** 7/40 | partial 9/38 |  | partial 9/38 | impl | partial 16/38 | not run 0/38 | impl | on | on | v0.1-alpha-1 |
+| [Code](#code) | **FAIL** 7/40 | partial 9/38 |  | partial 9/38 | impl | partial 17/38 | not run 0/38 | impl | on | on | v0.1-alpha-1 |
 | [Design](#design) | partial 7/28 | impl |  | impl | impl | partial 21/28 | impl | impl | on | on | v0.19.0 |
 | &nbsp;&nbsp;↳ Figma and Penpot designs | partial 4/14 | planned |  | wip | ? | partial 7/14 | wip | wip | | | |
 | [Diagrams](#diagrams) | impl | impl |  | wip | wip | — | impl | wip | on | on | untagged-main |
@@ -1174,7 +1174,7 @@ Get coding help, docs & project advice.
 | Apple | partial 9/38 | 9 pass · 0 fail · 0 not run · 29 no test | [AgenticCodingPreviewUITests.swift](../../apple/OpenMatesUITests/AgenticCodingPreviewUITests.swift)<br>[EmbedRenderingParityUITests.swift](../../apple/OpenMatesUITests/EmbedRenderingParityUITests.swift)<br>10 unit test file(s), e.g. [CodeRunOutputSyncTests.swift](../../apple/OpenMatesTests/CodeRunOutputSyncTests.swift), [ProjectWorkspaceReviewRuntimeTests.swift](../../apple/OpenMatesTests/ProjectWorkspaceReviewRuntimeTests.swift) |
 | CLI | partial 9/38 | 9 pass · 0 fail · 9 not run · 20 no test | [cli-native-agentic-app-real.spec.ts](../../frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts)<br>[cli-native-code-run-real.spec.ts](../../frontend/apps/web_app/tests/cli-native-code-run-real.spec.ts)<br>[cli-native-code-run.spec.ts](../../frontend/apps/web_app/tests/cli-native-code-run.spec.ts)<br>[cli-project-file-chat.spec.ts](../../frontend/apps/web_app/tests/cli-project-file-chat.spec.ts)<br>19 unit test file(s), e.g. [test_remote_command_service.py](../../backend/tests/test_remote_command_service.py), [remoteCommandRuntime.test.ts](../../frontend/packages/openmates-cli/tests/remoteCommandRuntime.test.ts) |
 | TUI | impl | — | — |
-| REST API | partial 16/38 | 16 pass · 0 fail · 7 not run · 15 no test | 27 unit test file(s), e.g. [test_code_execution.py](../../backend/tests/test_code_execution.py), [test_code_run_skill_execution.py](../../backend/apps/ai/tests/test_code_run_skill_execution.py) |
+| REST API | partial 17/38 | 17 pass · 0 fail · 6 not run · 15 no test | 30 unit test file(s), e.g. [test_code_execution.py](../../backend/tests/test_code_execution.py), [test_code_run_skill_execution.py](../../backend/apps/ai/tests/test_code_run_skill_execution.py) |
 | npm SDK | not run 0/38 | 0 pass · 0 fail · 2 not run · 36 no test | 1 unit test file(s), e.g. [sdk.test.ts](../../frontend/packages/openmates-cli/tests/sdk.test.ts) |
 | PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 38 no test | — |
 
