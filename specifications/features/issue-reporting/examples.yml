@@ -62,6 +62,10 @@ successful_submission:
     given: A non-administrator submits an issue whose consented reporting flow requests an asynchronous debug report.
     when: Background processing finishes.
     then: The issue status reports that the debug artifact is available without changing the stable issue identifiers.
+  - id: debug-report-reads-back
+    given: An authenticated user's issue report has its debug report stored.
+    when: The status is requested with verify_yaml=true, and an admin inspects the issue with and without logs.
+    then: The status reports the debug report as readable; admin inspection shows its console logs, and with logs skipped it says the report was not loaded instead of calling it a failure.
 
 compact_logs:
   - id: authenticated-browser-log-capture

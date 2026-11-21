@@ -94,6 +94,10 @@ assertions:
     type: behavior
     must: A successful report submission returns stable full and short issue identifiers, visibly confirms the report, and exposes the eventual persistence state of the attached screenshots (how many were stored and how many were skipped as invalid or larger than 2 MB) and any requested asynchronous debug report. A report keeps up to five screenshots; a request with more than five is rejected, and every stored screenshot is shown to the admin (email, debug report) and deleted with the report.
     depends_on: [models.IssueReport, examples.successful_submission]
+  - id: issue-reporting.logs.debug-report-readable
+    type: behavior
+    must: A stored debug report reads back and decrypts for the issue it names. With an explicit verification request the issue status says whether it is readable and, if not, only which step failed (key, object, download, decrypt, parse), never its content. Admin inspection never shows a report it skipped loading as a failed one; a real failure names that step.
+    depends_on: [models.IssueReport, examples.successful_submission]
   - id: issue-reporting.logs.authenticated-capture
     type: behavior
     must: When an authenticated user submits an issue with diagnostic collection enabled, the browser sends privacy-filtered compact client logs with the user's authenticated request, the API accepts them, and authorized issue investigation can retrieve entries associated with that user or issue instead of presenting an empty log view solely because the user identifier is stored as a structured field.

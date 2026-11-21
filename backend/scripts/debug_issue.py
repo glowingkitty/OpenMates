@@ -79,6 +79,10 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.s3.service import S3UploadService
+from backend.core.api.app.services.issue_report_yaml import (
+    IssueReportYamlUnreadable,
+    read_issue_report_yaml,
+)
 from backend.core.api.app.services.issue_report_screenshots import decrypt_screenshot_keys, issue_has_screenshots
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.utils.report_issue_ids import issue_identifier_query_params
@@ -596,78 +600,36 @@ async def delete_issue(
     return True, msg
 
 
+S3_REPORT_SKIPPED_NOTE = "skipped: --no-logs was given"
+
+
 async def fetch_s3_report(
     encryption_service: EncryptionService,
     s3_service: S3UploadService,
     issue: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
+) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
     """
     Fetch and decrypt the full YAML report from S3.
 
-    The flow is:
-    1. Decrypt the S3 object key from the issue record
-    2. Download the encrypted YAML from S3
-    3. Decrypt the YAML content
-    4. Parse the YAML into a dictionary
-
-    Args:
-        encryption_service: EncryptionService instance
-        s3_service: S3UploadService instance (initialized)
-        issue: Raw issue dictionary from Directus
-
-    Returns:
-        Parsed YAML report dictionary, or None if unavailable/failed
+    Returns ``(report, None)`` on success, ``(None, None)`` when the issue has
+    no YAML key yet, and ``(None, "<step>: <detail>")`` naming the exact step
+    that failed (see backend/core/api/app/services/issue_report_yaml.py).
     """
     if not issue.get('encrypted_issue_report_yaml_s3_key'):
         script_logger.debug("No S3 key found for this issue")
-        return None
+        return None, None
 
     try:
-        import yaml
-
-        # Step 1: Decrypt the S3 object key
-        s3_object_key = await encryption_service.decrypt_issue_report_data(
-            issue['encrypted_issue_report_yaml_s3_key']
+        report = await read_issue_report_yaml(
+            encryption_service,
+            s3_service,
+            issue['encrypted_issue_report_yaml_s3_key'],
         )
-
-        if not s3_object_key:
-            script_logger.warning("Failed to decrypt S3 object key (returned None)")
-            return None
-
-        script_logger.debug(f"Decrypted S3 key: {s3_object_key}")
-
-        # Step 2: Get the bucket name for current environment
-        environment = os.getenv('SERVER_ENVIRONMENT', 'development')
-        bucket_name = get_bucket_name('issue_logs', environment)
-
-        # Step 3: Download encrypted YAML from S3
-        encrypted_yaml_bytes = await s3_service.get_file(
-            bucket_name=bucket_name,
-            object_key=s3_object_key
-        )
-
-        if not encrypted_yaml_bytes:
-            script_logger.warning(f"S3 file not found or empty: bucket={bucket_name}, key={s3_object_key}")
-            return None
-
-        script_logger.debug(f"Downloaded {len(encrypted_yaml_bytes)} bytes from S3")
-
-        # Step 4: Decrypt the YAML content
-        encrypted_yaml_str = encrypted_yaml_bytes.decode('utf-8')
-        decrypted_yaml = await encryption_service.decrypt_issue_report_data(encrypted_yaml_str)
-
-        if not decrypted_yaml:
-            script_logger.warning("Failed to decrypt YAML content from S3")
-            return None
-
-        # Step 5: Parse YAML
-        report = yaml.safe_load(decrypted_yaml)
-        script_logger.debug("Successfully parsed YAML report from S3")
-        return report
-
-    except Exception as e:
-        script_logger.error(f"Error fetching S3 report: {e}", exc_info=True)
-        return None
+    except IssueReportYamlUnreadable as exc:
+        script_logger.error(f"S3 YAML report unreadable at step {exc.step}: {exc.detail}")
+        return None, str(exc)
+    script_logger.debug("Successfully parsed YAML report from S3")
+    return report, None
 
 
 def filter_logs_to_errors(
@@ -1508,6 +1470,7 @@ def format_detail_output(
     full_logs: bool = False,
     screenshot_presigned_url: Optional[str] = None,
     screenshot_presigned_urls: Optional[List[str]] = None,
+    s3_report_note: Optional[str] = None,
 ) -> str:
     """
     Format the issue inspection results as human-readable text.
@@ -1689,8 +1652,11 @@ def format_detail_output(
     lines.append("-" * 100)
 
     if s3_report is None:
-        if issue and issue.get('encrypted_issue_report_yaml_s3_key'):
-            lines.append("  ❌ Failed to fetch or decrypt S3 report (key exists but retrieval failed)")
+        if s3_report_note == S3_REPORT_SKIPPED_NOTE:
+            lines.append("  ℹ️  YAML report not loaded (--no-logs). Run without --no-logs to read it.")
+        elif issue and issue.get('encrypted_issue_report_yaml_s3_key'):
+            reason = s3_report_note or "S3 service could not be initialized"
+            lines.append(f"  ❌ YAML report exists but could not be read: {reason}")
         elif issue:
             lines.append("  ℹ️  No S3 report available (issue may not have been fully processed)")
         else:
@@ -1900,6 +1866,7 @@ def format_summary_output(
     issue: Optional[Dict[str, Any]],
     decrypted: Dict[str, Optional[str]],
     s3_report: Optional[Dict[str, Any]],
+    s3_report_note: Optional[str] = None,
 ) -> str:
     """Format a condensed issue summary for sessions.py inline context.
 
@@ -1942,6 +1909,8 @@ def format_summary_output(
         lines.append(f"  Description: {clean_desc}")
 
     # ── S3 YAML key findings
+    if s3_report is None and s3_report_note:
+        lines.append(f"  YAML report: {s3_report_note}")
     report = s3_report or {}
     indexeddb = report.get('indexeddb_inspection')
     if indexeddb and isinstance(indexeddb, dict):
@@ -2001,6 +1970,7 @@ def format_detail_json(
     s3_report: Optional[Dict[str, Any]],
     screenshot_presigned_url: Optional[str] = None,
     screenshot_presigned_urls: Optional[List[str]] = None,
+    s3_report_note: Optional[str] = None,
 ) -> str:
     """
     Format the issue inspection results as JSON.
@@ -2035,6 +2005,8 @@ def format_detail_json(
         'issue_metadata': issue,
         'decrypted_fields': censored_decrypted,
         's3_report': censored_s3_report,
+        # Why s3_report is empty: "skipped: --no-logs was given" or "<step>: <detail>".
+        's3_report_note': s3_report_note,
         # Fresh 7-day pre-signed URL for the screenshot PNG (if attached).
         # Load this URL directly to view the screenshot image.
         'screenshot_presigned_url': screenshot_presigned_url,
@@ -2639,6 +2611,9 @@ async def main():
 
                     # 3. Fetch S3 report and generate screenshot pre-signed URL (if applicable)
                     s3_report = None
+                    s3_report_note: Optional[str] = None
+                    if args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
+                        s3_report_note = S3_REPORT_SKIPPED_NOTE
                     screenshot_presigned_url: Optional[str] = None
                     screenshot_presigned_urls: List[str] = []
                     needs_s3 = (
@@ -2655,7 +2630,9 @@ async def main():
                             # Fetch YAML report (unless --no-logs)
                             if not args.no_logs and issue and issue.get('encrypted_issue_report_yaml_s3_key'):
                                 script_logger.info("Fetching S3 YAML report...")
-                                s3_report = await fetch_s3_report(encryption_service, s3_service, issue)
+                                s3_report, s3_report_note = await fetch_s3_report(
+                                    encryption_service, s3_service, issue
+                                )
 
                             # Generate fresh 7-day pre-signed URL for the screenshot PNG
                             if issue and issue_has_screenshots(issue):
@@ -2668,6 +2645,8 @@ async def main():
                                 )
                         except Exception as e:
                             script_logger.warning(f"Failed to initialize S3 service: {e}")
+                            if s3_report is None and s3_report_note is None:
+                                s3_report_note = f"S3 service could not be initialized: {e}"
 
                     # 4. Format and output results
                     if args.json:
@@ -2675,10 +2654,12 @@ async def main():
                             args.issue_id, issue, decrypted, s3_report,
                             screenshot_presigned_url=screenshot_presigned_url,
                             screenshot_presigned_urls=screenshot_presigned_urls,
+                            s3_report_note=s3_report_note,
                         ))
                     elif args.summary:
                         print(format_summary_output(
                             args.issue_id, issue, decrypted, s3_report,
+                            s3_report_note=s3_report_note,
                         ))
                     else:
                         print(format_detail_output(
@@ -2686,6 +2667,7 @@ async def main():
                             full_logs=args.full_logs,
                             screenshot_presigned_url=screenshot_presigned_url,
                             screenshot_presigned_urls=screenshot_presigned_urls,
+                            s3_report_note=s3_report_note,
                         ))
 
                     # --related-commits: search git history for prior related fixes

@@ -24,6 +24,7 @@ from backend.core.api.app.services.issue_report_screenshots import (
     decrypt_screenshot_keys,
     issue_has_screenshots,
 )
+from backend.core.api.app.services.issue_report_yaml import issue_report_yaml_unreadable_step
 from backend.core.api.app.services.issue_report_storage import (
     ISSUE_REPORT_DB_TITLE_MAX_CHARS, fit_issue_text_for_storage,
 )
@@ -3460,6 +3461,9 @@ class IssueStatusResponse(BaseModel):
     has_screenshot: bool
     screenshot_count: int = 0
     has_yaml_report: bool
+    # Only with ?verify_yaml=true: the stored YAML was read back and decrypted.
+    yaml_report_readable: Optional[bool] = None
+    yaml_report_unreadable_step: Optional[str] = None
     processed: bool
 
 
@@ -3472,11 +3476,14 @@ class IssueStatusResponse(BaseModel):
 async def get_issue_status(
     request: Request,
     issue_id: str,
+    verify_yaml: bool = False,
     current_user: User = Depends(get_current_user),
     encryption_service: EncryptionService = Depends(get_encryption_service),
 ):
     """
     Return the completion status of an issue report submitted by the current user.
+    ``verify_yaml=true`` also reads the stored YAML back from S3 and decrypts it
+    (TASK-1164), returning only readable/step, never content.
 
     Authorization: the caller must be the `reported_by_user_id` on the issue
     record. This prevents users from probing other users' issues. Admins can
@@ -3504,9 +3511,16 @@ async def get_issue_status(
         if reporter_id != current_user.id and not current_user.is_admin:
             raise HTTPException(status_code=403, detail="Not authorized to read this issue")
 
+        yaml_checked = verify_yaml and bool(issue.get("encrypted_issue_report_yaml_s3_key"))
+        unreadable_step = (
+            await issue_report_yaml_unreadable_step(encryption_service, request.app.state.s3_service, issue)
+            if yaml_checked else None
+        )
         return IssueStatusResponse(
             id=issue["id"],
             short_issue_id=issue.get("short_issue_id"),
+            yaml_report_readable=(unreadable_step is None) if yaml_checked else None,
+            yaml_report_unreadable_step=unreadable_step,
             has_screenshot=issue_has_screenshots(issue),
             screenshot_count=len(
                 await decrypt_screenshot_keys(issue, encryption_service)
