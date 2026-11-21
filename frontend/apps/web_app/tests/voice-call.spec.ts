@@ -2613,7 +2613,9 @@ test.describe('Voice mode through ordinary chat', () => {
     await assertVoiceInputCleanup(page);await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
     await assertCallChatPreserved(page,chatId);await expectCallChatLastOpened(page,chatId);
     await evictOwnedCallRows(page,chatId,ready.callId!,messageIds);await page.reload();await waitForChatReady(page);
-    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1);
+    // The local rows were evicted, so the transcript comes back from the server:
+    // allow that fetch time instead of the default 5 s (a stuck load still fails).
+    await expect(page.getByTestId('message-user').filter({hasText:USER_SPEECH})).toHaveCount(1,{timeout:30_000});
     await expect(page.getByTestId('message-assistant').filter({hasText:ASSISTANT_SPEECH})).toHaveCount(1);
     await expect(page.getByTestId('message-assistant').filter({hasText:'Here are the images I found.'}).getByRole('link',{name:'the source',exact:true})).toHaveAttribute('href','https://app.dev.openmates.org/store-examples/generate-1.webp');
     await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
@@ -2746,6 +2748,11 @@ test.describe('Voice mode through ordinary chat', () => {
     const speak=assistant.getByTestId('assistant-message-speak');
     expect(speechCapabilityResponses).toBeGreaterThan(0);
     await expect(speak).toBeVisible();
+    // Manual Speak needs the stored reply (otherwise assistant_message_required).
+    // Right after hangup the page may still be persisting it, so wait for its
+    // storage receipt instead of racing it.
+    await expect.poll(async()=>(await evidence(page)).received.some(frame=>frame.type==='recovery_job_persisted'
+      &&frame.messageId===messageId),{timeout:30_000}).toBe(true);
     const startManual=(await evidence(page)).received.length;
     await page.evaluate(()=>(window as unknown as {__voiceManualSpeechPlayback:{epoch:number}}).__voiceManualSpeechPlayback.epoch=1);
     await clickChatTarget(speak,testInfo);

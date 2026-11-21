@@ -47,6 +47,11 @@ const CONTEXT_WINDOW_SIZE = 24;
 const MAX_CONTEXT_SCAN_MESSAGES = 120;
 const MAX_CONTEXT_CHARS = 64_000;
 const MAX_CHECKPOINT_CHARS = 48_000;
+/** The voice call reports and retries its spoken turns' rejections itself. */
+export function ownVoiceTurnErrors(turnId: string): () => void {
+  return webSocketService.ownTurnErrors(turnId);
+}
+
 export class VoiceCallContextError extends Error {
   constructor(readonly code: "context_too_large" | "context_unavailable") { super(code); }
 }

@@ -634,3 +634,24 @@ describe("request-owned embed errors", () => {
     expect(toast).toHaveBeenCalledOnce();
   });
 });
+
+describe("turn-owned errors", () => {
+  const defaultError = () => (webSocketService as unknown as {
+    messageHandlers: Map<string, Array<(payload: unknown) => void>>;
+  }).messageHandlers.get("error")![0];
+
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.complete-turn-admission
+  it("keeps a voice turn's rejected preflight out of the Server error notice while the call owns it", () => {
+    const toast = vi.spyOn(notificationStore, "error").mockImplementation(() => "toast");
+    const rejection = { code: "version_conflict", message: "Encrypted chat preflight was rejected.", turn_id: "turn-1" };
+    const release = webSocketService.ownTurnErrors("turn-1");
+    defaultError()(rejection);
+    expect(toast).not.toHaveBeenCalled();
+    defaultError()({ ...rejection, turn_id: "turn-2" });
+    expect(toast).toHaveBeenCalledTimes(1);
+    release();
+    release();
+    defaultError()(rejection);
+    expect(toast).toHaveBeenCalledTimes(2);
+  });
+});

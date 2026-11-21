@@ -10067,7 +10067,7 @@ features:
       - backend/tests/test_voice_call_protocol.py
       - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
       - frontend/packages/ui/src/components/videocall/callAudio.test.ts
-      - backend/tests/test_voice_call_admission.py
+      - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
       unit_test_files: 64
     apple:
       status: partial

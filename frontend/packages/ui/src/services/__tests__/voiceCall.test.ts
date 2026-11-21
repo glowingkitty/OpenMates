@@ -10,6 +10,7 @@ vi.mock('../../i18n/translations', async () => {
 const persistence = vi.hoisted(() => ({
   persist: vi.fn(async (_callId: string, _chatId: string, _id: string, _text: string, _createdAt: number) => {}), rollback: vi.fn(async () => {}),
   lifecycle: vi.fn(async (_event:unknown) => {}), upsert: vi.fn(async () => {}), artifact: vi.fn(async () => {}), prepare: vi.fn(async (): Promise<{chatId:string;history:never[];cleanupAttemptId?:string}> => ({ chatId: 'chat-1', history: [] })),
+  releaseTurnErrors: vi.fn(), ownTurnErrors: vi.fn((_turnId: string) => persistence.releaseTurnErrors),
 }));
 const cleanup = vi.hoisted(() => ({
   identity: 'owner' as string | null, epoch: 1,
@@ -111,6 +112,7 @@ vi.mock('../voiceCallMessages', () => ({
   upsertCallTranscript: persistence.upsert,
   upsertCallArtifact: persistence.artifact,
   prepareVoiceCallChat: persistence.prepare,
+  ownVoiceTurnErrors: persistence.ownTurnErrors,
 }));
 vi.mock('../../stores/authStore', () => ({
   authStore: { subscribe: (run: (value: { isAuthenticated: boolean }) => void) => {
@@ -1066,6 +1068,7 @@ describe('integrated voice call typed turns', () => {
   // contract-test: direct surface=gui.web assertions=video-call.audio.complete-turn-admission
   it('retries a spoken turn whose admission was rejected with version_conflict and keeps the call live (NRUV9)', async () => {
     vi.useFakeTimers({toFake:['setTimeout','clearTimeout']});
+    persistence.ownTurnErrors.mockClear(); persistence.releaseTurnErrors.mockClear();
     const {controller,harness}=liveController();
     canonical.send.mockRejectedValueOnce(Object.assign(new Error('version_conflict'),{code:'version_conflict'}));
     harness.handleMessage({type:'transcript',call_id:'call-1',role:'user',message_id:'user-conflict',text:'And for two people?',final:true});
@@ -1074,6 +1077,12 @@ describe('integrated voice call typed turns', () => {
     expect(canonical.send.mock.calls[1][0]).toMatchObject({turnId:'user-conflict'});
     expect(get(controller).status).toBe('live');
     expect(get(controller).error).toBeNull();
+    // The call owns the turn's rejection frames, so no "Server error" notice
+    // shows for the retried attempt; ownership ends after a short grace.
+    expect(persistence.ownTurnErrors).toHaveBeenCalledWith('user-conflict');
+    expect(persistence.releaseTurnErrors).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(5_100);
+    expect(persistence.releaseTurnErrors).toHaveBeenCalledOnce();
     vi.useRealTimers(); controller.hangup();
   });
 

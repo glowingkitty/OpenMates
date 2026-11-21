@@ -11,7 +11,7 @@ import { authStore } from '../stores/authStore';
 import { websocketTokenNeedsRefresh } from './audioRealtimeTranscription';
 import { assistantSpeechController } from './assistantSpeechController';
 import { supportsAssistantSpeechStream } from './assistantSpeechStream';
-import { prepareVoiceCallChat, VoiceCallContextError } from './voiceCallMessages';
+import { ownVoiceTurnErrors, prepareVoiceCallChat, VoiceCallContextError } from './voiceCallMessages';
 import { admitVoiceCallChat, reportVoiceCallTurnDelivery, sendVoiceCallTurn } from './voiceCallTurns';
 import { VoiceCallEarlyTurns } from './voiceCallEarlyTurns';
 import { VoiceCallBackground } from './voiceCallBackground';
@@ -197,6 +197,7 @@ export const VOICE_CALL_RESUME_WINDOW_MS = 90_000;
 const RESUME_RETRY_DELAYS_MS = [500, 1_000, 2_000, 3_000, 5_000];
 const RESUME_ATTEMPT_TIMEOUT_MS = 15_000;
 const TURN_WRITE_RETRY_DELAYS_MS = [1_500, 4_000, 8_000];
+const TURN_ERROR_OWNERSHIP_GRACE_MS = 5_000;
 /** How long a hidden page may keep a working microphone before the call is judged unrecoverable. */
 const BACKGROUND_MICROPHONE_CHECK_MS = 1_500;
 
@@ -875,6 +876,11 @@ export class VoiceCallController implements VoiceCallControllerLike {
             console.warn('[VoiceCall] Turn attempt failed; retrying', error instanceof Error ? error.message.slice(0, 80) : typeof error);
             return false;
           });
+          // The call reports this turn's outcome itself: a rejection that is
+          // retried must not also show a "Server error" notice. The release is
+          // delayed because the rejected frame can reach the page after the
+          // core has already returned the failure.
+          const releaseTurnErrors = ownVoiceTurnErrors(id);
           let accepted = await attempt();
           // A refused or failed delivery is retried with a fresh preparation before
           // the call gives up: one transient refusal must not end the call (NRUV9).
@@ -886,6 +892,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
             await new Promise(resolve => setTimeout(resolve, delay));
             accepted = await attempt();
           }
+          setTimeout(releaseTurnErrors, TURN_ERROR_OWNERSHIP_GRACE_MS);
           if (accepted && generation === this.generation && this.pendingHeardBoundary === heardBoundary) this.pendingHeardBoundary = null;
           return accepted;
         }).then(accepted => {
