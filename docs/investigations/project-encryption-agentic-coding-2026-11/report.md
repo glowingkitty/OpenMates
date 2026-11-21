@@ -5,6 +5,12 @@ repositories and throwaway accounts. No product code was changed. The raw
 numbers, the harness and how to rerun it are in [`data/`](data/) and
 [`harness/`](harness/).
 
+> **Correction, 21 Nov.** Two statements in the first version were wrong:
+> prompt caching *is* on for the default model (system prefix and tools, about
+> 30 % of tokens, history not cached), and edits *are* unified diffs (about
+> 350 output tokens per step). Details and the target design:
+> [follow-up-target-architecture.md](follow-up-target-architecture.md).
+
 ## Summary
 
 - **Today, a coding task in an OpenMates hosted Project takes 4–25 times as long
@@ -23,9 +29,10 @@ numbers, the harness and how to rerun it are in [`data/`](data/) and
   encryption:**
   - each file operation ends the AI task and starts a new one, which rebuilds
     the 24–33K-token prompt (about 1.5 s per operation);
-  - there is no prompt caching on the default model (about 3 s to the first
-    token on every step);
-  - the model rewrites whole files instead of sending a diff;
+  - prompt caching covers only the fixed system prefix and tools (about 30 %
+    of each step's tokens), not the history (about 3 s to the first token);
+  - edits are diffs, but the model re-reads after each edit and retries
+    malformed diffs;
   - only one file operation runs per model step.
 - **Under load the step-by-step design gets much slower.** Every file
   operation queues a new AI task. With about 15 other chats on dev, those
@@ -187,8 +194,9 @@ One traced continuation (model step) breaks down as:
 - app instructions: 0.56 s;
 - agentic context: 0.5 s;
 - model request sent 1.36 s after the step started;
-- time to first token 3.05 s for 24K input tokens, with no prompt cache
-  (`cached_content_token_count: null`).
+- time to first token 3.05 s for 24K input tokens; this step missed the
+  prompt cache (`cached_content_token_count: null`). Most steps hit it for
+  about 10K tokens (see the correction note at the top).
 
 ## 3. Benchmarks
 
@@ -244,8 +252,9 @@ What the numbers show:
    encryption.
 3. **The model steps are long, about 8 s, against about 3 s in Claude Code.**
    Contributing factors:
-   - the prompt is large (24–33K input tokens per step) and never cached;
-   - edits resend the whole file;
+   - the prompt is large (24–33K input tokens per step) and only about 30 %
+     of it is cached;
+   - edits are unified diffs, but each one needs a fresh read first;
    - the model often repeats `update_file`: five times in the connected small
      fix and many times in the multi-file run.
 4. **The multi-file run spiralled because of a bug, not because of
@@ -348,7 +357,8 @@ Changes, all within today's promise:
    (the model already emits several), and use one `apply_changes` for
    multi-file writes.
 5. **Not encryption-related, but needed for the target:** prompt caching on the
-   default model, and a diff/`replace` edit tool instead of full-file rewrites.
+   default model extended to the history, and an exact-replace edit tool next
+   to the existing unified-diff tool.
 
 | | |
 |---|---|
