@@ -4995,10 +4995,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 13
+        passing: 14
         failing: 1
         not_run: 7
-        missing: 10
+        missing: 9
         counted: 31
       failing_tests:
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts › OpenMates app does not offer the retired Welcome focus mode
@@ -5024,7 +5024,7 @@ features:
       - frontend/packages/ui/src/components/settings/focusModeInstructions.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
       - frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      unit_test_files: 7
+      unit_test_files: 8
     apple:
       status: partial
       source: tests

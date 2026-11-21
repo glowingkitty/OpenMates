@@ -396,8 +396,12 @@ export async function saveProjectMarkdownDocument(input: {
     }
     return commit(payload);
   };
-  const digest = await projectFileMutationDigest(adapter.projectKey, input.projectId, input.chatId, mutation);
-  await approveProjectWrite(input.projectId, { chat_id: input.chatId, operation_id: mutation.operation_id, proposal_digest: digest }, { teamId: adapter.teamId });
+  // The server stores approvals only for Projects that ask before writing and answers 409
+  // PROJECT_WRITE_APPROVAL_NOT_REQUIRED otherwise; apply-and-show writes need none (as in the core's remote_files.rs).
+  if (adapter.writeMode !== 'apply_and_show') {
+    const digest = await projectFileMutationDigest(adapter.projectKey, input.projectId, input.chatId, mutation);
+    await approveProjectWrite(input.projectId, { chat_id: input.chatId, operation_id: mutation.operation_id, proposal_digest: digest }, { teamId: adapter.teamId });
+  }
   const applied = await executeHostedProjectFileJob(adapter, job(input.chatId, input.projectId, mutation.operation, path, mutation.operation_id), mutation);
   if (existing) {
     const response = await fetch(getApiEndpoint(`/v1/projects/${encodeURIComponent(input.projectId)}/items/${encodeURIComponent(existing.project_item_id)}${adapter.teamId ? `?team_id=${encodeURIComponent(adapter.teamId)}` : ''}`), {
