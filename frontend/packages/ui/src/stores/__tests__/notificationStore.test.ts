@@ -65,15 +65,54 @@ describe("duplicate notification groups", () => {
     );
     notificationStore.error("Failed to save", 0, true, "save-two");
     notificationStore.error("Failed to save", 0);
+    // The updated card shows other text; identical text joins one card whatever its key.
     expect(notifications()).toMatchObject([
       { id, message: "Retrying", actionsDisabled: true, count: 2 },
-      { dedupeKey: "save-two", count: 1 },
-      { dedupeKey: undefined, count: 1 },
+      { dedupeKey: "save-two", count: 2 },
     ]);
   });
 
+  // contract-test: direct surface=gui.web assertions=notifications.web.duplicate-grouping,notifications.web.duplicate-lifecycle
+  it("shows the same text fired 10 times as one card with ×10 that one close removes", () => {
+    // Each trigger has its own key and action, like one warning per saved result.
+    const ids = Array.from({ length: 10 }, (_, index) =>
+      notificationStore.addNotificationWithOptions("warning", {
+        message: "A saved result has a conflicting revision.",
+        duration: 0,
+        dedupeKey: `embed-write-conflict:embed-${index}`,
+        actionLabel: "Review chat",
+        onAction: () => index,
+      }));
+    expect(new Set(ids).size).toBe(1);
+    expect(notifications()).toHaveLength(1);
+    expect(notifications()[0]).toMatchObject({ id: ids[0], count: 10 });
+    notificationStore.removeNotification(ids[0]);
+    vi.advanceTimersByTime(NOTIFICATION_OUTRO_DURATION_MS);
+    expect(notifications()).toEqual([]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.web.duplicate-lifecycle
+  it("keeps a card that stands for several keys until its last key is resolved", () => {
+    const id = notificationStore.warning("Review the chat", 0, true, "conflict:a");
+    notificationStore.warning("Review the chat", 0, true, "conflict:b");
+    notificationStore.removeNotificationsByDedupeKey("conflict:a");
+    expect(notifications()).toMatchObject([{ id, count: 2, dedupeKeys: ["conflict:b"] }]);
+    expect(notificationStore.warning("Review the chat", 0, true, "conflict:b")).toBe(id);
+    notificationStore.removeNotificationsByDedupeKey("conflict:b");
+    expect(notifications()).toEqual([]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.web.duplicate-lifecycle
+  it("keeps a timed card open once an identical trigger must stay until closed", () => {
+    const id = notificationStore.error("Failed to save", 5000);
+    notificationStore.error("Failed to save", 0);
+    vi.advanceTimersByTime(60000);
+    expect(notifications()).toMatchObject([{ id, count: 2, duration: 0 }]);
+    expect(notifications()[0].isExiting).toBeUndefined();
+  });
+
   // contract-test: supporting surface=gui.web assertions=notifications.web.duplicate-grouping
-  it("keeps notification types and chat destinations distinct", () => {
+  it("keeps notification types distinct and merges identical chat cards", () => {
     notificationStore.info("Done", 0);
     notificationStore.error("Done", 0);
     const firstChat = notificationStore.chatMessage(
@@ -85,7 +124,7 @@ describe("duplicate notification groups", () => {
     expect(notificationStore.chatMessage("chat-one", "Updates", "Done")).toBe(
       firstChat,
     );
-    expect(notifications().map(({ count }) => count)).toEqual([1, 1, 2, 1]);
+    expect(notifications().map(({ count }) => count)).toEqual([1, 1, 3]);
   });
 
   const action = () => {};
@@ -113,21 +152,14 @@ describe("duplicate notification groups", () => {
     { messageSecondary: "Other details" },
     { messageLink: { href: "/other", label: "Details" } },
     { messageLink: { href: "/first", label: "Other link" } },
-    { onAction: () => {} },
     { actionLabel: "Another action" },
-    { onSecondaryAction: () => {} },
     { secondaryActionLabel: "Another action" },
-    { chatId: "chat-two" },
     { chatTitle: "Other chat" },
     { avatarUrl: "/avatar-two" },
     { category: "software_development" },
-    { duration: 0 },
-    { dismissible: false },
-    { keepOnAction: true },
-    { actionsDisabled: true },
     { isProcessing: true },
   ])(
-    "does not merge an unkeyed alert with different content or behavior: %j",
+    "does not merge an alert with different visible content: %j",
     (changes) => {
       notificationStore.addNotificationWithOptions("info", options);
       notificationStore.addNotificationWithOptions("info", {
@@ -137,6 +169,22 @@ describe("duplicate notification groups", () => {
       expect(notifications()).toHaveLength(2);
     },
   );
+
+  // contract-test: supporting surface=gui.web assertions=notifications.web.duplicate-grouping
+  it.each<Partial<NotificationOptions>>([
+    { onAction: () => {} },
+    { onSecondaryAction: () => {} },
+    { chatId: "chat-two" },
+    { dedupeKey: "other-key" },
+    { duration: 0 },
+    { dismissible: false },
+    { keepOnAction: true },
+    { actionsDisabled: true },
+  ])("merges identical visible text despite a different source detail: %j", (changes) => {
+    const id = notificationStore.addNotificationWithOptions("info", options);
+    expect(notificationStore.addNotificationWithOptions("info", { ...options, ...changes })).toBe(id);
+    expect(notifications()).toMatchObject([{ id, count: 2 }]);
+  });
 
   // contract-test: supporting surface=gui.web assertions=notifications.web.duplicate-grouping
   it("compares reference links by value and normalizes inactive boolean options", () => {

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.notifications
-version: 2
-status: approved
+version: 3
+status: draft
 title: Notifications
 summary: >
   OpenMates notifications let authenticated users persist notification settings,
@@ -299,19 +299,24 @@ assertions:
       with a total occurrence count, starting at one and displayed visibly and
       accessibly from the second trigger onward on desktop and mobile. This applies
       across basic, extended, and convenience notification entrypoints, including
-      alerts without an explicit grouping key and chat notification cards. Automatic
-      grouping requires identical notification type, visible content, destination,
-      actions, and dismissal configuration. Existing explicit grouping keys remain
-      authoritative for their group; different explicit keys and keyed versus
-      unkeyed alerts remain separate. Updating an existing card does not count as
-      another trigger.
+      alerts without an explicit grouping key and chat notification cards. The same
+      notification type with identical visible text (title, message, secondary text,
+      link, chat title, avatar, action labels and activity state) never shows as more
+      than one active card, whatever its grouping key, destination, callbacks or
+      dismissal configuration; the first trigger keeps its actions and destination.
+      An explicit grouping key also joins the card that already holds it. Different
+      types or visible text remain separate. Updating an existing card does not count
+      as another trigger. Apple in-app notifications follow the same grouping and
+      counter.
     depends_on: [applies_to.gui, examples.web_duplicate_grouping]
   - id: notifications.web.duplicate-lifecycle
     type: behavior
     must: >
       A duplicate increments its active card's count in place, preserving its
       identity, stack position, action state, and existing auto-dismiss deadline or
-      paused timer. Dismissing the card once dismisses the whole group. Exiting,
+      paused timer, except that a duplicate which must stay until closed keeps the
+      card open. Dismissing the card once dismisses the whole group. A card that
+      holds several grouping keys stays until its last key is resolved. Exiting,
       expired, or removed cards no longer receive duplicates: a subsequent trigger
       creates a fresh card with a count of one. Clearing notifications also clears
       their counts, and ordinary timed-dismissal and action behavior continue to

@@ -84,6 +84,9 @@ enum AppStrings {
     static var liveActivityDownloadsTitle: String { L("live_activities.downloads_title") }
     static var liveActivityUpcomingTitle: String { L("live_activities.upcoming_title") }
     static var liveActivityUpcomingDetail: String { L("live_activities.upcoming_detail") }
+    static func notificationOccurrenceCount(_ count: Int) -> String {
+        LocalizationManager.shared.text("notifications.occurrence_count", replacements: ["count": String(count)])
+    }
     static func activeChatsWidgetTotal(count: Int) -> String {
         LocalizationManager.shared.text(count == 1 ? "apple.active_chats_widget.total_one" : "apple.active_chats_widget.total", replacements: ["count": String(count)])
     }

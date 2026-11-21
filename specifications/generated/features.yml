@@ -7767,7 +7767,7 @@ features:
   description: Notification settings, email and push notifications, and notification history.
   specifications:
   - id: feature.notifications
-    status: approved
+    status: draft
     path: specifications/features/notifications
   apps: []
   product_features: []
@@ -7791,8 +7791,6 @@ features:
       failing_tests:
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts › shows notification and submits details only after
         user confirmation
-      - frontend/apps/web_app/tests/components/notification-grouping.spec.ts › chat targets stay separate and one action handles
-        a repeated keyed group
       - frontend/apps/web_app/tests/components/notification-grouping.spec.ts › repeated errors update one card, retain its
         place, and dismiss once
       - frontend/apps/web_app/tests/notification-mobile.spec.ts › mobile notification stays inset and auto-dismisses with
@@ -7838,10 +7836,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 6
+        passing: 8
         failing: 0
         not_run: 0
-        missing: 22
+        missing: 20
         counted: 28
       key_tests: []
       e2e_tests:
@@ -7849,10 +7847,10 @@ features:
       key_unit_tests:
       - apple/OpenMatesTests/AppDeepLinkRoutingTests.swift
       - apple/OpenMatesTests/NativeHapticsPolicyTests.swift
+      - apple/OpenMatesTests/SettingsFullParityTests.swift
       - apple/OpenMatesTests/NotificationPreviewCryptoTests.swift
       - apple/OpenMatesTests/WorkflowsParityTests.swift
-      - backend/tests/test_workflow_completion_notifications.py
-      unit_test_files: 5
+      unit_test_files: 6
       platforms:
       - ios
       - ipados

@@ -898,10 +898,10 @@ specifications:
     fingerprint: 977aa4d1add939071d453771033674a524138de937b04aba86e069f3ffcca480
     required_applies_to: []
   feature.notifications:
-    version: 2
-    status: approved
+    version: 3
+    status: draft
     path: features/notifications
-    fingerprint: c813aec9e51c47ca42153eee117b209d00fd9acb1286ec2f40e823df086bc0b8
+    fingerprint: db50605d84846175261dccc366b4c3be99efa4de60f0b57513d2fe73cea8e495
     required_applies_to:
     - rest_api
     - cli
@@ -11796,7 +11796,7 @@ assertions:
     fingerprint: ffc557892d84ad38a7b8653e72c1790a3800b9a15f29cfb8f1a6745bacd50ea3
     required_applies_to: []
   notifications.settings.ack-persisted:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: ebc63f76dea00a2fbb5751d28d3cf2c38ec57409ca85d261b596885b64dfc758
@@ -11808,7 +11808,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.delivery.email-enabled:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: fb5a5f291373d11810ca35a9ec538f84b7ae7cefcfced087f0f860e6a1c60ac7
@@ -11820,7 +11820,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.reminder-email.identifiable-default:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: 56793ab80aea0c267817effd95b30c2e4b54a34afe9979c09c67d83a9ab73c68
@@ -11832,7 +11832,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.reminder-email.readable-without-images:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: d55eeba395631f6930e0bd1ffc5b00af5b19324ea6021ee58676865ba9b58790
@@ -11844,7 +11844,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.reminder-email.durable-limited-context:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: privacy
     fingerprint: 91b0b3bfc5aae6d82b18c4acbd18d9671843b7e8493ad4606cb9b42a27b83ca7
@@ -11856,7 +11856,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.reminder-email.exact-web-target:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: d0612a63cb2989a298f7d6596179dd291ee9cba2210d1f924ac943d630fda33c
@@ -11868,7 +11868,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.reminder-email.preview-access:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: privacy
     fingerprint: 904bc22595ac6298c4b185f8d624cabc55e493b35c62f6ede4d4b5371ad2ca33
@@ -11880,7 +11880,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.delivery.foreground-chat-suppression:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: 972945ed798f22e77185547d218640d33ec1eb2dde35f01c6ed7a2b7b9ad4c14
@@ -11892,7 +11892,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.delivery.push-enabled:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: cdeef624c95c758a9b87a82c875c61e06d6603403ca8e3abed0f7c84128cdd6a
@@ -11904,7 +11904,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.workflow-run.completed-delivery:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: d2fc7320b87c2df9111e38bff1122a77a3927d8f07f5ce2bfca12959332b7466
@@ -11916,7 +11916,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.workflow-run.chat-target:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: e254e2cbfffffd800b172a6b0318b0d32c8669f550bdc2c214101e0e818de2bf
@@ -11928,7 +11928,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.workflow-run.run-target:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: 27f2072b8a85da2ea6b332a007547ff326957a50e0e3bf2836d6c3ba55a6ff66
@@ -11940,7 +11940,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.workflow-digest.daily-activity:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: b1b865b71a8795282a017ebd700b2429c962caa3cb3ed0bb2f8f07910b128573
@@ -11952,7 +11952,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.workflow-digest.readable-identity:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: a6ef6e72432b1c9c5f6745a837e4d4aa86513a8909b074eb1ce62aa11c039926
@@ -11964,7 +11964,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.history.retained-listable:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: 1677cb0fa76553332355345e8fd138e21ca467510b0e56d53df0873280fc6b97
@@ -11976,7 +11976,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.content.privacy-boundary:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: privacy
     fingerprint: 2a342b81fbdc8ee56d0d161eb6e6d96378a17d7c8118b0d237dc66150ff9fd79
@@ -11988,7 +11988,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.delivery.idempotent:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: invariant
     fingerprint: c719c23ba5f3c45e7c457f59c1a2596a5387689033e8f762c6b0f0d75d5209a7
@@ -12000,10 +12000,10 @@ assertions:
     - gui.web
     - gui.apple
   notifications.surface.semantic-parity:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: parity
-    fingerprint: e18bf14de0e79d831ba31f5630c0b254d282f79b7b5e9267d23fc3c15f2a862f
+    fingerprint: 6cbc467278f0c05f48a60e2836ce0c1fdc6d47546438371e0b2d2c6cd95305aa
     required_applies_to:
     - rest_api
     - cli
@@ -12012,7 +12012,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.web.mobile-insets:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: 6e3c33692331981b97c1cc0045b3bc63d2f4dd23dcf4b69d28cc7050fb7d8caa
@@ -12024,7 +12024,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.web.timed-dismissal:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: 61cbeaedd06f11e5c6aabbcce7f4967125bd0256c44a1ca2ab8189b49517a165
@@ -12036,7 +12036,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.web.stacked-deck:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: b02269205ac5e42c3af4cca4515f09c3b16635533ad00b37d72c4976e4d3363f
@@ -12048,10 +12048,10 @@ assertions:
     - gui.web
     - gui.apple
   notifications.web.duplicate-grouping:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
-    fingerprint: 87ff74efe70208229c6deeefb67b2ca4cf788702b23b5b18ec151b5416a7fd4b
+    fingerprint: 2fc6038985e32cbf7b87f5ed1faa36810ddde38d55a26c4d78ceea1b512bc815
     required_applies_to:
     - rest_api
     - cli
@@ -12060,10 +12060,10 @@ assertions:
     - gui.web
     - gui.apple
   notifications.web.duplicate-lifecycle:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
-    fingerprint: a5c72d29773691988767fa6b9bce8a793f963ae72af2e5ddf025f0e47ed53bd7
+    fingerprint: 763f5fec9d157dd0de689831fc555b3e7463f64fc937a6e2db402701ec7a9c85
     required_applies_to:
     - rest_api
     - cli
@@ -12072,7 +12072,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.project-authoring.result-route:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: 8534bce7bfd4c59a859e32eb9703047d948a91f9faccfbaca4905dd7ba6d2c50
@@ -12084,7 +12084,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.sounds.important-events:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: a6bbf426e06bcd7c8834eb21fd1ead594c5f217c5eb409613387ea96fa929d42
@@ -12096,7 +12096,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.sounds.quiet-window:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: 70d9ed8931e1af100209c9bb1d071297c6f3996c3ce2705554b3c69921333636
@@ -12108,7 +12108,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.sounds.first-cue-opt-out:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: f8df6cf8ac9822ab3f8111da745776fe5a9c31f49b6099bfd26fa5388f16fad9
@@ -12120,7 +12120,7 @@ assertions:
     - gui.web
     - gui.apple
   notifications.sounds.silent-mode:
-    specification: feature.notifications@2
+    specification: feature.notifications@3
     specification_id: feature.notifications
     type: behavior
     fingerprint: 9f802090a1726080d1dacb0958ab0f560df0765790198cbc18b84ad5f662c6ab

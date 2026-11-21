@@ -73,6 +73,7 @@ export interface Notification {
   avatarUrl?: string; // Avatar image URL for chat message notifications
   category?: string; // Mate category for profile image (e.g., 'software_development')
   dedupeKey?: string; // Prevents repeated copies of the same active toast
+  dedupeKeys?: string[]; // Every explicit key folded into this card; it leaves when all are removed.
 }
 
 /**
@@ -129,33 +130,43 @@ let notificationIdCounter = 0;
 const autoDismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const exitRemovalTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+/**
+ * One active card per visible notification: the same explicit key, or the same
+ * type and visible text, always count as another trigger of that card. Keys
+ * and callbacks never split identical text into several cards; the first
+ * trigger keeps its actions and destination.
+ */
 function isDuplicateNotification(existing: Notification, incoming: Notification): boolean {
   if (existing.isExiting) return false;
   // Explicit keys retain their source-owned grouping, including across text updates.
-  if (existing.dedupeKey || incoming.dedupeKey) {
-    return existing.dedupeKey === incoming.dedupeKey;
-  }
+  if (incoming.dedupeKey && existing.dedupeKeys?.includes(incoming.dedupeKey)) return true;
 
-  // Callback identity matters: matching labels must never hide a different action.
   return existing.type === incoming.type
     && existing.title === incoming.title
     && existing.message === incoming.message
     && existing.messageSecondary === incoming.messageSecondary
     && existing.messageLink?.href === incoming.messageLink?.href
     && existing.messageLink?.label === incoming.messageLink?.label
-    && existing.chatId === incoming.chatId
     && existing.chatTitle === incoming.chatTitle
     && existing.avatarUrl === incoming.avatarUrl
     && existing.category === incoming.category
-    && existing.onAction === incoming.onAction
     && existing.actionLabel === incoming.actionLabel
-    && existing.onSecondaryAction === incoming.onSecondaryAction
     && existing.secondaryActionLabel === incoming.secondaryActionLabel
-    && existing.duration === incoming.duration
-    && existing.dismissible === incoming.dismissible
-    && Boolean(existing.keepOnAction) === Boolean(incoming.keepOnAction)
-    && Boolean(existing.actionsDisabled) === Boolean(incoming.actionsDisabled)
     && Boolean(existing.isProcessing) === Boolean(incoming.isProcessing);
+}
+
+/** Count one more trigger; a trigger that must stay until closed keeps the card open. */
+function mergeDuplicate(existing: Notification, incoming: Notification): Notification {
+  const keys = existing.dedupeKeys ?? [];
+  const persistent = !incoming.duration && Boolean(existing.duration);
+  return {
+    ...existing,
+    count: (existing.count ?? 1) + 1,
+    ...(incoming.dedupeKey && !keys.includes(incoming.dedupeKey)
+      ? { dedupeKeys: [...keys, incoming.dedupeKey], dedupeKey: existing.dedupeKey ?? incoming.dedupeKey }
+      : {}),
+    ...(persistent ? { duration: 0 } : {}),
+  };
 }
 
 function getNotificationOutroDuration(): number {
@@ -197,6 +208,7 @@ export const notificationStore = {
       count: 1,
       duration: options.duration ?? 5000,
       dismissible: options.dismissible ?? true,
+      ...(options.dedupeKey ? { dedupeKeys: [options.dedupeKey] } : {}),
     };
 
     let existingId: string | undefined;
@@ -206,11 +218,15 @@ export const notificationStore = {
       );
       if (existing) {
         existingId = existing.id;
+        const merged = mergeDuplicate(existing, newNotification);
+        if (merged.duration === 0 && existing.duration) {
+          const timer = autoDismissTimers.get(existing.id);
+          if (timer) clearTimeout(timer);
+          autoDismissTimers.delete(existing.id);
+        }
         return {
           notifications: state.notifications.map((notification) =>
-            notification.id === existing.id
-              ? { ...notification, count: (notification.count ?? 1) + 1 }
-              : notification,
+            notification.id === existing.id ? merged : notification,
           ),
         };
       }
@@ -289,10 +305,16 @@ export const notificationStore = {
     exitRemovalTimers.set(id, exitTimer);
   },
 
+  /**
+   * Resolve one explicit key. A card that also stands for other keys stays
+   * until its last key is resolved.
+   */
   removeNotificationsByDedupeKey: (dedupeKey: string) => {
     update((state) => {
-      const removedIds = state.notifications
-        .filter((notification) => notification.dedupeKey === dedupeKey)
+      const holders = state.notifications.filter((notification) =>
+        notification.dedupeKeys?.includes(dedupeKey));
+      const removedIds = holders
+        .filter((notification) => notification.dedupeKeys!.length === 1)
         .map((notification) => notification.id);
       for (const id of removedIds) {
         const timer = autoDismissTimers.get(id);
@@ -307,9 +329,13 @@ export const notificationStore = {
         }
       }
       return {
-        notifications: state.notifications.filter(
-          (notification) => notification.dedupeKey !== dedupeKey,
-        ),
+        notifications: state.notifications
+          .filter((notification) => !removedIds.includes(notification.id))
+          .map((notification) => {
+            if (!notification.dedupeKeys?.includes(dedupeKey)) return notification;
+            const dedupeKeys = notification.dedupeKeys.filter((key) => key !== dedupeKey);
+            return { ...notification, dedupeKeys, dedupeKey: dedupeKeys[0] };
+          }),
       };
     });
   },
