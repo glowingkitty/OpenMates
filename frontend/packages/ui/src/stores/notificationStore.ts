@@ -297,6 +297,13 @@ export const notificationStore = {
       const notification = state.notifications.find((item) => item.id === id);
       if (!notification || notification.isExiting) return state;
       shouldScheduleRemoval = true;
+      if (notification.type === "chat_message") {
+        // Which caller dismissed a chat notice (code locations only, never content).
+        console.info("[Notifications] Chat notice dismissed", {
+          chatID: notification.chatId,
+          caller: (new Error().stack ?? "").split("\n").slice(2, 5).map((line) => line.trim().replace(/\(?https?:\/\/[^/]+/, "(")).join(" | "),
+        });
+      }
       return {
         notifications: state.notifications.map((item) =>
           item.id === id ? { ...item, isExiting: true } : item,
