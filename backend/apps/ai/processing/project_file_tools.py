@@ -394,6 +394,14 @@ def build_project_focus_prompt(
             "Run installs, builds, tests, linters and dev servers as code-run commands (target e2b with argv) in "
             "this Project's cloud workspace; files a command changes are synced back as normal file changes. "
         )
+    # The stable base prompt (code-block rules, software mate) asks for an
+    # application_preview fence for every new web app. Real Project runs showed
+    # the model writing the files with the tools and then adding that fence as
+    # well, a second chat-only copy of the app, so the override is explicit.
+    new_application += (
+        "This replaces the general runnable-web-app rule for this chat: never add an application_preview "
+        "fence, not even after the files are written; the file cards in the chat already show them. "
+    )
     prompt = (
         "An authorized Project focus is active for this chat. Use the Project file tools when the "
         "request requires inspecting or changing Project files. Read a file before updating it and "

@@ -279,7 +279,9 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
       await expect(page.getByTestId('project-file-approval-card').filter({ hasText: /web-app\/package\.json/ }).first(),
         'package.json written into web-app/ with the file tools').toBeVisible({ timeout: 60_000 });
       expect(await page.getByTestId('project-file-approval-card').count(), 'several app files written with the file tools').toBeGreaterThan(1);
-      await expect(reply.locator('[data-testid="embed-preview"][data-app-id="code"]'), 'no inline application block').toHaveCount(0);
+      // Only an application card means an inline app block; code-run and test-result cards also
+      // carry data-app-id="code" and belong in this reply.
+      await expect(reply.locator('[data-testid="embed-preview"][data-skill-id="application"]'), 'no inline application block').toHaveCount(0);
     });
     appChatTitle = ((await page.getByTestId('chat-title').first().textContent().catch(() => '')) ?? '').trim();
     await proof.checkpoint('cloud-app-embed');

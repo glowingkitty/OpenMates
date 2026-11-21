@@ -91,3 +91,8 @@ def test_a_new_app_is_written_with_the_file_tools_in_every_project() -> None:
     assert "do not emit an application_preview block" in hosted
     assert "create each of its files with the Project file tools" in hosted
     assert "folder on the user's machine" not in hosted
+    # The Project rule explicitly overrides the base "runnable web apps" fence rule in both
+    # kinds of Project, since the model otherwise writes the files and adds the fence too.
+    for text in (prompt, hosted):
+        assert "replaces the general runnable-web-app rule" in text
+        assert "not even after the files are written" in text
