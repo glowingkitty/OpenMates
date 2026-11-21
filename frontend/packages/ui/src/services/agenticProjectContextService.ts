@@ -93,6 +93,19 @@ function focusItem(item: ProjectItemViewModel): boolean {
     && /^\.openmates\/focuses\/[a-zA-Z0-9_-]+\/SKILL\.md$/.test(item.metadata.display_path);
 }
 
+/** Counts only (no names, paths or text): which Focus condition a stored item fails. */
+function logFocusCatalogShape(items: ProjectItemViewModel[]): void {
+  const atPath = items.filter((item) => typeof item.metadata.display_path === 'string'
+    && /^\.openmates\/focuses\//.test(item.metadata.display_path)
+    || typeof item.metadata.path === 'string' && /^\.openmates\/focuses\//.test(item.metadata.path));
+  const types = [...new Set(atPath.map((item) => item.item_type))].join(',') || 'none';
+  console.info(`[ProjectFocusContext] items=${items.length} focus_path=${atPath.length} types=${types}`
+    + ` target=${atPath.filter((item) => !!item.target_id).length}`
+    + ` meta=${atPath.filter((item) => typeof item.metadata.focus_title === 'string').length}`
+    + ` display_path=${atPath.filter((item) => typeof item.metadata.display_path === 'string').length}`
+    + ` focus_items=${items.filter(focusItem).length}`);
+}
+
 function specialistItemId(projectId: string, focusId?: string | null): string | undefined {
   const prefix = `project-focus:${projectId}:`;
   return focusId?.startsWith(prefix) ? focusId.slice(prefix.length) : focusId ?? undefined;
@@ -146,7 +159,11 @@ export async function collectSelectedProjectFocusRoutingCatalog(
 
 export async function collectProjectFocusCatalog(input: { chatId: string; projectId?: string | null; initialFocus?: InitialFocusRead }): Promise<ProjectFocusCatalogEntry[]> {
   const workspace = await activeWorkspace(input.chatId, input.projectId, input.initialFocus);
-  if (!workspace) return [];
+  if (!workspace) {
+    console.info('[ProjectFocusContext] workspace=none');
+    return [];
+  }
+  logFocusCatalogShape(workspace.contents.items);
   const specialistId = specialistItemId(workspace.focus.project_id, workspace.focus.specialist_focus_id);
   const ordered = workspace.contents.items.filter(focusItem).sort((a, b) =>
     Number(b.project_item_id === specialistId) - Number(a.project_item_id === specialistId));
