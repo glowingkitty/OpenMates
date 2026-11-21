@@ -15968,8 +15968,8 @@ features:
       assertions:
         passing: 19
         failing: 14
-        not_run: 7
-        missing: 19
+        not_run: 8
+        missing: 18
         counted: 59
       failing_tests:
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_mixed_project_and_web_batch_defers_web_until_file_result

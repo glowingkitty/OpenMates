@@ -45,7 +45,7 @@ const proofContract = defineVideoProof({
     { id: 'spec-plan', text: 'A new chat in the Project writes a Specification and a Plan.', checkpoint: 'cloud-spec-plan', devices: L },
   ],
   assertions: [
-    { id: 'cloud.app_embed', checkpoint: 'cloud-app-embed', visual: 'An application card and a File changed card are in the chat.', devices: L },
+    { id: 'cloud.app_embed', checkpoint: 'cloud-app-embed', visual: 'An application card listing its files is in the chat; its files are the Project files.', devices: L },
     { id: 'cloud.test_result', checkpoint: 'cloud-test-result', visual: 'The test result fullscreen shows a video and a step timeline.', devices: L },
     { id: 'cloud.commit', checkpoint: 'cloud-commit', visual: 'The last reply quotes a 7-character commit id.', devices: L },
     { id: 'cloud.project_files', checkpoint: 'cloud-project-files', visual: 'The folder lists the application card and files.', devices: B },
@@ -211,9 +211,12 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     expect(projectName, 'the assistant named the Project').not.toBe('');
     projectLabel = projectName || projectLabel;
     await proof.assert('cloud.app_embed', async () => {
-      await expect(page.locator('[data-testid="embed-preview"][data-app-id="code"]').first(), 'application card').toBeVisible({ timeout: 60_000 });
-      await expect(page.getByTestId('project-file-approval-card').first(), '"File changed" card from the web file job').toBeVisible({ timeout: 60_000 });
-      await expect(page.getByTestId('project-file-change-diff').first(), 'diff of a file change').toBeAttached({ timeout: 60_000 });
+      // projects.files.application-single-source: a new app arrives as one application block whose
+      // files ARE the Project files (web-app/); "File changed" cards start with the later turns
+      // (synced-back command output, edits through the Project file tools).
+      const appCard = page.locator('[data-testid="embed-preview"][data-app-id="code"]').first();
+      await expect(appCard, 'application card').toBeVisible({ timeout: 60_000 });
+      await expect(appCard, 'the application card lists its files').toContainText(/\b\d+ files?\b/i, { timeout: 60_000 });
     });
     appChatTitle = ((await page.getByTestId('chat-title').first().textContent().catch(() => '')) ?? '').trim();
     await proof.checkpoint('cloud-app-embed');
