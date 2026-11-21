@@ -26,7 +26,9 @@ assertions:
 - id: trademarks.coverage
   type: invariant
   must: All current trademark regions are unavailable. Distinguish this from completed zero-match searches and preserve
-    saved query, region, count, partial and error evidence without inventing regional coverage.
+    saved query, region, count, partial and error evidence without inventing regional coverage. When
+    operator-installed providers serve the skill, requested regions none of them covers are named in a warning
+    and the response is partial, never presented as searched.
   depends_on:
   - examples.boundary_and_history
 - id: trademarks.evidence

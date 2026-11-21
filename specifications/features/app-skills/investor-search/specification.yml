@@ -30,7 +30,8 @@ assertions:
   must: The assistant passes only the countries the user named and uses WORLDWIDE only on request. An installed
     provider that declares regions and covers none of the requested ones is not searched, and the user sees which
     sources were skipped. When every provider is skipped the user sees that no installed provider covers the
-    requested regions.
+    requested regions. When the providers that run cover only some requested regions, the user sees which
+    requested regions no installed provider covers.
   depends_on:
   - examples.investor_search
 - id: investors.unavailable

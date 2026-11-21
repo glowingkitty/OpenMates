@@ -11316,17 +11316,18 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 10
+        passing: 11
         failing: 0
         not_run: 0
-        missing: 7
+        missing: 6
         counted: 17
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_business_company_ownership.py
       - backend/tests/test_business_search_investors.py
-      unit_test_files: 2
+      - backend/tests/test_app_packages_generic_contract.py
+      unit_test_files: 3
     sdk_npm:
       status: implemented
       source: intent

@@ -23,7 +23,7 @@ import yaml
 from backend.apps.base_app import BaseApp
 from backend.core.api.app.routes import apps_api
 from backend.shared.app_packages import (
-    billing, contracts, delegate_flat_skill, delegate_skill, loader, overlay, provider_dispatch,
+    billing, contracts, delegate_flat_skill, delegate_skill, generic_contract, loader, overlay, provider_dispatch,
 )
 from backend.shared.app_packages.delegate_flat_skill import InstalledProviderFlatSkill
 from backend.shared.app_packages.delegate_skill import InstalledProviderSkill
@@ -454,6 +454,30 @@ async def test_flat_delegate_validation_selection_and_failures(monkeypatch, flat
     both = await _flat_delegate().execute(**FLAT_INPUT)
     assert both["warnings"] == [f"{FIRST_NAME} did not respond in time."] and both["partial"] is True
     assert both["error"] is None and "internal" not in json.dumps(both)
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract,trademarks.coverage
+@pytest.mark.anyio
+async def test_flat_delegate_reports_regions_no_installed_provider_covers(monkeypatch, tmp_path):
+    flat = {"app": FLAT_APP, "skill": FLAT_SKILL}
+    _install(tmp_path, [_entry(regions=["US"], **flat)])
+    enable(monkeypatch, tmp_path)
+    calls = _fake_runner(monkeypatch, {FIRST: RunnerResult(ok=True, results=[_result("a1")])})
+    gap = await _flat_delegate().execute(queries=["Example name"], regions=["US", "EU", "DE"])
+    assert [c["provider"] for c in calls] == [FIRST] and gap["result_count"] == 1
+    assert gap["warnings"] == ["No installed provider covers EU, DE; only US was searched."]
+    assert gap["partial"] is True and gap["success"] is True and gap["error"] is None
+    worldwide = await _flat_delegate().execute(queries=["Example name"], regions=["WORLDWIDE"])
+    assert worldwide["warnings"] == ["No installed provider covers WORLDWIDE; only US was searched."]
+    covered = await _flat_delegate().execute(queries=["Example name"], regions=["US"])
+    assert "warnings" not in covered and covered["partial"] is False
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.provider-contract
+def test_uncovered_regions_needs_every_kept_provider_region_limited():
+    assert generic_contract.uncovered_regions(["US", "EU"], [["US"], []]) == []
+    assert generic_contract.uncovered_regions(["US", "EU"], [["US"], ["DE"]]) == ["EU"]
+    assert generic_contract.uncovered_regions(["US"], []) == []
 
 
 # contract-test: direct surface=rest_api assertions=instance-app-packages.instance-availability,instance-app-packages.no-installed-provider-charges

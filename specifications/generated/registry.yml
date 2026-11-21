@@ -366,7 +366,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/investor-search
-    fingerprint: 9dedf7a2b34a921b5effec67e3947e0b0ee68690043a88d6ed43a205dd7ca8f1
+    fingerprint: b32b94b6c6b24a2ac06f0975602e5b95a11a262d8412d575ebaaa5a6d71e77b7
     required_applies_to:
     - rest_api
     - cli
@@ -413,7 +413,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/trademark-search
-    fingerprint: 073661c8bbd3b4b4b4cff1630f3b8971da5bf7c2f1c8271aa01dcdb60dc39fa2
+    fingerprint: 06e2e4c5ef87206b1a88d5375b02df745e8eed4369497094941c860fe475485b
     required_applies_to:
     - rest_api
     - cli
@@ -809,7 +809,7 @@ specifications:
     version: 1
     status: draft
     path: features/instance-app-packages
-    fingerprint: 8653281b091e3340e99e7fd8022b2c8aeb7b6ca2865501cd7a9338b86b6011ca
+    fingerprint: b2ee601a007fe2a15fbc361410bc2ca4d24ffc7943bec75e8062780aada3b3dd
     required_applies_to:
     - rest_api
     - cli
@@ -5805,7 +5805,7 @@ assertions:
     specification: feature.app-skill.investor-search@1
     specification_id: feature.app-skill.investor-search
     type: invariant
-    fingerprint: de1d67c4449a907b008f9a0339b04e89387cad9c7cd2550e0269d1102cce8c0b
+    fingerprint: 835583e86357f15ad547ebcef5292dbb808d80b3b356433b865fa0c2e6eee404
     required_applies_to:
     - rest_api
     - cli
@@ -6136,7 +6136,7 @@ assertions:
     specification: feature.app-skill.trademark-search@1
     specification_id: feature.app-skill.trademark-search
     type: invariant
-    fingerprint: 4bd8551c7e6c76e8493069dc31872237ca4fff7cae41e32dfc0e137f9b405a0d
+    fingerprint: 7a15ce216c542958179e6936e293c230315dc29ca543e6407f51350fb3f8b5fe
     required_applies_to:
     - rest_api
     - cli
@@ -11022,7 +11022,7 @@ assertions:
     specification: feature.instance-app-packages@1
     specification_id: feature.instance-app-packages
     type: behavior
-    fingerprint: 3e8c4eca27c2bc3844b24802eb15b8ed091a59baef669d10f4843259cbe4d1ad
+    fingerprint: 687a50f13342ae23ad17ff062b4df824e6d1051aad90b66d225dc25847cc9f10
     required_applies_to:
     - rest_api
     - cli

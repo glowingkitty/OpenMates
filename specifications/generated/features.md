@@ -117,7 +117,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [AI](#ai) | impl | impl |  | not run 0/5 | impl | not run 0/5 | not run 0/5 | not run 0/5 | on | on | v0.1-alpha-1 |
 | [Audio](#audio) | **FAIL** 1/27 | impl |  | impl | impl | **FAIL** 17/26 | not run 0/26 | not run 0/26 | on | on | v0.5.0-alpha |
 | [Books](#books) | impl | wip |  | impl | impl | — | impl | impl | on | on | v0.1-alpha-1 |
-| [Business](#business) | **FAIL** 6/20 | impl |  | not run 0/17 | impl | partial 10/17 | impl | impl | on | on | v0.19.0 |
+| [Business](#business) | **FAIL** 6/20 | impl |  | not run 0/17 | impl | partial 11/17 | impl | impl | on | on | v0.19.0 |
 | [Calendar](#calendar) | partial 7/19 | impl |  | not run 0/19 | impl | partial 13/19 | not run 0/19 | not run 0/19 | on | on | v0.12.0-alpha |
 | &nbsp;&nbsp;↳ Connection and scopes | ? | ? |  | ? | ? | **live** 2/2 | ? | ? | | | |
 | &nbsp;&nbsp;↳ Read and search events | ? | ? |  | ? | ? | **live** 1/1 | ? | ? | | | |
@@ -833,7 +833,7 @@ Research companies and public business data.
 | Apple | impl | — | — |
 | CLI | not run 0/17 | 0 pass · 0 fail · 7 not run · 10 no test | 4 unit test file(s), e.g. [trademarkEmbedRenderers.test.ts](../../frontend/packages/openmates-cli/tests/trademarkEmbedRenderers.test.ts), [test_trademark_workflow_output.py](../../backend/tests/test_trademark_workflow_output.py) |
 | TUI | impl | — | — |
-| REST API | partial 10/17 | 10 pass · 0 fail · 0 not run · 7 no test | 2 unit test file(s), e.g. [test_business_company_ownership.py](../../backend/tests/test_business_company_ownership.py), [test_business_search_investors.py](../../backend/tests/test_business_search_investors.py) |
+| REST API | partial 11/17 | 11 pass · 0 fail · 0 not run · 6 no test | 3 unit test file(s), e.g. [test_business_company_ownership.py](../../backend/tests/test_business_company_ownership.py), [test_business_search_investors.py](../../backend/tests/test_business_search_investors.py) |
 | npm SDK | impl | 0 pass · 0 fail · 0 not run · 17 no test | — |
 | PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 17 no test | — |
 

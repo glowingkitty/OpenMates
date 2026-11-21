@@ -186,10 +186,13 @@ async def test_region_specific_provider_is_skipped_outside_its_regions(monkeypat
 async def test_region_specific_provider_runs_for_its_region_and_worldwide(monkeypatch, tmp_path):
     _install(monkeypatch, tmp_path, [_entry(FIRST, "Example provider", regions=["DE"])])
     calls = _fake_runner(monkeypatch, {FIRST: RunnerResult(ok=True, results=[_investor("a1")])})
-    for regions in (["DE", "US"], ["WORLDWIDE"]):
+    covered = await _delegate().execute(query="x", regions=["DE"])
+    assert covered["investors"][0]["name"] == "a1" and not covered["warnings"]
+    for regions, gap in ((["DE", "US"], "US"), (["WORLDWIDE"], "WORLDWIDE")):
         response = await _delegate().execute(query="x", regions=regions)
-        assert response["investors"][0]["name"] == "a1" and not response["warnings"]
-    assert [c["provider"] for c in calls] == [FIRST, FIRST]
+        assert response["investors"][0]["name"] == "a1"
+        assert response["warnings"] == [f"No installed provider covers {gap}; only DE was searched."]
+    assert [c["provider"] for c in calls] == [FIRST, FIRST, FIRST]
 
 
 # contract-test: supporting surface=rest_api assertions=investors.regions,instance-app-packages.provider-contract

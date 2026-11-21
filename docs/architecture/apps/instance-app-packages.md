@@ -326,7 +326,11 @@ declared regions runs only when the request names no region, names `WORLDWIDE`,
 or names at least one of its regions; a provider without `regions` always runs.
 Each skipped provider adds the warning "<name> was not searched: it does not
 cover <regions>." When every selected provider is skipped, no runner call is
-made and the group error is "No installed provider covers <regions>." The CLI
+made and the group error is "No installed provider covers <regions>." When
+every provider that runs declares regions and together they miss some requested
+regions (including `WORLDWIDE`), the response adds the warning "No installed
+provider covers <missing>; only <covered> was searched." and is `partial`, so a
+search is never shown as covering a region nobody checked. The CLI
 installer validates the same rule before upload and shows `regions` in
 `apps inspect`.
 
