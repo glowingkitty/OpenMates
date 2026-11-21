@@ -1,0 +1,93 @@
+schema_version: 2
+profile: concise
+id: e2b-upload-consent
+title: One-time E2B upload consent before any user code or Project file is sent to E2B
+status: draft
+goal: >-
+  Before the first time any code or Project file of a user is sent to E2B, ask the
+  user once per account for permission (Allow, Use my own machine, Not now) inside the
+  chat history like the memory sharing request, upload nothing until they answer, record
+  the decision with its date and wording version, let it be changed in settings, and
+  behave the same on web, Apple, CLI and SDK (approved assertion code-run.e2b.upload-consent,
+  Marco 2026-11-20, receipts 92875247869df315 and c5f0d51ef9cb0836).
+
+tracking:
+  authority: OpenMates Tasks
+  parent_delivery_task: TASK-4526
+  session: ca73
+  policy: Packages below describe deliverables; status lives in OpenMates Tasks.
+
+specification_refs:
+  - {id: feature.app-skill.code-run, assertions: [code-run.e2b.upload-consent, code-run.execution.e2b-only]}
+
+scope:
+  in:
+    - Server-side record of one decision per account (allowed or declined) with timestamp and consent wording version.
+    - Hard server gates on every path that sends user code or Project files to E2B.
+    - An in-chat consent request when the assistant wants to run code in E2B and no decision exists; the turn pauses and continues after the answer.
+    - The same request before user-started runs and before any application preview start (including automatic starts) on web and Apple.
+    - Settings entry to view and change the decision.
+    - CLI interactive prompt plus an explicit flag; SDK typed error plus an explicit option; never a silent upload.
+    - Voice call - needs-you chime and one spoken line for the request.
+  out:
+    - E2B uses that send no user code or Project files (video rendering, PCB compile, HTML rendering, image tools, web browse); they process generated content and stay as they are.
+    - Remote-source runs on the user's own machine; they never touch E2B and stay ungated.
+
+decisions:
+  - One decision per account covers chat snippets and Project files (approved assertion).
+  - Storage follows the versioned voice-processing-ack pattern (backend/core/directus/schemas/users.yml, voice_call.py) - fields named with the consent version, so a meaningful change of wording or provider is a new version and asks again; older decisions never carry over.
+  - Use my own machine and Not now both record declined; Use my own machine additionally shows how to connect a machine (remote access command). Not now is recorded so the request is not repeated every turn; settings can switch to allowed at any time.
+  - Two server choke points cover every upload path - start_code_run_execution (code_execution.py, used by the assistant skill, POST /v1/code/run, notebooks and the REST/CLI/SDK skill route) and application preview session creation (application_preview.py). Both refuse with 403 e2b_consent_required or e2b_consent_declined before any task is queued.
+  - The assistant path checks earlier, in RunCodeSkill.execute before any embed is created, and pauses the tool call with the connected-account permission pattern (yield an awaiting marker, continuation after the answer). On declined it returns a tool result telling the model it cannot run the code in E2B and to offer the connected machine.
+  - Request and answer are system messages in chat history encrypted with the chat key, like app_settings_memories_request; their policy (message types, answered check, build) lives in the Rust core next to web_settings.rs, not in TypeScript or Swift.
+  - The new consent endpoints are first-party client surface only (session auth), never developer API-key routes; the SDK consent option is sent per request instead.
+
+design:
+  storage: Directus users fields e2b_upload_consent_v1 (string allowed|declined) and e2b_upload_consent_v1_at (integer server timestamp). Constant E2B_UPLOAD_CONSENT_VERSION = 1 in one backend module; the field names derive from it.
+  api: GET and PUT /v1/settings/e2b-upload-consent (first-party session auth, rate limited, owner-scoped); returns {decision, decided_at, version}.
+  gates: a shared require_e2b_upload_consent(user_id) helper used by both choke points; the REST/SDK skill route also accepts an explicit allow_e2b_upload flag that records allowed for that account when no decision exists, never overriding declined.
+  chat_request: system message type e2b_upload_consent_request with the plain text (files are sent to E2B, a cloud sandbox provider, to run there), the privacy policy link, the remote access alternative and the three choices; answer type e2b_upload_consent_response. WebSocket e2b_upload_consent_answer from client to server records the decision and triggers the continuation.
+  wire_contract:
+    errors: HTTP 403 with detail {code e2b_consent_required} (no decision) or {code e2b_consent_declined}; nothing queued. Same codes in WebSocket errors and as typed SDK/core errors.
+    request_message: role system, content JSON {type e2b_upload_consent_request, request_id (uuid), chat_id, version 1, provider e2b, privacy_policy_url https://openmates.org/privacy, remote_access_command "openmates remote-access", choices [allow, own_machine, not_now]}. Sent server to client as WebSocket request_e2b_upload_consent {request_id, chat_id, version}; the client builds and persists the encrypted system message through the Rust core.
+    answer_message: role system, content JSON {type e2b_upload_consent_response, request_id, choice}; client to server WebSocket e2b_upload_consent_answer {request_id, chat_id, choice}. The server records allowed (allow) or declined (own_machine, not_now), fans out e2b_upload_consent_updated {decision, decided_at, version} to the user's devices, and triggers the paused turn's continuation.
+    pending_context: cache key pending_e2b_upload_consent:{chat_id}, holding the paused tool call (vault-encrypted like the memory request snapshot), expiring after 24 hours; an answer after expiry only records the decision.
+  cli: openmates code run and chat sends ask interactively on a TTY; non-interactive runs need --allow-e2b-upload or fail with the same choice text and exit code 2, uploading nothing.
+
+delivery_packages:
+  - id: C1
+    outcome: Backend record, consent endpoints, shared helper and the two hard gates, with pytest at the API boundary (403 before any task is queued for none and declined, run proceeds after allowed, version bump asks again).
+    ownership: backend/core/directus/schemas/users.yml, new backend/core/api/app/services/e2b_upload_consent.py, backend/core/api/app/routes/settings route module, code_execution.py, application_preview.py, apps_api.py (code run handler flag) and their tests.
+    depends_on: []
+  - id: C2
+    outcome: Assistant flow - RunCodeSkill.execute checks before creating embeds, issues the in-chat request and pauses (connected-account permission pattern), continues after the answer; declined returns the offer-your-machine tool result.
+    ownership: backend/apps/code/skills/run_code_skill.py, new backend/apps/ai/processing/e2b_upload_consent_request.py, the continuation handler, stream_consumer marker detection, pytest.
+    depends_on: [C1]
+  - id: C3
+    outcome: Rust core - request/answer policy, answer frame, consent read/update calls, SendConsentPolicy extension; CLI prompt and --allow-e2b-upload; SDK typed error e2b_consent_required and explicit option; sdk-capabilities classification.
+    ownership: packages/openmates-rust (new client/e2b_consent.rs), frontend/packages/openmates-tui-native (send and code run commands), config/sdk-capabilities.json.
+    depends_on: [C1 contract]
+  - id: C4
+    outcome: Web - request card in chat history with the three choices, consent check before user-started runs and every application preview start (no automatic start without consent), privacy settings entry. Component preview spec first, then one E2E spec.
+    ownership: new frontend/packages/ui/src/components/E2bUploadConsentRequest.svelte, codeRunService.ts, applicationPreviewService.ts, privacy settings, i18n.
+    depends_on: [C2, C3]
+  - id: C5
+    outcome: Apple - request overlay and settings entry bound to the core; XCUITest of the card.
+    ownership: apple/OpenMates Features/Chat and Settings.
+    depends_on: [C3, C4 visual]
+  - id: C6
+    outcome: Voice call - needs-you chime and one spoken line when the request appears during a call; the answer by voice or tap.
+    ownership: frontend/packages/ui/src/services/voiceCall*.ts and the Apple voice call request view; coordinate with the voice call owner chat.
+    depends_on: [C2, C4]
+
+checks:
+  - Pytest at the REST boundary for both gates and the endpoints (C1) and for the paused tool call and continuation (C2).
+  - Rust core tests and sdk-conformance for the consent policy, CLI prompt and flag (C3).
+  - Component preview spec for the request card, then one web E2E spec - first run asks, Not now uploads nothing and the assistant offers the connected machine, Allow runs and later runs do not ask (C4).
+  - Apple apple-ui test of the request overlay (C5).
+  - Real inference proof on dev with the personal test account after resetting only the consent fields, with video (new feature).
+
+risks:
+  - Accounts that already used E2B get asked once on their next run; this is intended by the assertion and needs no migration.
+  - Automatic application preview starts on chat open would otherwise upload silently; C4 must gate them before C1 is deployed, or C1 ships with the web gate in the same deploy.
+  - Voice chime does not exist yet; C6 needs the voice owner chat's agreement on the sound.

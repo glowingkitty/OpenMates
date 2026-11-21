@@ -30,6 +30,7 @@
     type ApplicationPreviewStatusValue,
   } from '../../../services/applicationPreviewService';
   import { downloadApplicationProjectZip } from '../../../services/zipExportService';
+  import E2bConsentRunHost from '../../E2bConsentRunHost.svelte';
   import { notificationStore } from '../../../stores/notificationStore';
   import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
   const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
@@ -431,6 +432,8 @@
     </div>
   {/snippet}
 </UnifiedEmbedFullscreen>
+
+<E2bConsentRunHost />
 
 <style>
   .preview-actions {

@@ -44,6 +44,9 @@ impl Error {
             Self::Invalid(message) if *message == SDK_API_KEY_REQUIRED_MESSAGE => {
                 Some(SDK_API_KEY_REQUIRED_CODE)
             }
+            Self::Unavailable { code, .. } if matches!(*code, "e2b_consent_required" | "e2b_consent_declined") => {
+                Some(code)
+            }
             _ => None,
         }
     }

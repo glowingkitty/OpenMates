@@ -19,7 +19,7 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, allowE2bUpload } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { openFullscreen, closeFullscreen } = require('./helpers/embed-test-helpers');
 
@@ -326,6 +326,7 @@ async function assertCodeRunDidNotMutateSource(fullscreenOverlay: any, expectedO
 
 // ─── Test ─────────────────────────────────────────────────────────────────────
 
+// contract-test: supporting surface=gui.web assertions=code-run.request.validated,code-run.e2b.upload-consent
 test('multi-turn code generation: iterative improvements with code embed verification', async ({
 	page
 }: {
@@ -353,6 +354,7 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	await loginToTestAccount(page, log, screenshot, {
 		credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY }
 	});
+	await allowE2bUpload(page);
 	await startNewChat(page, log);
 	await screenshot(page, 'ready');
 
@@ -609,6 +611,7 @@ test('multi-turn code generation: iterative improvements with code embed verific
 	log(`Test completed successfully. Chat ${chatId} was created and deleted.`);
 });
 
+// contract-test: supporting surface=gui.web assertions=code-run.execution.e2b-only,code-run.execution.stream-status-visible,code-run.e2b.upload-consent
 test('generated Python code embed can run in E2B sandbox', async ({ page, context }: { page: any; context: any }) => {
  setupPageListeners(page);
 
@@ -630,6 +633,7 @@ test('generated Python code embed can run in E2B sandbox', async ({ page, contex
   await loginToTestAccount(page, log, screenshot, {
    credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY }
   });
+  await allowE2bUpload(page);
   await startNewChat(page, log);
   await screenshot(page, 'ready');
 
@@ -726,6 +730,7 @@ test('generated Python code embed can run in E2B sandbox', async ({ page, contex
  log(`Code Run E2B test completed successfully. Chat ${chatId} was created and deleted.`);
 });
 
+// contract-test: supporting surface=gui.web assertions=code-run.execution.stream-status-visible,code-run.billing.rate-limits,code-run.e2b.upload-consent
 test('active Code Run can be stopped and shows cancelled billing summary', async ({ page }: { page: any }) => {
 	setupPageListeners(page);
 
@@ -745,6 +750,7 @@ test('active Code Run can be stopped and shows cancelled billing summary', async
 	await loginToTestAccount(page, log, screenshot, {
 		credentials: { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY }
 	});
+	await allowE2bUpload(page);
 	await startNewChat(page, log);
 	await screenshot(page, 'ready');
 

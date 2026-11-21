@@ -79,6 +79,18 @@ impl SavedTurnClientPhases for Fake {
     ) -> TurnPhaseFuture<'a, (Vec<(String, Value)>, SendMemoryRequest, Vec<Value>)> {
         unreachable!("no memory consent")
     }
+    fn e2b_consent<'a>(
+        &'a mut self,
+        _w: &'a mut Socket,
+        _e: &'a Value,
+        _c: &'a str,
+        _k: &'a [u8; 32],
+        _u: &'a mpsc::Sender<StreamUpdate>,
+        _x: &'a CancellationToken,
+        _p: E2bConsentPolicy,
+    ) -> TurnPhaseFuture<'a, Option<SendE2bConsentRequest>> {
+        unreachable!("no e2b consent")
+    }
     fn replay_outputs<'a>(
         &'a mut self,
         _w: &'a mut Socket,

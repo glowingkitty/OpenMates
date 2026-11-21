@@ -2156,6 +2156,21 @@ export class ChatSynchronizationService extends EventTarget {
         ),
       );
     });
+    webSocketService.on("request_e2b_upload_consent", (payload) => {
+      import("./chatSyncServiceHandlersE2bConsent").then((module) =>
+        module.handleRequestE2bUploadConsentImpl(
+          this,
+          payload as Parameters<typeof module.handleRequestE2bUploadConsentImpl>[1],
+        ),
+      );
+    });
+    webSocketService.on("e2b_upload_consent_updated", (payload) => {
+      import("./chatSyncServiceHandlersE2bConsent").then((module) =>
+        module.handleE2bUploadConsentUpdatedImpl(
+          payload as Parameters<typeof module.handleE2bUploadConsentUpdatedImpl>[0],
+        ),
+      );
+    });
     webSocketService.on("request_connected_account_permission", (payload) => {
       import("./chatSyncServiceHandlersConnectedAccounts").then((module) =>
         module.handleRequestConnectedAccountPermissionImpl(

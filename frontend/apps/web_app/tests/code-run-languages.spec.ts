@@ -3,7 +3,7 @@ export {};
 
 const { test, expect, attachConsoleListeners, attachNetworkListeners } = require('./console-monitor');
 const { getTestAccount, withMockMarker, createSignupLogger, createStepScreenshotter } = require('./signup-flow-helpers');
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat, allowE2bUpload } = require('./helpers/chat-test-helpers');
 const { openFullscreen, closeFullscreen } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
@@ -21,6 +21,7 @@ test(`generated ${language} program executes in an isolated E2B sandbox`, async 
   const log = createSignupLogger(`code-run-${extension}`);
   const screenshot = createStepScreenshotter(log, { filenamePrefix: `code-run-${extension}` });
   await loginToTestAccount(page, log, screenshot, { credentials: { email, password, otpKey } });
+  await allowE2bUpload(page);
   await startNewChat(page, log);
   await sendMessage(page, withMockMarker(
    'Write self-contained programs in Python, JavaScript, TypeScript, shell, C, C++, Rust and Go that print exactly openmates-code-run-ok.',

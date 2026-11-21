@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- shared CommonJS helpers
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, allowE2bUpload } = require('./helpers/chat-test-helpers');
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- shared CommonJS helpers
 const { generateTotp } = require('./signup-flow-helpers');
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- shared CommonJS helpers
@@ -240,6 +240,7 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
       password: process.env.OPENMATES_TEST_ACCOUNT_PASSWORD,
       otpKey: process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY,
     } });
+    await allowE2bUpload(page);
 
     // The pair login needs a terminal for the PIN prompt. `script` provides the
     // pty; the terminal recorder used in CI is not installed on the dev host.

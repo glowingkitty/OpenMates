@@ -23,6 +23,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { downloadCodeFile } from '../../../services/zipExportService';
+  import E2bConsentRunHost from '../../E2bConsentRunHost.svelte';
   import { notificationStore } from '../../../stores/notificationStore';
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
@@ -2040,6 +2041,8 @@
     {/if}
   </ChildEmbedOverlay>
 {/if}
+
+<E2bConsentRunHost />
 
 <style>
   /* Code fullscreen container */

@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 
 from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services import e2b_upload_consent
 from backend.core.api.app.services.feature_availability_guards import ensure_application_preview_enabled
 from backend.shared.providers.e2b_application_preview import (
     ApplicationPreviewEntrypoint,
@@ -475,9 +476,12 @@ async def create_application_preview_session(
     now: float,
     preview_token: str | None = None,
     preview_host_label: str | None = None,
+    directus_service: Any | None = None,
 ) -> ApplicationPreviewStartResponse:
     if getattr(current_user, "credits", 0) < APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE:
         raise HTTPException(status_code=402, detail="Not enough credits to start application preview")
+    # Hard gate: no preview session or sandbox task (including auto-starts) without E2B consent.
+    await e2b_upload_consent.require_e2b_upload_consent(current_user.id, directus_service)
 
     record = build_preview_session_record(
         session_id=session_id,
@@ -529,6 +533,7 @@ async def create_application_preview_session_and_dispatch(
     now: float,
     preview_token: str | None = None,
     preview_host_label: str | None = None,
+    directus_service: Any | None = None,
 ) -> ApplicationPreviewStartResponse:
     response = await create_application_preview_session(
         cache_service=cache_service,
@@ -540,6 +545,7 @@ async def create_application_preview_session_and_dispatch(
         now=now,
         preview_token=preview_token,
         preview_host_label=preview_host_label,
+        directus_service=directus_service,
     )
     task_sender("code.run_application_preview", args=[session_id, worker_payload], queue="app_code")
     return response
@@ -731,6 +737,7 @@ async def start_application_preview(
         worker_payload=worker_payload,
         task_sender=task_sender,
         now=time.time(),
+        directus_service=directus_service,
     )
 
 

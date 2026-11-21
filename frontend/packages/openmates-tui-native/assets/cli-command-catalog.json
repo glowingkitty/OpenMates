@@ -21,7 +21,7 @@
     },
     {
       "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
-      "sha256": "8e3139b756684cfcb7a5d5048f5561736f501ede50215a919ca1a5d38ae99017"
+      "sha256": "58d5af30120a54d4c99c78a99006c56cd675291cdc2ab54d377971c09a128415"
     },
     {
       "path": "frontend/packages/openmates-cli/src/generatedFiles.ts",
@@ -449,6 +449,7 @@
       "after",
       "age-group",
       "all",
+      "allow-e2b-upload",
       "answer-json",
       "api-key",
       "api-url",
@@ -1705,6 +1706,18 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 14668,
           "symbol": "printSelfUpdateHelp"
+        }
+      ]
+    },
+    {
+      "long": "allow-e2b-upload",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/send.rs",
+          "line": 291
         }
       ]
     },
@@ -4091,6 +4104,19 @@
       ]
     },
     {
+      "long": "decision",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ]
+    },
+    {
       "long": "decisions",
       "arity": "value",
       "repeatable": true,
@@ -4401,6 +4427,19 @@
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 4413
+        }
+      ]
+    },
+    {
+      "long": "detail",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
         }
       ]
     },
@@ -5492,6 +5531,19 @@
         {
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 2731
+        }
+      ]
+    },
+    {
+      "long": "evidence-file",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
         }
       ]
     },
@@ -12275,6 +12327,19 @@
       ]
     },
     {
+      "long": "note",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ]
+    },
+    {
       "long": "now",
       "arity": "value",
       "repeatable": true,
@@ -16021,6 +16086,19 @@
       ]
     },
     {
+      "long": "requires-deterministic",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ]
+    },
+    {
       "long": "reset-cache",
       "arity": "value",
       "repeatable": true,
@@ -16144,6 +16222,18 @@
       "arity_overrides": {
         "server": "switch"
       }
+    },
+    {
+      "long": "revision",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/cloud-project-development/specification-storage-handoff.md",
+          "line": 1
+        }
+      ]
     },
     {
       "long": "risks",
@@ -17514,6 +17604,19 @@
       }
     },
     {
+      "long": "subject",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
+        }
+      ]
+    },
+    {
       "long": "suggested-change",
       "arity": "value",
       "repeatable": true,
@@ -17605,6 +17708,19 @@
           "path": "frontend/packages/openmates-cli/src/generated/appSkills.ts",
           "line": 1,
           "symbol": "APP_SKILL_METADATA:electronics/search_components"
+        }
+      ]
+    },
+    {
+      "long": "supporting",
+      "arity": "switch",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
         }
       ]
     },
@@ -18084,6 +18200,19 @@
         {
           "path": "frontend/packages/openmates-cli/src/server.ts",
           "line": 3810
+        }
+      ]
+    },
+    {
+      "long": "test-result",
+      "arity": "value",
+      "repeatable": true,
+      "sensitive": false,
+      "sources": [
+        {
+          "path": "docs/plans/spec-driven-flow/plan.yml",
+          "line": 1,
+          "symbol": "checks CLI"
         }
       ]
     },
@@ -19720,122 +19849,6 @@
           "path": "frontend/packages/openmates-cli/src/cli.ts",
           "line": 14830,
           "symbol": "printChatsHelp"
-        }
-      ]
-    },
-    {
-      "long": "revision",
-      "arity": "value",
-      "repeatable": true,
-      "sensitive": false,
-      "sources": [
-        {
-          "path": "docs/plans/cloud-project-development/specification-storage-handoff.md",
-          "line": 1
-        }
-      ]
-    },
-    {
-      "long": "requires-deterministic",
-      "arity": "switch",
-      "repeatable": true,
-      "sensitive": false,
-      "sources": [
-        {
-          "path": "docs/plans/spec-driven-flow/plan.yml",
-          "line": 1,
-          "symbol": "checks CLI"
-        }
-      ]
-    },
-    {
-      "long": "subject",
-      "arity": "value",
-      "repeatable": true,
-      "sensitive": false,
-      "sources": [
-        {
-          "path": "docs/plans/spec-driven-flow/plan.yml",
-          "line": 1,
-          "symbol": "checks CLI"
-        }
-      ]
-    },
-    {
-      "long": "test-result",
-      "arity": "value",
-      "repeatable": true,
-      "sensitive": false,
-      "sources": [
-        {
-          "path": "docs/plans/spec-driven-flow/plan.yml",
-          "line": 1,
-          "symbol": "checks CLI"
-        }
-      ]
-    },
-    {
-      "long": "decision",
-      "arity": "value",
-      "repeatable": true,
-      "sensitive": false,
-      "sources": [
-        {
-          "path": "docs/plans/spec-driven-flow/plan.yml",
-          "line": 1,
-          "symbol": "checks CLI"
-        }
-      ]
-    },
-    {
-      "long": "evidence-file",
-      "arity": "value",
-      "repeatable": true,
-      "sensitive": false,
-      "sources": [
-        {
-          "path": "docs/plans/spec-driven-flow/plan.yml",
-          "line": 1,
-          "symbol": "checks CLI"
-        }
-      ]
-    },
-    {
-      "long": "detail",
-      "arity": "value",
-      "repeatable": true,
-      "sensitive": false,
-      "sources": [
-        {
-          "path": "docs/plans/spec-driven-flow/plan.yml",
-          "line": 1,
-          "symbol": "checks CLI"
-        }
-      ]
-    },
-    {
-      "long": "note",
-      "arity": "value",
-      "repeatable": true,
-      "sensitive": false,
-      "sources": [
-        {
-          "path": "docs/plans/spec-driven-flow/plan.yml",
-          "line": 1,
-          "symbol": "checks CLI"
-        }
-      ]
-    },
-    {
-      "long": "supporting",
-      "arity": "switch",
-      "repeatable": true,
-      "sensitive": false,
-      "sources": [
-        {
-          "path": "docs/plans/spec-driven-flow/plan.yml",
-          "line": 1,
-          "symbol": "checks CLI"
         }
       ]
     }
@@ -31698,6 +31711,7 @@
       "flags": [
         "accept-task-proposals",
         "age-group",
+        "allow-e2b-upload",
         "api-key",
         "api-url",
         "auto-approve",
@@ -32228,6 +32242,7 @@
       ],
       "flags": [
         "accept-task-proposals",
+        "allow-e2b-upload",
         "api-key",
         "api-url",
         "auto-approve",
@@ -65444,6 +65459,53 @@
         "macos": "not_verified",
         "windows": "not_verified"
       }
+    },
+    {
+      "path": [
+        "settings",
+        "e2b-upload"
+      ],
+      "summary": "settings e2b-upload",
+      "usages": [
+        "settings e2b-upload [allow|decline] [--json]"
+      ],
+      "positionals": [
+        {
+          "name": "decision",
+          "required": false,
+          "variadic": false,
+          "at": 2,
+          "synopsis": "[decision]"
+        }
+      ],
+      "flags": [
+        "api-key",
+        "api-url",
+        "help",
+        "json",
+        "profile"
+      ],
+      "source_locations": [
+        {
+          "path": "frontend/packages/openmates-tui-native/src/cli/e2b_consent_cmd.rs",
+          "line": 1,
+          "symbol": "execute"
+        }
+      ],
+      "implementation": {
+        "parser": "native_clap",
+        "handler": "client.e2b_consent",
+        "status": "partial",
+        "module": "frontend/packages/openmates-tui-native/src/cli/e2b_consent_cmd.rs"
+      },
+      "gaps": [
+        "New native-only command (code-run.e2b.upload-consent); no npm CLI counterpart."
+      ],
+      "platforms": {
+        "linux": "not_verified",
+        "macos": "not_verified",
+        "windows": "not_verified"
+      }
     }
   ],
   "platform_gaps": [
@@ -65452,9 +65514,9 @@
     "Remote command protection is Linux-specific; unsupported hosts must fail closed."
   ],
   "coverage": {
-    "command_patterns": 769,
-    "flags": 639,
-    "native_handlers_partial": 764,
+    "command_patterns": 770,
+    "flags": 640,
+    "native_handlers_partial": 765,
     "unsupported": 5,
     "feature_complete": false
   },

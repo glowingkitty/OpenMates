@@ -142,6 +142,7 @@ from .handlers.websocket_handlers.suggested_followup_metadata_handler import han
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
 from .handlers.websocket_handlers.connected_account_permission_confirmed_handler import handle_connected_account_permission_confirmed
+from .handlers.websocket_handlers.e2b_upload_consent_answer_handler import handle_e2b_upload_consent_answer
 from .handlers.websocket_handlers.store_app_settings_memories_handler import handle_store_app_settings_memories_entry # Handler for storing app settings/memories entries to Directus
 from .handlers.websocket_handlers.delete_app_settings_memories_handler import handle_delete_app_settings_memories_entry # Handler for deleting app settings/memories entries with cross-device sync
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
@@ -1190,6 +1191,23 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for app_settings_memories request {request_id}")
+                    elif event_type in ("send_e2b_upload_consent_request", "send_e2b_upload_consent_updated"):
+                        # request_e2b_upload_consent / e2b_upload_consent_updated to every device.
+                        # Mapped inline: the listener must not depend on module globals.
+                        consent_frame_type = (
+                            "request_e2b_upload_consent"
+                            if event_type == "send_e2b_upload_consent_request"
+                            else "e2b_upload_consent_updated"
+                        )
+                        for device_id in list(manager.get_connections_for_user(user_id) or {}):
+                            try:
+                                await manager.send_personal_message(
+                                    {"type": consent_frame_type, "payload": payload},
+                                    user_id,
+                                    device_id,
+                                )
+                            except Exception as e:
+                                logger.error(f"Redis Listener: FAILED to send {event_type} to device {device_id[:12]}...: {e}")
                     elif event_type == "send_connected_account_permission_request":
                         request_id = payload.get("request_id")
                         chat_id = payload.get("chat_id")
@@ -5033,6 +5051,19 @@ async def websocket_endpoint(
 
             elif message_type == "connected_account_permission_confirmed":
                 await handle_connected_account_permission_confirmed(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "e2b_upload_consent_answer":
+                await handle_e2b_upload_consent_answer(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

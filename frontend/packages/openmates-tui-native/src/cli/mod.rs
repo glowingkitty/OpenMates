@@ -47,6 +47,7 @@ mod projects;
 mod remote_access;
 #[cfg(unix)]
 mod remote_access_folder;
+mod e2b_consent_cmd;
 mod send;
 mod send_machine;
 pub mod signup;

@@ -45,6 +45,8 @@ impl Family {
         match self {
             Self::AppSettings => &[
                 "request_app_settings_memories",
+                "request_e2b_upload_consent",
+                "e2b_upload_consent_updated",
                 "dismiss_app_settings_memories_dialog",
                 "app_settings_memories_sync_ready",
                 "app_settings_memories_entry_synced",

@@ -186,6 +186,17 @@ directus_users:
       nullable: true
       note: "Server timestamp of explicit first-call acknowledgment of Mistral microphone transcription and ElevenLabs assistant voice processing, version 3. Prior voice consent does not grant this consent."
 
+    e2b_upload_consent_v1:
+      type: string
+      length: 16
+      nullable: true
+      note: "Account decision (allowed or declined) on sending code and Project files to E2B, consent wording version 1. A new wording version uses a new field and asks again."
+
+    e2b_upload_consent_v1_at:
+      type: integer
+      nullable: true
+      note: "Server timestamp of the e2b_upload_consent_v1 decision."
+
     consent_mates_default_settings:
       type: string
       length: 256

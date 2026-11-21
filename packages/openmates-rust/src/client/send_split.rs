@@ -526,6 +526,18 @@ impl SavedTurnClientPhases for LeasedTurnPhases<'_> {
             )
         )
     }
+    fn e2b_consent<'a>(
+        &'a mut self,
+        ws: &'a mut Socket,
+        event: &'a Value,
+        chat: &'a str,
+        key: &'a [u8; 32],
+        updates: &'a mpsc::Sender<StreamUpdate>,
+        cancel: &'a CancellationToken,
+        policy: E2bConsentPolicy,
+    ) -> TurnPhaseFuture<'a, Option<SendE2bConsentRequest>> {
+        leased!(self, e2b_consent(ws, event, chat, key, updates, cancel, policy))
+    }
     fn replay_outputs<'a>(
         &'a mut self,
         ws: &'a mut Socket,

@@ -563,6 +563,22 @@ class RunCodeSkill(BaseSkill):
         if not chat_id or not message_id or not user_id or not user_vault_key_id or cache_service is None or encryption_service is None:
             return RunCodeResponse(status="error", error="Code Run requires chat, message, user, cache, and encryption context.")
 
+        if request.target != "remote_source":
+            # Defence in depth: the assistant pipeline already paused for consent; nothing may
+            # reach E2B (embeds, uploads, runs) without the account's allowed decision.
+            from backend.core.api.app.services import e2b_upload_consent
+
+            consent_state = await e2b_upload_consent.get_decision(str(user_id))
+            if consent_state["decision"] == "declined":
+                from backend.apps.ai.processing.e2b_upload_consent_request import DECLINED_INSTRUCTION
+
+                return RunCodeResponse(status="e2b_consent_declined", error=DECLINED_INSTRUCTION)
+            if consent_state["decision"] != "allowed":
+                return RunCodeResponse(
+                    status="e2b_consent_required",
+                    error="The user has not yet decided whether files may be sent to E2B; nothing was uploaded.",
+                )
+
         if request.argv and request.test_run is None:
             refusal = file_command_refusal(request.argv)
             if refusal:

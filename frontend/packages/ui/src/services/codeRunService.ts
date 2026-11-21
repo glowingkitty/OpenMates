@@ -8,6 +8,11 @@ import { getApiUrl } from '../config/api';
 import { getWebSocketToken } from '../utils/cookies';
 import { getSessionId } from '../utils/sessionId';
 import { websocketTokenNeedsRefresh } from './audioRealtimeTranscription';
+import {
+  ensureE2bConsentForUserStart,
+  isE2bConsentRefusalCode,
+  resolveServerE2bConsentRefusal,
+} from './e2bConsentGate';
 import type { CodeRunArtifact, CodeRunSkippedArtifact } from '../types/chat';
 
 export interface CodeRunStartResponse {
@@ -94,7 +99,19 @@ export type CodeRunStreamMessage =
   | { type: 'code_run_update'; payload: Partial<CodeRunStatus> }
   | { type: 'code_run_event'; payload: CodeRunEvent };
 
-export async function startCodeRun(
+/** Start a run the user asked for: asks for E2B upload consent first (never silent). */
+export async function startCodeRun(...args: Parameters<typeof postCodeRun>): Promise<CodeRunStartResponse> {
+  await ensureE2bConsentForUserStart();
+  try {
+    return await postCodeRun(...args);
+  } catch (error) {
+    if (!(error instanceof CodeRunStartError) || !isE2bConsentRefusalCode(error.code)) throw error;
+    await resolveServerE2bConsentRefusal(error.code);
+    return postCodeRun(...args);
+  }
+}
+
+async function postCodeRun(
   chatId: string,
   targetEmbedId: string,
   clientFiles: CodeRunClientFile[] = [],

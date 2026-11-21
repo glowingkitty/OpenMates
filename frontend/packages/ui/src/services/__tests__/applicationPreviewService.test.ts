@@ -21,6 +21,16 @@ vi.mock("../embedResolver", () => ({
   extractEmbedReferences: embedResolverMocks.extractEmbedReferences,
   resolveEmbed: embedResolverMocks.resolveEmbed,
 }));
+const e2bConsentMocks = vi.hoisted(() => ({
+  autoStartAllowed: vi.fn(async () => true),
+}));
+// Preview tests start from an account that already allowed E2B uploads;
+// the consent gate itself is covered by e2bConsentGate.test.ts.
+vi.mock("../e2bConsentGate", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../e2bConsentGate")>()),
+  ensureE2bConsentForUserStart: vi.fn(async () => undefined),
+  isE2bAutoStartAllowed: e2bConsentMocks.autoStartAllowed,
+}));
 vi.mock("../db", () => ({ chatDB: { getChat: ownerChatMocks.getChat } }));
 vi.mock("../../demo_chats", () => ({ isPublicChat: ownerChatMocks.isPublicChat }));
 
@@ -225,6 +235,20 @@ describe("autoStartCreatedApplicationPreview", () => {
         }),
       }),
     );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=code-run.e2b.upload-consent
+  it("never auto-starts a preview while the account has not allowed E2B uploads", async () => {
+    e2bConsentMocks.autoStartAllowed.mockResolvedValueOnce(false);
+    embedResolverMocks.resolveEmbed.mockResolvedValue({ embed_id: "application-embed-undecided", content: "application-toon" });
+    embedResolverMocks.decodeToonContent.mockResolvedValue({ type: "application" });
+    const fetchSpy = vi.mocked(globalThis.fetch);
+    const callsBefore = fetchSpy.mock.calls.length;
+
+    const session = await autoStartApplicationPreviewForEmbed("chat-1", "message-undecided", "application-embed-undecided");
+
+    expect(session).toBeUndefined();
+    expect(fetchSpy.mock.calls.slice(callsBefore).some(([url]) => String(url).includes("/preview/start"))).toBe(false);
   });
 });
 

@@ -184,6 +184,7 @@ class AskSkillRequest(BaseModel):
     chat_key_version: Optional[int] = Field(default=None, description="Immutable cryptographic chat-key version.")
     is_app_settings_memories_continuation: bool = Field(default=False, description="True if this task is a continuation after app settings/memories confirmation/rejection. Prevents infinite loops by skipping pending context storage if data is still missing.")
     is_connected_account_permission_continuation: bool = Field(default=False, description="True if this task is a continuation after connected-account permission confirmation/rejection.")
+    is_e2b_upload_consent_continuation: bool = Field(default=False, description="True if this connected-account-style continuation resumes after an E2B upload consent answer, not a connected-account answer.")
     is_focus_mode_continuation: bool = Field(default=False, description="True if this task is a continuation after focus mode auto-confirm or rejection. The user message was already persisted before the deferred activation pause.")
     is_async_skill_continuation: bool = Field(default=False, description="True when a client-executed async skill result is re-entering inference.")
     original_user_message_id: Optional[str] = Field(default=None, description="Original user turn that created the async skill job.")

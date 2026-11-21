@@ -82,6 +82,8 @@ class CodeRunAppSkillRunItem(BaseModel):
 
 
 class CodeRunAppSkillRequest(BaseModel):
+    # Mirrors code_execution.CodeRunAppSkillRequest (explicit per-request E2B consent).
+    allow_e2b_upload: bool = False
     requests: list[CodeRunAppSkillRunItem]
 
 

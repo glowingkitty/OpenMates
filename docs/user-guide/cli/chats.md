@@ -134,6 +134,7 @@ Creates a new chat and streams the AI response to your terminal. Supports @menti
 |--------|-------------|
 | `--auto-approve` | Automatically approve server-requested sub-chat batches for trusted non-interactive runs |
 | `--auto-approve-memories` | Explicitly approve server-requested memory categories for trusted non-interactive runs. Memories are never approved by default. |
+| `--allow-e2b-upload` | Explicitly allow sending code and files to E2B, a cloud sandbox provider, so the assistant can run them there. Without it a terminal asks (Allow / Use my own machine / Not now); a non-interactive run prints the request to stderr, uploads nothing and exits with code 2. View or change the account decision with `openmates settings e2b-upload [allow\|decline]`. |
 
 ## Sending a Message to an Existing Chat
 

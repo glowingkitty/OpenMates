@@ -1102,6 +1102,7 @@ async fn execute_context_with_inventory(
     if super::teams_message::supported(invocation) {
         return Box::pin(super::teams_message::execute(invocation, client, cancel)).await;
     }
+    if super::e2b_consent_cmd::supported(invocation) { return super::e2b_consent_cmd::execute(invocation, client).await; }
     if super::account::supported(invocation) {
         return Box::pin(super::account::execute(invocation, client)).await;
     }

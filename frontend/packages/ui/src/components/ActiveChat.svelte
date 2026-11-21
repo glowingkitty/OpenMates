@@ -14626,6 +14626,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                           bind:this={chatHistoryRef}
                           bind:timelineOverlayOpen
                           {timelinePanelId}
+                          onE2bConsentAnswer={(choice, requestId, chatId) => {
+                            void import('../services/chatSyncServiceHandlersE2bConsent').then((module) =>
+                              module.answerE2bUploadConsent(chatSyncService, chatId, requestId, choice));
+                          }}
                           on:timelineStateChange={(event) => { timelineAvailable = event.detail.available; timelineNarrow = event.detail.narrow; }}
                           disablePointerEvents={showWelcome}
                           voiceCallBridge={showVoiceCallBarHere && !showWelcome

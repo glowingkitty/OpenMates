@@ -16,7 +16,7 @@ summary:
   percent: 47.6
 worker_namespaces_installed_not_progress:
   installed: 17
-  total: 24
+  total: 25
   note: 'Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs.'
 e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
   web-rust-core-chat.spec.ts, web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts,
@@ -426,4 +426,16 @@ units:
       send moves to the core.', The flag-off TypeScript voice path (chatSyncService.sendNewMessage) remains until
       the web flip.]
   spec_assertions: [video-call.audio.complete-turn-admission, chats.send.immediate-admission]
+  spec_gaps: []
+- namespace: e2bConsent
+  status: planned
+  pre_bind: false
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
+  e2e_specs: []
+  vectors: []
+  open_gaps: []
+  spec_assertions: [code-run.e2b.upload-consent]
   spec_gaps: []

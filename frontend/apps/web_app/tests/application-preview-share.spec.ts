@@ -17,6 +17,7 @@ const {
 } = require('./signup-flow-helpers');
 const {
 	loginToTestAccount,
+	allowE2bUpload,
 	startNewChat,
 	sendMessage,
 	deleteActiveChat
@@ -60,6 +61,7 @@ test('shared recipient starts an isolated application preview session', async ({
 	});
 
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot, { credentials: creator });
+	await allowE2bUpload(page);
 	await startNewChat(page, logCheckpoint);
 	await sendMessage(
 		page,
@@ -98,6 +100,7 @@ test('shared recipient starts an isolated application preview session', async ({
 	attachNetworkListeners(recipientPage);
 	try {
 		await loginToTestAccount(recipientPage, logCheckpoint, takeStepScreenshot, { credentials: recipient });
+		await allowE2bUpload(recipientPage);
 		await recipientPage.goto(shareUrl, { waitUntil: 'load' });
 
 		const recipientEmbed = await waitForEmbedFinished(recipientPage, 'code', 'application', 180_000);

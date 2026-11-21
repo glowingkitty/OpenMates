@@ -11803,8 +11803,8 @@ features:
       assertions:
         passing: 7
         failing: 1
-        not_run: 13
-        missing: 19
+        not_run: 14
+        missing: 18
         counted: 40
       failing_tests:
       - frontend/apps/web_app/tests/skill-code-docs.spec.ts
@@ -11814,22 +11814,26 @@ features:
       e2e_tests:
       - frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
       - frontend/apps/web_app/tests/application-preview.spec.ts
+      - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
       - frontend/apps/web_app/tests/code-run-dependency-flow.spec.ts
       - frontend/apps/web_app/tests/code-run-languages.spec.ts
       - frontend/apps/web_app/tests/components/application-preview-readiness.spec.ts
       - frontend/apps/web_app/tests/components/code-run-dependencies.spec.ts
+      - frontend/apps/web_app/tests/components/e2b-consent-run-start.spec.ts
+      - frontend/apps/web_app/tests/components/e2b-upload-consent-request.spec.ts
       - frontend/apps/web_app/tests/components/remote-command-review.spec.ts
       - frontend/apps/web_app/tests/components/test-result-embed.spec.ts
+      - frontend/apps/web_app/tests/e2b-upload-consent.spec.ts
       - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
       - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
       - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/codeRunService.test.ts
+      - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
       - backend/tests/test_remote_command_service.py
       - frontend/packages/ui/src/components/embeds/code/__tests__/codeRunSupport.test.ts
       - frontend/packages/ui/src/config/__tests__/apiProjectFileCapability.test.ts
-      - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
-      unit_test_files: 12
+      unit_test_files: 13
     apple:
       status: partial
       source: tests
@@ -11898,8 +11902,8 @@ features:
       assertions:
         passing: 16
         failing: 0
-        not_run: 6
-        missing: 16
+        not_run: 7
+        missing: 15
         counted: 38
       key_tests: []
       e2e_tests: []
@@ -11909,7 +11913,7 @@ features:
       - backend/tests/test_code_run_billing_attribution.py
       - backend/tests/test_e2b_code_runner.py
       - backend/tests/test_application_preview_config.py
-      unit_test_files: 25
+      unit_test_files: 27
     sdk_npm:
       status: not_run
       source: tests

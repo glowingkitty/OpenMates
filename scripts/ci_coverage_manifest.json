@@ -740,6 +740,7 @@
         "authored-results-flow.spec.ts",
         "authored-results-media.spec.ts",
         "code-run-dependency-flow.spec.ts",
+        "e2b-upload-consent.spec.ts",
         "chat-menu-parity.spec.ts",
         "web-rust-core-chat.spec.ts",
         "web-rust-core-sync.spec.ts",
@@ -1313,6 +1314,14 @@
       "enabling_work": "Account-free Vite-only bare Code fullscreen preview tests real dependency preparation and start request serialization against intercepted HTTP fixtures. Frozen latest Python metadata covers automatic compatible selection and explicit pins; no sandbox execution, backend, account, provider credentials or AI inference is claimed. Actual Python/Rust execution and assistant continuation are verified separately on dev with isolated state and automatic routing.",
       "specs": [
         "components/code-run-dependencies.spec.ts"
+      ]
+    },
+    "e2b_upload_consent_request_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare preview of the in-chat E2B upload consent request (unanswered with three choices, answered allow, answered not now). Pure presentation fixtures; no backend, account, sandbox upload or AI inference.",
+      "specs": [
+        "components/e2b-upload-consent-request.spec.ts",
+        "components/e2b-consent-run-start.spec.ts"
       ]
     },
     "chat_orchestration_event_notice_component": {

@@ -25,6 +25,8 @@ import { storageArchiveFetch } from "../config/api";
   import ChatRecommendations from './ChatRecommendations.svelte';
   import ContextEntryEventNotice from './ContextEntryEventNotice.svelte';
   import EmbedUpdatedEventNotice from './EmbedUpdatedEventNotice.svelte';
+  import E2bUploadConsentRequest, { isE2bConsentResponseContent, parseE2bConsentRequest } from './E2bUploadConsentRequest.svelte';
+  import { e2bConsentAnswerOf } from '../services/rustCore/e2bConsent/e2bConsentClient';
   import { embedEventRows, embedUpdatedCandidateKey, isEmbedUpdatedCandidate, placeEmbedUpdatedGroups, type EmbedUpdatedPlacement } from './embedUpdatedHistory';
   import { EMBED_EDITS_ENABLED, groupEmbedUpdatedEvents, reconcileEmbedNotices } from '../services/rustCore/embeds/embedEditSession';
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
@@ -1222,9 +1224,37 @@ import { storageArchiveFetch } from "../config/api";
     ? { taskId: pendingAssistantResponse.taskId, userMessageId: pendingAssistantResponse.userMessageId, chatId: currentChatId }
     : null));
 
+  /** request_id -> answer of every e2b_upload_consent_request card; the core pairs request and response. */
+  let e2bConsentAnswers = $state(new Map<string, 'allow' | 'own_machine' | 'not_now'>());
+  $effect(() => {
+    const contents: string[] = [];
+    const requestIds: string[] = [];
+    for (const msg of messages) {
+      if (msg.role !== 'system') continue;
+      const content = msg.original_message?.content;
+      if (typeof content !== 'string') continue;
+      const request = parseE2bConsentRequest(content);
+      if (request) requestIds.push(request.request_id);
+      else if (isE2bConsentResponseContent(content)) contents.push(content);
+    }
+    if (requestIds.length === 0) return;
+    let stale = false;
+    void Promise.all(requestIds.map(async (id) => [id, await e2bConsentAnswerOf(contents, id)] as const))
+      .then((pairs) => {
+        if (stale) return;
+        const next = new Map<string, 'allow' | 'own_machine' | 'not_now'>();
+        for (const [id, choice] of pairs) if (choice) next.set(id, choice);
+        e2bConsentAnswers = next;
+      })
+      .catch(() => undefined);
+    return () => { stale = true; };
+  });
+
   let displayMessages = $derived.by(() => {
     return candidateDisplayMessages.filter(msg => {
       if (msg.role === 'system') {
+        // The answer is shown inside its e2b_upload_consent_request card, never as a bubble.
+        if (isE2bConsentResponseContent(msg.original_message?.content)) return false;
         if (loadedMemoryAssociation.attachedReceiptIds.has(msg.id)) return false;
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         // Filter out app_settings_memories_response system messages
@@ -1648,6 +1678,7 @@ import { storageArchiveFetch } from "../config/api";
     onQueuedSteer = undefined,
     queuedActionBusyMessageId = null,
     queuedActionErrors = {},
+    onE2bConsentAnswer,
     canAnnotate = true,
     voiceCallBridge = undefined,
     timelineOverlayOpen = $bindable(false),
@@ -1742,6 +1773,8 @@ import { storageArchiveFetch } from "../config/api";
     onQueuedSteer?: (message: GlobalMessage) => void | Promise<void>;
     queuedActionBusyMessageId?: string | null;
     queuedActionErrors?: Record<string, string>;
+    /** Answer to an e2b_upload_consent_request card (the core sends and persists it). */
+    onE2bConsentAnswer?: (choice: 'allow' | 'own_machine' | 'not_now', requestId: string, chatId: string) => void;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
     hasOlderMessages?: boolean;
     olderMessagesLoading?: boolean;
@@ -3585,6 +3618,14 @@ import { storageArchiveFetch } from "../config/api";
                             onUndo={(event) => undoAssistantContextEntry(msg.original_message?.chat_id ?? currentChatId ?? '', event)} />
                         </SystemMessageNotice>
                       </div>
+                    {:else if msg.role === 'system' && parseE2bConsentRequest(msg.original_message?.content)}
+                      {@const e2bRequest = parseE2bConsentRequest(msg.original_message?.content)}
+                      {#if e2bRequest}
+                        <E2bUploadConsentRequest requestId={e2bRequest.request_id}
+                          privacyPolicyUrl={e2bRequest.privacy_policy_url} remoteAccessCommand={e2bRequest.remote_access_command}
+                          answeredChoice={e2bConsentAnswers.get(e2bRequest.request_id) ?? null}
+                          onAnswer={(choice, requestId) => onE2bConsentAnswer?.(choice, requestId, msg.original_message?.chat_id ?? currentChatId ?? '')} />
+                      {/if}
                     {:else if msg.role === 'system' && embedUpdated.shownAt[msg.id]}
                       {@const updatedGroup = embedUpdated.shownAt[msg.id]}
                       <div class="context-entry-row">

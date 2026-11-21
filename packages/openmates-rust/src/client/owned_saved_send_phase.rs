@@ -42,6 +42,7 @@ enum Call {
     CatalogueTeamKey {team:String,expected:TeamCacheStamp,wrapped:zeroize::Zeroizing<String>,key:Key},
     Subchat {socket:Socket,event:Plain<Value>,chat:String,task:String,updates:mpsc::Sender<StreamUpdate>,policy:SendConsentPolicy},
     Memory {socket:Socket,event:Plain<Value>,chat:String,message:String,key:Key,memories:Plain<Vec<Value>>,mappings:Plain<Vec<Value>>,updates:mpsc::Sender<StreamUpdate>,policy:SendConsentPolicy},
+    E2b {socket:Socket,event:Plain<Value>,chat:String,key:Key,updates:mpsc::Sender<StreamUpdate>,policy:E2bConsentPolicy},
     Replay {socket:Socket,outputs:Plain<BTreeMap<String,Value>>,root:Option<(String,Key)>},
     Artifacts {socket:Socket,chat:String,message:String,key:Key,task:String,embeds:Plain<BTreeMap<String,Value>>,checkpoints:Plain<Vec<Value>>},
     CanonicalOpen {chat:String},
@@ -61,6 +62,7 @@ enum Reply {
     CatalogueWrapping(CatalogueWrappingPlan),CatalogueCipher {detail:Plain<Value>,cipher:zeroize::Zeroizing<String>},
     CatalogueTeamWrapping(MasterCapability),Frames(Plain<Vec<(String,Value)>>),
     Memory(Plain<(Vec<(String,Value)>,SendMemoryRequest,Vec<Value>)>),
+    E2b(Option<SendE2bConsentRequest>),
     Count(usize),Items(Plain<Vec<Item>>),Chat(Plain<Chat>),
     Tasks {result:Result<()>,observed:Plain<SendObservations>},
     ProjectCreate {result:Result<()>,state:super::super::project_create_request::ProjectCreateState},
@@ -192,6 +194,10 @@ impl SavedTurnClientPhases for OwnedTurnPhases {
         Box::pin(async move{self.chat(chat)?;bound(&(event,memories,mappings))?;let socket=self.socket(ws)?;
             match self.exchange(Call::Memory{socket,event:Plain::new(event.clone()),chat:chat.into(),message:message.into(),key:zeroize::Zeroizing::new(*key),memories:Plain::new(memories.to_vec()),mappings:Plain::new(mappings.to_vec()),updates:updates.clone(),policy}).await?{Reply::Memory(value)=>Ok(value.into_inner()),_=>Err(crate::client::send::refusal_trace::protocol_at!())}})
     }
+    fn e2b_consent<'a>(&'a mut self,ws:&'a mut Socket,event:&'a Value,chat:&'a str,key:&'a [u8;32],updates:&'a mpsc::Sender<StreamUpdate>,_cancel:&'a CancellationToken,policy:E2bConsentPolicy)->TurnPhaseFuture<'a,Option<SendE2bConsentRequest>>{
+        Box::pin(async move{self.chat(chat)?;bound(event)?;let socket=self.socket(ws)?;
+            match self.exchange(Call::E2b{socket,event:Plain::new(event.clone()),chat:chat.into(),key:zeroize::Zeroizing::new(*key),updates:updates.clone(),policy}).await?{Reply::E2b(value)=>Ok(value),_=>Err(crate::client::send::refusal_trace::protocol_at!())}})
+    }
     fn replay_outputs<'a>(&'a mut self,ws:&'a mut Socket,outputs:&'a BTreeMap<String,Value>,hint:Option<(&'a str,&'a [u8;32])>)->TurnPhaseFuture<'a,usize>{
         Box::pin(async move{bound(outputs)?;let socket=self.socket(ws)?;let root=match hint{Some((chat,key))=>{self.chat(chat)?;Some((chat.into(),zeroize::Zeroizing::new(*key)))},None=>None};
             match self.exchange(Call::Replay{socket,outputs:Plain::new(outputs.clone()),root}).await?{Reply::Count(count)=>Ok(count),_=>Err(crate::client::send::refusal_trace::protocol_at!())}})
@@ -317,6 +323,10 @@ impl Client {
                     Call::Memory{mut socket,event,chat,message,key,memories,mappings,updates,policy}=>{
                         context.check_socket(&socket)?;let child=context.admission.scope.child();
                         Ok(Reply::Memory(Plain::new(active.memory_consent(&mut socket,&event,&chat,&message,&key,&memories,&mappings,&updates,&child,policy).await?)))
+                    },
+                    Call::E2b{mut socket,event,chat,key,updates,policy}=>{
+                        context.check_socket(&socket)?;let child=context.admission.scope.child();
+                        Ok(Reply::E2b(active.send_e2b_consent(&mut socket,&event,&chat,&key,&updates,&child,policy).await?))
                     },
                     Call::Replay{mut socket,outputs,root}=>{
                         context.check_socket(&socket)?;let hint=root.as_ref().map(|(chat,key)|(chat.as_str(),&**key));

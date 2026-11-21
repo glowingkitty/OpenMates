@@ -10656,7 +10656,10 @@ async def handle_main_processing(
                                 f"{log_prefix} Connected-account permission required for "
                                 f"{app_id}.{skill_id}: {permission_error}"
                             )
-                            if getattr(request_data, "is_connected_account_permission_continuation", False):
+                            # Only a connected-account answer turns a new request into a denial; an E2B consent
+                            # continuation reuses the flag for resume behavior and must still ask.
+                            if (getattr(request_data, "is_connected_account_permission_continuation", False)
+                                    and not getattr(request_data, "is_e2b_upload_consent_continuation", False)):
                                 current_message_history.append({
                                     "tool_call_id": tool_call_id,
                                     "role": "tool",
@@ -10734,6 +10737,46 @@ async def handle_main_processing(
                                 "content": json.dumps(connected_account_exchange_failure_payload(
                                     exchange_error, app_id=app_id, skill_id=skill_id,
                                 )),
+                            })
+                            continue
+
+                    if (app_id, skill_id) == ("code", "run") and skill_arguments.get("target") != "remote_source":
+                        # E2B upload consent: nothing is sent to E2B before the account allowed it.
+                        from backend.apps.ai.processing.e2b_upload_consent_request import (
+                            declined_tool_result,
+                            gate_e2b_upload_before_skill,
+                        )
+
+                        e2b_gate = await gate_e2b_upload_before_skill(
+                            request_data=request_data,
+                            cache_service=cache_service,
+                            encryption_service=encryption_service,
+                            directus_service=directus_service,
+                            user_vault_key_id=user_vault_key_id,
+                            task_id=task_id,
+                        )
+                        if e2b_gate.kind != "allowed":
+                            if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                failed_embed_ids.update(await settle_blocked_placeholders(
+                                    placeholder_embed_data,
+                                    embed_service=EmbedService(
+                                        cache_service=cache_service,
+                                        directus_service=directus_service,
+                                        encryption_service=encryption_service,
+                                    ),
+                                    app_id=app_id, skill_id=skill_id, request_data=request_data,
+                                    user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                                ))
+                        if e2b_gate.kind == "paused":
+                            yield {"__awaiting_e2b_upload_consent__": True, "request_id": e2b_gate.request_id}
+                            return
+                        if e2b_gate.kind == "declined":
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps(declined_tool_result(app_id, skill_id)),
                             })
                             continue
 

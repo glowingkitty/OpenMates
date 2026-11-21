@@ -16,7 +16,7 @@ import type { Locator, Page } from '@playwright/test';
 
 const { test, expect } = require('./helpers/cookie-audit');
 const {
-  focusMessageEditor, loginToTestAccount, sendMessage, startNewChat, waitForAssistantMessage,
+  focusMessageEditor, loginToTestAccount, allowE2bUpload, sendMessage, startNewChat, waitForAssistantMessage,
 } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
@@ -198,6 +198,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     watchStorage(page, testInfo);
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
     await loginToTestAccount(page);
+    await allowE2bUpload(page);
     await startNewChat(page);
 
     // a. The recipe app: Project creation, application card and file changes from the web file-job path.
@@ -307,6 +308,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     });
     expect(projectName, 'the laptop test created a Project').not.toBe('');
     await loginToTestAccount(page);
+    await allowE2bUpload(page);
     await showProjectViews(page, testInfo, 'phone', proof);
     await proof.attach();
   });
@@ -323,6 +325,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     });
     watchStorage(page, testInfo);
     await loginToTestAccount(page);
+    await allowE2bUpload(page);
     await openProject(page);
     await page.getByTestId('project-tab-folders').click();
     await expect(page.getByTestId('project-folders-panel')).toBeVisible({ timeout: 60_000 });

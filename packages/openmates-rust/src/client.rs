@@ -53,6 +53,12 @@ pub use browser::{
 #[doc(hidden)]
 pub use browser::{OriginalHintRefreshAdmission,OriginalHintRefreshBatch,OriginalHintRowSeed,OriginalHintRowMetadataAdmission,OriginalHintRowMetadataPublication,OriginalHintMetadataApplied,OriginalHintDraftInventoryPrerequisite,OriginalHintDraftInventoryTicket,UntrustedDraftInventoryPageData,UntrustedDraftInventoryRereadData,OwnedOriginalHintWindowPreparation,OwnedOriginalHintWindowCompletion,OriginalHintWindowBatch,OwnedBrowserReadDriver,OwnedBrowserReadStep,OwnedBrowserReadPhase,OwnedBrowserReadIO,OwnedBrowserReadPublication,OwnedBrowserMetadataContinuation,OwnedBrowserReadControl,OwnedBrowserMetadataPublication,OriginalHintRecoveryHandoff,OwnedBrowserReadTerminalObserver,OwnedBrowserReadTerminal,BrowserOriginalHintRecoveryDriver,BrowserOriginalHintRecoveryStep,BrowserOriginalHintRecoveryApply,BrowserOriginalHintRecoveryIo,BrowserOriginalHintRecoveryResume,BrowserOriginalHintRecoveryControl,BrowserOriginalHintRecoveryAdoption,BrowserOriginalHintRecoveryProgress,BrowserOriginalHintRecoveryPendingPersistence,BrowserOriginalHintRecoveryDeferred,BrowserOriginalHintRecoveryCheckpointPreparation,BrowserOriginalHintRecoveryCheckpointCrypto,BrowserOriginalHintRecoveryCheckpointWrite,BrowserOriginalHintRecoveryPersistenceFailure};
 mod consent;
+mod e2b_consent;
+mod e2b_consent_steps;
+pub use e2b_consent_steps::{E2bConsentFrame, E2bConsentMessage, E2bConsentStep};
+mod send_e2b_consent;
+pub use send_e2b_consent::{E2B_CONSENT_STATUS_PREFIX, SendE2bConsentRequest};
+pub use e2b_consent::{is_request_answered_json as e2b_consent_request_answered_json, request_answer_json as e2b_consent_request_answer_json, E2bConsentChoice, E2bConsentPolicy, E2bConsentRecord, E2bDecision};
 mod selected_first_page;
 mod context;
 mod project_memories;
@@ -713,6 +719,7 @@ pub struct Client {
     scoped_send_quarantine_bytes: usize,
     pub(super) monitor_cancel: Option<CancellationToken>,
     consent: Option<mpsc::UnboundedReceiver<(String, Vec<String>)>>,
+    e2b_consent: Option<mpsc::UnboundedReceiver<(String, e2b_consent::E2bConsentChoice)>>,
     completion_recovery_mode: Option<CancellationToken>,
     completion_recovery_jobs: BTreeMap<String, CompletionRecoveryJob>,
     metadata_recovery_jobs: BTreeMap<String, CompletionRecoveryJob>,
@@ -859,6 +866,7 @@ impl Client {
             scoped_send_quarantine_bytes:0,
             monitor_cancel: None,
             consent: None,
+            e2b_consent: None,
             completion_recovery_mode: None,
             completion_recovery_jobs: BTreeMap::new(),
             metadata_recovery_jobs: BTreeMap::new(),
@@ -870,6 +878,7 @@ impl Client {
         next.credential_revision = self.credential_revision;
         next.credential_updates = self.credential_updates.take();
         next.consent = self.consent.take();
+        next.e2b_consent = self.e2b_consent.take();
         next.ephemeral_chats = std::mem::take(&mut self.ephemeral_chats);
         next.operation_parent = self.operation_parent.clone();
         next.operation_cancel = next.operation_parent.child_token();

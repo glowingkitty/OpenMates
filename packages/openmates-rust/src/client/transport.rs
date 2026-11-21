@@ -912,6 +912,9 @@ impl Client {
         if project_result_pending && project_request_pending(status.as_u16(), &bytes) {
             return Ok(None);
         }
+        if status.as_u16() == 403 && let Some(refusal) = super::e2b_consent::refusal_from_body(&bytes) {
+            return Err(refusal);
+        }
         if !status.is_success() {
             if let Some(slot) = settings_http_error.as_mut() { **slot = Some(status.as_u16()); }
             return Err(match status.as_u16() {

@@ -85,7 +85,7 @@ mod web_search_query_tests;
 mod web_search_tests;
 pub use client::{
     Client, ClientIdentity, ClientOptions, PasswordLoginOptions, CredentialEvent, CredentialSnapshot, PairChallenge,
-    MachineProjectDecision, SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,
+    E2B_CONSENT_STATUS_PREFIX, SendE2bConsentRequest, E2bConsentChoice, E2bConsentPolicy, E2bConsentRecord, E2bDecision, MachineProjectDecision, SendConsentPolicy, SendMemoryRequest, SendOptions, SendOutcome, SendQueueMode, SendStatus,
 };
 #[cfg(feature = "workflow-yaml")]
 pub use client::{ProjectFileJobFrame, ProjectFilePrivacyBlob, ProjectFileJobStep};

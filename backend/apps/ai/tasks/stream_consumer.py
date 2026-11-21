@@ -7360,6 +7360,11 @@ async def _consume_main_processing_stream(
                 logger.info(f"{log_prefix} Awaiting app settings/memories permission from user (request_id: {request_id}). Task will complete without response.")
                 continue
 
+            if isinstance(chunk, dict) and "__awaiting_e2b_upload_consent__" in chunk:
+                awaiting_connected_account_permission = True  # same pause: empty response is expected
+                logger.info(f"{log_prefix} Awaiting E2B upload consent from user. Task will complete without response.")
+                continue
+
             if isinstance(chunk, dict) and "__awaiting_connected_account_permission__" in chunk:
                 awaiting_connected_account_permission = True
                 request_id = chunk.get("request_id", "unknown")

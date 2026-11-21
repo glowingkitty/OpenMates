@@ -161,6 +161,8 @@ pub struct SendOptions {
     pub response_timeout_ms: Option<u64>,
     pub sub_chat_consent: SendConsentPolicy,
     pub memory_consent: SendConsentPolicy,
+    /// How an E2B upload consent request raised during the turn is answered; the default asks the caller and never approves.
+    pub e2b_consent: super::E2bConsentPolicy,
     /// Chat and user-message ids the shell reserved for this turn (native
     /// view-model shells only; `Client::turn_identity` validates them). Not
     /// part of the SDK JSON options.
@@ -201,6 +203,7 @@ impl Default for SendOptions {
             response_timeout_ms: None,
             sub_chat_consent: SendConsentPolicy::Caller,
             memory_consent: SendConsentPolicy::Caller,
+            e2b_consent: super::E2bConsentPolicy::Caller,
             reserved_ids: None,
             embeds: Vec::new(),
             pii_exclusions: crate::privacy::PiiExclusions::default(),
@@ -315,6 +318,9 @@ pub struct SendOutcome {
     pub pending_task_update_jobs: Vec<Value>,
     pub sub_chat_events: Vec<Value>,
     pub app_settings_memory_requests: Vec<SendMemoryRequest>,
+    /// E2B upload consent requests the caller must still answer (`E2bConsentPolicy::Caller`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub e2b_consent_requests: Vec<super::send_e2b_consent::SendE2bConsentRequest>,
     pub token_usage: Option<Value>,
     pub prompt_budget: Option<Value>,
     /// "Created project" cards of assistant-initiated Project creation in this turn.
