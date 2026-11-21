@@ -79,7 +79,8 @@ test('a background chat notice shows the summary headline, the chat title and th
 		log(`Notice headline: "${text}"`);
 		expect(text).not.toContain(GENERIC_TEXT);
 		expect([...text].length).toBeLessThanOrEqual(110);
-		await expect(notice.getByTestId('notification-title')).not.toHaveText('');
+		// The header names the chat, not the "New message" placeholder a notice starts with.
+		await expect(notice.getByTestId('notification-title')).not.toHaveText(/^(|New message)$/, { timeout: 30_000 });
 		await expect(notice.getByTestId('notification-mate-profile')).toBeVisible();
 		await testInfo.attach('01-notice-headline', { body: await page.screenshot(), contentType: 'image/png' });
 		await testInfo.attach('02-notice-element', { body: await notice.screenshot(), contentType: 'image/png' });
