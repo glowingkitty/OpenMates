@@ -23,7 +23,10 @@ version the release Mac builds with), never on the shared dev host.
                generated inputs and build step, then exactly those XCUITests in the
                iOS simulator, serially. The app under test is the Debug build, so tests
                that talk to a server reach the dev backend; the lane passes no secrets,
-               so real-account tests skip themselves.
+               so real-account tests skip themselves. A focused run (at most
+               MAX_RECORDED_UI_SPECS targets) keeps the screen recording of every test,
+               passing ones too, so a UI change has its result video; larger runs keep
+               only the recordings of failed tests.
 
 Every step records a result row through ci_rust_checks so the coordinator and
 `ci_coordinator.py result` show failing excerpts without opening Actions logs.
@@ -33,6 +36,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from pathlib import Path
 
 ALL = "all"
@@ -42,6 +46,10 @@ UNIT_TARGET = "OpenMatesTests"
 UNIT_SPEC = re.compile(r"OpenMatesTests(?:/[A-Za-z_][A-Za-z0-9_]*){0,2}")
 UI_SPEC = re.compile(r"OpenMatesUITests(?:/[A-Za-z_][A-Za-z0-9_]*){1,2}")
 MAX_UI_SPECS = 40
+# Focused UI runs keep every screen recording (the result video of a UI change); a large
+# run would upload hundreds of megabytes of passing-test video nobody watches.
+MAX_RECORDED_UI_SPECS = 12
+KEEP_RECORDINGS_STEP = "keep screen recordings of passing tests"
 TEST_ALLOWANCE_SECONDS = 300  # per test; the longest real UI flow waits about 90 s
 XCODE_MODES = ("apple-build", "apple-unit", "apple-ui")
 RESULT_BUNDLES = {
@@ -186,6 +194,14 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
         "-IDEBuildingContinueBuildingAfterErrors=YES", *settings,
     ]
     steps: list[Step] = [(BUILD_STEP, build, {}, "")]
+    if mode == "apple-ui" and len(only) <= MAX_RECORDED_UI_SPECS:
+        products = results / "DerivedData" / "Build" / "Products"
+        steps.append((
+            KEEP_RECORDINGS_STEP,
+            [sys.executable, str(Path(__file__).resolve()), "keep-recordings", str(products)],
+            {},
+            "",
+        ))
     if build_only:
         # The macOS app shares most sources but has its own platform branches; the build lane
         # compiles it too, so macOS-only errors arrive in the same round as the iOS ones.
@@ -241,6 +257,35 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
         ),
         *steps,
     ]
+
+
+def keep_recordings(products: Path) -> int:
+    """Keep the screen recordings of passing UI tests in the built .xctestrun files.
+
+    `xcodebuild test-without-building -scheme` runs the .xctestrun that build-for-testing
+    wrote; its default deletes system attachments (screen recordings) of passing tests.
+    Returns the number of UI test targets changed and raises when there is none, so a
+    missing video is a failed step rather than a silent gap.
+    """
+    import plistlib
+
+    changed = 0
+    for path in sorted(products.glob("*.xctestrun")):
+        data = plistlib.loads(path.read_bytes())
+        if "TestConfigurations" in data:
+            targets = [t for c in data["TestConfigurations"] for t in c.get("TestTargets", [])]
+        else:  # format version 1: one top-level dictionary per test target
+            targets = [v for v in data.values() if isinstance(v, dict) and "TestBundlePath" in v]
+        for target in targets:
+            if target.get("IsUITestBundle"):
+                target["SystemAttachmentLifetime"] = "keepAlways"
+                target["PreferredScreenCaptureFormat"] = "screenRecording"
+                changed += 1
+        path.write_bytes(plistlib.dumps(data))
+    if not changed:
+        raise ValueError(f"no UI test target in any .xctestrun under {products}")
+    print(f"screen recordings kept for {changed} UI test target(s)", flush=True)
+    return changed
 
 
 def swift_errors(lines: list[str], root: Path) -> list[str]:
@@ -344,4 +389,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:2] == ["keep-recordings"]:
+        keep_recordings(Path(sys.argv[2]))
+    else:
+        main()

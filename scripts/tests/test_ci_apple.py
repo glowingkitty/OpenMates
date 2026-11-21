@@ -43,6 +43,39 @@ def test_apple_ui_plan_runs_exactly_the_selected_tests_serially():
     assert "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST_SUPPORT" in command
 
 
+def test_focused_ui_runs_keep_passing_recordings_before_the_tests():
+    plan = ci_apple.xcode_plan("apple-ui", Path("/out"), ["OpenMatesUITests/A"])
+    names = [step[0] for step in plan]
+    keep = names.index(ci_apple.KEEP_RECORDINGS_STEP)
+    assert names.index(ci_apple.BUILD_STEP) < keep < len(names) - 1
+    assert plan[keep][1][-2:] == ["keep-recordings", "/out/DerivedData/Build/Products"]
+    large = ["OpenMatesUITests/A"] * (ci_apple.MAX_RECORDED_UI_SPECS + 1)
+    assert ci_apple.KEEP_RECORDINGS_STEP not in [s[0] for s in ci_apple.xcode_plan("apple-ui", Path("/out"), large)]
+    unit = [s[0] for s in ci_apple.xcode_plan("apple-unit", Path("/out"), ["all"])]
+    assert ci_apple.KEEP_RECORDINGS_STEP not in unit
+
+
+def test_keep_recordings_changes_only_ui_test_targets(tmp_path):
+    import plistlib
+
+    run = {
+        "TestConfigurations": [{"TestTargets": [
+            {"BlueprintName": "OpenMatesUITests", "IsUITestBundle": True, "SystemAttachmentLifetime": "deleteOnSuccess"},
+            {"BlueprintName": "OpenMatesTests", "SystemAttachmentLifetime": "deleteOnSuccess"},
+        ]}],
+        "__xctestrun_metadata__": {"FormatVersion": 2},
+    }
+    path = tmp_path / "OpenMates_iOS_iphonesimulator26.0-arm64.xctestrun"
+    path.write_bytes(plistlib.dumps(run))
+    assert ci_apple.keep_recordings(tmp_path) == 1
+    ui, unit = plistlib.loads(path.read_bytes())["TestConfigurations"][0]["TestTargets"]
+    assert ui["SystemAttachmentLifetime"] == "keepAlways"
+    assert ui["PreferredScreenCaptureFormat"] == "screenRecording"
+    assert unit["SystemAttachmentLifetime"] == "deleteOnSuccess"
+    with pytest.raises(ValueError):
+        ci_apple.keep_recordings(tmp_path / "empty")
+
+
 def test_apple_unit_plan_selects_only_the_unit_target():
     command = ci_apple.xcode_plan("apple-unit", Path("/out"), ["all"])[-1][1]
     selected = [command[i + 1] for i, arg in enumerate(command) if arg == "-only-testing"]
@@ -107,7 +140,7 @@ def test_apple_build_plan_compiles_all_targets_and_keeps_going():
 )
 def test_test_lanes_build_once_then_test_on_those_products(mode, specs):
     build_only = ci_apple.xcode_plan("apple-build", Path("/out"), ["all"])[-2]
-    plan = ci_apple.xcode_plan(mode, Path("/out"), specs)
+    plan = [s for s in ci_apple.xcode_plan(mode, Path("/out"), specs) if s[0] != ci_apple.KEEP_RECORDINGS_STEP]
     build, test = plan[-2], plan[-1]
     # The compile step is the build lane's, so every test job lists all Swift errors itself.
     assert build[:2] == build_only[:2]
