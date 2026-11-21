@@ -334,7 +334,10 @@ test.describe('Layered focuses over the Project focus (real inference, dev only)
       }
       await expect(save, 'the Focus draft is ready to save').toBeVisible({ timeout: TURN_TIMEOUT });
       await save.click();
-      await expect(page.getByTestId('project-authoring-save').first()).toContainText(/saved/i, { timeout: 120_000 });
+      // A saved job leaves needs_save, so its card drops the Save button and shows the saved status.
+      await expect(page.locator('[data-testid="project-authoring-job"][data-job-status="saved"], '
+        + '[data-testid="project-authoring-job"][data-job-status="ready"]').first(),
+      'the Focus draft is saved to the Project').toBeVisible({ timeout: 120_000 });
 
       // A fresh chat in the Project starts with only the Project focus active.
       await page.goto(`/projects/${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
