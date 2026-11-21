@@ -5021,6 +5021,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // chatSide excludes the composer; its size is the room the start screen has.
     let chatSideWidth = $state(0);
     let chatSideHeight = $state(0);
+    /** Height of the in-flow top buttons row on the welcome screen; the centred welcome block keeps clear of it. */
+    let welcomeTopButtonsHeight = $state(0);
 
     // ─── Height-based suggestions overlap detection ──────────────────────────
     // Reliable DOM-measurement approach: measure whether the new-chat suggestions
@@ -13969,6 +13971,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     bind:clientHeight={chatSideHeight}
                     class:voice-call-strip-stuck={callControlsReplaceToolbar}
                     style:--assistant-speech-overlay-reserve={`${assistantSpeechOverlayHeight}px`}
+                    style:--welcome-top-buttons-reserve={showWelcome ? `${welcomeTopButtonsHeight}px` : undefined}
                 >
 
                   {#snippet timelineNavigation()}
@@ -14155,6 +14158,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         class="top-buttons"
                         use:headerOverlayControls
                         data-testid="chat-top-actions"
+                        bind:offsetHeight={welcomeTopButtonsHeight}
                         class:top-buttons-flow={showWelcome}
                         class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
                         class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
@@ -15584,7 +15588,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
     /* Start screen (TASK-1321): no banner for anyone. Greeting, row and suggestions are centred in
-       the pane; on a short pane the block scrolls instead of clipping its top (safe centre). */
+       the pane; on a short pane the block scrolls instead of clipping its top (safe centre).
+       The equal block padding keeps the centre where it was but stops a tall block (short phone
+       screen) from sliding under the top buttons row (issue CCFK8). */
     .chat-side.welcome-chat-side .center-content:not(.guest-all-examples-content) {
         top: 0;
         bottom: 0;
@@ -15592,6 +15598,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         justify-content: safe center;
         overflow-y: auto;
         box-sizing: border-box;
+        padding-block: var(--welcome-top-buttons-reserve, 0px);
     }
 
     /* The row keeps its full large-card height; the pane scrolls instead of squeezing it. */

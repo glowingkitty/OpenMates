@@ -456,7 +456,7 @@
       </div>
       {#if startSuggestions && startSuggestions.items.length > 0}
         <div class="start-row-suggestions" data-testid={`${surface}-start-suggestions`}>
-          <FollowUpSuggestions suggestions={startSuggestions.items} dismissOnClick={false} onSuggestionClick={startSuggestions.onClick} />
+          <FollowUpSuggestions suggestions={startSuggestions.items} dismissOnClick={false} singleLine onSuggestionClick={startSuggestions.onClick} />
         </div>
       {:else}
         <!-- No suggestions here (Apps): keep their room so the row sits where it does on Chats and Workflows. -->

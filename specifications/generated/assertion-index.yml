@@ -129711,13 +129711,13 @@ assertions:
       surface: gui.web
     - &id16523
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 196
+      line: 238
       name: signed-out Chats, Apps and Workflows share the start-screen layout at
         every width
       surface: gui.web
     - &id16524
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 215
+      line: 257
       name: signed-in Chats, Apps and Workflows share the start-screen layout at every
         width
       surface: gui.web
@@ -129736,7 +129736,7 @@ assertions:
     current_direct_proof: false
   daily-inspiration.start-row-suggestions:
     specification: feature.daily-inspiration@3
-    fingerprint: ba45a750c3ec7cdc8f98083cb04bd6c7e73e53b32c9fdc254d2ba8c65c0bee10
+    fingerprint: b3732e58c2f466931c7d2563ee83d464f244746dc21fbe369d32c6420e2eb548
     direct_tests:
     - &id16525
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
@@ -129745,13 +129745,13 @@ assertions:
       surface: gui.web
     - &id16526
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 196
+      line: 238
       name: signed-out Chats, Apps and Workflows share the start-screen layout at
         every width
       surface: gui.web
     - &id16527
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 215
+      line: 257
       name: signed-in Chats, Apps and Workflows share the start-screen layout at every
         width
       surface: gui.web
@@ -211866,7 +211866,7 @@ assertions:
       surface: gui.web
     - &id26788
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 215
+      line: 257
       name: signed-in Chats, Apps and Workflows share the start-screen layout at every
         width
       surface: gui.web
@@ -214907,13 +214907,13 @@ assertions:
       surface: gui.web
     - &id27150
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 196
+      line: 238
       name: signed-out Chats, Apps and Workflows share the start-screen layout at
         every width
       surface: gui.web
     - &id27151
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 215
+      line: 257
       name: signed-in Chats, Apps and Workflows share the start-screen layout at every
         width
       surface: gui.web

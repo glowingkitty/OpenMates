@@ -153,6 +153,16 @@ test.describe('start-screen row', () => {
         expect(suggestionsBox!.y).toBeGreaterThan(rowBox!.y + rowBox!.height - 1);
         expect(suggestionsBox!.x).toBeGreaterThanOrEqual(0);
         expect(suggestionsBox!.x + suggestionsBox!.width).toBeLessThanOrEqual(viewport.width + 1);
+        // Each suggestion stays on one line (issue CCFK8); long text is cut with an ellipsis.
+        const wrapped = await suggestions.getByTestId('follow-up-suggestion-text').evaluateAll((nodes: Element[]) =>
+          nodes
+            .filter((node) => {
+              const style = getComputedStyle(node);
+              return style.whiteSpace !== 'nowrap' || node.getBoundingClientRect().height >= parseFloat(style.lineHeight) * 1.5;
+            })
+            .map((node) => node.textContent)
+        );
+        expect(wrapped).toEqual([]);
 
         await actions.scrollIntoViewIfNeeded();
         await attach(page, testInfo, `${viewport.name}-${mode}-row-end`);

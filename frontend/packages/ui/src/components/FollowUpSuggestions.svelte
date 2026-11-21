@@ -16,6 +16,7 @@
     disabled = false,
     dismissOnClick = true,
     plainText = false,
+    singleLine = false,
     onSuggestionClick,
   }: {
     suggestions: string[];
@@ -25,6 +26,8 @@
     dismissOnClick?: boolean;
     /** Public wiki questions are already plain text; preserve their exact wording. */
     plainText?: boolean;
+    /** Start screens: one line per suggestion, cut with an ellipsis, so the centred block keeps its height. */
+    singleLine?: boolean;
     onSuggestionClick: (suggestion: string) => void;
   } = $props();
 
@@ -135,6 +138,7 @@
   <div
     class="suggestions-wrapper"
     class:is-dismissing={isDismissing}
+    class:single-line={singleLine}
     data-testid="suggestions-wrapper"
     transition:fade={{ duration: 200 }}
   >
@@ -144,6 +148,7 @@
         class="suggestion-item"
         data-testid="follow-up-suggestion-item"
         disabled={isDismissing || disabled}
+        title={singleLine ? suggestion.body : undefined}
         onmousedown={(event) => {
           event.preventDefault();
         }}
@@ -153,7 +158,7 @@
           handleSuggestionClick(suggestion.body);
         }}
       >
-        <span class="suggestion-text">
+        <span class="suggestion-text" data-testid="follow-up-suggestion-text">
           {#if typeof highlighted === 'string'}
             {highlighted}
           {:else}
@@ -242,6 +247,18 @@
 
   .suggestion-text .text-match {
     font-weight: 700;
+  }
+
+  .suggestions-wrapper.single-line .suggestion-item {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .suggestions-wrapper.single-line .suggestion-text {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   @keyframes fadeIn {

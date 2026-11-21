@@ -69,7 +69,7 @@
 
 {#if visible.length > 0}
   <div class="start-screen-suggestions" data-testid="start-screen-suggestions">
-    <FollowUpSuggestions suggestions={visible.map((suggestion) => suggestion.text)} dismissOnClick={false} onSuggestionClick={handleClick} />
+    <FollowUpSuggestions suggestions={visible.map((suggestion) => suggestion.text)} dismissOnClick={false} singleLine onSuggestionClick={handleClick} />
   </div>
 {/if}
 

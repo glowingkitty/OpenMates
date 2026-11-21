@@ -349,7 +349,9 @@ assertions:
     suggestions appear in the style of the follow-up suggestions of an open chat. Signed-in users see
     their own synced suggestions, newest first, or the translated defaults when they have none;
     signed-out visitors see the translated defaults ranked by their selected interests. Tapping one puts
-    it into the composer. While the composer's own suggestion rail is open, these step aside so the
+    it into the composer. Each suggestion stays on one line, longer text cut with an ellipsis, and on a
+    short screen the greeting, row and suggestions start below the top buttons row and scroll rather
+    than sliding under it. While the composer's own suggestion rail is open, these step aside so the
     same prompts are not listed twice.
   depends_on:
   - models.StartRow

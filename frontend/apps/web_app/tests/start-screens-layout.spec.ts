@@ -11,6 +11,9 @@ export {};
  * actions as the last item of the row; suggestions below the row (Chats, Workflows).
  * A named screenshot of every state is attached for review.
  *
+ * Suggestions are always one line (cut with an ellipsis), and on Chats the greeting never sits
+ * under the top buttons row, also on a short phone screen (issue CCFK8).
+ *
  * Assertions: daily-inspiration.start-row-actions, daily-inspiration.start-row-suggestions,
  * workspace-shell.start.available-space-cards, workflows-ui.home.prompt-suggestions.
  */
@@ -56,6 +59,9 @@ const VIEWPORTS = [
 	{ name: 'tablet', width: 820, height: 1180 },
 	{ name: 'desktop', width: 1280, height: 800 }
 ];
+
+/** iPhone Safari with its toolbar showing (issue CCFK8): the welcome block is taller than the pane. */
+const SHORT_PHONE = { name: 'short-phone', width: 390, height: 631 };
 
 type Screen = {
 	name: 'chats' | 'apps' | 'workflows';
@@ -176,13 +182,49 @@ async function expectStartScreen(page: any, testInfo: any, screen: Screen, viewp
 		const rowBox = await row.boundingBox();
 		const box = await suggestions.boundingBox();
 		expect(box.y).toBeGreaterThan(rowBox.y + rowBox.height - 1);
+		await expectSingleLineSuggestions(suggestions, `${screen.name} at ${viewport.name}`);
 	}
+	if (screen.name === 'chats') await expectGreetingBelowTopButtons(page, heading, viewport.name);
 
 	const name = `${signedIn ? 'signed-in' : 'signed-out'}-${screen.name}-${viewport.name}`;
 	await testInfo.attach(name, { body: await page.screenshot(), contentType: 'image/png' });
 	await actions.scrollIntoViewIfNeeded();
 	await testInfo.attach(`${name}-row-end`, { body: await page.screenshot(), contentType: 'image/png' });
 	return rowTop;
+}
+
+/** Every start-screen suggestion is one line high; longer text is cut with an ellipsis. */
+async function expectSingleLineSuggestions(suggestions: any, where: string) {
+	const lines: { text: string; height: number; lineHeight: number; whiteSpace: string }[] = await suggestions
+		.getByTestId('follow-up-suggestion-text')
+		.evaluateAll((nodes: Element[]) =>
+			nodes.map((node) => {
+				const style = getComputedStyle(node);
+				return {
+					text: (node.textContent || '').trim(),
+					height: node.getBoundingClientRect().height,
+					lineHeight: parseFloat(style.lineHeight),
+					whiteSpace: style.whiteSpace
+				};
+			})
+		);
+	expect(lines.length).toBeGreaterThan(0);
+	for (const line of lines) {
+		expect(line.whiteSpace, `suggestion "${line.text}" on ${where} may wrap`).toBe('nowrap');
+		expect(line.height, `suggestion "${line.text}" on ${where} is ${line.height}px high`).toBeLessThan(line.lineHeight * 1.5);
+	}
+}
+
+/** The Chats greeting starts below the report/tasks/call buttons row instead of sliding under it. */
+async function expectGreetingBelowTopButtons(page: any, heading: any, viewportName: string) {
+	const topButtons = page.getByTestId('chat-top-actions');
+	await expect(topButtons).toBeVisible();
+	const buttonsBox = await topButtons.boundingBox();
+	const headingBox = await heading.boundingBox();
+	expect(
+		headingBox.y,
+		`greeting top ${Math.round(headingBox.y)}px vs top buttons bottom ${Math.round(buttonsBox.y + buttonsBox.height)}px at ${viewportName}`
+	).toBeGreaterThanOrEqual(buttonsBox.y + buttonsBox.height - 1);
 }
 
 /** Chats, Apps and Workflows show their rows at the same height on screen. */
@@ -244,6 +286,14 @@ test.describe('start screens layout', () => {
 			}
 			expectAlignedRows(rowTops, viewport.name);
 		}
+
+		// Short phone screen (issue CCFK8): Chats keeps one-line suggestions and the greeting below the buttons.
+		await page.setViewportSize({ width: SHORT_PHONE.width, height: SHORT_PHONE.height });
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await expectStartScreen(page, testInfo, SCREENS[0], SHORT_PHONE, true);
+		await page.setViewportSize({ width: VIEWPORTS[2].width, height: VIEWPORTS[2].height });
+		await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('workflows-start-suggestions')).toBeVisible({ timeout: 30000 });
 
 		// Tapping a workflow suggestion fills the describe-a-workflow composer.
 		const suggestion = page.getByTestId('workflows-start-suggestions').getByTestId('follow-up-suggestion-item').first();
