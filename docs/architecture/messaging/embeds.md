@@ -187,6 +187,11 @@ payloads and wrappers for resolution and do not automatically replay on reconnec
 The sender exposes persisted/adopted/waiting/conflict/denied outcomes; correlated
 protocol responses belong to their requesting operation instead of generating
 one global error notification per retry. Unmatched errors remain visible.
+A server replay of a finished AI result (for example after the browser reloads
+a backgrounded page) reuses the queued `stream-completion` save of that embed
+version instead of queueing a second one. A `stream-completion` conflict keeps
+its operation as evidence but shows no review notification, since the user has
+nothing to act on; user-made saves still ask for review.
 
 The sender's pure decision rules (availability request and plan, canonical
 identity, history page, wrapper rows, missing keys, receipts and failure
