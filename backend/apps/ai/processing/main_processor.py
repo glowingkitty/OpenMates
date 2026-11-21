@@ -5249,7 +5249,9 @@ async def handle_main_processing(
     on_demand_memory_prompt = ""
     diagram_context_repair_used = False
     # Visible answer text already streamed in this turn (any iteration).
-    published_answer_text = False
+    # A separate flag: published_answer_text is the List[str] of published
+    # chunks and must stay a list (DBWDT).
+    answer_text_was_published = False
     if (agentic_context.first_party(request_data) and discovered_apps_metadata
             and (request_data.user_preferences or {}).get("apps_enabled") is not False
             and has_memory_catalog(discovered_apps_metadata, request_data)):
@@ -8440,7 +8442,7 @@ async def handle_main_processing(
             break
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
-        published_answer_text = published_answer_text or bool(final_buffered_text_for_turn.strip())
+        answer_text_was_published = answer_text_was_published or bool(final_buffered_text_for_turn.strip())
         if diagram_context_guard.required_type and not tool_calls_for_this_turn:
             prose_repair = diagram_context_guard.reason == "unrequested_diagram"
             if not diagram_context_repair_used and (memory_runtime is not None or prose_repair):
@@ -8470,7 +8472,7 @@ async def handle_main_processing(
                         log_prefix, diagram_context_guard.required_type, diagram_context_guard.reason,
                         type(guide_error).__name__, guide_error,
                     )
-            if not published_answer_text:
+            if not (answer_text_was_published or published_answer_text):
                 for billing_event in await terminal_billing_usage_events():
                     yield billing_event
                 yield main_processing_failure("protocol_guard")

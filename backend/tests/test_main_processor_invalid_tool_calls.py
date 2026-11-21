@@ -598,6 +598,44 @@ async def test_argument_normalization_failure_returns_tool_error_without_dispatc
     assert "I could not search" in "".join(chunk for chunk in output if isinstance(chunk, str))
 
 
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("first_turn_prefix", ["", "Let me check the current return policy. "])
+async def test_answer_after_tool_turn_streams_without_ai_error(monkeypatch, first_turn_prefix) -> None:
+    """DBWDT: text streamed after a tool turn must not crash the answer.
+
+    The published-chunk list was once overwritten with a bool after each turn,
+    so the next turn's text raised AttributeError and the user got a cut-off
+    answer with the generic AI error.
+    """
+    dispatched = AsyncMock(return_value=[{"status": "finished", "results": []}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    first_turn = ([first_turn_prefix] if first_turn_prefix else []) + [
+        {"fake_google_tool_call": "web-search", "arguments": {"query": "return policy"}, "tool_call_id": "call-1"},
+    ]
+    answer = "You can return the item within 30 days. Keep the receipt."
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [first_turn, [answer]],
+        generated_tools=[tool],
+        discovered_apps_metadata={
+            "web": SimpleNamespace(skills=[SimpleNamespace(
+                id="search", parallel_safe=False, exclude_fields_for_llm=None, pricing=None,
+                tool_schema={"type": "object", "properties": {"query": {"type": "string"}}},
+            )], instructions=[], focuses=[]),
+        },
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"]},
+    )
+
+    assert len(calls) == 2
+    assert not any(
+        isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output
+    )
+    published_text = "".join(chunk for chunk in output if isinstance(chunk, str))
+    assert published_text.endswith(answer)
+    assert published_text.startswith(first_turn_prefix)
+
+
 # contract-test: supporting surface=rest_api assertions=chat-queued-followups.steering.safe-boundary
 async def test_queued_steer_joins_only_after_complete_tool_batch_and_is_not_replayed(monkeypatch) -> None:
     """The real loop must preserve every completed result before a queued steer."""
