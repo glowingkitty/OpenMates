@@ -14,22 +14,26 @@ from backend.apps.ai.llm_providers.openai_shared import (
 def test_google_recovery_keeps_vertex_without_adding_a_fourth_attempt():
     model = "google/gemini-3.5-flash-lite"
     assert utility_model_fallbacks(model, [model]) == [
-        "mistral/mistral-small-latest", model,
+        "inception/mercury-3", model,
     ]
 
 
-def test_mistral_primary_retains_existing_independent_recovery():
+def test_non_google_primary_retains_server_then_deepseek_recovery():
     assert utility_model_fallbacks(
-        "mistral/mistral-small-latest", ["openrouter/mistralai/mistral-small-2603"]
+        "groq/openai/gpt-oss-20b", ["openrouter/openai/gpt-oss-20b"]
     ) == [
-        "openrouter/mistralai/mistral-small-2603", "deepseek/deepseek-v4-flash",
+        "openrouter/openai/gpt-oss-20b", "deepseek/deepseek-v4-flash",
     ]
+
+def test_mistral_is_never_an_automatic_utility_recovery_route():
+    for model in ("google/gemini-3.5-flash-lite", "groq/openai/gpt-oss-20b"):
+        assert not any("mistral" in route for route in utility_model_fallbacks(model, [model]))
 
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("purpose", ["preprocess", "postprocess", "translation"])
-@pytest.mark.parametrize("mistral_unavailable", [False, True])
-async def test_utility_chain_recovers_through_mistral_or_vertex(monkeypatch, purpose, mistral_unavailable):
+@pytest.mark.parametrize("independent_unavailable", [False, True])
+async def test_utility_chain_recovers_through_mercury_or_vertex(monkeypatch, purpose, independent_unavailable):
     calls = []
 
     async def unavailable_google(**kwargs):
@@ -39,9 +43,9 @@ async def test_utility_chain_recovers_through_mistral_or_vertex(monkeypatch, pur
             error_message="503 Service Unavailable",
         )
 
-    async def available_mistral(**kwargs):
-        calls.append("mistral")
-        if mistral_unavailable:
+    async def available_mercury(**kwargs):
+        calls.append("mercury")
+        if independent_unavailable:
             return UnifiedOpenAIResponse(
                 task_id="utility-outage", model_id=kwargs["model_id"], success=False,
                 error_message="503 Service Unavailable",
@@ -72,12 +76,12 @@ async def test_utility_chain_recovers_through_mistral_or_vertex(monkeypatch, pur
         llm_utils, "resolve_default_server_from_provider_config",
         lambda _model: ("google_ai_studio", "google_ai_studio/gemini-3.5-flash-lite"),
     )
-    monkeypatch.setitem(llm_utils.PROVIDER_CLIENT_REGISTRY, "mistral", available_mistral)
+    monkeypatch.setitem(llm_utils.PROVIDER_CLIENT_REGISTRY, "inception", available_mercury)
     monkeypatch.setitem(llm_utils.PROVIDER_CLIENT_REGISTRY, "google", available_vertex)
     monkeypatch.setattr(
         llm_utils, "_get_provider_client",
         lambda prefix: {
-            "mistral": available_mistral,
+            "inception": available_mercury,
             "google": available_vertex,
         }.get(prefix, unavailable_google),
     )
@@ -94,5 +98,5 @@ async def test_utility_chain_recovers_through_mistral_or_vertex(monkeypatch, pur
     )
     assert result.arguments == {"value": "ok"}
     assert result.error_message is None
-    expected_calls = ["google", "mistral", "vertex"] if mistral_unavailable else ["google", "mistral"]
+    expected_calls = ["google", "mercury", "vertex"] if independent_unavailable else ["google", "mercury"]
     assert calls == expected_calls

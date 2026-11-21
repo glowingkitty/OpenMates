@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from backend.apps.ai.utils import internal_decisions
@@ -186,11 +188,16 @@ def providers(monkeypatch):
 
     import backend.apps.ai.llm_providers.cerebras_wrapper as cerebras
     import backend.apps.ai.llm_providers.groq_client as groq
-    import backend.apps.ai.llm_providers.mistral_client as mistral
+    from backend.apps.ai.utils import llm_utils
 
     monkeypatch.setattr(groq, "invoke_groq_chat_completions", fake("groq", "/b/two"))
     monkeypatch.setattr(cerebras, "invoke_cerebras_chat_completions", fake("cerebras", "/b/two"))
-    monkeypatch.setattr(mistral, "invoke_mistral_chat_completions", fake("mistral", "/b/two"))
+
+    async def gemini(**kwargs):
+        calls.append("gemini")
+        return SimpleNamespace(arguments={"library_id": "/b/two"}, error_message=None)
+
+    monkeypatch.setattr(llm_utils, "call_preprocessing_llm", gemini)
     monkeypatch.setattr(get_docs_skill, "_extract_library_id_from_response",
                         lambda result, valid_ids, task_id="", provider="": result.library_id)
     return calls
@@ -227,7 +234,7 @@ async def test_get_docs_user_model_picks_library(providers, monkeypatch):
 async def test_get_docs_turned_off_models_fall_back_to_first_result(providers):
     # The user turned off every library selection model.
     policy = InternalLlmPolicy(disabled_ai_models=frozenset(
-        {"jev-1.14", "openai/gpt-oss-20b", "gpt-oss-120b", "mistral-small-latest"}))
+        {"jev-1.14", "openai/gpt-oss-20b", "gpt-oss-120b", "google/gemini-3.5-flash-lite"}))
     assert await get_docs_skill.select_library_with_llm(LIBS, "q", object(), policy=policy) == "/a/one"
     assert providers == []
 
@@ -237,7 +244,7 @@ async def test_get_docs_turned_off_models_fall_back_to_first_result(providers):
 async def test_get_docs_skips_only_the_turned_off_model(providers, monkeypatch):
     policy = InternalLlmPolicy(disabled_ai_models=frozenset({"openai/gpt-oss-20b"}))
     monkeypatch.setattr(InternalLlmPolicy, "allowed_servers",
-                        lambda self, ref, cfg=None: frozenset({"cerebras", "mistral"}) if "gpt-oss-120b" in ref or "mistral" in ref else frozenset())
+                        lambda self, ref, cfg=None: frozenset({"cerebras", "google"}) if "gpt-oss-120b" in ref or "gemini" in ref else frozenset())
     assert await get_docs_skill.select_library_with_llm(LIBS, "q", object(), policy=policy) == "/b/two"
     assert providers == ["cerebras"]
 

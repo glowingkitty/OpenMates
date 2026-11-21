@@ -57,7 +57,7 @@ try:
         sanitize_task_update_proposals,
     )
     from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult, _transform_message_history_for_llm
-    from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL
+    from backend.apps.ai.utils.utility_model_fallbacks import INDEPENDENT_UTILITY_MODEL
 except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
@@ -364,7 +364,7 @@ async def test_postprocessing_batches_metadata_translation_when_output_language_
     assert len(provider_calls) == 1
     assert provider_calls[0]["model_id"] == "google/gemini-3.5-flash-lite"
     assert provider_calls[0]["fallback_models"] == [
-        MISTRAL_UTILITY_MODEL, "google/gemini-3.5-flash-lite",
+        INDEPENDENT_UTILITY_MODEL, "google/gemini-3.5-flash-lite",
     ]
     provider_history = _transform_message_history_for_llm(provider_calls[0]["message_history"])
     assert {msg["content"] for msg in provider_history if msg["role"] == "user"} >= {

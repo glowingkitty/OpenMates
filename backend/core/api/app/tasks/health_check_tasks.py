@@ -186,6 +186,7 @@ TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
 SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS = 7200  # 2 hours
 SIGHTENGINE_USAGE_LIMIT_ERROR = "usage_limit"
 CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID = "gpt-oss-120b"
+OPENROUTER_HEALTH_MODEL_ID = "google/gemini-3.5-flash"
 OPENROUTER_HEALTH_FALLBACK_MODEL_ID = "deepseek/deepseek-v4-flash"
 CELERY_WORKER_INSPECT_TIMEOUT_SECONDS = 5.0
 STRIPE_PAYMENT_ROUTES_HEALTH_URL = "http://api:8000/internal/health/payments"
@@ -583,11 +584,12 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
                     logger.debug(f"Using first Haiku model '{provider_id}/{model_id}' for Anthropic health check")
                     return f"{provider_id}/{model_id}"
         
-        # For OpenRouter, use Mistral Small 4 — avoids upstream rate limits from models
-        # that OpenRouter routes through other providers (e.g., OSS safeguard → Groq)
+        # For OpenRouter, use Gemini 3.5 Flash — avoids upstream rate limits from models
+        # that OpenRouter routes through other providers (e.g., OSS safeguard → Groq).
+        # Mistral models are never an automatic choice (owner decision, 21 Nov).
         if server_id == "openrouter":
-            logger.debug("Using 'mistralai/mistral-small-2603' for OpenRouter health check")
-            return "mistral/mistral-small-latest"
+            logger.debug("Using '%s' for OpenRouter health check", OPENROUTER_HEALTH_MODEL_ID)
+            return OPENROUTER_HEALTH_MODEL_ID
 
         # For other servers, find the cheapest model by comparing input costs
         cheapest_candidate = None
@@ -624,7 +626,7 @@ def _get_cheapest_model_for_provider(provider_id: str) -> Optional[str]:
         provider_id: The provider ID (e.g., "mistral", "openai") OR server ID (e.g., "cerebras", "openrouter")
     
     Returns:
-        Model ID string (e.g., "mistral/mistral-small") or None if no models found
+        Model ID string (e.g., "google/gemini-3.5-flash") or None if no models found
     """
     # First try as provider ID
     try:
@@ -701,7 +703,7 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
     
     Args:
         provider_id: Provider ID (actually server_id like "groq", "openrouter")
-        model_id: Model ID to test (e.g., "mistral/mistral-small" or "openai/llama-3.1-8b-instant")
+        model_id: Model ID to test (e.g., "google/gemini-3.5-flash" or "openai/llama-3.1-8b-instant")
         secrets_manager: SecretsManager instance
     
     Returns:
@@ -808,7 +810,7 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
                 response = await asyncio.wait_for(
                     provider_client(
                         task_id="health_check",
-                        model_id="mistralai/mistral-small-2603",
+                        model_id=OPENROUTER_HEALTH_MODEL_ID,
                         fallback_models=[OPENROUTER_HEALTH_FALLBACK_MODEL_ID],
                         messages=test_messages,
                         secrets_manager=secrets_manager,
@@ -911,7 +913,7 @@ async def _check_provider_via_test_request(provider_id: str, model_id: str, secr
         
         # Extract model suffix from actual_model_id (provider clients expect just the model suffix, not "provider/model-id")
         # For example: "anthropic/claude-haiku-4-5-20250929" -> "claude-haiku-4-5-20250929"
-        #              "mistral/mistral-small-latest" -> "mistral-small-latest"
+        #              "google/gemini-3.5-flash" -> "gemini-3.5-flash"
         model_suffix = actual_model_id
         if "/" in actual_model_id:
             model_suffix = actual_model_id.split("/", 1)[1]

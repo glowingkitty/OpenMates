@@ -13601,42 +13601,42 @@ assertions:
       surface: cli
     - &id1736
       path: backend/tests/test_task_smoke.py
-      line: 392
+      line: 394
       name: test_worker_queue_names_follow_task_config
       surface: rest_api
     - &id1737
       path: backend/tests/test_task_smoke.py
-      line: 401
+      line: 403
       name: test_worker_health_uses_shared_active_queue_snapshot
       surface: rest_api
     - &id1738
       path: backend/tests/test_task_smoke.py
-      line: 420
+      line: 422
       name: test_worker_queue_inspection_waits_for_app_workers
       surface: rest_api
     - &id1739
       path: backend/tests/test_task_smoke.py
-      line: 459
+      line: 461
       name: test_empty_shared_snapshot_does_not_trigger_per_app_broadcasts
       surface: rest_api
     - &id1740
       path: backend/tests/test_task_smoke.py
-      line: 471
+      line: 473
       name: test_missing_app_queue_is_reported_as_no_worker
       surface: rest_api
     - &id1741
       path: backend/tests/test_task_smoke.py
-      line: 479
+      line: 481
       name: test_worker_queue_inspection_retries_and_merges_partial_replies
       surface: rest_api
     - &id1742
       path: backend/tests/test_task_smoke.py
-      line: 502
+      line: 504
       name: test_worker_queue_inspection_reports_incomplete_empty_first_reply
       surface: rest_api
     - &id1743
       path: backend/tests/test_task_smoke.py
-      line: 521
+      line: 523
       name: test_worker_queue_retry_keeps_earlier_nonempty_reply
       surface: rest_api
     tests:
@@ -14082,7 +14082,7 @@ assertions:
       surface: rest_api
     - &id1797
       path: backend/tests/test_task_smoke.py
-      line: 323
+      line: 325
       name: test_provider_consecutive_failures_survive_cache_and_reset_on_recovery
       surface: rest_api
     - &id1798
@@ -14185,7 +14185,7 @@ assertions:
     supporting_tests:
     - &id1809
       path: backend/tests/test_task_smoke.py
-      line: 374
+      line: 376
       name: test_payment_route_probe_uses_authenticated_health_endpoint
       surface: rest_api
     tests:
@@ -31309,62 +31309,62 @@ assertions:
       surface: rest_api
     - &id4015
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 55
+      line: 57
       name: test_skill_kwargs_parse_policy
       surface: rest_api
     - &id4016
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 71
+      line: 73
       name: test_search_relevance_default_policy_uses_jev
       surface: rest_api
     - &id4017
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 78
+      line: 80
       name: test_search_relevance_complex_model_routes_to_user_model
       surface: rest_api
     - &id4018
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 98
+      line: 100
       name: test_search_relevance_jev_off_keeps_original_order_unranked
       surface: rest_api
     - &id4019
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 131
+      line: 133
       name: test_visual_ranking_default_policy_uses_jev
       surface: rest_api
     - &id4020
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 139
+      line: 141
       name: test_visual_ranking_complex_model_routes_to_user_model
       surface: rest_api
     - &id4021
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 159
+      line: 161
       name: test_visual_ranking_jev_off_reports_unavailable
       surface: rest_api
     - &id4022
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 201
+      line: 208
       name: test_get_docs_default_policy_asks_groq_first
       surface: rest_api
     - &id4023
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 208
+      line: 215
       name: test_get_docs_user_model_picks_library
       surface: rest_api
     - &id4024
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 227
+      line: 234
       name: test_get_docs_turned_off_models_fall_back_to_first_result
       surface: rest_api
     - &id4025
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 237
+      line: 244
       name: test_get_docs_skips_only_the_turned_off_model
       surface: rest_api
     - &id4026
       path: backend/tests/test_skill_internal_decisions_policy.py
-      line: 246
+      line: 253
       name: test_disabled_jev_client_reports_unavailable
       surface: rest_api
     tests:

@@ -275,7 +275,7 @@ while retaining safety, supported citations and the already-published answer.
 Only a failed retry advances to the next permitted model in order; provider
 diversity cannot reorder this list. Two answer-only attempts bound recovery.
 
-Foreground decision processing has a separate availability boundary: Jev runs primarily through TypeSafeAI, with OpenRouter as a transport fallback, while Gemini preprocessing remains an independently hosted fallback. Request safety similarly falls back to Mistral, and ambiguous prompt-injection decisions fall back to GPT-OSS Safeguard for exact-span redaction.
+Foreground decision processing has a separate availability boundary: Jev runs primarily through TypeSafeAI, with OpenRouter as a transport fallback, while Gemini preprocessing remains an independently hosted fallback. Request safety similarly falls back to Gemini 3.8 Flash, and ambiguous prompt-injection decisions fall back to GPT-OSS Safeguard for exact-span redaction.
 
 #### Typed decisions per purpose (Gemini Decision 1 or Jev)
 

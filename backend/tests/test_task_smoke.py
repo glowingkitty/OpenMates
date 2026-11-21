@@ -280,6 +280,7 @@ class TestAppHealthChecks:
         import httpx
         from backend.apps.ai.llm_providers import openai_openrouter, openrouter_client
         from backend.core.api.app.tasks import health_check_tasks
+        from backend.shared.python_utils.server_policy import OPENROUTER_BLOCKED_PROVIDERS
 
         requests = []
 
@@ -302,16 +303,17 @@ class TestAppHealthChecks:
         ))
 
         success, error, elapsed = asyncio.run(health_check_tasks._check_provider_via_test_request(
-            "openrouter", "mistral/mistral-small-latest", object(),
+            "openrouter", "google/gemini-3.5-flash", object(),
         ))
         assert success is expected_success
         assert (error is None) is expected_success
         assert elapsed is not None
         assert requests == [{
-            "models": ["mistralai/mistral-small-2603", "deepseek/deepseek-v4-flash"],
+            "models": ["google/gemini-3.5-flash", "deepseek/deepseek-v4-flash"],
             "messages": [{"role": "system", "content": "Answer short"},
                          {"role": "user", "content": "1+2?"}],
             "temperature": 0.0, "stream": False,
+            "provider": {"ignore": list(OPENROUTER_BLOCKED_PROVIDERS)},
         }]
         if status_code == 401:
             assert health_check_tasks._is_credential_error(error)

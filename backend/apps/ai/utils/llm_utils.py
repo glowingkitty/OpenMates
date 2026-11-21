@@ -758,11 +758,11 @@ def resolve_fallback_servers_from_provider_config(model_id: str, server_region_p
     servers to be configured in provider YAML files instead of hardcoded in app.yml.
     
     Args:
-        model_id: Full model ID in format "provider/model-id" (e.g., "mistral/mistral-small-latest")
+        model_id: Full model ID in format "provider/model-id" (e.g., "google/gemini-3.5-flash-lite")
     
     Returns:
         List of fallback model IDs in format "server/model-id" or "server/provider/model-id"
-        (e.g., ["openrouter/mistralai/mistral-small-2603"])
+        (e.g., ["google_ai_studio/gemini-3.5-flash-lite"])
         Returns empty list if no fallbacks are configured or model not found.
     """
     try:
