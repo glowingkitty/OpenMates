@@ -383,11 +383,14 @@ def build_project_focus_prompt(
             "named another subfolder), so they land in that folder. "
         )
     else:
+        # projects.files.application-via-file-tools: an application_preview block
+        # stays a chat-only bundle (no client links its files into the Project),
+        # so the workspace commands of later turns would find no files.
         new_application = (
-            "When the user asks for a new runnable web application, emit it once as one application_preview "
-            "block: its files are stored as Project files in the application's folder (web-app/ unless Project "
-            "creation named another subfolder) and the chat shows the runnable preview. Do not create those same "
-            "files with the Project file tools; use the tools for every later change to them. "
+            "When the user asks for a new runnable web application, do not emit an application_preview block "
+            "or paste its files as code blocks in the reply; create each of its files with the Project file "
+            "tools in the application's folder (web-app/ unless Project creation named another subfolder), so "
+            "they are stored as Project files, then summarize what you created. "
             "Run installs, builds, tests, linters and dev servers as code-run commands (target e2b with argv) in "
             "this Project's cloud workspace; files a command changes are synced back as normal file changes. "
         )

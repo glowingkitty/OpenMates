@@ -56,8 +56,8 @@ def test_project_source_routing_context_is_safe_current_and_deterministic() -> N
     assert "ciphertext-name" not in prompt
     assert "source-revoked" not in prompt
     assert "authorized again at dispatch time" in prompt
-    # A new web app goes through one application block, not parallel file-tool writes.
-    assert "application_preview" in prompt and "web-app/" in prompt
+    # A new web app is written file by file with the file tools, never as one inline block.
+    assert "do not emit an application_preview block" in prompt and "web-app/" in prompt
 
 
 # contract-test: supporting surface=rest_api assertions=projects.creation.machine-folder
@@ -77,7 +77,7 @@ def test_operation_without_source_goes_to_the_only_remote_source() -> None:
 
 
 # contract-test: supporting surface=rest_api assertions=projects.creation.machine-folder
-def test_a_machine_project_writes_a_new_app_with_the_file_tools() -> None:
+def test_a_new_app_is_written_with_the_file_tools_in_every_project() -> None:
     machine = {"source_id": "machine-folder", "source_type": "local_git_repository", "status": "connected",
                "capabilities": ["read", "run_command", "write_request"]}
     focus = {"instruction": "Work in this Project."}
@@ -86,7 +86,8 @@ def test_a_machine_project_writes_a_new_app_with_the_file_tools() -> None:
     prompt = build_project_focus_prompt(focus, [machine])
     assert "do not emit an application_preview block" in prompt
     assert "folder on the user's machine" in prompt
-    # Hosted Projects keep the single application block.
+    # Hosted Projects also write a new app with the file tools, so its files are Project files.
     hosted = build_project_focus_prompt(focus, [])
-    assert "emit it once as one application_preview" in hosted
+    assert "do not emit an application_preview block" in hosted
+    assert "create each of its files with the Project file tools" in hosted
     assert "folder on the user's machine" not in hosted

@@ -166989,7 +166989,7 @@ assertions:
     - &id21153
       path: backend/tests/test_project_file_tools.py
       line: 80
-      name: test_a_machine_project_writes_a_new_app_with_the_file_tools
+      name: test_a_new_app_is_written_with_the_file_tools_in_every_project
       surface: rest_api
     - &id21154
       path: backend/tests/test_project_remote_source_creation.py
