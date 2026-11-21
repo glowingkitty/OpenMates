@@ -10008,7 +10008,7 @@ features:
   description: Voice and video calls with the assistant, bound to an encrypted chat.
   specifications:
   - id: feature.video-call
-    status: draft
+    status: approved
     path: specifications/features/video-call
   - id: feature.video-call-experiment
     status: superseded

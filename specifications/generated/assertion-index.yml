@@ -192295,7 +192295,7 @@ assertions:
     current_direct_proof: false
   video-call.chat.permission-prompt:
     specification: feature.video-call@18
-    fingerprint: 58b010ffb849366eb968d5bafd71c86459066d48b6961eb49ea32f7e0afd3328
+    fingerprint: 18e5e97cdd319e6335f39603588a3995f8c6bf6765c154ff56786b9e6d49d5c4
     direct_tests:
     - &id24335
       path: frontend/apps/web_app/tests/voice-call.spec.ts
@@ -195186,7 +195186,7 @@ assertions:
     current_direct_proof: false
   video-call.chat.stt-special-terms:
     specification: feature.video-call@18
-    fingerprint: aa8e0851efbf10d6a4d19c6e4e432ddf80435939a1139b550bb37cf06382af30
+    fingerprint: 8788f6b08dc743ee7d5be769e6a2a265eecb7caf262c62042c1943d056d839cc
     direct_tests:
     - &id24711
       path: frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
@@ -195211,7 +195211,7 @@ assertions:
     current_direct_proof: false
   video-call.chat.pasted-text-not-read-aloud:
     specification: feature.video-call@18
-    fingerprint: 9ca94471fbac8f998fdcd8bf193c2284431c1a313fcf8edaeb9bb39d70a0e43e
+    fingerprint: afface71553404772b96a0dd39f340b737e98e54ec07009c34e999e69e4d1876
     direct_tests:
     - &id24713
       path: backend/tests/test_voice_call_protocol.py
@@ -198377,7 +198377,7 @@ assertions:
     current_direct_proof: false
   video-call.audio.intentional-interruption:
     specification: feature.video-call@18
-    fingerprint: df387382bf2ca92f7b4c42fcd885fbfcb1d94cf2996da0125ccb6cd10e7b9286
+    fingerprint: 85186ed39937f289f6922b20e737550b3b34662876b0e212bcc91e340bf0461e
     direct_tests:
     - &id25113
       path: backend/tests/test_assistant_speech_call_lifecycle.py
@@ -201069,7 +201069,7 @@ assertions:
     current_direct_proof: false
   video-call.sounds.local-only:
     specification: feature.video-call@18
-    fingerprint: 8d1a291b6003895b3f1d70731a9120c52ed265d6c4f617efb1b4f00a770b6e33
+    fingerprint: 64da7694ee63d7a8e3db161e0cf6c53cafb8bffb5c3eaad0c1c4b8d0604aed88
     direct_tests:
     - &id25455
       path: frontend/apps/web_app/tests/voice-call-ambient-sounds.spec.ts
@@ -201259,7 +201259,7 @@ assertions:
     current_direct_proof: false
   video-call.waiting.spoken-intent-and-merge:
     specification: feature.video-call@18
-    fingerprint: 14ba1114556eeec7591a87892af0d70930b51f5fe31f6f46789b4a077ffa1337
+    fingerprint: e64e94de578eef2b79e52b36ccec4a00c31b09809b096d319ec18855b410ac65
     direct_tests: []
     supporting_tests:
     - &id25478

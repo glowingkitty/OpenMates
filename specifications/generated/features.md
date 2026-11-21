@@ -1069,7 +1069,7 @@ A finished assistant reply stays unread until its last line has been visible in 
 
 Voice and video calls with the assistant, bound to an encrypted chat.
 
-- Specifications: [feature.video-call](../../specifications/features/video-call/specification.yml) (draft), [feature.video-call-experiment](../../specifications/features/video-call-experiment/specification.yml) (superseded) · 59 assertion(s)
+- Specifications: [feature.video-call](../../specifications/features/video-call/specification.yml) (approved), [feature.video-call-experiment](../../specifications/features/video-call-experiment/specification.yml) (superseded) · 59 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.19.0
 - Notes: Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server; the web app with the Rust core opts in and lets the core prepare the turn early, dropping that preparation on turn.resumed. Apple does not opt in yet. The voice-call web spec is the key end-to-end test. Spoken tap requests (needs-you chime, ready-made line, 15 s reminder, 30 s memory self-cancel with a timed-out event; video-call.chat.permission-prompt) are web-only so far; the Apple app ignores the voice_call_permission_prompt event.
 

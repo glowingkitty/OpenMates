@@ -298,5 +298,5 @@ approvals:
     status: approved
     approved_at: '2026-11-20T10:30:00Z'
   specification:
-    status: pending
-    approved_at: ''
+    status: approved
+    approved_at: '2026-11-21T12:16:23Z'

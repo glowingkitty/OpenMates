@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.video-call
 version: 18
-status: draft
+status: approved
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
   pipeline. Normal automatic model and thinking-level routing, app skills and rich embeds are preserved; the old Gemini
@@ -277,11 +277,15 @@ assertions:
     exposure as the call audio. The server validates it (bounded count and length), passes it to speech recognition as
     recognition hints for that call only, keeps it in memory and never persists or logs it. Invalid lists are rejected
     without ending the call.
+  depends_on:
+  - examples.stt_special_terms
 - id: video-call.chat.pasted-text-not-read-aloud
   type: behavior
   must: Text pasted into the call composer is marked as pasted on the call connection. The assistant must not read pasted
     text aloud; it summarises it or refers to it. Typed text is still answered aloud and the mark is held server-side for
     that call turn only.
+  depends_on:
+  - examples.pasted_text
 - id: video-call.audio.single-owner
   type: invariant
   must: The call owns microphone capture and the shared assistant speech player while connecting or active. Composer
@@ -466,8 +470,6 @@ assertions:
     classification judges it a deliberate quote or answer. Keep listening after an initial acknowledgement so okay but show Berlin instead becomes a
     correction. Use bounded intent classification and preserve substantive finalized requests on classifier failure;
     never discard them silently. Already committed actions are neither undone nor automatically repeated.
-  depends_on:
-  - examples.interruption_intent
 - id: video-call.audio.spoken-rich-response
   type: behavior
   must: >-
@@ -592,7 +594,6 @@ assertions:
     the assistant or into the assistant speech playback.
   depends_on:
   - examples.call_activity
-  - examples.complete_turn
 - id: video-call.waiting.hold-button
   type: behavior
   must: The call bar offers a hold button (hard signal) that puts the call into the waiting state at once and shows
@@ -608,6 +609,7 @@ assertions:
     are sent as one turn. The intent "repeat" replays the stored last answer's audio and text without new inference
     and without credits.
   depends_on:
+  - examples.waiting_merge
 applies_to:
   rest_api:
     required: false
@@ -693,3 +695,8 @@ notes:
     after a focus decision to stay spoken, an in-call countdown with a reminder at about 15 s and a self-cancel
     "without memories" at about 30 s with a timed-out chat event, and a clear "Continue without memories" action in
     text chats; approval stays a manual tap.
+  version_18_approval: >-
+    The owner approved version 18 on 2026-11-21 (verified dev-connector receipt). Not built yet: the encrypted
+    per-chat storage of the special-terms list and its editing UI (video-call.chat.stt-special-terms); calls already
+    accept the list over the call connection and pass it to speech recognition. Storage and uploads during a call
+    follow after 2026-11-23.
