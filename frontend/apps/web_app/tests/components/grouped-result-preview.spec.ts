@@ -201,3 +201,25 @@ test('a narrow copy of the same large carousel does not shrink the wide shell', 
   expect(narrowTop).toBeGreaterThanOrEqual(wideCard!.y + wideCard!.height);
   await testInfo.attach('large-carousel-with-narrow-copy-1100', { body: await fixture.screenshot(), contentType: 'image/png' });
 });
+
+// TASK-2115: View was called before Generate; the phone showed Generate only after scrolling.
+// contract-test: direct surface=gui.web assertions=chats.rendering.skill-card-call-order,chats.layout.responsive-history
+test('mixed skill cards keep call order and reveal the processing card at 390px', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto('/dev/preview/embeds/GroupedResultPreviewHarness?chrome=0&context=chat&theme=dark&width=390&variant=mixedSkillCalls');
+  await waitForComponentPreview(page);
+  const fixture = page.getByTestId('grouped-result-fixture');
+  await expect(fixture).toHaveAttribute('data-ready', 'true');
+  const group = fixture.getByTestId('app-skill-embed-group');
+  const cards = group.getByTestId('embed-preview');
+  await expect(cards).toHaveCount(2);
+  await expect(cards.nth(0)).toHaveAttribute('data-status', 'finished');
+  await expect(cards.nth(1)).toHaveAttribute('data-status', 'processing');
+  await expect(cards.nth(1)).toContainText('Vector drawing of a sunset');
+  // The active Generate card is fully visible without the user scrolling.
+  await expect(cards.nth(1)).toBeInViewport({ ratio: 1 });
+  const first = (await cards.nth(0).boundingBox())!;
+  const second = (await cards.nth(1).boundingBox())!;
+  expect(first.x).toBeLessThan(second.x);
+  await testInfo.attach('mixed-skill-calls-390', { body: await fixture.screenshot(), contentType: 'image/png' });
+});

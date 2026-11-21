@@ -1068,13 +1068,30 @@ def _recovery_unclaimed_result(claim: dict[str, Any]) -> dict[str, Any]:
 # globally for every Celery task, not just this one.
 
 
+async def _resolve_cleanup_vault_key_id(
+    user_id: str, cache_service: CacheService, directus_service: DirectusService,
+) -> Optional[str]:
+    """Return the user's real Vault transit key id (cache first, then Directus).
+
+    Failure cleanup runs outside the task body that loaded the key, so it must
+    look the key up instead of guessing a name; a wrong name makes Vault refuse
+    the encryption and leaves the skill card spinning on "processing".
+    """
+    vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+    if vault_key_id:
+        return vault_key_id
+    user_record = await directus_service.get_user_fields_direct(user_id, fields=["vault_key_id"])
+    vault_key_id = (user_record or {}).get("vault_key_id")
+    return str(vault_key_id) if vault_key_id else None
+
+
 async def _cleanup_processing_embeds_on_task_failure(
     task_id: str,
     chat_id: str,
     message_id: str,
     user_id: str,
     user_id_hash: str,
-    user_vault_key_id: str,
+    user_vault_key_id: Optional[str],
     error_message: str,
     cache_service: Optional[CacheService] = None,
     directus_service: Optional[DirectusService] = None,
@@ -1122,6 +1139,12 @@ async def _cleanup_processing_embeds_on_task_failure(
         if not encryption_service:
             encryption_service = EncryptionService()
         
+        if not user_vault_key_id:
+            user_vault_key_id = await _resolve_cleanup_vault_key_id(user_id, cache_service, directus_service)
+        if not user_vault_key_id:
+            logger.error(f"{log_prefix} No vault key for user; processing embeds cannot be sealed as failed")
+            return 0
+
         # Create embed service for cleanup operations
         embed_service = EmbedService(cache_service, directus_service, encryption_service)
         
@@ -1185,7 +1208,7 @@ async def _cleanup_processing_embeds_on_task_failure(
                     # Update embed to error or cancelled status
                     try:
                         if use_cancelled_status:
-                            await embed_service.update_embed_status_to_cancelled(
+                            update_result = await embed_service.update_embed_status_to_cancelled(
                                 embed_id=embed_id,
                                 app_id=app_id,
                                 skill_id=skill_id,
@@ -1198,7 +1221,7 @@ async def _cleanup_processing_embeds_on_task_failure(
                                 log_prefix=log_prefix
                             )
                         else:
-                            await embed_service.update_embed_status_to_error(
+                            update_result = await embed_service.update_embed_status_to_error(
                                 embed_id=embed_id,
                                 app_id=app_id,
                                 skill_id=skill_id,
@@ -1211,6 +1234,9 @@ async def _cleanup_processing_embeds_on_task_failure(
                                 task_id=task_id,
                                 log_prefix=log_prefix
                             )
+                        if update_result is None:
+                            logger.error(f"{log_prefix} Embed {embed_id} could not be marked as {target_status}")
+                            continue
                         cleaned_count += 1
                         logger.info(f"{log_prefix} Successfully marked embed {embed_id} as {target_status}")
                     except Exception as update_error:
@@ -1463,7 +1489,7 @@ async def _cleanup_on_task_failure(
     message_id: str,
     user_id: str,
     user_id_hash: str,
-    user_vault_key_id: str,
+    user_vault_key_id: Optional[str],
     error_message: str,
     cache_service: Optional[CacheService] = None,
     directus_service: Optional[DirectusService] = None,
@@ -5847,7 +5873,7 @@ def process_ai_skill_ask_task(
                 message_id=request_data.message_id,
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
-                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                user_vault_key_id=None,  # resolved from the user record by the cleanup
                 error_message="Task exceeded soft time limit",
                 request_data=request_data,
                 skill_config_dict=skill_config_dict,
@@ -5908,7 +5934,7 @@ def process_ai_skill_ask_task(
                 message_id=request_data.message_id,
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
-                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                user_vault_key_id=None,  # resolved from the user record by the cleanup
                 error_message=str(e),
                 request_data=request_data,
                 skill_config_dict=skill_config_dict,
@@ -5984,7 +6010,7 @@ def process_ai_skill_ask_task(
                 message_id=request_data.message_id,
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
-                user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
+                user_vault_key_id=None,  # resolved from the user record by the cleanup
                 error_message=str(e),
                 request_data=request_data,
                 skill_config_dict=skill_config_dict,

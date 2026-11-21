@@ -105,9 +105,43 @@ async def register_barrier(
     await cache.set(f"{PREFIX}:source:{source_delivery_task_id}", batch_id, ttl=TTL_SECONDS)
 
 
+INLINE_IMAGE_OMITTED_TEXT = (
+    "[An image was inspected earlier in this turn. Its pixels are not kept while the turn "
+    "waits for a skill result; call the view skill again if the pixels are needed.]"
+)
+
+
+def _is_inline_image_block(value: Any) -> bool:
+    if not isinstance(value, dict) or value.get("type") not in {"image_url", "input_image"}:
+        return False
+    image = value.get("image_url")
+    url = image.get("url") if isinstance(image, dict) else image
+    return isinstance(url, str) and url.startswith("data:")
+
+
+def compact_inline_images(value: Any) -> Any:
+    """Replace inline base64 image blocks (from view skills) with a short text block.
+
+    A view skill hands the model the uploaded image as a data URL inside the
+    tool result. Those bytes are incompressible and alone exceed the sealed
+    handoff, so a paused turn keeps only the text parts of that result; the
+    model has already seen the pixels and the producing skill reads its input
+    image by reference. The transform is deterministic, so the transcript and
+    the native snapshot taken from it stay equal after restore.
+    """
+    if _is_inline_image_block(value):
+        return {"type": "text", "text": INLINE_IMAGE_OMITTED_TEXT}
+    if isinstance(value, list):
+        return [compact_inline_images(item) for item in value]
+    if isinstance(value, dict):
+        return {key: compact_inline_images(item) for key, item in value.items()}
+    return value
+
+
 def pack_private_checkpoint(request_payload: dict[str, Any], checkpoint: dict[str, Any]) -> dict[str, str]:
     """One bounded JSON copy of the private turn in the API-only sealed handoff."""
-    raw = json.dumps({"request": request_payload, "checkpoint": checkpoint}, ensure_ascii=False,
+    raw = json.dumps({"request": compact_inline_images(request_payload),
+                      "checkpoint": compact_inline_images(checkpoint)}, ensure_ascii=False,
                      separators=(",", ":")).encode("utf-8")
     if len(raw) > 4_000_000:
         raise RuntimeError("Same-turn private checkpoint exceeds the bounded handoff")

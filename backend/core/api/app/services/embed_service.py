@@ -6060,6 +6060,12 @@ class EmbedService(SlidesEmbedMixin):
             original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
             original_metadata = {}
             if original_content:
+                # Task-failure cleanup finds placeholders by their unencrypted
+                # cache record, which has no app/skill; the sealed content does.
+                if app_id in {None, "", "unknown"} and original_content.get("app_id"):
+                    app_id = str(original_content["app_id"])
+                if skill_id in {None, "", "unknown"} and original_content.get("skill_id"):
+                    skill_id = str(original_content["skill_id"])
                 # Extract metadata fields that should be preserved
                 for key in ['query', 'provider', 'providers', 'url', 'input_data']:
                     if key in original_content:

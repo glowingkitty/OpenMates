@@ -4876,7 +4876,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const error = decodedContent?.error || "";
 
     // embed_id references the original uploaded image embed
-    const originalEmbedId = decodedContent?.embed_id || "";
+    const originalEmbedId = decodedContent?.source_embed_id || decodedContent?.embed_id || "";
 
     // Filename from the original embed (backend includes it in the skill output text)
     const filename = decodedContent?.filename || "";
@@ -5131,7 +5131,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const error = decodedContent?.error || "";
 
     // embed_id references the original uploaded PDF embed
-    const originalEmbedId = decodedContent?.embed_id || "";
+    const originalEmbedId = decodedContent?.source_embed_id || decodedContent?.embed_id || "";
 
     // Pages viewed (the LLM passes this as an array)
     const pages: number[] = Array.isArray(decodedContent?.pages)
@@ -5225,7 +5225,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const error = decodedContent?.error || "";
 
     // embed_id references the original uploaded PDF embed
-    const originalEmbedId = decodedContent?.embed_id || "";
+    const originalEmbedId = decodedContent?.source_embed_id || decodedContent?.embed_id || "";
 
     // Pages returned and skipped from the read skill response
     const pagesReturned: number[] = Array.isArray(
@@ -5335,7 +5335,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const error = decodedContent?.error || "";
 
     // embed_id references the original uploaded PDF embed
-    const originalEmbedId = decodedContent?.embed_id || "";
+    const originalEmbedId = decodedContent?.source_embed_id || decodedContent?.embed_id || "";
 
     // Search-specific fields from the search skill response
     const query = decodedContent?.query || "";

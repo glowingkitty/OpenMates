@@ -1176,6 +1176,7 @@
         "components/specialized-preview-tools.spec.ts",
         "components/result-preview-standard.spec.ts",
         "components/grouped-result-preview.spec.ts",
+        "components/generated-media-generate-card.spec.ts",
         "components/slides-deck-embed.spec.ts",
         "components/slides-presenter.spec.ts",
         "components/slides-present-remote.spec.ts",

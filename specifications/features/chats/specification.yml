@@ -375,6 +375,16 @@ assertions:
   depends_on:
   - models.AssistantRenderDocument
   - examples.assistant_rendering
+- id: chats.rendering.skill-card-call-order
+  type: behavior
+  must: Skill cards of different skills in one assistant message appear in call order, left to right, and the
+    running or newest card is visible without scrolling the card row. Cards of one repeated skill keep the newest
+    first. An AI generation card uses the AI sparkle as its skill icon (the app icon is unchanged) and, while it
+    runs, shows a shortened prompt, the model, the input image thumbnail when one was given, and the vector draft
+    as it streams. A View card shows the uploaded file it refers to.
+  depends_on:
+  - models.AssistantRenderDocument
+  - examples.assistant_rendering
 - id: chats.rendering.inline-entity-interaction
   type: behavior
   must: Authored embed and wiki links render readable display text at their Markdown positions during streaming

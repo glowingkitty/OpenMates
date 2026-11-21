@@ -266,7 +266,7 @@ features:
       - id: message-rendering
         name: "Message rendering"
         description: "Inline entities, preview info, skill failure banner, history entrance"
-        assertions: ["chats.rendering.inline-entity-interaction", "chats.rendering.preview-info-top", "chats.rendering.skill-failure-banner", "chats.rendering.web-history-entrance"]
+        assertions: ["chats.rendering.inline-entity-interaction", "chats.rendering.preview-info-top", "chats.rendering.skill-card-call-order", "chats.rendering.skill-failure-banner", "chats.rendering.web-history-entrance"]
       - id: followups
         name: "Follow-up suggestions"
         description: "Main-generated composer follow-ups and reconciliation"

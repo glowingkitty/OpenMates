@@ -12426,8 +12426,11 @@ async def handle_main_processing(
                             if _mm_file_path and _mm_file_path_index:
                                 _mm_original_embed_id = _mm_file_path_index.get(_mm_file_path)
                                 if _mm_original_embed_id:
+                                    # "embed_id" is reserved for the card's own id and is
+                                    # stripped from request metadata, so the upload is named
+                                    # source_embed_id (TASK-2115: View card lost its image).
                                     mm_request_metadata = {
-                                        "embed_id": _mm_original_embed_id,
+                                        "source_embed_id": _mm_original_embed_id,
                                         "file_path": _mm_file_path,
                                     }
                                     logger.info(

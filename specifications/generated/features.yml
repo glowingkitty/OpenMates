@@ -3068,18 +3068,18 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 29
+  assertions: 30
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 9
+        passing: 10
         failing: 14
         not_run: 4
         missing: 2
-        counted: 29
+        counted: 30
       failing_tests:
       - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts › captures ${dimension.id} stable history manifest
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts › captures ${dimension.id} chat UI umbrella contract
@@ -3194,6 +3194,7 @@ features:
       - frontend/apps/web_app/tests/components/embed-preview-info-top.spec.ts
       - frontend/apps/web_app/tests/components/embed-workspace.spec.ts
       - frontend/apps/web_app/tests/components/event-reference-hydration.spec.ts
+      - frontend/apps/web_app/tests/components/generated-media-generate-card.spec.ts
       - frontend/apps/web_app/tests/components/grouped-result-preview.spec.ts
       - frontend/apps/web_app/tests/components/image-embed-message-actions.spec.ts
       - frontend/apps/web_app/tests/components/image-embed-preview-layout.spec.ts
@@ -3244,6 +3245,7 @@ features:
       - frontend/apps/web_app/tests/hidden-chats-flow.spec.ts
       - frontend/apps/web_app/tests/historical-image-child-recovery.spec.ts
       - frontend/apps/web_app/tests/hpfsl-acknowledgement-timing.spec.ts
+      - frontend/apps/web_app/tests/image-upload-svg-generate-real.spec.ts
       - frontend/apps/web_app/tests/legacy-first-chat-admission.spec.ts
       - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
       - frontend/apps/web_app/tests/logout-blocked-userdb-relogin.spec.ts
@@ -3288,8 +3290,8 @@ features:
         passing: 12
         failing: 4
         not_run: 0
-        missing: 13
-        counted: 29
+        missing: 14
+        counted: 30
       failing_tests:
       - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift › testLegacyPreflightAcknowledgementPreservesSendWithoutRecoveryClaim
       - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift › testSavedChatCommitsTheExactPreflightInferencePayload
@@ -3379,8 +3381,8 @@ features:
         passing: 1
         failing: 5
         not_run: 10
-        missing: 13
-        counted: 29
+        missing: 14
+        counted: 30
       failing_tests:
       - frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts › pair login, whoami, chats list, send/stream, cancel,
         follow-up, show, restart, TUI and logout
@@ -3805,6 +3807,7 @@ features:
     assertion_ids:
     - chats.rendering.inline-entity-interaction
     - chats.rendering.preview-info-top
+    - chats.rendering.skill-card-call-order
     - chats.rendering.skill-failure-banner
     - chats.rendering.web-history-entrance
     surfaces:
@@ -3813,11 +3816,11 @@ features:
         source: tests
         intent: unverified
         assertions:
-          passing: 2
+          passing: 3
           failing: 2
           not_run: 0
           missing: 0
-          counted: 4
+          counted: 5
         failing_tests:
         - frontend/apps/web_app/tests/components/embed-preview-info-top.spec.ts › expanded and full-image previews keep one
           visible info bar above content
@@ -3855,8 +3858,8 @@ features:
           passing: 1
           failing: 0
           not_run: 0
-          missing: 3
-          counted: 4
+          missing: 4
+          counted: 5
       watchos:
         status: unverified
         source: intent
@@ -3875,8 +3878,8 @@ features:
           passing: 0
           failing: 0
           not_run: 1
-          missing: 3
-          counted: 4
+          missing: 4
+          counted: 5
       tui:
         status: failing
         source: tests
@@ -13690,6 +13693,7 @@ features:
       - frontend/apps/web_app/tests/skill-images-search.spec.ts
       e2e_tests:
       - frontend/apps/web_app/tests/components/ai-generated-badge.spec.ts
+      - frontend/apps/web_app/tests/components/generated-media-generate-card.spec.ts
       - frontend/apps/web_app/tests/components/images-modify-embed.spec.ts
       - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
       - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
@@ -20638,6 +20642,7 @@ features:
       - frontend/apps/web_app/tests/example-chat-brand-naming.spec.ts
       - frontend/apps/web_app/tests/example-chat-hosting-domains.spec.ts
       - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+      - frontend/apps/web_app/tests/image-upload-svg-generate-real.spec.ts
       - frontend/apps/web_app/tests/jobs-search-example.spec.ts
       - frontend/apps/web_app/tests/landing-audio-targeted.spec.ts
       - frontend/apps/web_app/tests/landing-home-replacement.spec.ts
@@ -20674,7 +20679,7 @@ features:
       - backend/tests/test_generated_media_graph.py
       - backend/tests/test_main_processor_invalid_tool_calls.py
       - frontend/packages/ui/src/components/embeds/images/__tests__/imageGenerationMetadata.test.ts
-      unit_test_files: 39
+      unit_test_files: 40
     apple:
       status: partial
       source: tests
@@ -20788,7 +20793,7 @@ features:
       - backend/tests/test_external_result_sanitizer_batching.py
       - backend/tests/test_app_skill_output_safety.py
       - backend/tests/test_async_recovery_handoff.py
-      unit_test_files: 72
+      unit_test_files: 73
     sdk_npm:
       status: partial
       source: tests
