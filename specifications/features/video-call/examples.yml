@@ -319,6 +319,11 @@ interruption_intent:
   given: The assistant is speaking.
   when: Maya starts a real sentence, what about prices.
   then: Playback stops at the first recognized words, before the endpoint or any model verdict.
+- id: short-echo-recapture
+  given: Maya's speakers are on and the assistant is saying it will start the chat for her.
+  when: The microphone picks up the words start the chat while that answer is playing.
+  then: No user message appears and playback continues; if Maya says the same words after playback ended, they are her
+    normal turn.
 - id: stop-during-tool
   given: A call has an unfinished tool-assisted answer and queued speech.
   when: Maya clearly asks it to stop.

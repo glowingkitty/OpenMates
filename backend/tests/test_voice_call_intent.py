@@ -5,6 +5,7 @@ import pytest
 
 from backend.shared.python_utils.voice_call_intent import (
     classify_voice_interruption, is_explicit_voice_stop, is_immediate_barge_in, is_listener_acknowledgement,
+    is_microphone_recapture,
 )
 from backend.shared.providers.typesafe.models import ChoiceAnswer, DecisionResponse
 
@@ -160,3 +161,15 @@ def test_stretched_listening_cues_never_interrupt_speech(text):
 @pytest.mark.parametrize("text", ["mhmm but show Berlin", "hmmm what about prices", "yeahhh no wait"])
 def test_a_cue_followed_by_content_still_takes_the_floor(text):
     assert is_immediate_barge_in(text, "Here is how the plan works for Paris.", assistant_speaking=True)
+
+
+# contract-test: direct surface=rest_api assertions=video-call.audio.intentional-interruption
+def test_short_verbatim_slice_of_assistant_speech_is_microphone_recapture():
+    spoken = "Tell me what you would like to watch, and I will start the chat for you."
+    assert is_microphone_recapture("Start the chat.", spoken)
+    assert is_microphone_recapture("what you would like to watch", spoken)
+    # Fewer than three words, extra words or reordered words are not recapture.
+    assert not is_microphone_recapture("the chat", spoken)
+    assert not is_microphone_recapture("please start the chat", spoken)
+    assert not is_microphone_recapture("chat the start", spoken)
+    assert not is_microphone_recapture("start the chat", "")

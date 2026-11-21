@@ -461,8 +461,9 @@ assertions:
     such as hmm, hmmmm, mhm, mhmm, mm-hmm, uh-huh, okay, yeahhh or right, leave speech and generation uninterrupted
     and do not become a new request or unrelated consent; a cue that answers a pending assistant question is an answer.
     A clear stop or intentional correction yields promptly, cancels further answer/speech work through existing cancellation,
-    and rejects stale packets. A long verbatim run of the assistant's own speech picked up by the microphone is recapture
-    and never interrupts. Keep listening after an initial acknowledgement so okay but show Berlin instead becomes a
+    and rejects stale packets. An utterance heard during playback that is only a verbatim run of three or more words of
+    the assistant's own speech is microphone recapture; it never interrupts and never becomes a message, unless intent
+    classification judges it a deliberate quote or answer. Keep listening after an initial acknowledgement so okay but show Berlin instead becomes a
     correction. Use bounded intent classification and preserve substantive finalized requests on classifier failure;
     never discard them silently. Already committed actions are neither undone nor automatically repeated.
   depends_on:

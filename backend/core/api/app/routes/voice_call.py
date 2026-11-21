@@ -734,7 +734,8 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
 
     async def finish_ready_turns(now: float) -> None:
         nonlocal current
-        from backend.shared.python_utils.voice_call_intent import assistant_question_pending, is_explicit_voice_stop, is_listener_acknowledgement
+        from backend.shared.python_utils.voice_call_intent import (
+            assistant_question_pending, is_explicit_voice_stop, is_listener_acknowledgement, is_microphone_recapture)
         for turn in list(turns.values()):
             if turn.classifier is not None:
                 if not turn.classifier.done():
@@ -757,6 +758,14 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     and turn.assistant_task_id == assistant["assistant_task_id"]):
                 # A model-supported echo verdict is tied to playback of this
                 # exact answer. Never let late results suppress real new speech.
+                reason = "echo"
+            elif turn.verdict != "interrupt" and turn.assistant_speaking and (
+                    is_microphone_recapture(text, turn.assistant_text) or (
+                        turn.assistant_id is not None and turn.assistant_id == assistant["assistant_message_id"]
+                        and is_microphone_recapture(text, assistant["text"]))):
+                # Heard during playback and nothing but a verbatim slice of that
+                # speech: microphone recapture, which also never barges in. A
+                # deliberate quote is an interrupt verdict and stays a turn.
                 reason = "echo"
             elif turn.assistant_active and (turn.verdict == "backchannel" or (turn.verdict == "uncertain" and is_listener_acknowledgement(text)
                     and not assistant_question_pending(turn.assistant_text))):
@@ -822,6 +831,9 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     turn.text = text
                     await transcript(turn, final=True)
             if reason is not None:
+                # No transcript text is logged; the reason makes discards diagnosable.
+                logger.info("Voice transcript discarded call_id=%s message_id=%s reason=%s",
+                            call_id, turn.message_id, reason)
                 await send({"type": "transcript.discarded", "call_id": call_id,
                             "message_id": turn.message_id, "reason": reason})
             invalidate_completion(turn)

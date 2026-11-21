@@ -820,6 +820,50 @@ async def test_supported_echo_of_current_playback_neither_cancels_nor_enters_pro
     assert not any(event["type"] == "audio.interrupted" for event in socket.sent)
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
+async def test_short_recapture_of_current_playback_is_discarded_without_an_echo_verdict(runtime, monkeypatch):
+    # EYHC5: three spoken assistant words came back through the microphone and
+    # became a user message, because echo needed a model verdict over 5+ words.
+    async def uncertain(*args):
+        return "uncertain"
+
+    monkeypatch.setattr(route, "_classify", uncertain)
+    socket, provider, _ = await runtime.start()
+    assistant(socket, text="Tell me what you would like to watch, and I will start the chat for you.")
+    await socket.until(lambda events: any(event.get("processing") for event in events))
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Start the chat.")
+    provider.push("turn.end")
+    assert (await socket.event("transcript.discarded"))["reason"] == "echo"
+    assert not socket.finals() and not runtime.issued and not runtime.completion_texts
+    assert not any(event["type"] == "audio.interrupted" for event in socket.sent)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
+@pytest.mark.parametrize("case", ["deliberate", "after_playback"])
+async def test_repeated_assistant_words_stay_a_turn_when_deliberate_or_after_playback(runtime, monkeypatch, case):
+    async def verdict(*args):
+        return "interrupt" if case == "deliberate" else "uncertain"
+
+    monkeypatch.setattr(route, "_classify", verdict)
+    socket, provider, _ = await runtime.start()
+    spoken = "Tell me what you would like to watch, and I will start the chat for you."
+    assistant(socket, text=spoken)
+    await socket.until(lambda events: any(event.get("processing") for event in events))
+    if case == "after_playback":
+        # Playback ended before the caller spoke: the same words are their turn.
+        socket.push({"type": "assistant_state", "speaking": False, "text": spoken,
+                     "assistant_message_id": "canonical-assistant"})
+        await socket.until(lambda events: [event["processing"] for event in events
+                                             if event["type"] == "billing_activity"][-1] is False)
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="Start the chat.")
+    provider.push("turn.end")
+    await socket.until(lambda _: socket.finals())
+    assert socket.finals()[0]["text"] == "Start the chat."
+    assert not any(event.get("reason") == "echo" for event in socket.sent)
+
+
 # contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.chat.assistant-identity
 @pytest.mark.parametrize("replacement", ["finished", "new-answer"])
 async def test_late_echo_verdict_cannot_discard_speech_after_its_playback_context_changes(runtime, monkeypatch, replacement):
