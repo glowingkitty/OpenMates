@@ -190,6 +190,7 @@ class AskSkillRequest(BaseModel):
     original_user_message_id: Optional[str] = Field(default=None, description="Original user turn that created the async skill job.")
     async_skill_task_id: Optional[str] = Field(default=None, description="Stable async operation or execution id completed by this continuation.")
     completed_result_embed_ids: List[str] = Field(default_factory=list, description="Result embeds (such as test results) created by the completed async skill; the continuation reply always shows them.")
+    created_project_card_reference: Optional[str] = Field(default=None, max_length=2048, description="Server-created \"Created project\" activation card of this turn; every later continuation that rewrites the reply leads with it again.")
     same_turn_batch_id: Optional[str] = Field(default=None, description="Opaque internal completion barrier identity; checked against the original turn before resume.")
     same_turn_slots: List[Dict[str, Any]] = Field(default_factory=list, description="Ordered opaque terminal job references for the internal same-turn resume.")
     same_turn_checkpoint: Optional[Dict[str, Any]] = Field(default=None, exclude=True, repr=False, description="API-memory-only provider-loop checkpoint; never written to a queue or durable cache.")

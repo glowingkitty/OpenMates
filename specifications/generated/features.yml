@@ -16174,7 +16174,7 @@ features:
       - backend/tests/test_project_remote_sources.py
       - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
       - backend/tests/test_embed_version_routes.py
-      - backend/tests/test_project_embed_adoption.py
+      - backend/tests/test_async_skill_continuation.py
       unit_test_files: 43
     sdk_npm:
       status: not_run

@@ -207,3 +207,29 @@ async def created_project_activation_reference(*, task_id: str, request_data: An
         logger.warning("%s Created Project activation card could not be created", log_prefix)
         return None
     return embed["embed_reference"]
+
+
+def carried_created_project_reference(request_data: Any) -> str | None:
+    """The created-Project card of an earlier continuation of this reply, or None.
+
+    ``created_project_activation_reference`` consumes the creation record, so
+    only the first continuation creates the card. An async skill started by that
+    continuation (file writes, test runs, commits) resumes in a later
+    continuation that rewrites the same reply; without this the card vanished
+    from the finished message. The server set the field itself; it is still
+    re-emitted only as a well-formed created-Project activation reference.
+    """
+    raw = getattr(request_data, "created_project_card_reference", None)
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        reference = json.loads(raw)
+    except ValueError:
+        logger.warning("Carried created Project card reference is not JSON; not shown")
+        return None
+    if (not isinstance(reference, dict) or reference.get("type") != "focus_mode_activation"
+            or reference.get("project_created") is not True
+            or not isinstance(reference.get("embed_id"), str) or not reference["embed_id"]):
+        logger.warning("Carried created Project card reference has an unexpected shape; not shown")
+        return None
+    return raw

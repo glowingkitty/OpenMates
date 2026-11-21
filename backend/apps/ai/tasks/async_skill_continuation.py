@@ -828,6 +828,9 @@ async def dispatch_async_skill_continuation(
             *(original_request.completed_result_embed_ids or []),
             *completed_result_embed_ids(completed_results),
         ])),
+        # The created-Project card was emitted once (its creation record is
+        # consumed); later rewrites of the same reply must keep showing it.
+        created_project_card_reference=original_request.created_project_card_reference,
         preprocessing_resume_ref=original_request.preprocessing_resume_ref,
         recovery_inference_task_id=(
             original_request.recovery_task_id

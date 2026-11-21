@@ -655,6 +655,36 @@ async def test_commit_continuation_keeps_the_earlier_test_result_reference(monke
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=projects.creation.assistant-inferred
+async def test_file_write_continuation_keeps_the_created_project_card(monkeypatch, async_skill_continuation):
+    # The continuation that showed the created-Project card starts file writes;
+    # their continuation rewrites the same reply and must carry the card on.
+    cache = _FakeCache()
+    fake_celery_app = _FakeCeleryApp()
+    monkeypatch.setattr(async_skill_continuation, "celery_app", fake_celery_app)
+    request = _request()
+    card = '{"type": "focus_mode_activation", "embed_id": "card", "project_created": true}'
+    request.created_project_card_reference = card
+    await async_skill_continuation.cache_async_skill_continuation_context(
+        cache_service=cache,
+        async_task_id="write-1",
+        request_data=request,
+        skill_config_dict=_skill_config_dict(),
+        app_id="code",
+        skill_id="project_write_file",
+        tool_name="project_write_file",
+        tool_arguments={},
+    )
+    await async_skill_continuation.dispatch_async_skill_continuation(
+        cache_service=cache,
+        async_task_id="write-1",
+        completed_results=[{"path": "web-app/index.html"}],
+    )
+    payload = fake_celery_app.sent[0]["kwargs"]["request_data_dict"]
+    assert payload["created_project_card_reference"] == card
+
+
+@pytest.mark.asyncio
 # contract-test: supporting surface=gui.web assertions=projects.focus.inferred-consent
 async def test_selected_project_catalog_resumes_same_project_without_repeating_stage_one(monkeypatch, async_skill_continuation):
     cache = _FakeCache()

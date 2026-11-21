@@ -170,6 +170,13 @@ id persisted as the active focus) and `project_name` (the proposed name, the
 same plaintext the request already carried). Clients render it as the
 "Created project <name>" card with Undo.
 
+The created record is consumed by that first continuation, but the reply is
+often rewritten by later continuations of the same turn (file writes, test
+runs, commits started by the model). The server keeps the card's reference on
+the turn's request (`created_project_card_reference`), so every async skill
+snapshot carries it and each later rewrite again starts with the same card;
+the finished message always shows it.
+
 After `project_create_confirmed` the original turn resumes as an async continuation
 (`skill_id` `project_create_request`). For `created` the new Project focus is active,
 so the main model receives the Project file tools under the Apply and show policy and
