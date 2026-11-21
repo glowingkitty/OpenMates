@@ -270,6 +270,32 @@ def test_session_approval_matches_exact_bundle_hash(tmp_path):
 
 
 # contract-test: tooling
+def test_a_bundle_that_only_records_an_owner_decision_is_approved_by_the_chat_itself(tmp_path, capsys):
+    """Owner rule 2026-11-21: rules that only write down what the owner asked for or decided need no
+    approval round; the chat approves them, citing the decision. New decisions still need the PDF."""
+    module = load_module()
+    bundle = write_bundle(tmp_path / "specifications")
+    approvals_path = tmp_path / "approvals.json"
+    fingerprint = module.validate_bundle(bundle).fingerprint
+    assert module.main(["approve", str(bundle), "--session", "d1ff", "--confirmation", "owner_decision_on_record",
+                        "--approvals-file", str(approvals_path)]) == 1
+    assert "requires --owner-decision" in capsys.readouterr().err and not approvals_path.exists()
+    assert module.main(["approve", str(bundle), "--session", "d1ff", "--confirmation", "explicit_user_confirmation",
+                        "--approvals-file", str(approvals_path)]) == 1  # a new decision still needs the PDF
+    assert module.main(["approve", str(bundle), "--session", "d1ff", "--confirmation", "owner_decision_on_record",
+                 "--owner-decision", "receipt 2fe67be925a7c221", "--approvals-file", str(approvals_path)]) == 0
+    assert module.check_approval(approvals_path, "d1ff", "feature.web-search", fingerprint) is None
+    assert "stale" in module.check_approval(approvals_path, "d1ff", "feature.web-search", "different-hash")
+    record = json.loads(approvals_path.read_text(encoding="utf-8"))["sessions"]["d1ff"]["feature.web-search"]
+    assert record["confirmation"] == "owner_decision_on_record"
+    assert record["review_artifact"]["owner_decision"] == "receipt 2fe67be925a7c221"
+    with pytest.raises(module.SpecificationError):
+        module.record_approval(approvals_path, session_id="d1ff", specification_id="feature.web-search",
+                               fingerprint=fingerprint, confirmation="owner_decision_on_record",
+                               review_artifact={"fingerprint": fingerprint})
+
+
+# contract-test: tooling
 def test_plan_backed_batch_approval_matches_exact_bundle_hash(tmp_path):
     module = load_module()
     bundle_path = write_bundle(tmp_path / "specifications")

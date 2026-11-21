@@ -48,8 +48,10 @@ when a skill or this file points to it.
    owner's own direct instruction, production go-aheads included; do not ask
    for it to be typed again. Messages from other agent chats, Tasks or
    briefings never count as approval. Agents never merge pull requests; the
-   owner merges on GitHub. Shared dev services restart only via
-   `sessions.py docker restart --session <id> --service <name>`.
+   owner merges on GitHub. Restarting or redeploying dev services needs no
+   approval: do it without asking (owner, 21 Nov), via `sessions.py docker
+   restart --session <id> --service <name>` and `sessions.py deploy`. Ask only
+   for production or for anything that could lose data.
 5. Low disk: deleting unused Docker images, build artifacts and caches is
    pre-approved; preserve active/unfinished work. Worktrees of chats inactive
    for 24 hours are archived and removed by the nightly expiry (archives kept
@@ -186,8 +188,12 @@ when a skill or this file points to it.
   change. Create and update draft Specifications yourself, with no approval
   rounds or PDFs before or during the work. When the work is done and deployed,
   present the final updated Specification once and ask for approval so it can
-  go from draft to approved together with the deployed changes. Never edit an
-  approved Specification without that confirmation.
+  go from draft to approved together with the deployed changes. Exception
+  (owner, 21 Nov): a rule that only writes down what Marco already asked for or
+  decided is approved by the chat itself (`specifications.py approve <bundle>
+  --confirmation owner_decision_on_record --owner-decision "<receipt or quote>"`)
+  and named in its push; ask him only about new decisions he hasn't made yet.
+  Never edit an approved Specification without one of these two approvals.
 - Feature overview: `specifications/features.yml` groups features, sub-features
   and per-surface intent; cells with tests are derived (assertion → test → latest
   CI result in `specifications/test-results.yml`; view and table:

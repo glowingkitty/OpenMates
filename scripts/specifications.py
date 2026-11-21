@@ -42,6 +42,11 @@ BATCH_APPROVALS_KEY = "_batch_approvals"
 SPECIFICATION_ID = re.compile(r"^[a-z][a-z0-9]*(?:[.-][a-z0-9][a-z0-9-]*)+$")
 ASSERTION_ID = re.compile(r"^[a-z][a-z0-9]*(?:[.-][a-z0-9][a-z0-9-]*)+$")
 VALID_SPECIFICATION_STATUSES = {"draft", "approved", "superseded"}
+# How an approval was given. `owner_decision_on_record` (owner rule 2026-11-21): the bundle only
+# writes down what the owner already asked for or decided; the chat approves it itself, cites the
+# decision (receipt id or quote) and mentions it in its push. New decisions still need
+# `explicit_user_confirmation` with the PDF review artifact.
+APPROVAL_CONFIRMATIONS = ("explicit_user_confirmation", "owner_decision_on_record")
 VALID_ASSERTION_TYPES = {
     "behavior",
     "failure",
@@ -1495,8 +1500,10 @@ def record_approval(
     confirmation: str,
     review_artifact: dict[str, str],
 ) -> None:
-    if confirmation != "explicit_user_confirmation":
-        raise SpecificationError("approval requires explicit_user_confirmation")
+    if confirmation not in APPROVAL_CONFIRMATIONS:
+        raise SpecificationError(f"approval requires one of {', '.join(APPROVAL_CONFIRMATIONS)}")
+    if confirmation == "owner_decision_on_record":
+        _non_empty_string(review_artifact.get("owner_decision", ""), "owner_decision")
     for value, field in ((session_id, "session_id"), (specification_id, "specification_id"), (fingerprint, "fingerprint")):
         _non_empty_string(value, field)
     state = _load_approvals(path)
@@ -1616,7 +1623,7 @@ def check_approval(path: Path, session_id: str, specification_id: str, fingerpri
         if batch_error.startswith(("stale ", "unconfirmed ", "unreviewed ")):
             return batch_error
         return f"missing approval for {specification_id} in session {session_id}"
-    if record.get("confirmation") != "explicit_user_confirmation":
+    if record.get("confirmation") not in APPROVAL_CONFIRMATIONS:
         return f"unconfirmed approval for {specification_id}"
     if record.get("fingerprint") != fingerprint:
         # A later, explicitly approved Plan batch can supersede a stale direct
@@ -1627,6 +1634,8 @@ def check_approval(path: Path, session_id: str, specification_id: str, fingerpri
     review_artifact = record.get("review_artifact")
     if not isinstance(review_artifact, dict) or review_artifact.get("fingerprint") != fingerprint:
         return f"unreviewed approval for {specification_id}: matching PDF review artifact is required"
+    if record.get("confirmation") == "owner_decision_on_record" and not str(review_artifact.get("owner_decision") or "").strip():
+        return f"unreviewed approval for {specification_id}: the owner decision it writes down is required"
     return None
 
 
@@ -1695,11 +1704,16 @@ def _build_parser() -> argparse.ArgumentParser:
     fingerprint = subparsers.add_parser("fingerprint", help="Print exact bundle fingerprint")
     fingerprint.add_argument("bundle")
 
-    approve = subparsers.add_parser("approve", help="Record explicit user approval for exact bundle hash")
+    approve = subparsers.add_parser("approve", help="Record approval for exact bundle hash")
     approve.add_argument("bundle")
     approve.add_argument("--session", required=True)
-    approve.add_argument("--confirmation", required=True, choices=["explicit_user_confirmation"])
-    approve.add_argument("--review-artifact", type=Path, required=True)
+    approve.add_argument("--confirmation", required=True, choices=list(APPROVAL_CONFIRMATIONS),
+                         help="explicit_user_confirmation (new decision, with --review-artifact) or "
+                              "owner_decision_on_record (only writes down a decision the owner already made, "
+                              "with --owner-decision)")
+    approve.add_argument("--review-artifact", type=Path)
+    approve.add_argument("--owner-decision", default="",
+                         help="owner_decision_on_record: the receipt id(s) or quoted owner decision it writes down")
     approve.add_argument("--approvals-file", type=Path, default=DEFAULT_APPROVALS_PATH)
 
     approve_batch = subparsers.add_parser("approve-batch", help="Record Plan-backed approval for multiple exact Specification hashes")
@@ -1786,7 +1800,16 @@ def main(argv: list[str] | None = None) -> int:
             print(validate_bundle(_resolve_specification_path(args.bundle)).fingerprint)
         elif args.command == "approve":
             bundle = validate_bundle(_resolve_specification_path(args.bundle))
-            review_artifact = validate_review_artifact(args.review_artifact, bundle)
+            if args.confirmation == "owner_decision_on_record":
+                if not args.owner_decision.strip():
+                    raise SpecificationError("owner_decision_on_record requires --owner-decision (receipt id or quote)")
+                review_artifact = {"specification": bundle.versioned_id, "fingerprint": bundle.fingerprint,
+                                   "review_format": "owner_decision_on_record",
+                                   "owner_decision": args.owner_decision.strip()}
+            elif args.review_artifact is None:
+                raise SpecificationError("explicit_user_confirmation requires --review-artifact")
+            else:
+                review_artifact = validate_review_artifact(args.review_artifact, bundle)
             record_approval(
                 args.approvals_file,
                 session_id=args.session,
