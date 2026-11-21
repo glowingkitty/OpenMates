@@ -39601,7 +39601,7 @@ assertions:
       surface: gui.apple
     - &id5052
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 318
+      line: 380
       name: 'laptop: a new chat in the Project writes a Specification with Checks
         and a Plan'
       surface: gui.web
@@ -40073,7 +40073,7 @@ assertions:
     direct_tests:
     - &id5073
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 191
+      line: 250
       name: 'laptop: recipe app, commands, recorded test, commit, preview and Project
         views'
       surface: gui.web
@@ -40109,7 +40109,7 @@ assertions:
     direct_tests:
     - &id5086
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 191
+      line: 250
       name: 'laptop: recipe app, commands, recorded test, commit, preview and Project
         views'
       surface: gui.web
@@ -160612,18 +160612,18 @@ assertions:
       surface: rest_api
     - &id20380
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 191
+      line: 250
       name: 'laptop: recipe app, commands, recorded test, commit, preview and Project
         views'
       surface: gui.web
     - &id20381
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 302
+      line: 364
       name: 'phone: the Project files and Timeline'
       surface: gui.web
     - &id20382
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 318
+      line: 380
       name: 'laptop: a new chat in the Project writes a Specification with Checks
         and a Plan'
       surface: gui.web
@@ -162283,7 +162283,7 @@ assertions:
       surface: rest_api
     - &id20559
       path: frontend/apps/web_app/tests/agentic-cloud-project-web-real.spec.ts
-      line: 191
+      line: 250
       name: 'laptop: recipe app, commands, recorded test, commit, preview and Project
         views'
       surface: gui.web

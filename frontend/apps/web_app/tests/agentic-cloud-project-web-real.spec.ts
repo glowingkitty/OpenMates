@@ -16,7 +16,7 @@ import type { Locator, Page } from '@playwright/test';
 
 const { test, expect } = require('./helpers/cookie-audit');
 const {
-  focusMessageEditor, loginToTestAccount, allowE2bUpload, sendMessage, startNewChat, waitForAssistantMessage,
+  focusMessageEditor, loginToTestAccount, allowE2bUpload, sendMessage, startNewChat, waitForAssistantMessage, deleteActiveChat,
 } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
@@ -45,7 +45,7 @@ const proofContract = defineVideoProof({
     { id: 'spec-plan', text: 'A new chat in the Project writes a Specification and a Plan.', checkpoint: 'cloud-spec-plan', devices: L },
   ],
   assertions: [
-    { id: 'cloud.app_embed', checkpoint: 'cloud-app-embed', visual: 'An application card listing its files is in the chat; its files are the Project files.', devices: L },
+    { id: 'cloud.app_files', checkpoint: 'cloud-app-embed', visual: 'File cards for the recipe app files under web-app/ are in the chat; no inline application block.', devices: L },
     { id: 'cloud.test_result', checkpoint: 'cloud-test-result', visual: 'The test result fullscreen shows a video and a step timeline.', devices: L },
     { id: 'cloud.commit', checkpoint: 'cloud-commit', visual: 'The last reply quotes a 7-character commit id.', devices: L },
     { id: 'cloud.project_files', checkpoint: 'cloud-project-files', visual: 'The folder lists the application card and files.', devices: B },
@@ -71,6 +71,10 @@ const SPEC_PROMPT = 'Write a Specification with Checks for adding a search box t
 let projectName = '';
 let projectLabel = naturalProjectName('Recipe keeper');
 let appChatTitle = '';
+// Ids this run created, recorded as they appear; the afterAll cleanup deletes only these.
+const ownedChatIds = new Set<string>();
+let ownedProjectId = '';
+const API_BASE_URL = BASE_URL.replace('://app.', '://api.');
 
 function requireDirectDevRealInference(): void {
   const harnessRun = process.env.OPENMATES_PROOF_REAL_DEV === '1';
@@ -112,6 +116,48 @@ async function send(page: Page, prompt: string, kind = 'follow-up'): Promise<voi
   await page.keyboard.press('End');
   await insertModelMention(page);
   await sendMessage(page, ` ${prompt}`, undefined, undefined, kind, { preserveExistingContent: true });
+  await recordOwnedChat(page);
+}
+
+/** Records the chat id of the open chat (from the URL) as created by this run. */
+async function recordOwnedChat(page: Page): Promise<void> {
+  const id = await expect.poll(() => page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '', { timeout: 30_000 }).not.toBe('')
+    .then(() => page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '');
+  if (id) ownedChatIds.add(id);
+}
+
+/** Resolves the Project id bound to a chat this run created (the Project the assistant made for it). */
+async function recordOwnedProject(page: Page, chatId: string): Promise<void> {
+  ownedProjectId = await page.evaluate(async ({ apiBaseUrl, id }) => {
+    const response = await fetch(`${apiBaseUrl}/v1/projects/focus/current?chat_id=${encodeURIComponent(id)}`, { credentials: 'include' });
+    if (!response.ok) return '';
+    const body = await response.json() as { focus?: { project_id?: string } | null };
+    return body.focus?.project_id ?? '';
+  }, { apiBaseUrl: API_BASE_URL, id: chatId });
+}
+
+/** Deletes exactly the chats and Project recorded by this run, also after a failed run. */
+async function deleteOwnedData(page: Page): Promise<string[]> {
+  const failures: string[] = [];
+  for (const chatId of ownedChatIds) {
+    await page.goto(`${BASE_URL}/#chat-id=${chatId}`, { waitUntil: 'domcontentloaded' });
+    const item = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
+    if (!(await item.isVisible({ timeout: 15_000 }).catch(() => false))) continue; // already gone
+    await deleteActiveChat(page);
+    if (await item.isVisible({ timeout: 2_000 }).catch(() => false)) failures.push(`chat ${chatId}`);
+  }
+  if (ownedProjectId) {
+    await page.goto(`${BASE_URL}/projects/${encodeURIComponent(ownedProjectId)}`, { waitUntil: 'domcontentloaded' });
+    if (await page.getByTestId('project-workspace-header').isVisible({ timeout: 30_000 }).catch(() => false)) {
+      const deleted = page.waitForResponse((response) => response.request().method() === 'DELETE'
+        && new URL(response.url()).pathname === `/v1/projects/${ownedProjectId}`, { timeout: 30_000 });
+      page.once('dialog', (dialog) => { void dialog.accept(); });
+      await page.getByTestId('project-more-button').click();
+      await page.getByTestId('project-delete-button').click();
+      await deleted.catch(() => failures.push(`project ${ownedProjectId}`));
+    }
+  }
+  return failures;
 }
 
 function lastAssistant(page: Page): Locator {
@@ -187,6 +233,19 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
   test.use({ actionTimeout: 60_000, navigationTimeout: 60_000 });
   test.beforeAll(() => { requireDirectDevRealInference(); });
 
+  test.afterAll(async ({ browser }: { browser: any }) => {
+    if (!ownedChatIds.size && !ownedProjectId) return;
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    try {
+      const page = await context.newPage();
+      await loginToTestAccount(page);
+      const failures = await deleteOwnedData(page);
+      expect(failures, 'chats and Project of this run that could not be deleted').toEqual([]);
+    } finally {
+      await context.close();
+    }
+  });
+
   // contract-test: direct surface=gui.web assertions=projects.files.hosted-ciphertext-commit,projects.files.write-policy-enforcement,code-run.cloud.commands,code-run.commands.files-through-file-tools
   test('laptop: recipe app, commands, recorded test, commit, preview and Project views', async ({ page }: { page: Page }, testInfo: any) => {
     test.setTimeout(5_400_000);
@@ -201,7 +260,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     await allowE2bUpload(page);
     await startNewChat(page);
 
-    // a. The recipe app: Project creation, application card and file changes from the web file-job path.
+    // a. The recipe app: Project creation and the app files written with the file tools (web file-job path).
     await send(page, PROMPT, 'new-chat');
     await waitForTurn(page);
     await expandActivity(page);
@@ -211,13 +270,16 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     projectName = ((await created.getByTestId('project-created-name').first().textContent()) ?? '').trim();
     expect(projectName, 'the assistant named the Project').not.toBe('');
     projectLabel = projectName || projectLabel;
-    await proof.assert('cloud.app_embed', async () => {
-      // projects.files.application-single-source: a new app arrives as one application block whose
-      // files ARE the Project files (web-app/); "File changed" cards start with the later turns
-      // (synced-back command output, edits through the Project file tools).
-      const appCard = page.locator('[data-testid="embed-preview"][data-app-id="code"]').first();
-      await expect(appCard, 'application card').toBeVisible({ timeout: 60_000 });
-      await expect(appCard, 'the application card lists its files').toContainText(/\b\d+ files?\b/i, { timeout: 60_000 });
+    const firstChatId = [...ownedChatIds][0];
+    if (firstChatId) await recordOwnedProject(page, firstChatId);
+    await proof.assert('cloud.app_files', async () => {
+      // A new app in a Project chat is written file by file with the Project file tools, so its
+      // files are Project files from the first turn (the later install/build turn needs them).
+      const reply = lastAssistant(page);
+      await expect(page.getByTestId('project-file-approval-card').filter({ hasText: /web-app\/package\.json/ }).first(),
+        'package.json written into web-app/ with the file tools').toBeVisible({ timeout: 60_000 });
+      expect(await page.getByTestId('project-file-approval-card').count(), 'several app files written with the file tools').toBeGreaterThan(1);
+      await expect(reply.locator('[data-testid="embed-preview"][data-app-id="code"]'), 'no inline application block').toHaveCount(0);
     });
     appChatTitle = ((await page.getByTestId('chat-title').first().textContent().catch(() => '')) ?? '').trim();
     await proof.checkpoint('cloud-app-embed');

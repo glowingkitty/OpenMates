@@ -285,6 +285,26 @@ fn result_frame(job: &Value, status: &str, body: Value) -> (&'static str, Value)
     ("project_file_operation_result", payload)
 }
 
+/// [`error_frame`] for a hosted job that failed, plus a local notice naming
+/// the core error kind when the code alone (`client_execution_failed`) would
+/// hide it. The kind is a fixed variant name (no path, content or server text),
+/// so the shell may log it; it never goes on the wire.
+fn failed_frame(
+    job: &Value,
+    error: &HostedFileError,
+    state: &mut FileJobState,
+) -> (&'static str, Value) {
+    if let HostedFileError::Core(core) = error {
+        state.notices.push(format!(
+            "Project file {} failed: {} (core {:?})",
+            job["operation"].as_str().unwrap_or("job"),
+            error.code(),
+            core
+        ));
+    }
+    error_frame(job, error)
+}
+
 /// `waiting_for_executor` takes a bounded reason; others carry the safe code.
 /// A `conflict` carries it as both `code` and `reason` (contract "Job
 /// payloads": a rename onto a linked path is `reason: "path_conflict"`).
@@ -486,7 +506,7 @@ pub(super) async fn job_frames<R: JobRunner>(
         Err(HostedFileError::Core(Error::Cancelled)) => return Err(Error::Cancelled),
         Err(error) => {
             state.finish(&operation);
-            return Ok(vec![error_frame(job, &error)]);
+            return Ok(vec![failed_frame(job, &error, state)]);
         }
     };
     let interactive = state.approvals.interactive;
@@ -580,7 +600,7 @@ pub(super) async fn job_frames<R: JobRunner>(
             )]);
         }
         Ok(Err(HostedFileError::Core(Error::Cancelled))) => return Err(Error::Cancelled),
-        Ok(Err(error)) => return Ok(vec![error_frame(job, &error)]),
+        Ok(Err(error)) => return Ok(vec![failed_frame(job, &error, state)]),
         Ok(Ok(output)) => output,
     };
     let mut body = match output {

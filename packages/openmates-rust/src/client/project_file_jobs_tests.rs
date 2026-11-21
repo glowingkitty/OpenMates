@@ -692,3 +692,17 @@ fn project_file_writes_store_real_details_like_the_web() {
         format!("Media contact: {PII_TOKEN}")
     );
 }
+
+#[tokio::test]
+async fn a_core_failure_keeps_the_stable_code_on_the_wire_and_names_the_kind_locally() {
+    let (mut fake, mut state) = (Fake::new(false), FileJobState::default());
+    fake.outcome = Err(HostedFileError::Core(Error::Crypto));
+    let sent = run(&mut fake, REQUEST, &request("create_file", NOW + 90), &mut state).await;
+    assert_eq!(sent[0].1["status"], "failed");
+    assert_eq!(sent[0].1["result"]["code"], "client_execution_failed");
+    assert!(!sent[0].1.to_string().contains("Crypto"));
+    assert_eq!(
+        state.take_notices(),
+        vec!["Project file create_file failed: client_execution_failed (core Crypto)".to_owned()]
+    );
+}

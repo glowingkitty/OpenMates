@@ -1,4 +1,4 @@
-//! Session-only transport seams for the hosted Project file writer
+//! Credential-scoped transport seams for the hosted Project file writer
 //! (`work::projects::hosted`): the one-shot `commit_embed_revision` WebSocket
 //! round trip and the chat key that wraps a new hosted file's embed key.
 //! Mirrors the npm CLI `commitHostedProjectFileRevision` and
@@ -19,7 +19,11 @@ impl Client {
     /// Session/private-operation fences, `Offline` when the socket fails, and
     /// the transport's receive errors.
     pub(crate) async fn commit_embed_revision(&mut self, mut payload: Value) -> Result<Value> {
-        self.require_session()?;
+        // Either credential authority: the web Worker's client holds browser
+        // credentials and no native session, and `require_session` refused it
+        // with `native_session_required`, so every web file write failed
+        // before reaching the server. The socket itself checks the same scope.
+        self.require_credentials()?;
         self.verify_private_operation()?;
         if !payload.is_object() {
             return Err(Error::Protocol);
@@ -57,3 +61,7 @@ impl Client {
         }
     }
 }
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "hosted_file_io_tests.rs"]
+mod tests;
