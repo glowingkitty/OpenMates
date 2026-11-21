@@ -352,7 +352,7 @@ assertions:
     visible; the user can expand it again. Visual capture uses bounded sampled frames at no more than one per second;
     only the exact owner-encrypted source attachment selected for a request enters ordinary multimodal processing, never
     the STT socket. The native Apple apps (iOS, iPadOS, macOS) offer the same Video control, preview, permission and
-    bounded-frame rules. Web screen sharing remains a follow-up.
+    bounded-frame rules. Web calls offer screen sharing on desktop browsers with getDisplayMedia.
   depends_on:
   - examples.migration_camera_ordinary_input
 - id: video-call.video.apple-screen-share
@@ -362,8 +362,19 @@ assertions:
     per second, 1280x720, the camera's size cap) in the app's shared container, and the call sends it as visual input
     marked as screen under the same rules as camera frames; the camera takes precedence while it is on. The frame the
     broker selects for a turn is saved as the exact source attachment under the same provenance rules as camera frames.
-    Stopping the broadcast turns visual input off; ending the call discards the frame. macOS, watchOS and web do not
+    Stopping the broadcast turns visual input off; ending the call discards the frame. macOS and watchOS do not
     offer screen sharing yet.
+  depends_on:
+  - examples.source_frames
+- id: video-call.video.web-screen-share
+  type: behavior
+  must: A web call offers Share screen only where the browser supports display capture (feature detection of
+    getDisplayMedia, never user-agent sniffing; touch-only devices are excluded), so it appears on desktop Chrome,
+    Edge, Firefox and macOS Safari and never on iOS, iPadOS or Android browsers. Sharing starts and stops only by the
+    user's tap, replaces a running camera, and shows 'You are sharing your screen' with a Stop button; ending the
+    share from the browser's own stop-sharing control also stops it quietly. Screen frames travel the camera frame
+    path unchanged (at most one bounded JPEG per second, marked as screen, source attachment encrypted by its owner
+    under the same provenance rules), and ending the call stops the capture.
   depends_on:
   - examples.source_frames
 - id: video-call.video.source-frame-provenance

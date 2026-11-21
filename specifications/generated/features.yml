@@ -10013,7 +10013,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 53
+  assertions: 54
   surfaces:
     web:
       status: failing
@@ -10022,9 +10022,9 @@ features:
       assertions:
         passing: 29
         failing: 6
-        not_run: 8
+        not_run: 9
         missing: 11
-        counted: 54
+        counted: 55
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -10058,10 +10058,12 @@ features:
       - frontend/apps/web_app/tests/components/voice-call-live-transcript.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-media.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-privacy.spec.ts
+      - frontend/apps/web_app/tests/components/voice-call-screen-share.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-speech-rendering.spec.ts
       - frontend/apps/web_app/tests/voice-call-ambient-sounds.spec.ts
       - frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
       - frontend/apps/web_app/tests/voice-call-real.spec.ts
+      - frontend/apps/web_app/tests/voice-call-screen-share.spec.ts
       - frontend/apps/web_app/tests/voice-call.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/voiceCall.test.ts
@@ -10069,7 +10071,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
       - frontend/packages/ui/src/components/videocall/callAudio.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
-      unit_test_files: 64
+      unit_test_files: 65
     apple:
       status: partial
       source: tests
@@ -10078,8 +10080,8 @@ features:
         passing: 30
         failing: 0
         not_run: 0
-        missing: 15
-        counted: 45
+        missing: 16
+        counted: 46
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift

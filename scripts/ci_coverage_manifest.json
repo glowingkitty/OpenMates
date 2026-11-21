@@ -307,6 +307,7 @@
         "components/voice-call-bar.spec.ts",
         "components/voice-call-chat-header.spec.ts",
         "components/voice-call-media.spec.ts",
+        "components/voice-call-screen-share.spec.ts",
         "components/voice-call-apple-parity.spec.ts",
         "components/voice-call-artifact-progress.spec.ts",
         "components/skill-input-thumbnails.spec.ts",
@@ -632,6 +633,7 @@
         "newsletter-flow.spec.ts",
         "voice-call.spec.ts",
         "voice-call-ambient-sounds.spec.ts",
+        "voice-call-screen-share.spec.ts",
         "authored-results-media.spec.ts"
       ]
     },

@@ -17,6 +17,9 @@ class PreviewVoiceCall implements VoiceCallControllerLike {
   }
   setMinimized(minimized: boolean) { this.publish({ minimized }); }
   async setCameraEnabled(cameraEnabled: boolean) { this.publish({ cameraEnabled, mediaExpanded: cameraEnabled }); }
+  async setScreenShareEnabled(screenSharing: boolean) {
+    this.publish({ screenSharing, cameraEnabled: screenSharing, mediaExpanded: screenSharing });
+  }
   async flipCamera() { this.publish({ cameraFacing: this.state.cameraFacing === 'environment' ? 'user' : 'environment' }); }
   setMediaExpanded(mediaExpanded: boolean) { this.publish({ mediaExpanded }); }
   showCamera() { this.publish({ displayedMedia: null, mediaExpanded: true }); }
@@ -33,8 +36,8 @@ const usage = {
   stt_duration_seconds: 32,
 };
 const onReturn = (chatId: string) => window.dispatchEvent(new CustomEvent('voice-call-preview-return', { detail: { chatId } }));
-const props = (state: Partial<VoiceCallState>, boundChatVisible = true) => ({
-  controller: new PreviewVoiceCall(state), boundChatVisible, onReturn,
+const props = (state: Partial<VoiceCallState>, boundChatVisible = true, screenShareSupported = true) => ({
+  controller: new PreviewVoiceCall(state), boundChatVisible, onReturn, screenShareSupported,
 });
 
 const listening = { inputListening: true, processing: false };
@@ -57,6 +60,9 @@ export const variants = {
     billingActivity: suspended }),
   resumedSpeech: props({ status: 'live', callId: 'preview-call', userSpeaking: true, assistantSpeaking: true, usage,
     billingActivity: { inputListening: true, processing: true } }),
+  screenShareUnsupported: props({ status: 'live', callId: 'preview-call', usage, billingActivity: listening }, true, false),
+  screenSharing: props({ status: 'live', callId: 'preview-call', screenSharing: true, cameraEnabled: true, mediaExpanded: true,
+    elapsedSeconds: 32, activeElapsedSeconds: 15, usage, billingActivity: listening }),
   away: props({ status: 'live', callId: 'preview-call', elapsedSeconds: 91, activeElapsedSeconds:15, usage, billingActivity: listening }, false),
   error: props({ status: 'error', error: 'microphone_denied' }),
   contextTooLarge: props({ status: 'error', error: 'context_too_large' }),

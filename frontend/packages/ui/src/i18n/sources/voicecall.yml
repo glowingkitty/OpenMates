@@ -408,3 +408,23 @@ connecting_short:
   en: Connecting…
   de: Verbindung wird hergestellt…
   verified_by_human: []
+screen_sharing:
+  context: Indicator shown while the user's screen is being shared in a call
+  en: You are sharing your screen
+  de: Du teilst deinen Bildschirm
+  verified_by_human: []
+screen_share_stop:
+  context: Button in the screen sharing indicator that stops sharing
+  en: Stop
+  de: Beenden
+  verified_by_human: []
+screen_share_preview:
+  context: Accessible name of the shared screen preview
+  en: Shared screen preview
+  de: Vorschau des geteilten Bildschirms
+  verified_by_human: []
+screen_failed:
+  context: The screen could not be captured or stopped unexpectedly
+  en: Screen sharing is unavailable. Please try again.
+  de: Die Bildschirmfreigabe ist nicht verfügbar. Bitte versuche es erneut.
+  verified_by_human: []

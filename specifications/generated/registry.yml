@@ -1071,7 +1071,7 @@ specifications:
     version: 18
     status: draft
     path: features/video-call
-    fingerprint: 5f32d3cac2c651371c9a55a91f42c8d8f96cbc275abb617ade3dda84546ce768
+    fingerprint: 51365b7bccd57a06e3e2950b6e13d546ae64379a9a020a831d1b9b93190c8bd0
     required_applies_to:
     - gui.web
     - gui.apple
@@ -15023,7 +15023,7 @@ assertions:
     specification: feature.video-call@18
     specification_id: feature.video-call
     type: behavior
-    fingerprint: 8bceb9f4a5bfa70578567c15a28e9b03a15010c6d3a2b0ae49ec04874fbe8e22
+    fingerprint: 14ba278036557879bc16b0374a6f69b1cf94e4a385cf438f285a8e5b8e51653f
     required_applies_to:
     - gui.web
     - gui.apple
@@ -15031,7 +15031,15 @@ assertions:
     specification: feature.video-call@18
     specification_id: feature.video-call
     type: behavior
-    fingerprint: c9b37c5ef6126f724ba6fd8b23e16bb97ab9bb830d73451ca75f16460ca236ee
+    fingerprint: 4bf01fd5d6c3e331153a1ab55776385a22ff148aa3f011e1a644b083dd0ac9a1
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  video-call.video.web-screen-share:
+    specification: feature.video-call@18
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: 886aefe7494558aaa64d7b7fa632a828b99ef7a7ce30232473a6876db3b3efcb
     required_applies_to:
     - gui.web
     - gui.apple

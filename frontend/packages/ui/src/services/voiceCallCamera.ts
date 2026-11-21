@@ -1,5 +1,6 @@
 import { sanitizeUploadBytes } from '@repo/upload-privacy';
 import { base64ToUint8Array, uint8ArrayToBase64 } from './cryptoService';
+import { acquireScreenStream } from './voiceCallScreenShare';
 
 /** Video-only live preview with bounded, ephemeral JPEG observations. */
 export interface VoiceCallCameraFrame {
@@ -13,8 +14,10 @@ export type VoiceCallCameraFacing = 'user' | 'environment';
 export interface VoiceCallCameraCallbacks {
   onFrame: (frame: VoiceCallCameraFrame) => void;
   onStream: (stream: MediaStream | null, facing: VoiceCallCameraFacing) => void;
-  onError: (error: 'camera_denied' | 'camera_missing' | 'camera_failed') => void;
+  /** `screen_cancelled` (picker dismissed) and `screen_ended` (browser stop-sharing) are not failures. */
+  onError: (error: 'camera_denied' | 'camera_missing' | 'camera_failed' | 'screen_cancelled' | 'screen_ended' | 'screen_failed') => void;
 }
+export type VoiceCallVisualSource = 'camera' | 'screen';
 
 export class VoiceCallCamera {
   private generation = 0;
@@ -27,17 +30,22 @@ export class VoiceCallCamera {
   private capturingGeneration: number | null = null;
   get facing(): VoiceCallCameraFacing { return this.currentFacing; }
 
-  constructor(private callbacks: VoiceCallCameraCallbacks) {}
+  /** `screen` captures the display instead of a camera; sampling and bounds are identical. */
+  constructor(private callbacks: VoiceCallCameraCallbacks, private source: VoiceCallVisualSource = 'camera') {}
 
   async start(): Promise<void> {
     this.stop();
     const generation = this.generation;
     try {
-      if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera unavailable');
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: { ideal: this.currentFacing }, width: { ideal: 1280 }, height: { ideal: 720 } },
-      });
+      let stream: MediaStream;
+      if (this.source === 'screen') stream = await acquireScreenStream();
+      else {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera unavailable');
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: this.currentFacing }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        });
+      }
       if (generation !== this.generation) {
         stream.getTracks().forEach(track => track.stop());
         return;
@@ -52,17 +60,23 @@ export class VoiceCallCamera {
       if (generation !== this.generation) return;
       // Preview plays at the camera's native rate; observations have a separate 1Hz cadence.
       void video.play().catch(() => {
-        if (generation === this.generation) this.fail('camera_failed');
+        if (generation === this.generation) this.fail(this.source === 'screen' ? 'screen_failed' : 'camera_failed');
       });
       this.lastCapture = -Infinity;
       this.lastEmission = -Infinity;
       this.timer = setInterval(() => { void this.capture(generation); }, 1000);
       for (const track of stream.getVideoTracks()) {
-        track.onended = () => { if (generation === this.generation) this.fail('camera_failed'); };
+        track.onended = () => {
+          if (generation === this.generation) this.fail(this.source === 'screen' ? 'screen_ended' : 'camera_failed');
+        };
       }
     } catch (error) {
       if (generation !== this.generation) return;
       const name = error instanceof Error || error instanceof DOMException ? error.name : '';
+      if (this.source === 'screen') {
+        this.fail(name === 'NotAllowedError' || name === 'AbortError' ? 'screen_cancelled' : 'screen_failed');
+        return;
+      }
       this.fail(name === 'NotAllowedError' || name === 'SecurityError' ? 'camera_denied'
         : name === 'NotFoundError' || name === 'DevicesNotFoundError' ? 'camera_missing' : 'camera_failed');
     }
@@ -120,7 +134,7 @@ export class VoiceCallCamera {
       // Provider input and a later ordinary attachment upload must hash the same
       // bytes. Canvas JPEGs include JFIF APP0; the upload boundary removes it.
       // Apply that existing cleanup before either consumer sees this frame.
-      const sanitized = await sanitizeUploadBytes(base64ToUint8Array(data), 'image/jpeg', 'camera-frame.jpg');
+      const sanitized = await sanitizeUploadBytes(base64ToUint8Array(data), 'image/jpeg', this.source === 'screen' ? 'screen-frame.jpg' : 'camera-frame.jpg');
       if (generation !== this.generation) return;
       if (sanitized.status !== 'sanitized' || sanitized.mimeType !== 'image/jpeg' ||
         !sanitized.bytes.byteLength || sanitized.bytes.byteLength > 256 * 1024) throw new Error('Camera JPEG cleanup failed');
@@ -132,7 +146,7 @@ export class VoiceCallCamera {
       this.lastEmission = performance.now();
       this.callbacks.onFrame(frame);
     } catch {
-      if (generation === this.generation) this.fail('camera_failed');
+      if (generation === this.generation) this.fail(this.source === 'screen' ? 'screen_failed' : 'camera_failed');
     } finally {
       if (this.capturingGeneration === generation) this.capturingGeneration = null;
     }

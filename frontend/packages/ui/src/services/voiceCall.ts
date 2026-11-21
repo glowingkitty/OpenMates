@@ -29,7 +29,7 @@ import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { getWorkspaceCacheEpoch } from './workspaceCacheLifecycle';
 import { VoiceCallCuePlayer } from './voiceCallCues';
 import { ensureVoiceCallPrivacyAcknowledgement } from './voiceCallPrivacy';
-import { VoiceCallCamera, type VoiceCallCameraFacing } from './voiceCallCamera';
+import { VoiceCallCamera, type VoiceCallCameraFacing, type VoiceCallVisualSource } from './voiceCallCamera';
 import type { VoiceHeardBoundary } from '../types/chat';
 import type { ChatSynchronizationService } from './chatSyncService';
 import type { VoiceCallDisplayedMedia, createVoiceCallMediaResolver } from './voiceCallMedia';
@@ -63,6 +63,8 @@ export interface VoiceCallState {
   cameraStream: MediaStream | null;
   cameraFacing: VoiceCallCameraFacing;
   cameraError: string | null;
+  /** The live visual input is the user's screen (camera stays off while it runs). */
+  screenSharing: boolean;
   mediaExpanded: boolean;
   mediaItems: readonly VoiceCallDisplayedMedia[];
   mediaIndex: number;
@@ -92,6 +94,7 @@ export interface VoiceCallControllerLike extends Readable<VoiceCallState> {
   setMuted(muted: boolean): void;
   setMinimized(minimized: boolean): void;
   setCameraEnabled(enabled: boolean): Promise<void>;
+  setScreenShareEnabled(enabled: boolean): Promise<void>;
   flipCamera(): Promise<void>;
   setMediaExpanded(expanded: boolean): void;
   showCamera(): void;
@@ -103,7 +106,7 @@ export const initialVoiceCallState: VoiceCallState = {
   status: 'idle', chatId: null, callId: null, minimized: false, muted: false,
   elapsedSeconds: 0, activeElapsedSeconds: 0, audioLevels: Array(16).fill(0), inputIdle: false, userSpeaking: false, assistantSpeaking: false, usage: null, billingActivity: null, error: null,
   cameraAvailable: false, cameraEnabled: false, cameraPending: false, cameraStream: null,
-  cameraFacing: 'environment', cameraError: null, mediaExpanded: false, mediaItems: [], mediaIndex: 0, displayedMedia: null,
+  cameraFacing: 'environment', cameraError: null, screenSharing: false, mediaExpanded: false, mediaItems: [], mediaIndex: 0, displayedMedia: null,
   liveTranscript: null,
 };
 
@@ -287,7 +290,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private notifyError(code: string, camera = false): void {
     // Only translate known public codes; never display arbitrary server payloads.
     const known = camera
-      ? ['camera_denied', 'camera_missing', 'camera_failed', 'source_frame_failed', 'media_unavailable']
+      ? ['camera_denied', 'camera_missing', 'camera_failed', 'screen_failed', 'source_frame_failed', 'media_unavailable']
       : ['microphone_denied', 'microphone_missing', 'microphone_failed', 'session_expired',
         'connection_failed', 'connection_lost', 'invalid_response', 'transcript_save_failed', 'transcript_limit',
         'context_too_large', 'context_unavailable', 'insufficient_credits'];
@@ -1065,14 +1068,21 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.cameraCollapse = null;
   }
 
-  async setCameraEnabled(enabled: boolean): Promise<void> {
+  setCameraEnabled(enabled: boolean): Promise<void> { return this.setVisualInput(enabled, 'camera'); }
+  /** Screen sharing reuses the camera frame path with `source: 'screen'`; it replaces a running camera. */
+  setScreenShareEnabled(enabled: boolean): Promise<void> { return this.setVisualInput(enabled, 'screen'); }
+
+  private async setVisualInput(enabled: boolean, source: VoiceCallVisualSource): Promise<void> {
     if (this.state.status !== 'live') return;
+    if (enabled && this.state.cameraEnabled && this.state.screenSharing !== (source === 'screen')) {
+      await this.setVisualInput(false, source === 'screen' ? 'camera' : 'screen');
+    }
     if (!enabled) {
       ++this.cameraGeneration;
       this.camera?.stop();
       this.camera = null;
       this.clearCameraCollapse();
-      this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null });
+      this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null, screenSharing: false });
       this.send({ type: 'camera_state', call_id: this.state.callId, enabled: false });
       return;
     }
@@ -1088,7 +1098,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
         // queuing old images or delaying microphone/text recovery.
         if (!current() || !this.state.cameraEnabled) return;
         if (!this.send({ type: 'camera_frame', call_id: this.state.callId, frame_id: frame.frameId,
-          data: frame.data, captured_at: frame.capturedAt })) {
+          data: frame.data, captured_at: frame.capturedAt, source })) {
           this.update({ cameraError: 'camera_failed' });
           void this.setCameraEnabled(false);
         }
@@ -1096,7 +1106,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
       onStream: (stream, facing) => {
         if (!current()) return;
         const wasEnabled = this.state.cameraEnabled;
-        this.update({ cameraStream: stream, cameraFacing: facing, cameraEnabled: stream !== null });
+        this.update({ cameraStream: stream, cameraFacing: facing, cameraEnabled: stream !== null, screenSharing: stream !== null && source === 'screen' });
         if (!stream) {
           if (wasEnabled) this.send({ type: 'camera_state', call_id: this.state.callId, enabled: false });
           return;
@@ -1114,10 +1124,13 @@ export class VoiceCallController implements VoiceCallControllerLike {
       onError: error => {
         if (!current()) return;
         this.clearCameraCollapse();
-        this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null, cameraError: error });
+        // A dismissed picker or the browser's own stop-sharing is the user's choice, not an error.
+        const quiet = error === 'screen_cancelled' || error === 'screen_ended';
+        this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null, screenSharing: false,
+          cameraError: quiet ? null : error });
         this.send({ type: 'camera_state', call_id: this.state.callId, enabled: false });
       },
-    });
+    }, source);
     this.camera = camera;
     this.update({ cameraPending: true, cameraError: null });
     await camera.start();
@@ -1227,7 +1240,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.mediaIds.clear();
     this.presentedMediaIds.clear();
     this.sourceFrames.clear();
-    this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null, cameraAvailable: false,
+    this.update({ cameraEnabled: false, cameraPending: false, cameraStream: null, screenSharing: false, cameraAvailable: false,
       mediaExpanded: false, mediaItems: [], displayedMedia: null, mediaIndex: 0, cameraError: null });
     this.privacyRequest?.abort();
     this.privacyRequest = null;
