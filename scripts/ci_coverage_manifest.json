@@ -1018,6 +1018,7 @@
         "persisted-draft-discovery.spec.ts",
         "draft-only-chat-delete.spec.ts",
         "plan-acceptance-checks-flow.spec.ts",
+        "project-result-notice.spec.ts",
         "chat-settings-active-plan.spec.ts",
         "plan-assumptions-flow.spec.ts",
         "plans-flow.spec.ts",

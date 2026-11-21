@@ -36,6 +36,11 @@ test('a background chat notice shows the summary headline, the chat title and th
 	await page.setViewportSize({ width: 390, height: 844 });
 	const log = createSignupLogger('CHAT_NOTICE_HEADLINE');
 	const screenshot = createStepScreenshotter(log);
+	// Notice diagnostics from the app's own console lines (ids and sources only, never content).
+	page.on('console', (message) => {
+		const text = message.text();
+		if (/\[Notifications\]|Showing notification for background chat|notification_headline|post_processing_completed/.test(text)) log(`console: ${text.slice(0, 200)}`);
+	});
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 	await loginToTestAccount(page, log, screenshot);
 	await setChatSidebarOpen(page, false, log);

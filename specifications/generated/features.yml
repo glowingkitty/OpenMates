@@ -7798,8 +7798,8 @@ features:
       assertions:
         passing: 15
         failing: 9
-        not_run: 1
-        missing: 3
+        not_run: 0
+        missing: 4
         counted: 28
       failing_tests:
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts › shows notification and submits details only after
@@ -7830,6 +7830,7 @@ features:
       - frontend/apps/web_app/tests/notification-email-preferences.spec.ts
       - frontend/apps/web_app/tests/notification-mobile.spec.ts
       - frontend/apps/web_app/tests/notification-stack.spec.ts
+      - frontend/apps/web_app/tests/project-result-notice.spec.ts
       - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
       - frontend/apps/web_app/tests/reminder-email-delivery.spec.ts
       - frontend/apps/web_app/tests/reminder-email.spec.ts

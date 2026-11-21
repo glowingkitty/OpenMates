@@ -2745,8 +2745,10 @@ export async function handlePostProcessingCompletedImpl(
     }
     // The notice appeared at completion with a reply excerpt; now that the summary
     // exists, show it instead. Display only: it never reaches storage or the server.
+    // A recovered or re-synced turn is not the "current" metadata turn, yet its notice still
+    // needs the headline: only the owner and the latest user message gate it.
     if (
-      payload.notification_headline && ownerIsCurrent() && turnIsCurrent() &&
+      payload.notification_headline && ownerIsCurrent() && latestUserMatches &&
       !isChatVisiblyActive(payload.chat_id) && !chat.is_sub_chat && !chat.parent_id
     ) {
       // The mate image needs the category; a first-turn notice may have been shown before it existed.
@@ -2760,9 +2762,18 @@ export async function handlePostProcessingCompletedImpl(
           console.debug("[ChatSyncService:AI] Could not decrypt category for the chat notice:", categoryError);
         }
       }
-      if (isCurrent() && !isChatVisiblyActive(payload.chat_id)) {
-        notificationStore.applyChatHeadline(payload.chat_id, payload.notification_headline, noticeCategory);
+      if (ownerIsCurrent() && !isChatVisiblyActive(payload.chat_id)) {
+        const shown = notificationStore.applyChatHeadline(payload.chat_id, payload.notification_headline, noticeCategory);
+        console.info("[Notifications] Chat notice headline", { chatID: payload.chat_id, shown });
       }
+    } else {
+      console.info("[Notifications] Chat notice headline skipped", {
+        chatID: payload.chat_id,
+        hasHeadline: Boolean(payload.notification_headline),
+        ownerIsCurrent: ownerIsCurrent(),
+        latestUserMatches,
+        visible: isChatVisiblyActive(payload.chat_id),
+      });
     }
     if (ownerIsCurrent() && turnIsCurrent()) {
       void persistPostProcessingComposerFallback(payload, serviceInstance, (suggestion) => {
