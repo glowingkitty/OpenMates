@@ -49,6 +49,8 @@ from backend.shared.testing.voice_call_fixture import (
     set_voice_ack_fixture_profile_mode, voice_ack_fixture_requires_profile,
 )
 
+from backend.core.api.app.routes.voice_call_audio import MicAudioForwarder
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1")
 MAX_START_BYTES = 256_000
@@ -541,6 +543,10 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     lease_task: asyncio.Task[None] | None = None
     registry_task: asyncio.Task[None] | None = None
     prewarm_task: asyncio.Task[None] | None = None
+    audio: MicAudioForwarder | None = None
+    audio_progress = asyncio.Event()
+    audio_progress_wait: asyncio.Task[bool] | None = None
+    drain_audio = True
     lock_client: Any = None
     lock_key = lock_token = ""
     registered = False
@@ -915,22 +921,45 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
         await activity()
         client_receive = asyncio.create_task(websocket.receive_text())
         provider_receive = asyncio.create_task(provider.receive())
+        live_provider = provider
+
+        async def admit_audio(size: int) -> None:
+            # Checked before the frame that starts a new minute reaches the provider.
+            prospective = ledger.audio_bytes + size
+            prospective_credits = math.ceil(prospective / (PCM_INPUT_BYTES_PER_SECOND * 60)) * REALTIME_CREDITS_PER_MINUTE
+            reserve = prospective_credits - ledger.charged
+            if is_payment_enabled() and reserve > 0 and await _authoritative_credits(websocket, user_id) < reserve:
+                raise InsufficientCreditsError("Insufficient credits")
+
+        async def accept_audio(size: int) -> None:
+            ledger.audio_bytes += size
+            await _charge_voice(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id, chat_id=chat_id)
+
+        audio = MicAudioForwarder(call_id=call_id, admit=admit_audio, send_audio=live_provider.send_audio,
+                                  end_audio=live_provider.end_audio, accepted=accept_audio, progress=audio_progress.set)
+        audio_progress_wait = asyncio.create_task(audio_progress.wait())
         while True:
             now = time.monotonic()
             if lease_task.done():
                 await lease_task
+            if audio.task.done():
+                await audio.task
+                raise RuntimeError("Voice audio forwarding stopped")
             if registry_task.done():
                 await registry_task
             if now - last_auth_check >= 5:
                 if not await _session_still_valid(websocket, auth_data):
                     raise RuntimeError("Session expired or revoked")
                 last_auth_check = now
-            waiters = {client_receive, provider_receive, lease_task, registry_task}
+            waiters = {client_receive, provider_receive, lease_task, registry_task, audio.task, audio_progress_wait}
             waiters.update(turn.classifier for turn in turns.values() if turn.classifier is not None)
             waiters.update(turn.completion for turn in turns.values() if turn.completion is not None)
             deadlines = [turn.deadline for turn in turns.values() if turn.deadline is not None and turn.deadline > now]
             timeout = min(1.0, max(0, min(deadlines) - now)) if deadlines else 1.0
             done, _ = await asyncio.wait(waiters, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
+            if audio_progress_wait in done:
+                audio_progress.clear()
+                audio_progress_wait = asyncio.create_task(audio_progress.wait())
             if client_receive in done:
                 raw = client_receive.result()
                 if len(raw.encode("utf-8")) > MAX_EVENT_BYTES:
@@ -946,17 +975,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     chunk = _decode_media(event.get("data"), max_bytes=MAX_AUDIO_CHUNK)
                     if len(chunk) % 2:
                         raise ValueError("PCM audio is invalid")
-                    prospective = ledger.audio_bytes + len(chunk)
+                    prospective = audio.queued_bytes + len(chunk)
                     if prospective > ((time.monotonic() - started + AUDIO_JITTER_SECONDS) * PCM_INPUT_BYTES_PER_SECOND + allowance):
                         raise ValueError("Audio stream exceeds real-time rate")
-                    prospective_credits = math.ceil(prospective / (PCM_INPUT_BYTES_PER_SECOND * 60)) * REALTIME_CREDITS_PER_MINUTE
-                    reserve = prospective_credits - ledger.charged
-                    if is_payment_enabled() and reserve > 0 and await _authoritative_credits(websocket, user_id) < reserve:
-                        raise InsufficientCreditsError("Insufficient credits")
-                    await asyncio.wait_for(provider.send_audio(event["data"]), 5)
-                    ledger.audio_bytes = prospective
+                    # Credits, provider write and charge run in order on the
+                    # forwarder, so transcript events keep flowing meanwhile.
+                    audio.push(event["data"], len(chunk))
                     listening = True
-                    await _charge_voice(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id, chat_id=chat_id)
                 elif kind == "hold":
                     if event.get("call_id") != call_id or type(event.get("active")) is not bool:
                         raise ValueError("Invalid hold event")
@@ -969,7 +994,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         current = None
                     await waiting.set_active(event["active"], send=send, call_id=call_id, pending_text=pending)
                 elif kind == "audio_stream_end":
-                    await asyncio.wait_for(provider.end_audio(), 5)
+                    audio.end()
                     listening = False
                 elif kind == "assistant_state":
                     speaking, generating = event.get("speaking"), event.get("generating", False)
@@ -1119,6 +1144,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     except WebSocketDisconnect:
         pass
     except asyncio.CancelledError:
+        drain_audio = False
         raise
     except Exception as exc:
         frames = traceback.extract_tb(exc.__traceback__)
@@ -1135,7 +1161,16 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             pass
     finally:
         visuals.close()
+        if audio is not None and drain_audio:
+            # Frames the client sent before the end still reach the provider in order.
+            try:
+                await audio.drain()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning("Voice audio drain failed call_id=%s category=%s", call_id, type(exc).__name__)
         tasks = [task for task in (client_receive, provider_receive, lease_task, registry_task, prewarm_task,
+                 audio.task if audio is not None else None, audio_progress_wait,
                  *(turn.classifier for turn in turns.values()), *completion_tasks) if task is not None]
         for task in tasks:
             task.cancel()

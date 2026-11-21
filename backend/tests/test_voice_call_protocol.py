@@ -1042,6 +1042,49 @@ async def test_mute_keeps_provider_open_and_resumed_pcm_in_order(runtime):
     assert provider.closed and len(runtime.finalized) == 1
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.chat.transcripts,video-call.audio.complete-turn-admission,video-call.usage.provider-metering
+async def test_consecutive_turns_deliver_every_word_while_a_minute_charge_is_slow(runtime, monkeypatch):
+    """Turn 2 began as the call's next minute was charged: the slow charge froze
+    the loop, so the live transcript stalled and the turn came out cut off."""
+    release, charges = asyncio.Event(), []
+    async def credits(*args):
+        return 10_000
+    class SlowBilling:
+        async def charge_user_credits(self, **kwargs):
+            charges.append(kwargs["idempotency_key"])
+            await release.wait()
+            return {"charged_credits": kwargs["credits_to_deduct"]}
+    monkeypatch.setattr(route, "is_payment_enabled", lambda: True)
+    monkeypatch.setattr(route, "_authoritative_credits", credits)
+    monkeypatch.setattr(route, "_billing", lambda _: SlowBilling())
+    socket, provider, task = await runtime.start(startup_ms=1000)
+    frames = [base64.b64encode(bytes([index]) * 320).decode() for index in range(1, 7)]
+    turns = [["So", " I created", " OpenMates,"], ["An open source", " AI agent", " for everyone."],
+             ["It runs", " on my own", " server", " in Germany."]]
+    socket.push({"type": "mic_audio", "data": frames[0]})
+    await socket.until(lambda _: charges)
+    # The charge for the started minute is still pending: later frames and every
+    # turn's words must keep arriving instead of waiting behind it.
+    for frame in frames[1:]:
+        socket.push({"type": "mic_audio", "data": frame})
+    for number, words in enumerate(turns, start=1):
+        provider.push("turn.start", time_s=number)
+        for word in words:
+            provider.push("transcription.text.delta", text=word)
+            await socket.until(lambda events, word=word: any(
+                event["type"] == "transcript" and event["text"].endswith(word.strip()) for event in events))
+        provider.push("turn.end", time_s=number + 0.5, end_reason="threshold")
+        await socket.until(lambda _, number=number: len(socket.finals()) == number)
+    assert not release.is_set() and provider.audio == frames[:1] and not task.done()
+    release.set()
+    await socket.until(lambda _: provider.audio == frames)
+    assert [event["text"] for event in socket.finals()] == ["".join(words) for words in turns]
+    assert len({event["message_id"] for event in socket.finals()}) == 3
+    socket.push({"type": "hangup"})
+    await task
+    assert len(set(charges)) == 1
+
+
 # contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.usage.provider-metering
 async def test_startup_audio_allowance_is_call_wide_and_end_cannot_replenish(runtime):
     socket, provider, task = await runtime.start(startup_ms=1000)
@@ -1511,7 +1554,7 @@ async def test_spoken_repeat_asks_client_replay_and_starts_no_inference(runtime,
     assert not socket.finals() and not runtime.issued
 
 
-# contract-test: supporting surface=rest_api assertions=video-call.waiting.hold-button
+# contract-test: supporting surface=rest_api assertions=video-call.waiting.spoken-intent-and-merge
 async def test_hold_event_wins_without_any_model_intent(runtime, monkeypatch):
     monkeypatch.setattr(route, "_complete", _intent_check({}))
     socket, provider, ready = await runtime.start()

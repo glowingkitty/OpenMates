@@ -23,6 +23,7 @@ import { chatListCache } from "./chatListCache"; // Import for cache invalidatio
 import { flushPendingMessagesForChat } from "./chatSyncServiceHandlersChatUpdates"; // Flush messages queued while chat key was unavailable
 import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings"; // Flush system messages queued while chat key was unavailable
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
+import { announceChatMessageOnce, isFinalizedChatMessage, noteChatMessageCard } from "./chatMessageNotificationReceipt";
 import type { EmbedType } from "../message_parsing/types";
 import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
@@ -1102,6 +1103,10 @@ export async function handleAIBackgroundResponseCompletedImpl(
       has_thinking: !!thinkingEntry?.content,
     };
 
+    // A reply this device already stored in full was shown here before (for
+    // example heard live in a call); a replayed completion is not announced.
+    const storedBefore = !isIncognitoChat && isFinalizedChatMessage(await chatDB.getMessage(payload.message_id));
+
     // Save message to IndexedDB or incognito service.
     // Use aiMessage.created_at as the sort timestamp so last_edited_overall_timestamp
     // is consistent with the message's own timestamp (both set at delivery time).
@@ -1212,7 +1217,8 @@ export async function handleAIBackgroundResponseCompletedImpl(
     // The visible-chat check is a safety guard in case the user switched back
     // to this chat between the server sending the event and us processing it.
     const chatIsVisible = isChatVisiblyActive(payload.chat_id);
-    if (!chatIsVisible && !chat.is_sub_chat && !chat.parent_id) {
+    const announce = announceChatMessageOnce(payload.chat_id, payload.message_id, chatIsVisible || storedBefore);
+    if (announce && !chat.is_sub_chat && !chat.parent_id) {
       console.debug(
         `[ChatSyncService:AI] Showing notification for background chat ${payload.chat_id}`,
       );
@@ -1275,6 +1281,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
       }
 
       // Show in-app notification with message preview and mate category for profile image
+      noteChatMessageCard("ai-completed", payload.chat_id);
       notificationStore.chatMessage(
         payload.chat_id,
         chatTitle,
@@ -6381,8 +6388,9 @@ export async function handleAwaitingUserInputImpl(
       }),
     );
 
-    if (!isChatVisiblyActive(payload.chat_id)) {
+    if (announceChatMessageOnce(payload.chat_id, questionMessage.message_id, isChatVisiblyActive(payload.chat_id))) {
       unreadMessagesStore.incrementUnread(payload.chat_id, questionMessage.message_id);
+      noteChatMessageCard("ai-question", payload.chat_id);
       notificationStore.chatMessage(
         payload.chat_id,
         chat.title || "Sub-chat needs input",

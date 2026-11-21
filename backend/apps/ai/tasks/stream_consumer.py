@@ -4250,6 +4250,10 @@ async def _update_chat_metadata(
     # This ensures follow-up messages include assistant responses in the history
     # The cache tracks its own messages_v for AI inference purposes
     if cache_service:
+        if category:
+            await cache_service.update_chat_list_item_field(
+                request_data.user_id, request_data.chat_id, "last_mate_category", category
+            )
         # Server-authoritative unread counter: a finished top-level assistant reply
         # stays unread until a client reports its last line was seen.
         unread_count: Optional[int] = None

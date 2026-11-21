@@ -408,16 +408,6 @@ connecting_short:
   en: Connecting…
   de: Verbindung wird hergestellt…
   verified_by_human: []
-hold:
-  context: Call bar button that puts the call on hold so the assistant waits for the caller
-  en: Hold
-  de: Halten
-  verified_by_human: []
-resume_hold:
-  context: Call bar button that ends the waiting state of a call
-  en: I'm back
-  de: Ich bin wieder da
-  verified_by_human: []
 waiting:
   context: Call status while the assistant waits for the caller to continue
   en: Waiting for you

@@ -12,25 +12,25 @@ vi.mock('../i18n/translations', async () => {
 });
 
 describe('voice call waiting lines', () => {
-  // contract-test: supporting surface=gui.web assertions=video-call.waiting.hold-button,video-call.waiting.spoken-intent-and-merge
+  // contract-test: supporting surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge
   it('maps lines to system clips by app language and has none for other languages', () => {
     expect(waitingLineClipUrl('waiting_start', 'de')).toBe('/audio/assistant-acknowledgements/system/de-DE/waiting_start-1.mp3');
     expect(waitingLineClipUrl('waiting_resume', 'en-GB')).toBe('/audio/assistant-acknowledgements/system/en-US/waiting_resume-1.mp3');
     expect(waitingLineClipUrl('waiting_start', 'ja')).toBeNull();
   });
-  // contract-test: supporting surface=gui.web assertions=video-call.waiting.hold-button,video-call.waiting.spoken-intent-and-merge
+  // contract-test: supporting surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge
   it('accepts only known line ids', () => {
     expect(isWaitingLine('waiting_start')).toBe(true);
     expect(isWaitingLine('chat_start')).toBe(false);
   });
-  // contract-test: supporting surface=gui.web assertions=video-call.waiting.hold-button,video-call.waiting.spoken-intent-and-merge
+  // contract-test: supporting surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge
   it('plays the clip and reports refusal as false', async () => {
     const played: string[] = [];
     expect(await playWaitingLine('waiting_start', async url => { played.push(url); })).toBe(true);
     expect(played).toHaveLength(1);
     expect(await playWaitingLine('waiting_start', async () => { throw new Error('blocked'); })).toBe(false);
   });
-  // contract-test: supporting surface=gui.web assertions=video-call.waiting.hold-button,video-call.waiting.spoken-intent-and-merge
+  // contract-test: supporting surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge
   it('replays the stored answer without a request, and does nothing without one', async () => {
     const play = vi.fn(async () => {});
     expect(await replayLastAnswer({ player: writable({ hasReplayableTracks: true }), play })).toBe(true);
@@ -43,7 +43,7 @@ describe('voice call waiting lines', () => {
     const play = vi.fn(async () => {});
     expect(await replayLastAnswer({ player: writable({ hasReplayableTracks: true, status: 'completed' }), play })).toBe(false);
   });
-  // contract-test: supporting surface=gui.web assertions=video-call.waiting.hold-button
+  // contract-test: supporting surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge
   it('warns with the line key when no clip exists', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { locale } = await import('svelte-i18n');
@@ -57,14 +57,14 @@ describe('voice call waiting lines', () => {
 import { parseVoiceCallHistoryEvent, voiceCallWaitingMessageId } from './voiceCallLifecycleEvent';
 
 describe('waiting lines as call events', () => {
-  // contract-test: supporting surface=gui.web assertions=video-call.waiting.hold-button
+  // contract-test: supporting surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge
   it('parses waiting actions and rejects unknown ones', () => {
     const base = { schema_version: 1, type: 'voice_call', call_id: 'call_12345678', created_at: 10, active_elapsed_seconds: 0 };
     expect(parseVoiceCallHistoryEvent(JSON.stringify({ ...base, action: 'waiting_start' }))?.action).toBe('waiting_start');
     expect(parseVoiceCallHistoryEvent(JSON.stringify({ ...base, action: 'waiting_resume' }))?.action).toBe('waiting_resume');
     expect(parseVoiceCallHistoryEvent(JSON.stringify({ ...base, action: 'dance' }))).toBeNull();
   });
-  // contract-test: supporting surface=gui.web assertions=video-call.waiting.hold-button
+  // contract-test: supporting surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge
   it('gives each occurrence its own ID between the start and end events', () => {
     const a = voiceCallWaitingMessageId('call_12345678', 'waiting_start', 1000);
     const b = voiceCallWaitingMessageId('call_12345678', 'waiting_start', 2000);

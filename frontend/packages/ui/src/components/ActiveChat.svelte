@@ -14836,8 +14836,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         {/if}
 
                         <!-- Cancel / Save draft pill: shown below the input when focused in a chat
-                             that has the new-chat button. Blurs the editor to restore compact mode. -->
-                        {#if messageInputFocused && !callTranscriptComposerActive && !$recordingState.showRecordAudioUI}
+                             that has the new-chat button. Blurs the editor to restore compact mode.
+                             Never during a call: the call bar is the only control set then. -->
+                        {#if messageInputFocused && !voiceCallOwnsAudio && !$recordingState.showRecordAudioUI}
                             <button
                                 class="input-dismiss-button"
                                 data-testid="input-dismiss-button"

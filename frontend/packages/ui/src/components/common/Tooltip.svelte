@@ -1,3 +1,18 @@
+<script module lang="ts">
+    // Last pointer position anywhere on the page, updated after element handlers ran.
+    // A tooltip opens only on a move to a new position, so a control that slides under
+    // a resting pointer (a layout change after a click) never opens one.
+    let lastPagePointer: { x: number; y: number } | null = null;
+    if (typeof window !== 'undefined') {
+        window.addEventListener('mousemove', (event) => {
+            lastPagePointer = { x: event.clientX, y: event.clientY };
+        });
+    }
+    function pointerMovedTo(event: MouseEvent): boolean {
+        return !lastPagePointer || lastPagePointer.x !== event.clientX || lastPagePointer.y !== event.clientY;
+    }
+</script>
+
 <script lang="ts">
     import { onMount, onDestroy, untrack } from 'svelte';
     import './tooltip.css';
@@ -29,7 +44,30 @@
         console.debug('Touch device detected:', isTouchDevice); // Debug log
     }
     
-    function showTooltipWithDelay(_event: MouseEvent) {
+    // A click closes the tooltip until the pointer leaves the element.
+    let suppressedUntilLeave = false;
+
+    function handlePointerMove(event: MouseEvent) {
+        if (suppressedUntilLeave || showTooltip || !pointerMovedTo(event)) return;
+        showTooltipWithDelay();
+    }
+
+    function handlePointerLeave() {
+        suppressedUntilLeave = false;
+        hideTooltip();
+    }
+
+    function handlePointerDown() {
+        suppressedUntilLeave = true;
+        hideTooltip();
+    }
+
+    function handleFocus() {
+        // Keyboard focus only; a click or a programmatic focus does not open it.
+        if (element?.matches(':focus-visible')) showTooltipWithDelay();
+    }
+
+    function showTooltipWithDelay() {
         // Don't show tooltip on touch devices
         if (isTouchDevice) {
             console.debug('Preventing tooltip on touch device'); // Debug log
@@ -90,18 +128,20 @@
         // Check for touch device on mount
         checkTouchDevice();
         
-        element.addEventListener('mouseenter', showTooltipWithDelay);
-        element.addEventListener('mouseleave', hideTooltip);
-        element.addEventListener('focus', showTooltipWithDelay);
+        element.addEventListener('mousemove', handlePointerMove);
+        element.addEventListener('mouseleave', handlePointerLeave);
+        element.addEventListener('pointerdown', handlePointerDown);
+        element.addEventListener('focus', handleFocus);
         element.addEventListener('blur', hideTooltip);
     });
     
     onDestroy(() => {
         if (!element) return;
         
-        element.removeEventListener('mouseenter', showTooltipWithDelay);
-        element.removeEventListener('mouseleave', hideTooltip);
-        element.removeEventListener('focus', showTooltipWithDelay);
+        element.removeEventListener('mousemove', handlePointerMove);
+        element.removeEventListener('mouseleave', handlePointerLeave);
+        element.removeEventListener('pointerdown', handlePointerDown);
+        element.removeEventListener('focus', handleFocus);
         element.removeEventListener('blur', hideTooltip);
         clearTimeout(timeoutId);
     });

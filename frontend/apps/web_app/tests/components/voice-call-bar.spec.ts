@@ -72,6 +72,21 @@ test.describe('Reference voice call strip', () => {
     await expect(launch).toHaveAccessibleName('Start voice call');
     await expect(launch).toHaveAccessibleDescription('Voice calls use Mistral transcription, ElevenLabs v4 Turbo voice, normal OpenMates AI routing and usage-based billing.');
   });
+  for(const [name,width] of [['laptop',1280],['phone',390]] as const) {
+    // contract-test: direct surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge
+    test(`call bar has no hold or pause control and keeps mute and end call on the ${name}`,async({page},testInfo)=>{
+      await page.setViewportSize({width,height:700});
+      await page.goto(preview(undefined,width,false,false));
+      await waitForComponentPreview(page);
+      const bar=page.getByTestId('voice-call-bar');
+      await expect(page.getByTestId('voice-call-hold')).toHaveCount(0);
+      await expect(bar.getByRole('button',{name:/hold|pause|halten|pausieren/i})).toHaveCount(0);
+      await expect(page.getByTestId('voice-call-mute')).toBeVisible();
+      await expect(page.getByTestId('voice-call-hangup')).toBeVisible();
+      await testInfo.attach(`call-bar-${name}`,{body:await bar.screenshot(),contentType:'image/png'});
+    });
+  }
+
   // contract-test: direct surface=gui.web assertions=video-call.chat.call-strip-layout,video-call.chat.activity-status,video-call.audio.single-owner
   test('dedicated microphone overlay toggles mute while the call remains live at 320px RTL',async({page},testInfo)=>{
     await page.setViewportSize({width:320,height:844});

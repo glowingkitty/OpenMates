@@ -70,11 +70,6 @@
       </div>
     </div>
     <div class="edge right">
-      <button class="round hold" class:held={state.waiting} data-testid="voice-call-hold"
-        aria-label={$text(state.waiting ? 'voicecall.resume_hold' : 'voicecall.hold')}
-        aria-pressed={!!state.waiting} disabled={state.status !== 'live'} onclick={() => controller.setWaiting(!state.waiting)}>
-        <span class="clickable-icon icon_pause" aria-hidden="true"></span>
-      </button>
       <button class="round hangup" data-testid="voice-call-hangup" aria-label={$text('voicecall.hangup')} onclick={() => controller.hangup()}>
         <span class="clickable-icon icon_call" aria-hidden="true"></span>
       </button>
@@ -128,8 +123,6 @@
   .fixed .wave { width:clamp(2.5rem,20vw,22rem); }
   .voice-call-bar .microphone { position:absolute; inset-block-start:50%; inset-inline-start:50%; transform:translate(-50%,-50%); z-index:1; }
   .voice-call-bar .microphone.muted { color:var(--color-button-primary); }
-  .icon_pause { mask-image:url("@openmates/ui/static/icons/pause.svg"); -webkit-mask-image:url("@openmates/ui/static/icons/pause.svg"); }
-  .voice-call-bar .hold.held { background:color-mix(in srgb,var(--color-font-button) 40%,transparent); }
   .waiting-label { font-size:var(--font-size-small); font-weight:var(--font-weight-bold); white-space:nowrap; }
   .microphone-slash { position:absolute; width:1.5rem; height:.19rem; border-radius:var(--radius-full); background:currentColor; transform:rotate(-45deg); }
   .microphone:disabled { cursor:default; }

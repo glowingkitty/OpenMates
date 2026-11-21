@@ -11,7 +11,7 @@ class _Sent(list):
         self.append(event)
 
 
-# contract-test: supporting surface=rest_api assertions=video-call.waiting.hold-button,video-call.waiting.spoken-intent-and-merge
+# contract-test: supporting surface=rest_api assertions=video-call.waiting.spoken-intent-and-merge
 @pytest.mark.asyncio
 async def test_hold_then_resume_merges_one_turn_without_inference_lines() -> None:
     sent, waiting = _Sent(), VoiceWaiting()
@@ -25,7 +25,7 @@ async def test_hold_then_resume_merges_one_turn_without_inference_lines() -> Non
     assert await waiting.route("next question", "none", send=sent, call_id="c1") == (None, "next question")
 
 
-# contract-test: supporting surface=rest_api assertions=video-call.waiting.hold-button,video-call.waiting.spoken-intent-and-merge
+# contract-test: supporting surface=rest_api assertions=video-call.waiting.spoken-intent-and-merge
 @pytest.mark.asyncio
 async def test_spoken_wait_intent_holds_the_utterance_and_enters_waiting() -> None:
     sent, waiting = _Sent(), VoiceWaiting()
@@ -33,7 +33,7 @@ async def test_spoken_wait_intent_holds_the_utterance_and_enters_waiting() -> No
     assert waiting.active and waiting.held == ["Order a pizza, one moment"]
 
 
-# contract-test: supporting surface=rest_api assertions=video-call.waiting.hold-button,video-call.waiting.spoken-intent-and-merge
+# contract-test: supporting surface=rest_api assertions=video-call.waiting.spoken-intent-and-merge
 @pytest.mark.asyncio
 async def test_repeat_asks_client_replay_and_never_submits() -> None:
     sent, waiting = _Sent(), VoiceWaiting()
@@ -41,7 +41,7 @@ async def test_repeat_asks_client_replay_and_never_submits() -> None:
     assert sent == [{"type": "repeat_last_answer", "call_id": "c1"}]
 
 
-# contract-test: supporting surface=rest_api assertions=video-call.waiting.hold-button,video-call.waiting.spoken-intent-and-merge
+# contract-test: supporting surface=rest_api assertions=video-call.waiting.spoken-intent-and-merge
 @pytest.mark.asyncio
 async def test_repeated_hold_signals_are_idempotent() -> None:
     sent, waiting = _Sent(), VoiceWaiting()

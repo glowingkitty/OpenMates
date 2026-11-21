@@ -65,7 +65,10 @@
   import { chatSyncService } from '../services/chatSyncService';
   import { clearSubChatsForParentCache, loadSubChatPreviews } from '../services/subChatPreviewService';
   import type { AppSettingsMemoriesResponseContent, AppSettingsMemoriesResponseCategory } from '../services/chatSyncServiceHandlersAppSettings';
-  import { MEMORY_RESPONSE_APP_ID } from '../services/memoryDocumentRequest';
+  import { MEMORY_RESPONSE_APP_ID, loadLocalMemoryDocuments } from '../services/memoryDocumentRequest';
+  import IncludedMemoryPills from './IncludedMemoryPills.svelte';
+  import { resolveIncludedMemories, type IncludedMemoryBadge } from '../utils/includedMemoryBadges';
+  import { appSkillsStore } from '../stores/appSkillsStore';
       import { savedEmbedIds, toggleEmbedSaved, loadEmbedSaved } from '../services/savedEmbedService';
   import { tipTapToCanonicalMarkdown, writeEmbedToClipboard, writeMessageWithEmbedsToClipboard } from '../message_parsing/serializers';
   import { copyImageEmbed, downloadImageEmbed } from './embeds/images/imageEmbedActions';
@@ -972,9 +975,32 @@
    * Get display name for an app settings/memories category.
    * Returns a readable name formatted from the category's itemType (typed app memories no longer exist).
    */
+  // Included personal memories are synced by id only; their title and app come from the
+  // memory documents on this device (as in the permission dialog).
+  const includedMemoryIds = $derived(role === 'user' && appSettingsMemoriesResponse?.action === 'included'
+    ? (appSettingsMemoriesResponse.categories ?? []).filter((cat) => cat.appId === MEMORY_RESPONSE_APP_ID).map((cat) => cat.itemType)
+    : []);
+  let includedMemories = $state<IncludedMemoryBadge[]>([]);
+  $effect(() => {
+    const ids = includedMemoryIds;
+    const chatId = currentChatId;
+    if (ids.length === 0) { includedMemories = []; return; }
+    const isKnownApp = (appId: string) => !!appSkillsStore.getState().apps[appId];
+    // Shown at once (untitled), then with titles when the local documents are read.
+    includedMemories = resolveIncludedMemories(ids, [], isKnownApp);
+    let cancelled = false;
+    loadLocalMemoryDocuments(chatId || undefined)
+      .then((documents) => { if (!cancelled) includedMemories = resolveIncludedMemories(ids, documents, isKnownApp); })
+      .catch((error: unknown) => console.warn('[ChatMessage] Included memory titles unavailable', error));
+    return () => { cancelled = true; };
+  });
+
+  function openIncludedMemory(memory: IncludedMemoryBadge): void {
+    settingsDeepLink.set(`settings_memories/${encodeURIComponent(memory.id)}`);
+    panelState.openSettings();
+  }
+
   function getCategoryDisplayName(cat: AppSettingsMemoriesResponseCategory): string {
-    // A personal Memory is stored by id only (no title in the synced message).
-    if (cat.appId === MEMORY_RESPONSE_APP_ID) return $text('settings.settings_memories');
     // Fallback: format itemType as readable string (e.g., "preferred_technologies" -> "Preferred Technologies")
     return cat.itemType.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   }
@@ -3993,27 +4019,27 @@
         {#if appSettingsMemoriesResponse.action === 'included' && appSettingsMemoriesResponse.categories}
           <span class="summary-label">{$text('chat.permissions.included_summary')}:</span>
           <div class="summary-categories">
-            {#each appSettingsMemoriesResponse.categories as cat}
+            {#if includedMemories.length > 0}
+              <IncludedMemoryPills memories={includedMemories} onOpen={openIncludedMemory} />
+            {/if}
+            {#each appSettingsMemoriesResponse.categories.filter((cat) => cat.appId !== MEMORY_RESPONSE_APP_ID) as cat}
               <button 
                 type="button"
                 class="category-badge"
                 data-testid="app-settings-memory-category-badge"
                 onclick={() => {
-                  // Personal memories open the Memories hub; other categories open their app.
-                  const path = cat.appId === 'openmates' || cat.appId === MEMORY_RESPONSE_APP_ID
-                    ? 'settings_memories' : `apps/${cat.appId}`;
+                  // Account memories open the Memories hub; other categories open their app.
+                  const path = cat.appId === 'openmates' ? 'settings_memories' : `apps/${cat.appId}`;
                   settingsDeepLink.set(path);
                   panelState.openSettings();
                 }}
               >
-                {#if cat.appId !== MEMORY_RESPONSE_APP_ID}
                 <Icon 
                   name={cat.appId} 
                   type="app" 
                   size="18px"
                   noAnimation={true}
                 />
-                {/if}
                 <span class="badge-text">{getCategoryDisplayName(cat)} ({cat.entryCount})</span>
               </button>
             {/each}

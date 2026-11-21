@@ -1571,6 +1571,11 @@ async function assertOpenOriginalSource(page: Page, thumbnail: Locator, sourceId
 
 // Pastes plain text into the composer the way a browser does (a ClipboardEvent the
 // editor handles), then sends it into the live call.
+async function expectCleanCallComposer(page: Page): Promise<void> {
+  await expect(page.getByTestId('input-dismiss-button')).toHaveCount(0);
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+}
+
 async function sendPastedCallText(page: Page, text: string): Promise<string> {
   const before = voiceFrames(await evidence(page), 'text_input').length;
   const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
@@ -1604,7 +1609,7 @@ test.describe('Voice mode through ordinary chat', () => {
   let callConsole: string[] = [];
   test.beforeEach(async ({page}) => {
     callConsole = [];
-    const relevant=/\[(VoiceCall|CallPermissionPrompt|AssistantSpeech|PermissionDialog|E2E)\]/;
+    const relevant=/\[(VoiceCall|CallPermissionPrompt|AssistantSpeech|PermissionDialog|Notifications|E2E)\]/;
     page.on('console', (message) => {
       if (message.type()!=='debug'&&(relevant.test(message.text())||message.type()==='error')) callConsole.push(`${message.type()}: ${message.text()}`.slice(0, 500));
     });
@@ -2637,8 +2642,11 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(protocol.received.filter(frame=>frame.path==='/v1/voice-call'&&frame.type==='transcript'&&frame.role==='assistant')).toHaveLength(0);
     const messageIds=await page.locator('[data-testid="message-user"],[data-testid="message-assistant"]').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-message-id')!).filter(Boolean));
     expect(messageIds).toHaveLength(8);
+    // A live call shows no Cancel pill under the composer, and the speech button that
+    // slid under the resting pointer after Send opens no tooltip (product videos).
+    await expectCleanCallComposer(page);
     await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-laptop.png')});
-    const dismiss=page.getByTestId('input-dismiss-button');if(await dismiss.isVisible())await dismiss.click();
+    await testInfo.attach('call-composer-laptop',{body:await page.screenshot(),contentType:'image/png'});
     await scrollChatHistoryToStart(page,testInfo);
     const close=page.locator('[data-testid="chat-close-button"]:visible,[data-testid="voice-call-close-chat"]:visible');
     await expect(close).toHaveCount(1);await close.click();await expect(page.getByTestId('voice-call-pill')).toHaveCount(1);
@@ -2651,7 +2659,11 @@ test.describe('Voice mode through ordinary chat', () => {
     await page.getByTestId('voice-call-pill').click();await expect(page.getByTestId('settings-menu')).not.toHaveClass(/visible/);
     await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed','true');
     expect(voiceFrames(await evidence(page),'start')).toHaveLength(1);expect((await nativeVoiceInput(page)).captureRequests).toBe(1);
+    // Text sent during the call left no saved draft behind: the reopened chat's composer is empty.
+    await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]')).toBeEmpty();
+    await expectCleanCallComposer(page);
     await page.screenshot({path:testInfo.outputPath('voice-canonical-rich-phone.png')});
+    await testInfo.attach('call-composer-phone',{body:await page.screenshot(),contentType:'image/png'});
     await page.getByTestId('voice-call-hangup').click();await expect(page.getByTestId('voice-call-ended')).toHaveCount(1);
     await assertVoiceInputCleanup(page);await assertCallHistoryDurable(page,chatId,ready.callId!,messageIds);
     await assertCallChatPreserved(page,chatId);await expectCallChatLastOpened(page,chatId);
@@ -2970,6 +2982,13 @@ test.describe('Voice mode through ordinary chat', () => {
     await expect(countdown).toHaveCount(0);
     await expect.poll(()=>playedClip('approval_thanks-1.mp3'),{timeout:15_000}).toBe(true);
     await expect(page.getByTestId('message-assistant').filter({hasText:'Example Retail GmbH'})).toHaveCount(1,{timeout:120_000});
+    // The approved turn names the included Memory by title with its icon circle, never "(1)".
+    const includedPill=page.getByTestId('included-memory-pill');
+    await expect(includedPill).toHaveCount(1,{timeout:20_000});
+    await expect(includedPill.getByTestId('included-memory-title')).toHaveText('Career profile');
+    await expect(includedPill).not.toContainText('(1)');
+    await includedPill.scrollIntoViewIfNeeded();
+    await testInfo.attach('call-included-memory-desktop',{body:await page.screenshot(),contentType:'image/png'});
 
     // Phase B: no tap. The reminder plays, then the request cancels itself at 30 seconds.
     await sendCameraCallText(page,withMockMarker('Which employer should I mention in my cover letter?','memory_reuse_load','fast'));
@@ -2984,10 +3003,27 @@ test.describe('Voice mode through ordinary chat', () => {
     await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
 
     // Cleanup: Undo the save notice so reruns start clean.
+    // The replies heard in the call are not announced again after hang-up: no
+    // new-message card ever covers the top bar while the app boots (product videos).
+    const countChatCards=()=>{
+      const seen={count:0};(window as unknown as {__chatCardsSeen:typeof seen}).__chatCardsSeen=seen;
+      new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)
+        if(node instanceof Element&&(node.matches('[data-testid="chat-notification"]')||node.querySelector('[data-testid="chat-notification"]')))seen.count++;})
+        .observe(document,{childList:true,subtree:true});
+    };
+    // A hash-only navigation keeps this document; a reload runs the init script.
+    await page.addInitScript(countChatCards);await page.evaluate(countChatCards);
+    const chatCardsSeen=()=>page.evaluate(()=>(window as unknown as {__chatCardsSeen?:{count:number}}).__chatCardsSeen?.count??-1);
     await page.goto(`/#chat-id=${encodeURIComponent(saveChatId as string)}`,{waitUntil:'domcontentloaded'});
     await expect(notice).toHaveCount(1,{timeout:60_000});
+    await expect(page.getByTestId('chat-notification')).toHaveCount(0);
+    await testInfo.attach('after-hangup-laptop',{body:await page.screenshot(),contentType:'image/png'});
     await notice.getByTestId('context-entry-event-undo').click();
     await expect(notice).toHaveAttribute('data-undone','true',{timeout:20_000});
+    await page.setViewportSize({width:390,height:844});
+    await expect(page.getByTestId('chat-notification')).toHaveCount(0);
+    await testInfo.attach('after-hangup-phone',{body:await page.screenshot(),contentType:'image/png'});
+    expect(await chatCardsSeen()).toBe(0);
   });
 
 
@@ -3276,24 +3312,6 @@ test.describe('Voice mode through ordinary chat', () => {
         delete state.holdSpeechResponse;state.releaseSpeechAudio?.();
       }).catch(()=>{});
     }
-  });
-
-  // contract-test: direct surface=gui.web assertions=video-call.waiting.hold-button
-  test('hold button shows Waiting for you with the ready-made line in chat and leaves waiting with Okay, go on.',async({page})=>{
-    test.setTimeout(150_000);await installNativeVoiceInput(page);await observeRealTransport(page);
-    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
-    await page.locator('[data-testid="voice-call-start"]:visible').click();
-    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
-    await page.getByTestId('voice-call-hold').click();
-    await expect(page.getByTestId('voice-call-waiting')).toHaveText('Waiting for you');
-    await expect(page.getByTestId('voice-call-waiting_start')).toContainText("Okay, I'm waiting.");
-    await page.getByTestId('voice-call-hold').click();
-    await expect(page.getByTestId('voice-call-waiting')).toHaveCount(0);
-    await expect(page.getByTestId('voice-call-waiting_resume')).toContainText('Okay, go on.');
-    // Ready-made lines never start inference or a chat turn.
-    const protocol=await evidence(page);
-    expect(protocol.sent.filter(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type))).toHaveLength(0);
-    await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
   });
 
 });

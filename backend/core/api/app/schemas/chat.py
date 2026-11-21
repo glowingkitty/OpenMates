@@ -121,6 +121,7 @@ class CachedChatListItemData(BaseModel):
     encrypted_active_focus_id: Optional[str] = None  # Encrypted ID of active focus (encrypted with chat-specific key)
     encrypted_auto_speak_response: Optional[str] = None  # Encrypted chat-scoped assistant-response speech preference
     last_message_timestamp: Optional[int] = None  # Unix timestamp of most recent completed message
+    last_mate_category: Optional[str] = None  # Category of the latest assistant reply; follow-up routing keeps it
     pinned: Optional[bool] = None  # Whether this chat is pinned
     # Disclaimer tracking for hardcoded advice disclaimers
     last_disclaimer_type: Optional[str] = None  # "financial", "medical", "legal", or "mental_health"

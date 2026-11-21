@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.video-call
-version: 18
-status: approved
+version: 19
+status: draft
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
   pipeline. Normal automatic model and thinking-level routing, app skills and rich embeds are preserved; the old Gemini
@@ -199,6 +199,8 @@ assertions:
     reminded aloud after about 15 seconds and after about 30 seconds continues without memories, says so, and records
     an encrypted "memory request timed out" event in the chat that is never sent to the AI. Text chats never cancel a
     request on their own and offer a clear "Continue without memories" action. Ready-made lines cost no credits.
+    After approval, in calls and text chats, the user message shows each included memory by its title with its icon
+    in a round circle in its colour, as memories show elsewhere, never a bare count such as "(1)".
   depends_on:
   - examples.permission_prompt
 - id: video-call.chat.assistant-identity
@@ -259,7 +261,8 @@ assertions:
     call/turn identities. The ordinary assistant stream owns the full rich message and its encrypted persistence. Speech-only
     text never overwrites rich content. Duplicate events, late packets, reconnect and reload do not duplicate a turn.
     Interrupted assistant text remains recoverable with its actual heard boundary; text conversation can continue after
-    hangup. Listener acknowledgements do not become new tasks.
+    hangup. Listener acknowledgements do not become new tasks. Every word of every consecutive turn arrives in order;
+    a slow credit check or per-minute charge never delays the live transcript or the forwarding of later microphone audio.
   depends_on:
   - examples.migration_canonical_rich_history
 - id: video-call.chat.typed-input
@@ -594,17 +597,14 @@ assertions:
     the assistant or into the assistant speech playback.
   depends_on:
   - examples.call_activity
-- id: video-call.waiting.hold-button
-  type: behavior
-  must: The call bar offers a hold button (hard signal) that puts the call into the waiting state at once and shows
-    "Waiting for you"; pressing it again, or a spoken "I'm back" recognized by the completion decision's intent, leaves
-    waiting. Entering plays and shows the ready-made line "Okay, I'm waiting." and leaving "Okay, go on.", with no
-    inference and no credits. While waiting the assistant stays quiet and any current speech stops.
-  depends_on:
-  - examples.complete_turn
 - id: video-call.waiting.spoken-intent-and-merge
   type: invariant
-  must: A spoken request to wait comes from the completion decision's intent field (none, wait, resume, repeat), never
+  must: The call bar's call controls are mute and end call; it has no hold or pause button. Waiting starts only from the
+    caller's natural-language request in any language (such as "give me a second" or "wait") or from a hard signal
+    (typing, the file picker, an upload), and a spoken "I'm back" or the end of the hard signal leaves it. The state shows
+    "Waiting for you"; entering plays and shows the ready-made line "Okay, I'm waiting." and leaving "Okay, go on.",
+    with no inference and no credits. While waiting the assistant stays quiet and any current speech stops. A spoken
+    request to wait comes from the completion decision's intent field (none, wait, resume, repeat), never
     from keyword lists, and a hard signal always wins. What the caller said before waiting and what they say after it
     are sent as one turn. The intent "repeat" replays the stored last answer's audio and text without new inference
     and without credits.
@@ -695,6 +695,11 @@ notes:
     after a focus decision to stay spoken, an in-call countdown with a reminder at about 15 s and a self-cancel
     "without memories" at about 30 s with a timed-out chat event, and a clear "Continue without memories" action in
     text chats; approval stays a manual tap.
+  version_19_hold_button_removed: >-
+    version 19 (draft): hold button removed on owner request 2026-11-21 (verified dev-connector message). Waiting starts
+    only from the caller's natural-language request or the hard signals (typing, file picker, upload). Also in 19:
+    consecutive turns keep every word while the call's per-minute charge runs (video-call.chat.transcripts), and an
+    approved memory request shows each included memory by title, icon and colour circle (video-call.chat.permission-prompt).
   version_18_approval: >-
     The owner approved version 18 on 2026-11-21 (verified dev-connector receipt). Not built yet: the encrypted
     per-chat storage of the special-terms list and its editing UI (video-call.chat.stt-special-terms); calls already

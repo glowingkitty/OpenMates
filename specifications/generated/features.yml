@@ -7834,7 +7834,7 @@ features:
       - frontend/apps/web_app/src/lib/workflowCompletionRoute.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
       - backend/tests/test_bank_transfer_duplicate_reference_email.py
-      unit_test_files: 16
+      unit_test_files: 17
     apple:
       status: partial
       source: tests
@@ -10010,7 +10010,7 @@ features:
   description: Voice and video calls with the assistant, bound to an encrypted chat.
   specifications:
   - id: feature.video-call
-    status: approved
+    status: draft
     path: specifications/features/video-call
   - id: feature.video-call-experiment
     status: superseded
@@ -10022,7 +10022,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 59
+  assertions: 58
   surfaces:
     web:
       status: failing
@@ -10031,9 +10031,9 @@ features:
       assertions:
         passing: 33
         failing: 6
-        not_run: 10
+        not_run: 9
         missing: 11
-        counted: 60
+        counted: 59
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -10054,8 +10054,10 @@ features:
       - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
       - frontend/apps/web_app/tests/components/chat-message-openmates-identity.spec.ts
       - frontend/apps/web_app/tests/components/chat-message-voice-transcript-status.spec.ts
+      - frontend/apps/web_app/tests/components/included-memory-pills.spec.ts
       - frontend/apps/web_app/tests/components/memory-request-call-countdown.spec.ts
       - frontend/apps/web_app/tests/components/skill-input-thumbnails.spec.ts
+      - frontend/apps/web_app/tests/components/speech-toggle-tooltip.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-apple-parity.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-artifact-progress.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts
@@ -10082,7 +10084,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
       - frontend/packages/ui/src/components/videocall/callAudio.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
-      unit_test_files: 67
+      unit_test_files: 68
     apple:
       status: partial
       source: tests
@@ -10091,8 +10093,8 @@ features:
         passing: 30
         failing: 0
         not_run: 0
-        missing: 21
-        counted: 51
+        missing: 20
+        counted: 50
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift
@@ -10163,11 +10165,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 15
+        passing: 14
         failing: 0
         not_run: 5
         missing: 0
-        counted: 20
+        counted: 19
       key_tests: []
       e2e_tests: []
       key_unit_tests:

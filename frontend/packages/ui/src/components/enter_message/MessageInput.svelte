@@ -33,6 +33,7 @@
         reconcilePreservedDraftVersion,
         shouldPreserveSameChatDraftRestore,
         shouldPreserveFocusedSameChatDraftRestore,
+        clearCurrentDraft,
         triggerSaveDraft,
         flushSaveDraft,
         flushSaveDraftAndWaitForIdle,
@@ -6167,6 +6168,7 @@
             const chatId = currentChatId;
             const submittedEditor = editor;
             const submittedText = submittedEditor?.getText().trim() ?? '';
+            const submittedDocument = submittedEditor?.state.doc;
             if (!chatId || !submittedText || sendClickInProgress) return;
             if (submittedText.length > 8_000) {
                 notificationStore.error($text('voicecall.text_too_long'));
@@ -6179,6 +6181,11 @@
                 const accepted = await voiceCallController.submitText(chatId, submittedText, { pasted });
                 if (!accepted) throw new Error('Call transport unavailable');
                 if (editor === submittedEditor && currentChatId === chatId && submittedEditor.getText().trim() === submittedText) {
+                    // Like an ordinary send, the sent text's saved draft goes too; otherwise
+                    // it comes back in the composer when the chat is reopened during the call.
+                    if (submittedEditor && submittedDocument && submittedEditor.state.doc === submittedDocument) {
+                        await clearCurrentDraft({ editor: submittedEditor, document: submittedDocument, chatId });
+                    }
                     await clearMessageField(false, false);
                 }
             } catch {

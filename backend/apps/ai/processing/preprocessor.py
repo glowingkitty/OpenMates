@@ -804,6 +804,28 @@ def _latest_assistant_category_from_history(message_history: List[Any]) -> Optio
     return None
 
 
+async def _resolve_previous_category(request_data: Any, cache_service: Any, log_prefix: str = "") -> Optional[str]:
+    """Return the chat's current mate category for follow-up continuity.
+
+    Prefers the latest assistant history message; when client-sent history
+    carries no category (voice admission, cut-off turns), falls back to the
+    chat's cached ``last_mate_category`` written when the previous reply finished.
+    """
+    category = _latest_assistant_category_from_history(request_data.message_history)
+    if category:
+        return category
+    if not (cache_service and request_data.user_id and request_data.chat_id and request_data.message_history):
+        return None
+    item = await cache_service.get_chat_list_item_data(
+        request_data.user_id, request_data.chat_id, refresh_ttl=False
+    )
+    category = getattr(item, "last_mate_category", None) if item else None
+    if isinstance(category, str) and category.strip():
+        logger.info(f"{log_prefix} Using cached last_mate_category '{category}' for follow-up category continuity.")
+        return category.strip()
+    return None
+
+
 def _resolve_category_from_topic_area(
     *,
     raw_topic_area: Any,
@@ -2800,7 +2822,7 @@ async def handle_preprocessing(
                     category = selected_mate.category if selected_mate else _resolve_category_from_topic_area(
                         raw_topic_area=decisions.get("topic_area"), raw_topic_shift=decisions.get("topic_shift"),
                         raw_task_area=decisions.get("task_area"),
-                        previous_category=_latest_assistant_category_from_history(request_data.message_history),
+                        previous_category=await _resolve_previous_category(request_data, cache_service, log_prefix),
                         available_category_ids=[mate.category for mate in mates],
                     ) or "general_knowledge"
                     selected_mate = selected_mate or next((mate for mate in mates if mate.category == category), None)
@@ -3262,34 +3284,7 @@ async def handle_preprocessing(
     # This prevents follow-up questions from falling back to 'general_knowledge'.
     previous_category: Optional[str] = None
     if not is_first_message:
-        previous_category = _latest_assistant_category_from_history(request_data.message_history)
-        if previous_category:
-            logger.info(
-                f"{log_prefix} Retrieved previous category '{previous_category}' from message history "
-                f"for follow-up category continuity."
-            )
-
-    if not is_first_message and not previous_category and cache_service and request_data.user_id and request_data.chat_id:
-        try:
-            chat_list_item = await cache_service.get_chat_list_item_data(
-                request_data.user_id, request_data.chat_id, refresh_ttl=False
-            )
-            if chat_list_item and hasattr(chat_list_item, 'last_mate_category') and chat_list_item.last_mate_category:
-                previous_category = chat_list_item.last_mate_category
-                logger.info(
-                    f"{log_prefix} Retrieved previous category '{previous_category}' from cache "
-                    f"for follow-up category continuity."
-                )
-            else:
-                logger.debug(
-                    f"{log_prefix} No previous category found in cache for chat {request_data.chat_id}. "
-                    f"LLM will select category without bias."
-                )
-        except Exception as e:
-            logger.warning(
-                f"{log_prefix} Failed to fetch previous category from cache: {e}. "
-                f"LLM will select category without bias."
-            )
+        previous_category = await _resolve_previous_category(request_data, cache_service, log_prefix)
 
     dynamic_context = {
         "TOPIC_AREAS_LIST": _build_topic_areas_list(),
