@@ -156,6 +156,14 @@ SOURCE = os.environ.get(
 )
 
 
+VOICE_CALL_SPEC = re.compile(r"voice-call(-[a-z0-9-]+)?\.spec\.ts")
+
+
+def selects_voice_call_stack(specs: list[str] | set[str]) -> bool:
+    """Every voice-call*.spec.ts needs the speech worker and voice fixtures."""
+    return any(VOICE_CALL_SPEC.fullmatch(spec) for spec in specs)
+
+
 def browser_account_slots(spec: str) -> int:
     """Reserve actors only where the fixed selector provisions accounts."""
     if spec == "cli-memory-readiness.spec.ts":
@@ -2123,8 +2131,9 @@ def main():
         )
         data = compose_profile(
             source,
-            ai_fixtures=bool(fixture_specs.intersection(selected)),
-            voice_camera="voice-call.spec.ts" in selected,
+            ai_fixtures=bool(fixture_specs.intersection(selected))
+            or selects_voice_call_stack(selected),
+            voice_camera=selects_voice_call_stack(selected),
             object_storage=needs_storage,
             uploads=needs_uploads,
             public_provider=needs_public_provider,
@@ -2235,8 +2244,8 @@ def main():
                 raise RuntimeError("Runner-local API is not healthy")
         identities = {}
         profile = json.loads(COMPOSE_PATH.read_text())
-        voice_camera = "voice-call.spec.ts" in json.loads(
-            os.environ.get("CI_SPECS_JSON", "[]")
+        voice_camera = selects_voice_call_stack(
+            json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
         )
         if voice_camera and not {"ai-worker", "speech-worker"}.issubset(
             profile["services"]
