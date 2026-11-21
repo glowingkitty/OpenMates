@@ -28,6 +28,7 @@ use super::hosted_base::{
 };
 pub use api::{HostedApproval, HostedProposal};
 pub use job::{HostedFileJob, HostedFileOperation};
+pub(crate) use apply_changes::applied_change_mutations;
 pub use restore::ProjectCommitRestoreResult;
 
 /// Largest hosted text file (UTF-8 bytes), also the mutation body limit.

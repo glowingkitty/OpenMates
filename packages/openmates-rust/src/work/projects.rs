@@ -111,6 +111,9 @@ pub use hosted::{
     HostedApproval, HostedFile, HostedFileJob, HostedFileMutation, HostedFileOperation,
     HostedProposal, ProjectCommitRestoreResult, apply_exact_patch, content_hash, replacement_patch,
 };
+/// Display mutations of an applied cloud-command batch (local diff cards).
+#[cfg(feature = "workflow-yaml")]
+pub(crate) use hosted::applied_change_mutations;
 mod remote_command_stop;
 pub use remote_command_stop::REMOTE_COMMAND_FOCUS_INACTIVE;
 mod remote_files;

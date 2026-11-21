@@ -1,13 +1,13 @@
 //! Interactive Project file-job approvals: write and ignored-read prompts,
 //! accept/decline decisions, applied events and unchanged CLI frames.
-use super::frames::{job_frames, Focus, JobRunner};
 use super::FileJobState;
+use super::frames::{Focus, JobRunner, job_frames};
 use crate::work::{
     HostedFileError, HostedFileJob, HostedFileMutation, HostedProposal, HostedResult,
     ProjectRequesterError,
 };
 use crate::{Error, Result};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub(super) const CHAT: &str = "22222222-2222-4222-8222-222222222222";
 pub(super) const PROJECT: &str = "11111111-1111-4111-8111-111111111111";
@@ -49,7 +49,10 @@ impl JobRunner for Runner {
         _: &Focus,
         job: &HostedFileJob,
     ) -> HostedResult<Option<HostedProposal>> {
-        if !job.operation.is_mutation() {
+        // Like the real runner: reads and command batches have no proposal.
+        if !job.operation.is_mutation()
+            || job.operation == crate::work::HostedFileOperation::ApplyChanges
+        {
             return Ok(None);
         }
         Ok(Some(HostedProposal {
@@ -244,4 +247,59 @@ fn per_chat_states_are_bounded() {
         kept += usize::from(state.approvals.interactive);
     }
     assert_eq!(kept, 20, "taken states are always usable");
+}
+
+#[tokio::test]
+async fn an_applied_command_batch_records_one_diff_card_per_written_file() {
+    let (mut r, mut state) = (Runner::new(), interactive());
+    r.output = json!({"origin": "command", "execution_id": "exec-1", "applied": 3, "refused": 1,
+    "results": [
+        {"path": "web-app/package-lock.json", "kind": "create", "status": "applied", "created": true},
+        {"path": "web-app/package.json", "kind": "update", "status": "applied",
+         "applied_diff": "--- a/web-app/package.json\n+++ b/web-app/package.json\n"},
+        {"path": "web-app/README.md", "kind": "update", "status": "applied", "idempotent": true},
+        {"path": "web-app/.env", "kind": "create", "status": "refused", "reason": "private_path"},
+    ]});
+    let mut event = request("apply_changes");
+    event["arguments"] = json!({"origin": "command", "execution_id": "exec-1", "changes": [
+        {"path": "web-app/package-lock.json", "kind": "create", "expected_base": null, "content": "{\"lockfileVersion\": 3}\n"},
+        {"path": "web-app/package.json", "kind": "update", "expected_base": "b".repeat(64), "content": "{}\n"},
+        {"path": "web-app/README.md", "kind": "update", "expected_base": "c".repeat(64), "content": "same\n"},
+        {"path": "web-app/.env", "kind": "create", "expected_base": null, "content": "SECRET=x\n"},
+    ]});
+    let frames = run(&mut r, &event, &mut state).await;
+    assert_eq!(frames[0].1["status"], "completed");
+    let applied = state.approvals.take_applied();
+    let cards: Vec<(&str, &str)> = applied
+        .iter()
+        .map(|e| {
+            (
+                e["operation"].as_str().unwrap(),
+                e["path"].as_str().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        cards,
+        vec![
+            ("create_file", "web-app/package-lock.json"),
+            ("update_file", "web-app/package.json")
+        ]
+    );
+    assert_eq!(
+        applied[0]["mutation"]["content"],
+        "{\"lockfileVersion\": 3}\n"
+    );
+    assert_eq!(applied[0]["mutation"]["operation_id"], "op-1:0");
+    assert_eq!(
+        applied[1]["mutation"]["patch"],
+        "--- a/web-app/package.json\n+++ b/web-app/package.json\n"
+    );
+    assert_eq!(
+        state.take_notices(),
+        vec![
+            "Project file created: web-app/package-lock.json".to_owned(),
+            "Project file updated: web-app/package.json".to_owned(),
+        ]
+    );
 }

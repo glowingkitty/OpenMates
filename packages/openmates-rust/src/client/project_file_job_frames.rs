@@ -565,6 +565,10 @@ pub(super) async fn job_frames<R: JobRunner>(
     let read_approved = read_key
         .as_ref()
         .is_some_and(|(_, key)| state.approvals.read_approved(key));
+    // A cloud-command batch has no single proposal; its diff cards come from
+    // the applied entries of the result (`record_batch_applied`).
+    let batch = (hosted.operation == crate::work::HostedFileOperation::ApplyChanges)
+        .then(|| hosted.clone());
     let outcome = crate::platform::time::timeout(
         remaining,
         runner.execute(
@@ -619,7 +623,25 @@ pub(super) async fn job_frames<R: JobRunner>(
             .push(applied_notice(&proposal.mutation, created));
         state.approvals.record_applied(job, &proposal.mutation);
     }
+    if let Some(batch) = &batch {
+        record_batch_applied(job, batch, &body, state);
+    }
     Ok(vec![result_frame(job, "completed", Value::Object(body))])
+}
+
+/// Record one applied notice and local diff card per file a cloud command's
+/// `apply_changes` batch wrote (the shell shows them like assistant writes).
+fn record_batch_applied(
+    job: &Value,
+    batch: &HostedFileJob,
+    body: &serde_json::Map<String, Value>,
+    state: &mut FileJobState,
+) {
+    let result = Value::Object(body.clone());
+    for (mutation, created) in crate::work::applied_change_mutations(batch, &result) {
+        state.notices.push(applied_notice(&mutation, created));
+        state.approvals.record_applied(job, &mutation);
+    }
 }
 
 /// The result frames of a job relayed to a remote source. An offline or
