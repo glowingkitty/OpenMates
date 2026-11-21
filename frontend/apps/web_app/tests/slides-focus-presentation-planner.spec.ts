@@ -129,6 +129,10 @@ test('the presentation planner focus takes a beginner from idea to a reviewed de
 
 		await reply('Win the jury for a pilot, five minutes on stage, mostly engineers. Yes, that summary is right.', 'p2', 'goal-answers');
 		await expect(last()).toContainText('problem, demo, solution, impact, ask');
+		// GSLQ7: the replayed reply starts with a copied Focus activation toon block;
+		// it is dropped, so no code embed or its fields show in the reply.
+		await expect(last().locator('[data-testid="embed-preview"][data-app-id="code"]')).toHaveCount(0);
+		await expect(last()).not.toContainText('focus_mode_name');
 		await screenshot(page, 'planner-story-arc');
 
 		await reply('Sounds good, use that story.', 'p3', 'arc-confirmed');

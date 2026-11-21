@@ -17350,8 +17350,8 @@ features:
       - frontend/packages/ui/src/components/embeds/slides/slidesDeckVersion.test.ts
       - frontend/packages/ui/src/components/embeds/slides/slidesTemplates.test.ts
       - frontend/packages/ui/src/services/rustCore/presentRemote/__tests__/presentRemoteUnit.test.ts
-      - frontend/packages/ui/src/components/embeds/slides/__tests__/slideImage.test.ts
-      unit_test_files: 11
+      - backend/tests/test_tool_protocol_guard.py
+      unit_test_files: 12
     apple:
       status: tested
       source: tests

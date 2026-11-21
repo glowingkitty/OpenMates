@@ -380,3 +380,35 @@ def test_only_an_imitated_result_of_an_offered_skill_allows_a_tools_on_retry(blo
     assert toon_result_retry_applies(guard, tools) is expected
     # Content-free diagnostics: the imitated skill never enters the logged fields.
     assert "browse" not in str(guard.diagnostics)
+
+
+FOCUS_ECHO = '```toon\nfocus_id: plan_presentation\napp_id: slides\nfocus_mode_name: Plan a presentation\nstatus: activated\n```'
+
+
+# contract-test: supporting surface=gui.web assertions=slides.focus.presentation-planner
+@pytest.mark.parametrize('width', [1, 3, 17, 9000])
+def test_echoed_focus_activation_block_is_dropped_and_reply_kept(width):
+    """GSLQ7: a copied Focus activation card is removed; the prose still streams."""
+    text = FOCUS_ECHO + '\n\nSummary: a pitch story fits best.'
+    guard, output = run_guard([text[i:i + width] for i in range(0, len(text), width)])
+    joined = ''.join(output)
+    assert 'focus_mode_name' not in joined
+    assert 'Summary: a pitch story fits best.' in joined
+    assert not guard.detected
+    assert guard.focus_activation_echoes == 1
+
+
+# contract-test: supporting surface=gui.web assertions=slides.focus.presentation-planner
+def test_unclosed_focus_activation_echo_at_stream_end_is_dropped():
+    guard, output = run_guard(['Intro.\n\n', FOCUS_ECHO.removesuffix('```')])
+    assert ''.join(output).strip() == 'Intro.'
+    assert not guard.detected
+    assert guard.focus_activation_echoes == 1
+
+
+# contract-test: supporting surface=gui.web assertions=slides.focus.presentation-planner
+def test_ordinary_toon_code_is_not_a_focus_echo():
+    block = '```toon\nusers[2]{id,name}:\n  1,Ada\n  2,Bob\n```'
+    guard, output = run_guard([block])
+    assert ''.join(output) == block
+    assert guard.focus_activation_echoes == 0
