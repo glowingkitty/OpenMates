@@ -104,6 +104,14 @@ test.describe('Responsive workspace homes', () => {
 			expect(Math.abs(cardBox!.x + cardBox!.width / 2 - (rowBox!.x + rowBox!.width / 2))).toBeLessThanOrEqual(2);
 			expect(cardBox!.y + cardBox!.height).toBeLessThanOrEqual(composerBox!.y + 1);
 			expect(await row.locator('[data-testid="project-landing-card"], [data-testid="project-inspiration-card"]').count()).toBeLessThanOrEqual(10);
+			// Greeting and row are centred vertically in the room above the composer (Marco, 21 Nov).
+			const [headingBox, shellBox] = await Promise.all([
+				page.getByTestId('projects-home-heading').boundingBox(),
+				page.getByTestId('projects-start-screen').boundingBox()
+			]);
+			const blockCentre = (headingBox!.y + rowBox!.y + rowBox!.height) / 2;
+			const roomCentre = (shellBox!.y + composerBox!.y) / 2;
+			expect(Math.abs(blockCentre - roomCentre), `greeting and row centre ${Math.round(blockCentre)}px vs room centre ${Math.round(roomCentre)}px`).toBeLessThanOrEqual(48);
 			await testInfo.attach(`project-start-row-${size.width}.png`, { body: await page.screenshot(), contentType: 'image/png' });
 
 			await inspiration.scrollIntoViewIfNeeded();
@@ -189,8 +197,66 @@ test.describe('Responsive workspace homes', () => {
 			expect(cardBox!.width).toBeCloseTo(size.width <= 480 ? Math.min(280, 0.76 * size.width) : 300, 0);
 			expect(await row.evaluate(element => getComputedStyle(element).justifyContent)).not.toBe('center');
 			expect(await page.getByTestId('workflows-start-row-actions').evaluate(element => element === element.parentElement?.lastElementChild)).toBe(true);
-			await expect(page.getByTestId('workflows-start-suggestions')).toBeVisible();
+			const suggestions = page.getByTestId('workflows-start-suggestions');
+			await expect(suggestions).toBeVisible();
+			// Suggestions sit directly above the composer, and the greeting and row are centred
+			// vertically in the room above them (Marco, 21 Nov).
+			const [suggestionsBox, composerBox, headingBox, shellBox] = await Promise.all([
+				suggestions.boundingBox(),
+				page.getByTestId('workflow-input-composer').boundingBox(),
+				page.getByTestId('workflows-home-heading').boundingBox(),
+				page.getByTestId('workflows-start-screen').boundingBox()
+			]);
+			expect(suggestionsBox!.y + suggestionsBox!.height).toBeLessThanOrEqual(composerBox!.y + 1);
+			expect(composerBox!.y - (suggestionsBox!.y + suggestionsBox!.height)).toBeLessThanOrEqual(24);
+			expect(suggestionsBox!.y).toBeGreaterThan(rowBox!.y + rowBox!.height);
+			// Single-line suggestions stay on screen (truncated), never past the pane edge.
+			for (const item of await suggestions.getByTestId('follow-up-suggestion-item').all()) {
+				const itemBox = await item.boundingBox();
+				expect(itemBox!.x).toBeGreaterThanOrEqual(0);
+				expect(itemBox!.x + itemBox!.width).toBeLessThanOrEqual(size.width + 1);
+			}
+			const blockCentre = (headingBox!.y + rowBox!.y + rowBox!.height) / 2;
+			const roomCentre = (shellBox!.y + suggestionsBox!.y) / 2;
+			expect(Math.abs(blockCentre - roomCentre), `greeting and row centre ${Math.round(blockCentre)}px vs room centre ${Math.round(roomCentre)}px`).toBeLessThanOrEqual(48);
 			await testInfo.attach(`workflow-start-row-${size.width}.png`, { body: await page.screenshot(), contentType: 'image/png' });
+		});
+	}
+
+	for (const size of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
+		// contract-test: direct surface=gui.web assertions=workflows-ui.home.prompt-suggestions
+		test(`suggestion variants A (right) and B (input-width, left-aligned) above the input at ${size.width}px`, async ({ page }, testInfo) => {
+			await page.setViewportSize(size);
+			for (const variant of ['A', 'B'] as const) {
+				const query = variant === 'B' ? 'variant=suggestionsInputWidth&' : '';
+				await page.goto(`/dev/preview/workflows/WorkflowHomePreviewHarness?${query}theme=light&chrome=0`);
+				await waitForComponentPreview(page);
+				const suggestions = page.getByTestId('workflows-start-suggestions');
+				await expect(suggestions).toBeVisible();
+				await expect(suggestions).toHaveAttribute('data-variant', variant === 'B' ? 'input-width' : 'right');
+				const [blockBox, composerBox] = await Promise.all([
+					suggestions.boundingBox(),
+					page.getByTestId('workflow-input-composer').boundingBox()
+				]);
+				const itemBoxes = await Promise.all(
+					(await suggestions.getByTestId('follow-up-suggestion-item').all()).map((item) => item.boundingBox())
+				);
+				expect(itemBoxes.length).toBeGreaterThan(0);
+				if (variant === 'A') {
+					// Lines end at the same right edge.
+					const rights = itemBoxes.map((box) => box!.x + box!.width);
+					expect(Math.max(...rights) - Math.min(...rights)).toBeLessThanOrEqual(1);
+				} else {
+					// As wide as the input, centred on it, lines start at the same left edge inside it.
+					expect(Math.abs(blockBox!.width - composerBox!.width)).toBeLessThanOrEqual(2);
+					expect(Math.abs(blockBox!.x + blockBox!.width / 2 - (composerBox!.x + composerBox!.width / 2))).toBeLessThanOrEqual(2);
+					const lefts = itemBoxes.map((box) => box!.x);
+					expect(Math.max(...lefts) - Math.min(...lefts)).toBeLessThanOrEqual(1);
+					expect(Math.min(...lefts)).toBeGreaterThanOrEqual(composerBox!.x);
+					expect(Math.min(...lefts) - composerBox!.x).toBeLessThanOrEqual(32);
+				}
+				await testInfo.attach(`suggestions-variant-${variant}-${size.width}.png`, { body: await page.screenshot(), contentType: 'image/png' });
+			}
 		});
 	}
 

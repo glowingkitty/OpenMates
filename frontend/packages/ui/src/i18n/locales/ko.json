@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "모두 거부"
       },
+      "continue_without_memories": {
+        "text": "기억 없이 계속"
+      },
+      "call_countdown_label": {
+        "text": "기억 없이 답변하기까지 남은 시간"
+      },
       "entry_singular": {
         "text": "개 항목"
       },
@@ -3720,7 +3726,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "마지막 대화 이어가기:"
+        "text": "최근 채팅 이어가기:"
+      },
+      "active_title_single": {
+        "text": "진행 중인 채팅이 1개 있습니다:"
+      },
+      "active_title": {
+        "text": "진행 중인 채팅이 {count}개 있습니다:"
+      },
+      "active_card_label": {
+        "text": "진행 중"
       },
       "guest_title": {
         "text": "예시 대화를 살펴보세요:"
@@ -4564,6 +4579,56 @@
       },
       "ask_question": {
         "text": "이 문서에 대해 질문하기..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "이를 실행하려면 코드와 파일이 클라우드 샌드박스 제공업체인 E2B로 전송되어 그곳에서 실행됩니다."
+      },
+      "privacy_policy": {
+        "text": "개인정보 처리방침"
+      },
+      "own_machine_hint": {
+        "text": "또는 다음 명령으로 내 컴퓨터에서 실행하세요:"
+      },
+      "allow": {
+        "text": "허용"
+      },
+      "own_machine": {
+        "text": "내 컴퓨터 사용"
+      },
+      "not_now": {
+        "text": "나중에"
+      },
+      "answered": {
+        "text": "내 답변:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "계정에서 E2B 클라우드 샌드박스에서의 코드 실행이 허용되어 있지 않아 아무것도 시작되지 않았습니다. 설정 > 개인정보에서 변경하거나 원격 액세스 명령으로 내 컴퓨터에서 실행할 수 있습니다."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "E2B 클라우드 샌드박스에서 코드 실행"
+      },
+      "description": {
+        "text": "허용하면 실행하는 코드와 파일이 클라우드 샌드박스 제공업체인 E2B로 전송됩니다. 허용하지 않으면 아무것도 전송되지 않습니다."
+      },
+      "status_allowed": {
+        "text": "허용됨"
+      },
+      "status_declined": {
+        "text": "허용 안 됨"
+      },
+      "status_undecided": {
+        "text": "아직 결정 안 함"
+      },
+      "error": {
+        "text": "이 설정을 저장하지 못했습니다. 다시 시도해 주세요."
       }
     }
   },
@@ -8244,6 +8309,9 @@
         },
         "no_video": {
           "text": "이 실행에는 사용 가능한 동영상이 없습니다"
+        },
+        "with_setup": {
+          "text": "준비 포함 {duration}"
         }
       }
     },
@@ -21815,7 +21883,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "기억 요청 시간이 초과되어 기억 없이 답변했습니다"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "음성 통화는 Mistral 전사, ElevenLabs v4 Turbo 음성, 일반 OpenMates AI 라우팅 및 사용량 기반 청구를 사용합니다."

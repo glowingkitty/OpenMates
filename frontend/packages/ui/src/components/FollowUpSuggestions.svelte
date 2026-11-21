@@ -17,6 +17,7 @@
     dismissOnClick = true,
     plainText = false,
     singleLine = false,
+    align = 'end',
     onSuggestionClick,
   }: {
     suggestions: string[];
@@ -28,6 +29,8 @@
     plainText?: boolean;
     /** Start screens: one line per suggestion, cut with an ellipsis, so the centred block keeps its height. */
     singleLine?: boolean;
+    /** 'end' right-aligns the lines (default); 'start' left-aligns them (start-screen variant B). */
+    align?: 'end' | 'start';
     onSuggestionClick: (suggestion: string) => void;
   } = $props();
 
@@ -139,6 +142,7 @@
     class="suggestions-wrapper"
     class:is-dismissing={isDismissing}
     class:single-line={singleLine}
+    class:align-start={align === 'start'}
     data-testid="suggestions-wrapper"
     transition:fade={{ duration: 200 }}
   >
@@ -259,6 +263,15 @@
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+
+  .suggestions-wrapper.align-start {
+    align-items: flex-start;
+  }
+
+  .suggestions-wrapper.align-start .suggestion-item {
+    justify-content: flex-start;
+    text-align: left;
   }
 
   @keyframes fadeIn {

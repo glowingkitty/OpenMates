@@ -2,7 +2,7 @@
  * Focused component spec for the start-screen row (TASK-1321).
  * Assertions: daily-inspiration.start-row-rhythm, daily-inspiration.start-row-cards,
  * daily-inspiration.start-row-actions, daily-inspiration.start-row-suggestions,
- * continue-carousel.upcoming-entry. Synthetic data from StartScreenRowPreviewHarness.preview.ts.
+ * continue-carousel.upcoming-entry, daily-inspiration.start-row-active-first. Synthetic data from StartScreenRowPreviewHarness.preview.ts.
  */
 import type { Page, TestInfo } from '@playwright/test';
 import { expect, test } from '../helpers/cookie-audit';
@@ -11,6 +11,8 @@ import { waitForComponentPreview } from '../helpers/component-preview';
 // playwright-account: not_required reason=isolated_component_preview
 
 const PREVIEW = '/dev/preview/welcome/StartScreenRowPreviewHarness?chrome=0&theme=light';
+/** Cards sit in animated slot wrappers (startRowMotion); the browse actions are the last direct item. */
+const ROW_ITEMS = ':scope > [data-testid], :scope > .harness-slot > [data-testid]';
 
 async function openPreview(page: Page, width: number, height: number, variant?: string): Promise<void> {
   await page.setViewportSize({ width, height });
@@ -20,7 +22,7 @@ async function openPreview(page: Page, width: number, height: number, variant?: 
 }
 
 async function rowKinds(page: Page): Promise<string[]> {
-  return page.getByTestId('recent-chats-scroll-container').locator(':scope > [data-testid]').evaluateAll((nodes: Element[]) =>
+  return page.getByTestId('recent-chats-scroll-container').locator(ROW_ITEMS).evaluateAll((nodes: Element[]) =>
     nodes.map((node: Element) => {
       const id = node.getAttribute('data-testid');
       if (id === 'start-row-actions') return 'actions';
@@ -31,7 +33,7 @@ async function rowKinds(page: Page): Promise<string[]> {
 
 async function expectFirstCardCentred(page: Page): Promise<void> {
   const row = page.getByTestId('recent-chats-scroll-container');
-  const [rowBox, cardBox] = await Promise.all([row.boundingBox(), row.locator(':scope > [data-testid]').first().boundingBox()]);
+  const [rowBox, cardBox] = await Promise.all([row.boundingBox(), row.locator(ROW_ITEMS).first().boundingBox()]);
   expect(Math.abs(cardBox!.x + cardBox!.width / 2 - (rowBox!.x + rowBox!.width / 2))).toBeLessThanOrEqual(2);
 }
 
@@ -59,8 +61,20 @@ test.describe('start-screen row', () => {
     await expect(firstCard.getByTestId('resume-card-pin')).toBeVisible();
     await expectFirstCardCentred(page);
 
+    // A daily inspiration is the normal chat card (gradient, icon, same size) with a small
+    // label, never a video or article image as the background (Marco, 21 Nov).
     const inspiration = page.getByTestId('start-row-inspiration-card').first();
-    await expect(inspiration.getByTestId('start-card-media')).toBeVisible();
+    await expect(inspiration.locator('img')).toHaveCount(0);
+    await expect(inspiration.getByTestId('start-card-icon')).toBeVisible();
+    const inspirationBox = await inspiration.boundingBox();
+    expect(inspirationBox?.width).toBe(box?.width);
+    expect(inspirationBox?.height).toBe(box?.height);
+    const [chatBackground, inspirationBackground] = await Promise.all([
+      firstCard.evaluate((node) => getComputedStyle(node).backgroundImage),
+      inspiration.evaluate((node) => getComputedStyle(node).backgroundImage),
+    ]);
+    expect(chatBackground).toContain('gradient');
+    expect(inspirationBackground).toContain('gradient');
     await attach(page, testInfo, 'desktop-1280');
 
     await inspiration.hover();
@@ -91,7 +105,7 @@ test.describe('start-screen row', () => {
     test.setTimeout(60_000);
     await openPreview(page, 390, 844);
     await expectFirstCardCentred(page);
-    const cards = page.getByTestId('recent-chats-scroll-container').locator(':scope > [data-testid]');
+    const cards = page.getByTestId('recent-chats-scroll-container').locator(ROW_ITEMS);
     const second = await cards.nth(1).boundingBox();
     expect(second!.x).toBeLessThan(390);
     expect(second!.x).toBeGreaterThan(200);
@@ -129,7 +143,7 @@ test.describe('start-screen row', () => {
         await openPreview(page, viewport.width, viewport.height, mode === 'guest' ? 'guest' : undefined);
         const row = page.getByTestId('recent-chats-scroll-container');
         const actions = row.getByTestId('start-row-actions');
-        await expect(row.locator(':scope > [data-testid]').last()).toHaveAttribute('data-testid', 'start-row-actions');
+        await expect(row.locator(ROW_ITEMS).last()).toHaveAttribute('data-testid', 'start-row-actions');
         const expectedIds = mode === 'guest'
           ? ['guest-interest-select-interests', 'guest-show-all-examples']
           : ['chat-show-all', 'chat-search'];
@@ -177,4 +191,51 @@ test.describe('start-screen row', () => {
       }
     });
   }
+
+  // contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-active-first
+  test('running chats come first with an Active label; a chat that becomes active fades in at the front', async ({ page }, testInfo) => {
+    test.setTimeout(90_000);
+    for (const viewport of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'phone', width: 390, height: 844 }]) {
+      await openPreview(page, viewport.width, viewport.height, 'activeChats');
+      const row = page.getByTestId('recent-chats-scroll-container');
+      expect(await rowKinds(page)).toEqual(['chat', 'chat', 'inspiration', 'chat', 'chat', 'chat', 'inspiration', 'chat', 'actions']);
+      const items = row.locator(ROW_ITEMS);
+      for (const index of [0, 1]) {
+        await expect(items.nth(index)).toHaveAttribute('data-testid', 'start-row-active-card');
+        await expect(items.nth(index).getByTestId('start-row-active-pill')).toHaveText('Active');
+      }
+      await expect(row.getByTestId('start-row-active-card')).toHaveCount(2);
+      await expectFirstCardCentred(page);
+      await attach(page, testInfo, `active-first-${viewport.name}`);
+
+      // A chat starts running: it fades in from below at the front and the others slide right.
+      const secondBefore = await items.nth(0).boundingBox();
+      await page.waitForTimeout(400); // motion is enabled once the row has settled
+      await page.getByTestId('start-row-harness-activate').click();
+      await page.waitForTimeout(90);
+      const midway = await items.nth(0).evaluate((node) => {
+        const slot = node.parentElement as HTMLElement;
+        return { opacity: Number(getComputedStyle(slot).opacity), transform: getComputedStyle(slot).transform };
+      });
+      expect(midway.opacity, 'the new active card is still fading in').toBeLessThan(1);
+      expect(midway.transform, 'the new active card rises from below').not.toBe('none');
+      await attach(page, testInfo, `active-fading-in-${viewport.name}`);
+      await page.waitForTimeout(450);
+      await expect(row.getByTestId('start-row-active-card')).toHaveCount(3);
+      await expect(items.nth(0)).toHaveAttribute('data-testid', 'start-row-active-card');
+      const formerFirst = await items.nth(1).boundingBox();
+      expect(formerFirst!.x, 'the former first card slid one slot to the right').toBeGreaterThan(secondBefore!.x + 100);
+      await row.evaluate((node) => node.scrollTo({ left: 0 }));
+      await attach(page, testInfo, `active-after-${viewport.name}`);
+    }
+
+    // Reduced motion: the change is immediate.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openPreview(page, 1280, 800, 'activeChats');
+    await page.waitForTimeout(400);
+    await page.getByTestId('start-row-harness-activate').click();
+    const slotOpacity = await page.getByTestId('recent-chats-scroll-container').locator(ROW_ITEMS).nth(0).evaluate((node) => Number(getComputedStyle(node.parentElement as HTMLElement).opacity));
+    expect(slotOpacity).toBe(1);
+    await expect(page.getByTestId('start-row-active-pill').first()).toBeVisible();
+  });
 });

@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "דחה הכל"
       },
+      "continue_without_memories": {
+        "text": "להמשיך בלי זיכרונות"
+      },
+      "call_countdown_label": {
+        "text": "הזמן שנותר עד מענה בלי זיכרונות"
+      },
       "entry_singular": {
         "text": "פריט"
       },
@@ -3720,7 +3726,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "להמשיך מהמקום שבו הפסקת:"
+        "text": "המשך את הצ'אטים האחרונים שלך:"
+      },
+      "active_title_single": {
+        "text": "יש לך צ'אט פעיל אחד:"
+      },
+      "active_title": {
+        "text": "יש לך {count} צ'אטים פעילים:"
+      },
+      "active_card_label": {
+        "text": "פעיל"
       },
       "guest_title": {
         "text": "גלו כמה שיחות לדוגמה:"
@@ -4564,6 +4579,56 @@
       },
       "ask_question": {
         "text": "שאל על התיעוד הזה..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "כדי להריץ את זה, הקוד והקבצים שלך נשלחים ל-E2B, ספק ארגזי חול בענן, ומורצים שם."
+      },
+      "privacy_policy": {
+        "text": "מדיניות פרטיות"
+      },
+      "own_machine_hint": {
+        "text": "או הרץ את זה במחשב שלך עם:"
+      },
+      "allow": {
+        "text": "אפשר"
+      },
+      "own_machine": {
+        "text": "השתמש במחשב שלי"
+      },
+      "not_now": {
+        "text": "לא עכשיו"
+      },
+      "answered": {
+        "text": "התשובה שלך:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "הרצת קוד בארגז החול בענן של E2B אינה מותרת בחשבון שלך, ולכן שום דבר לא הופעל. אפשר לשנות זאת בהגדרות > פרטיות, או להריץ על המחשב שלך עם פקודת הגישה מרחוק."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "הרצת קוד בארגז החול בענן של E2B"
+      },
+      "description": {
+        "text": "כשזה מותר, הקוד והקבצים שאתה מריץ נשלחים ל-E2B, ספק ארגזי חול בענן. כשזה לא מותר, שום דבר לא נשלח."
+      },
+      "status_allowed": {
+        "text": "מותר"
+      },
+      "status_declined": {
+        "text": "לא מותר"
+      },
+      "status_undecided": {
+        "text": "טרם הוחלט"
+      },
+      "error": {
+        "text": "לא ניתן היה לשמור הגדרה זו. נסה שוב."
       }
     }
   },
@@ -8244,6 +8309,9 @@
         },
         "no_video": {
           "text": "אין וידאו זמין להרצה זו"
+        },
+        "with_setup": {
+          "text": "{duration} כולל הכנה"
         }
       }
     },
@@ -21815,7 +21883,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "בקשת הזיכרונות פגה, נענתה בלי זיכרונות"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "שיחות משתמשות בתמלול Mistral, בקול ElevenLabs v4 Turbo, בניתוב ה-AI הרגיל של OpenMates ובחיוב לפי שימוש."

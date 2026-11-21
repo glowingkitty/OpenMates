@@ -52,6 +52,10 @@ export function createParseHandlers(binding: ParseBinding): UnitHandlers<ParseUn
 			const p = record(payload);
 			return call(() => binding.parse_reconcile_recommendations(JSON.stringify(p.input)));
 		},
+		workflowStartSuggestions: (payload) => {
+			const p = record(payload);
+			return call(() => binding.parse_workflow_start_suggestions(JSON.stringify(p.input)));
+		},
 		buildContextEntryEvent: (payload) => {
 			const p = record(payload);
 			let content: string;

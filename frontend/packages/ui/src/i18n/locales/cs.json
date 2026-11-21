@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "Odmítnout vše"
       },
+      "continue_without_memories": {
+        "text": "Pokračovat bez vzpomínek"
+      },
+      "call_countdown_label": {
+        "text": "Zbývající čas do odpovědi bez vzpomínek"
+      },
       "entry_singular": {
         "text": "záznam"
       },
@@ -3720,7 +3726,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Pokračujte tam, kde jste skončili:"
+        "text": "Pokračujte v nedávných chatech:"
+      },
+      "active_title_single": {
+        "text": "Máte 1 aktivní chat:"
+      },
+      "active_title": {
+        "text": "Máte aktivní chaty: {count}:"
+      },
+      "active_card_label": {
+        "text": "Aktivní"
       },
       "guest_title": {
         "text": "Prozkoumejte ukázkové chaty:"
@@ -4564,6 +4579,56 @@
       },
       "ask_question": {
         "text": "Zeptejte se na tuto dokumentaci..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Aby se to spustilo, tvůj kód a soubory se odešlou do E2B, poskytovatele cloudového sandboxu, a spustí se tam."
+      },
+      "privacy_policy": {
+        "text": "Zásady ochrany osobních údajů"
+      },
+      "own_machine_hint": {
+        "text": "Nebo to spusť na vlastním počítači pomocí:"
+      },
+      "allow": {
+        "text": "Povolit"
+      },
+      "own_machine": {
+        "text": "Použít vlastní počítač"
+      },
+      "not_now": {
+        "text": "Teď ne"
+      },
+      "answered": {
+        "text": "Tvoje odpověď:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Spouštění kódu v cloudovém sandboxu E2B není pro tvůj účet povoleno, takže se nic nespustilo. Můžeš to změnit v Nastavení > Soukromí, nebo kód spustit na vlastním počítači příkazem vzdáleného přístupu."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Spouštět kód v cloudovém sandboxu E2B"
+      },
+      "description": {
+        "text": "Když je to povoleno, kód a soubory, které spouštíš, se odesílají do E2B, poskytovatele cloudového sandboxu. Když to povoleno není, nic se neodesílá."
+      },
+      "status_allowed": {
+        "text": "Povoleno"
+      },
+      "status_declined": {
+        "text": "Nepovoleno"
+      },
+      "status_undecided": {
+        "text": "Zatím nerozhodnuto"
+      },
+      "error": {
+        "text": "Toto nastavení se nepodařilo uložit. Zkus to prosím znovu."
       }
     }
   },
@@ -8244,6 +8309,9 @@
         },
         "no_video": {
           "text": "Pro toto spuštění není k dispozici video"
+        },
+        "with_setup": {
+          "text": "{duration} s přípravou"
         }
       }
     },
@@ -21815,7 +21883,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Žádost o vzpomínky vypršela, odpověď bez vzpomínek"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Hovory používají přepis Mistral, hlas ElevenLabs v4 Turbo, běžné směrování AI OpenMates a účtování podle využití."

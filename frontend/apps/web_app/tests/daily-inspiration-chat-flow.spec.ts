@@ -77,10 +77,46 @@ const {
 	withMockMarker
 } = require('./signup-flow-helpers');
 
-const { loginToTestAccount, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
+const { loginToTestAccount, sendMessage, waitForAssistantMessage, startNewChat } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const PERSONALIZED_INSPIRATION_READY_TIMEOUT_MS = 30000;
+
+/** Whether this browser stored the chat and how many of its messages (IndexedDB chats_db). */
+async function localChatRecord(page: any, chatId: string): Promise<{ chat: boolean; messages: number }> {
+	return page.evaluate(
+		(id: string) =>
+			new Promise<{ chat: boolean; messages: number }>((resolve, reject) => {
+				const opened = indexedDB.open('chats_db');
+				opened.onerror = () => reject(new Error('Unable to open chats_db'));
+				opened.onsuccess = () => {
+					const db = opened.result;
+					const tx = db.transaction(['chats', 'messages'], 'readonly');
+					const result = { chat: false, messages: 0 };
+					const chatRequest = tx.objectStore('chats').get(id);
+					chatRequest.onsuccess = () => {
+						result.chat = !!chatRequest.result;
+					};
+					const cursorRequest = tx.objectStore('messages').openCursor();
+					cursorRequest.onsuccess = () => {
+						const cursor = cursorRequest.result;
+						if (!cursor) return;
+						if (cursor.value?.chat_id === id) result.messages += 1;
+						cursor.continue();
+					};
+					tx.oncomplete = () => {
+						db.close();
+						resolve(result);
+					};
+					tx.onerror = () => {
+						db.close();
+						reject(new Error('Unable to read chats_db'));
+					};
+				};
+			}),
+		chatId
+	);
+}
 
 async function waitForStartChatInspiration(page: any, log: (message: string, data?: unknown) => void) {
 	// Signed-in users get daily inspirations as large cards inside the start row.
@@ -94,7 +130,16 @@ async function waitForStartChatInspiration(page: any, log: (message: string, dat
 }
 
 // contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-cards,daily-inspiration.start-row-rhythm,daily-inspiration.opened-state
-test('daily inspiration chat: creates chat and allows follow-up message without shared-chat error', async ({
+const PHONE = { width: 390, height: 844 };
+const DESKTOP = { width: 1280, height: 720 }; // Playwright default viewport used by the rest of the flow
+
+/** Named screenshot kept in the CI artifact for the owner's phone and desktop proof. */
+async function attachShot(page: any, name: string): Promise<void> {
+	await page.waitForTimeout(400);
+	await test.info().attach(name, { body: await page.screenshot(), contentType: 'image/png' });
+}
+
+test('daily inspiration chat: opens as an unsaved preview, saves on the first follow-up without shared-chat error', async ({
 	page
 }: {
 	page: any;
@@ -175,9 +220,46 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	// broadcasting, so wait on the observable card rather than a fixed post-login sleep.
 	const ctaText = await waitForStartChatInspiration(page, log);
 
-	// ── 9. Click the inspiration card to create an inspiration chat ────────────────────
+	const inspirationId: string = (await ctaText.getAttribute('data-inspiration-id')) ?? '';
+	expect(inspirationId).not.toBe('');
+
+	// ── 9a. Opening only previews it: nothing is saved until a follow-up is sent (TASK-3406) ──
 	await ctaText.click();
-	log('Clicked the daily inspiration card to start a chat.');
+	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 10000 });
+	const previewChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
+	const previewMessage = page.getByTestId('message-assistant').first();
+	await expect(previewMessage).toBeVisible({ timeout: 10000 });
+	// The preview shows the inspiration's text right away, not an empty bubble.
+	await expect
+		.poll(async () => ((await previewMessage.textContent()) ?? '').trim().length, { timeout: 5000 })
+		.toBeGreaterThan(40);
+	await screenshot(page, 'inspiration-preview-open');
+	await attachShot(page, 'desktop-inspiration-preview-open');
+	// The same preview on a phone.
+	await page.setViewportSize(PHONE);
+	await expect(previewMessage).toBeVisible();
+	await attachShot(page, 'phone-inspiration-preview-open');
+	// Give any background save or sync time to run; there must be none.
+	await page.waitForTimeout(2500);
+	expect(await localChatRecord(page, previewChatId)).toEqual({ chat: false, messages: 0 });
+	log('Opened inspiration is shown but not stored.', { previewChatId });
+
+	// Leaving without sending keeps it a daily inspiration and stores nothing.
+	await startNewChat(page, log);
+	const sameCard = page.locator(
+		`[data-testid="start-row-inspiration-card"][data-inspiration-id="${inspirationId}"]`
+	);
+	await expect(sameCard).toBeVisible({ timeout: 15000 });
+	expect(await localChatRecord(page, previewChatId)).toEqual({ chat: false, messages: 0 });
+	await screenshot(page, 'inspiration-still-in-row-after-leaving');
+	await sameCard.scrollIntoViewIfNeeded();
+	await attachShot(page, 'phone-inspiration-still-in-row-after-leaving');
+	await page.setViewportSize(DESKTOP);
+	log('Left the preview: the inspiration card is still in the start row and nothing was saved.');
+
+	// ── 9. Open it again and continue the chat ────────────────────────────────
+	await sameCard.click();
+	log('Clicked the daily inspiration card again.');
 
 	// The chat ID should appear in the URL within a few seconds
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 10000 });
@@ -244,6 +326,13 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	expect(responseText!.trim().length).toBeGreaterThan(10);
 	log('AI response content verified.', { responseLength: responseText!.trim().length });
 
+	// The follow-up made it a normal saved chat (TASK-3406).
+	const savedRecord = await localChatRecord(page, chatId);
+	expect(savedRecord.chat).toBe(true);
+	expect(savedRecord.messages).toBeGreaterThanOrEqual(3);
+	expect(await localChatRecord(page, previewChatId)).toEqual({ chat: false, messages: 0 });
+	log('Follow-up saved the inspiration chat.', savedRecord);
+
 	// ── 13. BUG #2 check: title must NOT be overwritten ──────────────────────
 	// After the follow-up and AI response, the chat title should still be the
 	// original inspiration title — NOT "tell me more" (the follow-up text).
@@ -276,7 +365,21 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 	await assertNoMissingTranslations(page);
 	log('No missing translations detected.');
 
-	// ── 14. Cleanup — delete the inspiration chat ────────────────────────────
+	// It no longer shows as a daily inspiration in the start row.
+	await startNewChat(page, log);
+	await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
+	await expect(
+		page.locator(`[data-testid="start-row-inspiration-card"][data-inspiration-id="${inspirationId}"]`)
+	).toHaveCount(0, { timeout: 10000 });
+	await screenshot(page, 'inspiration-gone-from-row-after-follow-up');
+	await attachShot(page, 'desktop-inspiration-gone-from-row-after-follow-up');
+	await page.setViewportSize(PHONE);
+	await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible();
+	await attachShot(page, 'phone-inspiration-gone-from-row-after-follow-up');
+	await page.setViewportSize(DESKTOP);
+	log('The answered inspiration left the start row.');
+
+	// ── 14. Cleanup — delete the inspiration chat (it is in the chat list now) ──
 	log('Cleaning up: deleting the inspiration chat...');
 
 	// Ensure sidebar is accessible
@@ -286,8 +389,8 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 		await page.waitForTimeout(500);
 	}
 
-	// Find and right-click the active chat in the sidebar to open context menu
-	const activeChatItem = page.locator('[data-testid="chat-item-wrapper"].active');
+	// Find and right-click the saved inspiration chat in the sidebar to open context menu
+	const activeChatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`);
 	await expect(activeChatItem).toBeVisible({ timeout: 5000 });
 	await activeChatItem.click({ button: 'right' });
 	await screenshot(page, 'context-menu-open');

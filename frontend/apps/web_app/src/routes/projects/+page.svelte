@@ -164,6 +164,11 @@
 
 	.main-content {
 		container: main-content / inline-size;
+		/* Same column as Chats: header, then a panel inset 10/20/20/10 so the panel,
+		   input and report-issue button sit where they do on every workspace (Marco, 21 Nov). */
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
 		position: fixed;
 		inset-inline-start: calc(var(--sidebar-width, 325px) + var(--sidebar-margin, 10px));
 		inset-inline-end: 0;
@@ -180,13 +185,17 @@
 		inset-inline-start: var(--sidebar-margin, 10px);
 	}
 
+	.main-content > :global(header.webapp) {
+		flex: none;
+	}
 	.projects-container {
 		display: flex;
 		flex-direction: row;
-		height: calc(100vh - 82px);
-		height: calc(100dvh - 82px);
+		flex: 1 1 auto;
+		min-height: 0;
+		box-sizing: border-box;
 		gap: 0;
-		padding: 10px 20px 10px 10px;
+		padding: 10px 20px 20px 10px;
 	}
 
 	@media (min-width: 1100px) {
@@ -199,6 +208,7 @@
 		flex: 1;
 		display: flex;
 		min-width: 0;
+		min-height: 0;
 	}
 
 	.settings-wrapper {
@@ -232,10 +242,8 @@
 		}
 
 		.projects-container {
-			height: calc(100vh - 66px);
-			height: calc(100dvh - 66px);
 			padding-inline-end: 10px;
-			box-sizing: border-box;
+			padding-bottom: 10px;
 		}
 	}
 

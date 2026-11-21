@@ -25,7 +25,7 @@ surfaces:
     assertion_ids: [chat-unread.surfaces.sidebar-and-continue]
     given: Alice has an unread chat whose newest reply she has not read to the end.
     when: She views the Chats start screen with the sidebar open.
-    then: Its sidebar row and its "Continue where you left off" card both show the counter 1.
+    then: Its sidebar row and its "Continue your recent chats" card both show the counter 1.
   - id: terminal-ui-shows-same-counter
     assertion_ids: [chat-unread.surfaces.sidebar-and-continue]
     given: Alice runs openmates in her terminal and a long reply finishes while only its first lines fit in the transcript.

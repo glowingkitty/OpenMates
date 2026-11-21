@@ -206,9 +206,10 @@ assertions:
     first in the sidebar at every folder depth. Each available visible parent appears
     once and displays its running subchat count; running chat and containing descendant-folder
     icons use a processing wheel instead of their normal icon or gradient. Completion,
-    failure and cancellation clear only their current turn. The landing page shows
-    the matching grouped active count and activating it opens the sidebar and reveals
-    the running rows. Reduced motion preserves a static accessible processing indicator.
+    failure and cancellation clear only their current turn. The Chats start screen shows
+    the matching grouped active count as its row title ("You have N chats active:") and
+    the same parents as the first, active-marked cards of its row
+    (daily-inspiration.start-row-active-first). Reduced motion preserves a static accessible processing indicator.
   depends_on:
   - examples.running_chats
 - id: chat-navigation.projects.organize

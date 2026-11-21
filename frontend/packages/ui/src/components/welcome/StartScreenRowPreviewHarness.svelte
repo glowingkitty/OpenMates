@@ -4,28 +4,33 @@
   rhythm (interleaveStartRow, at most 10 cards), StartScreenChatCard, the row-end
   StartScreenRowActions, StartScreenUpcomingEntry and the suggestions below, so
   the focused component spec judges the real cards without a signed-in account.
-  The route-level E2E covers the wiring inside ActiveChat.
+  The route-level E2E covers the wiring inside ActiveChat. Running chats come first with
+  the "Active" label; the "make active" control lets the spec record a chat becoming
+  active (fade in from below at the front, others slide right; startRowMotion.ts).
 -->
 <script lang="ts">
   import StartScreenChatCard from './StartScreenChatCard.svelte';
   import StartScreenUpcomingEntry from './StartScreenUpcomingEntry.svelte';
   import StartScreenRowActions, { type StartScreenRowAction } from './StartScreenRowActions.svelte';
   import StartScreenChatSuggestions from './StartScreenChatSuggestions.svelte';
+  import { onMount } from 'svelte';
   import { interleaveStartRow } from '../../utils/startScreenRow';
+  import { startRowCardFlip, startRowCardIn } from '../../utils/startRowMotion';
 
   type PreviewChat = { id: string; title: string; summary: string; category: string; icon: string; pinned?: boolean };
-  type PreviewInspiration = { id: string; title: string; phrase: string; category: string; contentType: 'video' | 'wiki'; image: string | null };
+  type PreviewInspiration = { id: string; title: string; phrase: string; category: string; contentType: 'video' | 'wiki' };
 
   type Props = {
     ownCount: number;
     inspirationCount: number;
     showUpcoming: boolean;
-    showInspirationMedia: boolean;
     /** Signed-out actions (Select interests, Show all) instead of Show all / Search. */
     guest: boolean;
+    /** How many of the chats start as running (shown first, marked active). */
+    activeCount?: number;
   };
 
-  let { ownCount, inspirationCount, showUpcoming, showInspirationMedia, guest }: Props = $props();
+  let { ownCount, inspirationCount, showUpcoming, guest, activeCount = 0 }: Props = $props();
 
   const CHATS: PreviewChat[] = [
     { id: 'chat-garden', title: 'Balcony herb garden plan', summary: 'Which herbs grow well together on a sunny balcony and how often to water them.', category: 'life_coach_psychology', icon: 'sprout', pinned: true },
@@ -41,20 +46,31 @@
   ];
 
   const INSPIRATIONS: PreviewInspiration[] = [
-    { id: 'insp-octopus', title: 'How octopuses change colour', phrase: 'Why can an octopus match a rock it has never seen?', category: 'science', contentType: 'video', image: null },
-    { id: 'insp-bridge', title: 'The bridge that sings in the wind', phrase: 'What makes some bridges hum on stormy days?', category: 'history', contentType: 'wiki', image: null },
-    { id: 'insp-bees', title: 'Bees count to four', phrase: 'How do researchers test whether bees understand numbers?', category: 'science', contentType: 'video', image: null },
+    { id: 'insp-octopus', title: 'How octopuses change colour', phrase: 'Why can an octopus match a rock it has never seen?', category: 'science', contentType: 'video' },
+    { id: 'insp-bridge', title: 'The bridge that sings in the wind', phrase: 'What makes some bridges hum on stormy days?', category: 'history', contentType: 'wiki' },
+    { id: 'insp-bees', title: 'Bees count to four', phrase: 'How do researchers test whether bees understand numbers?', category: 'science', contentType: 'video' },
   ];
 
-  const MEDIA_IMAGE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b6cb0"/><stop offset="1" stop-color="#9f7aea"/></linearGradient></defs><rect width="600" height="400" fill="url(#g)"/><circle cx="420" cy="140" r="90" fill="#f6e05e" opacity="0.8"/><rect x="0" y="280" width="600" height="120" fill="#2c5282" opacity="0.7"/></svg>'
-  );
-
-  let own = $derived(CHATS.slice(0, ownCount));
-  let inspirations = $derived(
-    INSPIRATIONS.slice(0, inspirationCount).map((item) => ({ ...item, image: showInspirationMedia ? MEDIA_IMAGE : null }))
-  );
+  type RowChat = PreviewChat & { key: string; active: boolean };
+  // Chats made active with the control below; the fixture's first `activeCount` chats start active.
+  let activatedIds = $state<string[]>([]);
+  let activeIds = $derived([...activatedIds, ...CHATS.slice(0, activeCount).map((chat) => chat.id)]);
+  let own = $derived<RowChat[]>([
+    ...activeIds.map((id) => CHATS.find((chat) => chat.id === id)).filter((chat): chat is PreviewChat => !!chat).map((chat) => ({ ...chat, key: `active:${chat.id}`, active: true })),
+    ...CHATS.slice(0, ownCount).filter((chat) => !activeIds.includes(chat.id)).map((chat) => ({ ...chat, key: `recent:${chat.id}`, active: false })),
+  ]);
+  let inspirations = $derived(INSPIRATIONS.slice(0, inspirationCount).map((inspiration) => ({ ...inspiration, key: `inspiration:${inspiration.id}` })));
   let entries = $derived(interleaveStartRow(own, inspirations));
+  let motionEnabled = $state(false);
+  onMount(() => {
+    const timer = setTimeout(() => (motionEnabled = true), 300);
+    return () => clearTimeout(timer);
+  });
+  /** Makes the last inactive chat of the row active, like a chat that starts running. */
+  function activateNext(): void {
+    const next = own.filter((chat) => !chat.active).at(-1);
+    if (next) activatedIds = [next.id, ...activatedIds];
+  }
   let lastActivated = $state('');
   let actions = $derived<StartScreenRowAction[]>(
     guest
@@ -71,7 +87,8 @@
 
 <div class="start-row-harness" data-testid="start-row-harness" data-last-activated={lastActivated}>
   <div class="harness-row start-row" data-testid="recent-chats-scroll-container">
-    {#each entries as entry (entry.item.id)}
+    {#each entries as entry (entry.item.key)}
+      <div class="harness-slot" animate:startRowCardFlip={{ enabled: motionEnabled }} in:startRowCardIn={{ enabled: motionEnabled }}>
       {#if entry.kind === 'inspiration'}
         {@const inspiration = entry.item}
         <StartScreenChatCard
@@ -79,7 +96,6 @@
           title={inspiration.title}
           summary={inspiration.phrase}
           category={inspiration.category}
-          mediaImageUrl={inspiration.image}
           badge={{ label: 'Daily inspiration', testId: 'start-row-inspiration-label', icon: inspiration.contentType === 'video' ? 'play' : 'book-open' }}
           dataAttributes={{ 'data-inspiration-id': inspiration.id, 'data-content-type': inspiration.contentType }}
           gestures={null}
@@ -88,17 +104,19 @@
       {:else}
         {@const chat = entry.item}
         <StartScreenChatCard
-          testId="resume-chat-large-card"
+          testId={chat.active ? 'start-row-active-card' : 'resume-chat-large-card'}
           title={chat.title}
           summary={chat.summary}
           category={chat.category}
           icon={chat.icon}
           chatId={chat.id}
           pinned={!!chat.pinned}
+          active={chat.active ? { label: 'Active', testId: 'start-row-active-pill' } : null}
           gestures={null}
           onActivate={() => (lastActivated = chat.id)}
         />
       {/if}
+      </div>
     {/each}
     <StartScreenRowActions testId="start-row-actions" {actions} />
   </div>
@@ -114,6 +132,9 @@
         onActivate={() => (lastActivated = 'upcoming')}
       />
     </div>
+  {/if}
+  {#if activeCount > 0}
+    <button type="button" class="harness-activate" data-testid="start-row-harness-activate" onclick={activateNext}>Make a chat active</button>
   {/if}
   <StartScreenChatSuggestions
     isAuthenticated={false}
@@ -151,6 +172,15 @@
       padding-left: calc(50% - min(140px, 38vw));
       padding-right: var(--spacing-8);
     }
+  }
+
+  .harness-slot {
+    display: flex;
+    flex-shrink: 0;
+  }
+
+  .harness-activate {
+    font-size: var(--font-size-xxs);
   }
 
   .harness-upcoming {

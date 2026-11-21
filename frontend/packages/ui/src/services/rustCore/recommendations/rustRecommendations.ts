@@ -10,6 +10,8 @@ import type {
 	ChatRecommendation,
 	ContextEntryHistoryEvent,
 	MemoryWriteUndoneEvent,
+	WorkflowStartSuggestion,
+	WorkflowStartSuggestionsInput,
 	ReconcileRecommendationsInput,
 } from '../../../types/recommendations';
 import { parseCall } from '../parse/parseClient';
@@ -17,6 +19,11 @@ import { parseCall } from '../parse/parseClient';
 /** Applies dismiss/resolved/duplicate/memory-match rules and caps 3 per kind. */
 export function reconcileRecommendations(input: ReconcileRecommendationsInput): Promise<ChatRecommendation[]> {
 	return parseCall('reconcileRecommendations', { input });
+}
+
+/** Workflow suggestions for the Workflows start screen from decrypted per-chat states. */
+export function workflowStartSuggestions(input: WorkflowStartSuggestionsInput): Promise<WorkflowStartSuggestion[]> {
+	return parseCall('workflowStartSuggestions', { input });
 }
 
 /** Validated JSON content of the `role: system` context_entry chat message. */

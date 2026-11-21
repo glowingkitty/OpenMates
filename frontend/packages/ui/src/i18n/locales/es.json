@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "Rechazar todo"
       },
+      "continue_without_memories": {
+        "text": "Continuar sin recuerdos"
+      },
+      "call_countdown_label": {
+        "text": "Tiempo restante antes de responder sin recuerdos"
+      },
       "entry_singular": {
         "text": "entrada"
       },
@@ -3747,7 +3753,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Continúa donde lo dejaste:"
+        "text": "Continúa tus chats recientes:"
+      },
+      "active_title_single": {
+        "text": "Tienes 1 chat activo:"
+      },
+      "active_title": {
+        "text": "Tienes {count} chats activos:"
+      },
+      "active_card_label": {
+        "text": "Activo"
       },
       "guest_title": {
         "text": "Explora algunos chats de ejemplo:"
@@ -4591,6 +4606,56 @@
       },
       "ask_question": {
         "text": "Preguntar sobre esta documentación..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Para ejecutar esto, tu código y tus archivos se envían a E2B, un proveedor de sandbox en la nube, y se ejecutan allí."
+      },
+      "privacy_policy": {
+        "text": "Política de privacidad"
+      },
+      "own_machine_hint": {
+        "text": "O ejecútalo en tu propio equipo con:"
+      },
+      "allow": {
+        "text": "Permitir"
+      },
+      "own_machine": {
+        "text": "Usar mi propio equipo"
+      },
+      "not_now": {
+        "text": "Ahora no"
+      },
+      "answered": {
+        "text": "Tu respuesta:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Ejecutar código en el sandbox en la nube de E2B no está permitido para tu cuenta, así que no se inició nada. Puedes cambiarlo en Ajustes > Privacidad o ejecutarlo en tu propio equipo con el comando de acceso remoto."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Ejecutar código en el sandbox en la nube de E2B"
+      },
+      "description": {
+        "text": "Si lo permites, el código y los archivos que ejecutes se envían a E2B, un proveedor de sandbox en la nube. Si no lo permites, no se envía nada."
+      },
+      "status_allowed": {
+        "text": "Permitido"
+      },
+      "status_declined": {
+        "text": "No permitido"
+      },
+      "status_undecided": {
+        "text": "Aún sin decidir"
+      },
+      "error": {
+        "text": "No se pudo guardar este ajuste. Inténtalo de nuevo."
       }
     }
   },
@@ -8271,6 +8336,9 @@
         },
         "no_video": {
           "text": "No hay vídeo disponible para esta ejecución"
+        },
+        "with_setup": {
+          "text": "{duration} con preparación"
         }
       }
     },
@@ -21842,7 +21910,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "La solicitud de recuerdos caducó; se respondió sin recuerdos"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Las llamadas usan transcripción de Mistral, voz de ElevenLabs v4 Turbo, enrutamiento de IA habitual de OpenMates y facturación por uso."

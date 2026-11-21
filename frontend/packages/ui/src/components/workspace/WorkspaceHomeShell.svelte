@@ -19,9 +19,11 @@
   import WorkspaceContinueCard from './WorkspaceContinueCard.svelte';
   import AppStoreCard from '../settings/AppStoreCard.svelte';
   import FollowUpSuggestions from '../FollowUpSuggestions.svelte';
+  import { START_SUGGESTIONS_VARIANT, type StartSuggestionsVariant } from './startSuggestionsVariant';
   import StartScreenRowActions, { type StartScreenRowAction } from '../welcome/StartScreenRowActions.svelte';
   import type { AppMetadata } from '../../types/apps';
   import WorkspaceReportIssueButton from './WorkspaceReportIssueButton.svelte';
+  import { REPORT_LABEL_MIN_WIDTH } from '../reportIssueLabel';
   import { getContinueGradientColors, getResumeCardGradientStyle } from '../activeChatUtils';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { dailyInspirationStore, type DailyInspiration } from '../../stores/dailyInspirationStore';
@@ -102,6 +104,8 @@
     onSearchAll?: () => void;
     /** Start screens: short prompts shown below the row (FollowUpSuggestions style). */
     startSuggestions?: { items: string[]; onClick: (suggestion: string) => void };
+    /** Placement of the suggestions above the input (variant A or B, see startSuggestionsVariant.ts). */
+    suggestionsVariant?: StartSuggestionsVariant;
   };
 
   let {
@@ -150,6 +154,7 @@
     onBackToRecent,
     onSearchAll,
     startSuggestions,
+    suggestionsVariant = START_SUGGESTIONS_VARIANT,
   }: Props = $props();
 
   let restoreWorkspaceDefaults = $state(false);
@@ -164,6 +169,9 @@
   /** Surfaces that show no daily inspirations at all (no banner, none in a row). */
   const NO_INSPIRATION_SURFACES: ReadonlySet<WorkspaceSurface> = new Set(['tasks']);
   let isStartScreen = $derived(START_SCREEN_SURFACES.has(surface));
+  let showStartSuggestions = $derived(
+    isStartScreen && !showAllMode && !contentSlotVisible && !composerFocused && (startSuggestions?.items.length ?? 0) > 0
+  );
   let showsBanner = $derived(!isStartScreen && !NO_INSPIRATION_SURFACES.has(surface));
   let isTallViewport = $derived(isStartScreen || hasRoomForLargeContinueCards(containerWidth, availableCardHeight));
   // Start screens never fall back to compact pills; isTallViewport stays true for them.
@@ -327,7 +335,7 @@
 
 <svelte:window onpointerdown={(event) => { if (composerFocused && shellElement?.contains(event.target as Node) && !composerElement?.contains(event.target as Node)) onComposerDismiss?.(); }} />
 
-<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} class:composer-focused={composerFocused} class:large-continue-cards={isTallViewport} class:start-screen={isStartScreen} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
+<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} class:composer-focused={composerFocused} class:large-continue-cards={isTallViewport} class:start-screen={isStartScreen} class:no-start-suggestions={isStartScreen && !showStartSuggestions} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
   <div class="workspace-scroll-layer" inert={composerFocused} data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined} style:--workspace-composer-height={`${composerHeight}px`}>
     {#if !showAllMode && showsBanner}
       <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`} bind:this={inspirationElement}>
@@ -343,7 +351,7 @@
       <div class="workspace-top-buttons" class:workspace-all-items-top-buttons={showAllMode}>
         <div class="workspace-left-buttons">
           {#if showReportIssue}
-            <WorkspaceReportIssueButton />
+            <WorkspaceReportIssueButton showLabel={containerWidth >= REPORT_LABEL_MIN_WIDTH} />
           {/if}
         </div>
         {#if hasAllItemsToolbar}
@@ -462,14 +470,6 @@
         {/if}
       </div>
       </div>
-      {#if startSuggestions && startSuggestions.items.length > 0}
-        <div class="start-row-suggestions" data-testid={`${surface}-start-suggestions`}>
-          <FollowUpSuggestions suggestions={startSuggestions.items} dismissOnClick={false} singleLine onSuggestionClick={startSuggestions.onClick} />
-        </div>
-      {:else}
-        <!-- No suggestions here (Apps): keep their room so the row sits where it does on Chats and Workflows. -->
-        <div class="start-row-suggestions start-row-suggestions-reserve" aria-hidden="true"></div>
-      {/if}
     {:else if actionItems.length > 0}
       <div class="recent-chats-scroll-container" data-testid={actionItemsTestId}>
         {#each actionRowEntries as entry (entry.kind === 'own' ? entry.item.id : `inspiration:${entry.item.inspiration_id}`)}
@@ -669,6 +669,13 @@
 
   {#if showComposer}
     <div class="workspace-composer-slot" data-testid="workspace-composer-slot" bind:this={composerElement}>
+      <!-- Start-screen suggestions sit directly above the input (Marco, 21 Nov), so the greeting
+           and row centre in the room above them instead of being pushed to the top. -->
+      {#if showStartSuggestions && startSuggestions}
+        <div class="start-row-suggestions" class:input-width={suggestionsVariant === 'input-width'} data-testid={`${surface}-start-suggestions`} data-variant={suggestionsVariant}>
+          <FollowUpSuggestions suggestions={startSuggestions.items} dismissOnClick={false} singleLine align={suggestionsVariant === 'input-width' ? 'start' : 'end'} onSuggestionClick={startSuggestions.onClick} />
+        </div>
+      {/if}
       <slot name="composer" />
     </div>
   {/if}
@@ -1266,6 +1273,9 @@
     transform: translateX(-50%);
     width: 100%;
     display: grid;
+    /* One column no wider than the pane: the single-line start suggestions above the
+       input must truncate instead of widening the column past the screen edge. */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--spacing-4);
     z-index: var(--z-index-raised-2);
     pointer-events: auto;
@@ -1292,6 +1302,10 @@
   .start-row-suggestions {
     display: flex;
     justify-content: center;
+    align-items: flex-end;
+    /* Three single-line suggestions; screens without suggestions reserve the same room
+       (--start-suggestions-room) so every start row sits at the same height. */
+    min-height: 4.6rem;
     width: 100%;
     max-width: 640px;
     padding: 0 var(--spacing-8);
@@ -1300,10 +1314,14 @@
     text-align: left;
   }
 
-  /* Three follow-up suggestion lines; matches the suggestions block on Chats and Workflows. */
-  .start-row-suggestions-reserve {
-    height: 4.6rem;
-    pointer-events: none;
+  /* Variant B: as wide as the message input (WorkspacePromptComposer is min(629px, 100%)),
+     centred, lines left-aligned inside it. */
+  .start-row-suggestions.input-width {
+    justify-self: center;
+    width: min(629px, 100%);
+    max-width: none;
+    margin-inline: auto;
+    padding: 0 var(--spacing-6);
   }
 
   /* Same phone centring as the Chats start row: cards are min(280px, 76vw) wide. */
@@ -1333,6 +1351,12 @@
     /* Apps has no composer: reserve the composer's usual room so every start row lines up. */
     padding-bottom: max(var(--workspace-composer-height), 96px);
     box-sizing: border-box;
+  }
+
+  /* Apps and Projects show no suggestions above the input: keep their room (block plus
+     the composer slot gap) so the greeting and row sit where they do on Workflows and Chats. */
+  .workspace-home-shell.start-screen.no-start-suggestions:not(.content-slot-mode):not(.all-items-mode) .workspace-scroll-layer {
+    padding-bottom: calc(max(var(--workspace-composer-height), 96px) + 4.6rem + var(--spacing-4));
   }
 
   .workspace-home-shell.start-screen:not(.content-slot-mode):not(.all-items-mode) .workspace-center-content.center-content {

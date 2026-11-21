@@ -157,7 +157,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
-    import ActiveChatsLink from './chats/ActiveChatsLink.svelte';
+    import ActiveChatsHeading from './chats/ActiveChatsHeading.svelte';
+    import { activeChatCount, runningChatGroups } from '../stores/chatActivityStore';
+    import { startRowCardFlip, startRowCardIn } from '../utils/startRowMotion';
     import ChatProjectPicker from './chats/ChatProjectPicker.svelte';
     import { runChatMenuAction, type ChatMenuActionResult } from '../services/chatMenuActionService';
     import { buildChatMenuItems, type ChatMenuAction } from './chats/chatMenuItems';
@@ -200,7 +202,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { notFoundPathStore } from '../stores/notFoundPathStore'; // 404 not-found path — set when user lands on unknown URL
     import { openSearch, setSearchQuery } from '../stores/searchStore'; // For 404 search handler
     import { dailyInspirationStore, type DailyInspiration, type DailyInspirationSurface } from '../stores/dailyInspirationStore'; // Type/store for inspiration handler
-    import { chatListCache } from '../services/chatListCache'; // For invalidating stale 'sending' status in sidebar cache
+    import { chatListCache } from '../services/chatListCache';
+    import { setPendingInspirationChat, getPendingInspirationChat, isPendingInspirationChat, discardPendingInspirationChat } from '../services/pendingInspirationChat'; // For invalidating stale 'sending' status in sidebar cache
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { localizeIndicatorLine } from './chats/utils/chatIndicatorLines'; // Localises indicator lines decided by the Rust chatState unit when the flag is on
     import type { IndicatorLine } from '../services/rustCore/chatState/transitionProtocol';
@@ -3361,6 +3364,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     let _priorityRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     let hasContinueItems = $derived.by(() =>
         priorityChatItems.length > 0 ||
+        activeStartRowMetas.length > 0 ||
         !!resumeChatData ||
         ($authStore.isAuthenticated && recentChats.length > 0)
     );
@@ -3375,7 +3379,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         | { type: 'priority'; item: PriorityChatContinueItem }
         | { type: 'resume'; chat: Chat }
         | { type: 'recent'; meta: RecentChatMeta }
-        | { type: 'example'; meta: RecentChatMeta };
+        | { type: 'example'; meta: RecentChatMeta }
+        | { type: 'active'; meta: RecentChatMeta };
 
     let startRowInspirations = $state<DailyInspiration[]>([]);
     const unsubscribeStartRowInspirations = dailyInspirationStore.subscribe((state) => {
@@ -3399,11 +3404,47 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         });
     });
 
+    // Running chats always come first and are marked active (Marco, 21 Nov). The grouping
+    // (a running sub-chat makes its visible parent active, each parent once) is the Rust
+    // aggregation behind runningChatGroups; here the parents only get their card metadata.
+    let activeStartRowMetas = $state<RecentChatMeta[]>([]);
+    $effect(() => {
+        const groups = $runningChatGroups;
+        const isAuthenticated = $authStore.isAuthenticated;
+        let stale = false;
+        if (!isAuthenticated || groups.length === 0) {
+            activeStartRowMetas = [];
+            return;
+        }
+        const chats = groups.map((group) => group.chat).filter((chat) => !isPublicChat(chat.chat_id)).slice(0, RECENT_CHATS_TOTAL);
+        untrack(() => Promise.all(chats.map((chat) => buildRecentChatMeta(chat))))
+            .then((metas) => { if (!stale) activeStartRowMetas = metas; })
+            .catch((error) => console.error('[ActiveChat] Could not build the active start-row cards', error));
+        return () => { stale = true; };
+    });
+    let activeStartRowChatIds = $derived(new Set(activeStartRowMetas.map((meta) => meta.chat.chat_id)));
+
     let ownStartRowItems = $derived.by((): OwnStartRowItem[] => [
-        ...priorityChatItems.map((item) => ({ type: 'priority' as const, item })),
-        ...(resumeChatData && hasVisibleResumeChat ? [{ type: 'resume' as const, chat: resumeChatData }] : []),
-        ...visibleRecentChats.map((meta) => ({ type: 'recent' as const, meta })),
+        ...activeStartRowMetas.map((meta) => ({ type: 'active' as const, meta })),
+        ...priorityChatItems
+            .filter((item) => !activeStartRowChatIds.has(item.chat.chat_id))
+            .map((item) => ({ type: 'priority' as const, item })),
+        ...(resumeChatData && hasVisibleResumeChat && !activeStartRowChatIds.has(resumeChatData.chat_id)
+            ? [{ type: 'resume' as const, chat: resumeChatData }]
+            : []),
+        ...visibleRecentChats
+            .filter((meta) => !activeStartRowChatIds.has(meta.chat.chat_id))
+            .map((meta) => ({ type: 'recent' as const, meta })),
     ]);
+
+    // Cards that join the row after it has settled (a chat became active, a new chat) fade in
+    // from below; the first fill after opening the page does not animate.
+    let startRowMotionEnabled = $state(false);
+    $effect(() => {
+        if (startRowEntries.length === 0) return;
+        const timer = setTimeout(() => { startRowMotionEnabled = true; }, 1500);
+        return () => clearTimeout(timer);
+    });
     // Guests get the same row: example chats (and their own anonymous or shared chats) with the
     // inspirations interleaved. Example events leave the row for the entry below it.
     let guestStartRowVisible = $derived.by(() =>
@@ -3467,6 +3508,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (own.type === 'priority') return `priority:${own.item.chat.chat_id}`;
         if (own.type === 'resume') return `resume:${own.chat.chat_id}`;
         if (own.type === 'example') return `example:${own.meta.chat.chat_id}`;
+        // A distinct key, so a chat that becomes active fades in at the front instead of sliding there.
+        if (own.type === 'active') return `active:${own.meta.chat.chat_id}`;
         return `recent:${own.meta.chat.chat_id}`;
     }
 
@@ -3483,13 +3526,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         return chat.is_shared_by_others
             ? { label: $text('chat.header.shared_chat'), testId: 'shared-chat-badge' }
             : null;
-    }
-
-    function getInspirationThumbnail(inspiration: DailyInspiration): string | null {
-        const url = inspiration.content_type === 'video'
-            ? inspiration.video?.thumbnail_url
-            : inspiration.wiki?.thumbnail_url;
-        return url ? proxyImage(url) : null;
     }
 
     /** Report row inspirations once at least half of the card is on screen. */
@@ -8399,25 +8435,22 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         }
 
         try {
-            const { encryptWithChatKey } = await import('../services/cryptoService');
             const { createEmbedReferenceBlock } = await import('../components/enter_message/services/urlMetadataService');
             const { encode: toonEncode } = await import('@toon-format/toon');
             const { embedStore } = await import('../services/embedStore');
             const { generateUUID } = await import('../message_parsing/utils');
-            const { chatKeyManager } = await import('../services/encryption/ChatKeyManager');
+            const { inspirationFollowUpSuggestions, saveInspirationChat } = await import('../services/inspirationChatSave');
 
+            // Opening shows an in-memory preview only (TASK-3406): no chat key, no IndexedDB
+            // chat or message, no sync and no "opened" mark. The chat ID is kept, and the first
+            // send saves the chat through saveInspirationChat (pendingInspirationChat.ts).
             const chatId = crypto.randomUUID();
-            const { chatKey, encryptedChatKey } = await chatKeyManager.createAndPersistKeyLocked(chatId);
-
             const now = Math.floor(Date.now() / 1000);
             const nowMs = Date.now();
             const phrase = inspiration.phrase;
             // Use the concise title for the chat sidebar (falls back to phrase for
             // older inspirations that don't have a separate title field)
             const chatTitle = inspiration.title || phrase;
-
-            // Encrypt the chat title (short title for sidebar display)
-            const encryptedTitle = await encryptWithChatKey(chatTitle, chatKey);
 
             // Build the first assistant message content.
             // Use the rich assistant_response if available (generated by the LLM to explain
@@ -8431,11 +8464,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // Track whether we reused a pre-stored inspiration embed (needed for
             // chat key wrapper creation after the chat and message are created)
             let reusedEmbedId: string | null = null;
-            // Captured embed data for cross-device sync — populated in the
-            // reusedEmbedId block below, consumed by sendSyncInspirationChat
-            // so other devices receive the embed + keys inline with the broadcast
-            // instead of racing against a Directus round-trip.
-            let inspirationEmbedForSync: import('../services/chatSyncServiceSenders').InspirationEmbedData | undefined;
             if (inspiration.video) {
                 const video = inspiration.video;
                 const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
@@ -8526,451 +8554,50 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 messageContent = `${firstMessageText}\n\n${wikiLink}`;
             }
 
-            const encryptedContent = await encryptWithChatKey(messageContent, chatKey);
-
-            // Encrypt category and icon for proper mate display
-            const encryptedCategory = await encryptWithChatKey(inspiration.category, chatKey);
-
-            // Build the Chat object (mirrors the shape used by reminder handler)
-            // IMPORTANT: both title_v and messages_v are set to 1 (not 0) because:
-            // - title_v: 1  → the chat already has a title at creation time. Setting 0 would
-            //   cause follow-up handling to regenerate the title from the user's follow-up text,
-            //   overwriting the original inspiration title.
-            // - messages_v: 1 → the inspiration assistant message is saved to IndexedDB immediately
-            //   below (chatDB.saveMessage). Setting 0 here misrepresents the message count and
-            //   prevents the backend's "request_chat_history" guard from triggering when the Redis
-            //   AI cache is empty (it checks messages_v >= 1 to know history exists somewhere).
-            //   Without history, the AI sees only the follow-up message and responds out of context.
-            // Both values match what sync_inspiration_chat already sends to the server:
-            // chatSyncServiceSenders.ts → sendSyncInspirationChatImpl: messages_v: 1, title_v: 1.
-            const newChat = {
+            const messageId = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
+            const followUps = inspirationFollowUpSuggestions(inspiration);
+            const previewChat = {
                 chat_id: chatId,
-                title: chatTitle,        // Short title for sidebar display
-                encrypted_title: encryptedTitle,
+                title: chatTitle,
                 created_at: now,
                 updated_at: now,
                 messages_v: 1,
                 title_v: 1,
                 last_edited_overall_timestamp: now,
                 unread_count: 0,
-                encrypted_chat_key: encryptedChatKey,
-                encrypted_category: encryptedCategory,
                 category: inspiration.category,
-            };
-
-            await chatDB.updateChat(newChat as import('../types/chat').Chat);
-
-            // Build and save the first assistant message
-            const messageId = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
-            const assistantMessage = {
+                follow_up_request_suggestions: JSON.stringify(followUps),
+            } as Chat;
+            const previewMessage = {
                 message_id: messageId,
                 chat_id: chatId,
                 role: 'assistant' as const,
-                content: messageContent,    // Cleartext for local display
-                encrypted_content: encryptedContent,
-                encrypted_category: encryptedCategory,
+                content: messageContent,
                 category: inspiration.category,
                 created_at: now,
                 status: 'synced' as const,
-            };
+            } as ChatMessageModel;
 
-            await chatDB.saveMessage(assistantMessage);
-
-            console.info(`[ActiveChat] Created inspiration chat ${chatId} with message ${messageId}`);
-
-            // ── Add chat key wrapper + update hashed_chat_id in Directus ──
-            // If we reused a pre-stored inspiration embed, associate it with the
-            // newly created chat so the phased sync pipeline (which queries
-            // embed_keys by hashed_chat_id) can deliver the key to other devices.
-            // This is the same pattern used by normal embeds in handleSendEmbedDataImpl().
-            if (reusedEmbedId) {
-                try {
-                    const { computeSHA256 } = await import('../message_parsing/utils');
-                    const {
-                        generateEmbedKey,
-                        wrapEmbedKeyWithChatKey,
-                        wrapEmbedKeyWithMasterKey,
-                        encryptWithEmbedKey,
-                    } = await import('../services/cryptoService');
-                    const {
-                        sendStoreEmbedImpl,
-                    } = await import('../services/chatSyncServiceSenders');
-
-                    const profile = await userDB.getUserProfile();
-                    const currentUserId = profile?.user_id || '';
-                    const hashedChatId = await computeSHA256(chatId);
-                    const hashedEmbedId = await computeSHA256(reusedEmbedId);
-                    const hashedMessageId = await computeSHA256(messageId);
-                    const hashedUserId = await computeSHA256(currentUserId);
-
-                    // Retrieve the existing embed key from cache (set by persistInspirations).
-                    // If not in cache (e.g., page reload), first try to recover it from
-                    // IndexedDB via the master key wrapper that persistInspirations stored.
-                    // Only generate a fresh key (and re-encrypt the content) when BOTH the
-                    // memory cache AND IndexedDB are empty — e.g. after clearing browser data.
-                    //
-                    // Why this matters: if we generate a new key while the existing
-                    // encrypted_content in IndexedDB/Directus was written with the old key,
-                    // we write the new key into the cache before completing re-encryption.
-                    // Any embed render that fires in the window between setEmbedKeyInCache()
-                    // and sendStoreEmbedImpl() will try to decrypt old ciphertext with the
-                    // new key → AES-GCM auth tag mismatch → embed shows "Error" status.
-                    let embedKeyForWrap = embedStore.getEmbedKeyFromCache(reusedEmbedId);
-                    let needsReEncrypt = false;
-
-                    if (!embedKeyForWrap) {
-                        // Cache miss (e.g. tab reload wiped the in-memory embedKeyCache).
-                        // Try to unwrap the existing master key wrapper from IndexedDB.
-                        // getEmbedKey() checks IndexedDB and unwraps via the master key —
-                        // if this succeeds we can use the original key and skip re-encryption,
-                        // keeping the already-stored encrypted_content consistent.
-                        console.info(
-                            `[ActiveChat] Embed key not in cache for ${reusedEmbedId} — trying IndexedDB recovery`,
-                        );
-                        const recoveredKey = await embedStore.getEmbedKey(reusedEmbedId, undefined);
-                        if (recoveredKey) {
-                            embedKeyForWrap = recoveredKey;
-                            console.info(
-                                `[ActiveChat] ✅ Recovered embed key from IndexedDB for ${reusedEmbedId} — no re-encryption needed`,
-                            );
-                        } else {
-                            // IndexedDB also empty (e.g., browser data cleared or first-time
-                            // cross-device). Generate a fresh key and re-encrypt the content
-                            // so the new key wrapper and the stored ciphertext are in sync.
-                            console.info(
-                                `[ActiveChat] IndexedDB recovery failed for ${reusedEmbedId} — generating fresh key and re-encrypting`,
-                            );
-                            embedKeyForWrap = generateEmbedKey();
-                            needsReEncrypt = true;
-                        }
+            setPendingInspirationChat({
+                chatId,
+                inspirationId: inspiration.inspiration_id,
+                messages: [previewMessage],
+                materialize: async () => {
+                    const savedChat = await saveInspirationChat({
+                        inspiration, chatId, messageId, chatTitle, messageContent,
+                        reusedEmbedId, followUpSuggestions: followUps, now,
+                    });
+                    if (currentChat?.chat_id === chatId) {
+                        currentChat = { ...currentChat, ...savedChat, follow_up_request_suggestions: undefined };
                     }
-
-                    // Create a chat key wrapper (this is what was missing before)
-                    const wrappedChatKey = await wrapEmbedKeyWithChatKey(embedKeyForWrap, chatKey);
-
-                    // Also create/refresh the master key wrapper
-                    const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKeyForWrap);
-
-                    // Cache the embed key for local decryption
-                    embedStore.setEmbedKeyInCache(reusedEmbedId, embedKeyForWrap, undefined);
-
-                    const embedKeyTimestamp = Math.floor(Date.now() / 1000);
-
-                    // Store BOTH key wrappers (master + chat) locally and on server
-                    const embedKeysForStorage: import('../services/embedStore').EmbedKeyEntry[] = [
-                        {
-                            hashed_embed_id: hashedEmbedId,
-                            key_type: 'master',
-                            hashed_chat_id: null,
-                            encrypted_embed_key: wrappedMasterKey,
-                            hashed_user_id: hashedUserId,
-                            created_at: embedKeyTimestamp,
-                        },
-                        {
-                            hashed_embed_id: hashedEmbedId,
-                            key_type: 'chat',
-                            hashed_chat_id: hashedChatId,
-                            encrypted_embed_key: wrappedChatKey,
-                            hashed_user_id: hashedUserId,
-                            created_at: embedKeyTimestamp,
-                        },
-                    ];
-                    await embedStore.storeEmbedKeys(embedKeysForStorage);
-
-                    const { chatSyncService: syncService } = await import('../services/chatSyncService');
-                    // Publish a complete encrypted head before its new chat wrapper.
-                    // The offline sender queues both until the canonical receipts arrive.
-                    const embedUpdatePayload: Record<string, unknown> = {
-                        embed_id: reusedEmbedId,
-                        status: 'finished',
-                        hashed_chat_id: hashedChatId,
-                        hashed_message_id: hashedMessageId,
-                        hashed_user_id: hashedUserId,
-                        is_private: false,
-                        is_shared: false,
-                        created_at: embedKeyTimestamp,
-                        updated_at: embedKeyTimestamp,
-                    };
-
-                    if (inspiration.video) {
-                        const video = inspiration.video;
-                        const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
-                        let durationFmt: string | null = null;
-                        if (video.duration_seconds != null) {
-                            const m = Math.floor(video.duration_seconds / 60);
-                            const s = video.duration_seconds % 60;
-                            durationFmt = `${m}:${s.toString().padStart(2, '0')}`;
-                        }
-                        const embedContentObj = {
-                            url: videoUrl,
-                            video_id: video.youtube_id,
-                            title: video.title || null,
-                            description: null,
-                            channel_name: video.channel_name || null,
-                            channel_id: null,
-                            channel_thumbnail: null,
-                            thumbnail: video.thumbnail_url || null,
-                            duration_seconds: video.duration_seconds ?? null,
-                            duration_formatted: durationFmt,
-                            view_count: video.view_count ?? null,
-                            like_count: null,
-                            published_at: video.published_at || null,
-                            fetched_at: new Date().toISOString(),
-                        };
-                        let toonStr: string;
-                        try {
-                            toonStr = (await import('@toon-format/toon')).encode(embedContentObj);
-                        } catch {
-                            toonStr = JSON.stringify(embedContentObj);
-                        }
-
-                        const encContent = await encryptWithEmbedKey(toonStr, embedKeyForWrap);
-                        const encType = await encryptWithEmbedKey('video', embedKeyForWrap);
-                        const encPreview = await encryptWithEmbedKey(
-                            video.title || 'YouTube Video', embedKeyForWrap,
-                        );
-                        if (!encContent || !encType) {
-                            throw new Error('Failed to encrypt reused inspiration embed before publishing its chat wrapper');
-                        }
-                        embedUpdatePayload.encrypted_content = encContent;
-                        embedUpdatePayload.encrypted_type = encType;
-                        if (encPreview) embedUpdatePayload.encrypted_text_preview = encPreview;
-                    }
-
-                    if (syncService) {
-                        await sendStoreEmbedImpl(
-                            syncService,
-                            embedUpdatePayload as unknown as import('../types/chat').StoreEmbedPayload,
-                            { keys: embedKeysForStorage.map((key) => ({ ...key })) },
-                        );
-                    }
-
-                    console.info(
-                        `[ActiveChat] ✅ Associated inspiration embed ${reusedEmbedId} with chat ${chatId} ` +
-                        `(added chat key wrapper + updated hashed_chat_id in Directus)` +
-                        (needsReEncrypt ? ' [re-encrypted with fresh key]' : ''),
-                    );
-
-                    // ── Capture embed data for cross-device sync ─────────────────
-                    // Build the encrypted embed payload so sendSyncInspirationChat
-                    // can include it in the broadcast. This lets the receiving
-                    // device store the embed + keys immediately — no Directus
-                    // round-trip required. Without this, a quick device switch
-                    // after opening an inspiration often fails because store_embed
-                    // hasn't reached Directus yet when the second device calls
-                    // request_embed.
-                    try {
-                        // Get or create the encrypted embed fields for the sync payload.
-                        // The canonical head was encrypted before its wrappers were queued.
-                        let encEmbedContent = embedUpdatePayload.encrypted_content as string | undefined;
-                        let encEmbedType = embedUpdatePayload.encrypted_type as string | undefined;
-                        let encEmbedPreview = embedUpdatePayload.encrypted_text_preview as string | undefined;
-
-                        if (!encEmbedContent && inspiration.video) {
-                            // Normal path (no re-encrypt needed): encrypt the embed content
-                            // using the original embed key so the receiving device can decrypt.
-                            const video = inspiration.video;
-                            const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
-                            let dFmt: string | null = null;
-                            if (video.duration_seconds != null) {
-                                const mn = Math.floor(video.duration_seconds / 60);
-                                const sc = video.duration_seconds % 60;
-                                dFmt = `${mn}:${sc.toString().padStart(2, '0')}`;
-                            }
-                            const embedObj = {
-                                url: videoUrl,
-                                video_id: video.youtube_id,
-                                title: video.title || null,
-                                description: null,
-                                channel_name: video.channel_name || null,
-                                channel_id: null,
-                                channel_thumbnail: null,
-                                thumbnail: video.thumbnail_url || null,
-                                duration_seconds: video.duration_seconds ?? null,
-                                duration_formatted: dFmt,
-                                view_count: video.view_count ?? null,
-                                like_count: null,
-                                published_at: video.published_at || null,
-                                fetched_at: new Date().toISOString(),
-                            };
-                            let tStr: string;
-                            try {
-                                tStr = (await import('@toon-format/toon')).encode(embedObj);
-                            } catch {
-                                tStr = JSON.stringify(embedObj);
-                            }
-
-                            encEmbedContent = await encryptWithEmbedKey(tStr, embedKeyForWrap) ?? undefined;
-                            encEmbedType = await encryptWithEmbedKey('video', embedKeyForWrap) ?? undefined;
-                            encEmbedPreview = await encryptWithEmbedKey(
-                                video.title || 'YouTube Video', embedKeyForWrap,
-                            ) ?? undefined;
-                        }
-
-                        if (encEmbedContent && encEmbedType) {
-                            inspirationEmbedForSync = {
-                                embed_id: reusedEmbedId,
-                                encrypted_content: encEmbedContent,
-                                encrypted_type: encEmbedType,
-                                encrypted_text_preview: encEmbedPreview || '',
-                                embed_keys: embedKeysForStorage,
-                            };
-                            console.info(
-                                `[ActiveChat] Prepared inspiration embed ${reusedEmbedId} for cross-device sync`,
-                            );
-                        }
-                    } catch (embedSyncErr) {
-                        // Non-fatal: second device falls back to request_embed
-                        console.warn(
-                            '[ActiveChat] Failed to prepare embed for cross-device sync (non-fatal):',
-                            embedSyncErr,
-                        );
-                    }
-                } catch (keyErr) {
-                    // Non-fatal: the embed is stored locally and works on this device.
-                    // Other devices can use the request_embed safety net to get the key.
-                    console.error(
-                        '[ActiveChat] Failed to create chat key wrapper for inspiration embed (non-fatal):',
-                        keyErr,
-                    );
-                }
-            }
-
-            // Mark the inspiration as opened — the carousel stays visible but the
-            // next unopened entry becomes the default. Do this before navigating
-            // so the banner updates immediately if the user goes back.
-            const { dailyInspirationStore: inspirationStore } = await import('../stores/dailyInspirationStore');
-            const { markInspirationOpenedInIndexedDB, markInspirationOpenedOnAPI } = await import('../services/dailyInspirationDB');
-
-            // Hashed chat ID used as the opened_chat_id reference
-            const openedChatId = chatId;
-
-            // Update the Svelte store immediately (optimistic update)
-            inspirationStore.markOpened(inspiration.inspiration_id, openedChatId);
-
-            // Persist to IndexedDB and API in the background (non-blocking, non-fatal)
-            markInspirationOpenedInIndexedDB(inspiration.inspiration_id, openedChatId).catch((err: unknown) => {
-                console.error('[ActiveChat] Failed to mark inspiration opened in IndexedDB:', err);
-            });
-            markInspirationOpenedOnAPI(
-                inspiration.inspiration_id,
-                openedChatId,
-                inspiration.video?.youtube_id,
-            ).catch((err: unknown) => {
-                console.error('[ActiveChat] Failed to mark inspiration opened on API:', err);
+                },
             });
 
-            // ── Follow-up suggestions ──────────────────────────────────────────
-            // Use LLM-generated follow-up suggestions stored on the inspiration object.
-            // These are generated at inspiration creation time (same LLM call as
-            // assistant_response), making them specific to the actual topic.
-            // Falls back to a humanised title if the inspiration predates this feature
-            // or if the LLM failed to generate suggestions.
-            let encryptedFollowUpSuggestions: string | null = null;
-            try {
-                const { encryptWithChatKey: encryptSuggestions } = await import('../services/cryptoService');
-
-                // Use LLM suggestions if available; otherwise fall back to a humanised title.
-                const llmSuggestions = inspiration.follow_up_suggestions;
-                const hasSuggestions = Array.isArray(llmSuggestions) && llmSuggestions.length > 0;
-                const topicLabel = inspiration.title
-                    ?? (inspiration.phrase ? inspiration.phrase.split('.')[0] : null)
-                    ?? inspiration.category.replace(/_/g, ' ');
-                const rawSuggestions: string[] = hasSuggestions
-                    ? llmSuggestions!
-                    : [
-                        `Tell me more about ${topicLabel}`,
-                        `What are the practical implications of this?`,
-                        `What should I explore next about ${topicLabel}?`,
-                    ];
-
-                if (!hasSuggestions) {
-                    console.debug(
-                        '[ActiveChat] No LLM follow-up suggestions on inspiration — using fallback for:',
-                        inspiration.inspiration_id,
-                    );
-                }
-
-                const encBlob = await encryptSuggestions(
-                    JSON.stringify(rawSuggestions),
-                    chatKey,
-                );
-                if (encBlob) {
-                    encryptedFollowUpSuggestions = encBlob;
-                    const chatWithSuggestions = {
-                        ...(newChat as import('../types/chat').Chat),
-                        encrypted_follow_up_request_suggestions: encBlob,
-                    };
-                    await chatDB.updateChat(chatWithSuggestions);
-                    // Make suggestions available in the UI immediately
-                    followUpSuggestions = rawSuggestions;
-                    console.debug(
-                        '[ActiveChat] Stored follow-up suggestions for inspiration chat:',
-                        rawSuggestions.length,
-                        hasSuggestions ? '(LLM-generated)' : '(fallback)',
-                    );
-                }
-            } catch (suggErr) {
-                // Non-fatal — suggestions are a nice-to-have
-                console.warn('[ActiveChat] Failed to store follow-up suggestions for inspiration chat:', suggErr);
-            }
-
-            // Navigate to the new chat (same pattern as handleResumeLastChat)
             phasedSyncState.markInitialChatLoaded();
             activeChatStore.setActiveChat(chatId);
-            await loadChat(newChat as import('../types/chat').Chat);
-
-            // Notify Chats.svelte sidebar so the new chat appears immediately.
-            // chatListCache.upsertChat inserts the chat at the top of the cached list,
-            // then localChatListChanged triggers Chats.svelte to re-render.
-            chatListCache.upsertChat(newChat as import('../types/chat').Chat);
-            window.dispatchEvent(new CustomEvent('localChatListChanged', {
-                bubbles: true,
-                composed: true,
-                detail: { reason: 'inspiration_chat_created', chatId },
-            }));
-            window.dispatchEvent(new CustomEvent('globalChatSelected', {
-                bubbles: true,
-                composed: true,
-                detail: { chatId },
-            }));
-
-            // ── Cross-device sync ────────────────────────────────────────────────
-            // The chat was created locally (IndexedDB only). Sync it to the server
-            // so that other devices can see it via phased sync or the broadcast.
-            // 1. Update last_opened on the server (resume card on other devices).
-            // 2. Send the encrypted chat + message for cross-device broadcast.
-            try {
-                // Notify server of the active chat (updates last_opened in Redis + Directus)
-                chatSyncService.sendSetActiveChat(chatId);
-
-                // Sync the full chat + first message for cross-device visibility.
-                // Include the inspiration embed data + keys so other devices can
-                // store and decrypt the embed immediately without a Directus round-trip.
-                if (encryptedChatKey) {
-                    await chatSyncService.sendSyncInspirationChat(
-                        chatId,
-                        messageId,
-                        messageContent,
-                        inspiration.category,
-                        encryptedTitle,
-                        encryptedCategory,
-                        encryptedContent,
-                        encryptedChatKey,
-                        now,
-                        encryptedFollowUpSuggestions ?? undefined,
-                        inspirationEmbedForSync,
-                    );
-                } else {
-                    console.warn('[ActiveChat] Could not encrypt chat key for inspiration chat sync — chat will sync on next phased sync');
-                }
-            } catch (syncErr) {
-                // Non-fatal — chat still works locally, will sync eventually
-                console.warn('[ActiveChat] Failed to sync inspiration chat to server:', syncErr);
-            }
-
+            await loadChat(previewChat);
         } catch (err) {
-            console.error('[ActiveChat] Error creating chat from inspiration:', err);
+            console.error('[ActiveChat] Error opening daily inspiration preview:', err);
         }
     }
 
@@ -9614,7 +9241,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (!currentChat?.chat_id) return;
             
             // Skip scroll position updates for public chats (demo + legal - they're not stored in IndexedDB or server)
-            if (isPublicChat(currentChat.chat_id)) {
+            // and for an unsaved daily inspiration preview (TASK-3406).
+            if (isPublicChat(currentChat.chat_id) || isPendingInspirationChat(currentChat.chat_id)) {
                 console.debug(`[ActiveChat] Skipping scroll position save for public chat: ${currentChat.chat_id}`);
                 return;
             }
@@ -10128,6 +9756,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
              return;
          }
          composerDismissalGeneration++;
+         // Leaving an unsent daily inspiration preview drops it: nothing was stored (TASK-3406).
+         if (!isPendingInspirationChat(chat.chat_id)) discardPendingInspirationChat();
          // End the previous typing session at navigation start, before any
          // async loading. Same-chat refreshes keep the user's focus/selection,
          // and a click during this load must never be undone on completion.
@@ -10455,7 +10085,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
          if (chatForHeader) {
               if (isCurrentDraftOnlyChat) {
                    await applyPersistedDraftHeader(chatForHeader, 'loadChat', isCurrentLoadTarget);
-              } else if (isPublicChat(chatForHeader.chat_id)) {
+              } else if (isPublicChat(chatForHeader.chat_id) || isPendingInspirationChat(chatForHeader.chat_id)) {
                   // Public chats (demo/example/community): all metadata is cleartext
                   const t = typeof chatForHeader.title === 'string' ? chatForHeader.title : '';
                   const c = chatForHeader.category || null;
@@ -10638,8 +10268,16 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         let messageLoadFailed = false;
         let backgroundMessageWindowRepair: Promise<Awaited<ReturnType<typeof fetchAuthenticatedMessageWindow>> | null> | null = null;
         if (currentChat?.chat_id) {
+            const pendingInspiration = getPendingInspirationChat(currentChat.chat_id);
+            if (pendingInspiration) {
+                // An opened daily inspiration not saved yet (TASK-3406): its message lives in memory.
+                // Yield once like the IndexedDB read of a saved chat does, so the ChatHistory keyed
+                // on this chat ID has remounted before it receives the message.
+                await tick();
+                newMessages = pendingInspiration.messages;
+                currentMessageWindowHasMoreBefore = false;
             // Check if this is a public chat (demo or example) - load messages from static bundle instead of IndexedDB
-            if (isPublicChat(currentChat.chat_id)) {
+            } else if (isPublicChat(currentChat.chat_id)) {
                 console.debug(`[ActiveChat] Loading public chat messages for: ${currentChat.chat_id}`);
                 currentCompressionCheckpoints = isExampleChat(currentChat.chat_id)
                     ? getExampleChatCompressionCheckpoints(currentChat.chat_id)
@@ -11710,6 +11348,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
     function notifyBackendOfActiveChat() {
+        // An unsaved daily inspiration preview is unknown to the server (TASK-3406);
+        // saveInspirationChat sends set_active_chat once the first message saves it.
+        if (isPendingInspirationChat(currentChat?.chat_id)) return;
         // Notify backend about the active chat, but only if WebSocket is connected
         // CRITICAL: Don't send set_active_chat if user is in signup flow - this would overwrite last_opened
         // and cause the user to skip remaining signup steps
@@ -14276,13 +13917,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                     {/if}
                                     <!-- Subtitle: decrypting indicator while Phase 1 metadata is syncing, then "Continue where you left off" when cards are ready. -->
                                     {#if $authStore.isAuthenticated}
-                                        <ActiveChatsLink />
-                                        {#if isContinueChatsLoading}
+                                        {#if $activeChatCount > 0}
+                                            <ActiveChatsHeading />
+                                        {:else if isContinueChatsLoading}
                                             <p class="decrypting-chats-text" transition:fade={fadeParams}>
                                                 {$text('chats.resume_last_chat.decrypting')}
                                             </p>
                                         {:else if hasContinueItems}
-                                            <p transition:fade={fadeParams}>{$text('chats.resume_last_chat.title')}</p>
+                                            <!-- Fades in only: when a chat becomes active the active-count title replaces it in place, without both lines showing at once. -->
+                                            <p in:fade={fadeParams}>{$text('chats.resume_last_chat.title')}</p>
                                         {:else}
                                             <p>
                                                 {#each welcomePromptParts as part, index}
@@ -14320,6 +13963,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                     bind:this={recentChatsScrollEl}
                                 >
                                     {#each startRowEntries as entry (getStartRowEntryKey(entry))}
+                                    <div
+                                        class="start-row-slot"
+                                        animate:startRowCardFlip={{ enabled: startRowMotionEnabled }}
+                                        in:startRowCardIn={{ enabled: startRowMotionEnabled }}
+                                    >
                                         {#if entry.kind === 'inspiration'}
                                             {@const inspiration = entry.item}
                                             <div class="start-row-slot" use:trackInspirationView={inspiration.inspiration_id}>
@@ -14328,7 +13976,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                     title={inspiration.title || inspiration.phrase}
                                                     summary={inspiration.title ? inspiration.phrase : null}
                                                     category={inspiration.category}
-                                                    mediaImageUrl={getInspirationThumbnail(inspiration)}
                                                     badge={{
                                                         label: $text('daily_inspiration.label'),
                                                         testId: 'start-row-inspiration-label',
@@ -14342,6 +13989,22 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                     onActivate={() => handleStartChatFromInspiration(inspiration)}
                                                 />
                                             </div>
+                                        {:else if entry.item.type === 'active'}
+                                            {@const meta = entry.item.meta}
+                                            <StartScreenChatCard
+                                                testId="start-row-active-card"
+                                                title={meta.title || $text('common.untitled_chat')}
+                                                summary={meta.summary}
+                                                category={meta.category}
+                                                icon={meta.icon}
+                                                imageBubbles={meta.imageBubbles}
+                                                chatId={meta.chat.chat_id}
+                                                pinned={!!meta.chat.pinned}
+                                                badge={getSharedChatBadge(meta.chat)}
+                                                active={{ label: $text('chats.resume_last_chat.active_card_label'), testId: 'start-row-active-pill' }}
+                                                gestures={getStartCardGestures(meta.chat)}
+                                                onActivate={() => handleOpenRecentChat(meta.chat)}
+                                            />
                                         {:else if entry.item.type === 'priority'}
                                             {@const item = entry.item.item}
                                             <StartScreenChatCard
@@ -14421,6 +14084,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                                 onActivate={() => handleOpenRecentChat(meta.chat)}
                                             />
                                         {/if}
+                                    </div>
                                     {/each}
 
                                     <StartScreenRowActions testId="start-row-actions" actions={startRowActions} />
@@ -15658,7 +15322,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         font-weight: 600;
     }
 
-    .welcome-text p {
+    /* The active-count title replaces the subtitle and looks exactly like it. */
+    .welcome-text p,
+    .welcome-text :global(.active-chats-heading) {
         position: relative;
         z-index: 1;
         margin: 8px 0 0;

@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "Alles weigeren"
       },
+      "continue_without_memories": {
+        "text": "Doorgaan zonder herinneringen"
+      },
+      "call_countdown_label": {
+        "text": "Resterende tijd tot antwoord zonder herinneringen"
+      },
       "entry_singular": {
         "text": "item"
       },
@@ -3720,7 +3726,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Ga verder waar je gebleven was:"
+        "text": "Ga verder met je recente chats:"
+      },
+      "active_title_single": {
+        "text": "Je hebt 1 actieve chat:"
+      },
+      "active_title": {
+        "text": "Je hebt {count} actieve chats:"
+      },
+      "active_card_label": {
+        "text": "Actief"
       },
       "guest_title": {
         "text": "Ontdek enkele voorbeeldchats:"
@@ -4564,6 +4579,56 @@
       },
       "ask_question": {
         "text": "Vraag over deze documentatie..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Om dit uit te voeren, worden je code en bestanden naar E2B gestuurd, een aanbieder van cloudsandboxen, en daar uitgevoerd."
+      },
+      "privacy_policy": {
+        "text": "Privacybeleid"
+      },
+      "own_machine_hint": {
+        "text": "Of voer het uit op je eigen computer met:"
+      },
+      "allow": {
+        "text": "Toestaan"
+      },
+      "own_machine": {
+        "text": "Mijn eigen computer gebruiken"
+      },
+      "not_now": {
+        "text": "Niet nu"
+      },
+      "answered": {
+        "text": "Je antwoord:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Code uitvoeren in de E2B-cloudsandbox is niet toegestaan voor je account, dus er is niets gestart. Je kunt dit wijzigen in Instellingen > Privacy, of het op je eigen machine uitvoeren met de opdracht voor toegang op afstand."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Code uitvoeren in de E2B-cloudsandbox"
+      },
+      "description": {
+        "text": "Als dit is toegestaan, worden de code en bestanden die je uitvoert naar E2B gestuurd, een aanbieder van cloudsandboxen. Als het niet is toegestaan, wordt er niets verstuurd."
+      },
+      "status_allowed": {
+        "text": "Toegestaan"
+      },
+      "status_declined": {
+        "text": "Niet toegestaan"
+      },
+      "status_undecided": {
+        "text": "Nog niet beslist"
+      },
+      "error": {
+        "text": "Deze instelling kon niet worden opgeslagen. Probeer het opnieuw."
       }
     }
   },
@@ -8244,6 +8309,9 @@
         },
         "no_video": {
           "text": "Geen video beschikbaar voor deze run"
+        },
+        "with_setup": {
+          "text": "{duration} met voorbereiding"
         }
       }
     },
@@ -21815,7 +21883,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Herinneringsverzoek verlopen, beantwoord zonder herinneringen"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Gesprekken gebruiken Mistral-transcriptie, ElevenLabs v4 Turbo-spraak, normale OpenMates AI-routering en facturering op basis van gebruik."

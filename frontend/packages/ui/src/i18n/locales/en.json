@@ -3562,6 +3562,12 @@
       "reject_all": {
         "text": "Reject all"
       },
+      "continue_without_memories": {
+        "text": "Continue without memories"
+      },
+      "call_countdown_label": {
+        "text": "Time left before answering without memories"
+      },
       "entry_singular": {
         "text": "entry"
       },
@@ -4995,7 +5001,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Continue where you left off:"
+        "text": "Continue your recent chats:"
+      },
+      "active_title_single": {
+        "text": "You have 1 chat active:"
+      },
+      "active_title": {
+        "text": "You have {count} chats active:"
+      },
+      "active_card_label": {
+        "text": "Active"
       },
       "guest_title": {
         "text": "Explore some example chats:"
@@ -6105,6 +6120,56 @@
       },
       "ask_question": {
         "text": "Ask about this documentation..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "To run this, your code and files are sent to E2B, a cloud sandbox provider, and run there."
+      },
+      "privacy_policy": {
+        "text": "Privacy policy"
+      },
+      "own_machine_hint": {
+        "text": "Or run it on your own machine with:"
+      },
+      "allow": {
+        "text": "Allow"
+      },
+      "own_machine": {
+        "text": "Use my own machine"
+      },
+      "not_now": {
+        "text": "Not now"
+      },
+      "answered": {
+        "text": "Your answer:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Running code in the E2B cloud sandbox is not allowed for your account, so nothing was started. You can change this in Settings > Privacy, or run it on your own machine with the remote access command."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Run code in the E2B cloud sandbox"
+      },
+      "description": {
+        "text": "When allowed, the code and files you run are sent to E2B, a cloud sandbox provider. When not allowed, nothing is sent."
+      },
+      "status_allowed": {
+        "text": "Allowed"
+      },
+      "status_declined": {
+        "text": "Not allowed"
+      },
+      "status_undecided": {
+        "text": "Not decided yet"
+      },
+      "error": {
+        "text": "Could not save this setting. Please try again."
       }
     }
   },
@@ -10529,6 +10594,9 @@
         },
         "no_video": {
           "text": "No video available for this run"
+        },
+        "with_setup": {
+          "text": "{duration} with setup"
         }
       }
     },
@@ -28408,6 +28476,15 @@
     },
     "ended": {
       "text": "You ended a voice call"
+    },
+    "memory_request_timed_out": {
+      "text": "Memory request timed out, answered without memories"
+    },
+    "waiting_start": {
+      "text": "Okay, I'm waiting."
+    },
+    "waiting_resume": {
+      "text": "Okay, go on."
     }
   },
   "voicecall": {
@@ -28617,6 +28694,33 @@
     },
     "connecting_short": {
       "text": "Connecting…"
+    },
+    "hold": {
+      "text": "Hold"
+    },
+    "resume_hold": {
+      "text": "I'm back"
+    },
+    "waiting": {
+      "text": "Waiting for you"
+    },
+    "waiting_start": {
+      "text": "Okay, I'm waiting."
+    },
+    "waiting_resume": {
+      "text": "Okay, go on."
+    },
+    "screen_sharing": {
+      "text": "You are sharing your screen"
+    },
+    "screen_share_stop": {
+      "text": "Stop"
+    },
+    "screen_share_preview": {
+      "text": "Shared screen preview"
+    },
+    "screen_failed": {
+      "text": "Screen sharing is unavailable. Please try again."
     }
   },
   "waiting_list": {

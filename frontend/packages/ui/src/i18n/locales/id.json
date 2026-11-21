@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "Tolak semua"
       },
+      "continue_without_memories": {
+        "text": "Lanjutkan tanpa kenangan"
+      },
+      "call_countdown_label": {
+        "text": "Sisa waktu sebelum menjawab tanpa kenangan"
+      },
       "entry_singular": {
         "text": "entri"
       },
@@ -3720,7 +3726,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Lanjutkan dari yang terakhir:"
+        "text": "Lanjutkan obrolan terbaru Anda:"
+      },
+      "active_title_single": {
+        "text": "Anda memiliki 1 obrolan aktif:"
+      },
+      "active_title": {
+        "text": "Anda memiliki {count} obrolan aktif:"
+      },
+      "active_card_label": {
+        "text": "Aktif"
       },
       "guest_title": {
         "text": "Jelajahi beberapa contoh percakapan:"
@@ -4564,6 +4579,56 @@
       },
       "ask_question": {
         "text": "Tanyakan tentang dokumentasi ini..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Untuk menjalankan ini, kode dan file kamu dikirim ke E2B, penyedia sandbox cloud, dan dijalankan di sana."
+      },
+      "privacy_policy": {
+        "text": "Kebijakan privasi"
+      },
+      "own_machine_hint": {
+        "text": "Atau jalankan di komputer kamu sendiri dengan:"
+      },
+      "allow": {
+        "text": "Izinkan"
+      },
+      "own_machine": {
+        "text": "Pakai komputer saya"
+      },
+      "not_now": {
+        "text": "Jangan sekarang"
+      },
+      "answered": {
+        "text": "Jawaban kamu:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Menjalankan kode di sandbox cloud E2B tidak diizinkan untuk akunmu, jadi tidak ada yang dimulai. Kamu bisa mengubahnya di Pengaturan > Privasi, atau menjalankannya di mesinmu sendiri dengan perintah akses jarak jauh."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Jalankan kode di sandbox cloud E2B"
+      },
+      "description": {
+        "text": "Jika diizinkan, kode dan file yang kamu jalankan dikirim ke E2B, penyedia sandbox cloud. Jika tidak diizinkan, tidak ada yang dikirim."
+      },
+      "status_allowed": {
+        "text": "Diizinkan"
+      },
+      "status_declined": {
+        "text": "Tidak diizinkan"
+      },
+      "status_undecided": {
+        "text": "Belum diputuskan"
+      },
+      "error": {
+        "text": "Pengaturan ini tidak dapat disimpan. Coba lagi."
       }
     }
   },
@@ -8244,6 +8309,9 @@
         },
         "no_video": {
           "text": "Tidak ada video untuk eksekusi ini"
+        },
+        "with_setup": {
+          "text": "{duration} dengan persiapan"
         }
       }
     },
@@ -21815,7 +21883,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Permintaan kenangan habis waktu, dijawab tanpa kenangan"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Panggilan memakai transkripsi Mistral, suara ElevenLabs v4 Turbo, perutean AI OpenMates biasa, dan penagihan berdasarkan penggunaan."

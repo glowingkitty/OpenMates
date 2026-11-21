@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "Từ chối tất cả"
       },
+      "continue_without_memories": {
+        "text": "Tiếp tục không dùng ký ức"
+      },
+      "call_countdown_label": {
+        "text": "Thời gian còn lại trước khi trả lời không dùng ký ức"
+      },
       "entry_singular": {
         "text": "mục"
       },
@@ -3720,7 +3726,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Tiếp tục cuộc trò chuyện:"
+        "text": "Tiếp tục các cuộc trò chuyện gần đây:"
+      },
+      "active_title_single": {
+        "text": "Bạn có 1 cuộc trò chuyện đang hoạt động:"
+      },
+      "active_title": {
+        "text": "Bạn có {count} cuộc trò chuyện đang hoạt động:"
+      },
+      "active_card_label": {
+        "text": "Đang hoạt động"
       },
       "guest_title": {
         "text": "Khám phá một số cuộc trò chuyện mẫu:"
@@ -4564,6 +4579,56 @@
       },
       "ask_question": {
         "text": "Hỏi về tài liệu này..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Để chạy nội dung này, mã và tệp của bạn sẽ được gửi đến E2B, một nhà cung cấp sandbox đám mây, và chạy ở đó."
+      },
+      "privacy_policy": {
+        "text": "Chính sách quyền riêng tư"
+      },
+      "own_machine_hint": {
+        "text": "Hoặc chạy trên máy của bạn bằng:"
+      },
+      "allow": {
+        "text": "Cho phép"
+      },
+      "own_machine": {
+        "text": "Dùng máy của tôi"
+      },
+      "not_now": {
+        "text": "Để sau"
+      },
+      "answered": {
+        "text": "Câu trả lời của bạn:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Tài khoản của bạn không cho phép chạy mã trong sandbox đám mây E2B nên chưa có gì được khởi chạy. Bạn có thể thay đổi trong Cài đặt > Quyền riêng tư, hoặc chạy trên máy của bạn bằng lệnh truy cập từ xa."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Chạy mã trong sandbox đám mây E2B"
+      },
+      "description": {
+        "text": "Khi được cho phép, mã và tệp bạn chạy sẽ được gửi đến E2B, một nhà cung cấp sandbox đám mây. Khi không được phép, sẽ không có gì được gửi."
+      },
+      "status_allowed": {
+        "text": "Đã cho phép"
+      },
+      "status_declined": {
+        "text": "Không được phép"
+      },
+      "status_undecided": {
+        "text": "Chưa quyết định"
+      },
+      "error": {
+        "text": "Không thể lưu cài đặt này. Vui lòng thử lại."
       }
     }
   },
@@ -8244,6 +8309,9 @@
         },
         "no_video": {
           "text": "Không có video cho lần chạy này"
+        },
+        "with_setup": {
+          "text": "{duration} kể cả chuẩn bị"
         }
       }
     },
@@ -21815,7 +21883,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Yêu cầu ký ức đã hết hạn, đã trả lời không dùng ký ức"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Cuộc gọi dùng phiên âm Mistral, giọng ElevenLabs v4 Turbo, định tuyến AI thông thường của OpenMates và tính phí theo mức sử dụng."

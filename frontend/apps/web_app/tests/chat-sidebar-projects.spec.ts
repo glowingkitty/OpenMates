@@ -85,7 +85,8 @@ asyncio.run(main())
   const output = execFileSync('docker', ['compose', '-f', compose, 'exec', '-T', '-e', 'OPENMATES_CI_ISOLATED=1', 'api', 'python', '-c', program], {
     cwd: root, input: JSON.stringify({ ...(payload as object), operation }), encoding: 'utf8', timeout: 60_000,
   });
-  expect(output.trim()).toBe('sidebar fixture applied');
+  // Backend imports may print library notices (e.g. a deprecation line) before the marker; the marker must be the last line.
+  expect(output.trim().split('\n').at(-1)).toBe('sidebar fixture applied');
 }
 
 // contract-test: direct surface=gui.web assertions=chat-navigation.projects.organize,chat-navigation.projects.nested-readable,chat-navigation.activity.global-running,projects.lifecycle.encrypted-crud,projects.files.write-policy-setup,projects.links.openmates-only-encrypted,projects.surface.semantic-parity
@@ -223,10 +224,8 @@ test('groups saved chats, navigates deep folders and reveals running descendants
     expect(census.ids).toEqual([child]);
     expect(census.chats.find((chat: any) => chat.id === child).parentId).toBe(parent);
     await page.goto('about:blank'); await page.goto('/'); await waitForChatReady(page);
-    await expect(page.getByTestId('active-chats-link')).toHaveText('1 chat active…', { timeout: 30_000 });
     await closeSidebar();
-    await page.getByTestId('active-chats-link').click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await openSidebar();
     const running = sidebar.getByTestId('running-chats-section');
     await expect(running.locator('[data-testid="chat-item-wrapper"]')).toHaveCount(1);
     await expect(running).toContainText('Launch copy'); await expect(running).toContainText('1 subchat running');
@@ -242,7 +241,6 @@ test('groups saved chats, navigates deep folders and reveals running descendants
     fixture(data, 'complete');
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect(running).toHaveCount(0, { timeout: 30_000 });
-    await expect(page.getByTestId('active-chats-link')).toHaveCount(0);
     await expect(navigation.getByTestId('chat-processing-wheel')).toHaveCount(0);
     await navigation.getByTestId('chat-project-folder').filter({ hasText: 'Drafts' }).click();
     await expect(row(parent)).toBeVisible();
@@ -356,6 +354,86 @@ test('groups saved chats, navigates deep folders and reveals running descendants
     if (data) { try { fixture(data, 'cleanup'); } catch (error) { cleanupErrors.push(error); } }
     removeWorkflowCliHome(home);
     if (!primaryError && cleanupErrors.length) cleanupError = cleanupErrors[0];
+  }
+  if (cleanupError) throw cleanupError;
+});
+
+// contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-active-first,chat-navigation.activity.global-running
+test('start row: a chat becomes active and fades in first, marked Active, under the active-count title', async ({ page }: { page: any }, testInfo: any) => {
+  test.setTimeout(240_000);
+  test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted' || process.env.CI_TEST_MODE !== 'e2e', 'Requires isolated GitHub product stack');
+  skipWithoutCredentials(test, email, password, otpKey);
+  const apiUrl = workflowApiUrl(), home = createWorkflowCliHome('start-row-active');
+  let data: any;
+  let primaryError: unknown;
+  let cleanupError: unknown;
+  try {
+    await loginWorkflowCliViaPair(page, apiUrl, home, 'START_ROW_ACTIVE');
+    await page.goto('about:blank');
+    // A parent with a sub-chat plus two other chats; the sub-chat is the one that will run.
+    data = sdk(apiUrl, home, `
+      const user=await client.whoAmI(), master=client.getMasterKeyBytes();
+      const parent=randomUUID(), other=randomUUID(), third=randomUUID(), child=randomUUID();
+      const chats=[];
+      for (const [id,title,parentId,category,icon] of [[parent,'Launch copy',null,'marketing_sales','megaphone'],[other,'Market research',null,'technology','code'],
+        [third,'Weekend trip',null,'travel','plane'],[child,'Audience analysis',parent,'marketing_sales','megaphone']]) {
+        const key=randomBytes(32);
+        chats.push({id, encrypted_title:await encrypt(title,key),encrypted_chat_key:await encrypt(key,master),
+          seed_message:{message_id:randomUUID(),encrypted_content:await encrypt('Start '+title,key),encrypted_sender_name:await encrypt('User',key)},
+          encrypted_chat_summary:await encrypt('Next steps for '+title,key),encrypted_category:await encrypt(category,key),encrypted_icon:await encrypt(icon,key),parent_id:parentId,is_sub_chat:!!parentId});
+      }
+      process.stdout.write(JSON.stringify({userId:user.id,chats}));
+    `);
+    fixture(data, 'seed');
+    const [parent, , , child] = data.chats.map((row: any) => row.id);
+    const rowItems = page.getByTestId('recent-chats-scroll-container').locator('.start-row-slot > [data-testid]');
+    const heading = page.getByTestId('active-chats-heading');
+
+    // Nothing runs yet: the plain title and no active card.
+    await page.goto('/'); await waitForChatReady(page);
+    await expect(page.locator(`.start-row-slot > [data-chat-id="${parent}"]`)).toBeVisible({ timeout: 30_000 });
+    const continueTitle = page.getByText('Continue your recent chats:');
+    await expect(continueTitle).toBeVisible();
+    const subtitleColor = await continueTitle.evaluate((node: Element) => getComputedStyle(node).color);
+    await expect(heading).toHaveCount(0);
+    await expect(page.getByTestId('start-row-active-card')).toHaveCount(0);
+    await page.waitForTimeout(2_000); // the first fill never animates; later arrivals do
+    await testInfo.attach('start-row-before-active', { body: await page.screenshot(), contentType: 'image/png' });
+
+    // The sub-chat starts running while the start screen is open: its parent counts as
+    // active, fades in from below at the front and the other cards slide right (Marco, 21 Nov).
+    fixture(data, 'active');
+    const census = sdk(apiUrl, home, 'process.stdout.write(JSON.stringify(await client.getChatActivity()));');
+    expect(census.ids).toEqual([child]);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    const activeCard = page.getByTestId('start-row-active-card');
+    await expect(activeCard).toHaveCount(1, { timeout: 30_000 });
+    // The active-count title replaces the subtitle in place: never both lines, same look.
+    await expect(continueTitle).toHaveCount(0);
+    await expect(heading).toHaveCSS('color', subtitleColor);
+    await testInfo.attach('start-row-active-fading-in', { body: await page.screenshot(), contentType: 'image/png' });
+    await expect(heading).toHaveText('You have 1 chat active:');
+    await expect(heading).toHaveCSS('text-decoration-line', 'none');
+    await expect(rowItems.first()).toHaveAttribute('data-testid', 'start-row-active-card');
+    await expect(rowItems.first()).toHaveAttribute('data-chat-id', parent);
+    await expect(activeCard.getByTestId('start-row-active-pill')).toHaveText('Active');
+    await expect(page.locator(`[data-chat-id="${child}"]`)).toHaveCount(0);
+    await page.waitForTimeout(1_000);
+    await expect(activeCard).toHaveCSS('opacity', '1');
+    await testInfo.attach('start-row-active-first', { body: await page.screenshot(), contentType: 'image/png' });
+
+    // It finishes: the title returns and the card is no longer marked active.
+    fixture(data, 'complete');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect(heading).toHaveCount(0, { timeout: 30_000 });
+    await expect(page.getByTestId('start-row-active-card')).toHaveCount(0);
+    await expect(page.getByText('Continue your recent chats:')).toBeVisible();
+    await expect(page.locator(`.start-row-slot > [data-chat-id="${parent}"]`)).toBeVisible();
+    await testInfo.attach('start-row-after-complete', { body: await page.screenshot(), contentType: 'image/png' });
+  } catch (error) { primaryError = error; throw error; }
+  finally {
+    if (data) { try { fixture(data, 'cleanup'); } catch (error) { if (!primaryError) cleanupError = error; } }
+    removeWorkflowCliHome(home);
   }
   if (cleanupError) throw cleanupError;
 });

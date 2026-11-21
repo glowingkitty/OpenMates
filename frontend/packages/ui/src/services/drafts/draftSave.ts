@@ -1,4 +1,5 @@
 import { debounce } from "lodash-es"; // Import isEqual
+import { isPendingInspirationChat } from "../pendingInspirationChat";
 import { get } from "svelte/store";
 import type { Editor } from "@tiptap/core";
 import { chatDB } from "../db";
@@ -674,6 +675,12 @@ export const saveDraftDebounced = debounce(
     }
 
     let currentChatIdForOperation = currentState.currentChatId;
+
+    // An opened daily inspiration stays unsaved until its first message (TASK-3406):
+    // a draft would create a chat record and key for its ID, so typing only stays in the editor.
+    if (isPendingInspirationChat(chatIdFromMessageInput ?? currentChatIdForOperation)) {
+      return;
+    }
 
     // CRITICAL: Don't save drafts for incognito chats
     // Check if the current chat is an incognito chat

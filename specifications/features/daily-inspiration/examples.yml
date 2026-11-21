@@ -133,6 +133,26 @@ encrypted_persistence:
     get_limit: 10
     incomplete_legacy_set_returns_empty: true
 opened_state:
+- id: opened-inspiration-unsaved-until-follow-up
+  given:
+    source: personalized
+    action: open inspiration daily-1, then leave without sending
+  expect:
+    assistant_message_shown: true
+    chat_key_created: false
+    local_chat_record: false
+    server_sync_sent: false
+    opened_state_recorded: false
+    still_in_start_row: true
+- id: first-follow-up-saves-inspiration-chat
+  given:
+    source: personalized
+    action: open inspiration daily-1, then send a follow-up message
+  expect:
+    saved_encrypted_chat_in_chat_list: true
+    message_history: [inspiration assistant message, follow-up, answer]
+    opened_state_recorded_with_chat_id: true
+    still_in_start_row: false
 - id: opened-card-remains-visible
   given:
     source: personalized

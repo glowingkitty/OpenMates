@@ -3,13 +3,13 @@ export default {
   ownCount: 6,
   inspirationCount: 3,
   showUpcoming: true,
-  showInspirationMedia: true,
   guest: false,
 };
 
 export const variants = {
-  newUser: { ownCount: 0, inspirationCount: 3, showUpcoming: false, showInspirationMedia: true, guest: false },
-  fullRow: { ownCount: 10, inspirationCount: 3, showUpcoming: false, showInspirationMedia: true, guest: false },
-  plainInspirations: { ownCount: 4, inspirationCount: 3, showUpcoming: true, showInspirationMedia: false, guest: false },
-  guest: { ownCount: 6, inspirationCount: 3, showUpcoming: true, showInspirationMedia: true, guest: true },
+  newUser: { ownCount: 0, inspirationCount: 3, showUpcoming: false, guest: false },
+  fullRow: { ownCount: 10, inspirationCount: 3, showUpcoming: false, guest: false },
+  plainInspirations: { ownCount: 4, inspirationCount: 3, showUpcoming: true, guest: false },
+  guest: { ownCount: 6, inspirationCount: 3, showUpcoming: true, guest: true },
+  activeChats: { ownCount: 6, inspirationCount: 3, showUpcoming: false, guest: false, activeCount: 2 },
 };

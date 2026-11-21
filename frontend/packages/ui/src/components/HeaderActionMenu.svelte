@@ -11,6 +11,7 @@
   import type { Snippet } from 'svelte';
   import { tick, onMount } from 'svelte';
   import { fly } from 'svelte/transition';
+  import { REPORT_LABEL_MIN_WIDTH } from './reportIssueLabel';
 
   let {
     report,
@@ -58,7 +59,6 @@
     responsiveActionMinWidth?: number;
   } = $props();
   const SHARE_MIN_WIDTH = 460;
-  const REPORT_LABEL_MIN_WIDTH = 640;
   const MENU_GAP = 12;
   const MENU_DURATION = 180;
   const MENU_HOVER_SCALE = 1.08;

@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "全部拒绝"
       },
+      "continue_without_memories": {
+        "text": "不使用记忆继续"
+      },
+      "call_countdown_label": {
+        "text": "在不使用记忆回答前的剩余时间"
+      },
       "entry_singular": {
         "text": "条目"
       },
@@ -3720,7 +3726,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "继续上次的对话："
+        "text": "继续你最近的对话："
+      },
+      "active_title_single": {
+        "text": "你有 1 个正在进行的对话："
+      },
+      "active_title": {
+        "text": "你有 {count} 个正在进行的对话："
+      },
+      "active_card_label": {
+        "text": "进行中"
       },
       "guest_title": {
         "text": "探索一些示例对话："
@@ -4564,6 +4579,56 @@
       },
       "ask_question": {
         "text": "询问有关此文档的问题..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "要运行此内容，你的代码和文件会被发送到云沙盒提供商 E2B，并在那里运行。"
+      },
+      "privacy_policy": {
+        "text": "隐私政策"
+      },
+      "own_machine_hint": {
+        "text": "或者在你自己的电脑上运行："
+      },
+      "allow": {
+        "text": "允许"
+      },
+      "own_machine": {
+        "text": "使用我自己的电脑"
+      },
+      "not_now": {
+        "text": "暂不"
+      },
+      "answered": {
+        "text": "你的回答："
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "你的账户未允许在 E2B 云沙盒中运行代码，因此没有启动任何内容。你可以在“设置 > 隐私”中更改，或使用远程访问命令在自己的电脑上运行。"
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "在 E2B 云沙盒中运行代码"
+      },
+      "description": {
+        "text": "允许时，你运行的代码和文件会发送到云沙盒提供商 E2B。不允许时，不会发送任何内容。"
+      },
+      "status_allowed": {
+        "text": "已允许"
+      },
+      "status_declined": {
+        "text": "未允许"
+      },
+      "status_undecided": {
+        "text": "尚未决定"
+      },
+      "error": {
+        "text": "无法保存此设置。请重试。"
       }
     }
   },
@@ -8244,6 +8309,9 @@
         },
         "no_video": {
           "text": "此次运行没有可用视频"
+        },
+        "with_setup": {
+          "text": "含准备 {duration}"
         }
       }
     },
@@ -21815,7 +21883,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "记忆请求已超时，已在不使用记忆的情况下回答"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "语音通话使用 Mistral 转录、ElevenLabs v4 Turbo 语音、OpenMates 常规 AI 路由和按用量计费。"

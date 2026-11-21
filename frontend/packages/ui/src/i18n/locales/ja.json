@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "すべて拒否"
       },
+      "continue_without_memories": {
+        "text": "記憶を使わずに続ける"
+      },
+      "call_countdown_label": {
+        "text": "記憶なしで回答するまでの残り時間"
+      },
       "entry_singular": {
         "text": "件"
       },
@@ -3720,7 +3726,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "前回の続きから："
+        "text": "最近のチャットを続ける："
+      },
+      "active_title_single": {
+        "text": "1 件のチャットが進行中です："
+      },
+      "active_title": {
+        "text": "{count} 件のチャットが進行中です："
+      },
+      "active_card_label": {
+        "text": "進行中"
       },
       "guest_title": {
         "text": "チャットの例を見てみましょう："
@@ -4564,6 +4579,56 @@
       },
       "ask_question": {
         "text": "このドキュメントについて質問..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "これを実行するには、コードとファイルがクラウドサンドボックスのプロバイダーである E2B に送信され、そこで実行されます。"
+      },
+      "privacy_policy": {
+        "text": "プライバシーポリシー"
+      },
+      "own_machine_hint": {
+        "text": "または、自分のマシンで次のコマンドを使って実行します:"
+      },
+      "allow": {
+        "text": "許可"
+      },
+      "own_machine": {
+        "text": "自分のマシンを使う"
+      },
+      "not_now": {
+        "text": "今はしない"
+      },
+      "answered": {
+        "text": "あなたの回答:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "アカウントでは E2B クラウドサンドボックスでのコード実行が許可されていないため、何も開始されませんでした。設定 > プライバシーで変更するか、リモートアクセスコマンドで自分のマシン上で実行できます。"
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "E2B クラウドサンドボックスでコードを実行"
+      },
+      "description": {
+        "text": "許可すると、実行するコードとファイルがクラウドサンドボックスのプロバイダーである E2B に送信されます。許可しない場合は何も送信されません。"
+      },
+      "status_allowed": {
+        "text": "許可済み"
+      },
+      "status_declined": {
+        "text": "許可していません"
+      },
+      "status_undecided": {
+        "text": "未選択"
+      },
+      "error": {
+        "text": "この設定を保存できませんでした。もう一度お試しください。"
       }
     }
   },
@@ -8244,6 +8309,9 @@
         },
         "no_video": {
           "text": "この実行の動画はありません"
+        },
+        "with_setup": {
+          "text": "準備込みで {duration}"
         }
       }
     },
@@ -21815,7 +21883,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "記憶リクエストがタイムアウトし、記憶なしで回答しました"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "音声通話は Mistral の文字起こし、ElevenLabs v4 Turbo の音声、通常の OpenMates AI ルーティング、従量課金を使用します。"

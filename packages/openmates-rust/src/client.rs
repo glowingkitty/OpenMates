@@ -17,6 +17,7 @@ mod travel_booking;
 pub mod learning_mode;
 pub mod new_chat_suggestions;
 pub mod recommendations;
+pub mod workflow_start_suggestions;
 pub mod recommendation_actions;
 pub use apps::DirectAppSkillAdmission;
 mod auth;

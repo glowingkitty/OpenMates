@@ -3527,6 +3527,12 @@
       "reject_all": {
         "text": "Alle ablehnen"
       },
+      "continue_without_memories": {
+        "text": "Ohne Erinnerungen fortfahren"
+      },
+      "call_countdown_label": {
+        "text": "Zeit, bis ohne Erinnerungen geantwortet wird"
+      },
       "entry_singular": {
         "text": "Eintrag"
       },
@@ -4936,7 +4942,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Dort fortfahren, wo du aufgehört hast:"
+        "text": "Mach mit deinen letzten Chats weiter:"
+      },
+      "active_title_single": {
+        "text": "Du hast 1 aktiven Chat:"
+      },
+      "active_title": {
+        "text": "Du hast {count} aktive Chats:"
+      },
+      "active_card_label": {
+        "text": "Aktiv"
       },
       "guest_title": {
         "text": "Entdecke einige Beispiel-Chats:"
@@ -6046,6 +6061,56 @@
       },
       "ask_question": {
         "text": "Frage zu dieser Dokumentation stellen..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Um das auszuführen, werden dein Code und deine Dateien an E2B gesendet, einen Cloud-Sandbox-Anbieter, und dort ausgeführt."
+      },
+      "privacy_policy": {
+        "text": "Datenschutzerklärung"
+      },
+      "own_machine_hint": {
+        "text": "Oder führe es auf deinem eigenen Rechner aus mit:"
+      },
+      "allow": {
+        "text": "Erlauben"
+      },
+      "own_machine": {
+        "text": "Meinen eigenen Rechner nutzen"
+      },
+      "not_now": {
+        "text": "Nicht jetzt"
+      },
+      "answered": {
+        "text": "Deine Antwort:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Code im E2B-Cloud-Sandbox auszuführen ist für dein Konto nicht erlaubt, deshalb wurde nichts gestartet. Du kannst das unter Einstellungen > Datenschutz ändern oder es mit dem Remote-Access-Befehl auf deinem eigenen Rechner ausführen."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Code in der E2B-Cloud-Sandbox ausführen"
+      },
+      "description": {
+        "text": "Wenn erlaubt, werden der Code und die Dateien, die du ausführst, an E2B gesendet, einen Cloud-Sandbox-Anbieter. Wenn nicht erlaubt, wird nichts gesendet."
+      },
+      "status_allowed": {
+        "text": "Erlaubt"
+      },
+      "status_declined": {
+        "text": "Nicht erlaubt"
+      },
+      "status_undecided": {
+        "text": "Noch nicht entschieden"
+      },
+      "error": {
+        "text": "Diese Einstellung konnte nicht gespeichert werden. Bitte versuche es erneut."
       }
     }
   },
@@ -10470,6 +10535,9 @@
         },
         "no_video": {
           "text": "Für diesen Lauf ist kein Video verfügbar"
+        },
+        "with_setup": {
+          "text": "{duration} mit Einrichtung"
         }
       }
     },
@@ -27432,6 +27500,15 @@
     },
     "ended": {
       "text": "Du hast einen Sprachanruf beendet"
+    },
+    "memory_request_timed_out": {
+      "text": "Erinnerungsanfrage abgelaufen, ohne Erinnerungen beantwortet"
+    },
+    "waiting_start": {
+      "text": "Okay, ich warte."
+    },
+    "waiting_resume": {
+      "text": "Okay, sprich weiter."
     }
   },
   "voicecall": {
@@ -27641,6 +27718,33 @@
     },
     "connecting_short": {
       "text": "Verbindung wird hergestellt…"
+    },
+    "hold": {
+      "text": "Halten"
+    },
+    "resume_hold": {
+      "text": "Ich bin wieder da"
+    },
+    "waiting": {
+      "text": "Wartet auf dich"
+    },
+    "waiting_start": {
+      "text": "Okay, ich warte."
+    },
+    "waiting_resume": {
+      "text": "Okay, sprich weiter."
+    },
+    "screen_sharing": {
+      "text": "Du teilst deinen Bildschirm"
+    },
+    "screen_share_stop": {
+      "text": "Beenden"
+    },
+    "screen_share_preview": {
+      "text": "Vorschau des geteilten Bildschirms"
+    },
+    "screen_failed": {
+      "text": "Die Bildschirmfreigabe ist nicht verfügbar. Bitte versuche es erneut."
     }
   },
   "waiting_list": {

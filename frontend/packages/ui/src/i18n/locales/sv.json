@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "Avvisa alla"
       },
+      "continue_without_memories": {
+        "text": "Fortsätt utan minnen"
+      },
+      "call_countdown_label": {
+        "text": "Tid kvar innan svaret ges utan minnen"
+      },
       "entry_singular": {
         "text": "post"
       },
@@ -3720,7 +3726,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Fortsätt där du slutade:"
+        "text": "Fortsätt dina senaste chattar:"
+      },
+      "active_title_single": {
+        "text": "Du har 1 aktiv chatt:"
+      },
+      "active_title": {
+        "text": "Du har {count} aktiva chattar:"
+      },
+      "active_card_label": {
+        "text": "Aktiv"
       },
       "guest_title": {
         "text": "Utforska några exempelchattar:"
@@ -4564,6 +4579,56 @@
       },
       "ask_question": {
         "text": "Fråga om den här dokumentationen..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "För att köra detta skickas din kod och dina filer till E2B, en leverantör av molnsandlådor, och körs där."
+      },
+      "privacy_policy": {
+        "text": "Integritetspolicy"
+      },
+      "own_machine_hint": {
+        "text": "Eller kör det på din egen dator med:"
+      },
+      "allow": {
+        "text": "Tillåt"
+      },
+      "own_machine": {
+        "text": "Använd min egen dator"
+      },
+      "not_now": {
+        "text": "Inte nu"
+      },
+      "answered": {
+        "text": "Ditt svar:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Att köra kod i molnsandlådan E2B är inte tillåtet för ditt konto, så ingenting startades. Du kan ändra det under Inställningar > Integritet, eller köra det på din egen maskin med kommandot för fjärråtkomst."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Kör kod i molnsandlådan E2B"
+      },
+      "description": {
+        "text": "När det är tillåtet skickas koden och filerna du kör till E2B, en leverantör av molnsandlådor. När det inte är tillåtet skickas ingenting."
+      },
+      "status_allowed": {
+        "text": "Tillåtet"
+      },
+      "status_declined": {
+        "text": "Inte tillåtet"
+      },
+      "status_undecided": {
+        "text": "Inte avgjort än"
+      },
+      "error": {
+        "text": "Det gick inte att spara den här inställningen. Försök igen."
       }
     }
   },
@@ -8244,6 +8309,9 @@
         },
         "no_video": {
           "text": "Ingen video tillgänglig för den här körningen"
+        },
+        "with_setup": {
+          "text": "{duration} med förberedelse"
         }
       }
     },
@@ -21815,7 +21883,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Begäran om minnen gick ut, besvarad utan minnen"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Samtal använder Mistral-transkribering, ElevenLabs v4 Turbo-röst, OpenMates vanliga AI-routning och användningsbaserad debitering."

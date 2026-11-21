@@ -660,7 +660,7 @@ specifications:
     version: 3
     status: draft
     path: features/chat-navigation
-    fingerprint: eab33605caff32cbb2e51c2ab9c1ccef872ebeabc66d2208322a16f14a96ae81
+    fingerprint: 4f5c9b13c94f26a2e4033faff1d95e92da8ad3ffcaa0a4079ec0e5a8771ba946
     required_applies_to:
     - cli
     - gui.web
@@ -716,7 +716,7 @@ specifications:
     version: 1
     status: draft
     path: features/chat-unread
-    fingerprint: 7482f359d8b120f21ec9b8264f84596dee3603ac78daa2b3fa9fb3f6fdb853c6
+    fingerprint: 4e322629e46653846750d2211780880098ead23c8c95a42148b590dc58d7e4b1
     required_applies_to:
     - cli
     - gui.web
@@ -752,7 +752,7 @@ specifications:
     version: 3
     status: draft
     path: features/daily-inspiration
-    fingerprint: fe38ebc9e531c8b447047307f177470f27e8aeea5dc0fee595e0ec42d20f3e57
+    fingerprint: de07f973e9d3a974ffca858277d354874e70eb20fd352c32b7d109752bc96521
     required_applies_to:
     - rest_api
     - gui.web
@@ -834,7 +834,7 @@ specifications:
     version: 8
     status: draft
     path: features/landing-onboarding
-    fingerprint: f336f069bf535b92e2a3a9e21c3c403aedc8a9f35aaf16c18dc715bc1cb4f171
+    fingerprint: 7bc51cf935a0c9a0f362890cb3d92de4f1425d968ba9305017296216b1a7b50a
     required_applies_to:
     - gui.web
     - gui.apple
@@ -1129,7 +1129,7 @@ specifications:
     version: 12
     status: draft
     path: features/workflows-ui
-    fingerprint: 4d117f34ea22cd4b0184463ba42e5571053dcf14b6b2a466860aca04752f8824
+    fingerprint: 8cce71b7cbfd5325d6c8d109444e5876c72e7e582da2e0ab49e29d4822a910d8
     required_applies_to:
     - gui.web
   feature.workspace-shell:
@@ -9209,7 +9209,7 @@ assertions:
     specification: feature.chat-navigation@3
     specification_id: feature.chat-navigation
     type: behavior
-    fingerprint: db64e192d7c3664522624063568d6d430083db2c619d7343c399960632568a76
+    fingerprint: dda1d964798eb9196ebcab37cdfe79034e31e1a4897e2f5c57f6e22fc9897f6d
     required_applies_to:
     - cli
     - gui.web
@@ -9612,7 +9612,7 @@ assertions:
     specification: feature.chat-unread@1
     specification_id: feature.chat-unread
     type: behavior
-    fingerprint: 0fc3b2b2edfae89c981f9978129f35f83a22b13716052998d56cfb55f7025c8a
+    fingerprint: 681b0a50edd549c9645da870afaa56a294467b06131c8d28e77d550461cd61d3
     required_applies_to:
     - cli
     - gui.web
@@ -10167,7 +10167,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: 5231fa91e625730ebf2339ce26408a6dcb89bb66c0dd06dcd3d0c6fa358876b7
+    fingerprint: 1c95176edd0637a5b9686565d346d7bd1126a8837fb1728fd212922dc5a67aa8
     required_applies_to:
     - rest_api
     - gui.web
@@ -10185,7 +10185,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: 305bf34466ba0ceb7c7947ed2fb40b7b02200b0c40bc4d89c18c127eabee2cc7
+    fingerprint: 19687efdaa8b6f33de84f3bc731a3d07875078fac84d3253613e0b32bdb2858d
     required_applies_to:
     - rest_api
     - gui.web
@@ -10194,7 +10194,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: 67c6bdbeaa1a13353af5962e8176eab674ced2302a344f4954fb2bdee65b4dca
+    fingerprint: 944f40c525d611dd62d06630c7ae259595572793a7f5dfba05c01208b7a3ce03
     required_applies_to:
     - rest_api
     - gui.web
@@ -10213,6 +10213,15 @@ assertions:
     specification_id: feature.daily-inspiration
     type: behavior
     fingerprint: a19a54f32f5993619f180c459b7eb76a826dd911babeebca27869f9cccd2a1c2
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
+  daily-inspiration.start-row-active-first:
+    specification: feature.daily-inspiration@3
+    specification_id: feature.daily-inspiration
+    type: behavior
+    fingerprint: 3f5777f48380480e57a1a3411e6d5fc8fd87b1b8e656671619a09d6f20d31286
     required_applies_to:
     - rest_api
     - gui.web
@@ -11149,7 +11158,7 @@ assertions:
     specification: feature.landing-onboarding@8
     specification_id: feature.landing-onboarding
     type: behavior
-    fingerprint: a1f4ac34ff9ab36a5cf0fbbcafc41ad9321a188cf09edafc10f88ce2f1e375e0
+    fingerprint: d77263573614795621e790042a39564365928862b818a79e9aac7f6546fb800b
     required_applies_to:
     - gui.web
     - gui.apple
@@ -16414,7 +16423,7 @@ assertions:
     specification: feature.workflows-ui@12
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: d6f2e1a69934270c2bceb218955d36cde66f1406f04e4ed64467546cca752c5b
+    fingerprint: 9e68309f4de3a41ad328a59176e8a3c7eb2f90b9ddcc5440a3159e4620758975
     required_applies_to:
     - gui.web
   workflows-ui.guest.describe-signup-return:

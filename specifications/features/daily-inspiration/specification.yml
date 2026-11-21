@@ -307,10 +307,15 @@ assertions:
   - examples.encrypted_persistence
 - id: daily-inspiration.opened-state
   type: behavior
-  must: Opening an inspiration keeps it visible, records opened state and optional opened chat ID locally
-    and remotely, broadcasts the update across devices, prefers the first unopened card for default display,
-    deduplicates viewed/opened side effects, and preserves opened/embed/current-index state across duplicate
-    personalized deliveries.
+  must: Opening a video or article inspiration shows it like a chat (its assistant message, video or
+    article and follow-up suggestions) but saves nothing; no chat key, no local or server chat record and
+    no opened state, and leaving without sending discards it so the inspiration stays in the start row.
+    The first follow-up message turns it into a normal saved, encrypted user chat in the chat list, then
+    records opened state with the opened chat ID locally and remotely, broadcasts the update across
+    devices, and the inspiration no longer shows in the start row; activating an already-opened
+    inspiration opens that saved chat. The banner carousel prefers the first unopened card for default
+    display, viewed/opened side effects are deduplicated, and opened/embed/current-index state survives
+    duplicate personalized deliveries.
   depends_on:
   - models.DailyInspirationState
   - examples.opened_state
@@ -328,7 +333,8 @@ assertions:
   type: behavior
   must: The Chats start screen has no Daily Inspiration banner and no banner heading, signed in or
     signed out. Its single row shows the user's own chats (reminder-priority chats first, then the last
-    opened chat, then recent chats; for a signed-out visitor the example chats) with today's unopened
+    opened chat, then recent chats; for a signed-out visitor the example chats; see
+    daily-inspiration.start-row-active-first for running chats) with today's unopened
     video and article inspirations interleaved, two own chats first and then one inspiration after every
     third own chat. The row holds at most ten cards in total, inspirations included; inspirations never
     repeat and fill the row alone for a user without chats. "Show all" lists only real chats.
@@ -339,9 +345,10 @@ assertions:
   type: behavior
   must: Every entry of the start row is a large chat card (no compact pill variant on any viewport), and
     the row opens with its first card horizontally centred, as before the redesign. An
-    inspiration card carries a small "Daily inspiration" label, shows its video or article image when one
-    exists, opens a new chat from that inspiration when activated, and reports itself as viewed once at
-    least half of it is visible.
+    inspiration card is the same chat card as the user's own chats (category gradient, icon, title and
+    summary) with a small "Daily inspiration" label; it never shows a video or article image as its
+    background. Activating it opens the inspiration as an unsaved chat preview, and it reports itself as
+    viewed once at least half of it is visible.
   depends_on:
   - models.StartRow
   - examples.start_row
@@ -366,6 +373,19 @@ assertions:
     short screen the greeting, row and suggestions start below the top buttons row and scroll rather
     than sliding under it. While the composer's own suggestion rail is open, these step aside so the
     same prompts are not listed twice.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
+- id: daily-inspiration.start-row-active-first
+  type: behavior
+  must: Signed in, every running chat (a chat processing itself, or the visible parent of a running
+    sub-chat, counted once) is always the first card of the Chats start row, before reminder, last-opened
+    and recent chats, and is marked with an "Active" corner label. Below "Hey <name>!" the title reads
+    "Continue your recent chats:", or while chats are running "You have 1 chat active:" / "You have N
+    chats active:" (translated, singular and plural) as plain text, not a link. A chat that becomes
+    active, or a new chat, fades in from below into the first position while the other cards slide to
+    the right, with the sidebar's easing and duration (300 ms ease-in-out); with reduced motion the
+    change is immediate.
   depends_on:
   - models.StartRow
   - examples.start_row

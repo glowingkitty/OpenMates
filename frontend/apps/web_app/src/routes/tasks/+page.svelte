@@ -123,7 +123,8 @@
     min-height: 0;
     box-sizing: border-box;
     gap: 0;
-    padding: 10px 20px 10px 10px;
+    /* Same inset as Chats so the panel sits at the same position on every workspace. */
+    padding: 10px 20px 20px 10px;
   }
 
   @media (min-width: 1100px) {
@@ -158,6 +159,7 @@
 
     .tasks-container {
       padding-inline-end: 10px;
+      padding-bottom: 10px;
     }
   }
 

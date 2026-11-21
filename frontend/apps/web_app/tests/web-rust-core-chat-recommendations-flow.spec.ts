@@ -230,6 +230,30 @@ test.describe('chat recommendations', () => {
       await expect(page.getByTestId('recommendation-title').filter({ hasText: memoryTitle })).toHaveCount(0);
       await expect(memoryNotice).toHaveCount(1, { timeout: 30000 });
 
+      // Workflows start screen: the suggestions above the input are the workflow
+      // recommendations of the user's chats, newest first, with no source label (Marco, 21 Nov).
+      const suggestedWorkflowTitle = await showKind('workflow');
+      const chatUrl = page.url();
+      await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+      const workflowSuggestions = page.getByTestId('workflows-start-suggestions');
+      const suggestedItem = workflowSuggestions.getByTestId('follow-up-suggestion-item').filter({ hasText: suggestedWorkflowTitle });
+      await expect(suggestedItem).toHaveCount(1, { timeout: 30000 });
+      await expect(workflowSuggestions.getByTestId('follow-up-suggestion-item').first()).toContainText(suggestedWorkflowTitle);
+      const composerBox = await page.getByTestId('workflow-input-composer').boundingBox();
+      const suggestionsBox = await workflowSuggestions.boundingBox();
+      expect(suggestionsBox!.y + suggestionsBox!.height).toBeLessThanOrEqual(composerBox!.y + 1);
+      await test.info().attach('desktop-workflows-suggestions-from-chats', { body: await page.screenshot(), contentType: 'image/png' });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(suggestedItem).toBeVisible();
+      await test.info().attach('phone-workflows-suggestions-from-chats', { body: await page.screenshot(), contentType: 'image/png' });
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await suggestedItem.click();
+      await expect(page.getByTestId('workflow-input-textarea')).not.toHaveValue('');
+      await screenshot(page, 'workflows-suggestion-from-chat-filled');
+      await page.goto(chatUrl, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', chatId, { timeout: 60000 });
+      await expect(card).toHaveAttribute('data-count', String(total - 1), { timeout: 60000 });
+
       // Workflow: Create opens the draft in the regular editor beside the chat; Save adds the history event.
       const workflowTitle = await showKind('workflow');
       await page.evaluate((events) => { (window as StreamWindow).__workflowStreamCases.push(events); }, workflowDraftEvents(workflowTitle));

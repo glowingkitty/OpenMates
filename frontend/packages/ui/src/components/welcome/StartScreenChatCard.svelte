@@ -4,7 +4,8 @@
   Used for every entry of the Chats row (own chats, reminder-priority chats, drafts,
   example chats and daily inspirations). There is no small "pill" variant: the
   start screens always show large cards (TASK-1321). A daily inspiration is the
-  same card with a small label, so every card in the Chats row opens a chat.
+  same card with a small label, so every card in the Chats row opens a chat. Inspirations
+  never show their video or article image as the card background (Marco, 21 Nov).
 
   Native counterpart: apple/OpenMates/Sources/Features/Chat/Views/ChatWelcomeContinueCards.swift
   Spec: specifications/features/daily-inspiration (start-row assertions)
@@ -39,10 +40,10 @@
     badge?: Badge | null;
     /** Label pinned to the top-left corner (reminder or date priority). */
     cornerLabel?: Badge | null;
+    /** Running chat (or parent of a running sub-chat): corner "Active" label with a live dot; replaces cornerLabel. */
+    active?: { label: string; testId: string } | null;
     /** Draft-only chats and chats waiting for credits show a label and preview instead of an icon. */
     preview?: { label: string; text: string } | null;
-    /** Media image (video or article) shown full-bleed behind the text. */
-    mediaImageUrl?: string | null;
     dataAttributes?: Record<string, string>;
     gestures: StartScreenCardGestures | null;
     onActivate: () => void;
@@ -60,8 +61,8 @@
     pinned = false,
     badge = null,
     cornerLabel = null,
+    active = null,
     preview = null,
-    mediaImageUrl = null,
     dataAttributes = {},
     gestures,
     onActivate,
@@ -82,7 +83,6 @@
   let CornerIcon = $derived(cornerLabel?.icon ? getLucideIcon(cornerLabel.icon) : null);
   let PinIcon = getLucideIcon('pin');
   let bubbles = $derived(imageBubbles && imageBubbles.length > 0 ? imageBubbles.slice(0, 2) : null);
-  let hasMedia = $derived(!!mediaImageUrl);
 
   let cardStyle = $derived.by(() => {
     const parts = [preview && !category ? '' : getResumeCardGradientStyle(getContinueGradientColors(iconCategory, appId))];
@@ -122,8 +122,9 @@
   type="button"
   class="resume-chat-large-card"
   class:hovering
+  class:active={!!active}
+  data-active={active ? 'true' : undefined}
   class:neutral-preview={!!preview && !category}
-  class:has-media={hasMedia}
   data-testid={testId}
   data-chat-id={chatId ?? undefined}
   data-pinned={chatId ? (pinned ? 'true' : 'false') : undefined}
@@ -146,17 +147,19 @@
       <PinIcon size={18} color="white" />
     </div>
   {/if}
-  {#if cornerLabel}
+  {#if active}
+    <div class="continue-priority-pill active-pill" data-testid={active.testId}>
+      <span class="active-dot" aria-hidden="true"></span>
+      <span>{active.label}</span>
+    </div>
+  {:else if cornerLabel}
     <div class="continue-priority-pill" data-testid={cornerLabel.testId}>
       {#if CornerIcon}<CornerIcon size={12} color="white" />{/if}
       <span>{cornerLabel.label}</span>
     </div>
   {/if}
 
-  {#if hasMedia}
-    <img class="start-card-media" data-testid="start-card-media" src={mediaImageUrl} alt="" loading="lazy" decoding="async" />
-    <div class="start-card-media-shade" aria-hidden="true"></div>
-  {:else if !preview || category}
+  {#if !preview || category}
     <div class="resume-large-orbs" aria-hidden="true">
       <div class="resume-orb resume-orb-1"></div>
       <div class="resume-orb resume-orb-2"></div>
@@ -188,7 +191,7 @@
       <span class="start-card-preview-label">{preview.label}</span>
       <span class="resume-large-title" data-testid="resume-large-title">{preview.text}</span>
     {:else}
-      {#if IconComponent && !hasMedia}
+      {#if IconComponent}
         <div class="resume-large-icon" data-testid="start-card-icon"><IconComponent size={32} color="white" /></div>
       {/if}
       <span class="resume-large-title" data-testid="resume-large-title">{title}</span>
@@ -302,39 +305,6 @@
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   }
 
-  .has-media .resume-large-content {
-    align-self: flex-end;
-    align-items: flex-start;
-    max-width: 100%;
-    padding: var(--spacing-8) var(--spacing-10) var(--spacing-10);
-  }
-
-  .has-media .resume-large-title,
-  .has-media .resume-large-summary {
-    text-align: left;
-  }
-
-  .has-media .resume-large-summary {
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-  }
-
-  .start-card-media {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: -2;
-  }
-
-  .start-card-media-shade {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 25%, rgba(0, 0, 0, 0.74) 100%);
-  }
-
   .resume-chat-kind-badge {
     display: inline-flex;
     align-items: center;
@@ -350,10 +320,6 @@
     letter-spacing: 0.01em;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
     backdrop-filter: blur(10px);
-  }
-
-  .has-media .resume-chat-kind-badge {
-    background: rgba(0, 0, 0, 0.42);
   }
 
   .resume-large-icon {
@@ -440,6 +406,31 @@
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Active (running) chat: the corner pill gets a live dot and the card a light ring. */
+  .resume-chat-large-card.active {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 8px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .active-pill {
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .active-dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #3ddc84;
+    box-shadow: 0 0 0 0 rgba(61, 220, 132, 0.7);
+    animation: active-dot-pulse 1.6s ease-out infinite;
+  }
+
+  @keyframes active-dot-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(61, 220, 132, 0.7); }
+    70% { box-shadow: 0 0 0 6px rgba(61, 220, 132, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(61, 220, 132, 0); }
   }
 
   /* Living gradient orbs; --orb-color-a/b come from getResumeCardGradientStyle(). */
@@ -579,7 +570,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     .resume-orb,
-    .resume-card-image-bubble { animation: none !important; }
+    .resume-card-image-bubble,
+    .active-dot { animation: none !important; }
     .resume-large-deco { animation: decoEnter 0.6s ease-out 0.1s both !important; }
   }
 </style>

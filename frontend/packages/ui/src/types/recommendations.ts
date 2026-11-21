@@ -114,3 +114,16 @@ export interface MemoryWriteUndoneEvent {
   /** Unix seconds. */
   undone_at: number;
 }
+
+/** Input of the Rust start-screen workflow suggestion policy (workflow_start_suggestions.rs). */
+export interface WorkflowStartSuggestionsInput {
+	states: ChatRecommendationsState[];
+	/** Clamped to 1..=10 by the core. */
+	limit: number;
+}
+
+/** One start-screen workflow suggestion. */
+export interface WorkflowStartSuggestion {
+	title: string;
+	summary: string;
+}

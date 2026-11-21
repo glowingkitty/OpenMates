@@ -24,7 +24,7 @@ assertions:
     normal Daily Inspiration banner, interest selection and all-example-chat discovery. Expanded landing header, timed marketing
     slides and slide-filtered examples are absent. The localized guest Hey there greeting is visible just as in the guest
     Workflows workspace, even if a cached authenticated profile remains. The guest example section uses the localized label
-    “Explore some example chats:”. “Continue where you left off:” is reserved for authenticated chat continuation.
+    “Explore some example chats:”. “Continue your recent chats:” is reserved for authenticated chat continuation.
   depends_on:
   - examples.web_welcome
 - id: landing-onboarding.guest-examples

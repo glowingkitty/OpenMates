@@ -87,20 +87,21 @@ test('project picker selects a deep destination and retains a failed selection',
 });
 
 // contract-test: supporting surface=gui.web assertions=chat-navigation.activity.global-running
-test('activity count reveals the sidebar and respects reduced motion', async ({ page }) => {
-  await page.goto(preview('ActiveChatsLink', 280, 'single'), { waitUntil: 'domcontentloaded' });
+test('activity count is the plain start-row title and respects reduced motion', async ({ page }) => {
+  await page.goto(preview('ActiveChatsHeading', 280, 'single'), { waitUntil: 'domcontentloaded' });
   await waitForComponentPreview(page);
-  const link = page.getByTestId('active-chats-link');
-  await expect(link).toHaveText('1 chat active…');
-  await page.evaluate(() => {
-    window.addEventListener('openmates-reveal-running-chats', () => { (window as Window & { revealed?: boolean }).revealed = true; });
-  });
-  await link.focus(); await link.press('Enter');
-  expect(await page.evaluate(() => (window as Window & { revealed?: boolean }).revealed)).toBe(true);
-  await page.goto(preview('ActiveChatsLink', 280, 'empty'), { waitUntil: 'domcontentloaded' });
+  const heading = page.getByTestId('active-chats-heading');
+  await expect(heading).toHaveText('You have 1 chat active:');
+  // Plain text, not the old underlined link (Marco, 21 Nov).
+  await expect(heading).toHaveJSProperty('tagName', 'P');
+  await expect(heading).toHaveCSS('text-decoration-line', 'none');
+  await page.goto(preview('ActiveChatsHeading', 280), { waitUntil: 'domcontentloaded' });
+  await waitForComponentPreview(page);
+  await expect(heading).toHaveText('You have 2 chats active:');
+  await page.goto(preview('ActiveChatsHeading', 280, 'empty'), { waitUntil: 'domcontentloaded' });
   await waitForComponentPreview(page);
   await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
-  await expect(link).toHaveCount(0);
+  await expect(heading).toHaveCount(0);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(preview('ProcessingWheel', 280), { waitUntil: 'domcontentloaded' });
   await waitForComponentPreview(page);

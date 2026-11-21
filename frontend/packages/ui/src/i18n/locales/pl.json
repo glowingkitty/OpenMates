@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "Odrzuć wszystko"
       },
+      "continue_without_memories": {
+        "text": "Kontynuuj bez wspomnień"
+      },
+      "call_countdown_label": {
+        "text": "Czas do odpowiedzi bez wspomnień"
+      },
       "entry_singular": {
         "text": "wpis"
       },
@@ -3720,7 +3726,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Kontynuuj od miejsca, w którym skończyłeś:"
+        "text": "Kontynuuj ostatnie czaty:"
+      },
+      "active_title_single": {
+        "text": "Masz 1 aktywny czat:"
+      },
+      "active_title": {
+        "text": "Masz aktywne czaty: {count}:"
+      },
+      "active_card_label": {
+        "text": "Aktywny"
       },
       "guest_title": {
         "text": "Odkryj przykładowe czaty:"
@@ -4564,6 +4579,56 @@
       },
       "ask_question": {
         "text": "Zapytaj o tę dokumentację..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Aby to uruchomić, twój kod i pliki są wysyłane do E2B, dostawcy piaskownicy w chmurze, i tam uruchamiane."
+      },
+      "privacy_policy": {
+        "text": "Polityka prywatności"
+      },
+      "own_machine_hint": {
+        "text": "Albo uruchom to na własnym komputerze za pomocą:"
+      },
+      "allow": {
+        "text": "Zezwól"
+      },
+      "own_machine": {
+        "text": "Użyj mojego komputera"
+      },
+      "not_now": {
+        "text": "Nie teraz"
+      },
+      "answered": {
+        "text": "Twoja odpowiedź:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Uruchamianie kodu w chmurowej piaskownicy E2B nie jest dozwolone dla twojego konta, więc nic nie zostało uruchomione. Możesz to zmienić w Ustawienia > Prywatność albo uruchomić kod na własnym komputerze poleceniem zdalnego dostępu."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Uruchamiaj kod w chmurowej piaskownicy E2B"
+      },
+      "description": {
+        "text": "Gdy jest dozwolone, kod i pliki, które uruchamiasz, są wysyłane do E2B, dostawcy piaskownicy w chmurze. Gdy nie jest dozwolone, nic nie jest wysyłane."
+      },
+      "status_allowed": {
+        "text": "Dozwolone"
+      },
+      "status_declined": {
+        "text": "Niedozwolone"
+      },
+      "status_undecided": {
+        "text": "Jeszcze nie zdecydowano"
+      },
+      "error": {
+        "text": "Nie udało się zapisać tego ustawienia. Spróbuj ponownie."
       }
     }
   },
@@ -8244,6 +8309,9 @@
         },
         "no_video": {
           "text": "Brak wideo dla tego uruchomienia"
+        },
+        "with_setup": {
+          "text": "{duration} z przygotowaniem"
         }
       }
     },
@@ -21815,7 +21883,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Prośba o wspomnienia wygasła, odpowiedź bez wspomnień"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Połączenia używają transkrypcji Mistral, głosu ElevenLabs v4 Turbo, zwykłego routingu AI OpenMates i rozliczeń według użycia."

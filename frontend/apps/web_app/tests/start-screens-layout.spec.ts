@@ -121,6 +121,53 @@ const PROJECTS_SCREEN: Screen = {
 };
 const SIGNED_IN_SCREENS: Screen[] = [...SCREENS, PROJECTS_SCREEN];
 
+/** Where a workspace puts its panel and report-issue button (Marco, 21 Nov: identical on every workspace). */
+type WorkspaceFrame = { name: string; reportX: number; reportY: number; panelBottom: number; label: string };
+
+async function measureWorkspaceFrame(page: any, name: string): Promise<WorkspaceFrame> {
+	// After a full page load the session is restored a moment later and the signed-in
+	// layout replaces the signed-out one (the report button is rendered again), so wait
+	// for the signed-in header, then measure in one DOM read until two reads agree.
+	await expect(page.getByTestId('header-login-signup-btn')).toBeHidden({ timeout: 30000 });
+	const read = () =>
+		page.evaluate(() => {
+			const button = [...document.querySelectorAll<HTMLElement>('[data-testid="report-issue-button"]')].find((el) => el.getClientRects().length > 0);
+			if (!button) return null;
+			const box = button.getBoundingClientRect();
+			let node: HTMLElement | null = button;
+			while (node && !/(^|\s)((chat|workflows|projects|tasks)-container|apps-route-body)(\s|$)/.test(node.className)) node = node.parentElement;
+			const panelBottom = node ? node.getBoundingClientRect().bottom - parseFloat(getComputedStyle(node).paddingBottom) : Number.NaN;
+			return { reportX: box.x, reportY: box.y, panelBottom, label: button.innerText.trim() };
+		});
+	let previous = '';
+	let frame: Omit<WorkspaceFrame, 'name'> | null = null;
+	await expect
+		.poll(
+			async () => {
+				frame = await read();
+				const current = JSON.stringify(frame);
+				const stable = frame !== null && current === previous;
+				previous = current;
+				return stable;
+			},
+			{ message: `report-issue button on ${name} renders and stops moving`, timeout: 30000, intervals: [300] }
+		)
+		.toBe(true);
+	return { name, ...(frame as unknown as Omit<WorkspaceFrame, 'name'>) };
+}
+
+/** Panel bottom and report button match Chats within 1px; the label shows where it fits (pane >= 640px). */
+function expectSameWorkspaceFrame(frames: WorkspaceFrame[], viewport: { name: string; width: number }) {
+	const where = frames.map((f) => `${f.name} report ${Math.round(f.reportX)},${Math.round(f.reportY)} panel bottom ${Math.round(f.panelBottom)} label "${f.label}"`).join('; ');
+	for (const frame of frames) {
+		expect(Number.isNaN(frame.panelBottom), `no panel container found on ${frame.name}`).toBe(false);
+		expect(Math.abs(frame.reportX - frames[0].reportX), `report button x at ${viewport.name}: ${where}`).toBeLessThanOrEqual(1);
+		expect(Math.abs(frame.reportY - frames[0].reportY), `report button y at ${viewport.name}: ${where}`).toBeLessThanOrEqual(1);
+		expect(Math.abs(frame.panelBottom - frames[0].panelBottom), `panel bottom at ${viewport.name}: ${where}`).toBeLessThanOrEqual(1);
+		expect(frame.label, `report label at ${viewport.name}: ${where}`).toBe(viewport.width >= 700 ? 'Report Issue' : '');
+	}
+}
+
 /** The start rows may differ in height on screen by at most this much at one width. */
 const ROW_TOP_TOLERANCE_PX = 40;
 
@@ -310,6 +357,17 @@ test.describe('start screens layout', () => {
 				await proof.checkpoint(`${screen.name}-start`);
 			}
 			expectAlignedRows(rowTops, viewport.name);
+			// Panel, input area and report-issue button sit exactly where they do on Chats, Tasks included.
+			const frames: WorkspaceFrame[] = [];
+			for (const screen of [...SIGNED_IN_SCREENS, { name: 'tasks', path: '/tasks' }]) {
+				await page.goto(getE2EDebugUrl(screen.path), { waitUntil: 'domcontentloaded' });
+				frames.push(await measureWorkspaceFrame(page, screen.name));
+				// Every signed-in workspace greets the user by name ("Hey <username>!"), never "Hey there!".
+				await expect(page.getByText(/^Hey .+!$/).first(), `${screen.name} greets the user`).toBeVisible({ timeout: 15000 });
+				await expect(page.getByText('Hey there!', { exact: true }), `${screen.name} greets the user by name`).toHaveCount(0, { timeout: 15000 });
+				await testInfo.attach(`frame-${viewport.name}-${screen.name}`, { body: await page.screenshot(), contentType: 'image/png' });
+			}
+			expectSameWorkspaceFrame(frames, viewport);
 		}
 
 		// Short phone screen (issue CCFK8): Chats keeps one-line suggestions and the greeting below the buttons.
@@ -319,6 +377,38 @@ test.describe('start screens layout', () => {
 		await page.setViewportSize({ width: VIEWPORTS[2].width, height: VIEWPORTS[2].height });
 		await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('workflows-start-suggestions')).toBeVisible({ timeout: 30000 });
+		// Workflows suggestions sit directly above the describe-a-workflow input (Marco, 21 Nov).
+		await expect(page.getByTestId('workflow-input-composer')).toBeVisible({ timeout: 30000 });
+		// The suggestions list is rendered again once the user's own workflow suggestions
+		// load, so both boxes are read in one DOM pass, after the list has settled.
+		const readWorkflowBoxes = () =>
+			page.evaluate(() => {
+				const box = (testId: string) => {
+					const el = document.querySelector(`[data-testid="${testId}"]`);
+					if (!el || el.getClientRects().length === 0) return null;
+					const r = el.getBoundingClientRect();
+					return { y: r.y, height: r.height };
+				};
+				return { suggestions: box('workflows-start-suggestions'), composer: box('workflow-input-composer') };
+			});
+		let workflowBoxes: any = null;
+		let previousBoxes = '';
+		await expect
+			.poll(
+				async () => {
+					workflowBoxes = await readWorkflowBoxes();
+					const current = JSON.stringify(workflowBoxes);
+					const stable = !!workflowBoxes.suggestions && !!workflowBoxes.composer && current === previousBoxes;
+					previousBoxes = current;
+					return stable;
+				},
+				{ message: 'Workflows suggestions and composer are on screen and settled', timeout: 30000, intervals: [300] }
+			)
+			.toBe(true);
+		const workflowSuggestionsBox = workflowBoxes.suggestions;
+		const workflowComposerBox = workflowBoxes.composer;
+		expect(workflowSuggestionsBox.y + workflowSuggestionsBox.height).toBeLessThanOrEqual(workflowComposerBox.y + 1);
+		expect(workflowComposerBox.y - workflowSuggestionsBox.y - workflowSuggestionsBox.height).toBeLessThanOrEqual(24);
 
 		// Tapping a workflow suggestion fills the describe-a-workflow composer.
 		const suggestion = page.getByTestId('workflows-start-suggestions').getByTestId('follow-up-suggestion-item').first();

@@ -4707,21 +4707,22 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 14
+  assertions: 15
   surfaces:
     web:
       status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 8
+        passing: 9
         failing: 0
         not_run: 5
         missing: 1
-        counted: 14
+        counted: 15
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/apple-parity-reference-screens.spec.ts
+      - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
       - frontend/apps/web_app/tests/components/inspiration-language.spec.ts
       - frontend/apps/web_app/tests/components/start-screen-row.spec.ts
       - frontend/apps/web_app/tests/components/task-board-figma.spec.ts
@@ -4751,8 +4752,8 @@ features:
         passing: 9
         failing: 0
         not_run: 2
-        missing: 3
-        counted: 14
+        missing: 4
+        counted: 15
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/AppleParityScreensUITests.swift
@@ -4807,8 +4808,8 @@ features:
         passing: 0
         failing: 0
         not_run: 4
-        missing: 10
-        counted: 14
+        missing: 11
+        counted: 15
       key_tests: []
       e2e_tests: []
       key_unit_tests:

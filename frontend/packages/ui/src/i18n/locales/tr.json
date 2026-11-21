@@ -2762,6 +2762,12 @@
       "reject_all": {
         "text": "Tümünü reddet"
       },
+      "continue_without_memories": {
+        "text": "Anılar olmadan devam et"
+      },
+      "call_countdown_label": {
+        "text": "Anılar olmadan yanıtlamadan önce kalan süre"
+      },
       "entry_singular": {
         "text": "giriş"
       },
@@ -3720,7 +3726,16 @@
     },
     "resume_last_chat": {
       "title": {
-        "text": "Kaldığınız yerden devam edin:"
+        "text": "Son sohbetlerinize devam edin:"
+      },
+      "active_title_single": {
+        "text": "1 aktif sohbetiniz var:"
+      },
+      "active_title": {
+        "text": "{count} aktif sohbetiniz var:"
+      },
+      "active_card_label": {
+        "text": "Aktif"
       },
       "guest_title": {
         "text": "Bazı örnek sohbetleri keşfedin:"
@@ -4564,6 +4579,56 @@
       },
       "ask_question": {
         "text": "Bu belge hakkında soru sor..."
+      }
+    }
+  },
+  "e2b_consent": {
+    "request": {
+      "body": {
+        "text": "Bunu çalıştırmak için kodun ve dosyaların bir bulut sandbox sağlayıcısı olan E2B'ye gönderilir ve orada çalıştırılır."
+      },
+      "privacy_policy": {
+        "text": "Gizlilik politikası"
+      },
+      "own_machine_hint": {
+        "text": "Ya da şununla kendi bilgisayarında çalıştır:"
+      },
+      "allow": {
+        "text": "İzin ver"
+      },
+      "own_machine": {
+        "text": "Kendi bilgisayarımı kullan"
+      },
+      "not_now": {
+        "text": "Şimdi değil"
+      },
+      "answered": {
+        "text": "Yanıtın:"
+      }
+    },
+    "run": {
+      "declined_notice": {
+        "text": "Hesabın için E2B bulut sandbox'ında kod çalıştırmaya izin verilmiyor, bu yüzden hiçbir şey başlatılmadı. Bunu Ayarlar > Gizlilik bölümünden değiştirebilir veya uzaktan erişim komutuyla kendi makinende çalıştırabilirsin."
+      }
+    },
+    "settings": {
+      "title": {
+        "text": "Kodu E2B bulut sandbox'ında çalıştır"
+      },
+      "description": {
+        "text": "İzin verildiğinde, çalıştırdığın kod ve dosyalar bir bulut sandbox sağlayıcısı olan E2B'ye gönderilir. İzin verilmediğinde hiçbir şey gönderilmez."
+      },
+      "status_allowed": {
+        "text": "İzin verildi"
+      },
+      "status_declined": {
+        "text": "İzin verilmedi"
+      },
+      "status_undecided": {
+        "text": "Henüz karar verilmedi"
+      },
+      "error": {
+        "text": "Bu ayar kaydedilemedi. Lütfen tekrar dene."
       }
     }
   },
@@ -8244,6 +8309,9 @@
         },
         "no_video": {
           "text": "Bu çalıştırma için video yok"
+        },
+        "with_setup": {
+          "text": "hazırlıkla {duration}"
         }
       }
     },
@@ -21815,7 +21883,11 @@
     }
   },
   "videocall": {},
-  "voice_call_events": {},
+  "voice_call_events": {
+    "memory_request_timed_out": {
+      "text": "Anı isteğinin süresi doldu, anılar olmadan yanıtlandı"
+    }
+  },
   "voicecall": {
     "start_hint": {
       "text": "Sesli aramalar Mistral transkripsiyonu, ElevenLabs v4 Turbo sesi, OpenMates’in normal yapay zekâ yönlendirmesi ve kullanıma dayalı ücretlendirme kullanır."

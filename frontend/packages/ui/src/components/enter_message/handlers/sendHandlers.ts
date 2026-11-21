@@ -24,6 +24,7 @@ import {
 } from "../../../services/drafts/draftSave"; // Import clearCurrentDraft + debounced save (for cancellation)
 import { tipTapToCanonicalMarkdown } from "../../../message_parsing/serializers"; // Import TipTap to markdown converter
 import { isPublicChat } from "../../../demo_chats/convertToChat";
+import { materializePendingInspirationChat } from "../../../services/pendingInspirationChat";
 import { websocketStatus } from "../../../stores/websocketStatusStore"; // Import WebSocket status store
 import { chatListCache } from "../../../services/chatListCache";
 import { AnonymousFreeUsageExhaustedError, anonymousChatStorage } from "../../../services/anonymousChatStorage";
@@ -811,6 +812,8 @@ export async function handleSend(
   const voiceCall = get(voiceCallController);
   if ((voiceCall.status === 'connecting' || voiceCall.status === 'live') &&
       voiceCall.chatId === currentChatId) return false;
+  // An opened daily inspiration is an unsaved preview until its first message (TASK-3406).
+  await materializePendingInspirationChat(currentChatId);
   // Bind this click to its workspace before URL, PII, and draft work can yield.
   const sendContext = getActiveTeamContextSnapshot();
   const senderProfile = get(userProfile);
