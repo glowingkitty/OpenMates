@@ -33,7 +33,7 @@ final class AppleParityScreensUITests: XCTestCase {
         XCTAssertTrue(element(app, "chat-welcome-heading").label.hasPrefix("Hey "), "Start screen greeting missing")
         let cta = element(app, "welcome-workspace-subtitle")
         XCTAssertTrue(cta.waitForExistence(timeout: 10), "Start screen call to action missing")
-        XCTAssertEqual(cta.label, "Continue where you left off:")
+        XCTAssertEqual(cta.label, "Continue your recent chats:")
         XCTAssertTrue(element(app, "welcome-row-inspiration-card").waitForExistence(timeout: 15), "Inspiration card missing from the row")
         XCTAssertFalse(element(app, "welcome-row-inspiration-image").exists, "Inspiration cards never use a picture background")
         capture(app, "apple-01-start-screen")
@@ -56,6 +56,29 @@ final class AppleParityScreensUITests: XCTestCase {
         let editor = element(app, "message-editor")
         let value = (editor.value as? String) ?? editor.label
         XCTAssertTrue(value.contains(label), "Tapping a suggestion puts its text into the composer")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=daily-inspiration.start-row-active-first
+    func testRunningChatLeadsStartRowWithActivePill() throws {
+        let app = launchFixture(extra: ["--ui-test-start-new-chat", "--ui-test-start-row-active-chat"])
+        XCTAssertTrue(element(app, "message-editor").waitForExistence(timeout: 30), "Start screen composer missing")
+        // Web ActiveChatsHeading replaces "Continue your recent chats:" while chats run.
+        let heading = element(app, "active-chats-heading")
+        XCTAssertTrue(heading.waitForExistence(timeout: 15), "Active chats heading missing")
+        XCTAssertEqual(heading.label, "You have 1 chat active:")
+        XCTAssertFalse(element(app, "welcome-workspace-subtitle").exists, "The active heading replaces the call to action")
+        XCTAssertFalse(element(app, "active-chats-link").exists, "The active count is plain text, not a link")
+        let pill = element(app, "start-row-active-pill")
+        XCTAssertTrue(pill.waitForExistence(timeout: 15), "Active pill missing on the running chat card")
+        let cards = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'welcome-chat-card-'"))
+            .allElementsBoundByIndex.filter { $0.exists && $0.frame.width > 100 }
+        XCTAssertGreaterThan(cards.count, 1, "Expected several chat cards in the row")
+        let firstCard = cards.min(by: { $0.frame.minX < $1.frame.minX })!
+        XCTAssertTrue(firstCard.frame.contains(CGPoint(x: pill.frame.midX, y: pill.frame.midY)),
+            "The running chat is the first card of the row and carries the Active pill")
+        XCTAssertLessThan(pill.frame.minX - firstCard.frame.minX, 30, "The Active pill sits in the top-left corner")
+        XCTAssertLessThan(pill.frame.minY - firstCard.frame.minY, 30, "The Active pill sits in the top-left corner")
+        capture(app, "apple-chats-start-active")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity

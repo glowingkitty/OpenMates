@@ -269,15 +269,7 @@ struct ProjectsWorkspaceView: View {
                 ZStack(alignment: .bottom) {
                     VStack(spacing: 0) {
                         HStack {
-                            Button { onReportIssue("") } label: {
-                                Icon("bug", size: 23)
-                                    .foregroundStyle(LinearGradient.primary)
-                                    .frame(width: 42, height: 42)
-                                    .background(Color.grey10, in: Circle())
-                                    .shadow(color: .black.opacity(0.13), radius: 6, y: 3)
-                            }
-                            .accessibilityLabel(AppStrings.settingsReportIssue)
-                            .accessibilityIdentifier("projects-home-report-issue")
+                            WorkspaceReportIssueButton(background: .grey10, accessibilityIdentifier: "projects-home-report-issue") { onReportIssue("") }
                             if browsingProjects {
                                 WorkspaceContinuationLink(title: AppStrings.welcomeBackToRecent, icon: "grid-2x2",
                                     identifier: "projects-back-to-recent", action: resetHomeBrowse)

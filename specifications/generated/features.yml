@@ -4751,8 +4751,8 @@ features:
       assertions:
         passing: 9
         failing: 0
-        not_run: 2
-        missing: 4
+        not_run: 3
+        missing: 3
         counted: 15
       key_tests: []
       e2e_tests:

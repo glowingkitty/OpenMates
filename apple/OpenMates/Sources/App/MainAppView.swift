@@ -599,6 +599,22 @@ struct MainAppView: View {
             teamID: teamContext.teamID, hiddenUnlocked: hiddenChatsUnlocked)
     }
 
+    /// Visible parents with running work for the Chats start row (web activeChatCount).
+    private var startRowActiveChatIDs: Set<String> {
+        var ids = sidebarActivity.rootIDs(chats: chatStore.chats).filter { id in
+            guard let chat = chatStore.chat(for: id) else { return false }
+            return !chat.isRetiredBundledIntro && !chat.isHiddenFromNormalSurfaces && chat.teamId == teamContext.teamID
+        }
+        #if DEBUG
+        // Synthetic fixture: the second visible chat counts as running, so UI tests see it move first.
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-start-row-active-chat"),
+           let chat = chatStore.chats.filter({ !$0.isRetiredBundledIntro && !$0.isHiddenFromNormalSurfaces && $0.teamId == teamContext.teamID }).dropFirst().first {
+            ids.insert(chat.id)
+        }
+        #endif
+        return ids
+    }
+
     private var activeChatsWidgetMetadata: [String] {
         widgetRunningChatIDs.flatMap { id in
             guard let chat = chatStore.chat(for: id) else { return [id] }
@@ -3946,11 +3962,7 @@ struct MainAppView: View {
                 },
                 onOpenAuth: { showAuthSheet = true },
                 activeChatID: selectedChatId,
-                activeChatCount: sidebarActivity.rootIDs(chats: chatStore.chats).filter { id in
-                    guard let chat = chatStore.chat(for: id) else { return false }
-                    return !chat.isRetiredBundledIntro && !chat.isHiddenFromNormalSurfaces && chat.teamId == teamContext.teamID
-                }.count,
-                onRevealRunningChats: { selectedWorkspace = .chat; isChatsPanelOpen = true; showSearch = false; chatProjectLocation = nil; revealRunningChatsRequest &+= 1 },
+                activeChatIDs: startRowActiveChatIDs,
                 canSendAnonymously: anonymousFreeUsage.canSendAnonymously,
                 prefillText: newChatPrefillText,
                 prefillRequest: newChatPrefillRequest,
@@ -8324,6 +8336,8 @@ struct WelcomeChatCardData: Identifiable, Equatable {
     var isDraftOnly: Bool = false
     var savedMemory: SettingsMemoryEntry? = nil
     var priorityLabel: String? = nil
+    /// Running chat (or parent of a running sub-chat): web StartScreenChatCard `active`.
+    var isActive = false
 }
 
 @MainActor
@@ -8658,8 +8672,9 @@ struct NewChatWelcomeView: View {
     let onInspirationViewed: (String) -> Void
     let onOpenAuth: () -> Void
     var activeChatID: String? = nil
-    var activeChatCount = 0
-    var onRevealRunningChats: () -> Void = {}
+    /// Visible parents with running work; web chatActivityStore.activeChatCount groups them the same way.
+    var activeChatIDs: Set<String> = []
+    private var activeChatCount: Int { activeChatIDs.count }
     var canSendAnonymously = false
     var prefillText: String? = nil
     var prefillRequest = 0
@@ -8903,7 +8918,19 @@ struct NewChatWelcomeView: View {
             teamID: composerSearchTeam.teamID, now: continueService.now,
             draftPreview: { welcomeDraftService.displayDraftPreviews[$0] }, previewIsFormatted: true)
         let promotedIDs = Set(priority.map(\.id))
-        return Array((priority + cards.filter { !promotedIDs.contains($0.id) }).prefix(WelcomeScreenState.recentChatLimit))
+        let ordered = priority + cards.filter { !promotedIDs.contains($0.id) }
+        // Web daily-inspiration.start-row-active-first: running chats lead the row with an Active pill.
+        let active = chats
+            .filter { activeChatIDs.contains($0.id) && $0.teamId == composerSearchTeam.teamID }
+            .sorted { ($0.sidebarActivityDate ?? .distantPast) > ($1.sidebarActivityDate ?? .distantPast) }
+            .map { chat -> WelcomeChatCardData in
+                var card = ordered.first(where: { $0.id == chat.id }) ?? WelcomeScreenState.cardData(for: chat,
+                    draftPreview: welcomeDraftService.displayDraftPreviews[chat.id], previewIsFormatted: true)
+                card.isActive = true
+                card.priorityLabel = nil
+                return card
+            }
+        return Array((active + ordered.filter { !activeChatIDs.contains($0.id) }).prefix(WelcomeScreenState.recentChatLimit))
     }
 
     private var nonAuthChatCards: [WelcomeChatCardData] {
@@ -10522,12 +10549,17 @@ struct NewChatWelcomeView: View {
                 .lineLimit(2)
                 .accessibilityIdentifier("chat-welcome-heading")
 
+            // Web ActiveChatsHeading: while chats run, "You have N chats active:" (plain text)
+            // replaces the subtitle; the running chats are the first cards of the row.
             if isAuthenticated && activeChatCount > 0 {
-                Button(action: onRevealRunningChats) {
-                    Text(LocalizationManager.shared.text(activeChatCount == 1 ? "chats.activity.count_single" : "chats.activity.count", replacements: ["count": String(activeChatCount)]))
-                        .font(.omSmall).underline().foregroundStyle(Color.fontPrimary).padding(.spacing4)
-                }.buttonStyle(.plain).accessibilityIdentifier("active-chats-link")
-            }
+                Text(AppStrings.startRowActiveTitle(count: activeChatCount))
+                    .font(.custom("Lexend Deca", size: 16).weight(.semibold))
+                    .foregroundStyle(Color.fontSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .transition(.opacity)
+                    .accessibilityIdentifier("active-chats-heading")
+            } else {
             Text(subtitle)
                 .font(.custom("Lexend Deca", size: 16).weight(.semibold))
                 .fontWeight(.semibold)
@@ -10535,7 +10567,9 @@ struct NewChatWelcomeView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .accessibilityIdentifier(isAuthenticated ? "welcome-workspace-subtitle" : "guest-interest-prompt")
+            }
         }
+        .animation(gridReduceMotion ? nil : .easeInOut(duration: 0.3), value: activeChatCount > 0)
         .background {
             Icon("chat", size: backgroundIconSize)
                 .foregroundStyle(Color.grey30)
@@ -12032,6 +12066,9 @@ struct WelcomeContinuationCarousel: View {
     var actions: [StartRowAction] = []
     var largeCardIdentifierPrefix = "welcome-chat-card-"
     var compactCardIdentifierPrefix = "welcome-chat-compact-card-"
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Web startRowMotionEnabled: off while the row fills after opening, so loading is not motion.
+    @State private var motionEnabled = false
     private var rowEntries: [StartScreenRowEntry<WelcomeChatCardData, DailyInspirationData>] {
         StartScreenRow.interleave(own: cards, inspirations: inspirations)
     }
@@ -12095,9 +12132,19 @@ struct WelcomeContinuationCarousel: View {
                             }
                         }
                         }
-                        .overlay(alignment: .topTrailing) { if card.savedMemory == nil { priorityPill(card) } }
+                        .overlay(alignment: .topTrailing) { if card.savedMemory == nil && !card.isActive { priorityPill(card) } }
+                        // Web .resume-chat-large-card.active: light ring plus the corner Active pill.
+                        .overlay {
+                            if card.isActive {
+                                RoundedRectangle(cornerRadius: 30).stroke(.white.opacity(0.85), lineWidth: 2).padding(-1)
+                                    .allowsHitTesting(false).accessibilityHidden(true)
+                            }
+                        }
+                        .overlay(alignment: .topLeading) { if card.isActive { StartRowActivePill() } }
+                        .accessibilityValue(card.isActive ? AppStrings.startRowActiveCardLabel : "")
                         }
                     }
+                    .transition(StartRowMotion.cardInsertion)
                     if !actions.isEmpty {
                         StartRowActionsTile(actions: actions, width: cardWidth, height: usesLargeCards ? 200 : 72)
                     } else if overflowCount > 0 {
@@ -12108,6 +12155,7 @@ struct WelcomeContinuationCarousel: View {
                 .padding(.trailing, .spacing12)
                 .padding(.top, usesLargeCards ? 17.5 : 6)
                 .padding(.bottom, usesLargeCards ? 17 : 6)
+                .animation(StartRowMotion.animation(enabled: motionEnabled, reduceMotion: reduceMotion), value: rowEntries.map(\.id))
             }
             // Keep the full shadow while halving the visible card-to-links gap.
             // The enclosing continuation region still bounds horizontal overflow.
@@ -12115,6 +12163,10 @@ struct WelcomeContinuationCarousel: View {
             .accessibilityIdentifier("welcome-chat-cards-carousel")
         }
         .frame(height: usesLargeCards ? 234.5 : 72)
+        .task {
+            do { try await Task.sleep(for: StartRowMotion.enableDelay) } catch { return }
+            motionEnabled = true
+        }
     }
 }
 

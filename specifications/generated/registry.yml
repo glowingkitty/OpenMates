@@ -752,7 +752,7 @@ specifications:
     version: 3
     status: draft
     path: features/daily-inspiration
-    fingerprint: de07f973e9d3a974ffca858277d354874e70eb20fd352c32b7d109752bc96521
+    fingerprint: 1cf56fffede650b8133485c4cd46b5244b477f6b7e794cec514b29188712038c
     required_applies_to:
     - rest_api
     - gui.web

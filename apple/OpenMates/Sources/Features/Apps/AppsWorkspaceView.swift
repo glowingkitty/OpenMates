@@ -63,27 +63,19 @@ struct AppsWorkspaceView: View {
     private func home(size: CGSize) -> some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                HStack {
+                // Web WorkspaceHomeShell: report issue sits top left, like the other workspaces.
+                HStack(spacing: 20) {
+                    WorkspaceReportIssueButton(accessibilityIdentifier: "apps-report-issue", action: onReportIssue)
                     if store.showingAll {
                         Button(tr("back_to_recent")) { store.showingAll = false }
                             .buttonStyle(OMSecondaryButtonStyle())
                             .accessibilityIdentifier("apps-back-to-recent")
                     }
-                    Spacer()
-                    OMIconButton(icon: "bug", label: AppStrings.reportIssue, action: onReportIssue)
-                        .accessibilityIdentifier("apps-report-issue")
+                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, .spacing6)
-                VStack(spacing: .spacing3) {
-                    Text(greetingName.isEmpty ? AppStrings.workflowHomeGuestGreeting
-                        : tr("home_greeting").replacingOccurrences(of: "{name}", with: greetingName))
-                        .font(.omH3).foregroundStyle(Color.fontPrimary)
-                    Text(tr("home_prompt")).font(.omP.weight(.semibold)).foregroundStyle(Color.fontSecondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal, .spacing6)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("apps-home-greeting")
+                .padding(.horizontal, 15)
+                .padding(.top, 10)
+                if store.showingAll { greeting }
                 if store.showingAll {
                     TextField(AppStrings.localized("common.search"), text: $store.search)
                         .textFieldStyle(OMTextFieldStyle())
@@ -107,7 +99,12 @@ struct AppsWorkspaceView: View {
                     .accessibilityIdentifier("apps-all-apps")
                     .padding(.horizontal, .spacing6)
                 } else {
-                    startRow(width: size.width)
+                    // Heading and row sit centred in the free space, as on web.
+                    VStack(spacing: 22) {
+                        greeting
+                        startRow(width: size.width)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: max(0, size.height - 140))
                 }
             }
             .padding(.bottom, .spacing8)
@@ -116,6 +113,27 @@ struct AppsWorkspaceView: View {
         .accessibilityIdentifier("apps-home")
         .accessibilityHidden(store.selectedApp != nil)
         .allowsHitTesting(store.selectedApp == nil)
+    }
+
+    /// Web WorkspaceHomeShell heading: "Hey <name>!" over the faint workspace icon, then the prompt.
+    private var greeting: some View {
+        VStack(spacing: 8) {
+            Text(greetingName.isEmpty ? AppStrings.workflowHomeGuestGreeting
+                : tr("home_greeting").replacingOccurrences(of: "{name}", with: greetingName))
+                .font(.omH2.weight(.semibold))
+                .foregroundStyle(Color.grey80)
+                .frame(height: 46)
+                .background {
+                    Icon("app", size: 76)
+                        .foregroundStyle(Color.grey30)
+                        .accessibilityHidden(true)
+                }
+            Text(tr("home_prompt")).font(.omP.weight(.semibold)).foregroundStyle(Color.grey60)
+        }
+        .multilineTextAlignment(.center)
+        .padding(.horizontal, .spacing6)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("apps-home-greeting")
     }
 
     /// Web WorkspaceHomeShell start row: at most `StartScreenRow.maxCards` large
@@ -147,8 +165,9 @@ struct AppsWorkspaceView: View {
 
     private func appCard(_ app: SettingsAppsFullView.AppInfo, width: CGFloat) -> some View {
         Button { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { store.selectApp(app) } } label: {
+            let icon = app.iconName ?? AppIconView.iconName(forAppId: app.id)
             VStack(spacing: .spacing2) {
-                Icon(app.iconName ?? AppIconView.iconName(forAppId: app.id), size: 32)
+                Icon(icon, size: 18)
                 Text(app.name).font(.omP.weight(.bold)).lineLimit(2)
                 Text(app.description ?? "").font(.omSmall.weight(.medium)).opacity(0.85).lineLimit(4)
             }
@@ -156,11 +175,36 @@ struct AppsWorkspaceView: View {
             .foregroundStyle(Color.fontButton)
             .padding(.horizontal, .spacing12)
             .frame(width: width, height: 200)
-            .background(AppIconView.gradient(forAppId: app.id))
+            // Web chat-card corner icons: two faded, tilted copies at the bottom corners,
+            // positioned inside a clipped reader (as the chat cards do) so they never
+            // enlarge the card's 200pt frame.
+            .background {
+                GeometryReader { geo in
+                    ZStack {
+                        AppIconView.gradient(forAppId: app.id)
+                        Icon(icon, size: 80).rotationEffect(.degrees(-15))
+                            .position(x: 30, y: geo.size.height - 12)
+                        Icon(icon, size: 80).rotationEffect(.degrees(15))
+                            .position(x: geo.size.width - 30, y: geo.size.height - 12)
+                    }
+                    .foregroundStyle(Color.fontButton.opacity(0.3))
+                }
+                .clipped()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
             .clipShape(RoundedRectangle(cornerRadius: 30))
             .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
         }
         .buttonStyle(.plain)
+        // As on the Workflows cards: a fixed frame and one labelled element keep the
+        // tilted corner icons out of the card's tap and accessibility bounds.
+        .frame(width: width, height: 200)
+        .contentShape(RoundedRectangle(cornerRadius: 30))
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(app.name)
+        .accessibilityValue(app.description ?? "")
         .omCardHoverFeedback()
         .accessibilityIdentifier("apps-app-card-\(app.id)")
     }

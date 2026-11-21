@@ -189,16 +189,7 @@ struct WorkflowHomeView: View {
 
     private func topControls(showingAll: Bool) -> some View {
         HStack(spacing: 20) {
-            Button(action: onReportIssue) {
-                Icon("bug", size: 23)
-                    .foregroundStyle(LinearGradient.primary)
-                    .frame(width: 42, height: 42)
-                    .background(Color.grey0, in: Circle())
-                    .shadow(color: .black.opacity(0.13), radius: 6, y: 3)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(AppStrings.settingsReportIssue)
-            .accessibilityIdentifier("workflows-home-report-issue")
+            WorkspaceReportIssueButton(accessibilityIdentifier: "workflows-home-report-issue", action: onReportIssue)
             if showingAll {
                 Button {
                     browseMode = .recent

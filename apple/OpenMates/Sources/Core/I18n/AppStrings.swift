@@ -87,6 +87,12 @@ enum AppStrings {
     static func notificationOccurrenceCount(_ count: Int) -> String {
         LocalizationManager.shared.text("notifications.occurrence_count", replacements: ["count": String(count)])
     }
+    /// Web ActiveChatsHeading: "You have 1 chat active:" / "You have {count} chats active:".
+    static func startRowActiveTitle(count: Int) -> String {
+        LocalizationManager.shared.text(count == 1 ? "chats.resume_last_chat.active_title_single" : "chats.resume_last_chat.active_title",
+            replacements: ["count": String(count)])
+    }
+    static var startRowActiveCardLabel: String { L("chats.resume_last_chat.active_card_label") }
     static func activeChatsWidgetTotal(count: Int) -> String {
         LocalizationManager.shared.text(count == 1 ? "apple.active_chats_widget.total_one" : "apple.active_chats_widget.total", replacements: ["count": String(count)])
     }

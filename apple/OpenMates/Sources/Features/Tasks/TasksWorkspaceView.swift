@@ -250,17 +250,7 @@ struct TasksWorkspaceView: View {
     private func toolbar(narrow: Bool) -> some View {
         VStack(alignment: .trailing, spacing: 10) {
             HStack(spacing: 14) {
-                Button(action: onReportIssue) {
-                    Icon("bug", size: 22)
-                        // WorkspaceReportIssueButton uses --color-primary.
-                        .foregroundStyle(LinearGradient.primary)
-                        .frame(width: 42, height: 42)
-                        .background(Color.grey0, in: Circle())
-                        .shadow(color: .black.opacity(0.12), radius: 7, y: 3)
-                }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(AppStrings.reportIssue)
-                    .accessibilityIdentifier("tasks-report-issue-button")
+                WorkspaceReportIssueButton(accessibilityIdentifier: "tasks-report-issue-button", action: onReportIssue)
                 Spacer(minLength: 0)
                 if !narrow {
                     if searchExpanded {

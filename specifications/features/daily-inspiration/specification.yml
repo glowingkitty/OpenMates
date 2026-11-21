@@ -421,7 +421,7 @@ applies_to:
         required: true
       apple:
         required: true
-        role: owns apple-startup-offline; existing web-specific fallback composition remains web-only
+        role: owns apple-startup-offline and the native start row (cards, actions, active-first); existing web-specific fallback composition remains web-only
 examples:
   file: examples.yml
   required_groups:

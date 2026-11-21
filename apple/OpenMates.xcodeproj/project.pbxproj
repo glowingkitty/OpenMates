@@ -5475,7 +5475,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				9F629A6D9D36C641EE6F558A /* XCRemoteSwiftPackageReference "lucide-icons-swift" */,
-				041CA6052900CE909FF6B8B5 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */,
+				041CA6052900CE909FF6B8B5 /* XCLocalSwiftPackageReference "Vendor/onnxruntime-spm" */,
 				F31F79F7B843A5405C05829E /* XCRemoteSwiftPackageReference "swift-sodium" */,
 				9B1BDAA9C80997394068F25F /* XCRemoteSwiftPackageReference "swift-tokenizers" */,
 				9D399ADA66CE184E44B88E21 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
@@ -8753,15 +8753,14 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		041CA6052900CE909FF6B8B5 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/microsoft/onnxruntime-swift-package-manager.git";
-			requirement = {
-				kind = revision;
-				revision = 12ce7374c86944e1f68f3a866d10105d8357f074;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		041CA6052900CE909FF6B8B5 /* XCLocalSwiftPackageReference "Vendor/onnxruntime-spm" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "Vendor/onnxruntime-spm";
 		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
 		9B1BDAA9C80997394068F25F /* XCRemoteSwiftPackageReference "swift-tokenizers" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/DePasqualeOrg/swift-tokenizers.git";
@@ -8860,7 +8859,7 @@
 		};
 		9D9C9C8A24B343E09EC55543 /* onnxruntime */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 041CA6052900CE909FF6B8B5 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */;
+			package = 041CA6052900CE909FF6B8B5 /* XCLocalSwiftPackageReference "Vendor/onnxruntime-spm" */;
 			productName = onnxruntime;
 		};
 		BBF89B51577DF3BD84AC0B0C /* Yams */ = {
@@ -8870,7 +8869,7 @@
 		};
 		C8339C09EEB47B1BEC814BE4 /* onnxruntime */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 041CA6052900CE909FF6B8B5 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */;
+			package = 041CA6052900CE909FF6B8B5 /* XCLocalSwiftPackageReference "Vendor/onnxruntime-spm" */;
 			productName = onnxruntime;
 		};
 		E6A99673B154FFBE3DDEBF0A /* Yams */ = {

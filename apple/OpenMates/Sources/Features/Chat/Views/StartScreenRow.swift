@@ -9,12 +9,102 @@
 //          frontend/packages/ui/src/components/welcome/StartScreenRowActions.svelte
 //          frontend/packages/ui/src/components/ActiveChat.svelte
 // TS:      frontend/packages/ui/src/utils/startScreenRow.ts
+//          frontend/packages/ui/src/utils/startRowMotion.ts
+//          frontend/packages/ui/src/components/workspace/WorkspaceReportIssueButton.svelte
+//          frontend/packages/ui/src/components/reportIssueLabel.ts
+// CSS:     StartScreenChatCard.svelte .continue-priority-pill, .active-pill, .active-dot,
+//          .resume-chat-large-card.active
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/daily-inspiration/specification.yml
 // Assertions: daily-inspiration.start-row-rhythm, daily-inspiration.start-row-cards,
-//             daily-inspiration.start-row-actions, daily-inspiration.start-row-suggestions
+//             daily-inspiration.start-row-actions, daily-inspiration.start-row-suggestions,
+//             daily-inspiration.start-row-active-first
 import SwiftUI
+
+/// Web startRowMotion.ts: a card that becomes active, or a new chat, fades in from below
+/// while the others slide aside; sidebar easing cubic-bezier(0.65, 0, 0.35, 1), 300 ms.
+/// Off while the row is still filling after the screen opened; reduced motion makes it instant.
+enum StartRowMotion {
+    static let duration = 0.3
+    static let rise: CGFloat = 28
+    /// The web row enables motion 1.5 s after the page opened.
+    static let enableDelay: Duration = .milliseconds(1500)
+    static func animation(enabled: Bool, reduceMotion: Bool) -> Animation? {
+        enabled && !reduceMotion ? .timingCurve(0.65, 0, 0.35, 1, duration: duration) : nil
+    }
+    static var cardInsertion: AnyTransition {
+        .asymmetric(insertion: .opacity.combined(with: .offset(y: rise)), removal: .opacity)
+    }
+}
+
+/// Web WorkspaceReportIssueButton on every workspace start screen: the bug icon in a white
+/// circle at the top left; panes from REPORT_LABEL_MIN_WIDTH (640px) also show the
+/// "Report issue" text. Native panes that wide are the regular size class (iPad, Mac).
+struct WorkspaceReportIssueButton: View {
+    var background: Color = .grey0
+    let accessibilityIdentifier: String
+    let action: () -> Void
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: .spacing4) {
+                Icon("bug", size: 23).foregroundStyle(LinearGradient.primary)
+                if sizeClass == .regular {
+                    Text(AppStrings.reportIssue)
+                        .font(.omP.weight(.semibold))
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(1)
+                        .padding(.trailing, .spacing4)
+                        .accessibilityIdentifier("report-issue-label")
+                }
+            }
+            .frame(minWidth: 42, minHeight: 42)
+            .padding(.horizontal, sizeClass == .regular ? 10 : 0)
+            .background(background, in: Capsule())
+            .shadow(color: .black.opacity(0.13), radius: 6, y: 3)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(AppStrings.reportIssue)
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
+/// Web StartScreenChatCard `active`: corner "Active" pill with a pulsing live dot
+/// (`.continue-priority-pill.active-pill`, top-left 12px, 5px 9px padding).
+struct StartRowActivePill: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulsing = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(Color.success)
+                .frame(width: 7, height: 7)
+                .background {
+                    // Web @keyframes active-dot-pulse: a ring grows to 6px and fades out over 1.6 s.
+                    Circle().stroke(Color.success.opacity(pulsing ? 0 : 0.7), lineWidth: pulsing ? 6 : 0)
+                        .frame(width: 7, height: 7)
+                }
+            Text(AppStrings.startRowActiveCardLabel)
+                .font(.omMicro.weight(.bold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .background(.black.opacity(0.4), in: Capsule())
+        .overlay(Capsule().stroke(.white.opacity(0.2), lineWidth: 1))
+        .padding(12)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) { pulsing = true }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("start-row-active-pill")
+    }
+}
 
 /// One entry of the start-screen row.
 enum StartScreenRowEntry<Own, Inspiration> {

@@ -2291,7 +2291,8 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
                     }
                 }.joined()
         }
-        XCTAssertEqual(shape(6, 6), "ooiooiooio")
+        XCTAssertEqual(shape(6, 6), "ooioooio")
+        XCTAssertEqual(shape(8, 6), "ooioooiooo")
         XCTAssertEqual(shape(0, 6), "iiiiii")
         XCTAssertEqual(shape(1, 3), "oi")
         XCTAssertEqual(shape(3, 0), "ooo")
