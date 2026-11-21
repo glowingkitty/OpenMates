@@ -5248,6 +5248,8 @@ async def handle_main_processing(
     memory_runtime = None
     on_demand_memory_prompt = ""
     diagram_context_repair_used = False
+    # Visible answer text already streamed in this turn (any iteration).
+    published_answer_text = False
     if (agentic_context.first_party(request_data) and discovered_apps_metadata
             and (request_data.user_preferences or {}).get("apps_enabled") is not False
             and has_memory_catalog(discovered_apps_metadata, request_data)):
@@ -8438,6 +8440,7 @@ async def handle_main_processing(
             break
 
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
+        published_answer_text = published_answer_text or bool(final_buffered_text_for_turn.strip())
         if diagram_context_guard.required_type and not tool_calls_for_this_turn:
             prose_repair = diagram_context_guard.reason == "unrequested_diagram"
             if not diagram_context_repair_used and (memory_runtime is not None or prose_repair):
@@ -8461,15 +8464,31 @@ async def handle_main_processing(
                     current_message_history.append({"role": "user", "content": correction})
                     logger.info("%s [DIAGRAM_CONTEXT] bounded repair reason=%s", log_prefix, diagram_context_guard.reason)
                     continue
-                except (ValueError, OSError, RuntimeError):
-                    logger.warning("%s [DIAGRAM_CONTEXT] required drawing guide unavailable", log_prefix)
-            for billing_event in await terminal_billing_usage_events():
-                yield billing_event
-            yield main_processing_failure("protocol_guard")
-            break
+                except (ValueError, OSError, RuntimeError) as guide_error:
+                    logger.warning(
+                        "%s [DIAGRAM_CONTEXT] required drawing guide unavailable type=%s reason=%s error=%s: %s",
+                        log_prefix, diagram_context_guard.required_type, diagram_context_guard.reason,
+                        type(guide_error).__name__, guide_error,
+                    )
+            if not published_answer_text:
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
+                yield main_processing_failure("protocol_guard")
+                break
+            # The answer is already visible (CG8JF). Only the withheld diagram
+            # is dropped; it never entered the stream or the history, so the
+            # turn completes with the published prose instead of an error.
+            logger.warning(
+                "%s [DIAGRAM_CONTEXT] withheld diagram dropped; completing with published text "
+                "type=%s reason=%s repair_used=%s",
+                log_prefix, diagram_context_guard.required_type, diagram_context_guard.reason,
+                diagram_context_repair_used,
+            )
         if native_prepared_context is not None:
             if (
-                iteration_native_output is not None and native_state is not None
+                # Raw native output still holds a dropped diagram; never replay it.
+                not diagram_context_guard.required_type
+                and iteration_native_output is not None and native_state is not None
                 and iteration_native_output.provider_prefix == native_prepared_context.get("provider_prefix")
                 and iteration_native_output.model_id == native_prepared_context.get("server_model_id")
                 and not protocol_guard.detected

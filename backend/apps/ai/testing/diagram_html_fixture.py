@@ -53,7 +53,17 @@ MINDMAP_SOURCE = json.dumps({
     ], "edges": [], "view": {"layout": "radial-tree", "collapsedNodeIds": []},
 })
 MINDMAP_RESPONSE = f"```openmates_mindmap\n{MINDMAP_SOURCE}\n```"
-_PROMPTS = (PROMPT, DISCUSSION_PROMPT, ON_DEMAND_PROMPT, PROSE_PROMPT, SOURCE_PROMPT, MINDMAP_PROMPT)
+UNKNOWN_KIND_PROMPT = (
+    "Explain the layering rules of a planner and implementation worker architecture. "
+    "DIAGRAM_HTML_E2E:unknown_kind_after_prose"
+)
+UNKNOWN_KIND_PROSE = "Dependencies point inward: the worker depends on planner contracts, never the reverse."
+# A diagram kind without a drawing guide (CG8JF): its guide cannot be loaded.
+UNKNOWN_KIND = "clean-layering"
+_PROMPTS = (PROMPT, DISCUSSION_PROMPT, ON_DEMAND_PROMPT, PROSE_PROMPT, SOURCE_PROMPT, MINDMAP_PROMPT,
+            UNKNOWN_KIND_PROMPT)
+# Request harm plus the post-answer safety check (answer_safety.py): all safe.
+_SAFE_SCORE_QUESTIONS = frozenset({"harmful_response", "answer_illegal", "answer_wellbeing_harm"})
 _HTML_PATH = Path(__file__).parent / "fixtures" / "diagram_html_web.html"
 
 
@@ -110,6 +120,8 @@ def _choice(question_id: str, criteria: Any) -> str | None:
         "project_target": "none", "diagram_primary_type": "type-architecture",
         "diagram_secondary_type": "none", "diagram_tertiary_type": "none",
         "diagram_variant": "minimal_dark",
+        # Request purpose policy: an ordinary request (never the first criterion).
+        "harmful_purpose": "none", "illegal_category": "none",
     }.get(question_id)
     if question_id == "diagram_primary_type" and preferred not in criteria:
         return None
@@ -144,7 +156,7 @@ def jev_response(state: Any, questions: Mapping[str, Mapping[str, Any]], model: 
                 "probabilities": {str(key): float(key == chosen) for key in criteria},
                 "confidence": 1.0,
             }
-        elif question_type == "score" and question_id == "harmful_response":
+        elif question_type == "score" and question_id in _SAFE_SCORE_QUESTIONS:
             criteria = question.get("criteria")
             if not isinstance(criteria, list) or not criteria:
                 return None
@@ -255,7 +267,8 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
             return {"response": {"type": "mixed_stream", "body": "", "chunk_format_version": 1,
                                   "chunks": [{"kind": "text", "value": ON_DEMAND_ASCII_RESPONSE}]}}
     discussion = any(prompt in latest_user_text
-                     for prompt in (DISCUSSION_PROMPT, PROSE_PROMPT, SOURCE_PROMPT, MINDMAP_PROMPT))
+                     for prompt in (DISCUSSION_PROMPT, PROSE_PROMPT, SOURCE_PROMPT, MINDMAP_PROMPT,
+                                    UNKNOWN_KIND_PROMPT))
     if discussion:
         # Fail closed if the real prompt assembler omitted either native protocol
         # or the complete selected guide. A canned response alone is no proof
@@ -275,6 +288,15 @@ def llm_fixture(category: str, kwargs: dict[str, Any]) -> dict[str, Any] | None:
         if SOURCE_PROMPT in latest_user_text:
             return {"response": {"type": "mixed_stream", "body": "", "chunk_format_version": 1,
                                   "chunks": [{"kind": "text", "value": SOURCE_RESPONSE}]}}
+        if UNKNOWN_KIND_PROMPT in latest_user_text:
+            # Prose streams first; the trailing diagram is withheld and its
+            # guide is unavailable, so the published prose must still complete.
+            diagram = _HTML_PATH.read_text(encoding="utf-8").replace(
+                'data-om-diagram="architecture"', f'data-om-diagram="{UNKNOWN_KIND}"')
+            return {"response": {"type": "mixed_stream", "body": "", "chunk_format_version": 1, "chunks": [
+                {"kind": "text", "value": UNKNOWN_KIND_PROSE + "\n\n"},
+                {"kind": "text", "value": f"```openmates_diagram\n{diagram.rstrip()}\n```"},
+            ]}}
         if MINDMAP_PROMPT in latest_user_text:
             return {"response": {"type": "mixed_stream", "body": "", "chunk_format_version": 1,
                                   "chunks": [{"kind": "text", "value": MINDMAP_RESPONSE}]}}

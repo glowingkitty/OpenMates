@@ -253,10 +253,12 @@ test('loaded architecture guidance supports prose, native mind maps and explicit
   await page.goto(getE2EDebugUrl('/'));
   await loginToTestAccount(page, log, screenshot);
   await installE2EServerContentOverrideGate(page, 'diagram-html-editing');
-  for (const kind of ['prose', 'mindmap', 'source']) {
+  for (const kind of ['prose', 'mindmap', 'source', 'unknown-kind']) {
     await startNewChat(page, log);
     try {
-      const prompt = kind === 'source'
+      const prompt = kind === 'unknown-kind'
+        ? 'Explain the layering rules of a planner and implementation worker architecture. DIAGRAM_HTML_E2E:unknown_kind_after_prose'
+        : kind === 'source'
         ? 'Give me Mermaid source code for a planner-to-worker architecture flow. DIAGRAM_HTML_E2E:explicit_mermaid_source'
         : kind === 'mindmap'
           ? 'Create a native mind map of the planner and implementation worker architecture. DIAGRAM_HTML_E2E:native_mindmap'
@@ -286,6 +288,14 @@ test('loaded architecture guidance supports prose, native mind maps and explicit
         await reloadChatWorkspace(page, chatUrl, log);
         await expect(page.getByTestId('message-assistant').last().getByTestId('mindmap-rendered-preview')).toBeVisible();
         await screenshot(page, 'generated-native-mindmap-reloaded');
+      } else if (kind === 'unknown-kind') {
+        // CG8JF: a withheld diagram whose guide cannot be loaded is dropped;
+        // the already shown answer completes instead of ending in an AI error.
+        await expect(assistant).toContainText("Dependencies point inward: the worker depends on planner contracts, never the reverse.", { timeout: 90_000 });
+        await expect(assistant).toHaveAttribute('data-streaming', 'false', { timeout: 90_000 });
+        await expect(page.getByTestId('message-assistant').last()).not.toContainText('The AI service encountered an error');
+        await expect(assistant.locator('[data-testid="embed-preview"]')).toHaveCount(0);
+        await screenshot(page, 'unknown-diagram-kind-prose-completes');
       } else {
         await expect(assistant).toContainText('The planner defines scope, the researcher reports findings, and the implementation worker owns a bounded task.');
         await expect(assistant.locator('[data-testid="embed-preview"]')).toHaveCount(0);
