@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Installs the systemd user service and timer for the daily AI test users run.
-# Mon-Sat 06:30 UTC: `daily` (weekdays: 3 dev + 2 prod personas; Saturday: the weekly full run on dev).
+# Mon-Fri 06:30 UTC: `daily` (3 dev + 2 prod personas). Never on Saturday or Sunday (owner, 21 Nov 2026);
+# `daily` also refuses weekend dates itself, e.g. a run that Persistent=true catches up after downtime.
 # Prod personas only run when ~/.openmates/ai-test-users/prod-enabled exists.
 set -euo pipefail
 
@@ -37,10 +38,10 @@ UNIT
 
 cat > "$SYSTEMD_DIR/ai-test-users.timer" <<UNIT
 [Unit]
-Description=Run the AI test users Monday to Saturday at 06:30 UTC
+Description=Run the AI test users Monday to Friday at 06:30 UTC
 
 [Timer]
-OnCalendar=Mon..Sat *-*-* 06:30:00 UTC
+OnCalendar=Mon..Fri *-*-* 06:30:00 UTC
 Persistent=true
 
 [Install]

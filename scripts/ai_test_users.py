@@ -11,12 +11,12 @@ app's own issue reporting, and deletes its account. A Gemini judge and Jev revie
   python3 scripts/ai_test_users.py run [--target dev|prod] [--personas all|id,id] [--parallel 10]
   python3 scripts/ai_test_users.py tasks --run DIR [--exclude persona#n,...] [--dry-run]
 
-`daily` follows the rotation in `ai_test_users_schedule.py` (weekdays 3 dev + 2 prod personas, Saturday all
-personas on dev), retries failed account deletions, writes run.json and report.md, and sends the run's one
+`daily` follows the rotation in `ai_test_users_schedule.py` (Monday to Friday 3 dev + 2 prod personas; no
+scheduled run on Saturday or Sunday), retries failed account deletions, writes run.json and report.md, and sends the run's one
 Discord message (`ai_test_users_message.py`). Reports only collect findings: no debug chat starts from them
 (owner, 20 Nov 2026). Prod runs need the flag file
 ~/.openmates/ai-test-users/prod-enabled and a gift card code in prod-gift-cards.txt. Everything is written
-to ~/.openmates/ai-test-users/<run-id>/ (outside the repository). Caps: 3 USD per daily run, 6 USD weekly.
+to ~/.openmates/ai-test-users/<run-id>/ (outside the repository). Cap: 3 USD per daily run.
 """
 
 from __future__ import annotations
@@ -121,15 +121,15 @@ def command_daily(args: argparse.Namespace) -> int:
     by_id = {p["id"]: p for p in PERSONAS}
     groups = {t: [by_id[i] for i in plan[t]] for t in ("dev", "prod") if plan[t]}
     if plan["kind"] == "none":
-        log("no run on Sundays")
+        log("no scheduled run on Saturdays and Sundays")
         return 0
     chosen = [i for t in groups for i in plan[t]]
     areas = schedule.areas_for(chosen, PERSONAS)
     count = sum(len(v) for v in groups.values())
     cfg = execution.Settings(base=accounts.HOME)
-    reporting.check_cap(plan["kind"], count, cfg.harness_cap_usd, cfg.e2b_cap_usd, args.total_cap_usd)
+    reporting.check_cap(count, cfg.harness_cap_usd, cfg.e2b_cap_usd, args.total_cap_usd)
     estimate = reporting.estimate_usd(count, cfg.harness_cap_usd, cfg.e2b_cap_usd)
-    cap = reporting.cap_for(plan["kind"], args.total_cap_usd)
+    cap = reporting.cap_for(args.total_cap_usd)
     log(f"{plan['kind']} run {day}: dev {plan['dev']} prod {plan['prod']} estimate {estimate} USD; areas {areas}")
     if args.dry_run:
         return 0
@@ -146,8 +146,8 @@ def command_daily(args: argparse.Namespace) -> int:
                      deletions)
     log(f"done: {run_dir / 'report.md'} total {run['totals']['total_usd']} USD")
     if reporting.push_due(accounts.HOME, day.isoformat()):
-        label = "Weekly AI test-user run" if plan["kind"] == "weekly" else "AI test users daily run"
-        message_text.push(message_text.run_message(f"{label} {day.isoformat()}", results, run["problems"]))
+        message_text.push(message_text.run_message(f"AI test users daily run {day.isoformat()}", results,
+                                                   run["problems"]))
         reporting.mark_pushed(accounts.HOME, day.isoformat())
     return 0
 
@@ -416,7 +416,7 @@ def main(argv: list[str] | None = None) -> int:
     daily.add_argument("--date", default=None)
     daily.add_argument("--dry-run", action="store_true")
     daily.add_argument("--parallel", type=int, default=5)
-    daily.add_argument("--total-cap-usd", type=float, default=None, help="override the daily/weekly cap")
+    daily.add_argument("--total-cap-usd", type=float, default=None, help="override the daily cap")
     videos = sub.add_parser("videos", help="upload an earlier run's recordings and link them in its report")
     videos.add_argument("--run", required=True)
     tasks = sub.add_parser("tasks")

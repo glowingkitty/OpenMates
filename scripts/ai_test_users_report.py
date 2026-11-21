@@ -8,7 +8,6 @@ from datetime import date
 from pathlib import Path
 
 DAILY_CAP_USD = 3.0
-WEEKLY_CAP_USD = 6.0
 USD_PER_CREDIT = 0.001
 # A persona that ended one of these ways ran as planned; anything else is a failure worth an alert.
 FINISHED_STATUSES = ("persona_finished", "max_steps", "max_minutes", "harness_budget")
@@ -16,10 +15,8 @@ NOT_SCHEDULED_STATUSES = ("prod_disabled",)
 DELETED_STATUSES = ("ok", "absent", "deleted")
 
 
-def cap_for(kind: str, override: float | None = None) -> float:
-    if override is not None:
-        return override
-    return WEEKLY_CAP_USD if kind == "weekly" else DAILY_CAP_USD
+def cap_for(override: float | None = None) -> float:
+    return DAILY_CAP_USD if override is None else override
 
 
 def estimate_usd(count: int, harness_cap: float, e2b_cap: float) -> float:
@@ -27,10 +24,10 @@ def estimate_usd(count: int, harness_cap: float, e2b_cap: float) -> float:
     return round(count * (harness_cap + e2b_cap), 3)
 
 
-def check_cap(kind: str, count: int, harness_cap: float, e2b_cap: float, override: float | None = None) -> None:
-    cap, cost = cap_for(kind, override), estimate_usd(count, harness_cap, e2b_cap)
+def check_cap(count: int, harness_cap: float, e2b_cap: float, override: float | None = None) -> None:
+    cap, cost = cap_for(override), estimate_usd(count, harness_cap, e2b_cap)
     if cost > cap:
-        raise SystemExit(f"{kind} run would cost up to {cost:.2f} USD, above the {cap:.2f} USD cap")
+        raise SystemExit(f"The run would cost up to {cost:.2f} USD, above the {cap:.2f} USD cap")
 
 
 def video_link(result: dict, seconds: object = None) -> str:

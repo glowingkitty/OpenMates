@@ -17,8 +17,8 @@ goal: >-
   judge also rates answer quality and flags demo-chat candidates; transcripts
   are readable per persona. Reports from test accounts start investigation
   chats that may only fix small, clear bugs (TASK-8809). One short Discord
-  summary per day. Weekdays 3 dev + 2 production personas, a weekly full run
-  of all 10, about 35 USD per month. Models stay as they are.
+  summary per day. Monday to Friday 3 dev + 2 production personas, never on
+  weekends (owner, 21 Nov 2026), about 30 USD per month. Models stay as they are.
 scope:
   - >-
     Harness (scripts/ai_test_users.py, backend/scripts/ai_test_users/): target
@@ -46,7 +46,8 @@ scope:
   - >-
     Schedule: systemd user timer on the dev host, weekday rotation (3 dev, 2
     prod, disjoint personas, every persona on each server within a week),
-    weekly full dev run, one daily summary push, one low-batch question push.
+    Monday to Friday only (no Saturday full run since 21 Nov 2026), one daily
+    summary push, one low-batch question push.
 contracts:
   - issue-reporting.form.single-text-quick-actions
   - issue-reporting.submission.confirmed-and-durable

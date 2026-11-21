@@ -35,9 +35,9 @@ def test_rotation_properties_over_four_weeks():
             dev_seen |= set(plan["dev"])
             prod_seen |= set(plan["prod"])
         assert dev_seen == set(IDS) and prod_seen == set(IDS)
-        saturday = schedule.personas_for(start + timedelta(days=5), IDS)
-        assert saturday["kind"] == "weekly" and saturday["dev"] == IDS and saturday["prod"] == []
-        assert schedule.personas_for(start + timedelta(days=6), IDS)["kind"] == "none"
+        for weekend_day in (5, 6):  # Saturday, Sunday: nothing on dev or prod (owner, 21 Nov 2026)
+            assert schedule.personas_for(start + timedelta(days=weekend_day), IDS) == {
+                "kind": "none", "dev": [], "prod": []}
 
 
 def test_areas_and_persona_texts():
@@ -146,12 +146,10 @@ def test_crash_alert_names_the_failure():
 
 
 def test_caps():
-    reporting.check_cap("daily", 5, 0.2, 0.1)
+    reporting.check_cap(5, 0.2, 0.1)
     with pytest.raises(SystemExit):
-        reporting.check_cap("daily", 5, 0.5, 0.2)  # 3.5 USD
-    reporting.check_cap("weekly", 10, 0.4, 0.2)
-    with pytest.raises(SystemExit):
-        reporting.check_cap("weekly", 10, 0.5, 0.2)  # 7 USD
+        reporting.check_cap(5, 0.5, 0.2)  # 3.5 USD
+    reporting.check_cap(10, 0.5, 0.2, override=7.0)
 
 
 def _printenv(values):
@@ -234,3 +232,21 @@ def test_cleanup_never_deletes_accounts_of_another_running_run(tmp_path):
     later = now + timedelta(hours=3)
     assert len(accounts.pending_deletions(tmp_path, run_id="mine", now=later)) == 3
     assert len(accounts.pending_deletions(tmp_path)) == 3
+
+
+def test_scheduled_runs_only_monday_to_friday(monkeypatch):
+    """Owner, 21 Nov 2026: no scheduled run on Saturday or Sunday, on dev or prod (one timer drives both)."""
+    import re
+
+    import ai_test_users
+
+    setup = (Path(__file__).resolve().parents[1] / "ai-test-users-setup.sh").read_text()
+    assert re.findall(r"^OnCalendar=(.+)$", setup, re.M) == ["Mon..Fri *-*-* 06:30:00 UTC"]
+
+    def must_not_run(*args, **kwargs):
+        raise AssertionError("a weekend date must not start any persona")
+
+    monkeypatch.setattr(ai_test_users.execution, "run_persona", must_not_run)
+    monkeypatch.setattr(ai_test_users.message_text, "push", must_not_run)
+    for weekend in ("2026-11-21", "2026-11-22"):  # Persistent=true catch-up or a manual call on a weekend
+        assert ai_test_users.main(["daily", "--date", weekend]) == 0
