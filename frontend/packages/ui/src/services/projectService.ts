@@ -71,6 +71,10 @@ export interface EncryptedProjectRecord {
   encrypted_description?: string | null;
   encrypted_icon?: string | null;
   encrypted_color?: string | null;
+  /** Project category id, encrypted with the Project key (TASK-1807). */
+  encrypted_category?: string | null;
+  /** Presentation state JSON (who set description/icon/category), encrypted with the Project key. */
+  encrypted_presentation_state?: string | null;
   pinned?: boolean;
   archived?: boolean;
   is_private?: boolean;
@@ -298,6 +302,10 @@ export interface ProjectViewModel {
   name: string;
   description: string;
   icon: string;
+  /** Category id whose chat gradient the Project tile uses; empty when unset. */
+  category?: string;
+  /** Decrypted presentation state; null for a Project from before TASK-1807. */
+  presentationState?: Record<string, unknown> | null;
   projectKey: Uint8Array;
   encrypted: EncryptedProjectRecord;
 }
@@ -372,9 +380,27 @@ export async function decryptProject(record: EncryptedProjectRecord, teamId = ge
     name: await decryptOptional(record.encrypted_name, projectKey),
     description: await decryptOptional(record.encrypted_description, projectKey),
     icon: await decryptOptional(record.encrypted_icon, projectKey),
+    category: await decryptOptional(record.encrypted_category, projectKey),
+    presentationState: parsePresentationState(await decryptOptional(record.encrypted_presentation_state, projectKey)),
     projectKey,
     encrypted: record,
   };
+}
+
+/**
+ * Parses the decrypted presentation state. A state that is not a JSON object is
+ * kept as an opaque present state, so the one-time backfill never rewrites a
+ * Project whose state it cannot read.
+ */
+function parsePresentationState(plaintext: string): Record<string, unknown> | null {
+  if (!plaintext) return null;
+  try {
+    const parsed: unknown = JSON.parse(plaintext);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
+  } catch (error) {
+    console.error("[projectService] Unreadable Project presentation state", error);
+  }
+  return { v: 1, unreadable: true };
 }
 
 const projectListCache = new WorkspaceQueryCache<ProjectViewModel[]>();
@@ -518,6 +544,38 @@ export async function updateProjectMetadata(
   if (!updated) throw new Error("Updated project could not be decrypted");
   if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
   return PROJECT_RUST_CORE ? publishProjectRust(updated) : publishProjectSync(updated);
+}
+
+/**
+ * Writes presentation fields the Rust core planned (`projectPresentationPlan`) plus the
+ * new presentation state, each encrypted with the Project key. Flag-on only.
+ */
+export async function patchProjectPresentation(
+  project: ProjectViewModel,
+  fields: { description?: string; icon?: string; category?: string },
+  state: Record<string, unknown>,
+): Promise<ProjectViewModel> {
+  assertCurrentProjectContext(project.teamId);
+  const identity = getWorkspaceCacheIdentity();
+  const plan = await decideProject("projectMetadataPatch", {
+    version: project.encrypted.version ?? null, name: false, description: fields.description !== undefined,
+  });
+  const body: Record<string, unknown> = {
+    version: plan.version,
+    encrypted_presentation_state: await encryptWithEmbedKey(JSON.stringify(state), project.projectKey),
+  };
+  if (plan.encryptDescription && fields.description !== undefined) body.encrypted_description = await encryptWithEmbedKey(fields.description, project.projectKey);
+  if (fields.icon !== undefined) body.encrypted_icon = await encryptWithEmbedKey(fields.icon, project.projectKey);
+  if (fields.category !== undefined) body.encrypted_category = await encryptWithEmbedKey(fields.category, project.projectKey);
+  if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
+  const data = await requestJson<{ project: EncryptedProjectRecord }>(withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(project.project_id)}`, { team_id: project.teamId }), {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+  const updated = await decryptProject(data.project, project.teamId);
+  if (!updated) throw new Error("Updated project could not be decrypted");
+  if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
+  return publishProjectRust(updated);
 }
 
 export async function createProject(name: string, writeMode: ProjectWriteMode | null, context: ProjectApiContext = {}): Promise<ProjectViewModel> {

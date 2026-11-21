@@ -56,8 +56,12 @@ pub struct ProjectCreateRequest {
     pub team_id: Option<String>,
     /// Plaintext proposal; encrypted before it leaves the client.
     pub name: String,
-    /// Plaintext description proposal (may be empty).
+    /// Plaintext one-line description proposal (normalised, may be empty).
     pub description: String,
+    /// Validated Lucide icon proposal, when the request carries one.
+    pub icon: Option<String>,
+    /// Validated category proposal, when the request carries one.
+    pub category: Option<String>,
     /// `web_app` or `native_app`.
     pub kind: String,
     /// Project folder for the application's files (`web-app` / `native-app`).
@@ -147,6 +151,18 @@ impl ProjectCreateRequest {
             _ => return refuse(ProjectCreateRefusal::Invalid),
         };
         let text = |field: &str| action[field].as_str().map(str::to_owned);
+        // Optional presentation hints: absent/null is fine, a wrong type refuses.
+        let (icon, category) = match (&action["icon"], &action["category"]) {
+            (Value::Null | Value::String(_), Value::Null | Value::String(_)) => (
+                action["icon"]
+                    .as_str()
+                    .and_then(presentation::normalize_icon),
+                action["category"]
+                    .as_str()
+                    .and_then(presentation::normalize_category),
+            ),
+            _ => return refuse(ProjectCreateRefusal::Invalid),
+        };
         // A machine request may leave the application kind open.
         let open_kind = location == ProjectCreateLocation::Machine && action["kind"].is_null();
         let (Some(name), Some(description), Some(kind), Some(subfolder), Some(expires_at)) = (
@@ -182,7 +198,9 @@ impl ProjectCreateRequest {
             chat_id: chat_id.to_owned(),
             team_id,
             name,
-            description,
+            description: presentation::normalize_description(&description),
+            icon,
+            category,
             kind,
             subfolder,
             expires_at,
@@ -296,9 +314,25 @@ impl Projects<'_> {
         focus: &ProjectDefaultFocus,
         attempt: u32,
     ) -> Result<String> {
+        let proposal = PresentationFields {
+            description: Some(request.description.clone()),
+            icon: request.icon.clone(),
+            category: request.category.clone(),
+        };
+        let presentation = plan_write(
+            PresentationOrigin::Creation,
+            None,
+            &PresentationValues::default(),
+            &proposal,
+            0,
+            &[],
+        )
+        .ok_or(Error::Protocol)?;
         let input = ProjectCreate {
             name: request.name.clone(),
-            description: request.description.clone(),
+            description: presentation.fields.description.clone().unwrap_or_default(),
+            icon: presentation.fields.icon.clone(),
+            category: presentation.fields.category.clone(),
             write_mode: Some(ProjectWriteMode::ApplyAndShow),
             default_focus: Some(focus.clone()),
             slug: assistant_slug(&request.name, attempt),
@@ -320,6 +354,11 @@ impl Projects<'_> {
         });
         payload["encrypted_settings"] = json!(crypto::server_fields::encrypt_text(
             &serde_json::to_string(&settings)?,
+            &key,
+            &[]
+        )?);
+        payload["encrypted_presentation_state"] = json!(crypto::server_fields::encrypt_text(
+            &serde_json::to_string(&presentation.state)?,
             &key,
             &[]
         )?);

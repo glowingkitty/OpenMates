@@ -804,6 +804,70 @@ assertions:
     folders without Git are edited directly as before.
   depends_on:
   - examples.project_chat_worktrees
+- id: projects.presentation.tile
+  type: behavior
+  must: Each Project tile in the Projects workspace (recent row and Show all grid) shows the Project name, its one-line
+    description when it has one, its icon and the colour gradient of its category, which are the same category gradients
+    chats use. A Project without a category keeps the Projects gradient and its icon falls back to the category icon,
+    then to a folder.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.encrypted
+  type: privacy
+  must: Description, icon, category and the record of who set each of them are stored only encrypted with the Project
+    key, like the Project name. The server sees only ciphertext; it handles plaintext only transiently while proposing
+    values and never stores or logs it.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.normalised
+  type: invariant
+  must: A proposed description is one line of at most 140 characters, cut at a word boundary; an icon is a kebab-case
+    icon name of at most 40 characters; a category is one of the chat categories other than the internal OpenMates and
+    onboarding ones. Anything else is dropped, never guessed.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.creation-same-call
+  type: behavior
+  must: When the assistant creates a Project, the same short naming call that names it also writes the description from
+    the user's first request and picks the icon and the category; the projects.create skill takes them as tool arguments.
+    Creation adds no model call, and the client encrypts the values into the new Project.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.specification-refresh
+  type: behavior
+  must: The first time the user approves a Specification of a Project, the client asks for a new description, icon and
+    category from that Specification's title and summary and writes them once. Later approvals change nothing.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.manual-lock
+  type: invariant
+  must: The user can change the description, icon and category of a Project by hand. A field the user changed, including
+    a description cleared by hand, is never overwritten by the assistant, the Specification refresh or the backfill.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.dominant-category
+  type: behavior
+  must: For a mixed Project the strongest evidence decides the category. At creation the user's request decides, on
+    Specification approval the Specification decides, and in the backfill the category most of the Project's chats share
+    decides, with a tie going to the most recently updated of those chats; without categorised chats the proposal decides.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.backfill
+  type: behavior
+  must: A Project created before presentation existed, that has at least one item, is described once by a client that can
+    decrypt it, the next time that client opens the Projects workspace (at most five Projects per visit, one after the
+    other). Values the Project already had count as the user's. A Project too thin to describe gets an icon and a category
+    but no invented description. Whether a Project has items comes from the item count in the Project list, which the
+    server counts live from the Project's items.
+  depends_on:
+  - examples.project_presentation
+- id: projects.presentation.suggest-route
+  type: security
+  must: Description, icon and category proposals outside creation come from one first-party route that requires a signed-in
+    session (no API keys), is rate limited per user, charges no credits, uses one small model call, bounds its input and
+    stores nothing.
+  depends_on:
+  - examples.project_presentation
 applies_to:
   rest_api:
     required: true
@@ -922,6 +986,7 @@ examples:
   - project_uploads
   - project_document_creation
   - project_assistant_creation
+  - project_presentation
   - project_application_files
   - project_commits
   - project_chat_worktrees

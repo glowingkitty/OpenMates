@@ -7432,7 +7432,33 @@ export const APP_SKILL_METADATA = [
         },
         "description": {
           "type": "string",
-          "description": "Optional project description."
+          "description": "One short sentence (at most 120 characters) saying what the project is for; shown on its tile."
+        },
+        "icon": {
+          "type": "string",
+          "description": "One Lucide icon name in kebab case that fits the project (for example chef-hat, gamepad-2, wallet)."
+        },
+        "category": {
+          "type": "string",
+          "description": "The single category the project mainly belongs to; for a mixed project the category of its main deliverable.",
+          "enum": [
+            "software_development",
+            "business_development",
+            "medical_health",
+            "legal_law",
+            "maker_prototyping",
+            "marketing_sales",
+            "finance",
+            "design",
+            "electrical_engineering",
+            "movies_tv",
+            "history",
+            "science",
+            "life_coach_psychology",
+            "cooking_food",
+            "activism",
+            "general_knowledge"
+          ]
         }
       },
       "required": [

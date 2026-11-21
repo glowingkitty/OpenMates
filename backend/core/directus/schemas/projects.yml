@@ -61,6 +61,16 @@ projects:
       type: text
       note: "[Encrypted] Optional color/theme token encrypted with the project key."
 
+    encrypted_category:
+      type: text
+      nullable: true
+      note: "[Encrypted, Nullable] Project category (one of the chat categories; picks the tile gradient), encrypted with the project key. TASK-1807."
+
+    encrypted_presentation_state:
+      type: text
+      nullable: true
+      note: "[Encrypted, Nullable] JSON with who set description/icon/category (assistant, backfill, user), whether the Specification refresh and the one-time backfill ran. Encrypted with the project key; manual edits are protected by it. TASK-1807."
+
     pinned:
       type: boolean
       default: false

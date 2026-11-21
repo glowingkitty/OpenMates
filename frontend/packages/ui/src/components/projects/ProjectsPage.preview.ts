@@ -180,6 +180,22 @@ const hostedEmbeds = Object.fromEntries([
   }]),
 ]);
 
+// Home tiles with presentation (TASK-1807): categorised Projects use their category's chat
+// gradient, description and icon; the legacy Project keeps the Projects look.
+function presentedProject(projectId: string, name: string, description: string, icon: string, category: string): ProjectViewModel {
+  return {
+    ...project, project_id: projectId, name, description, icon, category,
+    presentationState: { v: 1, sources: { description: 'assistant', icon: 'assistant', category: 'assistant' }, specification_refreshed: false, backfilled: true },
+    encrypted: { ...project.encrypted, project_id: projectId },
+  };
+}
+const presentedProjects: ProjectViewModel[] = [
+  presentedProject('preview-recipes', 'Recipe Keeper', 'Save, plan and cook your family recipes in one place.', 'chef-hat', 'cooking_food'),
+  presentedProject('preview-kitchen', 'Kitchen renovation', 'Plans, quotes and building steps for the new kitchen.', 'hammer', 'maker_prototyping'),
+  presentedProject('preview-budget', 'Household budget', 'Monthly spending, savings goals and bills.', 'wallet', 'finance'),
+  { ...project, description: '', icon: 'folder', category: '', presentationState: null },
+];
+
 export default overviewProps;
 export const variants = {
   mixedRemoteChats: mixedRemoteProps,
@@ -190,6 +206,7 @@ export const variants = {
     chatPresentations: Object.fromEntries(pagedChats.map((chat) => [chat.target_id, { ...chatPresentation, title: chat.displayName }])) } },
   chats: { ...overviewProps, previewState: { ...overviewProps.previewState, items: [...items, chatItem], chatPresentations: { [chatItem.target_id]: chatPresentation } } },
   landing: { ...overviewProps, previewState: { ...overviewProps.previewState, startAtHome: true } },
+  presentationTiles: { ...overviewProps, previewState: { ...overviewProps.previewState, startAtHome: true, projects: presentedProjects } },
   folders: { ...overviewProps, initialTab: 'folders' as const },
   // An adopted application lives in its hosted folder, not at the Project root.
   hostedApplication: {

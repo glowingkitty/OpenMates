@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
+from backend.apps.ai.processing.project_presentation import PresentationSuggestRequest, suggest_project_presentation
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_chat_project_title, run_project_ask_pipeline
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
@@ -225,6 +226,8 @@ class ProjectCreateRequest(BaseModel):
     encrypted_description: Optional[str] = None
     encrypted_icon: Optional[str] = None
     encrypted_color: Optional[str] = None
+    encrypted_category: Optional[str] = Field(default=None, max_length=4_000)
+    encrypted_presentation_state: Optional[str] = Field(default=None, max_length=8_000)
     pinned: bool = False
     created_at: int
     updated_at: int
@@ -255,6 +258,8 @@ class ProjectUpdateRequest(BaseModel):
     encrypted_description: Optional[str] = None
     encrypted_icon: Optional[str] = None
     encrypted_color: Optional[str] = None
+    encrypted_category: Optional[str] = Field(default=None, max_length=4_000)
+    encrypted_presentation_state: Optional[str] = Field(default=None, max_length=8_000)
     pinned: Optional[bool] = None
     archived: Optional[bool] = None
     updated_at: Optional[int] = None
@@ -557,6 +562,34 @@ def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, 
     }
 
 
+@router.post("/presentation/suggest")
+@limiter.limit("20/minute")
+async def suggest_project_presentation_route(
+    request: Request,
+    body: PresentationSuggestRequest,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Propose a Project tile description, icon and category (TASK-1807).
+
+    First-party client surface only: session auth (no API keys), owner-agnostic
+    because it reads and stores nothing; the client sends transient plaintext
+    from a Project it already decrypted (Specification title and summary, or
+    name, item names and chat titles for the one-time backfill) and encrypts the
+    answer itself. One small model call, no credits charged (like ``/ask/plan``),
+    and no plaintext in logs.
+    """
+    del current_user
+    secrets_manager = getattr(request.app.state, "secrets_manager", None)
+    if secrets_manager is None:
+        raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
+    try:
+        proposal = await suggest_project_presentation(body, secrets_manager)
+    except WorkspaceAskPlanningError as exc:
+        logger.warning("Project presentation suggestion failed purpose=%s (%s)", body.purpose, type(exc).__name__)
+        raise HTTPException(status_code=502, detail="Project presentation suggestion failed") from exc
+    return {"presentation": proposal.model_dump()}
+
+
 def _safe_project_focus_projection(binding: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "active": True,
@@ -608,6 +641,11 @@ async def list_projects(
         )
     else:
         projects = await directus_service.project.list_projects(current_user.id, include_archived=include_archived, team_id=team_id)
+    # The stored item_count never moves (item writes cannot find the Project row), so the
+    # list reports the real count; the client's one-time tile backfill needs it (TASK-1807).
+    item_counts = await directus_service.project.count_items_by_project_hash(current_user.id, team_id)
+    for project in projects:
+        project["item_count"] = item_counts.get(hash_id(str(project.get("project_id") or "")), 0)
     role = str(membership.get("role")) if membership else None
     projection_limit = asyncio.Semaphore(8)
 

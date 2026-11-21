@@ -1215,6 +1215,10 @@ features:
         name: "Agentic runs and checks"
         description: "Long turns, test results, checks, workspace chain, remote access"
         assertions: ["projects.agentic.*", "projects.checks.*", "projects.workspace.*", "projects.remote-access.*", "projects.sources.*", "projects.history.*"]
+      - id: tile-presentation
+        name: "Project tile description, icon and category"
+        description: "Encrypted one-line description, icon and category gradient on Project tiles; set at assistant creation and once on Specification approval, manual edits locked, older Projects backfilled once by the client"
+        assertions: ["projects.presentation.*"]
       - id: project-timeline
         name: "Project Timeline tab"
         description: "Newest-first commits and file activity of a Project with restore of files to a commit as new versions (web, Apple, CLI)"

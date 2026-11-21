@@ -35,6 +35,8 @@ pub struct ProjectCreate {
     pub name: String,
     pub description: String,
     pub icon: Option<String>,
+    /// Project category id (`presentation::PRESENTATION_CATEGORIES`).
+    pub category: Option<String>,
     pub color: Option<String>,
     pub slug: Option<String>,
     pub pinned: bool,
@@ -49,6 +51,8 @@ pub struct ProjectPatch {
     pub name: Option<String>,
     pub description: Option<String>,
     pub icon: Option<String>,
+    /// Project category id; written with the user presentation state.
+    pub category: Option<String>,
     pub color: Option<String>,
     pub slug: Option<String>,
     pub pinned: Option<bool>,
@@ -67,6 +71,10 @@ mod ask;
 pub use ask::*;
 mod assistant_request;
 pub use assistant_request::*;
+mod presentation;
+pub use presentation::*;
+#[cfg(test)]
+mod presentation_tests;
 #[cfg(test)]
 mod assistant_request_tests;
 #[cfg(test)]
@@ -342,33 +350,13 @@ impl<'a> Projects<'a> {
         } else {
             None
         };
-        let patch = encode_patch(&project, &input, wrapping.as_deref())?;
+        let mut patch = encode_patch(&project, &input, wrapping.as_deref())?;
+        self.merge_user_presentation(&project, &input, &mut patch)?;
         Ok((project, patch))
     }
     pub async fn update(&mut self, id: &str, input: ProjectPatch) -> Result<Value> {
         let (project, patch) = self.prepare_patch(id, input).await?;
-        let route = self.path(
-            &format!("/v1/projects/{}", string(&project.raw, "project_id")?),
-            &[],
-        );
-        let data = self
-            .backend
-            .request(Method::PATCH, &route, Some(patch), None)
-            .await?;
-        if data["project"]["project_id"] != project.raw["project_id"] {
-            return Err(Error::Forbidden);
-        }
-        // Like npm (`{...project.encrypted, ...updated}`), fields the PATCH
-        // response omits (for example mutation_permissions) keep the read value.
-        let mut merged = project.raw.clone();
-        if let (Some(row), Some(updated)) = (merged.as_object_mut(), data["project"].as_object()) {
-            row.extend(updated.iter().map(|(k, v)| (k.clone(), v.clone())));
-        }
-        let mut public = decode(merged, project.key)?.public;
-        if let Some(history) = data.get("history") {
-            public["history"] = history.clone();
-        }
-        Ok(public)
+        self.send_patch_with_history(project, patch).await
     }
     pub async fn edit(&mut self, id: &str, input: ProjectPatch) -> Result<Value> {
         self.update(id, input).await
@@ -592,13 +580,19 @@ fn decode(raw: Value, key: Key) -> Result<ResolvedProject> {
     ] {
         public[field] = raw[field].clone();
     }
-    for field in ["name", "description", "icon", "color", "slug"] {
+    for field in ["name", "description", "icon", "color", "slug", "category"] {
         public[field] = json!(super::task_crypto::text(
             &raw,
             &format!("encrypted_{field}"),
             &key
         )?);
     }
+    let state = super::task_crypto::text(&raw, "encrypted_presentation_state", &key)?;
+    public["presentation_state"] = if state.is_empty() {
+        Value::Null
+    } else {
+        serde_json::from_str(&state).map_err(|_| Error::Protocol)?
+    };
     Ok(ResolvedProject { raw, public, key })
 }
 fn validate_focus(focus: &ProjectDefaultFocus) -> Result<()> {
@@ -659,6 +653,10 @@ fn encode_create_wrapped(
     if let Some(lookup) = lookup {
         value["encrypted_slug"] = json!(crypto::server_fields::encrypt_text(&slug, key, &[])?);
         value["slug_lookup_hash"] = json!(crypto::object_slug_lookup_hash(&slug, lookup)?);
+    }
+    if let Some(category) = input.category.as_deref().filter(|c| !c.is_empty()) {
+        value["encrypted_category"] =
+            json!(crypto::server_fields::encrypt_text(category, key, &[])?);
     }
     if let Some(team) = team {
         value["key_wrappers"] = json!([{"key_type":"team","hashed_team_id":hash(team),"team_key_epoch":1,"wrapper_version":1,"encrypted_project_key":wrapped,"created_at":now()}]);

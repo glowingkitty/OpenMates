@@ -214,6 +214,7 @@ async def test_team_project_projection_includes_authorized_wrapper_and_permissio
         team=SimpleNamespace(require_team_role=AsyncMock(return_value={"role": "member"})),
         project=SimpleNamespace(
             list_projects=AsyncMock(return_value=[project]),
+            count_items_by_project_hash=AsyncMock(return_value={}),
             get_project=AsyncMock(return_value=project),
             list_project_key_wrappers=AsyncMock(return_value=wrappers),
             list_folders=AsyncMock(return_value=[]),
@@ -287,6 +288,7 @@ async def test_project_list_projections_are_bounded_ordered_and_freshly_scoped()
         team=SimpleNamespace(require_team_role=role),
         project=SimpleNamespace(
             list_projects=AsyncMock(return_value=projects),
+            count_items_by_project_hash=AsyncMock(return_value={}),
             list_project_key_wrappers=AsyncMock(side_effect=wrappers),
         ),
     )
@@ -327,6 +329,7 @@ async def test_project_list_fails_as_a_whole_if_one_fresh_wrapper_read_fails() -
 
     directus = SimpleNamespace(project=SimpleNamespace(
         list_projects=AsyncMock(return_value=[{"project_id": project_id} for project_id in project_ids]),
+        count_items_by_project_hash=AsyncMock(return_value={}),
         list_project_key_wrappers=AsyncMock(side_effect=wrappers),
     ))
 
@@ -338,6 +341,46 @@ async def test_project_list_fails_as_a_whole_if_one_fresh_wrapper_read_fails() -
 
     assert exc_info.value.status_code == 503
     assert wrapper_calls == [("user-1", project_id, None) for project_id in project_ids]
+
+
+# contract-test: supporting surface=rest_api assertions=projects.presentation.backfill
+@pytest.mark.anyio
+async def test_project_list_reports_the_real_item_count_per_project() -> None:
+    directus = SimpleNamespace(project=SimpleNamespace(
+        list_projects=AsyncMock(return_value=[
+            {"project_id": "project-0", "item_count": 0},
+            {"project_id": "project-1", "item_count": 0},
+        ]),
+        count_items_by_project_hash=AsyncMock(return_value={hash_id("project-0"): 3}),
+        list_project_key_wrappers=AsyncMock(return_value=[]),
+    ))
+
+    listed = await list_projects(
+        request=make_request("GET"), include_archived=True, team_id=None,
+        current_user=SimpleNamespace(id="user-1"), directus_service=directus,
+    )
+
+    assert [project["item_count"] for project in listed["projects"]] == [3, 0]
+    directus.project.count_items_by_project_hash.assert_awaited_once_with("user-1", None)
+
+
+@pytest.mark.anyio
+async def test_project_item_counts_are_one_owner_scoped_grouped_query() -> None:
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[
+        {"hashed_project_id": "hash-a", "count": {"id": "2"}},
+        {"hashed_project_id": "hash-b", "count": 5},
+    ]))
+
+    counts = await ProjectMethods(directus).count_items_by_project_hash("user-1")
+
+    assert counts == {"hash-a": 2, "hash-b": 5}
+    collection = directus.get_items.await_args.args[0]
+    params = directus.get_items.await_args.kwargs["params"]
+    assert collection == "project_items" and params["groupBy"] == ["hashed_project_id"]
+    assert params["filter[hashed_user_id][_eq]"] == hash_id("user-1") and params["filter[hashed_team_id][_null]"] is True
+    directus.get_items.return_value = [{"hashed_project_id": "hash-a"}]
+    with pytest.raises(RuntimeError):
+        await ProjectMethods(directus).count_items_by_project_hash("user-1")
 
 
 @pytest.mark.anyio

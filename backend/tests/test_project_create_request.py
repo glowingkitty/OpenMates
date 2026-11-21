@@ -73,7 +73,8 @@ async def test_recipe_web_app_creates_project_outcome(monkeypatch):
     assert proposal is not None
     assert proposal.as_dict() == {"kind": "web_app", "subfolder": "web-app", "proposed_name": "Recipe Manager",
                                   "confidence": 0.9, "outcome": "create_project",
-                                  "location": "cloud", "machine_hint": ""}
+                                  "location": "cloud", "machine_hint": "",
+                                  "description": "", "icon": "", "category": ""}
     jev.assert_awaited_once()
     namer.assert_awaited_once()
 
@@ -165,7 +166,8 @@ def test_create_action_contract_shape():
     assert action == {
         "contract": "openmates.project_create_request", "version": 1, "request_id": request_id,
         "action": "create", "origin": "preprocessor", "chat_id": "chat", "message_id": "turn", "team_id": None,
-        "name": "Recipe Manager", "description": "", "kind": "web_app", "subfolder": "web-app",
+        "name": "Recipe Manager", "description": "", "icon": None, "category": None,
+        "kind": "web_app", "subfolder": "web-app",
         "write_mode": "apply_and_show", "focus": {"activate": "immediate", "countdown_seconds": 0},
         "undo": {"available": True}, "created_at": 1000, "expires_at": 1600, "notification_queued": False,
     }

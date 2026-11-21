@@ -22,7 +22,8 @@ PROJECT_KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 PROJECT_FIELDS = (
     "id,project_id,hashed_user_id,hashed_team_id,created_by_user_hash,encrypted_project_key,encrypted_name,"
-    "encrypted_slug,slug_lookup_hash,encrypted_description,encrypted_icon,encrypted_color,pinned,archived,"
+    "encrypted_slug,slug_lookup_hash,encrypted_description,encrypted_icon,encrypted_color,encrypted_category,"
+    "encrypted_presentation_state,pinned,archived,"
     "is_private,is_shared,version,created_at,updated_at,last_opened_at,item_count"
 )
 FOLDER_FIELDS = (
@@ -1059,6 +1060,33 @@ class ProjectMethods:
                 if embed_id and project_hash:
                     counts.setdefault(embed_id, set()).add(project_hash)
         return {embed_id: len(project_hashes) for embed_id, project_hashes in counts.items()}
+
+    async def count_items_by_project_hash(self, user_id: str, team_id: str | None = None) -> dict[str, int]:
+        """Counts the owner's Project items per ``hashed_project_id`` in one grouped query.
+
+        The list route reports these counts as ``item_count``: the stored column
+        cannot be kept in step, because item writes only know the Project hash and
+        Projects have no hashed id to find their row by (TASK-1807).
+        """
+        params: dict[str, Any] = {
+            "aggregate[count]": "id",
+            "groupBy": ["hashed_project_id"],
+            "limit": -1,
+            **_owner_params(user_id, team_id),
+        }
+        rows = await self.directus_service.get_items("project_items", params=params, no_cache=True, raise_on_error=True)
+        if not isinstance(rows, list):
+            raise RuntimeError("Project item counts unavailable")
+        counts: dict[str, int] = {}
+        for row in rows:
+            hashed_project_id = row.get("hashed_project_id")
+            raw = row.get("count")
+            if isinstance(raw, dict):
+                raw = raw.get("id")
+            if not hashed_project_id or raw is None:
+                raise RuntimeError("Project item count row is malformed")
+            counts[str(hashed_project_id)] = int(raw)
+        return counts
 
     async def increment_project_item_count(
         self,
