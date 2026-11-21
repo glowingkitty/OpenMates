@@ -1,0 +1,14 @@
+{
+ "measured_at": "2026-11-21T20:40Z",
+ "how": "harness/e2b_measure.py run once in the dev app-code-worker container; synthetic data only; sandboxes killed at the end",
+ "default_create_s": 0.57,
+ "code_run_template_create_s": 0.72,
+ "default_sandbox": {"vcpu": 2, "ram_mb": 473, "disk": "22G"},
+ "sandbox_location": "Oregon US, Google LLC (ipinfo.io)",
+ "rtt_dev_api_time_to_first_byte_s": [0.507, 0.506, 0.507],
+ "download_100MB_hetzner_nbg1_single_stream": {"bytes_per_s": 10641568, "total_s": 9.85},
+ "download_100MB_hetzner_fsn1_single_stream": {"bytes_per_s": 1889020, "total_s": 55.5},
+ "write_18000_files_of_6500_bytes_s": 0.85,
+ "aes_256_gcm_openssl_16KiB_blocks_bytes_per_s": 4406910980,
+ "openmates_repo_at_09cb86031a": {"tracked_files": 18532, "bytes": 425203601, "median_file_bytes": 6477, "git_archive_zstd3_bytes": 162347207, "git_archive_zstd3_s": 2.63, "files_changed_last_7_days": 2481, "commits_last_7_days": 358}
+}
