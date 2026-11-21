@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.pii-protection
 version: 5
-status: draft
+status: approved
 title: PII Placeholder Protection
 summary: >
   OpenMates first-party clients detect configured personal data before chat send,
@@ -153,3 +153,9 @@ applies_to:
 examples:
   file: examples.yml
   required_groups: [apple_enhanced_detection, composer_detection, city_names, message_reveal, embed_reveal_sync, followup_rewrite, surface_parity, web_enhanced_preference, web_bounded_inference, web_licensing_boundary, web_provider_disclosure]
+
+approval_source:
+  instruction: >-
+    Marco (owner) approved this draft (sends wait for the detector, a failed check blocks the send) on 2026-11-21 through the authenticated dev
+    connector (receipt 9912bf0f9b412848), after the TASK-2134 changes were deployed and proven on dev.
+  date: '2026-11-21'

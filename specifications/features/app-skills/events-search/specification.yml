@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.app-skill.events-search
 version: 1
-status: draft
+status: approved
 title: Events Search
 summary: Event search answers general discovery from public web pages and keeps the supported official conference
   schedules; no unofficial platform integrations are part of the cloud service.
@@ -204,6 +204,7 @@ examples:
   - billing
 
 approval_source:
-  instruction: The user approved the provider-boundary plan and requested implementation in the current Codex task
-    on 2026-10-24. This records scope authorization, not exact-fingerprint approval.
-  review_status: Changed fingerprint has not been separately approved; approval artifact gate remains for the coordinator.
+  instruction: >-
+    Marco (owner) approved this draft (a named official schedule never searches beyond itself, all sources mixed before ranking) on 2026-11-21 through the authenticated dev
+    connector (receipt 9912bf0f9b412848), after the TASK-2134 changes were deployed and proven on dev.
+  date: '2026-11-21'

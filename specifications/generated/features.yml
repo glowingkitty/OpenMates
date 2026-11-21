@@ -202,7 +202,7 @@ features:
   description: Pick an automatic or explicit model per request tier, override it per chat in the composer.
   specifications:
   - id: feature.ai-model-routing
-    status: draft
+    status: approved
     path: specifications/features/ai-model-routing
   apps: []
   product_features:
@@ -7947,7 +7947,7 @@ features:
   description: Personal data in a message is replaced with placeholders before it reaches the server or a model.
   specifications:
   - id: feature.pii-protection
-    status: draft
+    status: approved
     path: specifications/features/pii-protection
   apps: []
   product_features:
@@ -12570,7 +12570,7 @@ features:
   description: Keep saved event information.
   specifications:
   - id: feature.app-skill.events-search
-    status: draft
+    status: approved
     path: specifications/features/app-skills/events-search
   apps:
   - events

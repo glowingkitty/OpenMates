@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.ai-model-routing
 version: 14
-status: draft
+status: approved
 title: AI Model Settings And Chat Routing
 summary: >
   Authenticated users configure one automatic or explicit model for each request
@@ -370,3 +370,9 @@ applies_to:
 examples:
   file: examples.yml
   required_groups: [skill_internal_models, decision_routing, use_case_routing, required_instructions, prepared_privacy, contextual_compact_assembly, preprocessing_recovery, preprocessing_recovery_policy, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout, answer_recovery]
+
+approval_source:
+  instruction: >-
+    Marco (owner) approved this draft (specialised apps first, web search only after an empty result) on 2026-11-21 through the authenticated dev
+    connector (receipt 9912bf0f9b412848), after the TASK-2134 changes were deployed and proven on dev.
+  date: '2026-11-21'

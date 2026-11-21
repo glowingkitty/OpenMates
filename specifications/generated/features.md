@@ -350,7 +350,7 @@ Ask questions, brainstorm ideas & more.
 
 Pick an automatic or explicit model per request tier, override it per chat in the composer.
 
-- Specifications: [feature.ai-model-routing](../../specifications/features/ai-model-routing/specification.yml) (draft) · 24 assertion(s)
+- Specifications: [feature.ai-model-routing](../../specifications/features/ai-model-routing/specification.yml) (approved) · 24 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.5.0-alpha
 
 <details><summary>Tests per surface</summary>
@@ -1475,7 +1475,7 @@ Edit an image, diagram, slide deck, sheet or document; each edit becomes a new v
 
 Keep saved event information.
 
-- Specifications: [feature.app-skill.events-search](../../specifications/features/app-skills/events-search/specification.yml) (draft) · 12 assertion(s)
+- Specifications: [feature.app-skill.events-search](../../specifications/features/app-skills/events-search/specification.yml) (approved) · 12 assertion(s)
 - Apps: `events`
 - Flags: `app:events`, `skill:events:search` · dev partly on · prod on · release v0.5.0-alpha
 
@@ -2354,7 +2354,7 @@ Upload PDFs and read or search their content.
 
 Personal data in a message is replaced with placeholders before it reaches the server or a model.
 
-- Specifications: [feature.pii-protection](../../specifications/features/pii-protection/specification.yml) (draft) · 13 assertion(s)
+- Specifications: [feature.pii-protection](../../specifications/features/pii-protection/specification.yml) (approved) · 13 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.5.0-alpha
 
 <details><summary>Tests per surface</summary>
