@@ -151,7 +151,7 @@ test('background chat notification shows and allows reply', async ({ page }: { p
 	// A text answer must never leave the generic fallback as the notice body.
 	expect(previewText!.trim()).not.toBe('New AI response ready');
 	// The chat title is shown in the header (title text of the notice).
-	await expect(notification.locator('.notification-title')).not.toHaveText('');
+	await expect(notification.getByTestId('notification-title')).not.toHaveText('');
 
 	// Avatar rendering is style/theme-dependent. The behavioral contract here is
 	// that a notification appears with non-empty response preview and remains

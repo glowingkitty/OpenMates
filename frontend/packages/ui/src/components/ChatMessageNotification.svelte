@@ -396,7 +396,7 @@
     <!-- Header row with announcement icon, title, and close button -->
     <div class="notification-header">
         <span class="clickable-icon icon_announcement notification-bell-icon"></span>
-        <span class="notification-title">{notification.chatTitle || notification.title || ''}</span>
+        <span class="notification-title" data-testid="notification-title">{notification.chatTitle || notification.title || ''}</span>
         <NotificationRepeatCount count={notification.count} />
         <button
             class="notification-dismiss"
@@ -421,7 +421,7 @@
                 <img src={notification.avatarUrl} alt="" class="avatar-image" />
             {:else if notification.category}
                 <!-- Mate profile image based on category (like assistant messages) -->
-                <div class="mate-profile notification-mate-profile {notification.category}"></div>
+                <div class="mate-profile notification-mate-profile {notification.category}" data-testid="notification-mate-profile"></div>
             {:else}
                 <!-- Default mate avatar with user icon -->
                 <div class="avatar-placeholder" data-testid="avatar-placeholder">

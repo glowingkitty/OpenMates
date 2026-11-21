@@ -7807,6 +7807,7 @@ features:
       - frontend/apps/web_app/tests/background-chat-notification.spec.ts
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+      - frontend/apps/web_app/tests/chat-notice-headline-real.spec.ts
       - frontend/apps/web_app/tests/components/event-sounds.spec.ts
       - frontend/apps/web_app/tests/components/notification-grouping.spec.ts
       - frontend/apps/web_app/tests/components/settings-chat-notifications.spec.ts
