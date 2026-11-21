@@ -24087,7 +24087,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 16
+  assertions: 17
   surfaces:
     web:
       status: live
@@ -24130,8 +24130,8 @@ features:
         passing: 0
         failing: 0
         not_run: 12
-        missing: 4
-        counted: 16
+        missing: 5
+        counted: 17
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -24162,9 +24162,9 @@ features:
       assertions:
         passing: 2
         failing: 1
-        not_run: 5
+        not_run: 6
         missing: 8
-        counted: 16
+        counted: 17
       failing_tests:
       - frontend/apps/web_app/tests/development-service-health.spec.ts › catalog retains unpriced providers and search skills
         load their request schemas

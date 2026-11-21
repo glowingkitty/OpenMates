@@ -72,7 +72,7 @@ specifications:
     version: 3
     status: draft
     path: architecture/operational-monitoring
-    fingerprint: c22113a32975b125e1f98843782a3a74d6284b9d32a6d0b0154dd3bce418ff56
+    fingerprint: d59b73808ae60ea69876ba60df74d877bc41ba4db4315817afc15572c12bc12c
     required_applies_to:
     - rest_api
     - cli
@@ -1981,7 +1981,15 @@ assertions:
     specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: behavior
-    fingerprint: cc2482f3a1d545d3fc9014c160e80565b8121c737d73ad38e0a261396854e1e5
+    fingerprint: 1ed64cd4cd46e1ba4432d4f7bce96f24d5f41e7437058284940236ea8570d6f7
+    required_applies_to:
+    - rest_api
+    - cli
+  operational-monitoring.chat-failures.dev-daily-summary:
+    specification: architecture.operational-monitoring@3
+    specification_id: architecture.operational-monitoring
+    type: behavior
+    fingerprint: 3bd66bfb0d6d2f8bb644725783736528c21907a585b3fe6ec9d5d7bcfcdc8f7f
     required_applies_to:
     - rest_api
     - cli
@@ -1997,7 +2005,7 @@ assertions:
     specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: privacy
-    fingerprint: f9cb27771403c3b5cf7ccb32ef2d4f8af1e7d1a7111fdeb85712fa385be77a2d
+    fingerprint: 2269312adf6a796ff7205baa1c25e89591aefc4cf624672ea0f093baa3591607
     required_applies_to:
     - rest_api
     - cli

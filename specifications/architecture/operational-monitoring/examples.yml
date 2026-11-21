@@ -176,7 +176,14 @@ chat_failure_triggers:
     assertion_ids: [operational-monitoring.chat-failures.email-trigger]
     given: A self-hosted server has an admin email configured; an official dev server also handles successful fallbacks, user cancellations, insufficient-credit rejections, and policy rejections.
     when: The self-hosted chat fails technically and the dev requests end in those expected states.
-    then: None queues a chat-failure email; a terminal technical failure on official dev does queue one.
+    then: None queues an instant chat-failure email; a terminal technical failure on official dev is recorded for the daily summary instead.
+
+chat_failure_dev_summary:
+  - id: dev-failures-wait-for-the-morning-summary
+    assertion_ids: [operational-monitoring.chat-failures.dev-daily-summary]
+    given: Official dev has three terminal chat failures in 24 hours (two timeouts, one processing error) and production has one.
+    when: Each failure is detected, then 08:00 Berlin arrives.
+    then: Dev sends no instant email; one summary lists timeout x2 and processing error x1 with the newest example's chat id; production emailed its failure instantly. A day with no dev failures sends no email.
 
 chat_failure_limits:
   - id: concurrent-workers-notify-every-distinct-failure

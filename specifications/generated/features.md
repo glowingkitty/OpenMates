@@ -242,7 +242,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Cost-Safe Daily AI Inference Testing](#daily-ai-test-inference) | not run 0/1 | — |  | partial 3/10 | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Daily Test Orchestration And Recovery](#test-orchestration) | — | — |  | not run 0/8 | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [External Status Monitoring And Public Status Page](#external-status-monitoring) | — | — |  | — | — | partial 2/10 | — | — | on (no flag) | on (no flag) | unverified |
-| [Operational Monitoring And Operator Alerts](#operational-monitoring) | **live** 1/1 | — |  | not run 0/16 | — | **FAIL** 2/16 | — | — | on (no flag) | on (no flag) | untagged-main |
+| [Operational Monitoring And Operator Alerts](#operational-monitoring) | **live** 1/1 | — |  | not run 0/17 | — | **FAIL** 2/17 | — | — | on (no flag) | on (no flag) | untagged-main |
 | [Specifications](#specifications) | partial 6/18 | tested 2/2 |  | impl | — | partial 3/18 | — | — | on (no flag) | on (no flag) | v0.19.0 |
 
 ## Surfaces
@@ -2310,7 +2310,7 @@ The terminal UI: workspaces, rich chat content, offline browsing, pointer and ke
 
 Daily privacy-safe health report and urgent alerts for operators.
 
-- Specifications: [architecture.operational-monitoring](../../specifications/architecture/operational-monitoring/specification.yml) (draft) · 16 assertion(s)
+- Specifications: [architecture.operational-monitoring](../../specifications/architecture/operational-monitoring/specification.yml) (draft) · 17 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release untagged-main
 
 <details><summary>Tests per surface</summary>
@@ -2319,9 +2319,9 @@ Daily privacy-safe health report and urgent alerts for operators.
 |---|---|---|---|
 | Web | **live** 1/1 | 1 pass · 0 fail · 0 not run · 0 no test | [legacy-first-chat-admission.spec.ts](../../frontend/apps/web_app/tests/legacy-first-chat-admission.spec.ts) |
 | Apple | — | — | — |
-| CLI | not run 0/16 | 0 pass · 0 fail · 12 not run · 4 no test | 8 unit test file(s), e.g. [test_operational_monitoring_digest.py](../../backend/tests/test_operational_monitoring_digest.py), [server.test.ts](../../frontend/packages/openmates-cli/tests/server.test.ts) |
+| CLI | not run 0/17 | 0 pass · 0 fail · 12 not run · 5 no test | 8 unit test file(s), e.g. [test_operational_monitoring_digest.py](../../backend/tests/test_operational_monitoring_digest.py), [server.test.ts](../../frontend/packages/openmates-cli/tests/server.test.ts) |
 | TUI | — | — | — |
-| REST API | **FAIL** 2/16 | 2 pass · 1 fail · 5 not run · 8 no test | [development-service-health.spec.ts](../../frontend/apps/web_app/tests/development-service-health.spec.ts)<br>[storage-recovery-canonical-receipts.spec.ts](../../frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts)<br>15 unit test file(s), e.g. [test_chat_failure_notifications.py](../../backend/tests/test_chat_failure_notifications.py), [test_task_smoke.py](../../backend/tests/test_task_smoke.py)<br>❌ [development-service-health.spec.ts › catalog retains unpriced providers and search skills load their request schemas](../../frontend/apps/web_app/tests/development-service-health.spec.ts › catalog retains unpriced providers and search skills load their request schemas) |
+| REST API | **FAIL** 2/17 | 2 pass · 1 fail · 6 not run · 8 no test | [development-service-health.spec.ts](../../frontend/apps/web_app/tests/development-service-health.spec.ts)<br>[storage-recovery-canonical-receipts.spec.ts](../../frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts)<br>15 unit test file(s), e.g. [test_chat_failure_notifications.py](../../backend/tests/test_chat_failure_notifications.py), [test_task_smoke.py](../../backend/tests/test_task_smoke.py)<br>❌ [development-service-health.spec.ts › catalog retains unpriced providers and search skills load their request schemas](../../frontend/apps/web_app/tests/development-service-health.spec.ts › catalog retains unpriced providers and search skills load their request schemas) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 

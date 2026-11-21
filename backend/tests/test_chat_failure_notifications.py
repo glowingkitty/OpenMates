@@ -51,7 +51,7 @@ async def sender(monkeypatch):
     stub(monkeypatch, "backend.core.api.app.services.cache", CacheService=Cache)
     stub(monkeypatch, "backend.core.api.app.services.email_template", EmailTemplateService=lambda **kw: mail)
     stub(monkeypatch, "backend.core.api.app.utils.secrets_manager", SecretsManager=lambda: secrets)
-    monkeypatch.setattr(module, "notification_environment", lambda: "development")
+    monkeypatch.setattr(module, "notification_environment", lambda: "production")
     monkeypatch.setenv("SERVER_OWNER_EMAIL", "admin@example.invalid")
     monkeypatch.setenv("BUILD_COMMIT_SHA", "a" * 40)
     yield SimpleNamespace(module=module, redis=redis, mail=mail, app=app)
@@ -146,9 +146,9 @@ async def test_concurrent_distinct_failures_all_send_and_duplicates_are_excluded
 async def test_independent_environment_and_next_utc_day(sender, monkeypatch):
     for i in range(5):
         await sender.module.deliver_chat_failure(fingerprint(i), "inference", "processing_error")
-    monkeypatch.setattr(sender.module, "notification_environment", lambda: "production")
-    assert await sender.module.deliver_chat_failure(fingerprint(0), "inference", "processing_error") == "accepted"
     monkeypatch.setattr(sender.module, "notification_environment", lambda: "development")
+    assert await sender.module.deliver_chat_failure(fingerprint(0), "inference", "processing_error") == "recorded_for_daily_summary"
+    monkeypatch.setattr(sender.module, "notification_environment", lambda: "production")
     monkeypatch.setattr(sender.module, "datetime", SimpleNamespace(now=lambda tz: SimpleNamespace(date=lambda: SimpleNamespace(isoformat=lambda: "2099-01-01"))))
     assert await sender.module.deliver_chat_failure(fingerprint(0), "inference", "processing_error") == "duplicate"
     assert await sender.module.deliver_chat_failure(fingerprint(99), "inference", "processing_error") == "accepted"
@@ -193,7 +193,7 @@ async def test_missing_recipient_dedupe_and_rejected_transport_visible(sender, m
 # contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.safe-delivery
 @pytest.mark.asyncio
 async def test_dispatch_redacts_identity_and_handles_broker_failure(sender, monkeypatch, caplog):
-    monkeypatch.setattr(dispatch, "notification_environment", lambda: "development")
+    monkeypatch.setattr(dispatch, "notification_environment", lambda: "production")
     assert await dispatch.notify_chat_failure("private-request-id", stage="dispatch") is True
     kwargs = sender.app.send_task.call_args.kwargs
     assert kwargs["retry"] is True
@@ -553,3 +553,106 @@ def test_consumed_terminal_outcome_retains_partial_answer_and_notification_polic
     assert "Useful partial app output." in output
     assert dispatch.failure_stage(result, STANDARDIZED_USER_ERROR_MESSAGE) == expected_stage
     assert reason not in output
+
+
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.dev-daily-summary
+@pytest.mark.asyncio
+async def test_environment_split_dev_records_and_production_emails_instantly(sender, monkeypatch):
+    monkeypatch.setattr(sender.module, "notification_environment", lambda: "development")
+    for i in range(3):
+        assert await sender.module.deliver_chat_failure(fingerprint(i), "inference", "timeout", f"chat-{i}") == "recorded_for_daily_summary"
+    assert await sender.module.deliver_chat_failure(fingerprint(0), "inference", "timeout", "chat-0") == "duplicate"
+    sender.mail.send_email.assert_not_called()
+    assert await sender.redis.zcard(sender.module.DEV_FAILURE_LOG_KEY) == 3
+
+    monkeypatch.setattr(sender.module, "notification_environment", lambda: "production")
+    assert await sender.module.deliver_chat_failure(fingerprint(50), "inference", "timeout", "chat-50") == "accepted"
+    assert sender.mail.send_email.await_count == 1
+    assert await sender.redis.zcard(sender.module.DEV_FAILURE_LOG_KEY) == 3
+    context = sender.mail.send_email.call_args.kwargs["context"]
+    assert "chat-50" not in str(context)
+
+
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.dev-daily-summary
+@pytest.mark.asyncio
+async def test_chat_id_travels_to_the_queue_only_on_development(sender, monkeypatch):
+    monkeypatch.setattr(dispatch, "notification_environment", lambda: "development")
+    assert await dispatch.notify_chat_failure("chat-7:message-9", stage="dispatch") is True
+    assert sender.app.send_task.call_args.kwargs["kwargs"]["request_ref"] == "chat-7"
+    monkeypatch.setattr(dispatch, "notification_environment", lambda: "production")
+    assert await dispatch.notify_chat_failure("chat-7:message-9", stage="dispatch") is True
+    assert "request_ref" not in sender.app.send_task.call_args.kwargs["kwargs"]
+
+
+@pytest.fixture
+def summary(sender, monkeypatch):
+    spec = importlib.util.spec_from_file_location(
+        "chat_failure_summary_under_test",
+        Path(__file__).resolve().parents[1] / "core/api/app/tasks/email_tasks/chat_failure_summary_task.py",
+    )
+    stub(monkeypatch, "backend.core.api.app.tasks.email_tasks.chat_failure_email_task", DEV_FAILURE_LOG_KEY=sender.module.DEV_FAILURE_LOG_KEY)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(module, "notification_environment", lambda: "development")
+    return module
+
+
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.dev-daily-summary
+@pytest.mark.asyncio
+async def test_dev_summary_groups_failures_and_sends_nothing_when_empty(sender, summary):
+    import json
+    from datetime import datetime, timedelta, timezone
+
+    winter_8 = datetime(2026, 11, 21, 7, 0, tzinfo=timezone.utc)  # 08:00 Berlin (CET)
+    summer_8 = datetime(2026, 7, 21, 6, 0, tzinfo=timezone.utc)  # 08:00 Berlin (CEST)
+    assert await summary.deliver_dev_failure_summary(winter_8) == "no_failures"
+    sender.mail.send_email.assert_not_called()
+
+    async def record(at, category, ref):
+        entry = json.dumps({"fingerprint": "f", "stage": "inference", "category": category, "ref": ref, "ts": at.timestamp()})
+        await sender.redis.zadd(sender.module.DEV_FAILURE_LOG_KEY, {entry: at.timestamp()})
+
+    await record(winter_8 - timedelta(hours=30), "timeout", "chat-too-old")
+    await record(winter_8 - timedelta(hours=5), "timeout", "chat-a")
+    await record(winter_8 - timedelta(hours=2), "timeout", "chat-b")
+    await record(winter_8 - timedelta(hours=1), "processing_error", "chat-c")
+
+    assert await summary.deliver_dev_failure_summary(winter_8 + timedelta(hours=1)) == "outside_summary_hour"
+    sender.mail.send_email.assert_not_called()
+    assert await summary.deliver_dev_failure_summary(winter_8) == "accepted"
+    kwargs = sender.mail.send_email.call_args.kwargs
+    assert kwargs["template"] == "chat-failure-daily-summary"
+    assert kwargs["context"]["total"] == 3
+    assert [(g["category"], g["count"], g["newest_ref"]) for g in kwargs["context"]["groups"]] == [
+        ("timeout", 2, "chat-b"), ("processing_error", 1, "chat-c"),
+    ]
+    # 06:00 UTC is 08:00 Berlin in summer time, so the same beat entry covers both seasons.
+    sender.mail.send_email.reset_mock()
+    await record(summer_8 - timedelta(hours=1), "timeout", "chat-summer")
+    assert await summary.deliver_dev_failure_summary(summer_8) == "accepted"
+
+
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.dev-daily-summary
+@pytest.mark.asyncio
+async def test_dev_summary_is_a_noop_on_production(sender, summary, monkeypatch):
+    from datetime import datetime, timezone
+
+    monkeypatch.setattr(summary, "notification_environment", lambda: "production")
+    assert await summary.deliver_dev_failure_summary(datetime(2026, 11, 21, 7, 0, tzinfo=timezone.utc)) == "not_development"
+    sender.mail.send_email.assert_not_called()
+
+
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.dev-daily-summary
+def test_summary_grouping_counts_and_newest_example(summary):
+    import json
+    entries = [
+        json.dumps({"stage": "inference", "category": "timeout", "ref": "chat-old", "ts": 1000.0}),
+        json.dumps({"stage": "inference", "category": "timeout", "ref": "chat-new", "ts": 2000.0}),
+        json.dumps({"stage": "dispatch", "category": "unexpected_error", "ref": None, "ts": 1500.0}),
+        "not json",
+    ]
+    groups = summary.summarize_failures(entries)
+    assert [(g["stage"], g["category"], g["count"], g["newest_ref"]) for g in groups] == [
+        ("inference", "timeout", 2, "chat-new"),
+        ("dispatch", "unexpected_error", 1, "unavailable"),
+    ]

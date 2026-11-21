@@ -1791,6 +1791,13 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=8, minute=30, day_of_week='1-5'),  # Weekdays 08:30 UTC
         'options': {'queue': 'email'},
     },
+    # Dev only (the task exits on other editions): one summary of the last 24 hours of
+    # chat failures. Fires at 06:00 and 07:00 UTC; the task sends only at 08:00 Berlin.
+    'dev-chat-failure-daily-summary': {
+        'task': 'app.tasks.email_tasks.chat_failure_summary_task.send_dev_chat_failure_summary',
+        'schedule': crontab(hour='6,7', minute=0),
+        'options': {'queue': 'email'},
+    },
     # Daily Inspiration generation - generates personalized inspirations for active users.
     # Runs at 06:00 UTC (morning delivery before users start their day in most timezones).
     # Only generates for users who made a paid request in the last 24 hours and viewed

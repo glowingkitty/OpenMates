@@ -1,0 +1,17 @@
+<mjml>
+  <mj-head><mj-title>Daily chat failure summary</mj-title></mj-head>
+  <mj-body>
+    <mj-section><mj-column>
+      <mj-text font-size="24px">{{ total }} chat failure(s) on {{ environment }} in the last 24 hours</mj-text>
+      <mj-text>Grouped by stage and failure category. The id is the chat (or task) of the newest example.</mj-text>
+      {% for group in groups %}
+      <mj-text>
+        <strong>{{ group.stage }} / {{ group.category }}</strong>: {{ group.count }}<br />
+        Newest: {{ group.newest_at }}<br />
+        Chat or task id: {{ group.newest_ref }}
+      </mj-text>
+      {% endfor %}
+      <mj-text>Development servers send this one summary instead of an email per failure. Production still emails each failure immediately.</mj-text>
+    </mj-column></mj-section>
+  </mj-body>
+</mjml>
