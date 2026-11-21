@@ -419,9 +419,12 @@ need real AI inference are `real-inference-*.spec.ts` specs in the `real_inferen
 Each run gets its own throwaway stack:
 
 - The job uses the protected `real-inference` GitHub environment (dispatch from `dev` only). Its
-  dev-only provider keys reach only the step that starts the stack and the diagnostics step,
-  never dependency installs or the Playwright process, and pass by name into the run's own
-  Vault (`REAL_INFERENCE_PROVIDERS` in `scripts/ci_environment.py`).
+  dev-only provider keys reach only the step that starts the stack, never dependency installs,
+  the diagnostics step or the Playwright process, and pass by name into the run's own Vault
+  (`REAL_INFERENCE_PROVIDERS` in `scripts/ci_environment.py`). Only providers whose dev key
+  differs from production's are listed; models without a key there fall through to the next
+  model of their bounded chain, and Jev (routing and the fail-closed answer-safety check) is
+  required.
 - The stack's network stays internal; HTTPS leaves only through the runner gateway's allowlist
   of exactly those providers' hosts (`REAL_INFERENCE_HOSTS` in `scripts/ci_tcp_gateway.py`).
 - Uploaded stack logs drop outgoing request lines and redact key-shaped values.

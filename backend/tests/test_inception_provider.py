@@ -171,11 +171,13 @@ def test_cancel_stream_closes_response():
     assert body.closed
 
 
-def test_missing_key_adapter_failure_is_sanitized(monkeypatch):
+def test_missing_key_lets_the_fallback_chain_continue(monkeypatch):
+    # A server without an Inception key (self-hosted, isolated CI) must reach the next
+    # model: the preprocessing chain treats errors naming an "api key" as retryable.
     monkeypatch.delenv("SECRET__INCEPTION_LABS__API_KEY", raising=False)
     result = run(invoke_inception_chat_completions("test", "mercury-3", [], SimpleNamespace(get_secret=AsyncMock(return_value=None))))
     assert result.success is False
-    assert result.error_message == "Inception request could not be completed"
+    assert result.error_message == "Inception API key is not configured"
 
 
 def test_adapter_maps_forced_tool_and_nonstream_usage(monkeypatch):

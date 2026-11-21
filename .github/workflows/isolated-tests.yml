@@ -815,6 +815,7 @@ jobs:
           OPENMATES_REAL_GOOGLE_AI_STUDIO_API_KEY: ${{ secrets.OPENMATES_REAL_GOOGLE_AI_STUDIO_API_KEY }}
           OPENMATES_REAL_MISTRAL_AI_API_KEY: ${{ secrets.OPENMATES_REAL_MISTRAL_AI_API_KEY }}
           OPENMATES_REAL_BRAVE_API_KEY: ${{ secrets.OPENMATES_REAL_BRAVE_API_KEY }}
+          OPENMATES_REAL_TYPESAFE_API_KEY: ${{ secrets.OPENMATES_REAL_TYPESAFE_API_KEY }}
         run: |
           python3 ../tooling/scripts/ci_environment.py start
           python3 ../tooling/scripts/ci_environment.py verify

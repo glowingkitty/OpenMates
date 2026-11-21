@@ -266,6 +266,8 @@ REAL_INFERENCE_PROVIDERS = {
     "google_ai_studio": ("api_key", "OPENMATES_REAL_GOOGLE_AI_STUDIO_API_KEY"),
     "mistral_ai": ("api_key", "OPENMATES_REAL_MISTRAL_AI_API_KEY"),
     "brave": ("api_key", "OPENMATES_REAL_BRAVE_API_KEY"),
+    # Jev decides routing and the fail-closed answer-safety check of every reply.
+    "typesafe": ("api_key", "OPENMATES_REAL_TYPESAFE_API_KEY"),
 }
 REAL_INFERENCE_SPEC_PREFIX = "real-inference-"
 REAL_INFERENCE_AI_QUEUES = "app_ai,app_ai_routing"

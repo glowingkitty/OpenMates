@@ -123,7 +123,7 @@ async def resolve_api_key(secrets_manager: Any = None) -> str:
     value = os.getenv("SECRET__INCEPTION_LABS__API_KEY", "")
     if value and value != "IMPORTED_TO_VAULT":
         return value
-    raise InceptionError("Inception API credential is not configured")
+    raise InceptionError("Inception API credential is not configured", kind="credential")
 
 
 class InceptionClient:

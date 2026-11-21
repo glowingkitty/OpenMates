@@ -98,7 +98,7 @@ paths:
   `real-inference-*.spec.ts` spec in the `real_inference` group of
   `scripts/ci_coverage_manifest.json` and submit it like any e2e spec (one per
   job). The job gets its own stack, the protected `real-inference` environment's
-  dev-only keys (Google AI Studio, Mistral, Brave) and egress only to those
+  dev-only keys (Google AI Studio, Mistral, Brave, Typesafe) and egress only to those
   providers; never add a provider whose key is shared with production. There is
   no dev test lock: deploys and dev restarts never wait for a test. The dev-host
   `*_real_test.py` runners remain for manual checks against dev. Either way: use

@@ -25,6 +25,7 @@ REAL_INFERENCE_HOSTS: frozenset[str] = frozenset({
     "generativelanguage.googleapis.com",
     "api.mistral.ai",
     "api.search.brave.com",
+    "api.typesafe.ai",
 })
 PROVIDER_PROXY_PORT = 3128
 MAX_PROXY_HEADER = 16384
