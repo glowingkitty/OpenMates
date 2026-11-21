@@ -65,7 +65,8 @@ test('a background chat notice shows the summary headline, the chat title and th
 
 		const notice = page.locator(`[data-testid="chat-notification"][data-chat-id="${chatId}"]`).first();
 		await expect(notice).toBeVisible({ timeout: 240_000 });
-		await notice.hover();
+		// The notice is still sliding in (not "stable") and lives 10 s: hover without the stability wait to pause its dismissal.
+		await notice.hover({ force: true });
 		// The headline arrives after post-processing and replaces the excerpt in place.
 		const message = notice.getByTestId('notification-message');
 		await expect(message).toHaveText(/^(✅|❓|ℹ️) \S/, { timeout: 60_000 });
