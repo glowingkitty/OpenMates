@@ -178,11 +178,12 @@ start_row:
   when: The Chats start screen loads.
   then: There is no banner. "Hey there" and one short call to action sit above a row of example chats with
     inspirations interleaved, ending with "Select interests" and "Show all examples"; the next OpenMates
-    event sits as one compact entry below the row, followed by three suggested prompts.
+    event sits as one compact entry below the row, and three suggested prompts sit directly above the
+    message input.
 - id: start-row-suggestion-fills-composer
   assertion_ids: [daily-inspiration.start-row-suggestions]
   given: Alex is signed in and has synced new-chat suggestions.
-  when: Alex taps the first suggestion below the row.
+  when: Alex taps the first suggestion above the message input.
   then: The newest suggestion is placed in the composer, ready to send.
 - id: start-row-new-user
   assertion_ids: [daily-inspiration.start-row-rhythm]

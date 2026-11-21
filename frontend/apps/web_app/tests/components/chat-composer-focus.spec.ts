@@ -351,12 +351,16 @@ test('continuation cards match Apple spacing in narrow, short, and tall panes', 
 			profile.large ? 17 : 6,
 			0
 		);
-		// Suggestions follow the row directly (after the upcoming-event entry when there is one).
-		const upcoming = page.getByTestId('start-screen-upcoming-entry');
-		const upcomingHeight = (await upcoming.count()) > 0 ? ((await upcoming.boundingBox())?.height ?? 0) + 24 : 0;
-		expect(browseBox!.y - cardBox!.y - cardBox!.height).toBeGreaterThanOrEqual(0);
-		expect(browseBox!.y - cardBox!.y - cardBox!.height).toBeLessThanOrEqual(24 + upcomingHeight);
-		expect(browseBox!.y + browseBox!.height).toBeLessThanOrEqual(composerBox!.y + 1);
+		// Suggestions sit at the bottom, directly above the composer, not under the row (issue AJV2Q).
+		expect(browseBox!.y).toBeGreaterThanOrEqual(carouselBox!.y + carouselBox!.height - 1);
+		const fieldBox = await page.getByTestId('message-field').boundingBox();
+		expect(fieldBox).toBeTruthy();
+		expect(browseBox!.y + browseBox!.height).toBeLessThanOrEqual(fieldBox!.y + 1);
+		expect(fieldBox!.y - browseBox!.y - browseBox!.height).toBeLessThanOrEqual(40);
+		await test.info().attach(`start-suggestions-above-composer-${profile.width}x${profile.height}-${profile.theme}`, {
+			body: await page.screenshot(),
+			contentType: 'image/png'
+		});
 		await expect(carousel).toBeInViewport();
 		await actionsTile.scrollIntoViewIfNeeded();
 		await expect(page.getByTestId('guest-show-all-examples')).toBeInViewport();

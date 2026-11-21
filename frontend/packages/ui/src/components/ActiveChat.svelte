@@ -5433,6 +5433,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         (showWelcome || isActiveDraftOnlyChat) && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment
      );
 
+     // Start-screen suggestions above the composer: only while the start row itself is shown
+     // (not in the guest "all examples" view, nor while keyboard or call hide the welcome).
+     let startScreenSuggestionsVisible = $derived(
+        showWelcome && startRowEntries.length > 0 && !hideWelcomeContent &&
+        !(guestAllExamplesVisible && !$authStore.isAuthenticated)
+     );
+
      // Persistence assigns an identity to the existing composer; it must not
      // replace the measured welcome surface during the user's typing session.
      let composerDismissalGeneration = 0;
@@ -14297,8 +14304,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
                             <!-- Start row (TASK-1321), the same for guests and signed-in users: at most 10 large
                                  cards (own or example chats with today's video/article inspirations interleaved),
-                                 then the browse actions as the last item. Below the row: an upcoming event entry
-                                 and the new-chat suggestions. -->
+                                 then the browse actions as the last item. Below the row: an upcoming event entry.
+                                 The new-chat suggestions sit directly above the composer (issue AJV2Q). -->
                             {#if startRowEntries.length > 0}
                                 <div
                                     class="recent-chats-scroll-container large-continue-cards start-row"
@@ -14425,14 +14432,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                         onActivate={upcoming.onActivate}
                                     />
                                 </div>
-                            {/if}
-                            {#if startRowEntries.length > 0 && !startScreenComposerRailVisible}
-                                <StartScreenChatSuggestions
-                                    isAuthenticated={$authStore.isAuthenticated}
-                                    selectedInterestTagIds={guestInterestContinueConfirmed ? selectedGuestInterestTagIds : []}
-                                    reloadKey={`${$locale ?? 'en'}:${$phasedSyncState.initialSyncCompleted}:${carouselInvalidationCounter}`}
-                                    onSuggestionClick={handleSuggestionClick}
-                                />
                             {/if}
                             {/if}
                         </div>
@@ -14665,6 +14664,17 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                                    onFileSelect={handleFileSuggestionClick}
                                    onEmbedSelect={handleEmbedSuggestionClick}
                                />
+                            </div>
+                         {:else if startScreenSuggestionsVisible}
+                            <!-- Start-screen suggestions sit directly above the composer, not under the
+                                 start row (issue AJV2Q); they step aside while the composer rail is open. -->
+                            <div class="suggestions-wrapper start-screen-suggestions-slot">
+                                <StartScreenChatSuggestions
+                                    isAuthenticated={$authStore.isAuthenticated}
+                                    selectedInterestTagIds={guestInterestContinueConfirmed ? selectedGuestInterestTagIds : []}
+                                    reloadKey={`${$locale ?? 'en'}:${$phasedSyncState.initialSyncCompleted}:${carouselInvalidationCounter}`}
+                                    onSuggestionClick={handleSuggestionClick}
+                                />
                             </div>
                          {/if}
 
@@ -15941,6 +15951,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
     .composer-suggestions { width: 100%; }
+    .start-screen-suggestions-slot {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin-bottom: var(--spacing-4);
+    }
 
     .message-input-container {
         position: relative;

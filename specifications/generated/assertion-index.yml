@@ -9486,7 +9486,7 @@ assertions:
       surface: gui.web
     - &id1218
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 429
+      line: 433
       name: a rejected guest storage write keeps newer unsent edits in the composer
       surface: gui.web
     - &id1221
@@ -11646,13 +11646,13 @@ assertions:
       surface: gui.web
     - &id1519
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 368
+      line: 372
       name: dismissed unsent drafts return to the workspace and reopen for editing
         at ${width}px
       surface: gui.web
     - &id1520
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 468
+      line: 472
       name: a guest draft stays editable when its discovery index cannot be saved
       surface: gui.web
     - &id1521
@@ -129746,7 +129746,7 @@ assertions:
     current_direct_proof: false
   daily-inspiration.workspace-start-screens:
     specification: feature.daily-inspiration@3
-    fingerprint: 8f1ec605c6c4685b2dab8acdc284f94f0613ed4d75ca9fe56e0f9777c2ea9976
+    fingerprint: cff4d43e36c8e1c54915a20b7deca5f2759dfaf7de06c20b2ba38a5e9a21d812
     direct_tests:
     - &id16526
       path: frontend/apps/web_app/tests/components/workspace-home-responsive.spec.ts
@@ -129772,7 +129772,7 @@ assertions:
     current_direct_proof: false
   daily-inspiration.start-row-rhythm:
     specification: feature.daily-inspiration@3
-    fingerprint: 49ac15dfa7c48ff67f7df7a20292e8e50fd7f0cfdc292b5c7619e4ea098d1daf
+    fingerprint: 305bf34466ba0ceb7c7947ed2fb40b7b02200b0c40bc4d89c18c127eabee2cc7
     direct_tests:
     - &id16527
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
@@ -129862,7 +129862,7 @@ assertions:
     current_direct_proof: false
   daily-inspiration.start-row-cards:
     specification: feature.daily-inspiration@3
-    fingerprint: 955c1db0ae05d43140a518e79139916112e423c339901305d090b09d0e7a672f
+    fingerprint: 67c6bdbeaa1a13353af5962e8176eab674ced2302a344f4954fb2bdee65b4dca
     direct_tests:
     - &id16538
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
@@ -129910,7 +129910,7 @@ assertions:
     current_direct_proof: false
   daily-inspiration.start-row-actions:
     specification: feature.daily-inspiration@3
-    fingerprint: 79d0364e0739fad11b1abffce00a97c5c6ede37dbc25c00c9ffd623307731ba0
+    fingerprint: 983612bbbbe10b4141b7b5c70200810719c31c140bb1dfa1680dcba82ea74445
     direct_tests:
     - &id16543
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
@@ -129925,13 +129925,13 @@ assertions:
       surface: gui.web
     - &id16545
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 256
+      line: 263
       name: signed-out Chats, Apps and Workflows share the start-screen layout at
         every width
       surface: gui.web
     - &id16546
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 275
+      line: 282
       name: signed-in Chats, Apps, Workflows and Projects share the start-screen layout
         at every width
       surface: gui.web
@@ -129952,7 +129952,7 @@ assertions:
     current_direct_proof: false
   daily-inspiration.start-row-suggestions:
     specification: feature.daily-inspiration@3
-    fingerprint: b3732e58c2f466931c7d2563ee83d464f244746dc21fbe369d32c6420e2eb548
+    fingerprint: a19a54f32f5993619f180c459b7eb76a826dd911babeebca27869f9cccd2a1c2
     direct_tests:
     - &id16547
       path: frontend/apps/web_app/tests/components/start-screen-row.spec.ts
@@ -129961,13 +129961,13 @@ assertions:
       surface: gui.web
     - &id16548
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 256
+      line: 263
       name: signed-out Chats, Apps and Workflows share the start-screen layout at
         every width
       surface: gui.web
     - &id16549
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 275
+      line: 282
       name: signed-in Chats, Apps, Workflows and Projects share the start-screen layout
         at every width
       surface: gui.web
@@ -129986,7 +129986,7 @@ assertions:
     current_direct_proof: false
   daily-inspiration.workflow-recommendation-hook:
     specification: feature.daily-inspiration@3
-    fingerprint: ebd1c3a0c412bf7841bb10c6d01ee661e747597a92a1a8ecdfde7c9d95c01311
+    fingerprint: f315928a6adada07f03828702a6a3230af4a4b3c00be948539a67d22f69ae43a
     direct_tests: []
     supporting_tests:
     - &id16550
@@ -141242,7 +141242,7 @@ assertions:
       surface: gui.web
     - &id17891
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 368
+      line: 372
       name: dismissed unsent drafts return to the workspace and reopen for editing
         at ${width}px
       surface: gui.web
@@ -141797,18 +141797,18 @@ assertions:
       surface: gui.web
     - &id17990
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 368
+      line: 372
       name: dismissed unsent drafts return to the workspace and reopen for editing
         at ${width}px
       surface: gui.web
     - &id17991
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 429
+      line: 433
       name: a rejected guest storage write keeps newer unsent edits in the composer
       surface: gui.web
     - &id17992
       path: frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
-      line: 468
+      line: 472
       name: a guest draft stays editable when its discovery index cannot be saved
       surface: gui.web
     - &id17993
@@ -212173,7 +212173,7 @@ assertions:
       surface: gui.web
     - &id26821
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 275
+      line: 282
       name: signed-in Chats, Apps, Workflows and Projects share the start-screen layout
         at every width
       surface: gui.web
@@ -215215,13 +215215,13 @@ assertions:
       surface: gui.web
     - &id27183
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 256
+      line: 263
       name: signed-out Chats, Apps and Workflows share the start-screen layout at
         every width
       surface: gui.web
     - &id27184
       path: frontend/apps/web_app/tests/start-screens-layout.spec.ts
-      line: 275
+      line: 282
       name: signed-in Chats, Apps, Workflows and Projects share the start-screen layout
         at every width
       surface: gui.web

@@ -200,6 +200,13 @@ async function expectStartScreen(page: any, testInfo: any, screen: Screen, viewp
 		const rowBox = await row.boundingBox();
 		const box = await suggestions.boundingBox();
 		expect(box.y).toBeGreaterThan(rowBox.y + rowBox.height - 1);
+		if (screen.name === 'chats') {
+			// Chats suggestions sit directly above the composer, not under the row (issue AJV2Q).
+			const composerBox = await page.getByTestId('message-field').boundingBox();
+			expect(composerBox).toBeTruthy();
+			expect(box.y + box.height).toBeLessThanOrEqual(composerBox.y + 1);
+			expect(composerBox.y - box.y - box.height).toBeLessThanOrEqual(40);
+		}
 		await expectSingleLineSuggestions(suggestions, `${screen.name} at ${viewport.name}`);
 	}
 	if (screen.name === 'chats') await expectGreetingBelowTopButtons(page, heading, viewport.name);

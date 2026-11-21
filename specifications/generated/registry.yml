@@ -752,7 +752,7 @@ specifications:
     version: 3
     status: draft
     path: features/daily-inspiration
-    fingerprint: ce9214db6361ee8d6f9f40ed54805088713544517d26b21c66999c8da8703bd9
+    fingerprint: fe38ebc9e531c8b447047307f177470f27e8aeea5dc0fee595e0ec42d20f3e57
     required_applies_to:
     - rest_api
     - gui.web
@@ -10158,7 +10158,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: 8f1ec605c6c4685b2dab8acdc284f94f0613ed4d75ca9fe56e0f9777c2ea9976
+    fingerprint: cff4d43e36c8e1c54915a20b7deca5f2759dfaf7de06c20b2ba38a5e9a21d812
     required_applies_to:
     - rest_api
     - gui.web
@@ -10167,7 +10167,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: 49ac15dfa7c48ff67f7df7a20292e8e50fd7f0cfdc292b5c7619e4ea098d1daf
+    fingerprint: 305bf34466ba0ceb7c7947ed2fb40b7b02200b0c40bc4d89c18c127eabee2cc7
     required_applies_to:
     - rest_api
     - gui.web
@@ -10176,7 +10176,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: 955c1db0ae05d43140a518e79139916112e423c339901305d090b09d0e7a672f
+    fingerprint: 67c6bdbeaa1a13353af5962e8176eab674ced2302a344f4954fb2bdee65b4dca
     required_applies_to:
     - rest_api
     - gui.web
@@ -10185,7 +10185,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: 79d0364e0739fad11b1abffce00a97c5c6ede37dbc25c00c9ffd623307731ba0
+    fingerprint: 983612bbbbe10b4141b7b5c70200810719c31c140bb1dfa1680dcba82ea74445
     required_applies_to:
     - rest_api
     - gui.web
@@ -10194,7 +10194,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: b3732e58c2f466931c7d2563ee83d464f244746dc21fbe369d32c6420e2eb548
+    fingerprint: a19a54f32f5993619f180c459b7eb76a826dd911babeebca27869f9cccd2a1c2
     required_applies_to:
     - rest_api
     - gui.web
@@ -10203,7 +10203,7 @@ assertions:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
     type: behavior
-    fingerprint: ebd1c3a0c412bf7841bb10c6d01ee661e747597a92a1a8ecdfde7c9d95c01311
+    fingerprint: f315928a6adada07f03828702a6a3230af4a4b3c00be948539a67d22f69ae43a
     required_applies_to:
     - rest_api
     - gui.web

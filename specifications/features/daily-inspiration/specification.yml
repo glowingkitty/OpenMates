@@ -357,8 +357,9 @@ assertions:
   - examples.start_row
 - id: daily-inspiration.start-row-suggestions
   type: behavior
-  must: Below the Chats start row (and below the upcoming entry when one exists) three new-chat
-    suggestions appear in the style of the follow-up suggestions of an open chat. Signed-in users see
+  must: On the Chats start screen three new-chat suggestions appear at the bottom, directly above the
+    message input (not right under the start row), in the style of the follow-up suggestions of an open
+    chat. Signed-in users see
     their own synced suggestions, newest first, or the translated defaults when they have none;
     signed-out visitors see the translated defaults ranked by their selected interests. Tapping one puts
     it into the composer. Each suggestion stays on one line, longer text cut with an ellipsis, and on a
