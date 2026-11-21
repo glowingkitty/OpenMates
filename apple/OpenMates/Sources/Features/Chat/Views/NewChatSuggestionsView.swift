@@ -124,7 +124,7 @@ struct SuggestionChip: View {
                 Text(suggestion.parsedBody)
                     .font(.custom("Lexend Deca", size: width <= 210 ? 12 : 14).weight(.bold))
                     .foregroundStyle(Color.fontButton)
-                    .lineLimit(2)
+                    .lineLimit(1).truncationMode(.tail)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

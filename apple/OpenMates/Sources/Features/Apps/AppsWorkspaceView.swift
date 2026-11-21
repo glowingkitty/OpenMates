@@ -4,9 +4,10 @@
 //         frontend/packages/ui/src/components/apps/AppsInlineResults.svelte
 //         frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
 //         frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
-// Fallback: frontend/packages/workspaceInspirationDefaults.ts getWorkspaceInspirations("apps")
 // CSS: AppsWorkspace.svelte .apps-detail-card/.results-grid, AppsSkillForm.svelte
 // Tokens: ColorTokens, SpacingTokens, TypographyTokens, GradientTokens
+// Specification: specifications/features/daily-inspiration/specification.yml
+// Assertions: daily-inspiration.start-row-cards, daily-inspiration.start-row-actions
 // Specification: specifications/features/apps-workspace/specification.yml
 // Assertions: apps.discovery.public-catalog, apps.forms.metadata-driven,
 // apps.execution.direct-shared-contract, apps.presentation.shared-detail-and-recency,
@@ -16,13 +17,11 @@ import SwiftUI
 struct AppsWorkspaceView: View {
     @ObservedObject var store: AppsWorkspaceStore
     var greetingName = ""
-    var inspiration: DailyInspirationData? = nil
     var onOpenWorkflow: (String) -> Void = { _ in }
     var onOpenExampleChat: (String) -> Void = { _ in }
     var onOpenSettings: (String) -> Void = { _ in }
     var onReportIssue: () -> Void = {}
     var onSignup: () -> Void = {}
-    @State private var inspirationIndex = 0
     @State private var settingsOpen = false
     @State private var contextOpen = false
     @State private var highlight = false
@@ -64,30 +63,27 @@ struct AppsWorkspaceView: View {
     private func home(size: CGSize) -> some View {
         ScrollView {
             VStack(spacing: .spacing6) {
-                if !store.showingAll {
-                    inspirationBanner(size: size)
-                        // Keep the card and navigation buttons independently
-                        // accessible inside this identified banner container.
-                        .accessibilityElement(children: .contain)
-                        .accessibilityIdentifier("apps-daily-inspiration-area")
-                }
                 HStack {
-                    Button(tr(store.showingAll ? "back_to_recent" : "show_all")) { store.showingAll.toggle() }
-                        .buttonStyle(OMSecondaryButtonStyle())
-                        .accessibilityIdentifier(store.showingAll ? "apps-back-to-recent" : "apps-show-all")
+                    if store.showingAll {
+                        Button(tr("back_to_recent")) { store.showingAll = false }
+                            .buttonStyle(OMSecondaryButtonStyle())
+                            .accessibilityIdentifier("apps-back-to-recent")
+                    }
                     Spacer()
                     OMIconButton(icon: "bug", label: AppStrings.reportIssue, action: onReportIssue)
                         .accessibilityIdentifier("apps-report-issue")
                 }
                 .padding(.horizontal, .spacing6)
                 VStack(spacing: .spacing3) {
-                    if !greetingName.isEmpty {
-                        Text(tr("home_greeting").replacingOccurrences(of: "{name}", with: greetingName)).font(.omH3).foregroundStyle(Color.fontPrimary)
-                    }
-                    Text(tr("home_prompt")).font(.omH3.weight(.bold)).foregroundStyle(Color.fontPrimary)
-                    Text(tr("description")).font(.omP).foregroundStyle(Color.fontSecondary).multilineTextAlignment(.center)
+                    Text(greetingName.isEmpty ? AppStrings.workflowHomeGuestGreeting
+                        : tr("home_greeting").replacingOccurrences(of: "{name}", with: greetingName))
+                        .font(.omH3).foregroundStyle(Color.fontPrimary)
+                    Text(tr("home_prompt")).font(.omP.weight(.semibold)).foregroundStyle(Color.fontSecondary)
+                        .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, .spacing6)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("apps-home-greeting")
                 if store.showingAll {
                     TextField(AppStrings.localized("common.search"), text: $store.search)
                         .textFieldStyle(OMTextFieldStyle())
@@ -99,18 +95,22 @@ struct AppsWorkspaceView: View {
                     Text(tr(key)).font(.omSmall).foregroundStyle(Color.error)
                     Button(tr("retry")) { Task { await store.load() } }.buttonStyle(OMSecondaryButtonStyle())
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 223, maximum: 223), spacing: .spacing6)], spacing: .spacing6) {
-                    ForEach(store.showingAll ? store.visibleApps : store.homeApps) { app in
-                        AppStoreCardNative(app: app) { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { store.selectApp(app) } }
-                            .omCardHoverFeedback()
-                            .accessibilityIdentifier(store.showingAll ? "apps-all-item-\(app.id)" : "apps-app-card-\(app.id)")
+                if store.showingAll {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 223, maximum: 223), spacing: .spacing6)], spacing: .spacing6) {
+                        ForEach(store.visibleApps) { app in
+                            AppStoreCardNative(app: app) { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { store.selectApp(app) } }
+                                .omCardHoverFeedback()
+                                .accessibilityIdentifier("apps-all-item-\(app.id)")
+                        }
                     }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("apps-all-apps")
+                    .padding(.horizontal, .spacing6)
+                } else {
+                    startRow(width: size.width)
                 }
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier(store.showingAll ? "apps-all-apps" : "apps-home-apps")
-                .padding(.horizontal, .spacing6)
-                .padding(.bottom, .spacing8)
             }
+            .padding(.bottom, .spacing8)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("apps-home")
@@ -118,45 +118,51 @@ struct AppsWorkspaceView: View {
         .allowsHitTesting(store.selectedApp == nil)
     }
 
-    private var fallbackInspirations: [DailyInspirationData] {
-        [DailyInspirationData(inspirationId: "hardcoded-apps-search",
-            text: tr("inspiration_search_phrase"), title: tr("inspiration_search_title"), category: "general_knowledge",
-            feature: DailyInspirationFeature(iconName: "search", title: tr("inspiration_search_feature_title"), description: tr("inspiration_search_feature_description"))),
-         DailyInspirationData(inspirationId: "hardcoded-apps-weather",
-            text: tr("inspiration_weather_phrase"), title: tr("inspiration_weather_title"), category: "travel",
-            feature: DailyInspirationFeature(iconName: "cloud-sun", title: tr("inspiration_weather_feature_title"), description: tr("inspiration_weather_feature_description")))]
+    /// Web WorkspaceHomeShell start row: at most `StartScreenRow.maxCards` large
+    /// cards (200pt, first one centred) and the action tile as the last item.
+    private func startRow(width: CGFloat) -> some View {
+        let cardWidth = max(180, min(300, width - 20))
+        let sideInset = max((width - cardWidth) / 2, CGFloat.spacing5)
+        let actions = [
+            StartRowAction(title: tr("show_all"), icon: "layout-grid", identifier: "apps-show-all") { store.showingAll = true },
+            StartRowAction(title: AppStrings.localized("common.search"), icon: "search", identifier: "apps-search") { store.showingAll = true }
+        ]
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: .spacing8) {
+                ForEach(Array(store.homeApps.prefix(StartScreenRow.maxCards))) { app in
+                    appCard(app, width: cardWidth)
+                }
+                StartRowActionsTile(actions: actions, width: cardWidth, height: 200)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("apps-row-actions")
+            }
+            .padding(.leading, sideInset)
+            .padding(.trailing, .spacing12)
+            .padding(.vertical, .spacing4)
+        }
+        .scrollClipDisabled()
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("apps-home-apps")
     }
 
-    private func inspirationBanner(size: CGSize) -> some View {
-        let entries = inspiration.map { [$0] } ?? fallbackInspirations
-        let index = inspirationIndex % entries.count
-        return ZStack {
-            InspirationCard(inspiration: entries[index], containerSize: size,
-                heightOverride: size.width < 730 ? 190 : max(240, min(420, size.height * 0.35)),
-                ctaTitle: tr("inspiration_tap_to_use_skill"), tapHint: tr("quick_use_hint"),
-                isInteractive: false) { }
-            if entries.count > 1 {
-                HStack {
-                    Button { inspirationIndex = (index + entries.count - 1) % entries.count } label: {
-                        Icon("back", size: 17).foregroundStyle(.white).frame(width: 36, height: 36)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(AppStrings.previousInspiration)
-                    .accessibilityIdentifier("apps-inspiration-previous")
-                    Spacer()
-                    Button { inspirationIndex = (index + 1) % entries.count } label: {
-                        Icon("back", size: 17).scaleEffect(x: -1).foregroundStyle(.white).frame(width: 36, height: 36)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(AppStrings.nextInspiration)
-                    .accessibilityIdentifier("apps-inspiration-next")
-                }
-                .padding(.horizontal, 5)
+    private func appCard(_ app: SettingsAppsFullView.AppInfo, width: CGFloat) -> some View {
+        Button { withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { store.selectApp(app) } } label: {
+            VStack(spacing: .spacing2) {
+                Icon(app.iconName ?? AppIconView.iconName(forAppId: app.id), size: 32)
+                Text(app.name).font(.omP.weight(.bold)).lineLimit(2)
+                Text(app.description ?? "").font(.omSmall.weight(.medium)).opacity(0.85).lineLimit(4)
             }
+            .multilineTextAlignment(.center)
+            .foregroundStyle(Color.fontButton)
+            .padding(.horizontal, .spacing12)
+            .frame(width: width, height: 200)
+            .background(AppIconView.gradient(forAppId: app.id))
+            .clipShape(RoundedRectangle(cornerRadius: 30))
+            .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
         }
-        .frame(maxWidth: .infinity)
+        .buttonStyle(.plain)
+        .omCardHoverFeedback()
+        .accessibilityIdentifier("apps-app-card-\(app.id)")
     }
 
     private func detail(app: SettingsAppsFullView.AppInfo, width: CGFloat) -> some View {

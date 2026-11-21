@@ -1385,6 +1385,22 @@ final class ChatSyncParityTests: XCTestCase {
             excluding: "edit-new", activeChatId: "a").map(\.id), ["z", "message-new"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent,chats.surface.semantic-parity
+    func testContinueRowCutsBeforeHidingUndecryptedChatsSoOlderChatsNeverFillTheRow() throws {
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        // c0 is the newest chat but its title is still encrypted; c1...c10 are readable.
+        let chats = try (0...10).map { index -> Chat in
+            var fields: [String: Any] = ["id": "c\(index)", "created_at": 1, "updated_at": 1,
+                                         "last_edited_overall_timestamp": 1000 - index]
+            if index == 0 { fields["encrypted_title"] = "ciphertext" } else { fields["title"] = "Chat \(index)" }
+            return try decoder.decode(Chat.self, from: JSONSerialization.data(withJSONObject: fields))
+        }
+        let row = WelcomeScreenState.recentRowChats(from: chats, excluding: nil, activeChatId: nil, draftPreview: { _ in nil })
+        XCTAssertEqual(row.map(\.id), (1...9).map { "c\($0)" },
+                       "The undecrypted chat waits; the 11th chat must not take its slot as an untitled card")
+        XCTAssertEqual(WelcomeScreenState.cardData(for: chats[1]).title, "Chat 1")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
     func testConnectionRippleUsesNormalCycleAndReduceMotionKeepsArcsStatic() {
         XCTAssertEqual(NativeConnectionAnimation.wifiOpacity(elapsed: 0, arc: 2, reduceMotion: false), 0.3, accuracy: 0.001)
@@ -2262,5 +2278,28 @@ final class NativeDailyInspirationPolicyTests: XCTestCase {
             var nested = safe; nested["feature"] = ["feature_id": id]
             XCTAssertThrowsError(try DailyInspirationAPIResponse.decode(payload([nested])))
         }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.start-row-rhythm,daily-inspiration.start-row-cards
+    func testStartScreenRowInterleavesInspirationsWithTheFixedRhythmAndCapsAtTenCards() {
+        func shape(_ own: Int, _ inspirations: Int) -> String {
+            StartScreenRow.interleave(own: Array(0..<own), inspirations: (0..<inspirations).map { "i\($0)" })
+                .map { entry -> String in
+                    switch entry {
+                    case .own: return "o"
+                    case .inspiration: return "i"
+                    }
+                }.joined()
+        }
+        XCTAssertEqual(shape(6, 6), "ooiooiooio")
+        XCTAssertEqual(shape(0, 6), "iiiiii")
+        XCTAssertEqual(shape(1, 3), "oi")
+        XCTAssertEqual(shape(3, 0), "ooo")
+        XCTAssertEqual(shape(12, 6).count, StartScreenRow.maxCards)
+        XCTAssertEqual(shape(0, 14).count, StartScreenRow.maxCards)
+        let unopened = DailyInspirationData(inspirationId: "a", text: "a", contentType: "video")
+        let opened = DailyInspirationData(inspirationId: "b", text: "b", startedChatId: "chat", contentType: "wiki")
+        let other = DailyInspirationData(inspirationId: "c", text: "c", contentType: "feature")
+        XCTAssertEqual(StartScreenRow.chatRowInspirations([unopened, opened, other]).compactMap(\.inspirationId), ["a"])
     }
 }

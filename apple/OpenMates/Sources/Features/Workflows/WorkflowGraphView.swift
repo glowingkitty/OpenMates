@@ -1491,7 +1491,7 @@ private struct WorkflowStepSummary: View {
                 .font(.omP.weight(.bold))
                 .foregroundStyle(Color.fontButton)
                 .multilineTextAlignment(.center)
-                .lineLimit(3)
+                .lineLimit(2)
             if let location = Self.inputSummary(node) {
                 Text(location)
                     .font(.omP)

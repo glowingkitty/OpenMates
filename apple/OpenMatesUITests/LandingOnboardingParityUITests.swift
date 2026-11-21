@@ -7,20 +7,35 @@ import XCTest
 final class LandingOnboardingParityUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
-    // contract-test: direct surface=gui.apple assertions=landing-onboarding.apple-web-parity
+    // contract-test: direct surface=gui.apple assertions=landing-onboarding.apple-web-parity,daily-inspiration.start-row-suggestions
     func testSignedOutAppStartsWithDailyInspirationExamplesAndInterestLinkBelowCards() {
         let app = launchWelcome()
-        let inspiration = element(app, "daily-inspiration-card")
-        XCTAssertTrue(inspiration.waitForExistence(timeout: 15)); XCTAssertTrue(inspiration.isHittable)
         let examples = element(app, "welcome-chat-cards-carousel")
-        XCTAssertTrue(examples.waitForExistence(timeout: 10))
+        XCTAssertTrue(examples.waitForExistence(timeout: 15))
+        XCTAssertFalse(element(app, "daily-inspiration-card").exists, "The start screen has no inspiration banner")
+        XCTAssertTrue(element(app, "welcome-row-actions").exists, "Browse actions are the last tile of the row")
+        XCTAssertEqual(element(app, "chat-welcome-heading").label, "Hey there!", "Guests get the web greeting")
+        XCTAssertEqual(element(app, "guest-interest-prompt").label, "Explore some example chats:")
+        let inspiration = element(app, "welcome-row-inspiration-card")
+        XCTAssertTrue(inspiration.exists, "Typeless default inspirations stay in the guest row")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "apple-chats-start-guest"; shot.lifetime = .keepAlways; add(shot)
+        // Owner 21 Nov: the inspiration card is the normal chat card with a "Daily inspiration" label.
+        for _ in 0..<6 where !inspiration.isHittable { examples.swipeLeft() }
+        XCTAssertTrue(inspiration.isHittable, "Inspiration card reachable in the row")
+        XCTAssertFalse(element(app, "welcome-row-inspiration-image").exists, "No picture background")
+        let cardShot = XCTAttachment(screenshot: app.screenshot())
+        cardShot.name = "apple-chats-start-guest-inspiration"; cardShot.lifetime = .keepAlways; add(cardShot)
+        XCTAssertTrue(element(app, "start-screen-suggestions").waitForExistence(timeout: 10), "Guest start suggestions missing")
         XCTAssertFalse(exampleIDs(app).isEmpty)
         XCTAssertFalse(element(app, "guest-interest-rail").exists)
         XCTAssertFalse(app.buttons["guest-interest-skip"].exists)
+        app.scrollStartRowToActions()
         let interests = app.buttons["guest-interest-select-interests"]
         XCTAssertTrue(interests.isHittable)
-        XCTAssertGreaterThanOrEqual(interests.frame.minY, examples.frame.maxY - 2,
-            "Select interests follows the example carousel, as on the signed-out web home")
+        XCTAssertGreaterThanOrEqual(interests.frame.minX, examples.frame.minX,
+            "Select interests sits inside the row's actions tile")
+        app.scrollStartRowToActions()
         XCTAssertTrue(app.buttons["guest-show-all-examples"].isHittable)
         XCTAssertTrue(element(app, "message-editor").exists)
         XCTAssertFalse(element(app, "landing-intro-expanded").exists)
@@ -41,6 +56,7 @@ final class LandingOnboardingParityUITests: XCTestCase {
         XCTAssertFalse(skip.exists)
         let all = exampleIDs(app)
         XCTAssertFalse(all.isEmpty)
+        app.scrollStartRowToActions()
         app.buttons["guest-interest-select-interests"].tap()
         let rail = element(app, "guest-interest-rail")
         XCTAssertTrue(rail.waitForExistence(timeout: 3))
@@ -54,6 +70,7 @@ final class LandingOnboardingParityUITests: XCTestCase {
         XCTAssertEqual(narrowed, Set(all.filter { $0.contains("example-creativity-drawing-meetups-berlin") }))
         XCTAssertFalse(narrowed.isEmpty); XCTAssertNotEqual(narrowed, all)
         attachScreenshot("Selected topics narrow the public example catalog")
+        app.scrollStartRowToActions()
         app.buttons["guest-interest-select-interests"].tap()
         XCTAssertTrue(skip.waitForExistence(timeout: 3)); skip.tap()
         XCTAssertEqual(exampleIDs(app), all)
@@ -77,5 +94,19 @@ final class LandingOnboardingParityUITests: XCTestCase {
     private func attachScreenshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+}
+
+extension XCUIApplication {
+    /// The browse actions tile is the last card of the horizontally scrolling start-screen row.
+    func scrollStartRowToActions() {
+        let carousel = descendants(matching: .any)["welcome-chat-cards-carousel"].firstMatch
+        let tile = descendants(matching: .any)["welcome-row-actions"].firstMatch
+        guard carousel.waitForExistence(timeout: 5) else { return }
+        var swipes = 0
+        while swipes < 10, !(tile.exists && tile.frame.maxX <= frame.maxX + 1) {
+            carousel.swipeLeft()
+            swipes += 1
+        }
     }
 }

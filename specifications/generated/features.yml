@@ -3165,6 +3165,7 @@ features:
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
       - frontend/apps/web_app/tests/apple-cross-client-chat.spec.ts
       - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+      - frontend/apps/web_app/tests/apple-parity-reference-screens.spec.ts
       - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
       - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
       - frontend/apps/web_app/tests/chat-finished-turn-resend.spec.ts
@@ -3303,6 +3304,7 @@ features:
       e2e_tests:
       - apple/OpenMatesUITests/AppSkillInputPreviewUITests.swift
       - apple/OpenMatesUITests/AppleInteractionBudgetUITests.swift
+      - apple/OpenMatesUITests/AppleParityScreensUITests.swift
       - apple/OpenMatesUITests/AssistantActivityPreviewUITests.swift
       - apple/OpenMatesUITests/AssistantBatchActivityPreviewUITests.swift
       - apple/OpenMatesUITests/ChatCardsParityUITests.swift
@@ -4715,6 +4717,7 @@ features:
         counted: 14
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/apple-parity-reference-screens.spec.ts
       - frontend/apps/web_app/tests/components/inspiration-language.spec.ts
       - frontend/apps/web_app/tests/components/start-screen-row.spec.ts
       - frontend/apps/web_app/tests/components/task-board-figma.spec.ts
@@ -4741,17 +4744,24 @@ features:
       source: tests
       intent: in_progress
       assertions:
-        passing: 6
+        passing: 9
         failing: 0
-        not_run: 0
-        missing: 8
+        not_run: 2
+        missing: 3
         counted: 14
       key_tests: []
       e2e_tests:
+      - apple/OpenMatesUITests/AppleParityScreensUITests.swift
+      - apple/OpenMatesUITests/AppsWorkspaceParityUITests.swift
       - apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift
+      - apple/OpenMatesUITests/LandingOnboardingParityUITests.swift
+      - apple/OpenMatesUITests/ProjectsFilesParityUITests.swift
+      - apple/OpenMatesUITests/TasksWorkspaceInteractionUITests.swift
+      - apple/OpenMatesUITests/WorkflowsParityUITests.swift
       key_unit_tests:
       - apple/OpenMatesTests/ChatSyncParityTests.swift
-      unit_test_files: 1
+      - apple/OpenMatesTests/ProjectsWorkspaceTests.swift
+      unit_test_files: 2
       platforms:
       - ios
       - ipados
@@ -19086,9 +19096,9 @@ features:
       assertions:
         passing: 18
         failing: 0
-        not_run: 4
+        not_run: 5
         missing: 0
-        counted: 22
+        counted: 23
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/TooltipHelpParityUITests.swift

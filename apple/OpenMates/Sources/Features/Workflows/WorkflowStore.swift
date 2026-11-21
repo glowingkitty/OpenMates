@@ -651,7 +651,9 @@ final class WorkflowStore: ObservableObject {
                                   edges: edges, variables: [:], limits: [:], uiLayout: [:])
         var detail = WorkflowDetail(
             id: "workflow-fixture", title: "Weekly AI events",
-            description: "Find useful AI events every week.",
+            description: kind == "editor-long-description"
+                ? Array(repeating: "Find useful AI events every week and collect the best ones.", count: 8).joined(separator: " ")
+                : "Find useful AI events every week.",
             status: kind == "home" ? "draft" : "active", enabled: kind != "home",
             lifecycle: .persisted, source: "manual", sourceChatId: nil,
             createdByAssistant: false, autoDeleteAt: nil, keptAt: nil,

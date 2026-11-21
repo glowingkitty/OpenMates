@@ -156,8 +156,8 @@ final class WorkflowsParityUITests: XCTestCase {
         let app = launchWorkflowFixture("home")
 
         assertVisible("workflow-input-composer", in: app, message: "Workflow home must provide the workflow prompt composer.")
-        assertVisible("workflows-daily-inspiration-area", in: app,
-                      message: "Workflow home must show the daily inspiration banner.")
+        XCTAssertFalse(app.descendants(matching: .any)["workflows-daily-inspiration-area"].exists,
+                       "Workflow home no longer shows the daily inspiration banner.")
         assertVisible("workflows-home-greeting", in: app,
                       message: "Workflow home must greet the owner above its action cards.")
         assertVisible("workflow-mixed-row", in: app,
@@ -168,9 +168,12 @@ final class WorkflowsParityUITests: XCTestCase {
         let owner = cards.matching(NSPredicate(format: "label == %@ AND value == %@", "Weekly AI events", "Paused")).firstMatch
         XCTAssertEqual(cards.count, 1, "Recent contains the fixture owner workflow, without templates")
         XCTAssertTrue(owner.exists)
-        attachScreenshot("Workflow home with inspiration and recent owner card")
+        attachScreenshot("apple-workflows-start")
 
         let templates = app.buttons["workflows-show-templates"]
+        // Show templates lives in the row's last tile (web start row).
+        let row = app.descendants(matching: .any)["workflow-mixed-row"]
+        for _ in 0..<8 where !templates.isHittable { row.swipeLeft() }
         XCTAssertTrue(templates.isHittable); templates.tap()
         assertVisible("all-workflows-view", in: app, message: "Show templates must reveal the template grid")
         let heading = app.staticTexts["workflows-browse-heading"]
@@ -292,6 +295,44 @@ final class WorkflowsParityUITests: XCTestCase {
         )
         XCTAssertEqual(XCTWaiter.wait(for: [contracted], timeout: 5), .completed,
                        "Close must contract the node back to both compact dimensions.")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.start-row-cards,daily-inspiration.start-row-actions,daily-inspiration.start-row-suggestions
+    func testWorkflowStartScreenHasNoBannerActionsTileLastAndSingleLineSuggestions() throws {
+        let app = launchWorkflowFixture("home")
+        assertVisible("workflows-start-screen", in: app, message: "Workflow start screen must render.")
+        XCTAssertFalse(app.descendants(matching: .any)["workflows-daily-inspiration-area"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["daily-inspiration-card"].exists)
+        XCTAssertFalse(app.staticTexts["Daily inspiration"].exists)
+        let cards = app.buttons.matching(identifier: "workflow-landing-card")
+        XCTAssertLessThanOrEqual(cards.count, 10)
+        let actions = app.descendants(matching: .any)["workflows-row-actions"]
+        XCTAssertTrue(actions.waitForExistence(timeout: 8))
+        for card in cards.allElementsBoundByIndex {
+            XCTAssertLessThan(card.frame.minX, actions.frame.minX, "The actions tile is the last item of the row")
+        }
+        let suggestions = app.descendants(matching: .any)["workflows-start-suggestions"]
+        XCTAssertTrue(suggestions.exists)
+        XCTAssertGreaterThan(suggestions.frame.minY, actions.frame.maxY, "Suggestions sit below the row")
+        for button in suggestions.buttons.allElementsBoundByIndex {
+            XCTAssertLessThan(button.frame.height, 60, "Each suggestion stays on a single line")
+        }
+        attachScreenshot("apple-workflows-start")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows-ui.detail-header.description-clamp
+    func testWorkflowDescriptionClampsToThreeLinesAndToggleExpands() throws {
+        let app = launchWorkflowFixture("editor-long-description")
+        let description = app.descendants(matching: .any)["workspace-detail-description"]
+        XCTAssertTrue(description.waitForExistence(timeout: 8))
+        let toggle = app.buttons["workflow-description-toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "A long description shows the expand triangle")
+        let collapsed = description.frame.height
+        attachScreenshot("apple-workflows-description-collapsed")
+        toggle.tap()
+        XCTAssertGreaterThan(description.frame.height, collapsed, "Expanding shows the full description")
+        toggle.tap()
+        XCTAssertEqual(description.frame.height, collapsed, accuracy: 2)
     }
 
     // contract-test: supporting surface=gui.apple assertions=workflows-ui.detail.stable-visual-header,workflows-ui.detail.shared-template-runs-tabs,workflows-ui.template.centered-in-place-editor
@@ -638,7 +679,14 @@ final class WorkflowsParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["workflow-result-card"].exists)
         XCTAssertTrue(app.staticTexts["First synthetic article"].exists)
         let next = app.buttons["workflow-result-next"]
-        for _ in 0..<8 where !next.isHittable { scroll.swipeUp() }
+        // Short drags: a full swipe can carry the button from below the fold to under the
+        // floating header actions in one step now that node summaries are capped at 2 lines.
+        for _ in 0..<16 where !next.isHittable {
+            // Above the middle means it went under the header: drag the content back down.
+            let down = next.exists && next.frame.midY < scroll.frame.midY
+            let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: down ? 0.5 : 0.7))
+            start.press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: down ? 0.7 : 0.5)))
+        }
         XCTAssertTrue(next.isHittable); next.tap()
         XCTAssertEqual(position.label, "2 of 2")
         XCTAssertTrue(app.staticTexts["Second synthetic article"].exists)

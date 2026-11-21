@@ -4,6 +4,8 @@
 // Specification: specifications/features/projects/specification.yml
 // Assertions: projects.access.explicit-context, projects.files.search-scoped, projects.surface.semantic-parity,
 // projects.workspace.contract-plan-task-check-chain, projects.files.connected-embed-previews
+// Specification: specifications/features/daily-inspiration/specification.yml
+// Assertions: daily-inspiration.workspace-start-screens
 // Rendered reference: .runtime/build85-web-reference/projects-{overview,create-expanded,readme,files}.
 // Specification: specifications/features/apple-offline-workspaces/specification.yml
 // Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation
@@ -22,6 +24,8 @@ struct ProjectsWorkspaceView: View {
     var processingChatIDs: Set<String> = []
     var tasksStore: TasksWorkspaceStore? = nil
     var greetingName: String = "there"
+    /// Daily inspirations of the Projects surface, today and unopened (see StartScreenRow.projectRowInspirations).
+    var inspirations: [DailyInspirationData] = []
     var previewInitialTab: ProjectWorkspaceTab? = nil
     var onOpenChat: (String) -> Void = { _ in }
     var onOpenWorkflow: (String) -> Void = { _ in }
@@ -42,7 +46,6 @@ struct ProjectsWorkspaceView: View {
     @State private var showCreateProject = false
     @State private var pendingProjectName = ""
     @State private var projectNameInput = ""
-    @State private var inspirationIndex = 0
     @State private var showVoiceUnavailable = false
     @State private var pendingWriteMode: ProjectWorkspaceWriteMode?
     @State private var showCreateFolder = false
@@ -65,7 +68,6 @@ struct ProjectsWorkspaceView: View {
     @State private var selectedRemotePaths: Set<String> = []
     @State private var stagedTransfer: TransferStage?
     @State private var projectHeaderFrame = CGRect.zero
-    @State private var homeBannerBottom: CGFloat?
     @State private var homeComposerTop: CGFloat?
     @State private var homeKeyboardMinY: CGFloat?
     @State private var browsingProjects = false
@@ -260,19 +262,12 @@ struct ProjectsWorkspaceView: View {
             let narrow = geometry.size.width < 550
             let globalBottom = geometry.frame(in: .global).maxY
             let keyboardOverlap = max(0, globalBottom - (homeKeyboardMinY ?? globalBottom))
-            let bannerHeight: CGFloat = geometry.size.width < 730 ? 190 : max(240, min(420, geometry.size.height * 0.35))
             let continuation = WorkspaceContinuationLayoutPolicy.resolve(width: geometry.size.width, height: geometry.size.height,
-                bannerBottom: browsingProjects ? 52 : homeBannerBottom ?? bannerHeight,
+                bannerBottom: 52,
                 composerTop: homeComposerTop ?? max(0, geometry.size.height - 84 - keyboardOverlap))
             ZStack(alignment: .bottom) {
                 ZStack(alignment: .bottom) {
                     VStack(spacing: 0) {
-                        if !browsingProjects {
-                            projectInspirationBanner(width: geometry.size.width, height: geometry.size.height)
-                                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("projects-home-layout")).maxY } action: {
-                                    homeBannerBottom = $0
-                                }
-                        }
                         HStack {
                             Button { onReportIssue("") } label: {
                                 Icon("bug", size: 23)
@@ -298,7 +293,8 @@ struct ProjectsWorkspaceView: View {
                         if browsingProjects {
                             projectsBrowseView(width: geometry.size.width, height: continuation.availableHeight)
                         } else {
-                            projectsHomeCenter(compact: !continuation.expanded, width: geometry.size.width)
+                            projectsHomeCenter(compact: !continuation.expanded, width: geometry.size.width,
+                                height: continuation.availableHeight)
                         }
                     }
                     .frame(height: continuation.availableHeight)
@@ -326,7 +322,7 @@ struct ProjectsWorkspaceView: View {
         .modifier(WorkspaceContinuationKeyboardTracking(minY: $homeKeyboardMinY))
     }
 
-    private func projectsHomeCenter(compact: Bool, width: CGFloat) -> some View {
+    private func projectsHomeCenter(compact: Bool, width: CGFloat, height: CGFloat) -> some View {
         VStack(spacing: compact ? 22 : 10) {
             VStack(spacing: 8) {
                 Text(AppStrings.projectGreeting(greetingName))
@@ -345,31 +341,29 @@ struct ProjectsWorkspaceView: View {
             .multilineTextAlignment(.center)
             .accessibilityIdentifier("projects-home-greeting")
 
-            if store.isLoading && store.projects.isEmpty {
+            if store.isLoading && store.projects.isEmpty && inspirations.isEmpty {
                 ProgressView(AppStrings.projectLoading)
                     .frame(width: 300, height: compact ? 44 : 200)
-            } else if !store.projects.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 24) {
-                        ForEach(Array(store.projects.prefix(6))) { project in
-                            projectHomeCard(project, compact: compact)
-                        }
-                    }
-                    .padding(.horizontal, max(0, (width - 300) / 2))
-                    .padding(.vertical, 8)
-                }
-                .frame(height: compact ? 60 : 216)
-                .accessibilityIdentifier("projects-home-recent")
+            } else {
+                WelcomeContinuationCarousel(
+                    cards: store.projects.prefix(StartScreenRow.maxOwnItems).map(Self.startRowCard),
+                    containerSize: CGSize(width: width, height: compact ? 0 : max(height, WelcomeContinuationCarousel.largeCardContentHeightThreshold)),
+                    onOpenChat: { id in Task { await store.selectProject(id) } },
+                    onShowChatActions: { _ in },
+                    inspirations: StartScreenRow.projectRowInspirations(inspirations),
+                    onOpenInspiration: { projectNameInput = $0.text },
+                    actions: [
+                        StartRowAction(title: AppStrings.welcomeShowAllProjects, icon: "folder-kanban",
+                            identifier: "projects-show-all") { browsingProjects = true; projectBrowseFocused = false },
+                        StartRowAction(title: AppStrings.search, icon: "search", identifier: "projects-search") {
+                            browsingProjects = true; projectBrowseFocused = true
+                        }],
+                    largeCardIdentifierPrefix: "project-card-",
+                    compactCardIdentifierPrefix: "project-card-")
+                    .frame(width: width)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("projects-home-recent")
             }
-            HStack(spacing: .spacing5) {
-                WorkspaceContinuationLink(title: AppStrings.welcomeShowAllProjects, icon: "folder-kanban",
-                    identifier: "projects-show-all") { browsingProjects = true; projectBrowseFocused = false }
-                WorkspaceContinuationLink(title: AppStrings.search, icon: "search", identifier: "projects-search") {
-                    browsingProjects = true; projectBrowseFocused = true
-                }
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("projects-workspace-link-row")
             errorBanner
         }
         .frame(width: width)
@@ -451,58 +445,10 @@ struct ProjectsWorkspaceView: View {
         showCreateProject = true
     }
 
-    private var projectInspirations: [DailyInspirationData] {
-        [DailyInspirationData(inspirationId: "hardcoded-project-brief",
-            text: AppStrings.projectInspirationBrief, title: AppStrings.projectInspirationBriefTitle,
-            category: "productivity",
-            feature: DailyInspirationFeature(iconName: "folder-kanban",
-                title: AppStrings.projectInspirationBriefFeatureTitle,
-                description: AppStrings.projectInspirationBriefFeatureDescription)),
-         DailyInspirationData(inspirationId: "hardcoded-project-milestones",
-            text: AppStrings.projectInspirationMilestones, title: AppStrings.projectInspirationMilestonesTitle,
-            category: "software_development",
-            feature: DailyInspirationFeature(iconName: "list-checks",
-                title: AppStrings.projectInspirationMilestonesFeatureTitle,
-                description: AppStrings.projectInspirationMilestonesFeatureDescription)),
-         DailyInspirationData(inspirationId: "hardcoded-project-assets",
-            text: AppStrings.projectInspirationAssets, title: AppStrings.projectInspirationAssetsTitle,
-            category: "general_knowledge",
-            feature: DailyInspirationFeature(iconName: "archive",
-                title: AppStrings.projectInspirationAssetsFeatureTitle,
-                description: AppStrings.projectInspirationAssetsFeatureDescription))]
-    }
-
-    private func projectInspirationBanner(width: CGFloat, height: CGFloat) -> some View {
-        let inspiration = projectInspirations[inspirationIndex % projectInspirations.count]
-        return ZStack {
-            InspirationCard(inspiration: inspiration,
-                containerSize: CGSize(width: width, height: height),
-                heightOverride: width < 730 ? 190 : max(240, min(420, height * 0.35)),
-                ctaTitle: AppStrings.projectInspirationCTA,
-                tapHint: AppStrings.projectInspirationCTA,
-                isInteractive: false) { }
-            HStack {
-                Button {
-                    inspirationIndex = (inspirationIndex + projectInspirations.count - 1) % projectInspirations.count
-                } label: {
-                    Icon("back", size: 17)
-                        .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                }
-                .accessibilityLabel(AppStrings.projectPrevious)
-                Spacer()
-                Button {
-                    inspirationIndex = (inspirationIndex + 1) % projectInspirations.count
-                } label: {
-                    Icon("back", size: 17).scaleEffect(x: -1)
-                        .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                }
-                .accessibilityLabel(AppStrings.nextInspiration)
-            }
-            .padding(.horizontal, 5)
-        }
-        .frame(maxWidth: .infinity)
+    /// Large start-row card for a project, as Chats shows its recent chats.
+    private static func startRowCard(_ project: ProjectWorkspaceProject) -> WelcomeChatCardData {
+        WelcomeChatCardData(id: project.id, title: project.name, summary: project.description,
+            category: "general_knowledge", iconName: "project", isPinned: false)
     }
 
     private func projectHomeCard(_ project: ProjectWorkspaceProject, compact: Bool) -> some View {

@@ -80,8 +80,11 @@ final class ChatFlowParityUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.descendants(matching: .any)["compact-logo-button"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["daily-inspiration-card"].waitForExistence(timeout: 15))
-        XCTAssertTrue(app.descendants(matching: .any)["daily-inspiration-carousel-progress"].waitForExistence(timeout: 15))
+        // The start screen has no banner; inspirations live inside the row, actions tile last.
+        XCTAssertTrue(app.descendants(matching: .any)["welcome-row-actions"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.descendants(matching: .any)["daily-inspiration-card"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["daily-inspiration-carousel-progress"].exists)
+        app.scrollStartRowToActions()
         let selectInterests = app.descendants(matching: .any)["guest-interest-select-interests"].firstMatch
         XCTAssertTrue(selectInterests.waitForExistence(timeout: 15), "Guest home starts with the Select interests link")
         XCTAssertTrue(selectInterests.isHittable)
@@ -126,6 +129,7 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["workflows-home"].waitForExistence(timeout: 5))
 
         openWorkspace("chats", in: app)
+        app.scrollStartRowToActions()
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-select-interests"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
@@ -269,6 +273,7 @@ final class ChatFlowParityUITests: XCTestCase {
         app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
         app.launch()
 
+        app.scrollStartRowToActions()
         let selectInterests = app.descendants(matching: .any)["guest-interest-select-interests"].firstMatch
         XCTAssertTrue(selectInterests.waitForExistence(timeout: 15), "Guest home starts with the Select interests link")
         XCTAssertTrue(selectInterests.isHittable)
@@ -288,6 +293,7 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(continueButton.waitForExistence(timeout: 5))
         continueButton.tap()
 
+        app.scrollStartRowToActions()
         XCTAssertTrue(app.buttons["guest-interest-select-interests"].waitForExistence(timeout: 5))
         let exampleCards = app.descendants(matching: .any).matching(NSPredicate(
             format: "identifier BEGINSWITH %@ OR identifier BEGINSWITH %@",
@@ -310,6 +316,7 @@ final class ChatFlowParityUITests: XCTestCase {
         app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
         app.launch()
 
+        app.scrollStartRowToActions()
         let selectInterests = app.descendants(matching: .any)["guest-interest-select-interests"].firstMatch
         XCTAssertTrue(selectInterests.waitForExistence(timeout: 15), "Guest home starts with the Select interests link")
         XCTAssertTrue(selectInterests.isHittable)
@@ -380,6 +387,7 @@ final class ChatFlowParityUITests: XCTestCase {
         ]
         app.launch()
 
+        app.scrollStartRowToActions()
         let selectInterests = app.descendants(matching: .any)["guest-interest-select-interests"].firstMatch
         XCTAssertTrue(selectInterests.waitForExistence(timeout: 15), "Guest home starts with the Select interests link")
         XCTAssertTrue(selectInterests.isHittable)
@@ -419,15 +427,19 @@ final class ChatFlowParityUITests: XCTestCase {
         let largeCard = app.buttons["welcome-chat-card-ui-test-welcome-recent-0"]
         XCTAssertTrue(largeCard.waitForExistence(timeout: 5))
 
-        let overflow = app.descendants(matching: .any)["welcome-chat-overflow-large"]
-        for _ in 0..<12 where !overflow.isHittable {
+        // Web start row (TASK-1321): the actions tile ends the row instead of a
+        // "+N" overflow counter, at the same large-card height.
+        let actions = app.descendants(matching: .any)["welcome-row-actions"]
+        for _ in 0..<12 where !actions.isHittable {
             carousel.swipeLeft()
         }
 
-        XCTAssertTrue(overflow.waitForExistence(timeout: 5))
-        XCTAssertTrue(overflow.isHittable, "Expected large overflow counter to be reachable in the recent-chat carousel")
+        XCTAssertTrue(actions.waitForExistence(timeout: 5))
+        XCTAssertTrue(actions.isHittable, "Expected the actions tile to be reachable at the end of the start row")
+        XCTAssertFalse(app.descendants(matching: .any)["welcome-chat-overflow-large"].exists,
+                       "The start row ends with the actions tile, not an overflow counter")
         XCTAssertEqual(
-            overflow.frame.height,
+            actions.frame.height,
             largeCard.frame.height,
             accuracy: 1,
             "Tall phones should use the full continuation-card height throughout the carousel"
@@ -498,6 +510,7 @@ final class ChatFlowParityUITests: XCTestCase {
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [seeded], timeout: 15), .completed)
         XCTAssertFalse(receipt.label.contains("ui-test-grid-45"), "An older page should remain encrypted until requested")
+        app.scrollStartRowToActions()
         let showAll = app.buttons["welcome-show-all-chats"]
         XCTAssertTrue(showAll.waitForExistence(timeout: 10))
         XCTAssertTrue(showAll.isHittable)
@@ -612,6 +625,7 @@ final class ChatFlowParityUITests: XCTestCase {
         let returnToChats = app.descendants(matching: .any)["workspace-placeholder-return-to-chats"]
         if returnToChats.exists && returnToChats.isHittable {
             returnToChats.tap()
+            app.scrollStartRowToActions()
             XCTAssertTrue(app.descendants(matching: .any)["guest-interest-select-interests"].waitForExistence(timeout: 5))
             if workspace == "chats" { return }
         }

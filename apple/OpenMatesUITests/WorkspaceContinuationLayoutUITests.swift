@@ -10,30 +10,32 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,projects.surface.semantic-parity
-    func testTallPhoneContinuationCardsFitBetweenBannerAndComposerOnAllThreeSurfaces() {
+    func testTallPhoneContinuationCardsFitBetweenHeadingAndComposerOnAllThreeSurfaces() {
         for surface in surfaces {
             let app = launch(surface.component, variant: surface.variant, height: 844)
             let card = element(app, surface.card)
             XCTAssertTrue(card.waitForExistence(timeout: 10), surface.component)
             XCTAssertEqual(card.frame.width, 300, accuracy: 2, surface.component)
             XCTAssertEqual(card.frame.height, 200, accuracy: 2, surface.component)
-            assertBetweenBannerAndComposer(card, surface: surface, app: app)
+            assertBetweenHeadingAndComposer(card, surface: surface, app: app)
             attach(app, name: "\(surface.component)-tall-phone-expanded-continuation")
             app.terminate()
         }
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,projects.surface.semantic-parity
-    func testOrdinaryTallPhoneUsesExpandedCardsBelowInspirationOnAllThreeSurfaces() {
+    func testOrdinaryTallPhoneUsesExpandedCardsBelowHeadingOnAllThreeSurfaces() {
         for surface in surfaces {
             let app = launch(surface.component, variant: surface.variant, height: 744)
             let card = element(app, surface.card)
             XCTAssertTrue(card.waitForExistence(timeout: 10), surface.component)
             XCTAssertEqual(card.frame.height, 200, accuracy: 2, surface.component)
-            assertBetweenBannerAndComposer(card, surface: surface, app: app)
+            assertBetweenHeadingAndComposer(card, surface: surface, app: app)
             let links = app.buttons[surface.component == "welcome" ? "welcome-show-all-chats"
                 : surface.component == "projects" ? "projects-show-all" : "workflows-show-all"]
-            XCTAssertTrue(links.isHittable, "Expanded preview must leave its continuation links visible")
+            // Web start row: the browse links are the row's last tile, reached by scrolling the row.
+            revealRowItem(links, rowY: card.frame.midY, app: app)
+            XCTAssertTrue(links.isHittable, "The row's actions tile must be reachable")
             attach(app, name: "\(surface.component)-ordinary-744-phone-expanded")
             app.terminate()
         }
@@ -55,7 +57,7 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
         XCTAssertTrue(carousel.frame.contains(card.frame))
         XCTAssertGreaterThanOrEqual(carousel.frame.maxY - card.frame.maxY, 33,
                                     "The tall card shadow needs the web's 34pt bottom reserve inside the clipping viewport")
-        assertBetweenBannerAndComposer(card, surface: surfaces[0], app: app)
+        assertBetweenHeadingAndComposer(card, surface: surfaces[0], app: app)
         XCTAssertLessThanOrEqual(carousel.frame.maxY, element(app, surfaces[0].composer).frame.minY + 1,
                                  "Shadow reserve must remain above the real composer")
         let geometry = XCTAttachment(string: "card=\(card.frame);carousel=\(carousel.frame);canvas=\(canvas.frame)")
@@ -72,13 +74,15 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,projects.surface.semantic-parity
     func testShortViewportContinuationCardsStayCompactOnAllThreeSurfaces() {
         for surface in surfaces {
-            let app = launch(surface.component, variant: surface.variant, height: 568)
+            // No banner any more (web start row): 568pt now fits the large cards, so the
+            // compact fallback is checked where the heading-to-composer gap is below 360pt.
+            let app = launch(surface.component, variant: surface.variant, height: 420)
             let card = element(app, surface.component == "welcome" ? "welcome-chat-compact-card-fixture-resume" : surface.card)
             XCTAssertTrue(card.waitForExistence(timeout: 10), surface.component)
             XCTAssertLessThan(card.frame.height, 100, surface.component)
             // CGRect intersections can produce 43.99999999999994 for 44pt.
             XCTAssertGreaterThanOrEqual(card.frame.height + 0.001, 44)
-            assertBetweenBannerAndComposer(card, surface: surface, app: app)
+            assertBetweenHeadingAndComposer(card, surface: surface, app: app)
             attach(app, name: "\(surface.component)-short-viewport-compact-continuation")
             app.terminate()
         }
@@ -88,7 +92,9 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
     func testChatContinuationShowAllOpensGridAndSearchFindsActualSyntheticChat() {
         let app = launch("welcome", variant: "continuation", height: 844)
         let showAll = app.buttons["welcome-show-all-chats"]
-        XCTAssertTrue(showAll.waitForExistence(timeout: 5)); XCTAssertTrue(showAll.isHittable)
+        XCTAssertTrue(showAll.waitForExistence(timeout: 5))
+        revealRowItem(showAll, rowY: app.buttons["welcome-chat-card-fixture-resume"].frame.midY, app: app)
+        XCTAssertTrue(showAll.isHittable)
         showAll.tap()
         let grid = element(app, "welcome-chat-grid")
         XCTAssertTrue(grid.waitForExistence(timeout: 5))
@@ -127,13 +133,13 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
         XCTAssertEqual(landingResult, .completed,
             "Show All must expose actual landing grid controls and cards while the sidebar chrome stays noninteractive")
         let bannerHidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"),
-            object: element(app, "continuation-inspiration"))
-        XCTAssertEqual(XCTWaiter.wait(for: [bannerHidden], timeout: 5), .completed, "The inspiration slides above the grid")
+            object: element(app, "continuation-heading"))
+        XCTAssertEqual(XCTWaiter.wait(for: [bannerHidden], timeout: 5), .completed, "The heading is replaced by the grid")
         let back = app.buttons["welcome-back-to-recent"]
         XCTAssertTrue(back.isHittable)
         back.tap()
         XCTAssertTrue(showAll.waitForExistence(timeout: 5))
-        XCTAssertTrue(element(app, "continuation-inspiration").waitForExistence(timeout: 5))
+        XCTAssertTrue(element(app, "continuation-heading").waitForExistence(timeout: 5))
         showAll.tap()
         let input = app.textFields["welcome-browse-search"]
         XCTAssertTrue(input.waitForExistence(timeout: 5))
@@ -154,7 +160,10 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
     func testProjectsShowAllAndSearchUseProjectMetadataAndOpenProjectDetail() {
         let app = launch("projects", variant: "landing", height: 844)
         let showAll = app.buttons["projects-show-all"]
-        XCTAssertTrue(showAll.waitForExistence(timeout: 5)); XCTAssertTrue(showAll.isHittable)
+        XCTAssertTrue(showAll.waitForExistence(timeout: 5))
+        // Show all / Search are the row's last tile (web start row).
+        revealRowItem(showAll, rowY: app.buttons["project-card-preview-project"].frame.midY, app: app)
+        XCTAssertTrue(showAll.isHittable)
         showAll.tap()
         XCTAssertTrue(element(app, "projects-browse-list").waitForExistence(timeout: 5))
         let input = app.textFields["projects-browse-search"]
@@ -163,7 +172,9 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
         XCTAssertFalse(app.textFields["search-input"].exists, "Project browsing must not open chat search")
         app.buttons["projects-back-to-recent"].tap()
         let search = app.buttons["projects-search"]
-        XCTAssertTrue(search.waitForExistence(timeout: 5)); XCTAssertTrue(search.isHittable)
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        revealRowItem(search, rowY: element(app, "welcome-row-actions").frame.midY, app: app)
+        XCTAssertTrue(search.isHittable)
         search.tap()
         XCTAssertTrue(input.waitForExistence(timeout: 5)); input.tap(); input.typeText("OpenMates\n")
         let card = app.buttons["project-card-preview-project"]
@@ -183,7 +194,7 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
         XCTAssertTrue(card.waitForExistence(timeout: 5))
         XCTAssertEqual(card.frame.width, 300, accuracy: 2)
         XCTAssertEqual(card.frame.height, 200, accuracy: 2)
-        assertBetweenBannerAndComposer(card, surface: surfaces[2], app: app)
+        assertBetweenHeadingAndComposer(card, surface: surfaces[2], app: app)
         let input = app.textViews["project-input-textarea"]
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         XCTAssertTrue(input.isHittable, "The composer must be visible in the real window before opening the keyboard")
@@ -237,7 +248,7 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
         let backgroundHidden = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: card)
         XCTAssertEqual(XCTWaiter.wait(for: [backgroundHidden], timeout: 5), .completed,
                        "Focused drafting must suppress the continuation card from accessibility")
-        for identifier in [surfaces[2].banner, "projects-show-all", "projects-search"] {
+        for identifier in ["projects-show-all", "projects-search"] {
             let backgroundControl = element(app, identifier)
             if backgroundControl.exists {
                 XCTAssertFalse(backgroundControl.isEnabled)
@@ -277,7 +288,7 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [expandedRestored], timeout: 5), .completed)
         XCTAssertEqual(card.frame.width, 300, accuracy: 2)
         XCTAssertEqual(card.frame.height, 200, accuracy: 2)
-        assertBetweenBannerAndComposer(card, surface: surfaces[2], app: app)
+        assertBetweenHeadingAndComposer(card, surface: surfaces[2], app: app)
         attach(app, name: "projects-keyboard-reduces-continuation-gap")
     }
 
@@ -285,18 +296,18 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
         let component: String
         let variant: String
         let card: String
-        let banner: String
+        let heading: String
         let composer: String
     }
     private var surfaces: [Surface] {
-        [.init(component: "welcome", variant: "continuation", card: "welcome-chat-card-fixture-resume", banner: "continuation-inspiration", composer: "continuation-composer"),
-         .init(component: "workflows", variant: "home", card: "workflow-landing-card", banner: "workflows-daily-inspiration-area", composer: "workflow-input-composer"),
-         .init(component: "projects", variant: "landing", card: "project-card-preview-project", banner: "daily-inspiration-card", composer: "project-input-composer")]
+        [.init(component: "welcome", variant: "continuation", card: "welcome-chat-card-fixture-resume", heading: "continuation-heading", composer: "continuation-composer"),
+         .init(component: "workflows", variant: "home", card: "workflow-landing-card", heading: "workflows-home-greeting", composer: "workflow-input-composer"),
+         .init(component: "projects", variant: "landing", card: "project-card-preview-project", heading: "projects-home-greeting", composer: "project-input-composer")]
     }
-    private func assertBetweenBannerAndComposer(_ card: XCUIElement, surface: Surface, app: XCUIApplication) {
-        let banner = element(app, surface.banner), composer = element(app, surface.composer)
-        XCTAssertTrue(banner.exists); XCTAssertTrue(composer.exists)
-        XCTAssertGreaterThanOrEqual(card.frame.minY, banner.frame.maxY - 1)
+    private func assertBetweenHeadingAndComposer(_ card: XCUIElement, surface: Surface, app: XCUIApplication) {
+        let heading = element(app, surface.heading), composer = element(app, surface.composer)
+        XCTAssertTrue(heading.exists); XCTAssertTrue(composer.exists)
+        XCTAssertGreaterThanOrEqual(card.frame.minY, heading.frame.maxY - 1)
         XCTAssertLessThanOrEqual(card.frame.maxY, composer.frame.minY + 1)
         XCTAssertTrue(card.isHittable)
     }
@@ -335,6 +346,15 @@ final class WorkspaceContinuationLayoutUITests: XCTestCase {
         XCTAssertEqual(root.value as? String, "auth=not-started;store=detached;socket=disconnected")
         XCTAssertFalse(element(app, "dev-preview-error").exists)
         return app
+    }
+    /// Drags the start row leftwards at `rowY` until `item` (e.g. the actions tile link) is hittable.
+    private func revealRowItem(_ item: XCUIElement, rowY: CGFloat, app: XCUIApplication) {
+        let window = app.windows.firstMatch
+        let origin = window.coordinate(withNormalizedOffset: .zero)
+        for _ in 0..<8 where !item.isHittable {
+            origin.withOffset(CGVector(dx: window.frame.width * 0.85, dy: rowY))
+                .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(dx: window.frame.width * 0.15, dy: rowY)))
+        }
     }
     private func element(_ app: XCUIApplication, _ id: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: id).firstMatch

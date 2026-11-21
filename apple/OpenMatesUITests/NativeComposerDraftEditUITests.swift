@@ -586,7 +586,13 @@ final class NativeComposerDraftEditUITests: XCTestCase {
         XCTAssertEqual(controls.frame.minX - panel.frame.minX,
                        panel.frame.maxX - controls.frame.maxX, accuracy: 1,
                        "Recording controls retain equal horizontal inset", file: file, line: line)
-        for identifier in ["timer-pill", "record-cancel-button", "record-finish-button"] {
+        XCTAssertEqual(panel.frame.height, 48, accuracy: 1,
+                       "Composer recording bar is the web compact 48px bar", file: file, line: line)
+        XCTAssertFalse(element(in: app, identifier: "timer-pill").exists,
+                       "Compact bar hides the timer pill", file: file, line: line)
+        XCTAssertFalse(element(in: app, identifier: "record-shortcuts").exists,
+                       "Compact bar hides the shortcut hint", file: file, line: line)
+        for identifier in ["record-cancel-button", "record-finish-button"] {
             let control = element(in: app, identifier: identifier)
             XCTAssertTrue(panel.frame.insetBy(dx: -1, dy: -1).contains(control.frame),
                           "Recording control is fully inside the panel: \(identifier)", file: file, line: line)

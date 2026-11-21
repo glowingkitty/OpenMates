@@ -508,6 +508,8 @@
 		35735A37D44C4CDCCC283431 /* DevChatContinuationLayoutFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B7AEA9EE267801EB36F3821 /* DevChatContinuationLayoutFixture.swift */; };
 		35A097ADA7E9E04A37B2185F /* example_chats in Resources */ = {isa = PBXBuildFile; fileRef = BCCE9F33637FB27298BDC4F6 /* example_chats */; };
 		35A1F466A38A16AEB49D46E2 /* Whistle in Resources */ = {isa = PBXBuildFile; fileRef = 0E200AA775525279466F9D4C /* Whistle */; };
+		A1B2C3D4E5F60718293A4B5D /* StartScreenRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* StartScreenRow.swift */; };
+		A1B2C3D4E5F60718293A4B5E /* StartScreenRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* StartScreenRow.swift */; };
 		35A7F5D25CFF153AD5A7DC6E /* DailyInspirationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB531014DF91F38A7DD04A2B /* DailyInspirationView.swift */; };
 		35B9CDF6D0E833A80F59C6BE /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 82F8B920FCEFE49C520D05ED /* Fonts */; };
 		35CB33588871407837D31D67 /* WatchGuestWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B20969154291C659B5D845 /* WatchGuestWorkspaceView.swift */; };
@@ -755,6 +757,7 @@
 		56246E2D0B6DE35F48F1C848 /* ComposerSearchSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E6F51404637FC0EFC12D7D /* ComposerSearchSuggestionTests.swift */; };
 		562564034013E83CF39716AD /* NativeSignupRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6302F6D59F1F0B082AD7554 /* NativeSignupRuntime.swift */; };
 		A17B0C1D2E3F405162738495 /* AppleInteractionBudgetUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B28C1D2E3F4051627384950A /* AppleInteractionBudgetUITests.swift */; };
+		C39D2E3F4A5B6C7D8E9F0A1B /* AppleParityScreensUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4AE3F4A5B6C7D8E9F0A1B2C /* AppleParityScreensUITests.swift */; };
 		562A326FED39111A051E4E12 /* ChatOpeningScalabilityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4530B60989D4455031AEEBB /* ChatOpeningScalabilityUITests.swift */; };
 		563F43A66FA1E96562430CEE /* AuthFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 278DA325890FA2DFF476E51A /* AuthFlowView.swift */; };
 		56A73AE6B617CAF45C1F52CC /* CalledSkillSearchInputRetentionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C8A7CCF49D6F78FD4048793 /* CalledSkillSearchInputRetentionTests.swift */; };
@@ -2955,6 +2958,7 @@
 		D3F25C4F3952606BE5484741 /* ComposerTextAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerTextAttachment.swift; sourceTree = "<group>"; };
 		D40DD8A5C184F58A6FB4241F /* ShareLinkCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkCrypto.swift; sourceTree = "<group>"; };
 		B28C1D2E3F4051627384950A /* AppleInteractionBudgetUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleInteractionBudgetUITests.swift; sourceTree = "<group>"; };
+		D4AE3F4A5B6C7D8E9F0A1B2C /* AppleParityScreensUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleParityScreensUITests.swift; sourceTree = "<group>"; };
 		D4530B60989D4455031AEEBB /* ChatOpeningScalabilityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOpeningScalabilityUITests.swift; sourceTree = "<group>"; };
 		D485E7C95A3430548279F370 /* VoiceRecorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecorderTests.swift; sourceTree = "<group>"; };
 		D4ADF9FFABA27844DB792CC0 /* MapsShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapsShareView.swift; sourceTree = "<group>"; };
@@ -3117,6 +3121,7 @@
 		FA3064E0AF17B0BDD681EC9C /* NativeModelCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeModelCatalogTests.swift; sourceTree = "<group>"; };
 		FACC238E7F92C5861DDD0F65 /* WatchChatRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatRuntimeTests.swift; sourceTree = "<group>"; };
 		FB1CD620D75FC2AF3919829D /* ProjectHostedWorkspaceAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectHostedWorkspaceAdapter.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5C /* StartScreenRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartScreenRow.swift; sourceTree = "<group>"; };
 		FB531014DF91F38A7DD04A2B /* DailyInspirationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyInspirationView.swift; sourceTree = "<group>"; };
 		FB886998A5E3FCA4D04442A6 /* WhistlePCMRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhistlePCMRuntime.swift; sourceTree = "<group>"; };
 		FB98CCBFA3F3E1CAA4AF66AB /* RemindersPublicContentParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersPublicContentParityTests.swift; sourceTree = "<group>"; };
@@ -3475,6 +3480,7 @@
 				732EDEA5CDD87507E33B9FB3 /* ChatNavigationParityUITests.swift */,
 				D4530B60989D4455031AEEBB /* ChatOpeningScalabilityUITests.swift */,
 				B28C1D2E3F4051627384950A /* AppleInteractionBudgetUITests.swift */,
+				D4AE3F4A5B6C7D8E9F0A1B2C /* AppleParityScreensUITests.swift */,
 				930676D4E3D5E0DF529FB8D7 /* ChatResponsiveParityUITests.swift */,
 				53E7BBC26870732A3CE5089B /* ChatSettingsParityUITests.swift */,
 				B2F9761C94DAA26AA66FE183 /* ChatShellResponsiveParityUITests.swift */,
@@ -4706,6 +4712,7 @@
 				C7DFBC3D2D8AFBC4367D6CB5 /* ChatShareView.swift */,
 				4C81AB019DC95300C00108EE /* ChatView.swift */,
 				FB531014DF91F38A7DD04A2B /* DailyInspirationView.swift */,
+				A1B2C3D4E5F60718293A4B5C /* StartScreenRow.swift */,
 				41E019B11E74836197058244 /* ExampleChatsView.swift */,
 				CEB56BB8CA933CEC26CCA7E2 /* FocusModeView.swift */,
 				C5B540D7BA22FF99E04DE59F /* FocusPhaseNoticeView.swift */,
@@ -6078,6 +6085,7 @@
 				C7014D9D14CFDB0BA2B9B6E1 /* CopyMessageFormatter.swift in Sources */,
 				00E9903CB4B266B59E16AB50 /* CryptoManager.swift in Sources */,
 				35A7F5D25CFF153AD5A7DC6E /* DailyInspirationView.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5D /* StartScreenRow.swift in Sources */,
 				0651B4D9F35E780990F06473 /* DataExtensions.swift in Sources */,
 				3955045922CB761CFED0D354 /* DeepLinkHandler.swift in Sources */,
 				E5708AB127AF338099DD50CF /* DevActiveChatsWidgetFixture.swift in Sources */,
@@ -6573,6 +6581,7 @@
 				3052D48B66E72237C68E05E4 /* ChatNavigationParityUITests.swift in Sources */,
 				562A326FED39111A051E4E12 /* ChatOpeningScalabilityUITests.swift in Sources */,
 				A17B0C1D2E3F405162738495 /* AppleInteractionBudgetUITests.swift in Sources */,
+				C39D2E3F4A5B6C7D8E9F0A1B /* AppleParityScreensUITests.swift in Sources */,
 				5CB2F7137FB6BA1113D1E0C3 /* ChatResponsiveParityUITests.swift in Sources */,
 				1266FF20001BF1722AE8E11E /* ChatSettingsParityUITests.swift in Sources */,
 				27B9E08AB1D1F75AE9E936D8 /* ChatShellResponsiveParityUITests.swift in Sources */,
@@ -6958,6 +6967,7 @@
 				9AA86468A32BB853860C7AD9 /* CopyMessageFormatter.swift in Sources */,
 				7B47EDDFDED3E145EC401456 /* CryptoManager.swift in Sources */,
 				FBDCDD944394E2D441F00575 /* DailyInspirationView.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5E /* StartScreenRow.swift in Sources */,
 				66248975C4C88B3868EDF310 /* DataExtensions.swift in Sources */,
 				CF3BCE81CC3F82339334E851 /* DeepLinkHandler.swift in Sources */,
 				2B42228A7F05E752E086F169 /* DevActiveChatsWidgetFixture.swift in Sources */,

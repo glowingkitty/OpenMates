@@ -413,7 +413,7 @@ final class TasksWorkspaceInteractionUITests: XCTestCase {
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "New task should focus its composer")
         let composer = element(app, "task-workspace-composer")
         let scroll = app.scrollViews["tasks-workspace-scroll"]
-        let inspiration = element(app, "tasks-daily-inspiration-area")
+        let greeting = element(app, "task-greeting")
         let visibleComposer = NSPredicate { _, _ in
             let keyboard = app.keyboards.firstMatch
             return keyboard.exists && composer.exists && input.exists && scroll.exists
@@ -421,14 +421,15 @@ final class TasksWorkspaceInteractionUITests: XCTestCase {
                 && composer.frame.maxY <= keyboard.frame.minY + 1
                 && input.frame.maxY <= keyboard.frame.minY + 1
                 && input.frame.minY >= scroll.frame.minY
-                && abs(inspiration.frame.minY - scroll.frame.minY) <= 2
+                && greeting.frame.minY >= scroll.frame.minY - 2
         }
         expectation(for: visibleComposer, evaluatedWith: app)
         waitForExpectations(timeout: 5)
         XCTAssertLessThanOrEqual(composer.frame.maxY, app.keyboards.firstMatch.frame.minY + 1,
                                  "The entire composer must remain above the real keyboard")
-        XCTAssertEqual(inspiration.frame.minY, scroll.frame.minY, accuracy: 2,
-                       "The board starts at the viewport top without a keyboard-induced blank gap")
+        XCTAssertFalse(element(app, "tasks-daily-inspiration-area").exists, "Tasks has no inspiration banner")
+        XCTAssertLessThanOrEqual(greeting.frame.minY - scroll.frame.minY, 140,
+                                 "The greeting starts at the viewport top without a keyboard-induced blank gap")
         // No field tap here: app-wide typing must reach the field selected by
         // the real SceneDelegate -> quick-action -> MainAppView focus request.
         app.typeText(" after shortcut")
@@ -449,6 +450,17 @@ final class TasksWorkspaceInteractionUITests: XCTestCase {
         tab.tap()
     }
     #endif
+
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.workspace-start-screens
+    func testTasksStartScreenHasNoInspirationAtAll() throws {
+        let app = launch()
+        XCTAssertTrue(element(app, "task-greeting").waitForExistence(timeout: 5))
+        XCTAssertFalse(element(app, "tasks-daily-inspiration-area").exists, "Tasks has no inspiration banner")
+        XCTAssertFalse(element(app, "daily-inspiration-card").exists)
+        XCTAssertFalse(element(app, "welcome-row-inspiration-card").exists, "Tasks has no inspiration row card")
+        XCTAssertFalse(app.staticTexts["Daily inspiration"].exists, "No Daily inspiration header")
+        attach(app, "apple-tasks-start")
+    }
 
     private func launch(extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()

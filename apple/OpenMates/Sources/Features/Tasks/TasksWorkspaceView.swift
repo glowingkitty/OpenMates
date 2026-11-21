@@ -24,8 +24,6 @@ struct TasksWorkspaceView: View {
     var compactProjectBoard = false
     var showsComposer = true
     var presentsDetail = true
-    var inspiration: DailyInspirationData? = nil
-    var onStartInspiration: (String) -> Void = { _ in }
     var onOpenProject: (String) -> Void = { _ in }
     var onOpenChat: (String) -> Void = { _ in }
     var onOpenWorkflowRun: (String, String?) -> Void = { _, _ in }
@@ -40,7 +38,6 @@ struct TasksWorkspaceView: View {
     @State private var newPlanProjectID = ""
     @State private var visibleCounts: [UserTaskStatus: Int] = [:]
     @State private var pendingDelete: UserTaskItem?
-    @State private var inspirationIndex = 0
     @State private var cardActionsID: String?
     @State private var hoveredCardID: String?
     @State private var draggedTaskID: String?
@@ -168,14 +165,6 @@ struct TasksWorkspaceView: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("tasks-workspace")
-            .task(id: showPlansOnly) {
-                guard inspiration == nil, !showPlansOnly else { return }
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(11))
-                    guard !Task.isCancelled else { return }
-                    inspirationIndex = (inspirationIndex + 1) % 3
-                }
-            }
         #if os(iOS)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
             guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
@@ -205,7 +194,6 @@ struct TasksWorkspaceView: View {
             if compactProjectBoard {
                 compactProjectToolbar
             } else {
-                banner(width: workspaceWidth, height: height)
                 toolbar(narrow: narrow)
                 greeting
             }
@@ -257,60 +245,6 @@ struct TasksWorkspaceView: View {
             },
             set: { if $0 == nil { store.closeDetail() } }
         )
-    }
-
-    private func banner(width: CGFloat, height: CGFloat) -> some View {
-        let choices = showPlansOnly ? planInspirations : taskInspirations
-        let value = inspiration ?? choices[inspirationIndex % choices.count]
-        return Group {
-            ZStack {
-                InspirationCard(inspiration: value,
-                                containerSize: CGSize(width: width, height: height),
-                                heightOverride: TasksWorkspaceLayoutPolicy.bannerHeight(width: width, height: height),
-                                ctaTitle: showPlansOnly ? AppStrings.plansInspirationCTA : AppStrings.tasksInspirationCTA,
-                                tapHint: showPlansOnly ? AppStrings.plansInspirationCTA : AppStrings.tasksInspirationCTA,
-                                isInteractive: false) { }
-                if inspiration == nil && choices.count > 1 {
-                    HStack {
-                        Button { inspirationIndex = (inspirationIndex - 1 + choices.count) % choices.count } label: {
-                            Icon("back", size: 14).foregroundStyle(.white)
-                                .frame(width: 28, height: 40)
-                        }
-                        .accessibilityLabel(AppStrings.previousInspiration)
-                        Spacer()
-                        Button { inspirationIndex = (inspirationIndex + 1) % choices.count } label: {
-                            Icon("back", size: 14).foregroundStyle(.white)
-                                .scaleEffect(x: -1)
-                                .frame(width: 28, height: 40)
-                        }
-                        .accessibilityLabel(AppStrings.nextInspiration)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 10)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: TasksWorkspaceLayoutPolicy.bannerHeight(width: width, height: height))
-        .accessibilityIdentifier("tasks-daily-inspiration-area")
-    }
-
-    private var taskInspirations: [DailyInspirationData] {
-        [DailyInspirationData(inspirationId: "hardcoded-task-next-action",
-            text: AppStrings.tasksInspirationNextAction,
-            title: AppStrings.tasksInspirationNextActionTitle, category: "productivity"),
-         DailyInspirationData(inspirationId: "hardcoded-task-priorities",
-            text: AppStrings.tasksInspirationPriorities,
-            title: AppStrings.tasksInspirationPrioritiesTitle, category: "productivity"),
-         DailyInspirationData(inspirationId: "hardcoded-task-finish-line",
-            text: AppStrings.tasksInspirationFinishLine,
-            title: AppStrings.tasksInspirationFinishLineTitle, category: "productivity")]
-    }
-
-    private var planInspirations: [DailyInspirationData] {
-        [DailyInspirationData(inspirationId: "hardcoded-plan-timeline",
-            text: AppStrings.plansInspirationTimeline,
-            title: AppStrings.plansInspirationTimelineTitle, category: "productivity")]
     }
 
     private func toolbar(narrow: Bool) -> some View {

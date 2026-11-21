@@ -474,6 +474,7 @@ enum AppStrings {
     static var loadEarlierMessages: String { L("chat.timeline.load_earlier") }
     static var whatDoYouNeedHelpWith: String { L("chat.welcome.what_do_you_need_help_with") }
     static var resumeLastChatTitle: String { L("chats.resume_last_chat.title") }
+    static var resumeLastChatGuestTitle: String { L("chats.resume_last_chat.guest_title") }
     static var welcomeShowAllChats: String { L("chat.welcome.show_all_chats") }
     static var welcomeShowAllProjects: String { L("chat.welcome.show_all_projects") }
     static var welcomeBackToRecent: String { L("chat.welcome.back_to_recent") }
@@ -1698,6 +1699,12 @@ extension AppStrings {
     static var workflowHomeShowAll: String { localized("workflows.home.show_all") }
     static var workflowHomeBackToRecent: String { localized("workflows.home.back_to_recent") }
     static var workflowHomeSearch: String { localized("workflows.home.search") }
+    static var workflowHomeGuestSubtitle: String { localized("workflows.home.guest_subtitle") }
+    static var workflowHomeGuestGreeting: String { localized("chat.welcome.hey_guest") }
+    static var workflowHomeShowTemplates: String { localized("workflows.home.show_templates") }
+    static func workflowStartSuggestion(_ index: Int) -> String { localized("workflows.home.suggestion_\(index)") }
+    static var workflowDescriptionExpand: String { localized("workflows.builder.description_expand") }
+    static var workflowDescriptionCollapse: String { localized("workflows.builder.description_collapse") }
     static var workflowHomeSearchUnavailable: String { localized("workflows.home.search_unavailable") }
     static var workflowHomeRetentionNone: String { localized("workflows.home.retention_none") }
     static var workflowHomeRetentionLast5: String { localized("workflows.home.retention_last5") }

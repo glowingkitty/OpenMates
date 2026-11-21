@@ -445,14 +445,6 @@ private struct DevComponentPreviewCanvas: View {
         case .tasks:
             TasksWorkspaceView(store: tasksFixtureStore,
                                showPlansOnly: configuration.variant == "plans",
-                               inspiration: DailyInspirationData(
-                                   inspirationId: configuration.variant == "plans" ? "hardcoded-plan-timeline" : "hardcoded-task-next-action",
-                                   text: configuration.variant == "plans"
-                                       ? AppStrings.plansInspirationTimeline : AppStrings.tasksInspirationNextAction,
-                                   title: configuration.variant == "plans"
-                                       ? AppStrings.plansInspirationTimelineTitle : AppStrings.tasksInspirationNextActionTitle,
-                                   category: "productivity"),
-                               onStartInspiration: { _ in lastAction = "tasks-inspiration-started" },
                                onOpenProject: { lastAction = "opened-project-\($0)" },
                                onOpenChat: { lastAction = "opened-chat-\($0)" },
                                onOpenWorkflowRun: { lastAction = "opened-workflow-\($0)-run-\($1 ?? "none")" })
@@ -508,6 +500,11 @@ private struct DevComponentPreviewCanvas: View {
             } else {
                 ProjectsWorkspaceView(store: projectsFixtureStore, chatStore: subChatFixtureStore,
                     tasksStore: projectTasksFixtureStore,
+                    inspirations: configuration.variant == "landing"
+                        && ProcessInfo.processInfo.arguments.contains("--ui-test-project-inspirations")
+                        ? [DailyInspirationData(inspirationId: "synthetic-project-inspiration",
+                                text: "Plan a garden makeover", title: "Garden makeover",
+                                category: "general_knowledge", surface: "projects")] : [],
                     previewInitialTab: ["folders", "connectedSource", "localFolderSource",
                         "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource", "offlineCachedSource"]
                         .contains(configuration.variant) ? .files
