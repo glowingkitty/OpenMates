@@ -1401,15 +1401,18 @@ export async function handleRecoveryJobsAvailableImpl(
         !updatedChat.is_sub_chat && !updatedChat.parent_id) {
         unreadMessagesStore.incrementUnread(job.chat_id, job.assistant_message_id);
         noteChatMessageCard("recovery", job.chat_id);
+        const previewStarted = Date.now();
+        const preview = RUST_UPDATES_POLICY
+          ? await (await rustUpdatesPolicy()).messagePreview(recovered.content)
+          : messagePreview(recovered.content);
         notificationStore.chatMessage(
           job.chat_id,
           updatedChat.title || "New message",
-          RUST_UPDATES_POLICY
-            ? await (await rustUpdatesPolicy()).messagePreview(recovered.content)
-            : messagePreview(recovered.content),
+          preview,
           undefined,
           (recovered.category as string | null) || updatedChat.category || undefined,
         );
+        console.info("[Notifications] Chat notice raised", { source: "recovery", chatID: job.chat_id, previewMs: Date.now() - previewStarted });
       }
       serviceInstance.dispatchEvent(
         new CustomEvent("chatUpdated", {

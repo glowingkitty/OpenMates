@@ -39,7 +39,7 @@ test('a background chat notice shows the summary headline, the chat title and th
 	// Notice diagnostics from the app's own console lines (ids and sources only, never content).
 	page.on('console', (message) => {
 		const text = message.text();
-		if (/\[Notifications\]|Showing notification for background chat|notification_headline|post_processing_completed/.test(text)) log(`console: ${text.slice(0, 200)}`);
+		if (/\[Notifications\]|Showing notification for background chat|notification_headline|post_processing_completed/.test(text) || message.type() === 'error') log(`console ${message.type()}: ${text.slice(0, 240)}`);
 	});
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 	await loginToTestAccount(page, log, screenshot);
