@@ -23,7 +23,11 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
-WORKSPACE_ASK_MODEL_ID = "mistral/mistral-small-latest"
+# Server-side workspace processing (Project naming and presentation, workspace asks) never
+# picks Mistral Small on its own; users can still choose it for their chats (owner, 21 Nov).
+# Gemini first while its credits last, Mercury as the alternative.
+WORKSPACE_ASK_MODEL_ID = "google/gemini-3.8-flash"
+WORKSPACE_ASK_ALTERNATIVE_MODEL_ID = "inception/mercury-3"
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
 WORKSPACE_ASK_MAX_DESCRIPTIONS = 5
 WORKSPACE_ASK_VALID_TASK_AREAS = {"code", "math", "creative", "instruction", "general"}
@@ -365,7 +369,7 @@ async def _call_workspace_llm(
     ]
     if dynamic_context:
         messages.insert(1, {"role": "system", "content": f"Context JSON:\n{_json(dynamic_context)}"})
-    fallbacks = fallback_models or _with_deepseek_utility_fallback(resolve_fallback_servers_from_provider_config(model_id))
+    fallbacks = fallback_models or _workspace_fallbacks(model_id, resolve_fallback_servers_from_provider_config(model_id))
     result = await call_preprocessing_llm(
         task_id=task_id,
         model_id=model_id,
@@ -895,8 +899,10 @@ def _json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
 
 
-def _with_deepseek_utility_fallback(fallbacks: list[str]) -> list[str]:
-    return [DEEPSEEK_V4_FLASH_FALLBACK] + [fallback for fallback in fallbacks if fallback != DEEPSEEK_V4_FLASH_FALLBACK]
+def _workspace_fallbacks(model_id: str, server_fallbacks: list[str]) -> list[str]:
+    """The model's other servers, then Mercury, then DeepSeek as the last utility fallback."""
+    chain = [*server_fallbacks, WORKSPACE_ASK_ALTERNATIVE_MODEL_ID, DEEPSEEK_V4_FLASH_FALLBACK]
+    return list(dict.fromkeys(fallback for fallback in chain if fallback != model_id))
 
 
 def _tool(name: str, description: str, properties: dict[str, Any], required: list[str]) -> dict[str, Any]:

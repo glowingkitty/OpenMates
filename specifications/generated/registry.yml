@@ -943,9 +943,9 @@ specifications:
     - gui.web
   feature.projects:
     version: 2
-    status: draft
+    status: approved
     path: features/projects
-    fingerprint: 368d2940ae9100ba4a8a63004d87feee2bdc228af5076d11042190df02748ae3
+    fingerprint: 7fa5f99494046b19067f2986ca159d47afeadb48fe9a56deaa6ced9435331ad9
     required_applies_to:
     - rest_api
     - cli

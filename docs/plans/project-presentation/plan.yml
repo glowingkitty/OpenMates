@@ -41,7 +41,7 @@ decisions:
   decided_at: '2026-11-21'
 - id: D-2
   status: active
-  decision: Creation reuses the existing short naming call (Mistral Small) and asks it for the description, icon
+  decision: Creation reuses the existing short naming call (the workspace ask model, Gemini 3.8 Flash with Mercury 3 as the alternative) and asks it for the description, icon
     and category in the same tool call, so creation costs no extra model call. The projects.create skill gets them
     from the main model's tool call.
   reason: Owner request TASK-1807 (Marco, 2026-11-21); chosen as the simplest rule that keeps client-side encryption.
@@ -77,8 +77,9 @@ decisions:
 - id: D-7
   status: active
   decision: The suggest route is first-party only (session auth, no API keys), rate limited to 20 per minute per
-    user, and charges no credits, like /v1/projects/ask/plan. One call is about 600 input and 60 output tokens on
-    Mistral Small, roughly USD 0.0001.
+    user, and charges no credits, like /v1/projects/ask/plan. One call is about 1,500 input and up to 300 output tokens on
+    Gemini 3.8 Flash (Mercury 3 when Gemini is unavailable), roughly USD 0.005. No server-side step picks Mistral
+    Small on its own (owner, 2026-11-21); users can still choose it for their chats.
   reason: Owner request TASK-1807 (Marco, 2026-11-21); chosen as the simplest rule that keeps client-side encryption.
   decided_at: '2026-11-21'
 scenarios:
@@ -192,10 +193,10 @@ tests:
     expected: pass
     evidence:
       status: passed
-      timestamp: '2026-11-21T16:40:00+00:00'
-      command: ci_coordinator.py submit --mode pytest --no-prepared-builds --spec backend/tests/test_projects.py --spec backend/tests/test_project_presentation.py --spec backend/tests/test_project_create_request.py
-      run_id: '44923684883'
-      subject_commit: 2b5b47a950cb086d29c7ce6c9bcfa39924ceb483
+      timestamp: '2026-11-21T19:45:00+00:00'
+      command: ci_coordinator.py submit --mode pytest --no-prepared-builds --spec backend/tests/test_projects.py --spec backend/tests/test_project_presentation.py --spec backend/tests/test_project_create_request.py --spec backend/tests/test_chat_project_title.py --spec backend/tests/test_workspace_ask_pipeline.py (includes the Gemini-first model check)
+      run_id: '44940316457'
+      subject_commit: f3dffd73c83b74bb062c1e2f339e579a568d171f
       execution_environment: isolated_github_ci
 - id: T-RUST
   type: unit
@@ -222,10 +223,10 @@ tests:
     expected: pass
     evidence:
       status: passed
-      timestamp: '2026-11-21T16:40:00+00:00'
+      timestamp: '2026-11-21T19:45:00+00:00'
       command: ci_coordinator.py submit --mode rust-check --spec all (cargo test --workspace --locked --no-fail-fast, wasm32 browser-bindings check)
-      run_id: '44923688566'
-      subject_commit: 2b5b47a950cb086d29c7ce6c9bcfa39924ceb483
+      run_id: '44940370891'
+      subject_commit: f3dffd73c83b74bb062c1e2f339e579a568d171f
       execution_environment: isolated_github_ci
 - id: T-COMPONENT
   type: playwright
@@ -248,14 +249,14 @@ tests:
     expected: pass
     evidence:
       status: passed
-      timestamp: '2026-11-21T16:40:00+00:00'
+      timestamp: '2026-11-21T19:45:00+00:00'
       command: ci_coordinator.py submit --mode component --no-prepared-builds --spec components/projects-presentation-tiles.spec.ts (3/3 passed; tile, phone and appearance screenshots inspected)
-      run_id: '44923692481'
-      harness_commit: 0d2e8c213dfc85b44288dc0d8b4b2a1704ac0809
+      run_id: '44940374799'
+      harness_commit: 37ad542615c0e607ed7a29c4578e4d376defb6ca
       profile: component
       artifacts:
-      - https://github.com/glowingkitty/OpenMates/actions/runs/44923692481/artifacts/14715206382
-      subject_commit: 2b5b47a950cb086d29c7ce6c9bcfa39924ceb483
+      - https://github.com/glowingkitty/OpenMates/actions/runs/44940374799/artifacts/14721771151
+      subject_commit: f3dffd73c83b74bb062c1e2f339e579a568d171f
       execution_environment: isolated_github_ci
 - id: T-E2E
   type: playwright
@@ -280,14 +281,14 @@ tests:
     expected: pass
     evidence:
       status: passed
-      timestamp: '2026-11-21T16:40:00+00:00'
+      timestamp: '2026-11-21T19:45:00+00:00'
       command: ci_coordinator.py submit --mode e2e --spec projects-presentation-flow.spec.ts (1/1 passed; backfilled and manual-icon tiles inspected)
-      run_id: '44924946939'
-      harness_commit: 0d2e8c213dfc85b44288dc0d8b4b2a1704ac0809
+      run_id: '44940788916'
+      harness_commit: 37ad542615c0e607ed7a29c4578e4d376defb6ca
       profile: e2e
       artifacts:
-      - https://github.com/glowingkitty/OpenMates/actions/runs/44924946939/artifacts/14715433075
-      subject_commit: 2b5b47a950cb086d29c7ce6c9bcfa39924ceb483
+      - https://github.com/glowingkitty/OpenMates/actions/runs/44940788916/artifacts/14721154310
+      subject_commit: f3dffd73c83b74bb062c1e2f339e579a568d171f
       execution_environment: isolated_github_ci
 attempts:
 - id: A-1
@@ -336,11 +337,13 @@ tasks:
     files: *id001
     shared_files: []
 implementation_state:
-  subject_commit: 2b5b47a950cb086d29c7ce6c9bcfa39924ceb483
+  subject_commit: f3dffd73c83b74bb062c1e2f339e579a568d171f
 approvals:
   specification:
-    status: pending
-    reason: feature.projects is a draft Specification; updated with this work and presented for approval after deploy.
+    status: approved
+    approved_at: '2026-11-21'
+    reason: Marco approved feature.projects@2 through the owner's authenticated dev connector (receipt f5b1820602ffa0f2)
+      after the dev deploy, together with the switch of the suggest route to Gemini.
   plan:
     status: approved
     approved_at: '2026-11-21'

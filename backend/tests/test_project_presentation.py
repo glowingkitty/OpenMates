@@ -97,6 +97,19 @@ async def test_suggest_route_answers_normalised_presentation(monkeypatch):
 
 # contract-test: supporting surface=rest_api assertions=projects.presentation.suggest-route
 @pytest.mark.asyncio
+async def test_suggest_and_naming_never_pick_mistral_small_on_their_own():
+    caller = AsyncMock(return_value={"name": "Logo Ideas", "description": "", "icon": "folder", "category": "design"})
+    body = projects.PresentationSuggestRequest(purpose="backfill", name="Logo ideas")
+    await presentation.suggest_project_presentation(body, object(), llm_caller=caller)
+    await planner.run_app_project_name("build me a recipe web app", object(), llm_caller=caller)
+    assert {call.kwargs["model_id"] for call in caller.call_args_list} == {"google/gemini-3.8-flash"}
+    chain = planner._workspace_fallbacks(planner.WORKSPACE_ASK_MODEL_ID, ["openrouter/google/gemini-3.8-flash"])
+    assert chain == ["openrouter/google/gemini-3.8-flash", "inception/mercury-3", "deepseek/deepseek-v4-flash"]
+    assert not any("mistral" in model for model in chain)
+
+
+# contract-test: supporting surface=rest_api assertions=projects.presentation.suggest-route
+@pytest.mark.asyncio
 async def test_suggest_route_maps_model_failure_to_502(monkeypatch):
     monkeypatch.setattr(projects, "suggest_project_presentation",
                         AsyncMock(side_effect=planner.WorkspaceAskPlanningError("down")))

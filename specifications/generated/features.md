@@ -2446,7 +2446,7 @@ Prepare for civic and political discussions with facts, questions, and balanced 
 
 Organize chats, files, embeds, and project workspaces.
 
-- Specifications: [feature.projects](../../specifications/features/projects/specification.yml) (draft) · 68 assertion(s)
+- Specifications: [feature.projects](../../specifications/features/projects/specification.yml) (approved) · 68 assertion(s)
 - Apps: `projects`
 - Flags: `app:projects`, `platform:projects` · dev on · prod off · release unreleased
 

@@ -15994,7 +15994,7 @@ features:
   description: Organize chats, files, embeds, and project workspaces.
   specifications:
   - id: feature.projects
-    status: draft
+    status: approved
     path: specifications/features/projects
   apps:
   - projects
