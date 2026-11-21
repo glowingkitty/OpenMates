@@ -199,3 +199,130 @@ async fn an_interactive_step_without_a_privacy_layer_fails_closed_with_an_immedi
         .unwrap();
     assert!(replay.frames.is_empty());
 }
+
+const RECIPE_APP: &str = r#"<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Recipe Box</title>
+<style>
+body { font-family: sans-serif; background: #fafafa; margin: 0 auto; max-width: 640px; }
+input[type="text"], [data-role="recipe"] { padding: 4px 8px; }
+li[data-done="true"] { text-decoration: line-through; }
+</style></head><body>
+<h1>Recipe Box</h1>
+<input type="text" id="title" placeholder="Recipe name"><button id="add">Add</button>
+<ul id="list"></ul>
+<script>
+const recipes = [{ name: "Pancakes", ingredients: ["2 cups flour", "1 egg", "350 ml milk"], minutes: 20 }];
+const ID_1 = 0;
+function render() {
+  const list = document.querySelector('[data-x], #list');
+  list.innerHTML = "";
+  for (let i = 0; i < recipes.length; i++) {
+    const li = document.createElement("li");
+    li.textContent = recipes[i].name + " (" + recipes[i].ingredients[ID_1] + ")";
+    li.dataset.role = "recipe";
+    list.appendChild(li);
+  }
+  const arr = [A, B]; const items = []; const index = 0; items[index] = arr[ID_1];
+}
+document.getElementById("add").addEventListener("click", () => {
+  recipes.push({ name: document.getElementById("title").value, ingredients: [], minutes: 10 });
+  localStorage.setItem("recipes", JSON.stringify(recipes)); render();
+});
+render();
+</script></body></html>
+"#;
+
+fn web_memories() -> Vec<Value> {
+    vec![json!({"app_id": "privacy", "item_type": "personal_data_entry",
+        "data": {"enabled": true, "textToHide": "Jane Doe", "replaceWith": "NAME_1"}})]
+}
+
+#[tokio::test]
+async fn recipe_app_create_file_is_proposed_and_completed_without_refusal() {
+    let mapping = json!({"placeholder": TOKEN, "original": "Jane Doe", "type": "NAME"});
+    let layer =
+        PrivacyLayer::open(CHAT, PROJECT, true, web_memories(), None, &[mapping], key()).unwrap();
+    let mut st = interactive();
+    st.privacy = Some(layer);
+    let mut r = Runner::new();
+    let event = write_request(RECIPE_APP);
+    let restored = st
+        .privacy
+        .as_ref()
+        .unwrap()
+        .restore(crate::work::HostedFileJob {
+            operation_id: "op-1".into(),
+            chat_id: CHAT.into(),
+            operation: serde_json::from_value(json!("create_file")).unwrap(),
+            arguments: event["arguments"].clone(),
+        })
+        .expect("ordinary JS and CSS brackets are not placeholders");
+    assert_eq!(restored.arguments["content"], RECIPE_APP);
+    let frames = run(&mut r, &event, &mut st).await;
+    let mut frames = to_frames(frames);
+    frames[0].payload["result"]["proposal"]["content"] = json!(RECIPE_APP);
+    let blob = st.privacy.as_mut().unwrap().redact_frames(&mut frames);
+    assert_eq!(frames[0].payload["status"], "awaiting_approval");
+    assert_eq!(frames[0].payload["result"]["proposal"]["content"], RECIPE_APP);
+    assert!(blob.is_none());
+    // The completed result of the approved write.
+    r.output = json!({"path": "index.html", "created": true, "content_hash": "h",
+        "content": RECIPE_APP});
+    st.approvals.decide("op-1", true);
+    let frames = run(&mut r, &event, &mut st).await;
+    let mut frames = to_frames(frames);
+    st.privacy.as_mut().unwrap().redact_frames(&mut frames);
+    let result = frames.iter().find(|f| f.name == "project_file_operation_result").unwrap();
+    assert_eq!(result.payload["status"], "completed", "{}", result.payload["result"]);
+}
+
+#[tokio::test]
+async fn recipe_app_with_detected_values_seals_and_reopens_the_layer() {
+    let content = format!(
+        "{RECIPE_APP}<footer>Contact chef@example.org or +49 170 1234567, key sk-abcdefghijklmnopqrstuv0123456789, ip 192.168.0.12, id 123e4567-e89b-12d3-a456-426614174000</footer>"
+    );
+    let mut st = interactive();
+    st.privacy = Some(layer());
+    let mut r = Runner::new();
+    let event = write_request(&content);
+    let frames = run(&mut r, &event, &mut st).await;
+    let mut frames = to_frames(frames);
+    frames[0].payload["result"]["proposal"]["content"] = json!(content);
+    let blob = st.privacy.as_mut().unwrap().redact_frames(&mut frames);
+    assert_eq!(frames[0].payload["status"], "awaiting_approval", "{}", frames[0].payload);
+    let blob = blob.expect("detected values mint sealed mappings");
+    let reopened = PrivacyLayer::open(
+        CHAT, PROJECT, true, web_memories(), Some(&blob.ciphertext), &[], key(),
+    )
+    .expect("the sealed blob reopens on the next step");
+    st.privacy = Some(reopened);
+    r.output = json!({"path": "index.html", "created": true, "content_hash": "h"});
+    st.approvals.decide("op-1", true);
+    let frames = run(&mut r, &event, &mut st).await;
+    let mut frames = to_frames(frames);
+    st.privacy.as_mut().unwrap().redact_frames(&mut frames);
+    let result = frames.iter().find(|f| f.name == "project_file_operation_result").unwrap();
+    assert_eq!(result.payload["status"], "completed", "{}", result.payload["result"]);
+}
+
+#[test]
+fn redaction_failures_name_their_stage_instead_of_pii_mapping_unavailable() {
+    use super::privacy::{refusal_code, stage};
+    let seal = stage(Error::Crypto, "pii_seal_failed");
+    assert_eq!(refusal_code(&seal), "pii_seal_failed");
+    let detect = stage(Error::Invalid("regex"), "pii_detection_failed");
+    assert_eq!(refusal_code(&detect), "pii_detection_failed");
+    let limit = Error::Unavailable { code: "pii_mapping_limit", reason: "x" };
+    assert_eq!(refusal_code(&stage(limit, "pii_seal_failed")), "pii_mapping_limit");
+    assert_eq!(refusal_code(&Error::Crypto), "pii_redaction_failed");
+}
+
+#[tokio::test]
+async fn unknown_generated_token_in_a_write_is_refused_with_its_own_code() {
+    let (mut r, mut st) = (Runner::new(), state());
+    let unknown = "[OM_PII_FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF]";
+    let frames = run(&mut r, &write_request(&format!("hi {unknown}")), &mut st).await;
+    assert_eq!(frames[0].1["status"], "failed");
+    assert_eq!(frames[0].1["result"]["code"], "pii_mapping_unavailable");
+    assert!(r.executed.is_empty());
+}

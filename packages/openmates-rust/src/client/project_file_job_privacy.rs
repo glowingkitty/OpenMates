@@ -55,6 +55,26 @@ fn unavailable(code: &'static str) -> Error {
     }
 }
 
+/// Names the redaction stage of an untyped failure. Errors that already carry
+/// a code (`Unavailable`, e.g. `pii_mapping_limit`) keep it, so a refusal never
+/// hides its cause behind `pii_mapping_unavailable`.
+pub(super) fn stage(error: Error, code: &'static str) -> Error {
+    match error {
+        Error::Unavailable { .. } => error,
+        _ => unavailable(code),
+    }
+}
+
+/// Stable code of a redaction failure. `pii_mapping_unavailable` is reserved
+/// for a genuinely missing mapping or layer; any other error without its own
+/// code is `pii_redaction_failed` (the stages in `try_redact` name theirs).
+pub(super) fn refusal_code(error: &Error) -> &'static str {
+    match error {
+        Error::Unavailable { code, .. } => code,
+        _ => "pii_redaction_failed",
+    }
+}
+
 impl PrivacyLayer {
     /// Builds the layer from settings, an optional sealed blob of this chat and
     /// project and the chat's known mappings.
@@ -122,10 +142,7 @@ impl PrivacyLayer {
         match outcome {
             Ok(blob) => blob,
             Err(error) => {
-                let code = match error {
-                    Error::Unavailable { code, .. } => code,
-                    _ => "pii_mapping_unavailable",
-                };
+                let code = refusal_code(&error);
                 for frame in frames.iter_mut() {
                     if frame.name == "project_file_operation_result" {
                         frame.payload["status"] = json!("failed");
@@ -152,7 +169,9 @@ impl PrivacyLayer {
                     Some("awaiting_approval" | "completed")
                 );
             if exposed {
-                self.privacy.redact_value(&mut frame.payload["result"])?;
+                self.privacy
+                    .redact_value(&mut frame.payload["result"])
+                    .map_err(|error| stage(error, "pii_detection_failed"))?;
                 chat_id = frame.payload["chat_id"].as_str().map(str::to_owned);
             }
         }
@@ -160,7 +179,8 @@ impl PrivacyLayer {
         let Some(chat_id) = chat_id.filter(|_| mappings.len() > self.sealed) else {
             return Ok(None);
         };
-        let ciphertext = seal_mappings(&chat_id, &self.project_id, &mappings, &self.key)?;
+        let ciphertext = seal_mappings(&chat_id, &self.project_id, &mappings, &self.key)
+            .map_err(|error| stage(error, "pii_seal_failed"))?;
         self.sealed = mappings.len();
         Ok(Some(ProjectFilePrivacyBlob {
             chat_id,

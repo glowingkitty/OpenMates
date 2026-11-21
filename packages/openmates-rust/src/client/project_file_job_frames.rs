@@ -442,7 +442,13 @@ pub(super) async fn job_frames<R: JobRunner>(
     let hosted = match hosted.map(|h| restore_job(h, state)) {
         Some(Err(error)) => {
             state.finish(&operation);
-            return Ok(vec![error_frame(job, &HostedFileError::Core(error))]);
+            // A privacy refusal keeps its own stable code (`pii_mapping_unavailable`,
+            // `pii_mapping_ambiguous`, ...) instead of `client_execution_failed`.
+            let refusal = match error {
+                Error::Unavailable { code, .. } => HostedFileError::Refused(code),
+                other => HostedFileError::Core(other),
+            };
+            return Ok(vec![error_frame(job, &refusal)]);
         }
         Some(Ok(h)) => Some(h),
         None => None,
