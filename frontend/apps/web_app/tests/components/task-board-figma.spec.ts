@@ -275,7 +275,7 @@ test('keeps task titles and the Blocked column readable in dark mode', async ({ 
   await testInfo.attach('task-board-figma-dark', { body: await page.getByTestId('task-board').screenshot(), contentType: 'image/png' });
 });
 
-// contract-test: supporting surface=gui.web assertions=tasks.surface.semantic-parity,tasks.lifecycle.visible
+// contract-test: supporting surface=gui.web assertions=tasks.surface.semantic-parity,tasks.lifecycle.visible,daily-inspiration.workspace-start-screens
 test('renders the complete Figma Tasks workspace on desktop', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1512, height: 921 });
   await page.goto(workspacePreview(1320));
@@ -285,12 +285,9 @@ test('renders the complete Figma Tasks workspace on desktop', async ({ page }, t
   const workspace = page.getByTestId('tasks-page');
   await expect(workspace).toBeVisible();
   await expect(page.getByTestId('tasks-figma-workspace')).toBeVisible();
-  const inspirationArea = page.getByTestId('tasks-daily-inspiration-area');
-  await expect(inspirationArea).toBeVisible();
-  await expect(inspirationArea.getByTestId('daily-inspiration-banner')).toBeVisible();
-  await expect(inspirationArea.getByTestId('daily-inspiration-label')).toHaveText('Daily inspiration');
-  await expect(inspirationArea.getByTestId('daily-inspiration-phrase')).toContainText('next action');
-  await expect(inspirationArea.getByTestId('daily-inspiration-cta-text')).toHaveText('Click to create task');
+  // Issue ZSN8N: the Tasks start screen shows no daily inspirations at all.
+  await expect(page.getByTestId('tasks-daily-inspiration-area')).toHaveCount(0);
+  await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
   await expect(page.getByTestId('task-greeting')).toContainText(/what task is next\?/i);
   await expect(page.getByTestId('task-workspace-composer')).toBeVisible();
   await expectComposerInFront(page);
@@ -298,11 +295,12 @@ test('renders the complete Figma Tasks workspace on desktop', async ({ page }, t
   for (const status of statuses) await expect(page.getByTestId(`task-column-${status}`)).toBeAttached();
   await expectPreviewColumnCounts(page);
   await expect(page.getByTestId('task-board-summary')).toHaveCount(0);
-  const suggestionBox = await inspirationArea.boundingBox();
+  // Without the banner the board follows the greeting closely.
+  const headingBox = await page.getByTestId('task-greeting').boundingBox();
   const boardBox = await page.getByTestId('task-board').boundingBox();
-  expect(suggestionBox).not.toBeNull();
+  expect(headingBox).not.toBeNull();
   expect(boardBox).not.toBeNull();
-  expect(boardBox!.y - (suggestionBox!.y + suggestionBox!.height)).toBeLessThan(220);
+  expect(boardBox!.y - (headingBox!.y + headingBox!.height)).toBeLessThan(220);
   const filterBox = await page.getByTestId('task-filter-button').boundingBox();
   const search = page.getByTestId('task-search-link');
   const chips = page.getByTestId('task-filter-tags').locator('button');
@@ -335,14 +333,15 @@ test('renders the complete Figma Tasks workspace on desktop', async ({ page }, t
 });
 
 // contract-test: supporting surface=gui.web assertions=tasks.surface.semantic-parity,tasks.lifecycle.visible
-test('scrolls the shared inspiration away when the task board is populated', async ({ page }) => {
+test('scrolls the greeting away when the task board is populated', async ({ page }) => {
   await page.setViewportSize({ width: 1512, height: 921 });
   await page.goto(`${workspacePreview(1320)}&variant=manyBacklog`);
   await waitForComponentPreview(page);
 
   const scrollLayer = page.getByTestId('tasks-workspace-scroll-layer');
-  const inspiration = page.getByTestId('tasks-daily-inspiration-area');
-  await expect(inspiration.getByTestId('daily-inspiration-banner')).toBeVisible();
+  const inspiration = page.getByTestId('task-greeting');
+  await expect(inspiration).toBeVisible();
+  await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
   const scrollSize = await scrollLayer.evaluate((element) => ({ visible: element.clientHeight, content: element.scrollHeight }));
   expect(scrollSize.content, `Tasks scroll layer: ${JSON.stringify(scrollSize)}`).toBeGreaterThan(scrollSize.visible);
   const before = await Promise.all([inspiration.boundingBox(), page.getByTestId('task-board').boundingBox()]);
@@ -361,15 +360,12 @@ test('keeps the Figma task toolbar readable in dark mode', async ({ page }, test
 
   const filter = page.getByTestId('task-filter-button');
   const chips = page.getByTestId('task-filter-tags').locator('button');
-  const suggestionHeading = page.getByTestId('tasks-daily-inspiration-area').getByTestId('daily-inspiration-label');
-  const suggestionDescription = page.getByTestId('tasks-daily-inspiration-area').getByTestId('daily-inspiration-phrase');
-  const suggestionCard = page.getByTestId('tasks-daily-inspiration-area').getByTestId('daily-inspiration-info-card');
-  const suggestionCreate = page.getByTestId('tasks-daily-inspiration-area').getByTestId('daily-inspiration-cta-text');
-  await expect(suggestionHeading).toHaveText('Daily inspiration');
-  await expect(suggestionDescription).toContainText('next action');
-  await expect(suggestionCard).toContainText('Task planning tip');
-  await expect(suggestionCreate).toContainText('Click to create task');
-  for (const element of [suggestionHeading, suggestionDescription, suggestionCard, suggestionCreate]) {
+  const greetingHeading = page.getByTestId('tasks-home-heading');
+  const greetingSubtitle = page.getByTestId('tasks-home-subtitle');
+  await expect(page.getByTestId('tasks-daily-inspiration-area')).toHaveCount(0);
+  await expect(greetingHeading).toBeVisible();
+  await expect(greetingSubtitle).toContainText(/what task is next\?/i);
+  for (const element of [filter]) {
     await expect(element).toBeVisible();
     const style = await element.evaluate((node) => {
       const computed = getComputedStyle(node);

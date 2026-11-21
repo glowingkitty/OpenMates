@@ -196,27 +196,19 @@ test.describe('Tasks web app parity', () => {
 		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
 
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
-		const dailySuggestion = page.getByTestId('tasks-daily-inspiration-area');
-		await expect(dailySuggestion).toBeVisible({ timeout: 15_000 });
-		await expect(dailySuggestion.getByTestId('daily-inspiration-label')).toHaveText(/daily inspiration/i);
-		await expect(dailySuggestion.getByTestId('daily-inspiration-phrase')).toContainText(/next action|tasks that matter|done looks like/i);
 		await expect(page.getByTestId('tasks-figma-workspace')).toBeVisible({ timeout: 15_000 });
 		await expect(page.getByTestId('task-greeting')).toContainText(/hey .*!/i, { timeout: 15_000 });
 		await expect(page.getByTestId('task-greeting')).toContainText(/what task is next\?/i);
 		await expect(page.getByTestId('linked-plans-section')).toHaveCount(0);
 		await expect(page.getByTestId('task-workspace-composer')).toBeVisible({ timeout: 15_000 });
-		const suggestionText = (await dailySuggestion.getByTestId('daily-inspiration-phrase').textContent())?.trim();
-		expect(suggestionText).toBeTruthy();
-		await dailySuggestion.getByTestId('daily-inspiration-banner').click();
-		await expect(page.getByTestId('task-workspace-input')).toHaveValue(suggestionText!);
+		// Issue ZSN8N: no daily inspirations on the Tasks start screen.
+		await expect(page.getByTestId('tasks-daily-inspiration-area')).toHaveCount(0);
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 
-		const suggestionBox = await dailySuggestion.boundingBox();
 		const greetingBox = await page.getByTestId('task-greeting').boundingBox();
 		const boardBox = await page.getByTestId('task-board').boundingBox();
-		expect(suggestionBox, 'daily suggestion should be measurable').not.toBeNull();
 		expect(greetingBox, 'task greeting should be measurable').not.toBeNull();
 		expect(boardBox, 'task board should be measurable').not.toBeNull();
-		expect(suggestionBox!.y + suggestionBox!.height).toBeLessThanOrEqual(greetingBox!.y + 8);
 		expect(greetingBox!.y + greetingBox!.height).toBeLessThanOrEqual(boardBox!.y + 80);
 
 		for (const status of TASK_STATUSES) {
@@ -434,8 +426,8 @@ test.describe('Tasks web app parity', () => {
 		await loginToTestAccount(page, log, screenshot);
 		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
 
-		await expect(page.getByTestId('tasks-daily-inspiration-area')).toBeVisible({ timeout: 15_000 });
-		await expect(page.getByTestId('tasks-daily-inspiration-area').getByTestId('daily-inspiration-cta-text')).toContainText('create task');
+		await expect(page.getByTestId('task-greeting')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByTestId('tasks-daily-inspiration-area')).toHaveCount(0);
 		await expect(page.getByTestId('task-board')).toBeVisible({ timeout: 30_000 });
 		await page.getByTestId('task-workspace-input').fill(taskTitle);
 		await page.getByTestId('task-workspace-submit').click();

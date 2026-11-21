@@ -752,7 +752,7 @@ specifications:
     version: 3
     status: draft
     path: features/daily-inspiration
-    fingerprint: 5d39ce1e6109b3ebfc45b14ae0157800a4239da5930227f7fdcb20d191909e14
+    fingerprint: af31e00b6df1f5a9c7e8d29b5ac524a77dc0052377b874962dd416c412b5b83c
     required_applies_to:
     - rest_api
     - gui.web
@@ -10114,6 +10114,15 @@ assertions:
     specification_id: feature.daily-inspiration
     type: behavior
     fingerprint: 5231fa91e625730ebf2339ce26408a6dcb89bb66c0dd06dcd3d0c6fa358876b7
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
+  daily-inspiration.workspace-start-screens:
+    specification: feature.daily-inspiration@3
+    specification_id: feature.daily-inspiration
+    type: behavior
+    fingerprint: 8f1ec605c6c4685b2dab8acdc284f94f0613ed4d75ca9fe56e0f9777c2ea9976
     required_applies_to:
     - rest_api
     - gui.web

@@ -78,7 +78,8 @@ async function checkFocusedLayout(page: Page, surface: 'tasks' | 'workflows' | '
   if (surface === 'editor') {
     await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
   } else {
-    if (surface === 'workflows') await expect(page.getByTestId('workflows-daily-inspiration-area')).toHaveCount(0);
+    // Workflows, Projects (start screens) and Tasks (issue ZSN8N) show no Daily Inspiration banner.
+    if (['workflows', 'projects', 'tasks'].includes(surface)) await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toHaveCount(0);
     else await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeVisible();
     if (surface === 'tasks') await expect(page.getByTestId('tasks-board-workspace')).toBeVisible();
   }
@@ -103,7 +104,8 @@ async function checkFocusedLayout(page: Page, surface: 'tasks' | 'workflows' | '
   if (surface === 'editor') {
     await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
   } else {
-    if (surface === 'workflows') await expect(page.getByTestId('workflows-daily-inspiration-area')).toHaveCount(0);
+    // Workflows, Projects (start screens) and Tasks (issue ZSN8N) show no Daily Inspiration banner.
+    if (['workflows', 'projects', 'tasks'].includes(surface)) await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toHaveCount(0);
     else await expect(page.getByTestId(`${surface}-daily-inspiration-area`)).toBeVisible();
     if (surface === 'tasks') await expect(page.getByTestId('tasks-board-workspace')).toBeVisible();
   }

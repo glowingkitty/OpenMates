@@ -4697,22 +4697,24 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 13
+  assertions: 14
   surfaces:
     web:
       status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 6
+        passing: 7
         failing: 0
         not_run: 6
         missing: 1
-        counted: 13
+        counted: 14
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/inspiration-language.spec.ts
       - frontend/apps/web_app/tests/components/start-screen-row.spec.ts
+      - frontend/apps/web_app/tests/components/task-board-figma.spec.ts
+      - frontend/apps/web_app/tests/components/workspace-home-responsive.spec.ts
       - frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts
       - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
       - frontend/apps/web_app/tests/inspiration-language.spec.ts
@@ -4738,8 +4740,8 @@ features:
         passing: 6
         failing: 0
         not_run: 0
-        missing: 7
-        counted: 13
+        missing: 8
+        counted: 14
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift
@@ -4787,8 +4789,8 @@ features:
         passing: 0
         failing: 0
         not_run: 4
-        missing: 9
-        counted: 13
+        missing: 10
+        counted: 14
       key_tests: []
       e2e_tests: []
       key_unit_tests:

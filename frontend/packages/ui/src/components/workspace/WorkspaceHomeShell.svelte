@@ -1,12 +1,13 @@
 <!--
   Shared workspace home shell for OpenMates surfaces.
-  Keeps the continue-card layout (and, for projects/tasks/plans/teams, the
+  Keeps the continue-card layout (and, for plans/teams, the
   DailyInspirationBanner) reusable across chats-adjacent workspaces without
   importing chat sync, drafts, or message DB.
-  Apps and Workflows are start screens (TASK-1321): no banner, large cards only.
-  Workflows interleave recommended-workflow inspirations into the row with the
-  Chats rhythm (utils/startScreenRow.ts); none are generated yet, so the row
-  shows only the user's workflows until a `content_type: "workflow"` record exists.
+  Apps, Workflows and Projects are start screens (TASK-1321, issue ZSN8N): no
+  banner, large cards only. Workflows and Projects interleave their inspirations
+  into the row with the Chats rhythm (utils/startScreenRow.ts); no workflow
+  inspirations are generated yet, so that row shows only the user's workflows until
+  a `content_type: "workflow"` record exists. Tasks show no daily inspirations.
   Surface-specific pages provide only content, callbacks, and composer actions.
   The shared class names intentionally match the chat welcome screen.
 -->
@@ -27,7 +28,7 @@
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import { resolveIconName } from '../../utils/iconNameResolver';
   import { hasRoomForLargeContinueCards } from '../../utils/continueCardLayout';
-  import { interleaveStartRow, selectWorkflowRowInspirations, START_ROW_MAX_CARDS } from '../../utils/startScreenRow';
+  import { interleaveStartRow, selectProjectRowInspirations, selectWorkflowRowInspirations, START_ROW_MAX_CARDS } from '../../utils/startScreenRow';
   import { sendInspirationViewed } from '../../services/dailyInspirationViewed';
   import { text } from '../../i18n/translations';
   import { activeTeam } from '../../stores/teamStore';
@@ -159,25 +160,32 @@
   let composerHeight = $state(0);
   let availableCardHeight = $state(0);
   /** Start screens: no banner, large cards only. */
-  const START_SCREEN_SURFACES: ReadonlySet<WorkspaceSurface> = new Set(['apps', 'workflows']);
+  const START_SCREEN_SURFACES: ReadonlySet<WorkspaceSurface> = new Set(['apps', 'workflows', 'projects']);
+  /** Surfaces that show no daily inspirations at all (no banner, none in a row). */
+  const NO_INSPIRATION_SURFACES: ReadonlySet<WorkspaceSurface> = new Set(['tasks']);
   let isStartScreen = $derived(START_SCREEN_SURFACES.has(surface));
+  let showsBanner = $derived(!isStartScreen && !NO_INSPIRATION_SURFACES.has(surface));
   let isTallViewport = $derived(isStartScreen || hasRoomForLargeContinueCards(containerWidth, availableCardHeight));
   // Start screens never fall back to compact pills; isTallViewport stays true for them.
-  let workflowRowInspirations = $derived(
-    surface === 'workflows' ? selectWorkflowRowInspirations($dailyInspirationStore.inspirations) : []
+  let rowInspirations = $derived(
+    surface === 'workflows'
+      ? selectWorkflowRowInspirations($dailyInspirationStore.inspirations)
+      : surface === 'projects'
+        ? selectProjectRowInspirations($dailyInspirationStore.inspirations)
+        : []
   );
-  let actionRowEntries = $derived(interleaveStartRow(actionItems, workflowRowInspirations));
+  let actionRowEntries = $derived(interleaveStartRow(actionItems, rowInspirations));
   let hasShowAllLink = $derived(!!onShowAll && showAllLabel.trim().length > 0 && !showAllMode);
   let hasBrowseLink = $derived(!!onBrowse && browseLabel.trim().length > 0 && !showAllMode);
-  /** Start screens: own cards (action items, else continue items) plus recommended workflows, max 10. */
+  /** Start screens: own cards (action items, else continue items) plus the surface's row inspirations, max 10. */
+  let startRowFromActions = $derived(actionItems.length > 0 || (continueItems.length === 0 && rowInspirations.length > 0));
   let startRowEntries = $derived(
     !isStartScreen
       ? []
-      : actionItems.length > 0
+      : startRowFromActions
         ? actionRowEntries
         : continueItems.slice(0, START_ROW_MAX_CARDS).map((item) => ({ kind: 'own' as const, item }))
   );
-  let startRowFromActions = $derived(actionItems.length > 0);
   let startRowActions = $derived.by((): StartScreenRowAction[] => {
     const actions: StartScreenRowAction[] = [];
     if (hasShowAllLink) {
@@ -219,7 +227,7 @@
 
   $effect(() => {
     const inspirations = $dailyInspirationStore.inspirations;
-    if (!restoreWorkspaceDefaults || surface === 'chats' || defaultsLoading || surface === surfaceWithoutDefaults) return;
+    if (!restoreWorkspaceDefaults || surface === 'chats' || NO_INSPIRATION_SURFACES.has(surface) || defaultsLoading || surface === surfaceWithoutDefaults) return;
     if (inspirations.some(item => (item.surface ?? 'chats') === surface)) return;
     void restoreSurfaceDefaults(surface);
   });
@@ -227,7 +235,7 @@
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
     restoreWorkspaceDefaults = params.get('media') !== '1' && !params.has('og_example');
-    void restoreSurfaceDefaults(surface);
+    if (!NO_INSPIRATION_SURFACES.has(surface)) void restoreSurfaceDefaults(surface);
   });
 
   $effect(() => {
@@ -321,7 +329,7 @@
 
 <section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} class:composer-focused={composerFocused} class:large-continue-cards={isTallViewport} class:start-screen={isStartScreen} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
   <div class="workspace-scroll-layer" inert={composerFocused} data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined} style:--workspace-composer-height={`${composerHeight}px`}>
-    {#if !showAllMode && !isStartScreen}
+    {#if !showAllMode && showsBanner}
       <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`} bind:this={inspirationElement}>
         <DailyInspirationBanner
           {surface}
@@ -418,13 +426,13 @@
             <div class="workflow-card-placement" use:trackInspirationView={inspiration.inspiration_id}>
               <WorkspaceContinueCard
                 title={inspiration.title || inspiration.phrase}
-                summary={inspiration.workflow?.summary ?? null}
+                summary={surface === 'projects' ? (inspiration.title ? inspiration.phrase : null) : (inspiration.workflow?.summary ?? null)}
                 badge={$text('daily_inspiration.label')}
                 category={inspiration.category}
                 appId={null}
-                icon={inspiration.workflow?.icon ?? 'workflow'}
+                icon={surface === 'projects' ? 'folder' : (inspiration.workflow?.icon ?? 'workflow')}
                 appIconUrl={null}
-                testId="workflow-inspiration-card"
+                testId={surface === 'projects' ? 'project-inspiration-card' : 'workflow-inspiration-card'}
                 href={null}
                 source={null}
                 fluid={false}
@@ -470,13 +478,13 @@
             <div class="workflow-card-placement" use:trackInspirationView={inspiration.inspiration_id}>
               <WorkspaceContinueCard
                 title={inspiration.title || inspiration.phrase}
-                summary={inspiration.workflow?.summary ?? null}
+                summary={surface === 'projects' ? (inspiration.title ? inspiration.phrase : null) : (inspiration.workflow?.summary ?? null)}
                 badge={$text('daily_inspiration.label')}
                 category={inspiration.category}
                 appId={null}
-                icon={inspiration.workflow?.icon ?? 'workflow'}
+                icon={surface === 'projects' ? 'folder' : (inspiration.workflow?.icon ?? 'workflow')}
                 appIconUrl={null}
-                testId="workflow-inspiration-card"
+                testId={surface === 'projects' ? 'project-inspiration-card' : 'workflow-inspiration-card'}
                 href={null}
                 source={null}
                 fluid={false}

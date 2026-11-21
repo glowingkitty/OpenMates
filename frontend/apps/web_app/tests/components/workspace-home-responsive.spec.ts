@@ -82,25 +82,38 @@ test.describe('Responsive workspace homes', () => {
 		}
 	});
 
-	// contract-test: direct surface=gui.web assertions=workspace-shell.start.available-space-cards
-	test('project home selects compact cards from space below the banner', async ({ page }) => {
-		test.slow();
-		for (const size of [{ width: 402, height: 660 }, { width: 1376, height: 700 }, { width: 1376, height: 1032 }]) {
+	for (const size of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
+		// contract-test: direct surface=gui.web assertions=workspace-shell.start.available-space-cards,daily-inspiration.workspace-start-screens
+		test(`project start row shows project inspirations and no banner at ${size.width}px (issue ZSN8N)`, async ({ page }, testInfo) => {
 			await page.setViewportSize(size);
 			await page.goto('/dev/preview/projects/ProjectsPage?variant=landing&theme=light&chrome=0');
 			await waitForComponentPreview(page);
-			const card = page.getByTestId('project-landing-card').first();
+			await expect(page.getByTestId('projects-daily-inspiration-area')).toHaveCount(0);
+			await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
+			const row = page.getByTestId('project-mixed-row');
+			const card = row.getByTestId('project-landing-card').first();
 			await expect(card).toBeVisible();
-			const [cardBox, composerBox, bannerBox] = await Promise.all([
-				card.boundingBox(), page.getByTestId('project-input-composer').boundingBox(),
-				page.getByTestId('projects-daily-inspiration-area').boundingBox()
+			const inspiration = row.getByTestId('project-inspiration-card').first();
+			await expect(inspiration).toBeAttached();
+			const [rowBox, cardBox, composerBox] = await Promise.all([
+				row.boundingBox(), card.boundingBox(), page.getByTestId('project-input-composer').boundingBox()
 			]);
-			expect(cardBox && composerBox && bannerBox).toBeTruthy();
-			expect(cardBox!.y).toBeGreaterThanOrEqual(bannerBox!.y + bannerBox!.height);
+			expect(rowBox && cardBox && composerBox).toBeTruthy();
+			// Same large start-row card as Chats, Apps and Workflows, first card centred, above the composer.
+			expect(cardBox!.height).toBeCloseTo(200, 0);
+			expect(Math.abs(cardBox!.x + cardBox!.width / 2 - (rowBox!.x + rowBox!.width / 2))).toBeLessThanOrEqual(2);
 			expect(cardBox!.y + cardBox!.height).toBeLessThanOrEqual(composerBox!.y + 1);
-			expect(cardBox!.height).toBeLessThan(size.height < 800 ? 120 : 220);
-		}
-	});
+			expect(await row.locator('[data-testid="project-landing-card"], [data-testid="project-inspiration-card"]').count()).toBeLessThanOrEqual(10);
+			await testInfo.attach(`project-start-row-${size.width}.png`, { body: await page.screenshot(), contentType: 'image/png' });
+
+			await inspiration.scrollIntoViewIfNeeded();
+			const inspirationText = (await inspiration.textContent()) ?? '';
+			await inspiration.click();
+			const value = await page.getByTestId('project-input-textarea').inputValue();
+			expect(value.trim().length).toBeGreaterThan(0);
+			expect(inspirationText).toContain(value.trim());
+		});
+	}
 
 	for (const size of [{ width: 390, height: 844 }, { width: 820, height: 1180 }, { width: 1280, height: 800 }]) {
 		// contract-test: direct surface=gui.web assertions=workspace-shell.start.available-space-cards

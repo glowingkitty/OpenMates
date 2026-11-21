@@ -103,8 +103,8 @@ models only. This does not change account settings or ordinary assistant routing
 
 ### Frontend
 
-- `DailyInspirationBanner.svelte` -- carousel still used by the Projects and Tasks start screens; Chats, Apps and Workflows no longer render it
-- `startScreenRow.ts` -- `interleaveStartRow()` (row rhythm), `selectChatRowInspirations()` (surface chats, video/wiki, unopened) and `selectWorkflowRowInspirations()` (the recommended-workflow hook, see below)
+- `DailyInspirationBanner.svelte` -- carousel still used by the Plans and Teams homes; Chats, Apps, Workflows, Projects and Tasks no longer render it (Projects interleave their inspirations into the start row; Tasks show none, issue ZSN8N)
+- `startScreenRow.ts` -- `interleaveStartRow()` (row rhythm), `selectChatRowInspirations()` (surface chats, video/wiki, unopened) `selectWorkflowRowInspirations()` (the recommended-workflow hook, see below) and `selectProjectRowInspirations()` (surface projects, unopened)
 - `welcome/StartScreenChatCard.svelte` -- the one large card used by every start-row entry (own chats, priority chats, drafts, inspirations, guest examples); inspiration cards show the video/article image with a small "Daily inspiration" label
 - `welcome/StartScreenUpcomingEntry.svelte` -- compact entry for an upcoming saved event (signed in) or the next OpenMates event (signed out) below the row (events are no longer row cards)
 - `welcome/StartScreenRowActions.svelte` -- the browse actions tile, always the last item of the row

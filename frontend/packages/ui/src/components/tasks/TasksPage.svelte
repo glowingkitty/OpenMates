@@ -11,9 +11,7 @@
   import WorkflowRunTaskDetail from './WorkflowRunTaskDetail.svelte';
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
-  import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
-  import type { DailyInspiration } from '../../stores/dailyInspirationStore';
   import { notificationStore } from '../../stores/notificationStore';
   import { userProfile } from '../../stores/userProfile';
   import { activeTeamContext, getActiveTeamContextSnapshot } from '../../stores/teamStore';
@@ -578,13 +576,6 @@
     await handleDelete(task);
   }
 
-  function handleStartTaskInspiration(inspiration: DailyInspiration): void {
-    taskPromptValue = inspiration.phrase;
-    taskComposerFocused = true;
-    title = inspiration.phrase;
-    description = inspiration.assistant_response ?? '';
-  }
-
   async function handleExtractTasks(): Promise<void> {
     const correctedText = (correctedTranscriptText || transcriptText).trim();
     if (!correctedText || isExtracting) return;
@@ -869,9 +860,6 @@
       if (cached) plans = cached;
     });
     void initializeFeatureAvailability();
-    if (!isCentralTasksWorkspace) {
-      void loadDefaultInspirations({ surface: 'tasks', allowIndexedDB: false });
-    }
     void refreshTaskPresentation();
     return () => { unsubscribeTasks(); unsubscribePlans(); };
   });
@@ -958,7 +946,6 @@
           heading={`Hey ${greetingName}!`}
           subtitle="What task is next?"
           showReportIssue
-          onStartInspiration={handleStartTaskInspiration}
         >
       <svelte:fragment slot="top-right">
         <div class="task-workspace-toolbar">

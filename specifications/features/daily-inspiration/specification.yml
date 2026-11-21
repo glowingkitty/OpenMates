@@ -314,6 +314,16 @@ assertions:
   depends_on:
   - models.DailyInspirationState
   - examples.opened_state
+- id: daily-inspiration.workspace-start-screens
+  type: behavior
+  must: The Projects start screen has no Daily Inspiration banner; it uses the same large-card start
+    row as Chats, Apps and Workflows, with today's unopened Projects inspirations interleaved in the
+    Chats rhythm (and filling the row alone when the user has no projects); activating one fills the
+    new-project name. The Tasks start screen shows no Daily Inspiration at all, neither a banner nor a
+    row card.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
 - id: daily-inspiration.start-row-rhythm
   type: behavior
   must: The Chats start screen has no Daily Inspiration banner and no banner heading, signed in or

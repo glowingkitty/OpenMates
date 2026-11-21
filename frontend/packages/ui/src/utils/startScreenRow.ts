@@ -1,5 +1,5 @@
 /**
- * Start-screen row composition shared by the Chats and Workflows start screens.
+ * Start-screen row composition shared by the Chats, Workflows and Projects start screens.
  *
  * The horizontal row shows only items of the screen's own kind (chats on Chats,
  * workflows on Workflows) as large cards. Daily inspirations of that kind are
@@ -73,6 +73,14 @@ export function selectChatRowInspirations(inspirations: readonly DailyInspiratio
       CHAT_ROW_CONTENT_TYPES.has(inspiration.content_type) &&
       !inspiration.is_opened,
   );
+}
+
+/**
+ * Project inspirations for the Projects row: every not-yet-opened inspiration of the
+ * Projects surface (issue ZSN8N: the Projects start screen has no banner).
+ */
+export function selectProjectRowInspirations(inspirations: readonly DailyInspiration[]): DailyInspiration[] {
+  return inspirations.filter((inspiration) => inspiration.surface === 'projects' && !inspiration.is_opened);
 }
 
 /**
