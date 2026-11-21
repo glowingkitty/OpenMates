@@ -50,7 +50,10 @@ struct DevChatOpeningPreviewView: View {
             }
         }
         .background(Color.grey0.ignoresSafeArea())
-        .onAppear(perform: seedIfNeeded)
+        .onAppear {
+            DevChatOpenTimer.markStart()
+            seedIfNeeded()
+        }
         .task {
             if isUITestPerformanceMetricsEnabled {
                 // The normal app startup intentionally skips preview hosts.
@@ -89,6 +92,11 @@ struct DevChatOpeningPreviewView: View {
                         onReportIssue: { reportIssuePrefill = $0 }
                     )
                     .environment(\.layoutDirection, uiTestLayoutDirection)
+                    .task {
+                        // One yield lets the first layout pass of the latest window commit.
+                        await Task.yield()
+                        DevChatOpenTimer.markLatestVisible()
+                    }
                 } else {
                     ProgressView()
                         .tint(.fontSecondary)
@@ -590,6 +598,25 @@ private struct DevChatOpeningMetricSnapshotLabel: UIViewRepresentable {
 }
 #endif
 
+/// In-app chat-open timing (DEBUG preview only): preview first appearance to the
+/// first committed layout of the latest message window, on `systemUptime`.
+@MainActor
+private enum DevChatOpenTimer {
+    private static var startUptime: TimeInterval?
+    private static var openMS: Int?
+
+    static func markStart() {
+        if startUptime == nil { startUptime = ProcessInfo.processInfo.systemUptime }
+    }
+
+    static func markLatestVisible() {
+        guard openMS == nil, let start = startUptime else { return }
+        openMS = Int(((ProcessInfo.processInfo.systemUptime - start) * 1000).rounded())
+    }
+
+    static var label: String { "open-ms=\(openMS ?? -1)" }
+}
+
 // Diagnostic sampling stays independent from the mounted transcript.
 // Sampling remains continuous; neither frame nor input metrics are reset here.
 private struct DevChatOpeningMetricsLeaf: View {
@@ -661,6 +688,7 @@ private struct DevChatOpeningMetricsLeaf: View {
             "performance-metrics=chat-opening",
             "initial-window=\(initialWindowCount)",
             "total-messages=\(totalMessageCount)",
+            DevChatOpenTimer.label,
             "frame-samples=\(sampleCount)",
             "frame-total=\(intMetric("total_sample_count", in: frameSummary))",
             String(format: "average-fps=%.1f", averageFPS),

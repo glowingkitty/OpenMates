@@ -3298,6 +3298,7 @@ features:
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/AppSkillInputPreviewUITests.swift
+      - apple/OpenMatesUITests/AppleInteractionBudgetUITests.swift
       - apple/OpenMatesUITests/AssistantActivityPreviewUITests.swift
       - apple/OpenMatesUITests/AssistantBatchActivityPreviewUITests.swift
       - apple/OpenMatesUITests/ChatCardsParityUITests.swift

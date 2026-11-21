@@ -530,10 +530,6 @@ struct MainAppView: View {
         }
     }
 
-    private var filteredUnpinnedChats: [Chat] {
-        filteredSidebarUserChats.filter { $0.isPinned != true }
-    }
-
     private func isVisibleUserChat(_ chat: Chat) -> Bool {
         publicChatGroup(for: chat.id) == nil &&
             isTopLevelUserChat(chat) &&
@@ -560,10 +556,6 @@ struct MainAppView: View {
         return ChatSidebarDisplayPolicy.visibleChats(sortedUserChats: sorted, limit: visibleUserChatLimit,
             selectedChatID: selectedChatId,
             lastActiveChatID: lastActiveSidebarSelection?.chatID(in: sidebarAccountScope) ?? authManager.currentUser?.lastOpened)
-    }
-
-    private var visibleFilteredUnpinnedChats: [Chat] {
-        visibleSidebarUserChats.filter { $0.isPinned != true }
     }
 
     private var orderedRunningSidebarChats: [Chat] {
@@ -1747,8 +1739,6 @@ struct MainAppView: View {
             metrics.append("shell-performance=true")
             metrics.append("seeded-chat-count=\(shellPerformanceUITestSeedCount)")
             metrics.append("stored-chat-count=\(chatStore.chats.count)")
-            metrics.append("filtered-unpinned-count=\(filteredUnpinnedChats.count)")
-            metrics.append("visible-unpinned-count=\(visibleFilteredUnpinnedChats.count)")
             metrics.append("frame-samples=\(frameSamples)")
             metrics.append("worst-frame-ms=\(worstFrameMS)")
             metrics.append("jank-count=\(jankCount)")
@@ -3973,6 +3963,7 @@ struct MainAppView: View {
             let isPublic = publicChatGroup(for: chatId) != nil
             let headerActions = MainAppChatHeaderActionPolicy.actions(isPublic: isPublic)
             let historyReady = pendingHistoryPresentationChatID != chatId
+            let neighbors = chatNavigationActions(for: chatId)
             let initialWindow: [Message] = isPublic || !historyReady ? [] : ChatHistoryWindowPolicy.initialMessages(
                 chatStore.messages(for: chatId), anchor: chatStore.chat(for: chatId)?.lastVisibleMessageId)
             ChatView(
@@ -4021,8 +4012,8 @@ struct MainAppView: View {
                     }
                     closeChatToWorkspaceLanding()
                 },
-                onPreviousChat: previousChatAction(for: chatId),
-                onNextChat: nextChatAction(for: chatId),
+                onPreviousChat: neighbors.previous,
+                onNextChat: neighbors.next,
                 onOpenPublicChat: openPublicChat,
                 onOpenChat: { chatInputFocusRequest = 0; selectedChatId = $0; showNewChat = false },
                 onNewChat: openNewChatScreen,
@@ -4045,6 +4036,7 @@ struct MainAppView: View {
             .transition(workspaceReduceMotion ? .opacity : .move(edge: .bottom))
         } else if !isAuthenticated, let chatId = selectedChatId {
             let isAnonymous = anonymousFreeUsage.isAnonymousChat(chatId)
+            let neighbors = chatNavigationActions(for: chatId)
             let initialWindow = isAnonymous ? ChatHistoryWindowPolicy.initialMessages(
                 chatStore.messages(for: chatId), anchor: chatStore.chat(for: chatId)?.lastVisibleMessageId) : []
             ChatView(
@@ -4067,8 +4059,8 @@ struct MainAppView: View {
                     guard selectedChatId == chatId else { return }
                     closeChatToWorkspaceLanding()
                 },
-                onPreviousChat: previousChatAction(for: chatId),
-                onNextChat: nextChatAction(for: chatId),
+                onPreviousChat: neighbors.previous,
+                onNextChat: neighbors.next,
                 onOpenPublicChat: openPublicChat,
                 onNewChat: openNewChatScreen,
                 onReportIssue: openReportIssue,
@@ -4132,9 +4124,17 @@ struct MainAppView: View {
         }
     }
 
-    private func previousChatAction(for chatId: String) -> (() -> Void)? {
-        guard let idx = orderedChatIds.firstIndex(of: chatId), idx < orderedChatIds.count - 1 else { return nil }
-        let prevId = orderedChatIds[idx + 1]
+    /// Previous/next actions for the open chat from one sidebar projection.
+    /// Each `orderedChatIds` read re-filters every chat in the account, so the
+    /// header's two buttons share a single read per body pass.
+    private func chatNavigationActions(for chatId: String) -> (previous: (() -> Void)?, next: (() -> Void)?) {
+        let order = orderedChatIds
+        return (previousChatAction(for: chatId, in: order), nextChatAction(for: chatId, in: order))
+    }
+
+    private func previousChatAction(for chatId: String, in order: [String]) -> (() -> Void)? {
+        guard let idx = order.firstIndex(of: chatId), idx < order.count - 1 else { return nil }
+        let prevId = order[idx + 1]
         return {
             chatInputFocusRequest = 0
             presentChatRoute(prevId)
@@ -4142,9 +4142,9 @@ struct MainAppView: View {
         }
     }
 
-    private func nextChatAction(for chatId: String) -> (() -> Void)? {
-        guard let idx = orderedChatIds.firstIndex(of: chatId), idx > 0 else { return nil }
-        let nextId = orderedChatIds[idx - 1]
+    private func nextChatAction(for chatId: String, in order: [String]) -> (() -> Void)? {
+        guard let idx = order.firstIndex(of: chatId), idx > 0 else { return nil }
+        let nextId = order[idx - 1]
         return {
             #if DEBUG
             if isFixtureNavigationDiagnosticEnabled {

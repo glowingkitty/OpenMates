@@ -24,6 +24,7 @@ decisions:
   - "No new API route: Apple reuses the web's three existing log endpoints and their server-side level rules."
   - "Transport fixes in the not-yet-migrated Swift socket are marked shell-only: bugfix-in-frozen-code transport."
   - "Voice-call admission stays with the voice chat (TASK-950); start-screen redesign follows the web chat (TASK-1321)."
+  - "Step 3 limits live in AppleInteractionBudgetUITests.InteractionBudget, set from three hosted macos-26 simulator runs plus margin (single runs vary about 2x); they guard regressions on that runner, not real-device speed. Reconnect count needs a live stack and runs only on the coordinated Mac with the personal dev test account."
 checks:
   required:
     - "apple-unit CI for each step's new tests (diagnostics payload level rules per role, MetricKit scalar extraction, stall events, redaction)."
