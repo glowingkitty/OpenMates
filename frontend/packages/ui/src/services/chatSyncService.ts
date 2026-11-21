@@ -3925,3 +3925,18 @@ export class ChatSynchronizationService extends EventTarget {
 }
 
 export const chatSyncService = new ChatSynchronizationService();
+
+// Dev-only Playwright hook (localhost and *.dev.openmates.org): a spec may
+// dispatch only the two events the call sounds listen to, through the real
+// service. Production hosts never receive the global.
+const E2E_CHAT_SYNC_EVENTS = new Set(["embedUpdated", "focusModeActivated"]);
+if (typeof window !== "undefined" && (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" || window.location.hostname.endsWith(".dev.openmates.org"))) {
+  (window as unknown as { __openmatesE2EChatSyncEvents?: { dispatch: (name: string, detail: unknown) => void } })
+    .__openmatesE2EChatSyncEvents = {
+      dispatch: (name, detail) => {
+        if (!E2E_CHAT_SYNC_EVENTS.has(name)) throw new Error(`E2E chat sync event not allowed: ${name}`);
+        chatSyncService.dispatchEvent(new CustomEvent(name, { detail }));
+      },
+    };
+}

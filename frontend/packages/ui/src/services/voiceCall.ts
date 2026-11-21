@@ -15,6 +15,7 @@ import { prepareVoiceCallChat, VoiceCallContextError } from './voiceCallMessages
 import { admitVoiceCallChat, reportVoiceCallTurnDelivery, sendVoiceCallTurn } from './voiceCallTurns';
 import { VoiceCallEarlyTurns } from './voiceCallEarlyTurns';
 import { VoiceCallBackground } from './voiceCallBackground';
+import { VoiceCallAmbientSounds } from './voiceCallAmbientSounds';
 import { setActiveVoiceCallId } from './voiceCallOwnership';
 import { callArtifactReferencesInText, type VoiceArtifactReference } from './voiceCallArtifactReferences';
 import { CallAudio } from '../components/videocall/callAudio';
@@ -230,6 +231,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
   private activeMillis = 0;
   private lifecycleStarted = false;
   private cues = new VoiceCallCuePlayer();
+  private ambient = new VoiceCallAmbientSounds();
   private waveAnimation: number | null = null;
   private micLevels = { at: 0, levels: zeroLevels() };
   private turnWrites = new Map<string, Promise<boolean>>();
@@ -589,6 +591,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
    * Safari) the user can no longer speak, so the call ends instead of idling.
    */
   private onAwayFromScreen(): void {
+    this.ambient.setAway(true);
     this.unansweredAudioSince = null;
     const generation = this.generation;
     if (this.audio?.captureInterrupted) { this.endBecauseMicrophoneLost(generation); return; }
@@ -625,6 +628,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
   }
 
   private onReturnFromBackground(): void {
+    this.ambient.setAway(false);
     const generation = this.generation;
     if (this.state.status !== 'live') return;
     this.unansweredAudioSince = null;
@@ -963,8 +967,10 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.speechCleanup = assistantSpeechController.activity.subscribe(activity => {
       if (generation !== this.generation || this.state.status !== 'live' || activity.chatId !== this.state.chatId) return;
       this.speechActivity = activity;
+      this.ambient.setSpeaking(activity.speaking);
       this.publishAssistantState();
     });
+    this.ambient.setLive(true);
     void import('./chatSyncService').then(({ chatSyncService }) => {
       if (generation !== this.generation) return;
       this.canonicalService = chatSyncService;
@@ -996,11 +1002,19 @@ export class VoiceCallController implements VoiceCallControllerLike {
         }
         this.publishAssistantState();
       };
+      const skillRunning = (event: Event) => this.ambient.handleEmbedUpdate((event as CustomEvent).detail, this.state.chatId);
+      const focusStarted = (event: Event) => {
+        if ((event as CustomEvent).detail?.chat_id === this.state.chatId) this.ambient.focusChime();
+      };
       const taskEvents = ['aiTaskInitiated', 'aiTypingStarted', 'aiMessageChunk', 'aiTaskEnded'];
       chatSyncService.addEventListener('chatUpdated', changed);
+      chatSyncService.addEventListener('embedUpdated', skillRunning);
+      chatSyncService.addEventListener('focusModeActivated', focusStarted);
       for (const name of taskEvents) chatSyncService.addEventListener(name, taskChanged);
       this.chatCleanup = () => {
         chatSyncService.removeEventListener('chatUpdated', changed);
+        chatSyncService.removeEventListener('embedUpdated', skillRunning);
+        chatSyncService.removeEventListener('focusModeActivated', focusStarted);
         for (const name of taskEvents) chatSyncService.removeEventListener(name, taskChanged);
       };
       this.publishAssistantState();
@@ -1030,6 +1044,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
     if (muted === this.state.muted) return;
     this.update({ muted, userSpeaking: muted ? false : this.state.userSpeaking });
     this.cues.play(muted ? 'muted' : 'unmuted');
+    this.ambient.setMuted(muted);
     if (muted) this.micLevels = { at: 0, levels: zeroLevels() };
     this.audio?.setMicEnabled(!muted);
     // The gate clears pending capture and owns the single ordered end marker.
@@ -1216,6 +1231,7 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.speechCleanup = null;
     this.chatCleanup?.();
     this.chatCleanup = null;
+    this.ambient.setLive(false);
     this.assistantMessageId = null;
     this.assistantTaskId = null;
     this.pendingHeardBoundary = null;

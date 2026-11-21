@@ -535,6 +535,28 @@ assertions:
     When the user starts speaking again the assistant's speech stops at once.
   depends_on:
   - examples.complete_turn
+- id: video-call.sounds.ambient-skill-loop
+  type: behavior
+  must: >-
+    While the assistant runs a skill during a live web call, a soft local loop plays at or below call-cue
+    loudness; it stops as soon as the skill finishes, speech starts, the user mutes, the page goes to the
+    background or the call ends, and never outlives a lost finish event.
+  depends_on:
+  - examples.call_activity
+- id: video-call.sounds.ambient-focus-chime
+  type: behavior
+  must: >-
+    When a focus mode starts in the call's chat, one soft local chime plays; none plays while muted, in the
+    background or after the call ended.
+  depends_on:
+  - examples.call_activity
+- id: video-call.sounds.local-only
+  type: invariant
+  must: >-
+    Ambient call sounds use their own local output and are never routed into the microphone audio sent to
+    the assistant or into the assistant speech playback.
+  depends_on:
+  - examples.call_activity
 applies_to:
   rest_api:
     required: false

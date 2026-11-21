@@ -631,6 +631,7 @@
         "cli-tui-team-direct-chat.spec.ts",
         "newsletter-flow.spec.ts",
         "voice-call.spec.ts",
+        "voice-call-ambient-sounds.spec.ts",
         "authored-results-media.spec.ts"
       ]
     },

@@ -1071,7 +1071,7 @@ specifications:
     version: 18
     status: draft
     path: features/video-call
-    fingerprint: fafa46d503377435139ed6795b49f835d4b846903affecb39b8c3a16732d82cd
+    fingerprint: 5f32d3cac2c651371c9a55a91f42c8d8f96cbc275abb617ade3dda84546ce768
     required_applies_to:
     - gui.web
     - gui.apple
@@ -15142,6 +15142,30 @@ assertions:
     specification_id: feature.video-call
     type: invariant
     fingerprint: 9333a538f985c721d43457c136ba0beae78ae1bfde038be2d1442ef122e72318
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  video-call.sounds.ambient-skill-loop:
+    specification: feature.video-call@18
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: d19ee9839e6a841c2276955ffc170adf72571df4866957732613c97099676224
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  video-call.sounds.ambient-focus-chime:
+    specification: feature.video-call@18
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: 5c72df02ef755dc839d3da4276b0b21d1988c0f98ce41d4b27dfe201ec50477e
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  video-call.sounds.local-only:
+    specification: feature.video-call@18
+    specification_id: feature.video-call
+    type: invariant
+    fingerprint: 64da7694ee63d7a8e3db161e0cf6c53cafb8bffb5c3eaad0c1c4b8d0604aed88
     required_applies_to:
     - gui.web
     - gui.apple
