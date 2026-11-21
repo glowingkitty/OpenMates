@@ -408,6 +408,31 @@ connecting_short:
   en: Connecting…
   de: Verbindung wird hergestellt…
   verified_by_human: []
+hold:
+  context: Call bar button that puts the call on hold so the assistant waits for the caller
+  en: Hold
+  de: Halten
+  verified_by_human: []
+resume_hold:
+  context: Call bar button that ends the waiting state of a call
+  en: I'm back
+  de: Ich bin wieder da
+  verified_by_human: []
+waiting:
+  context: Call status while the assistant waits for the caller to continue
+  en: Waiting for you
+  de: Wartet auf dich
+  verified_by_human: []
+waiting_start:
+  context: Ready-made spoken and written assistant line when the call enters the waiting state
+  en: Okay, I'm waiting.
+  de: Okay, ich warte.
+  verified_by_human: []
+waiting_resume:
+  context: Ready-made spoken and written assistant line when the caller is back and the call leaves the waiting state
+  en: Okay, go on.
+  de: Okay, sprich weiter.
+  verified_by_human: []
 screen_sharing:
   context: Indicator shown while the user's screen is being shared in a call
   en: You are sharing your screen

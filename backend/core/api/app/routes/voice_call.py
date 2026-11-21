@@ -40,6 +40,7 @@ from backend.shared.python_utils.voice_call_registry import (
     ACTIVE_TTL_SECONDS, finalize_active_call, issue_message_id, register_active_call, renew_active_call,
 )
 from backend.core.api.app.routes.voice_call_orchestration import CallInterpretationGate
+from backend.core.api.app.routes.voice_call_waiting import VoiceWaiting
 from backend.shared.testing.voice_call_fixture import (
     IsolatedVoxtralVoiceFixture, VOICE_ACK_DEFAULT_TIMESTAMP, consume_voice_ack_fixture_write_failure,
     isolated_voice_fixture_enabled, set_voice_ack_fixture_fail_next_write,
@@ -457,7 +458,12 @@ async def _complete(text: str, websocket: WebSocket, timeout: float = COMPLETION
     """Separate, bounded completion gate; never run ordinary preprocessing here."""
     try:
         if isolated_voice_fixture_enabled():
-            from backend.shared.testing.voice_call_fixture import isolated_voice_completion_fixture
+            from backend.shared.testing.voice_call_fixture import (
+                isolated_voice_completion_fixture, isolated_voice_intent_fixture)
+            fixture_intent = isolated_voice_intent_fixture(text)
+            if fixture_intent is not None:
+                complete = as_pause_decision("complete")
+                return PauseDecision(complete.verdict, fixture_intent, complete.wait_seconds)  # type: ignore[arg-type]  # fixed CI intents
             return as_pause_decision(isolated_voice_completion_fixture(text) or "uncertain")
         return await asyncio.wait_for(classify_voice_pause(
             text, websocket.app.state.secrets_manager, timeout), timeout=timeout + 0.05)
@@ -557,6 +563,7 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     last_activity: tuple[bool, bool, bool] | None = None
     stage = "start_validation"
     gate: CallInterpretationGate | None = None
+    waiting = VoiceWaiting()
 
     async def send(event: dict[str, Any]) -> None:
         await websocket.send_json(event)
@@ -782,15 +789,14 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                         decision = as_pause_decision("unavailable")
                     elif turn.completion_text != text:
                         turn.completion_text = text
-                if decision is not None and decision.intent != "none":
-                    # Lane (b) reacts to the model-judged intent (hold, back, repeat).
-                    await send({"type": "turn.intent", "call_id": call_id,
-                                "message_id": turn.message_id, "intent": decision.intent})
+                # The model-judged intent (hold, back, repeat) is acted on by the
+                # waiting state below, whatever the verdict.
+                intent = decision.intent if decision is not None else "none"
                 if verdict == "unavailable":
                     # Timeout/outage never blocks the turn: send it as complete.
                     logger.warning("VOICE_COMPLETION_CHECK fail_open call_id=%s verdict=complete", call_id)
                     verdict = "complete"
-                if verdict != "complete":
+                if verdict != "complete" and intent == "none":
                     if decision is not None and decision.verdict == "wait":
                         # The user asked to hold: no automatic submission; the
                         # turn stays open until speech continues it.
@@ -806,9 +812,13 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                                 "reason": "incomplete" if verdict == "incomplete" or (
                                     decision is not None and decision.verdict == "wait") else "uncertain"})
                     continue
-                await interrupt(turn)
-                turn.text = text
-                await transcript(turn, final=True)
+                reason, text = await waiting.route(text, intent, send=send, call_id=call_id)
+                if reason == "waiting" and turn.assistant_active:
+                    await interrupt(turn, "waiting")
+                if reason is None:
+                    await interrupt(turn)
+                    turn.text = text
+                    await transcript(turn, final=True)
             if reason is not None:
                 await send({"type": "transcript.discarded", "call_id": call_id,
                             "message_id": turn.message_id, "reason": reason})
@@ -933,6 +943,17 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
                     ledger.audio_bytes = prospective
                     listening = True
                     await _charge_voice(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id, chat_id=chat_id)
+                elif kind == "hold":
+                    if event.get("call_id") != call_id or type(event.get("active")) is not bool:
+                        raise ValueError("Invalid hold event")
+                    pending = current.text if current is not None else ""
+                    if event["active"] and current is not None:
+                        invalidate_completion(current)
+                        turns.pop(current.message_id, None)
+                        await send({"type": "transcript.discarded", "call_id": call_id,
+                                    "message_id": current.message_id, "reason": "waiting"})
+                        current = None
+                    await waiting.set_active(event["active"], send=send, call_id=call_id, pending_text=pending)
                 elif kind == "audio_stream_end":
                     await asyncio.wait_for(provider.end_audio(), 5)
                     listening = False

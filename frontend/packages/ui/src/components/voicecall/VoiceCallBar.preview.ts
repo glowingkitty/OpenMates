@@ -15,6 +15,9 @@ class PreviewVoiceCall implements VoiceCallControllerLike {
   setMuted(muted: boolean) {
     this.publish({ muted, inputIdle: false, userSpeaking: false, billingActivity: { inputListening: !muted, processing: this.state.billingActivity?.processing ?? false } });
   }
+  setWaiting(waiting: boolean) {
+    this.publish({ waiting, waitingLine: { kind: waiting ? 'waiting_start' : 'waiting_resume', text: waiting ? "Okay, I'm waiting." : 'Okay, go on.' } });
+  }
   setMinimized(minimized: boolean) { this.publish({ minimized }); }
   async setCameraEnabled(cameraEnabled: boolean) { this.publish({ cameraEnabled, mediaExpanded: cameraEnabled }); }
   async setScreenShareEnabled(screenSharing: boolean) {
@@ -50,6 +53,7 @@ export const variants = {
     billingActivity: { inputListening: false, processing: true } }),
   playbackOnly: props({ status: 'live', callId: 'preview-call', muted: true, assistantSpeaking: true, elapsedSeconds: 83, activeElapsedSeconds:15,
     usage, billingActivity: suspended }),
+  waiting: props({ status: 'live', callId: 'preview-call', waiting: true, usage, billingActivity: listening }),
   vadLoading: props({ status: 'live', callId: 'preview-call', usage, billingActivity: listening }),
   inputIdle: props({ status: 'live', callId: 'preview-call', inputIdle: true, usage, billingActivity: suspended }),
   idleAwaitingServer: props({ status: 'live', callId: 'preview-call', inputIdle: true, usage, billingActivity: listening }),

@@ -14,7 +14,7 @@ import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
 import { initialChatHistoryGate } from "./initialChatHistoryGate";
 import { matesMetadata } from "../data/matesMetadata";
 import { userDB } from "./userDB";
-import { parseVoiceCallHistoryEvent, voiceCallLifecycleMessageId, type VoiceCallLifecycleEvent } from "./voiceCallLifecycleEvent";
+import { parseVoiceCallHistoryEvent, voiceCallLifecycleMessageId, voiceCallWaitingMessageId, type VoiceCallLifecycleEvent } from "./voiceCallLifecycleEvent";
 import { getPendingChatDeletionsSet } from "./pendingChatDeletions";
 
 export interface CallTranscriptUpdate {
@@ -667,11 +667,13 @@ export async function markTypedCallMessageFailed(callId: string, chatId: string,
  */
 export async function recordCallLifecycle(event: VoiceCallLifecycleEvent): Promise<void> {
   if (!event.chatId || !/^[A-Za-z0-9_-]{8,128}$/.test(event.callId) ||
-      !["started", "ended"].includes(event.type) || !Number.isSafeInteger(event.occurredAt) ||
+      !["started", "ended", "waiting_start", "waiting_resume"].includes(event.type) || !Number.isSafeInteger(event.occurredAt) ||
       event.occurredAt <= 0 || !Number.isFinite(event.activeElapsedSeconds) || event.activeElapsedSeconds < 0) {
     throw new Error("Invalid voice call lifecycle event");
   }
-  const messageId = voiceCallLifecycleMessageId(event.callId, event.type);
+  const messageId = event.type === "waiting_start" || event.type === "waiting_resume"
+    ? voiceCallWaitingMessageId(event.callId, event.type, event.occurredAtMs ?? Date.now())
+    : voiceCallLifecycleMessageId(event.callId, event.type);
   await serializeMessage(messageId, async () => {
     const identity = getWorkspaceCacheIdentity();
     const chat = await chatDB.getChat(event.chatId);

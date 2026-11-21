@@ -8,3 +8,13 @@ ended:
   en: You ended a voice call
   de: Du hast einen Sprachanruf beendet
   verified_by_human: []
+waiting_start:
+  context: Encrypted chat history system event with the ready-made assistant line when the call enters the waiting state, followed by its timestamp
+  en: Okay, I'm waiting.
+  de: Okay, ich warte.
+  verified_by_human: []
+waiting_resume:
+  context: Encrypted chat history system event with the ready-made assistant line when the caller is back and the call leaves the waiting state, followed by its timestamp
+  en: Okay, go on.
+  de: Okay, sprich weiter.
+  verified_by_human: []

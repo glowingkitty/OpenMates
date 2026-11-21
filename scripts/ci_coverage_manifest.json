@@ -305,6 +305,7 @@
         "components/video-call-panel.spec.ts",
         "components/video-call-panel-responsive.spec.ts",
         "components/voice-call-bar.spec.ts",
+        "components/voice-call-waiting.spec.ts",
         "components/voice-call-chat-header.spec.ts",
         "components/voice-call-media.spec.ts",
         "components/voice-call-screen-share.spec.ts",

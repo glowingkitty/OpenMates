@@ -568,6 +568,22 @@ assertions:
     the assistant or into the assistant speech playback.
   depends_on:
   - examples.call_activity
+  - examples.complete_turn
+- id: video-call.waiting.hold-button
+  type: behavior
+  must: The call bar offers a hold button (hard signal) that puts the call into the waiting state at once and shows
+    "Waiting for you"; pressing it again, or a spoken "I'm back" recognized by the completion decision's intent, leaves
+    waiting. Entering plays and shows the ready-made line "Okay, I'm waiting." and leaving "Okay, go on.", with no
+    inference and no credits. While waiting the assistant stays quiet and any current speech stops.
+  depends_on:
+  - examples.complete_turn
+- id: video-call.waiting.spoken-intent-and-merge
+  type: invariant
+  must: A spoken request to wait comes from the completion decision's intent field (none, wait, resume, repeat), never
+    from keyword lists, and a hard signal always wins. What the caller said before waiting and what they say after it
+    are sent as one turn. The intent "repeat" replays the stored last answer's audio and text without new inference
+    and without credits.
+  depends_on:
 applies_to:
   rest_api:
     required: false

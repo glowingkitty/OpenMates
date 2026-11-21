@@ -47,6 +47,7 @@
     async submitText() { return true; },
     setMuted(muted) { store.update(current => ({ ...current, muted, audioLevels:muted && !current.assistantSpeaking ? Array(16).fill(0) : current.audioLevels, billingActivity:{inputListening:!muted,processing:current.billingActivity?.processing ?? false} })); },
     setMinimized(minimized) { store.update(current => ({ ...current,minimized })); },
+    setWaiting(waiting) { store.update(current => ({ ...current, waiting, waitingLine:{ kind:waiting ? 'waiting_start' : 'waiting_resume', text:waiting ? "Okay, I'm waiting." : 'Okay, go on.' } })); },
     async setCameraEnabled(cameraEnabled) {
       if (collapseTimer) clearTimeout(collapseTimer);
       previewStream?.getTracks().forEach(track => track.stop());

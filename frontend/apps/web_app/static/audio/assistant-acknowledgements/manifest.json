@@ -9809,6 +9809,32 @@
       "provider_model_id": "eleven_v4_turbo"
     },
     {
+      "clip_id": "system-de-DE-waiting_resume-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "de-DE",
+      "request_category": "waiting_resume",
+      "variant": 1,
+      "text": "Okay, sprich weiter.",
+      "relative_path": "system/de-DE/waiting_resume-1.mp3",
+      "sha256": "21828a7b9331a5bfa802601d31012ea547164e4fe5c095c2e13a5d4dcce11665",
+      "duration_seconds": 1.907,
+      "provider_model_id": "eleven_v4_turbo"
+    },
+    {
+      "clip_id": "system-de-DE-waiting_start-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "de-DE",
+      "request_category": "waiting_start",
+      "variant": 1,
+      "text": "Okay, ich warte.",
+      "relative_path": "system/de-DE/waiting_start-1.mp3",
+      "sha256": "57c9ab3a5f380d24eeea49d932e5e51ed6319e699061b79c2bf7821b50ce52e4",
+      "duration_seconds": 1.672,
+      "provider_model_id": "eleven_v4_turbo"
+    },
+    {
       "clip_id": "system-en-US-chat_start-1",
       "voice_profile_id": "system",
       "voice_profile_version": 1,
@@ -9819,6 +9845,32 @@
       "relative_path": "system/en-US/chat_start-1.mp3",
       "sha256": "7e1182027e3cbe85e7e07e7aba98be7e1cccaf4d31976005cf494a1316d57b38",
       "duration_seconds": 1.865,
+      "provider_model_id": "eleven_v4_turbo"
+    },
+    {
+      "clip_id": "system-en-US-waiting_resume-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "en-US",
+      "request_category": "waiting_resume",
+      "variant": 1,
+      "text": "Okay, go on.",
+      "relative_path": "system/en-US/waiting_resume-1.mp3",
+      "sha256": "9bb95ca3004eff1cf7e61792f1ece60fae9c959adc0980e120b6df1e04ebfe28",
+      "duration_seconds": 1.437,
+      "provider_model_id": "eleven_v4_turbo"
+    },
+    {
+      "clip_id": "system-en-US-waiting_start-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "en-US",
+      "request_category": "waiting_start",
+      "variant": 1,
+      "text": "Okay, I'm waiting.",
+      "relative_path": "system/en-US/waiting_start-1.mp3",
+      "sha256": "e5a726aba6560873a25180ee279f521254cc941b52e2f875a7600df78e960798",
+      "duration_seconds": 1.75,
       "provider_model_id": "eleven_v4_turbo"
     },
     {
@@ -9835,6 +9887,32 @@
       "provider_model_id": "eleven_v4_turbo"
     },
     {
+      "clip_id": "system-es-ES-waiting_resume-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "es-ES",
+      "request_category": "waiting_resume",
+      "variant": 1,
+      "text": "Vale, continúa.",
+      "relative_path": "system/es-ES/waiting_resume-1.mp3",
+      "sha256": "ff52c0c14c9bd2dede89b5fb3ff51895e416fdd5d0b78560ed7c384d41d5fca5",
+      "duration_seconds": 1.672,
+      "provider_model_id": "eleven_v4_turbo"
+    },
+    {
+      "clip_id": "system-es-ES-waiting_start-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "es-ES",
+      "request_category": "waiting_start",
+      "variant": 1,
+      "text": "Vale, espero.",
+      "relative_path": "system/es-ES/waiting_start-1.mp3",
+      "sha256": "55cee4bb5aeb3e809a3da3d3eb7f51872b6635cbc19a519754e34342e67f6d4f",
+      "duration_seconds": 1.593,
+      "provider_model_id": "eleven_v4_turbo"
+    },
+    {
       "clip_id": "system-fr-FR-chat_start-1",
       "voice_profile_id": "system",
       "voice_profile_version": 1,
@@ -9845,6 +9923,32 @@
       "relative_path": "system/fr-FR/chat_start-1.mp3",
       "sha256": "6fadcef45ef003066cb7c1280448f57280e95dd754742ee95318dd5687063731",
       "duration_seconds": 1.865,
+      "provider_model_id": "eleven_v4_turbo"
+    },
+    {
+      "clip_id": "system-fr-FR-waiting_resume-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "fr-FR",
+      "request_category": "waiting_resume",
+      "variant": 1,
+      "text": "D'accord, je t'écoute.",
+      "relative_path": "system/fr-FR/waiting_resume-1.mp3",
+      "sha256": "2f88478e7ac076aee982d8b562b0031dc3869ebdb1572ceb4eabce422591bb70",
+      "duration_seconds": 1.672,
+      "provider_model_id": "eleven_v4_turbo"
+    },
+    {
+      "clip_id": "system-fr-FR-waiting_start-1",
+      "voice_profile_id": "system",
+      "voice_profile_version": 1,
+      "language": "fr-FR",
+      "request_category": "waiting_start",
+      "variant": 1,
+      "text": "D'accord, j'attends.",
+      "relative_path": "system/fr-FR/waiting_start-1.mp3",
+      "sha256": "e54c021430d83dd7e22b35479bb87454843261fa2e5578963d2655a7eb552199",
+      "duration_seconds": 1.515,
       "provider_model_id": "eleven_v4_turbo"
     }
   ]

@@ -20,6 +20,7 @@ from PIL import Image
 import pytest
 
 from backend.core.api.app.routes import voice_call as route
+from backend.shared.python_utils.voice_pause_decision import PauseDecision
 from backend.shared.testing.voice_call_fixture import IsolatedVoxtralVoiceFixture, isolated_voice_fixture_enabled
 
 
@@ -1265,7 +1266,7 @@ async def test_cleanup_finish_proves_no_ready_only_before_any_ready_send_attempt
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.pause-verdict
-async def test_wait_verdict_holds_the_turn_open_and_emits_the_intent(runtime, monkeypatch):
+async def test_spoken_wait_intent_enters_waiting_and_starts_no_turn(runtime, monkeypatch):
     from backend.shared.python_utils.voice_pause_decision import PauseDecision
 
     async def complete(text, _socket):
@@ -1277,11 +1278,32 @@ async def test_wait_verdict_holds_the_turn_open_and_emits_the_intent(runtime, mo
     provider.push("turn.start")
     provider.push("transcription.text.delta", text="Hold on a second")
     provider.push("turn.end")
-    pending = await socket.event("transcript.pending")
-    intent = await socket.event("turn.intent")
-    assert intent["intent"] == "wait" and intent["message_id"] == pending["message_id"]
+    waiting = await socket.event("waiting")
+    assert waiting["active"] is True and waiting["line"] == "waiting_start"
+    discarded = await socket.event("transcript.discarded")
+    assert discarded["reason"] == "waiting"
     await asyncio.sleep(0.4)
     assert not socket.finals() and not runtime.issued
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.pause-verdict
+async def test_wait_verdict_without_intent_holds_the_turn_open(runtime, monkeypatch):
+    from backend.shared.python_utils.voice_pause_decision import PauseDecision
+
+    async def complete(text, _socket):
+        return PauseDecision("wait", "none", None)
+
+    monkeypatch.setattr(route, "_complete", complete)
+    monkeypatch.setattr(route, "UNCERTAIN_SILENCE_FALLBACK_SECONDS", 0.1)
+    socket, provider, _ = await runtime.start()
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text="How do I make")
+    provider.push("turn.end")
+    pending = await socket.event("transcript.pending")
+    assert pending["reason"] == "incomplete"
+    await asyncio.sleep(0.4)
+    assert not socket.finals() and not runtime.issued
+    assert not [event for event in socket.sent if event["type"] == "waiting"]
 
 
 # contract-test: supporting surface=gui.web assertions=video-call.audio.pause-verdict
@@ -1302,3 +1324,62 @@ async def test_still_thinking_submits_after_its_short_silence_and_intent_none_se
     final = await socket.until(lambda _: socket.finals())
     assert [event["text"] for event in final] == ["Let me think about"]
     assert not [e for e in socket.sent if e["type"] == "turn.intent"]
+
+
+def _intent_check(intents):
+    async def complete(text, _socket):
+        return PauseDecision("finished", intents.get(text, "none"), 0)
+    return complete
+
+
+async def _say(provider, text):
+    provider.push("turn.start")
+    provider.push("transcription.text.delta", text=text)
+    provider.push("turn.end")
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.waiting.spoken-intent-and-merge
+async def test_spoken_wait_holds_speech_resume_merges_one_turn_without_inference(runtime, monkeypatch):
+    monkeypatch.setattr(route, "_complete", _intent_check({"Wait a second.": "wait", "I am back.": "resume"}))
+    socket, provider, _ = await runtime.start()
+    await _say(provider, "Plan a trip to my_city.")
+    await socket.until(lambda _: socket.finals())
+    runtime.issued.clear()
+    socket.sent.clear()
+    await _say(provider, "Wait a second.")
+    waiting = await socket.event("waiting")
+    assert waiting["active"] is True and waiting["line"] == "waiting_start"
+    await _say(provider, "With two stops.")
+    await socket.until(lambda events: sum(e["type"] == "transcript.discarded" for e in events) >= 2)
+    await _say(provider, "I am back.")
+    resumed = await socket.until(lambda events: next((e for e in events if e["type"] == "waiting" and not e["active"]), None))
+    assert resumed["line"] == "waiting_resume"
+    await _say(provider, "By train please.")
+    final = await socket.until(lambda _: next(iter(socket.finals()), None))
+    assert final["text"] == "Wait a second. With two stops. By train please."
+    assert len(runtime.issued) <= 1
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.waiting.spoken-intent-and-merge
+async def test_spoken_repeat_asks_client_replay_and_starts_no_inference(runtime, monkeypatch):
+    monkeypatch.setattr(route, "_complete", _intent_check({"Repeat that.": "repeat"}))
+    socket, provider, _ = await runtime.start()
+    await _say(provider, "Repeat that.")
+    replay = await socket.event("repeat_last_answer")
+    assert replay["type"] == "repeat_last_answer"
+    await socket.event("transcript.discarded")
+    assert not socket.finals() and not runtime.issued
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.waiting.hold-button
+async def test_hold_event_wins_without_any_model_intent(runtime, monkeypatch):
+    monkeypatch.setattr(route, "_complete", _intent_check({}))
+    socket, provider, ready = await runtime.start()
+    ready = await socket.event("ready")
+    socket.push({"type": "hold", "call_id": ready["call_id"], "active": True})
+    assert (await socket.event("waiting"))["active"] is True
+    await _say(provider, "Still thinking about it.")
+    await socket.until(lambda events: any(e["type"] == "transcript.discarded" for e in events))
+    assert not socket.finals() and not runtime.issued
+    socket.push({"type": "hold", "call_id": ready["call_id"], "active": False})
+    await socket.until(lambda events: any(e["type"] == "waiting" and not e["active"] for e in events))

@@ -171,3 +171,29 @@ def _resolve_locale(language: str, catalog: dict[str, object] = ACKNOWLEDGEMENT_
         ),
         None,
     )
+
+
+# Ready-made voice-call waiting lines: played and shown with no inference and no
+# credits. Category == the `line` id the voice-call server sends.
+WAITING_LINE_TEXTS: dict[str, dict[str, str]] = {
+    "en-US": {"waiting_start": "Okay, I'm waiting.", "waiting_resume": "Okay, go on."},
+    "de-DE": {"waiting_start": "Okay, ich warte.", "waiting_resume": "Okay, sprich weiter."},
+    "es-ES": {"waiting_start": "Vale, espero.", "waiting_resume": "Vale, continúa."},
+    "fr-FR": {"waiting_start": "D'accord, j'attends.", "waiting_resume": "D'accord, je t'écoute."},
+}
+
+
+def build_waiting_line_clip(*, line: str, language: str) -> dict[str, object] | None:
+    """Public static metadata of one neutral system waiting line, or None."""
+    locale = _resolve_locale(language, WAITING_LINE_TEXTS)
+    if locale is None or line not in WAITING_LINE_TEXTS[locale]:
+        return None
+    return {
+        "clip_id": f"{SYSTEM_VOICE_PROFILE_ID}-{locale}-{line}-1",
+        "voice_profile_id": SYSTEM_VOICE_PROFILE_ID,
+        "language": locale,
+        "request_category": line,
+        "variant": 1,
+        "text": WAITING_LINE_TEXTS[locale][line],
+        "asset_url": f"{ACKNOWLEDGEMENT_ASSET_ROOT}/{SYSTEM_VOICE_PROFILE_ID}/{locale}/{line}-1.mp3",
+    }

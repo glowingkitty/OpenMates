@@ -3158,6 +3158,24 @@ test.describe('Voice mode through ordinary chat', () => {
     }
   });
 
+  // contract-test: direct surface=gui.web assertions=video-call.waiting.hold-button
+  test('hold button shows Waiting for you with the ready-made line in chat and leaves waiting with Okay, go on.',async({page})=>{
+    test.setTimeout(150_000);await installNativeVoiceInput(page);await observeRealTransport(page);
+    await loginToTestAccount(page,()=>{},async()=>{},{waitForEditor:false});
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
+    await page.getByTestId('voice-call-hold').click();
+    await expect(page.getByTestId('voice-call-waiting')).toHaveText('Waiting for you');
+    await expect(page.getByTestId('voice-call-waiting_start')).toContainText("Okay, I'm waiting.");
+    await page.getByTestId('voice-call-hold').click();
+    await expect(page.getByTestId('voice-call-waiting')).toHaveCount(0);
+    await expect(page.getByTestId('voice-call-waiting_resume')).toContainText('Okay, go on.');
+    // Ready-made lines never start inference or a chat turn.
+    const protocol=await evidence(page);
+    expect(protocol.sent.filter(frame=>['chat_message_added','chat_turn_admit'].includes(frame.type))).toHaveLength(0);
+    await page.getByTestId('voice-call-hangup').click();await assertVoiceInputCleanup(page);
+  });
+
 });
 
 test.describe('First voice call of a just-signed-up account', () => {

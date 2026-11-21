@@ -36,6 +36,13 @@ def isolated_voice_completion_fixture(text: str) -> str | None:
     }.get(text)
 
 
+def isolated_voice_intent_fixture(text: str) -> str | None:
+    """Model-judged waiting intent of known CI microphone transcripts, behind every CI guard."""
+    if not isolated_voice_fixture_enabled():
+        return None
+    return {"Wait a second.": "wait", "I am back.": "resume", "Repeat that.": "repeat"}.get(text)
+
+
 VOICE_RICH_SOURCE_URL = "https://app.dev.openmates.org/store-examples/generate-1.webp"
 
 

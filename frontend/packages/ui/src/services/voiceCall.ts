@@ -20,7 +20,7 @@ import { setActiveVoiceCallId } from './voiceCallOwnership';
 import { callArtifactReferencesInText, type VoiceArtifactReference } from './voiceCallArtifactReferences';
 import { CallAudio } from '../components/videocall/callAudio';
 import { VoiceCallAudioGate } from './voiceCallAudioGate';
-import { recordCallLifecycle } from './voiceCallLifecycle';
+import { recordCallLifecycle, type VoiceCallLifecycleEvent } from './voiceCallLifecycle';
 import {
   forgetEmptyCallCleanup, markEmptyCallCleanupTerminated, noteEmptyCallCleanupCallId, rememberEmptyCallCleanup,
   runEmptyVoiceCallCleanup, scheduleEmptyVoiceCallCleanupRetry, setEmptyCallCleanupLive,
@@ -28,6 +28,7 @@ import {
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { getWorkspaceCacheEpoch } from './workspaceCacheLifecycle';
 import { VoiceCallCuePlayer } from './voiceCallCues';
+import { isWaitingLine, playWaitingLine, replayLastAnswer, waitingLineText } from './voiceCallWaiting';
 import { ensureVoiceCallPrivacyAcknowledgement } from './voiceCallPrivacy';
 import { VoiceCallCamera, type VoiceCallCameraFacing, type VoiceCallVisualSource } from './voiceCallCamera';
 import type { VoiceHeardBoundary } from '../types/chat';
@@ -81,6 +82,10 @@ export interface VoiceCallState {
   assistantGenerating?: boolean;
   /** The call is intact but input is interrupted (page away) or its connection is being restored. */
   connection?: 'paused' | 'reconnecting' | null;
+  /** The assistant waits for the caller (hold button or spoken request); set by the server. */
+  waiting?: boolean;
+  /** Ready-made line of the latest waiting change, shown as chat text. */
+  waitingLine?: { kind: 'waiting_start' | 'waiting_resume'; text: string } | null;
 }
 export interface VoiceCallLiveTranscript {
   messageId: string;
@@ -92,6 +97,7 @@ export interface VoiceCallControllerLike extends Readable<VoiceCallState> {
   start(chatId?: string, onBound?: (chatId: string) => void, draftReady?: Promise<boolean>): Promise<void>;
   submitText(chatId: string, text: string): Promise<boolean>;
   setMuted(muted: boolean): void;
+  setWaiting(waiting: boolean): void;
   setMinimized(minimized: boolean): void;
   setCameraEnabled(enabled: boolean): Promise<void>;
   setScreenShareEnabled(enabled: boolean): Promise<void>;
@@ -333,10 +339,10 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.waveAnimation = requestAnimationFrame(frame);
   }
 
-  private recordLifecycle(type: 'started' | 'ended'): void {
+  private recordLifecycle(type: VoiceCallLifecycleEvent['type']): void {
     const { chatId, callId, activeElapsedSeconds } = this.state;
     if (!chatId || !callId) return;
-    const pending = recordCallLifecycle({ type, chatId, callId, activeElapsedSeconds, occurredAt: Math.floor(Date.now() / 1000) });
+    const pending = recordCallLifecycle({ type, chatId, callId, activeElapsedSeconds, occurredAt: Math.floor(Date.now() / 1000), occurredAtMs: Date.now() });
     if (this.cleanupAttempt?.chatId === chatId) this.cleanupAttempt.lifecycleWrites.push(pending);
     void pending.catch(() => console.warn('[VoiceCall] Call event could not be saved'));
   }
@@ -914,6 +920,21 @@ export class VoiceCallController implements VoiceCallControllerLike {
         // invoke the canonical inference pipeline twice.
         return;
       }
+      case 'waiting': {
+        if (this.state.status !== 'live' || message.call_id !== this.state.callId ||
+            typeof message.active !== 'boolean' || !isWaitingLine(message.line)) return;
+        // Ready-made line: spoken and written locally, never inferred or charged.
+        void assistantSpeechController.stop();
+        this.update({ waiting: message.active, waitingLine: { kind: message.line, text: waitingLineText(message.line) } });
+        void playWaitingLine(message.line);
+        this.recordLifecycle(message.line);
+        return;
+      }
+      case 'repeat_last_answer':
+        if (this.state.status === 'live' && message.call_id === this.state.callId) {
+          void replayLastAnswer(assistantSpeechController).catch(() => {});
+        }
+        return;
       case 'orchestration_turn':
         // The server starts an interpreting turn for updates from chats this chat
         // started, anchored at the newest stored update event. Accept its answer
@@ -1059,6 +1080,12 @@ export class VoiceCallController implements VoiceCallControllerLike {
     this.audio?.setMicEnabled(!muted);
     // The gate clears pending capture and owns the single ordered end marker.
     this.audioGate?.setMuted(muted);
+  }
+
+  /** Hard signal: the server enters or leaves waiting at once and answers with a `waiting` event. */
+  setWaiting(waiting: boolean): void {
+    if (this.state.status !== 'live' || !this.state.callId || waiting === !!this.state.waiting) return;
+    this.send({ type: 'hold', call_id: this.state.callId, active: waiting });
   }
 
   setMinimized(minimized: boolean): void { this.update({ minimized }); }

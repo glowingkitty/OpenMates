@@ -28,7 +28,7 @@
   const duration = $derived(`${String(Math.floor(state.activeElapsedSeconds / 60)).padStart(2, '0')}:${String(state.activeElapsedSeconds % 60).padStart(2, '0')}`);
   const statusKey = $derived(state.status === 'connecting' ? 'connecting' :
     state.connection === 'reconnecting' ? 'reconnecting' : state.connection === 'paused' ? 'paused' :
-    state.userSpeaking ? 'live' : state.assistantSpeaking ? 'assistant_speaking' : state.billingActivity?.processing ? 'working' :
+    state.waiting ? 'waiting' : state.userSpeaking ? 'live' : state.assistantSpeaking ? 'assistant_speaking' : state.billingActivity?.processing ? 'working' :
     state.muted ? 'muted' : state.inputIdle && state.billingActivity?.inputListening === false &&
       state.billingActivity.processing === false ? 'input_idle' : 'live');
 </script>
@@ -55,9 +55,10 @@
         </button>
       {/if}
     </div>
-    <div class="call-center" class:inactive={!activityActive}>
+    <div class="call-center" class:inactive={!activityActive} class:waiting={state.waiting}>
       {#if state.status === 'connecting'}<span class="connecting-spinner" data-testid="voice-call-connecting" aria-hidden="true"></span>{/if}
       <strong data-testid="voice-call-timer">{duration}</strong>
+      {#if state.waiting}<span class="waiting-label" data-testid="voice-call-waiting">{$text('voicecall.waiting')}</span>{/if}
       <div class="wave">
         <VoiceCallWaveform levels={state.audioLevels} />
         <button class="round microphone" class:muted={state.muted} data-testid="voice-call-mute" data-activity-active={activityActive}
@@ -69,12 +70,18 @@
       </div>
     </div>
     <div class="edge right">
+      <button class="round hold" class:held={state.waiting} data-testid="voice-call-hold"
+        aria-label={$text(state.waiting ? 'voicecall.resume_hold' : 'voicecall.hold')}
+        aria-pressed={!!state.waiting} disabled={state.status !== 'live'} onclick={() => controller.setWaiting(!state.waiting)}>
+        <span class="clickable-icon icon_pause" aria-hidden="true"></span>
+      </button>
       <button class="round hangup" data-testid="voice-call-hangup" aria-label={$text('voicecall.hangup')} onclick={() => controller.hangup()}>
         <span class="clickable-icon icon_call" aria-hidden="true"></span>
       </button>
       {#if fixed && onCloseChat}<button class="round" data-testid="voice-call-close-chat" aria-label={$text('voicecall.close_chat')} onclick={onCloseChat}><span class="clickable-icon icon_close" aria-hidden="true"></span></button>{/if}
     </div>
     <span class="sr-only" id="voice-call-accessible-status" role="status" data-testid="voice-call-status"><span data-testid="voice-call-status-text">{$text(`voicecall.${statusKey}`)}</span></span>
+    {#if state.waitingLine}<span class="sr-only" role="status" data-testid="voice-call-waiting-line">{state.waitingLine.text}</span>{/if}
     {#if active && state.screenSharing}
       <div class="screen-share-indicator" data-testid="voice-call-screen-share-indicator" role="status">
         <span class="clickable-icon icon_screen_share small" aria-hidden="true"></span>
@@ -121,11 +128,17 @@
   .fixed .wave { width:clamp(2.5rem,20vw,22rem); }
   .voice-call-bar .microphone { position:absolute; inset-block-start:50%; inset-inline-start:50%; transform:translate(-50%,-50%); z-index:1; }
   .voice-call-bar .microphone.muted { color:var(--color-button-primary); }
+  .icon_pause { mask-image:url("@openmates/ui/static/icons/pause.svg"); -webkit-mask-image:url("@openmates/ui/static/icons/pause.svg"); }
+  .voice-call-bar .hold.held { background:color-mix(in srgb,var(--color-font-button) 40%,transparent); }
+  .waiting-label { font-size:var(--font-size-small); font-weight:var(--font-weight-bold); white-space:nowrap; }
   .microphone-slash { position:absolute; width:1.5rem; height:.19rem; border-radius:var(--radius-full); background:currentColor; transform:rotate(-45deg); }
   .microphone:disabled { cursor:default; }
   .connecting-spinner { width:1rem; height:1rem; flex:none; border:2px solid color-mix(in srgb,currentColor 35%,transparent); border-top-color:currentColor; border-radius:var(--radius-full); animation:spin 1s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
   @media(max-width:700px) { .voice-call-bar { grid-template-columns:auto minmax(0,1fr) auto; padding:var(--spacing-4); gap:var(--spacing-2); } .call-center { min-width:0; gap:var(--spacing-2); padding-inline:0; } .wave { width:clamp(2.75rem,12vw,4rem); min-width:2.75rem; flex:0 1 auto; } .edge { gap:var(--spacing-2); } .fixed .round { width:2.25rem; height:2.25rem; padding:var(--spacing-3); } .fixed .wave { width:clamp(2.5rem,16vw,4rem); } }
+  /* Narrow bars: while waiting, "Waiting for you" takes the timer's place and wraps onto two short lines,
+     so it never runs into the mic even with the camera and screen buttons shown. */
+  @media(max-width:700px) { .waiting-label { flex:0 1 auto; min-width:0; white-space:normal; line-height:1.1; text-align:center; } .call-center.waiting [data-testid="voice-call-timer"] { display:none; } }
   @media(prefers-reduced-motion:reduce) { .call-center strong { transition:none; } .connecting-spinner { animation:none; } }
 </style>

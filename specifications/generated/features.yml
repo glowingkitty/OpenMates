@@ -1318,7 +1318,7 @@ features:
       - backend/tests/test_assistant_speech_streaming.py
       - backend/tests/test_assistant_speech_asset_publication.py
       - backend/tests/test_assistant_speech_projection.py
-      unit_test_files: 19
+      unit_test_files: 20
     sdk_npm:
       status: not_planned
       source: intent
@@ -10013,18 +10013,18 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 54
+  assertions: 56
   surfaces:
     web:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 29
+        passing: 30
         failing: 6
-        not_run: 9
+        not_run: 10
         missing: 11
-        counted: 55
+        counted: 57
       failing_tests:
       - frontend/apps/web_app/tests/components/voice-call-audio-gate.spec.ts › keeps continuous upload after an actual model
         fetch failure
@@ -10060,6 +10060,7 @@ features:
       - frontend/apps/web_app/tests/components/voice-call-privacy.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-screen-share.spec.ts
       - frontend/apps/web_app/tests/components/voice-call-speech-rendering.spec.ts
+      - frontend/apps/web_app/tests/components/voice-call-waiting.spec.ts
       - frontend/apps/web_app/tests/voice-call-ambient-sounds.spec.ts
       - frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
       - frontend/apps/web_app/tests/voice-call-real.spec.ts
@@ -10071,7 +10072,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/voiceCallMessages.test.ts
       - frontend/packages/ui/src/components/videocall/callAudio.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
-      unit_test_files: 65
+      unit_test_files: 66
     apple:
       status: partial
       source: tests
@@ -10080,8 +10081,8 @@ features:
         passing: 30
         failing: 0
         not_run: 0
-        missing: 16
-        counted: 46
+        missing: 18
+        counted: 48
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/NativeVoiceCallControlsUITests.swift
@@ -10152,11 +10153,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 11
+        passing: 13
         failing: 0
         not_run: 5
         missing: 0
-        counted: 16
+        counted: 18
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -10165,7 +10166,7 @@ features:
       - backend/tests/test_voice_status.py
       - backend/tests/test_preprocessing_voice_delivery.py
       - backend/tests/test_voice_call_instructions.py
-      unit_test_files: 24
+      unit_test_files: 26
     sdk_npm:
       status: not_planned
       source: intent

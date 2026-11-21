@@ -1071,7 +1071,7 @@ specifications:
     version: 18
     status: draft
     path: features/video-call
-    fingerprint: 51365b7bccd57a06e3e2950b6e13d546ae64379a9a020a831d1b9b93190c8bd0
+    fingerprint: 16bb0dd6c4bcc93827ff1e2dddb21b0fecd347cdb5715ead2d09466fe8c52fac
     required_applies_to:
     - gui.web
     - gui.apple
@@ -15191,7 +15191,23 @@ assertions:
     specification: feature.video-call@18
     specification_id: feature.video-call
     type: invariant
-    fingerprint: 64da7694ee63d7a8e3db161e0cf6c53cafb8bffb5c3eaad0c1c4b8d0604aed88
+    fingerprint: 8d1a291b6003895b3f1d70731a9120c52ed265d6c4f617efb1b4f00a770b6e33
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  video-call.waiting.hold-button:
+    specification: feature.video-call@18
+    specification_id: feature.video-call
+    type: behavior
+    fingerprint: 1621d2a206f9322c41ccb0dcfe462dad738980e02827ef0f29ff1ef56867b042
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  video-call.waiting.spoken-intent-and-merge:
+    specification: feature.video-call@18
+    specification_id: feature.video-call
+    type: invariant
+    fingerprint: c37c5be2b087500c2792c75907bd4c6f9c55aa7e12f985a200f8ca0c87b06ce1
     required_applies_to:
     - gui.web
     - gui.apple
