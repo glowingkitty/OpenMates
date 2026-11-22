@@ -21,6 +21,7 @@ const {
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { expandActivity } = require('./helpers/assistant-activity');
+const { waitForContextSyncComplete } = require('./helpers/chat-hydration');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 const { naturalProjectName } = require('./helpers/project-names');
 
@@ -380,6 +381,9 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     // A fresh page load of the app chat (by id: the chat list is closed at laptop width, and
     // the start screen shows only some recent chats).
     await page.goto(`${BASE_URL}/#chat-id=${encodeURIComponent(appChatId)}`, { waitUntil: 'domcontentloaded' });
+    // The chat re-renders its messages while the fresh load syncs; a fullscreen opened before
+    // that closes again (run on 2f8cabd: Start preview detached, no preview view left open).
+    await waitForContextSyncComplete(page, testInfo);
     // The passing build published the Project app card; its preview runs in the same Project sandbox.
     const app = page.locator('[data-testid="embed-preview"][data-skill-id="application"]'
       + ':has([data-testid="application-preview-project-folder"])').last();
