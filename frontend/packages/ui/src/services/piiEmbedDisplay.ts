@@ -35,3 +35,13 @@ export function displayPIIEmbedText(text: string, mappings: readonly PIIMapping[
   if (revealed && mappings.length) return aliasEnhancedPlaceholders(restorePIIInText(normalized, [...mappings]));
   return aliasEnhancedPlaceholders(replacePIIOriginalsWithPlaceholders(normalized, [...mappings]));
 }
+
+/**
+ * True when the embed text carries privacy data the display rewrites (placeholders or
+ * mapped originals). Server-rendered page images show such text verbatim, so callers
+ * render the processed HTML instead.
+ */
+export function embedTextHasPIIDisplay(text: string, mappings: readonly PIIMapping[]): boolean {
+  if (!text) return false;
+  return displayPIIEmbedText(text, mappings, false) !== text;
+}

@@ -30,7 +30,7 @@
     countDocWords
   } from './docsEmbedContent';
   import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
-  import { displayPIIEmbedText } from '../../../services/piiEmbedDisplay';
+  import { displayPIIEmbedText, embedTextHasPIIDisplay } from '../../../services/piiEmbedDisplay';
   import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
   import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { hydrateWikiLinks } from '../../../utils/embedLinkUtils';
@@ -128,7 +128,6 @@
   let screenshotS3Keys = $derived(localScreenshotS3Keys);
   let aesKey = $derived(localAesKey);
   let previewPageUrls = $derived(localPreviewPageUrls);
-  let displayedFirstPageUrl = $derived(firstPageUrl || previewPageUrls?.['1']);
   
   // Subscribe to the global embed PII store to get the current chat's PII state.
   // This allows the preview to reactively apply PII masking without needing
@@ -155,6 +154,11 @@
    * Apply PII masking to the raw HTML string before sanitizing for preview.
    * Mirrors the same logic in DocsEmbedFullscreen.
    */
+  // Server page images show privacy placeholders verbatim; such documents render from HTML,
+  // where placeholders become short labels (or originals when revealed).
+  let htmlHasPII = $derived(embedTextHasPIIDisplay(htmlContent, embedPIIState.mappings));
+  let displayedFirstPageUrl = $derived(htmlHasPII ? undefined : (firstPageUrl || previewPageUrls?.['1']));
+
   let piiProcessedHtml = $derived.by(() => {
     const { mappings, revealed } = embedPIIState;
     return displayPIIEmbedText(htmlContent, mappings, revealed);
@@ -375,7 +379,7 @@
             <img class="doc-page-image" src={displayedFirstPageUrl} alt={displayTitle} />
           </div>
         </div>
-      {:else if sanitizedHtml && !screenshotS3Keys}
+      {:else if sanitizedHtml && (!screenshotS3Keys || htmlHasPII)}
         <!--
           A4-like document preview using CSS transform: scale().
           We render the document at full size (794px wide, same as fullscreen — A4 at 96 DPI)

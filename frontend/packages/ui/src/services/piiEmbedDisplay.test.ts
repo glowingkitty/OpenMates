@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { displayPIIEmbedText } from './piiEmbedDisplay';
+import { displayPIIEmbedText, embedTextHasPIIDisplay } from './piiEmbedDisplay';
 import type { PIIMapping } from '../types/chat';
 
 const nonce = 'a7e44be046534152';
@@ -27,5 +27,16 @@ describe('displayPIIEmbedText', () => {
     expect(displayPIIEmbedText(`[PERSON_NAME_3_${nonce}] [PHONE_1_234]`, mappings, false)).toBe('[PERSON_NAME_1] [PHONE_1]');
     expect(displayPIIEmbedText(`[PERSON_NAME_3_${nonce}]`, [], true)).toBe('[PERSON_NAME_1]');
     expect(displayPIIEmbedText('[PHONE_9_234]', mappings, true)).toBe('[PHONE_9_234]');
+  });
+});
+
+describe('embedTextHasPIIDisplay', () => {
+  // contract-test: supporting surface=gui.web assertions=chats.titles.first-message-fallback
+  it('flags text with placeholders or mapped originals, not plain text', () => {
+    expect(embedTextHasPIIDisplay(`<p>To [PERSON_NAME_3_${nonce}]</p>`, [])).toBe(true);
+    expect(embedTextHasPIIDisplay('<p>Call [PHONE_1_234]</p>', mappings)).toBe(true);
+    expect(embedTextHasPIIDisplay('<p>Dear Maria Weber</p>', mappings)).toBe(true);
+    expect(embedTextHasPIIDisplay('<p>Heating repair by 30 November</p>', mappings)).toBe(false);
+    expect(embedTextHasPIIDisplay('', mappings)).toBe(false);
   });
 });
