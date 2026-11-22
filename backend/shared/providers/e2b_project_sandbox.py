@@ -29,6 +29,9 @@ PROJECT_SANDBOX_DIR = "/home/user/project"
 PROJECT_SANDBOX_IDLE_TIMEOUT_SECONDS = 15 * 60
 PROJECT_SANDBOX_METADATA = {"openmates_kind": "project_sandbox"}
 DAEMON_READY_TIMEOUT_SECONDS = 30.0
+# Sandbox creation retries when the shared E2B account is at its concurrent-sandbox limit.
+CREATE_RATE_LIMIT_ATTEMPTS = 4
+CREATE_RATE_LIMIT_BACKOFF_SECONDS = 3.0
 DEFAULT_CALL_TIMEOUT_SECONDS = 60.0
 
 
@@ -119,6 +122,12 @@ def _sdk_errors() -> tuple[type[BaseException], ...]:
             httpx.HTTPError)
 
 
+def _is_rate_limit(exc: BaseException) -> bool:
+    from e2b.exceptions import RateLimitException
+
+    return isinstance(exc, RateLimitException)
+
+
 async def _api_key(secrets_manager: Any) -> str:
     """The E2B API key; a missing key is a sandbox error, so callers keep the device path."""
     try:
@@ -150,14 +159,20 @@ async def create_project_sandbox(
 
     api_key = await _api_key(secrets_manager)
     bearer = secrets.token_urlsafe(32)
-    try:
-        sandbox = await AsyncSandbox.create(
-            template=template, api_key=api_key, timeout=PROJECT_SANDBOX_IDLE_TIMEOUT_SECONDS,
-            metadata=dict(PROJECT_SANDBOX_METADATA), secure=True, allow_internet_access=True,
-            network={"allow_public_traffic": False}, lifecycle={"on_timeout": "kill"},
-        )
-    except _sdk_errors() as exc:
-        raise ProjectSandboxError("create_failed", type(exc).__name__) from exc
+    for attempt in range(CREATE_RATE_LIMIT_ATTEMPTS):
+        try:
+            sandbox = await AsyncSandbox.create(
+                template=template, api_key=api_key, timeout=PROJECT_SANDBOX_IDLE_TIMEOUT_SECONDS,
+                metadata=dict(PROJECT_SANDBOX_METADATA), secure=True, allow_internet_access=True,
+                network={"allow_public_traffic": False}, lifecycle={"on_timeout": "kill"},
+            )
+            break
+        except _sdk_errors() as exc:
+            # The account's concurrent-sandbox limit is shared with CI runners; a slot frees up within seconds.
+            if not _is_rate_limit(exc) or attempt + 1 == CREATE_RATE_LIMIT_ATTEMPTS:
+                raise ProjectSandboxError("create_failed", type(exc).__name__) from exc
+            logger.warning("Project sandbox create rate-limited; retrying (attempt %s)", attempt + 1)
+            await asyncio.sleep(CREATE_RATE_LIMIT_BACKOFF_SECONDS * (attempt + 1))
     connection = ProjectSandboxConnection(
         sandbox_id=sandbox.sandbox_id, sandbox_host=sandbox.get_host(PROJECT_SANDBOX_PORT),
         traffic_access_token=getattr(sandbox, "traffic_access_token", None) or "",

@@ -53,7 +53,9 @@ async def run_project_tool_in_sandbox(
         handle = await service.ensure_ready(user_id=user_id, chat_id=chat_id, project_id=project_id,
                                             team_id=team_id)
     except ProjectSandboxUnavailable as exc:
-        logger.warning("%s Project sandbox unavailable: %s", log_prefix, exc.reason)
+        cause = exc.__cause__
+        logger.warning("%s Project sandbox unavailable: %s (%s)", log_prefix, exc.reason,
+                       getattr(cause, "detail", None) or getattr(cause, "code", None) or "no detail")
         return None
     except (ProjectSandboxError, HTTPException) as exc:
         logger.warning("%s Project sandbox setup failed: %s", log_prefix,

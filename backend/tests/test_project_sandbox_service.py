@@ -309,6 +309,60 @@ async def test_daemon_starts_as_root_with_chat_and_team_env(monkeypatch):
     assert "OMSH_TEAM_ID" not in commands.daemon_starts()[1]["envs"]
 
 
+# contract-test: direct surface=rest_api assertions=projects.sandbox.jobs
+@pytest.mark.asyncio
+async def test_create_waits_out_the_shared_sandbox_limit_but_not_other_errors(monkeypatch):
+    """Recipe proof 22 Nov: the first file of a turn found no sandbox because the E2B account was at its limit."""
+    monkeypatch.setenv(provider.PROJECT_SANDBOX_TEMPLATE_ENV, "tmpl")
+    commands = FakeDaemonCommands()
+    sandbox = SimpleNamespace(sandbox_id="sb9", commands=commands, get_host=lambda port: "h.example.org",
+                              traffic_access_token="t")
+
+    class RateLimited(Exception):
+        pass
+
+    class Refused(Exception):
+        pass
+
+    answers: list = [RateLimited(), RateLimited(), sandbox]
+    sleeps: list[float] = []
+
+    async def create(**kwargs):
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    async def key(_):
+        return "k"
+
+    async def hello(client):
+        return {"sandbox_public_key": "pk"}
+
+    async def no_sleep(seconds):
+        sleeps.append(seconds)
+
+    import sys
+    import types
+
+    monkeypatch.setitem(sys.modules, "e2b", types.SimpleNamespace(AsyncSandbox=types.SimpleNamespace(create=create)))
+    monkeypatch.setattr(provider, "get_e2b_api_key_async", key)
+    monkeypatch.setattr(provider, "_wait_for_hello", hello)
+    monkeypatch.setattr(provider, "_sdk_errors", lambda: (RateLimited, Refused))
+    monkeypatch.setattr(provider, "_is_rate_limit", lambda exc: isinstance(exc, RateLimited))
+    monkeypatch.setattr(provider.asyncio, "sleep", no_sleep)
+    connection, _ = await provider.create_project_sandbox(project_id="p1", job_id="j1", chat_id="c1")
+    assert connection.sandbox_id == "sb9" and len(sleeps) == 2
+    # Any other SDK error fails at once, and the limit is not waited out forever.
+    answers[:] = [Refused()]
+    with pytest.raises(ProjectSandboxError) as refused:
+        await provider.create_project_sandbox(project_id="p1", job_id="j1", chat_id="c1")
+    assert refused.value.code == "create_failed" and refused.value.detail == "Refused"
+    answers[:] = [RateLimited()] * provider.CREATE_RATE_LIMIT_ATTEMPTS
+    with pytest.raises(ProjectSandboxError):
+        await provider.create_project_sandbox(project_id="p1", job_id="j1", chat_id="c1")
+
+
 # contract-test: direct surface=rest_api assertions=projects.keys.sandbox-sealed-handover
 @pytest.mark.asyncio
 async def test_sandbox_where_user_can_still_become_root_is_killed_before_the_daemon(monkeypatch):

@@ -8519,7 +8519,30 @@ async def _consume_main_processing_stream(
                                                         f"for {target_embed_id}; creating a new embed instead."
                                                     )
 
-                                            if replacement_applied:
+                                            # A file of a cloud Project chat that arrived as one complete block:
+                                            # commit it as the Project file and reference that embed (plan
+                                            # project-files-as-chat-code-embeds).
+                                            complete_fence_path = (
+                                                project_file_path(current_code_filename)
+                                                if not replacement_applied and fence_project_focus(request_data)
+                                                else None
+                                            )
+                                            complete_fence_file = (
+                                                await commit_code_fence(
+                                                    request_data, path=complete_fence_path, content=code_content,
+                                                    cache_service=cache_service, directus_service=directus_service,
+                                                    log_prefix=log_prefix,
+                                                )
+                                                if complete_fence_path else None
+                                            )
+                                            if complete_fence_file:
+                                                chunk = code_reference(complete_fence_file["embed_id"])
+                                                logger.info(
+                                                    f"{log_prefix} [PROJECT_FENCE] Committed complete code block as Project "
+                                                    f"file embed {complete_fence_file['embed_id']} "
+                                                    f"(created={complete_fence_file['created']})"
+                                                )
+                                            if replacement_applied or complete_fence_file:
                                                 in_code_block = False
                                                 current_code_language = ""
                                                 current_code_filename = None
