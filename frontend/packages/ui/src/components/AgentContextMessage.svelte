@@ -28,7 +28,11 @@
     savingJob = jobId;
     error = '';
     try { await onSaveJob(jobId); savedJobs = [...savedJobs, jobId]; }
-    catch { error = $text('rules.authoring_save_failed'); }
+    catch (saveError) {
+      // The card shows only a short retry hint; the cause goes to the console for diagnosis.
+      console.error('[ProjectAuthoring] saving the draft failed', saveError);
+      error = $text('rules.authoring_save_failed');
+    }
     finally { savingJob = null; }
   }
 

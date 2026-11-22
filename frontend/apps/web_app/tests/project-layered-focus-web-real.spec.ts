@@ -316,7 +316,7 @@ test.describe('Layered focuses over the Project focus (real inference, dev only)
     });
     // Content-free counts from the send path show where a stored Focus drops out.
     page.on('console', (message) => {
-      if (message.text().startsWith('[ProjectFocusContext]')) console.log(message.text());
+      if (/^\[(ProjectFocusContext|ProjectAuthoring)\]/.test(message.text())) console.log(message.text());
     });
     await loginToTestAccount(page);
     let projectId = '';
