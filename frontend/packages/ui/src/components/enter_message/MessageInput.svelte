@@ -2446,7 +2446,12 @@
                 lastPIIText = '';
                 void runPIIDetectionImmediate(editor);
             }
-            if ((state.status !== 'error' && !state.fallbackReason) || !cachedPIISettings?.masterEnabled
+            // A preview that outran its budget while the model is still downloading
+            // is not "unavailable": the download continues, the draft is rechecked when
+            // it finishes and a send waits for the model. Only a failed or stalled
+            // model gets the notice.
+            const unavailable = state.status === 'error' || (!!state.fallbackReason && state.status !== 'loading');
+            if (!unavailable || !cachedPIISettings?.masterEnabled
                 || !isWebPIIModelEnabled() || !claimWebPIIFallbackNotice()) return;
             notificationStore.addNotificationWithOptions('info', {
                 message: get(text)('enter_message.pii.basic_detection_notice'),

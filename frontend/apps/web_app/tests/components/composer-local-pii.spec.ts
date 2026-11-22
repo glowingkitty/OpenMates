@@ -350,6 +350,26 @@ test.describe('Local PII composer integration', () => {
     await expect(notice).toHaveCount(1);
   });
 
+  // A first visit downloads the model for longer than one preview budget. That
+  // is not a failure: no "unavailable" notice, basic checks meanwhile.
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
+  test('shows no fallback notice while a slow first model download is still running', async ({ page, context }, testInfo) => {
+    await context.route('**/pii-runtime/redact-4.1.0-litert-2.6.0/worker.js', route => route.fulfill({
+      contentType: 'application/javascript',
+      body: "self.onmessage = ({data}) => { const reply = () => self.postMessage({id: data.id, items: []}); if (data.kind === 'load') setTimeout(reply, 6000); else reply(); };",
+    }));
+    const editor = await openComposer(page);
+    await fillDraft(editor, 'Our customer Nadia Rahman needs help. Reply to protected.reference@example.net.');
+    const highlights = page.getByTestId('pii-highlight');
+    await expect(highlights.filter({ hasText: 'protected.reference@example.net' })).toHaveAttribute('data-pii-type', 'EMAIL');
+    const notice = page.getByTestId('notification').filter({ hasText: FALLBACK_NOTICE });
+    // Past the 2.5 s preview budget and past the end of the slow download.
+    await page.waitForTimeout(8000);
+    await expect(notice).toHaveCount(0);
+    await expect(highlights.filter({ hasText: 'protected.reference@example.net' })).toHaveAttribute('data-pii-type', 'EMAIL');
+    await testInfo.attach('slow-first-download-no-notice', { body: await page.screenshot(), contentType: 'image/png' });
+  });
+
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
   test('keeps basic checks and exclusions during model failure and enhanced retry', async ({ page, context }) => {
     test.setTimeout(150_000);

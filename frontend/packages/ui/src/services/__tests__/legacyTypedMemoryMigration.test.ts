@@ -67,6 +67,8 @@ describe('legacy typed memory migration', () => {
     expect(await deriveMemoryDocumentId('entry-1')).not.toBe(await deriveMemoryDocumentId('entry-2'));
     const fields = parseRuleDocument(buildMemoryDocumentFromLegacy(travel, 'Airlines the user prefers.'));
     expect(fields.title).toBe('Preferred airlines: preferred airlines');
+    const interests: LegacyTypedEntry = { id: 'entry-5', appId: 'openmates', itemType: 'interests', itemKey: 'interests.Exploring cities and nature', value: { topic: 'Cities' } };
+    expect(parseRuleDocument(buildMemoryDocumentFromLegacy(interests, '')).title).toBe('Interests: Exploring cities and nature');
     expect(fields.load_mode).toBe('ask_first');
     expect(fields.when_to_use).toBe('Airlines the user prefers.');
     expect(fields.body).toContain('Lufthansa');
