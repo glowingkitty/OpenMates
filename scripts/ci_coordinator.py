@@ -214,16 +214,19 @@ def prepared_web_rust_core(job: dict) -> bool:
 def _speedups_input(job: dict) -> dict:
     """`ci_speedups` workflow input for this job's owner (scripts/ci_speedups.py); none when all are off.
 
-    `prepared-rust-core` is kept only when the job's preparation key carries the
-    web Rust core bit, so workflow and key always agree.
+    `prepared-rust-core` is set exactly when the job's preparation key carries the
+    web Rust core bit (whatever the switch says now), so workflow and key always agree.
     """
     try:
         from scripts import ci_speedups
     except ModuleNotFoundError:
         import ci_speedups
     names = set(ci_speedups.enabled(str(job.get("owner") or "")))
-    if PREPARED_RUST_CORE in names and not prepared_web_rust_core(job):
-        names.discard(PREPARED_RUST_CORE)
+    # The stored key decides alone: a switch read elsewhere or changed after submit
+    # must never make the workflow build something other than what the key promises.
+    names.discard(PREPARED_RUST_CORE)
+    if prepared_web_rust_core(job):
+        names.add(PREPARED_RUST_CORE)
     value = ",".join(sorted(names))
     return {"ci_speedups": value} if value else {}
 

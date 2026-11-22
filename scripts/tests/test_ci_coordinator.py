@@ -1398,6 +1398,25 @@ def test_prepared_rust_core_switch_change_after_submit_cannot_mismatch(tmp_path,
     assert _speedups_input(jobs[0]) == {"ci_speedups": "wasm-cache"}
 
 
+def test_prepared_rust_core_key_bit_wins_when_dispatch_sees_switch_off(tmp_path, monkeypatch):
+    """Canary 22 Nov: submit read a worktree switch file, the daemon read none."""
+    from scripts.ci_coordinator import _speedups_input
+
+    _, jobs, producer = _prepared_rust_core_submission(
+        tmp_path, monkeypatch, {"owner": ["prepared-rust-core"]}, web_rust_core=True
+    )
+    (tmp_path / "speedups.json").write_text("{}")
+    assert _speedups_input(producer) == {"ci_speedups": "prepared-rust-core"}
+    assert _speedups_input(jobs[0]) == {"ci_speedups": "prepared-rust-core"}
+
+
+def test_speedup_switch_lives_in_the_main_checkout(monkeypatch):
+    from scripts import ci_speedups
+
+    monkeypatch.delenv("OPENMATES_CI_SPEEDUPS_FILE", raising=False)
+    assert ".openmates-agent-worktrees" not in str(ci_speedups.switch_path())
+
+
 def test_prepared_rust_core_never_shares_preparation_with_off_key(tmp_path, monkeypatch):
     import json as _json
 

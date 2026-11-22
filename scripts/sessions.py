@@ -12222,6 +12222,8 @@ def _validate_specification_commit_message(files: list[str], message: str) -> No
         raise RuntimeError(
             "Specification-governed commit is missing required trailers: "
             + ", ".join(missing)
+            + ". Changed bundles: "
+            + ", ".join(sorted({str(Path(path).parent.relative_to("specifications")) for path in governed}))
             + '. Use repeatable one-line arguments such as --trailer "Specifications: feature.example@1" '
             + '--trailer "Assertions: example.behavior" --trailer "Plan: example" '
             + '--trailer "Specification-Impact: implementation-only"; do not use ANSI-C shell quoting.'
@@ -12918,6 +12920,18 @@ def _auto_track_lane_untracked_files(sid: str, root: Path, modified: list[str]) 
     return _record_session_tracked_files(sid, modified, newly, "new lane worktree file(s)")
 
 
+def _auto_track_worktree_dirty_files(
+    sid: str, root: Path, dirty: set[str], modified: list[str], exclude: set[str]
+) -> list[str]:
+    """Track every dirty file of the session's own managed worktree (Bash and sub-agent edits too)."""
+    try:
+        from scripts.lane_deploy_scope import dirty_session_worktree_files
+    except ModuleNotFoundError:
+        from lane_deploy_scope import dirty_session_worktree_files
+    newly = [path for path in dirty_session_worktree_files(root, dirty, modified) if path not in exclude]
+    return _record_session_tracked_files(sid, modified, newly, "dirty worktree file(s)")
+
+
 def _require_tracked_deploy_files(dirty_but_untracked, file_tracking, allow_untracked: bool) -> None:
     """Stop a deploy that would silently leave dirty files out of the commit.
 
@@ -13034,6 +13048,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             modified = session.get("modified_files", [])
             worktree_metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
     dirty_files = _get_dirty_files(checkout_root=checkout_root)
+    if (worktree_metadata and not use_staged and not getattr(args, "only", None)
+            and is_valid_managed_worktree_path(checkout_root)):
+        modified = _auto_track_worktree_dirty_files(sid, checkout_root, dirty_files, modified, exclude)
+        session = {**session, "modified_files": modified}
     try:
         to_commit, selector = _resolve_deploy_selection(
             session,
@@ -13049,11 +13067,12 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
+    # Deterministic problems are collected and reported together, so one retry fixes all of them.
+    preflight_problems: list[str] = []
     try:
         _preflight_deploy_commit_message(args, session, to_commit)
     except RuntimeError as exc:
-        print(f"WORKTREE DEPLOY FAILED — {exc}", file=sys.stderr)
-        sys.exit(1)
+        preflight_problems.append(str(exc))
     manifest = _build_deploy_manifest(sid, session, to_commit, selector=selector)
     expected_manifest_id = str(getattr(args, "expected_manifest_id", "") or "")
     if expected_manifest_id and manifest["manifest_id"] != expected_manifest_id:
@@ -13099,9 +13118,23 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         from lane_deploy_scope import omitted_only_files, omitted_only_message
     omitted = omitted_only_files(selector, to_commit, dirty_files, modified, exclude)
     if omitted:
-        print(omitted_only_message(sid, omitted), file=sys.stderr)
-        sys.exit(1)
+        preflight_problems.append(omitted_only_message(sid, omitted))
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
+    if (preflight_problems and dirty_but_untracked and to_commit and is_control_plane_repo
+            and not getattr(args, "allow_untracked", False)):
+        preflight_problems.append(
+            "Dirty files NOT tracked by this session (they would not be committed): "
+            + ", ".join(sorted(dirty_but_untracked))
+            + ". Track them (sessions.py track --session <ID> --file <path>) or pass --allow-untracked."
+        )
+    if preflight_problems:
+        print(
+            f"WORKTREE DEPLOY FAILED — {len(preflight_problems)} problem(s); fix all of them, then retry once:",
+            file=sys.stderr,
+        )
+        for number, problem in enumerate(preflight_problems, 1):
+            print(f"{number}. {problem}", file=sys.stderr)
+        sys.exit(1)
 
     if not is_control_plane_repo:
         try:

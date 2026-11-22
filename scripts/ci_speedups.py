@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -34,9 +35,25 @@ KNOWN = frozenset({"wasm-cache", "browser-cache", "prepared-rust-core"})
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def canonical_root(root: Path = ROOT) -> Path:
+    """The main checkout, also when this runs from a linked worktree.
+
+    The coordinator daemon runs in the main checkout; a worktree-local switch
+    file would make a chat's submit and the daemon's dispatch disagree.
+    """
+    try:
+        common = subprocess.run(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            cwd=root, capture_output=True, text=True, check=True, timeout=30,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return root
+    return Path(common).parent if common else root
+
+
 def switch_path() -> Path:
     override = os.environ.get("OPENMATES_CI_SPEEDUPS_FILE")
-    return Path(override) if override else ROOT / "logs" / "ci-coordinator" / "speedups.json"
+    return Path(override) if override else canonical_root() / "logs" / "ci-coordinator" / "speedups.json"
 
 
 def _load(path: Path) -> dict:
