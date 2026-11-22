@@ -196,6 +196,30 @@ async function waitForTurn(page: Page): Promise<void> {
   await expect(generatedBy).toContainText(MODEL_NAME);
 }
 
+/** The shown (selected) test-result card: hidden carousel slides keep their card in the DOM. */
+function shownTestResult(page: Page): Locator {
+  return page.locator('[data-testid="embed-preview"][data-skill-id="test_result"]'
+    + ':not(.embed-preview-large-overlay--hidden *):not(.embed-preview-large-content--hidden *)').last();
+}
+
+/** Select the newest test run with at least one passed test; null when no run passed. */
+async function selectPassingTestResult(page: Page): Promise<Locator | null> {
+  const passed = /\b[1-9]\d*\s*Passed\b/;
+  const carousel = page.locator('[data-testid="embed-preview-large"]')
+    .filter({ has: page.locator('[data-skill-id="test_result"]') }).last();
+  const dots = (await carousel.count()) ? carousel.getByRole('tab') : null;
+  const total = dots ? await dots.count() : 0;
+  for (let index = Math.max(total - 1, 0); index >= 0; index -= 1) {
+    if (dots && total) {
+      await dots.nth(index).click();
+      await page.waitForTimeout(500);
+    }
+    const card = shownTestResult(page);
+    if (passed.test(await card.innerText({ timeout: 5_000 }).catch(() => ''))) return card;
+  }
+  return null;
+}
+
 async function openProject(page: Page): Promise<void> {
   await page.getByTestId('projects-nav-link').click();
   await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 60_000 });
@@ -312,8 +336,14 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     await waitForTurn(page);
     await expandActivity(page);
     await shot(page, testInfo, 'laptop-03-test-turn');
-    const card = page.locator('[data-testid="embed-preview"][data-skill-id="test_result"]').last();
-    await expect(card, 'test result card in chat').toBeVisible({ timeout: 90_000 });
+    await expect(page.locator('[data-testid="embed-preview"][data-skill-id="test_result"]').last(),
+      'test result card in chat').toBeVisible({ timeout: 90_000 });
+    // The model may rerun a test after a failed attempt; several runs share one carousel whose
+    // slides are stacked in place. Select the newest run that passed (the one the reply commits
+    // after) by its dot, so the click below opens that run and not slide 1.
+    const card = await selectPassingTestResult(page);
+    expect(card, 'a recorded test run that passed').not.toBeNull();
+    if (!card) return;
     await card.evaluate((el: Element) => el.scrollIntoView({ block: 'center' }));
     await page.waitForTimeout(500);
     await shot(page, testInfo, 'laptop-04-test-result-card');
