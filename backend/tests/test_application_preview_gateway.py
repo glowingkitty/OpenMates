@@ -29,6 +29,7 @@ from backend.tests.test_application_preview_config import FakeCache, _user
 
 
 @pytest.mark.anyio
+# contract-test: infrastructure
 async def test_create_session_returns_path_token_url_but_stores_only_hash() -> None:
     cache = FakeCache()
     response = await create_application_preview_session(
@@ -52,6 +53,7 @@ async def test_create_session_returns_path_token_url_but_stores_only_hash() -> N
 
 
 @pytest.mark.anyio
+# contract-test: infrastructure
 async def test_gateway_access_accepts_matching_active_token() -> None:
     cache = FakeCache()
     await create_application_preview_session(
@@ -74,6 +76,7 @@ async def test_gateway_access_accepts_matching_active_token() -> None:
 
 
 @pytest.mark.anyio
+# contract-test: infrastructure
 async def test_gateway_access_rejects_matching_token_on_wrong_host() -> None:
     cache = FakeCache()
     await create_application_preview_session(
@@ -95,6 +98,7 @@ async def test_gateway_access_rejects_matching_token_on_wrong_host() -> None:
 
 
 @pytest.mark.anyio
+# contract-test: infrastructure
 async def test_gateway_access_rejects_wrong_stopped_and_expired_tokens() -> None:
     cache = FakeCache()
     await create_application_preview_session(
@@ -125,6 +129,7 @@ async def test_gateway_access_rejects_wrong_stopped_and_expired_tokens() -> None
     assert stopped.value.status_code == 403
 
 
+# contract-test: infrastructure
 def test_redact_preview_gateway_tokens_removes_path_secret() -> None:
     redacted = redact_preview_gateway_tokens(
         "GET /p/session-1/token-abc/src/main.js and https://preview-test.openmatesusercontent.org/t/token-def/src/App.js"
@@ -136,11 +141,13 @@ def test_redact_preview_gateway_tokens_removes_path_secret() -> None:
     assert "/t/<REDACTED_PREVIEW_TOKEN>/src/App.js" in redacted
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
 def test_gateway_preserves_vite_virtual_module_paths() -> None:
     assert _upstream_url("https://sandbox.example", "@vite/client") == "https://sandbox.example/@vite/client"
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
 async def test_gateway_rewrites_root_relative_html_assets_to_signed_path() -> None:
     cache = FakeCache()
     await create_application_preview_session(
@@ -181,6 +188,7 @@ async def test_gateway_rewrites_root_relative_html_assets_to_signed_path() -> No
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
 async def test_gateway_strips_vite_hmr_client_from_html() -> None:
     cache = FakeCache()
     await create_application_preview_session(
@@ -225,6 +233,52 @@ async def test_gateway_strips_vite_hmr_client_from_html() -> None:
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
+async def test_gateway_rewrites_imports_inside_inline_module_scripts() -> None:
+    """Vite's React preamble imports "/@react-refresh" from an inline script; it must use the signed path.
+
+    Recipe proof 22 Nov: the preview frame stayed blank because the preamble 404'd on the host root.
+    """
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+        preview_host_label="preview-testhost",
+    )
+    stored = json.loads((await cache.redis.get(application_preview_session_key("session-1"))).decode("utf-8"))
+    stored.update({"status": "running", "upstream_base_url": "https://sandbox.example"})
+    await cache.redis.set(application_preview_session_key("session-1"), json.dumps(stored))
+
+    async def upstream_fetch(_url: str, _method: str, **_kwargs):
+        return GatewayUpstreamResponse(
+            status_code=200,
+            body=(
+                b'<script type="module">import { injectIntoGlobalHook } from "/@react-refresh";\n'
+                b'injectIntoGlobalHook(window);</script>'
+                b'<div id="root"></div><script type="module" src="/src/main.tsx"></script>'
+            ),
+            headers={"content-type": "text/html; charset=utf-8"},
+        )
+
+    response = await build_preview_gateway_response(
+        cache, "session-1", "token-abc", "", now=2_030.0,
+        preview_host="preview-testhost.openmatesusercontent.org", upstream_fetch=upstream_fetch,
+    )
+
+    body = response.body.decode("utf-8")
+    assert 'from "/t/token-abc/@react-refresh"' in body
+    assert 'src="/t/token-abc/src/main.tsx"' in body
+    assert "/t/token-abc/t/" not in body
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
 async def test_gateway_returns_noop_module_for_direct_vite_hmr_client() -> None:
     cache = FakeCache()
     await create_application_preview_session(
@@ -264,6 +318,7 @@ async def test_gateway_returns_noop_module_for_direct_vite_hmr_client() -> None:
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
 async def test_gateway_rewrites_root_relative_module_imports_to_signed_path() -> None:
     cache = FakeCache()
     await create_application_preview_session(

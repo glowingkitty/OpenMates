@@ -90,6 +90,13 @@ export function removeStyle(id) {
   }
 }
 """.strip()
+# An inline <script> (no src): Vite's React plugin puts its refresh preamble here as
+# `import { injectIntoGlobalHook } from "/@react-refresh"`; unrewritten, it misses the signed
+# path, the preamble never loads and the app renders nothing (recipe proof, 22 Nov).
+INLINE_SCRIPT_PATTERN = re.compile(
+    r"(?P<open><script\b(?![^>]*\bsrc\s*=)[^>]*>)(?P<body>.*?)(?P<close></script>)",
+    re.IGNORECASE | re.DOTALL,
+)
 VITE_HMR_CLIENT_SCRIPT_PATTERN = re.compile(
     r"\s*<script\b(?=[^>]*\bsrc=[\"']/(?:t/[^/]+/|p/[^/]+/[^/]+/)?@vite/client[\"'])[^>]*>\s*</script>",
     re.IGNORECASE,
@@ -332,6 +339,12 @@ def _rewrite_root_relative_preview_references(
     if content_type == "text/html":
         text = VITE_HMR_CLIENT_SCRIPT_PATTERN.sub("", text)
         text = HTML_ROOT_PATH_PATTERN.sub(rewrite_match, text)
+        text = INLINE_SCRIPT_PATTERN.sub(
+            lambda script: script.group("open")
+            + QUOTED_ROOT_PATH_PATTERN.sub(rewrite_match, script.group("body"))
+            + script.group("close"),
+            text,
+        )
     elif content_type == "text/css":
         text = CSS_URL_ROOT_PATH_PATTERN.sub(rewrite_match, text)
     else:
