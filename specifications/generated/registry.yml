@@ -714,9 +714,9 @@ specifications:
     - gui.apple
   feature.chat-unread:
     version: 1
-    status: draft
+    status: approved
     path: features/chat-unread
-    fingerprint: 4e322629e46653846750d2211780880098ead23c8c95a42148b590dc58d7e4b1
+    fingerprint: b833a5156f7d0a63175d047b21bab5c26b1f2987988f6876279a973ab0fa7030
     required_applies_to:
     - cli
     - gui.web
@@ -750,9 +750,9 @@ specifications:
     - gui.apple
   feature.daily-inspiration:
     version: 3
-    status: draft
+    status: approved
     path: features/daily-inspiration
-    fingerprint: 1cf56fffede650b8133485c4cd46b5244b477f6b7e794cec514b29188712038c
+    fingerprint: c1ffa5da6a00d3632fc86aba1a72bdf9fd8ac4a4fd39d6843654e8b1d31bbc70
     required_applies_to:
     - rest_api
     - gui.web
@@ -832,9 +832,9 @@ specifications:
     - gui.apple
   feature.landing-onboarding:
     version: 8
-    status: draft
+    status: approved
     path: features/landing-onboarding
-    fingerprint: 7bc51cf935a0c9a0f362890cb3d92de4f1425d968ba9305017296216b1a7b50a
+    fingerprint: 09c9edff92b3ba78cc3b51131a762d3508ec54f342a7d14afda467ebd506c0c6
     required_applies_to:
     - gui.web
     - gui.apple
@@ -1127,9 +1127,9 @@ specifications:
     - gui.web
   feature.workflows-ui:
     version: 12
-    status: draft
+    status: approved
     path: features/workflows-ui
-    fingerprint: 8cce71b7cbfd5325d6c8d109444e5876c72e7e582da2e0ab49e29d4822a910d8
+    fingerprint: 13a6d9d4a314006b7d91489c57ea4e13f55f075e7d926d2af7e05bc41b189cb9
     required_applies_to:
     - gui.web
   feature.workspace-shell:
@@ -10253,6 +10253,15 @@ assertions:
     - rest_api
     - gui.web
     - gui.apple
+  daily-inspiration.start-suggestions-layout:
+    specification: feature.daily-inspiration@3
+    specification_id: feature.daily-inspiration
+    type: behavior
+    fingerprint: fcba4dad6959a147c465bd35698f99878ff2264f3f56104d9affe4bfb8bd5c52
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
   daily-inspiration.start-row-active-first:
     specification: feature.daily-inspiration@3
     specification_id: feature.daily-inspiration
@@ -16519,7 +16528,7 @@ assertions:
     specification: feature.workflows-ui@12
     specification_id: feature.workflows-ui
     type: behavior
-    fingerprint: 9e68309f4de3a41ad328a59176e8a3c7eb2f90b9ddcc5440a3159e4620758975
+    fingerprint: 9d722232e71cc48aa76e448a35927495e903e9faadadfdc25a3ee69a7de2d963
     required_applies_to:
     - gui.web
   workflows-ui.guest.describe-signup-return:

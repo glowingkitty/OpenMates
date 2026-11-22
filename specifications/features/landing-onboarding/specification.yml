@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.landing-onboarding
 version: 8
-status: draft
+status: approved
 title: Signed-out Web Welcome
 summary: Signed-out web and Apple main-app visitors use the ordinary new-chat welcome with normal Daily Inspirations and real
   example discovery. The separate public website owns marketing stories.

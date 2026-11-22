@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.workflows-ui
 version: 12
-status: draft
+status: approved
 title: Workflows Web UI
 summary: 'The Workflows web workspace lets signed-out visitors inspect built-in templates. Authenticated owners
   use a calm visual automation environment with a recommendation-led start screen, a category-gradient Workflow
@@ -926,8 +926,9 @@ assertions:
   type: behavior
   must: >-
     Short workflow prompt suggestions sit directly above the describe-a-workflow composer, in the style of
-    the follow-up suggestions of an open chat, one line each with longer text cut with an ellipsis; the
-    greeting and start row are centred vertically in the room above them. Tapping one puts its text into
+    the follow-up suggestions of an open chat, one line each with longer text cut with an ellipsis, as one
+    block as wide as the composer, centred on it, lines left-aligned; the greeting and start row are
+    centred vertically in the room above them. Tapping one puts its text into
     the describe-a-workflow composer and focuses it.
 - id: workflows-ui.guest.describe-signup-return
   type: behavior

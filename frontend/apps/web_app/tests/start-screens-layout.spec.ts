@@ -121,6 +121,57 @@ const PROJECTS_SCREEN: Screen = {
 };
 const SIGNED_IN_SCREENS: Screen[] = [...SCREENS, PROJECTS_SCREEN];
 
+/** Suggestions block and input of each workspace that shows suggestions (Apps has no start-screen input). */
+const SUGGESTION_LAYOUTS: Record<string, { suggestions: string; composer: string }> = {
+	chats: { suggestions: 'start-screen-suggestions', composer: 'message-field' },
+	workflows: { suggestions: 'workflows-start-suggestions', composer: 'workflow-input-composer' },
+	projects: { suggestions: 'projects-start-suggestions', composer: 'project-input-composer' },
+	tasks: { suggestions: 'tasks-start-suggestions', composer: 'task-workspace-composer' }
+};
+
+/**
+ * Layout B (Marco, 22 Nov): the suggestions block is as wide as the input, centred on it,
+ * directly above it, and its lines start at the same left edge inside it.
+ */
+async function expectSuggestionsLayoutB(page: any, name: string, viewport: string) {
+	const ids = SUGGESTION_LAYOUTS[name];
+	if (!ids) return;
+	const suggestions = page.getByTestId(ids.suggestions);
+	await expect(suggestions.getByTestId('follow-up-suggestion-item').first(), `${name} shows suggestions at ${viewport}`).toBeVisible({ timeout: 30000 });
+	let layout: any = null;
+	let previous = '';
+	await expect
+		.poll(
+			async () => {
+				layout = await page.evaluate((testIds: { suggestions: string; composer: string }) => {
+					const visible = (id: string) => [...document.querySelectorAll<HTMLElement>(`[data-testid="${id}"]`)].find((el) => el.getClientRects().length > 0);
+					const block = visible(testIds.suggestions);
+					const composer = visible(testIds.composer);
+					if (!block || !composer) return null;
+					const items = [...block.querySelectorAll<HTMLElement>('[data-testid="follow-up-suggestion-item"]')].map((el) => el.getBoundingClientRect().x);
+					const b = block.getBoundingClientRect();
+					const c = composer.getBoundingClientRect();
+					return { block: { x: b.x, y: b.y, width: b.width, height: b.height }, composer: { x: c.x, y: c.y, width: c.width }, lefts: items };
+				}, ids);
+				const current = JSON.stringify(layout);
+				const stable = layout !== null && current === previous;
+				previous = current;
+				return stable;
+			},
+			{ message: `${name} suggestions and input settle at ${viewport}`, timeout: 30000, intervals: [300] }
+		)
+		.toBe(true);
+	const { block, composer, lefts } = layout;
+	const where = `${name} at ${viewport}`;
+	expect(Math.abs(block.width - composer.width), `${where}: suggestions as wide as the input`).toBeLessThanOrEqual(4);
+	expect(Math.abs(block.x + block.width / 2 - (composer.x + composer.width / 2)), `${where}: suggestions centred on the input`).toBeLessThanOrEqual(4);
+	expect(block.y + block.height, `${where}: suggestions above the input`).toBeLessThanOrEqual(composer.y + 1);
+	expect(composer.y - block.y - block.height, `${where}: suggestions directly above the input`).toBeLessThanOrEqual(40);
+	expect(lefts.length).toBeGreaterThan(0);
+	expect(Math.max(...lefts) - Math.min(...lefts), `${where}: lines left-aligned`).toBeLessThanOrEqual(1);
+	expect(Math.min(...lefts) - composer.x, `${where}: lines start near the input's left edge`).toBeLessThanOrEqual(32);
+}
+
 /** Where a workspace puts its panel and report-issue button (Marco, 21 Nov: identical on every workspace). */
 type WorkspaceFrame = { name: string; reportX: number; reportY: number; panelBottom: number; label: string };
 
@@ -325,7 +376,7 @@ test.describe('start screens layout', () => {
 		}
 	});
 
-	// contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-actions,daily-inspiration.start-row-suggestions,workspace-shell.start.available-space-cards,workflows-ui.home.prompt-suggestions
+	// contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-actions,daily-inspiration.start-row-suggestions,workspace-shell.start.available-space-cards,workflows-ui.home.prompt-suggestions,daily-inspiration.start-suggestions-layout
 	test('signed-in Chats, Apps, Workflows and Projects share the start-screen layout at every width', async ({ page }: { page: any }, testInfo: any) => {
 		test.slow();
 		test.setTimeout(300000);
@@ -365,6 +416,7 @@ test.describe('start screens layout', () => {
 				// Every signed-in workspace greets the user by name ("Hey <username>!"), never "Hey there!".
 				await expect(page.getByText(/^Hey .+!$/).first(), `${screen.name} greets the user`).toBeVisible({ timeout: 15000 });
 				await expect(page.getByText('Hey there!', { exact: true }), `${screen.name} greets the user by name`).toHaveCount(0, { timeout: 15000 });
+				await expectSuggestionsLayoutB(page, screen.name, viewport.name);
 				await testInfo.attach(`frame-${viewport.name}-${screen.name}`, { body: await page.screenshot(), contentType: 'image/png' });
 			}
 			expectSameWorkspaceFrame(frames, viewport);

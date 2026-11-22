@@ -626,3 +626,18 @@ timeline_change_unchanged:
   context: Timeline commit file change
   en: "Unchanged"
   verified_by_human: []
+home.suggestion_1:
+  context: Short example prompt directly above the Projects start screen input; fills the name a new project input when tapped
+  en: "Kitchen renovation"
+  de: "Küchenrenovierung"
+  verified_by_human: []
+home.suggestion_2:
+  context: Short example prompt directly above the Projects start screen input; fills the name a new project input when tapped
+  en: "Spanish lessons"
+  de: "Spanischunterricht"
+  verified_by_human: []
+home.suggestion_3:
+  context: Short example prompt directly above the Projects start screen input; fills the name a new project input when tapped
+  en: "Summer trip to Portugal"
+  de: "Sommerreise nach Portugal"
+  verified_by_human: []

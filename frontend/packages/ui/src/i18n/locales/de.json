@@ -17719,6 +17719,17 @@
     },
     "workspace_entry_range": {
       "text": "{start}–{end} von {total} Einträgen"
+    },
+    "home": {
+      "suggestion_1": {
+        "text": "Küchenrenovierung"
+      },
+      "suggestion_2": {
+        "text": "Spanischunterricht"
+      },
+      "suggestion_3": {
+        "text": "Sommerreise nach Portugal"
+      }
     }
   },
   "recommendations": {
@@ -27305,6 +27316,17 @@
       },
       "add_check": {
         "text": "Prüfung hinzufügen"
+      }
+    },
+    "home": {
+      "suggestion_1": {
+        "text": "Morgen um 10 Uhr den Zahnarzt anrufen"
+      },
+      "suggestion_2": {
+        "text": "Folien für das Meeting am Montag vorbereiten"
+      },
+      "suggestion_3": {
+        "text": "Steuererklärung auf nächste Woche verschieben"
       }
     }
   },

@@ -315,6 +315,10 @@ test.describe('Apps bare component previews', () => {
       const webCard = page.locator('[data-testid="apps-app-card"][data-app-id="web"]');
       await expect(webCard).toHaveCount(1);
       await expect(webCard.getByTestId('apps-card-glyph')).toBeAttached();
+      // Marco, 22 Nov: the app icon is as large as the card icons on the other workspaces (32px centre, 80px decoration).
+      const glyphSizes = await webCard.locator('img.apps-large-glyph').evaluateAll((nodes: Element[]) =>
+        nodes.map((node) => Math.round((node as HTMLElement).offsetWidth)));
+      expect(glyphSizes.sort((a, b) => a - b)).toEqual([32, 80, 80]);
       await expect(page.locator('[data-testid="apps-app-card"][data-app-id="weather"]')).toHaveCount(1);
       // Same large card as the Chats start row: 300x200 (phones min(280px, 76vw) wide), first card centred.
       const [rowBox, firstBox] = await Promise.all([row.boundingBox(), cards.first().boundingBox()]);

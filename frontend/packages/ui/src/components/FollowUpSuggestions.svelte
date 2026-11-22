@@ -29,7 +29,7 @@
     plainText?: boolean;
     /** Start screens: one line per suggestion, cut with an ellipsis, so the centred block keeps its height. */
     singleLine?: boolean;
-    /** 'end' right-aligns the lines (default); 'start' left-aligns them (start-screen variant B). */
+    /** 'end' right-aligns the lines (default, in-chat follow-ups); 'start' left-aligns them (start screens). */
     align?: 'end' | 'start';
     onSuggestionClick: (suggestion: string) => void;
   } = $props();

@@ -10,9 +10,8 @@
   import { text } from '../../i18n/translations';
   import { workspacePaneMotion } from '../../utils/workspacePaneMotion';
 
-  import type { StartSuggestionsVariant } from '../workspace/startSuggestionsVariant';
 
-  let { greetingName = 'there', empty = false, guest = false, suggestionsVariant = 'right' }: { greetingName?: string; empty?: boolean; guest?: boolean; suggestionsVariant?: StartSuggestionsVariant } = $props();
+  let { greetingName = 'there', empty = false, guest = false }: { greetingName?: string; empty?: boolean; guest?: boolean } = $props();
   let value = $state('');
   let signupRequested = $state(false);
   let browseMode = $state<'home' | 'workflows' | 'templates'>('home');
@@ -73,7 +72,6 @@
   backTestId="workflows-back-to-recent" searchTestId="workflows-search"
   onShowAll={guest ? undefined : () => { browseMode = 'workflows'; }} onBrowse={() => { browseMode = 'templates'; }} onBackToRecent={() => { browseMode = 'home'; }}
   onSearchAll={guest ? undefined : () => {}} onActionItem={() => {}}
-  {suggestionsVariant}
   startSuggestions={{ items: [1, 2, 3].map(index => $text(`workflows.home.suggestion_${index}`)), onClick: (suggestion) => { value = suggestion; } }}
   onContinueItem={(item) => { if (guest) selectedGuestTemplate = workflowTemplates.find(template => template.id === item.id) ?? null; }}
   onAllItem={(item) => { if (guest) selectedGuestTemplate = workflowTemplates.find(template => template.id === item.id) ?? null; }}

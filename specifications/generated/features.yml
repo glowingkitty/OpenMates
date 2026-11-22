@@ -2924,7 +2924,7 @@ features:
   description: A finished assistant reply stays unread until its last line has been visible in the user's viewport.
   specifications:
   - id: feature.chat-unread
-    status: draft
+    status: approved
     path: specifications/features/chat-unread
   apps: []
   product_features: []
@@ -4698,7 +4698,7 @@ features:
     with a public default; the row ends with its browse actions and suggestions follow below it.
   specifications:
   - id: feature.daily-inspiration
-    status: draft
+    status: approved
     path: specifications/features/daily-inspiration
   apps: []
   product_features: []
@@ -4707,7 +4707,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 15
+  assertions: 16
   surfaces:
     web:
       status: partial
@@ -4716,9 +4716,9 @@ features:
       assertions:
         passing: 9
         failing: 0
-        not_run: 5
+        not_run: 6
         missing: 1
-        counted: 15
+        counted: 16
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/apple-parity-reference-screens.spec.ts
@@ -4752,8 +4752,8 @@ features:
         passing: 9
         failing: 0
         not_run: 3
-        missing: 3
-        counted: 15
+        missing: 4
+        counted: 16
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/AppleParityScreensUITests.swift
@@ -4808,8 +4808,8 @@ features:
         passing: 0
         failing: 0
         not_run: 4
-        missing: 11
-        counted: 15
+        missing: 12
+        counted: 16
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -5687,7 +5687,7 @@ features:
     and real example discovery.
   specifications:
   - id: feature.landing-onboarding
-    status: draft
+    status: approved
     path: specifications/features/landing-onboarding
   apps: []
   product_features: []
@@ -19077,7 +19077,7 @@ features:
     status: draft
     path: specifications/features/workflows
   - id: feature.workflows-ui
-    status: draft
+    status: approved
     path: specifications/features/workflows-ui
   apps:
   - workflows

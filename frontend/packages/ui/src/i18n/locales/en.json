@@ -18603,6 +18603,17 @@
     },
     "timeline_change_unchanged": {
       "text": "Unchanged"
+    },
+    "home": {
+      "suggestion_1": {
+        "text": "Kitchen renovation"
+      },
+      "suggestion_2": {
+        "text": "Spanish lessons"
+      },
+      "suggestion_3": {
+        "text": "Summer trip to Portugal"
+      }
     }
   },
   "recommendations": {
@@ -28281,6 +28292,17 @@
       },
       "add_check": {
         "text": "Add check"
+      }
+    },
+    "home": {
+      "suggestion_1": {
+        "text": "Call the dentist tomorrow at 10"
+      },
+      "suggestion_2": {
+        "text": "Prepare the slides for Monday's meeting"
+      },
+      "suggestion_3": {
+        "text": "Move the tax return to next week"
       }
     }
   },

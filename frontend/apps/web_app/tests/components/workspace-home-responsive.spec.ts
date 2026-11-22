@@ -225,38 +225,28 @@ test.describe('Responsive workspace homes', () => {
 
 	for (const size of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
 		// contract-test: direct surface=gui.web assertions=workflows-ui.home.prompt-suggestions
-		test(`suggestion variants A (right) and B (input-width, left-aligned) above the input at ${size.width}px`, async ({ page }, testInfo) => {
+		test(`suggestions are as wide as the input, centred on it, lines left-aligned at ${size.width}px`, async ({ page }, testInfo) => {
 			await page.setViewportSize(size);
-			for (const variant of ['A', 'B'] as const) {
-				const query = variant === 'B' ? 'variant=suggestionsInputWidth&' : '';
-				await page.goto(`/dev/preview/workflows/WorkflowHomePreviewHarness?${query}theme=light&chrome=0`);
-				await waitForComponentPreview(page);
-				const suggestions = page.getByTestId('workflows-start-suggestions');
-				await expect(suggestions).toBeVisible();
-				await expect(suggestions).toHaveAttribute('data-variant', variant === 'B' ? 'input-width' : 'right');
-				const [blockBox, composerBox] = await Promise.all([
-					suggestions.boundingBox(),
-					page.getByTestId('workflow-input-composer').boundingBox()
-				]);
-				const itemBoxes = await Promise.all(
-					(await suggestions.getByTestId('follow-up-suggestion-item').all()).map((item) => item.boundingBox())
-				);
-				expect(itemBoxes.length).toBeGreaterThan(0);
-				if (variant === 'A') {
-					// Lines end at the same right edge.
-					const rights = itemBoxes.map((box) => box!.x + box!.width);
-					expect(Math.max(...rights) - Math.min(...rights)).toBeLessThanOrEqual(1);
-				} else {
-					// As wide as the input, centred on it, lines start at the same left edge inside it.
-					expect(Math.abs(blockBox!.width - composerBox!.width)).toBeLessThanOrEqual(2);
-					expect(Math.abs(blockBox!.x + blockBox!.width / 2 - (composerBox!.x + composerBox!.width / 2))).toBeLessThanOrEqual(2);
-					const lefts = itemBoxes.map((box) => box!.x);
-					expect(Math.max(...lefts) - Math.min(...lefts)).toBeLessThanOrEqual(1);
-					expect(Math.min(...lefts)).toBeGreaterThanOrEqual(composerBox!.x);
-					expect(Math.min(...lefts) - composerBox!.x).toBeLessThanOrEqual(32);
-				}
-				await testInfo.attach(`suggestions-variant-${variant}-${size.width}.png`, { body: await page.screenshot(), contentType: 'image/png' });
-			}
+			await page.goto('/dev/preview/workflows/WorkflowHomePreviewHarness?theme=light&chrome=0');
+			await waitForComponentPreview(page);
+			const suggestions = page.getByTestId('workflows-start-suggestions');
+			await expect(suggestions).toBeVisible();
+			const [blockBox, composerBox] = await Promise.all([
+				suggestions.boundingBox(),
+				page.getByTestId('workflow-input-composer').boundingBox()
+			]);
+			const itemBoxes = await Promise.all(
+				(await suggestions.getByTestId('follow-up-suggestion-item').all()).map((item) => item.boundingBox())
+			);
+			expect(itemBoxes.length).toBeGreaterThan(0);
+			// Layout B (Marco, 22 Nov): as wide as the input, centred on it, lines start at the same left edge inside it.
+			expect(Math.abs(blockBox!.width - composerBox!.width)).toBeLessThanOrEqual(2);
+			expect(Math.abs(blockBox!.x + blockBox!.width / 2 - (composerBox!.x + composerBox!.width / 2))).toBeLessThanOrEqual(2);
+			const lefts = itemBoxes.map((box) => box!.x);
+			expect(Math.max(...lefts) - Math.min(...lefts)).toBeLessThanOrEqual(1);
+			expect(Math.min(...lefts)).toBeGreaterThanOrEqual(composerBox!.x);
+			expect(Math.min(...lefts) - composerBox!.x).toBeLessThanOrEqual(32);
+			await testInfo.attach(`suggestions-layout-${size.width}.png`, { body: await page.screenshot(), contentType: 'image/png' });
 		});
 	}
 

@@ -69,17 +69,19 @@
 
 {#if visible.length > 0}
   <div class="start-screen-suggestions" data-testid="start-screen-suggestions">
-    <FollowUpSuggestions suggestions={visible.map((suggestion) => suggestion.text)} dismissOnClick={false} singleLine onSuggestionClick={handleClick} />
+    <FollowUpSuggestions suggestions={visible.map((suggestion) => suggestion.text)} dismissOnClick={false} singleLine align="start" onSuggestionClick={handleClick} />
   </div>
 {/if}
 
 <style>
+  /* As wide as the message input (min(629px, 100%)), centred, lines left-aligned:
+     the same layout as the other start screens (WorkspaceHomeShell, Marco 22 Nov). */
   .start-screen-suggestions {
     display: flex;
     justify-content: center;
-    width: 100%;
-    max-width: 640px;
-    padding: 0 var(--spacing-8);
+    width: min(629px, 100%);
+    margin-inline: auto;
+    padding: 0 var(--spacing-6);
     box-sizing: border-box;
     pointer-events: auto;
     text-align: left;

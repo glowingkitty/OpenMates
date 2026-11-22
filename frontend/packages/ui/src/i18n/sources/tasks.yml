@@ -764,3 +764,18 @@ workspace.unblock:
   en: Unblock
   de: Blockierung aufheben
   verified_by_human: []
+home.suggestion_1:
+  context: Short example prompt directly above the Tasks workspace input; fills the add or update tasks input when tapped
+  en: "Call the dentist tomorrow at 10"
+  de: "Morgen um 10 Uhr den Zahnarzt anrufen"
+  verified_by_human: []
+home.suggestion_2:
+  context: Short example prompt directly above the Tasks workspace input; fills the add or update tasks input when tapped
+  en: "Prepare the slides for Monday's meeting"
+  de: "Folien für das Meeting am Montag vorbereiten"
+  verified_by_human: []
+home.suggestion_3:
+  context: Short example prompt directly above the Tasks workspace input; fills the add or update tasks input when tapped
+  en: "Move the tax return to next week"
+  de: "Steuererklärung auf nächste Woche verschieben"
+  verified_by_human: []

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.daily-inspiration
 version: 3
-status: draft
+status: approved
 title: Daily Inspiration
 summary: Daily Inspiration provides personalized and public video and article records, with the same
   public-safe default and static fallback content available to signed-out visitors through an isolated
@@ -373,6 +373,16 @@ assertions:
     short screen the greeting, row and suggestions start below the top buttons row and scroll rather
     than sliding under it. While the composer's own suggestion rail is open, these step aside so the
     same prompts are not listed twice.
+  depends_on:
+  - models.StartRow
+  - examples.start_row
+- id: daily-inspiration.start-suggestions-layout
+  type: behavior
+  must: On the Chats, Workflows, Projects and Tasks screens the suggestions sit directly above the input
+    as one block exactly as wide as the input, centred on it, with every line starting at the same left
+    edge (Marco's layout B, 22 Nov; the right-aligned layout is gone). Projects suggests names for a new
+    project and Tasks suggests tasks; tapping one puts it into that input. Apps has no input on its start
+    screen and shows no suggestions.
   depends_on:
   - models.StartRow
   - examples.start_row

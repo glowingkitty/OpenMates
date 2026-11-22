@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.chat-unread
 version: 1
-status: draft
+status: approved
 title: Chat Unread State
 summary: >
   A finished assistant reply stays unread until its last line has been visible

@@ -2883,6 +2883,7 @@
           onBackToRecent={closeAllProjects}
           onSearchAll={openProjectSearch}
           onAllItem={openProjectFromCard}
+          startSuggestions={{ items: [1, 2, 3].map((index) => $text(`projects.home.suggestion_${index}`)), onClick: (suggestion) => { newProjectName = suggestion; } }}
         >
           <svelte:fragment slot="all-items-controls">
             {#if projectSearchOpen}

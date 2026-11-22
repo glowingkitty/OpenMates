@@ -19,7 +19,6 @@
   import WorkspaceContinueCard from './WorkspaceContinueCard.svelte';
   import AppStoreCard from '../settings/AppStoreCard.svelte';
   import FollowUpSuggestions from '../FollowUpSuggestions.svelte';
-  import { START_SUGGESTIONS_VARIANT, type StartSuggestionsVariant } from './startSuggestionsVariant';
   import StartScreenRowActions, { type StartScreenRowAction } from '../welcome/StartScreenRowActions.svelte';
   import type { AppMetadata } from '../../types/apps';
   import WorkspaceReportIssueButton from './WorkspaceReportIssueButton.svelte';
@@ -102,10 +101,8 @@
     onBrowse?: () => void;
     onBackToRecent?: () => void;
     onSearchAll?: () => void;
-    /** Start screens: short prompts shown below the row (FollowUpSuggestions style). */
+    /** Short prompts directly above the input (FollowUpSuggestions style); tapping one fills the input. */
     startSuggestions?: { items: string[]; onClick: (suggestion: string) => void };
-    /** Placement of the suggestions above the input (variant A or B, see startSuggestionsVariant.ts). */
-    suggestionsVariant?: StartSuggestionsVariant;
   };
 
   let {
@@ -154,7 +151,6 @@
     onBackToRecent,
     onSearchAll,
     startSuggestions,
-    suggestionsVariant = START_SUGGESTIONS_VARIANT,
   }: Props = $props();
 
   let restoreWorkspaceDefaults = $state(false);
@@ -169,8 +165,11 @@
   /** Surfaces that show no daily inspirations at all (no banner, none in a row). */
   const NO_INSPIRATION_SURFACES: ReadonlySet<WorkspaceSurface> = new Set(['tasks']);
   let isStartScreen = $derived(START_SCREEN_SURFACES.has(surface));
+  /** Tasks keeps its board in the content slot, so its suggestions sit between the board and the input. */
+  const SUGGESTIONS_WITH_CONTENT_SURFACES: ReadonlySet<WorkspaceSurface> = new Set(['tasks']);
   let showStartSuggestions = $derived(
-    isStartScreen && !showAllMode && !contentSlotVisible && !composerFocused && (startSuggestions?.items.length ?? 0) > 0
+    (isStartScreen ? !contentSlotVisible : SUGGESTIONS_WITH_CONTENT_SURFACES.has(surface))
+      && !showAllMode && !composerFocused && (startSuggestions?.items.length ?? 0) > 0
   );
   let showsBanner = $derived(!isStartScreen && !NO_INSPIRATION_SURFACES.has(surface));
   let isTallViewport = $derived(isStartScreen || hasRoomForLargeContinueCards(containerWidth, availableCardHeight));
@@ -672,8 +671,8 @@
       <!-- Start-screen suggestions sit directly above the input (Marco, 21 Nov), so the greeting
            and row centre in the room above them instead of being pushed to the top. -->
       {#if showStartSuggestions && startSuggestions}
-        <div class="start-row-suggestions" class:input-width={suggestionsVariant === 'input-width'} data-testid={`${surface}-start-suggestions`} data-variant={suggestionsVariant}>
-          <FollowUpSuggestions suggestions={startSuggestions.items} dismissOnClick={false} singleLine align={suggestionsVariant === 'input-width' ? 'start' : 'end'} onSuggestionClick={startSuggestions.onClick} />
+        <div class="start-row-suggestions" data-testid={`${surface}-start-suggestions`}>
+          <FollowUpSuggestions suggestions={startSuggestions.items} dismissOnClick={false} singleLine align="start" onSuggestionClick={startSuggestions.onClick} />
         </div>
       {/if}
       <slot name="composer" />
@@ -1299,29 +1298,22 @@
     padding-bottom: 28px;
   }
 
+  /* Suggestions block as wide as the message input (WorkspacePromptComposer is
+     min(629px, 100%)), centred, lines left-aligned inside it (layout B, Marco 22 Nov). */
   .start-row-suggestions {
     display: flex;
     justify-content: center;
     align-items: flex-end;
+    justify-self: center;
     /* Three single-line suggestions; screens without suggestions reserve the same room
        (--start-suggestions-room) so every start row sits at the same height. */
     min-height: 4.6rem;
-    width: 100%;
-    max-width: 640px;
-    padding: 0 var(--spacing-8);
+    width: min(629px, 100%);
+    margin-inline: auto;
+    padding: 0 var(--spacing-6);
     box-sizing: border-box;
     pointer-events: auto;
     text-align: left;
-  }
-
-  /* Variant B: as wide as the message input (WorkspacePromptComposer is min(629px, 100%)),
-     centred, lines left-aligned inside it. */
-  .start-row-suggestions.input-width {
-    justify-self: center;
-    width: min(629px, 100%);
-    max-width: none;
-    margin-inline: auto;
-    padding: 0 var(--spacing-6);
   }
 
   /* Same phone centring as the Chats start row: cards are min(280px, 76vw) wide. */

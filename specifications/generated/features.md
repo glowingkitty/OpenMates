@@ -61,7 +61,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Concise and Actionable Mixed-Media Answers](#assistant-answer-composition) | impl | impl |  | impl | impl | partial 2/4 | impl | impl | on (no flag) | on (no flag) | unverified |
 | [Consent-Scoped Cross-Chat Awareness](#chat-awareness) | impl | — |  | not run 0/1 | — | planned | — | — | on (no flag) | on (no flag) | unverified |
 | [Continue Carousel](#continue-carousel) | partial 1/3 | partial 2/3 |  | not run 0/2 | **FAIL** 0/1 | — | — | — | on (no flag) | on (no flag) | untagged-main |
-| [Daily Inspiration](#daily-inspiration) | partial 9/15 | partial 9/15 |  | impl | — | not run 0/15 | impl | impl | on (no flag) | on (no flag) | v0.7.0-alpha |
+| [Daily Inspiration](#daily-inspiration) | partial 9/16 | partial 9/16 |  | impl | — | not run 0/16 | impl | impl | on (no flag) | on (no flag) | v0.7.0-alpha |
 | [Embed User Edits and Image Enhance](#embed-user-edits) | partial 8/13 | partial 6/13 |  | partial 5/13 | — | partial 8/13 | — | — | on (no flag) | on (no flag) | untagged-main |
 | [Focus Modes — Shared Operation and Display](#focus-modes) | **FAIL** 14/31 | partial 8/31 |  | partial 4/31 | wip | **FAIL** 16/31 | impl | impl | on (no flag) | on (no flag) | v0.9.0-alpha |
 | [Incognito mode](#incognito-mode) | not run 0/1 | impl |  | impl | — | impl | impl | impl | on (no flag) | on (no flag) | v0.5.0-alpha |
@@ -1048,7 +1048,7 @@ Fast chat sync at start-up (due items, last chat, recent chats) plus an incremen
 
 A finished assistant reply stays unread until its last line has been visible in the user's viewport.
 
-- Specifications: [feature.chat-unread](../../specifications/features/chat-unread/specification.yml) (draft) · 5 assertion(s)
+- Specifications: [feature.chat-unread](../../specifications/features/chat-unread/specification.yml) (approved) · 5 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release untagged-main
 
 <details><summary>Tests per surface</summary>
@@ -1295,18 +1295,18 @@ Daily full-pipeline tests without paid calls, plus capped real-inference canarie
 
 Personalised daily video and article cards inside the start-screen row (signed in and signed out, no banner), with a public default; the row ends with its browse actions and suggestions follow below it.
 
-- Specifications: [feature.daily-inspiration](../../specifications/features/daily-inspiration/specification.yml) (draft) · 15 assertion(s)
+- Specifications: [feature.daily-inspiration](../../specifications/features/daily-inspiration/specification.yml) (approved) · 16 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.7.0-alpha
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 9/15 | 9 pass · 0 fail · 5 not run · 1 no test | [apple-parity-reference-screens.spec.ts](../../frontend/apps/web_app/tests/apple-parity-reference-screens.spec.ts)<br>[chat-sidebar-projects.spec.ts](../../frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts)<br>[inspiration-language.spec.ts](../../frontend/apps/web_app/tests/components/inspiration-language.spec.ts)<br>[start-screen-row.spec.ts](../../frontend/apps/web_app/tests/components/start-screen-row.spec.ts)<br>[task-board-figma.spec.ts](../../frontend/apps/web_app/tests/components/task-board-figma.spec.ts)<br>[workspace-home-responsive.spec.ts](../../frontend/apps/web_app/tests/components/workspace-home-responsive.spec.ts)<br>[daily-inspiration-chat-flow.spec.ts](../../frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts)<br>[guest-interest-smart-selection.spec.ts](../../frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts)<br>[inspiration-language.spec.ts](../../frontend/apps/web_app/tests/inspiration-language.spec.ts)<br>[landing-page-header-stories.spec.ts](../../frontend/apps/web_app/tests/landing-page-header-stories.spec.ts)<br>[landing-page-onboarding-refresh.spec.ts](../../frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts)<br>[provider-boundary.spec.ts](../../frontend/apps/web_app/tests/provider-boundary.spec.ts)<br>[session-503-inspiration-recovery.spec.ts](../../frontend/apps/web_app/tests/session-503-inspiration-recovery.spec.ts)<br>[session-revoke-flow.spec.ts](../../frontend/apps/web_app/tests/session-revoke-flow.spec.ts)<br>[start-screens-layout.spec.ts](../../frontend/apps/web_app/tests/start-screens-layout.spec.ts)<br>[unauthenticated-app-load.spec.ts](../../frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts)<br>6 unit test file(s), e.g. [dailyInspirationStore.test.ts](../../frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts), [loadDefaultInspirations.test.ts](../../frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts) |
-| Apple | partial 9/15 | 9 pass · 0 fail · 3 not run · 3 no test | [AppleParityScreensUITests.swift](../../apple/OpenMatesUITests/AppleParityScreensUITests.swift)<br>[AppsWorkspaceParityUITests.swift](../../apple/OpenMatesUITests/AppsWorkspaceParityUITests.swift)<br>[DailyInspirationLayoutUITests.swift](../../apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift)<br>[LandingOnboardingParityUITests.swift](../../apple/OpenMatesUITests/LandingOnboardingParityUITests.swift)<br>[ProjectsFilesParityUITests.swift](../../apple/OpenMatesUITests/ProjectsFilesParityUITests.swift)<br>[TasksWorkspaceInteractionUITests.swift](../../apple/OpenMatesUITests/TasksWorkspaceInteractionUITests.swift)<br>[WorkflowsParityUITests.swift](../../apple/OpenMatesUITests/WorkflowsParityUITests.swift)<br>2 unit test file(s), e.g. [ChatSyncParityTests.swift](../../apple/OpenMatesTests/ChatSyncParityTests.swift), [ProjectsWorkspaceTests.swift](../../apple/OpenMatesTests/ProjectsWorkspaceTests.swift) |
+| Web | partial 9/16 | 9 pass · 0 fail · 6 not run · 1 no test | [apple-parity-reference-screens.spec.ts](../../frontend/apps/web_app/tests/apple-parity-reference-screens.spec.ts)<br>[chat-sidebar-projects.spec.ts](../../frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts)<br>[inspiration-language.spec.ts](../../frontend/apps/web_app/tests/components/inspiration-language.spec.ts)<br>[start-screen-row.spec.ts](../../frontend/apps/web_app/tests/components/start-screen-row.spec.ts)<br>[task-board-figma.spec.ts](../../frontend/apps/web_app/tests/components/task-board-figma.spec.ts)<br>[workspace-home-responsive.spec.ts](../../frontend/apps/web_app/tests/components/workspace-home-responsive.spec.ts)<br>[daily-inspiration-chat-flow.spec.ts](../../frontend/apps/web_app/tests/daily-inspiration-chat-flow.spec.ts)<br>[guest-interest-smart-selection.spec.ts](../../frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts)<br>[inspiration-language.spec.ts](../../frontend/apps/web_app/tests/inspiration-language.spec.ts)<br>[landing-page-header-stories.spec.ts](../../frontend/apps/web_app/tests/landing-page-header-stories.spec.ts)<br>[landing-page-onboarding-refresh.spec.ts](../../frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts)<br>[provider-boundary.spec.ts](../../frontend/apps/web_app/tests/provider-boundary.spec.ts)<br>[session-503-inspiration-recovery.spec.ts](../../frontend/apps/web_app/tests/session-503-inspiration-recovery.spec.ts)<br>[session-revoke-flow.spec.ts](../../frontend/apps/web_app/tests/session-revoke-flow.spec.ts)<br>[start-screens-layout.spec.ts](../../frontend/apps/web_app/tests/start-screens-layout.spec.ts)<br>[unauthenticated-app-load.spec.ts](../../frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts)<br>6 unit test file(s), e.g. [dailyInspirationStore.test.ts](../../frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts), [loadDefaultInspirations.test.ts](../../frontend/packages/ui/src/demo_chats/__tests__/loadDefaultInspirations.test.ts) |
+| Apple | partial 9/16 | 9 pass · 0 fail · 3 not run · 4 no test | [AppleParityScreensUITests.swift](../../apple/OpenMatesUITests/AppleParityScreensUITests.swift)<br>[AppsWorkspaceParityUITests.swift](../../apple/OpenMatesUITests/AppsWorkspaceParityUITests.swift)<br>[DailyInspirationLayoutUITests.swift](../../apple/OpenMatesUITests/DailyInspirationLayoutUITests.swift)<br>[LandingOnboardingParityUITests.swift](../../apple/OpenMatesUITests/LandingOnboardingParityUITests.swift)<br>[ProjectsFilesParityUITests.swift](../../apple/OpenMatesUITests/ProjectsFilesParityUITests.swift)<br>[TasksWorkspaceInteractionUITests.swift](../../apple/OpenMatesUITests/TasksWorkspaceInteractionUITests.swift)<br>[WorkflowsParityUITests.swift](../../apple/OpenMatesUITests/WorkflowsParityUITests.swift)<br>2 unit test file(s), e.g. [ChatSyncParityTests.swift](../../apple/OpenMatesTests/ChatSyncParityTests.swift), [ProjectsWorkspaceTests.swift](../../apple/OpenMatesTests/ProjectsWorkspaceTests.swift) |
 | CLI | impl | — | — |
 | TUI | — | — | — |
-| REST API | not run 0/15 | 0 pass · 0 fail · 4 not run · 11 no test | 14 unit test file(s), e.g. [test_daily_inspiration_public_defaults.py](../../backend/tests/test_daily_inspiration_public_defaults.py), [test_daily_inspiration_content_policy.py](../../backend/tests/test_daily_inspiration_content_policy.py) |
+| REST API | not run 0/16 | 0 pass · 0 fail · 4 not run · 12 no test | 14 unit test file(s), e.g. [test_daily_inspiration_public_defaults.py](../../backend/tests/test_daily_inspiration_public_defaults.py), [test_daily_inspiration_content_policy.py](../../backend/tests/test_daily_inspiration_content_policy.py) |
 | npm SDK | impl | — | — |
 | PyPI SDK | impl | — | — |
 
@@ -2694,7 +2694,7 @@ Product search through operator-installed providers: identify a product from a p
 
 Signed-out web and Apple main-app visitors use the ordinary new-chat welcome with normal Daily Inspirations and real example discovery.
 
-- Specifications: [feature.landing-onboarding](../../specifications/features/landing-onboarding/specification.yml) (draft) · 12 assertion(s)
+- Specifications: [feature.landing-onboarding](../../specifications/features/landing-onboarding/specification.yml) (approved) · 12 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.7.0-alpha
 
 <details><summary>Tests per surface</summary>
@@ -3083,7 +3083,7 @@ Risk signals scored in the existing preprocessing call, a rolling level kept cli
 
 Create and run reusable automations.
 
-- Specifications: [feature.workflows](../../specifications/features/workflows/specification.yml) (draft), [feature.workflows-ui](../../specifications/features/workflows-ui/specification.yml) (draft) · 92 assertion(s)
+- Specifications: [feature.workflows](../../specifications/features/workflows/specification.yml) (draft), [feature.workflows-ui](../../specifications/features/workflows-ui/specification.yml) (approved) · 92 assertion(s)
 - Apps: `workflows`
 - Flags: `app:workflows`, `platform:workflows` · dev on · prod on · release v0.14.0-alpha
 
