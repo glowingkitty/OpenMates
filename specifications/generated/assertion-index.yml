@@ -165058,7 +165058,7 @@ assertions:
       surface: rest_api
     - &id20902
       path: backend/tests/test_project_sandbox_iteration_budget.py
-      line: 14
+      line: 16
       name: test_only_all_inline_sandbox_iterations_are_free_and_bounded
       surface: rest_api
     - &id20903

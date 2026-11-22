@@ -1262,6 +1262,17 @@ MAX_TOOL_CALL_ITERATIONS = 5
 MAX_SANDBOX_FILE_ITERATIONS = 30
 
 
+def _resumed_sandbox_free_iterations(resume_checkpoint: dict | None, start_iteration: int) -> int:
+    """Inline sandbox iterations already granted before a same-turn resume (0 for a fresh turn)."""
+    if not resume_checkpoint:
+        return 0
+    value = resume_checkpoint.get("sandbox_free_iterations", 0)
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= min(
+            MAX_SANDBOX_FILE_ITERATIONS, start_iteration):
+        raise RequiredRecoveryOutputError("Same-turn provider checkpoint is invalid")
+    return value
+
+
 def _is_sandbox_free_iteration(executed_calls: int, sandbox_inline_calls: int, used: int) -> bool:
     """True when every tool call this iteration executed ran inline in the Project sandbox
     and the per-turn allowance is not used up; such an iteration keeps the budget unchanged."""
@@ -6924,7 +6935,9 @@ async def handle_main_processing(
     # Iterations made only of Project file tools the hosted sandbox ran inline do not use the
     # iteration budget: on the device path each file operation pauses the turn and its
     # continuation starts a fresh budget, so a multi-file app fits either way. Bounded per turn.
-    sandbox_free_iterations = 0
+    # A same-turn resume (e.g. after a code-run) keeps the inline sandbox allowance already used,
+    # otherwise the physical resume iteration would be charged in full against the budget.
+    sandbox_free_iterations = _resumed_sandbox_free_iterations(resume_checkpoint, start_iteration)
     for iteration in itertools.count(start_iteration):
         budget_iteration = iteration - sandbox_free_iterations
         if budget_iteration >= max_iterations_with_recovery:
@@ -12994,6 +13007,7 @@ async def handle_main_processing(
             checkpoint = {
                 "version": 1, "turn_id": request_data.message_id,
                 "next_iteration": iteration + 1,
+                "sandbox_free_iterations": sandbox_free_iterations,
                 "current_message_history": current_message_history,
                 "jobs": async_batch_jobs,
                 "current_model_index": current_model_index,

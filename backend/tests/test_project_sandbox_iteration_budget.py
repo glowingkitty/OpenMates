@@ -7,6 +7,8 @@ budget either, or a multi-file app never reaches its commands (proof run 4).
 """
 import inspect
 
+import pytest
+
 from backend.apps.ai.processing import main_processor
 
 
@@ -32,3 +34,20 @@ def test_budget_checks_use_the_budget_counter_not_the_physical_iteration() -> No
     assert "iteration >= MAX_TOOL_CALL_ITERATIONS" not in source.replace("budget_iteration >=", "")
     assert "if iteration == MAX_TOOL_CALL_ITERATIONS" not in source
     assert "sandbox_inline_calls += 1" in source
+
+def test_same_turn_resume_keeps_the_sandbox_allowance_already_used() -> None:
+    """Proof run 8: four free sandbox reads, then a code-run resume restarted at budget 6/7."""
+    resumed = main_processor._resumed_sandbox_free_iterations
+    assert resumed(None, 0) == 0  # fresh turn
+    assert resumed({"next_iteration": 5}, 5) == 0  # checkpoint written before this rule
+    assert resumed({"sandbox_free_iterations": 4}, 5) == 4
+    over_cap = main_processor.MAX_SANDBOX_FILE_ITERATIONS + 1
+    # (allowance, resume iteration): negative, more than the iterations run, wrong types, over the cap
+    for bad, start in ((-1, 5), (6, 5), ("4", 5), (True, 5), (over_cap, over_cap + 5)):
+        with pytest.raises(main_processor.RequiredRecoveryOutputError):
+            resumed({"sandbox_free_iterations": bad}, start)
+
+def test_checkpoint_carries_the_allowance_and_the_loop_restores_it() -> None:
+    source = inspect.getsource(main_processor.handle_main_processing)
+    assert '"sandbox_free_iterations": sandbox_free_iterations,' in source
+    assert "sandbox_free_iterations = _resumed_sandbox_free_iterations(resume_checkpoint, start_iteration)" in source
