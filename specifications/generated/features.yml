@@ -3185,6 +3185,7 @@ features:
       - frontend/apps/web_app/tests/components/agent-context-message.spec.ts
       - frontend/apps/web_app/tests/components/chat-assistant-response-activity.spec.ts
       - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+      - frontend/apps/web_app/tests/components/chat-context-menu-preview.spec.ts
       - frontend/apps/web_app/tests/components/chat-header-image-lifecycle.spec.ts
       - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
       - frontend/apps/web_app/tests/components/chat-inline-ratio-math.spec.ts

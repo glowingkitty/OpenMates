@@ -250,7 +250,9 @@ assertions:
     That text is readable only, so a mention shows its display name (the Project name, the Focus or skill title, the
     file or folder name) and a privacy placeholder shows the same short label as in the message (such as [PERSON_NAME_1]), and no identifier or raw mention syntax ever appears. The generated title replaces it
     everywhere once it arrives. A chat with no title, no draft and no user message
-    never appears as a start-screen card; a sidebar row for such a chat says "New chat".
+    never appears as a start-screen card; a sidebar row for such a chat says "New chat". A chat summary shown on
+    a chat card, in the chat header or in the chat menu likewise shows privacy placeholders by that short label,
+    never with their identifier; editing the summary keeps the stored placeholders.
   depends_on:
   - models.ChatMessage
 - id: chats.offline-outbox.ordered-replay

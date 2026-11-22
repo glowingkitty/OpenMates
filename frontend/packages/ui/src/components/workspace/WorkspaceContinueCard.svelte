@@ -11,6 +11,7 @@
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import Icon from '../Icon.svelte';
   import ProcessingWheel from '../chats/ProcessingWheel.svelte';
+  import { aliasEnhancedPlaceholders } from '../../services/piiDisplayAliases';
 
   let {
     title,
@@ -62,7 +63,7 @@
     {#if badge}<span class="resume-chat-kind-badge">{badge}</span>{/if}
     <div class="resume-large-icon">{#if processing}<ProcessingWheel />{:else if appIconUrl}<img class="apps-large-glyph" data-testid="apps-card-glyph" src={appIconUrl} alt="" />{:else if appGlyph}<Icon name={appGlyph} size="32px" color="white" noMargin ariaHidden />{:else}<IconComponent size={32} color="white" />{/if}</div>
     <span class="resume-large-title">{title}</span>
-    {#if summary}<p class="resume-large-summary">{summary}</p>{/if}
+    {#if summary}<p class="resume-large-summary">{aliasEnhancedPlaceholders(summary)}</p>{/if}
   </div>
 {/snippet}
 

@@ -724,7 +724,7 @@ specifications:
     version: 7
     status: approved
     path: features/chats
-    fingerprint: 612c8857a3ff6c988a46a7cb4bfe36d8a9bb2986c4568767b4fcd7bfd6c0996a
+    fingerprint: 2db25e484f35fa39044cdeb444f78f2337a48bdceb58a99d6e205912e672838c
     required_applies_to:
     - cli
     - gui.web
@@ -9726,7 +9726,7 @@ assertions:
     specification: feature.chats@7
     specification_id: feature.chats
     type: behavior
-    fingerprint: bfdef5332a547f631aee8dd5ccc44bdda716a9ce66ecd18aad733484edddcccd
+    fingerprint: 1a44726ff21129bd7fa8092a101c00bc1462496d315f15ee553b2ae775517c72
     required_applies_to:
     - cli
     - gui.web

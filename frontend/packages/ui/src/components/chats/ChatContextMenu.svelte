@@ -7,6 +7,7 @@
     import { canShareChat } from '../../services/chatSharing';
     import { isDemoChat, isLegalChat } from '../../demo_chats'; // Import chat type checks
     import { chatMetadataCache } from '../../services/chatMetadataCache'; // Import chat metadata cache for decrypted summary
+    import { aliasEnhancedPlaceholders } from '../../services/piiDisplayAliases';
     import { chatDB } from '../../services/db'; // Import chatDB for fresh chat reads
     import { activeChatFocusStore } from '../../stores/activeChatFocusStore';
     import { apiEndpoints, getApiEndpoint } from '../../config/api'; // Import API endpoints for usage lookup
@@ -536,7 +537,7 @@
                 <div class="chat-info-section">
                     {#if chatSummary}
                         <div class="chat-summary">
-                            {chatSummary}
+                            {aliasEnhancedPlaceholders(chatSummary)}
                         </div>
                     {/if}
                     {#if chatTotalCredits !== null && chatTotalCredits > 0}
