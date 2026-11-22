@@ -120,10 +120,61 @@ async def test_start_dev_server_reuses_listening_port(monkeypatch: pytest.Monkey
     async def probe(sandbox: Any, url: str) -> bool:
         return True
 
+    async def admits(sandbox: Any, host: str) -> bool:
+        return host == HOST
+
     monkeypatch.setattr("backend.apps.code.project_sandbox_command._probe", probe)
+    monkeypatch.setattr("backend.apps.code.project_sandbox_preview._admits_host", admits)
     sandbox = FakeSandbox()
     assert await start_dev_server(sandbox, "web", sleep=_no_sleep) == HOST
     assert sandbox.commands.lines == []
+
+
+# Recipe proof 22 Nov: a dev server the test run had started kept the port; Vite blocked the preview host.
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
+@pytest.mark.anyio
+async def test_start_dev_server_replaces_a_server_that_blocks_the_preview_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    probes = iter([True, False, False, True])  # foreign server, stopped, starting, ours ready
+    started: list[str] = []
+
+    async def probe(sandbox: Any, url: str) -> bool:
+        return next(probes)
+
+    async def admits(sandbox: Any, host: str) -> bool:
+        return False
+
+    async def start_background(sandbox: Any, command: Any, line: str) -> str:
+        started.append(line)
+        return "log"
+
+    monkeypatch.setattr("backend.apps.code.project_sandbox_command._probe", probe)
+    monkeypatch.setattr("backend.apps.code.project_sandbox_preview._admits_host", admits)
+    monkeypatch.setattr("backend.apps.code.project_sandbox_command._start_background", start_background)
+    sandbox = FakeSandbox()
+    assert await start_dev_server(sandbox, "web", sleep=_no_sleep) == HOST
+    assert any("/proc/net/tcp" in line and ":1435$" in line for line in sandbox.commands.lines)
+    assert len(started) == 1 and f"__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS={HOST}" in started[0]
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
+@pytest.mark.anyio
+async def test_the_host_check_treats_a_vite_block_as_refused() -> None:
+    from backend.apps.code.project_sandbox_preview import _admits_host
+
+    class Answer(FakeCommands):
+        def __init__(self, code: str) -> None:
+            super().__init__()
+            self.code = code
+
+        async def run(self, line: str, timeout: float = 0, user: str | None = None) -> Any:
+            self.lines.append(line)
+            return SimpleNamespace(exit_code=0, stdout=self.code, stderr="")
+
+    for code, admitted in (("200", True), ("403", False), ("000", False)):
+        sandbox = FakeSandbox()
+        sandbox.commands = Answer(code)
+        assert await _admits_host(sandbox, HOST) is admitted
+        assert f"Host: {HOST}" in sandbox.commands.lines[0]
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview

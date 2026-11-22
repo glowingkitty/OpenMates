@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import shlex
 import time
 from typing import Any, Awaitable, Callable
 
@@ -90,6 +91,36 @@ async def _listening(sandbox: Any) -> bool:
     return await _probe(sandbox, f"http://127.0.0.1:{PROJECT_PREVIEW_PORT}/")
 
 
+async def _admits_host(sandbox: Any, host: str) -> bool:
+    """Whether the server on the preview port serves requests for ``host``.
+
+    Vite refuses hosts it was not told about with 403 "Blocked request"; a dev server the
+    model or a test run started earlier on this port has no preview host and must be replaced.
+    """
+    result = await sandbox.commands.run(
+        f"curl -s -o /dev/null -w '%{{http_code}}' --max-time 2 -H {shlex.quote('Host: ' + host)} "
+        f"http://127.0.0.1:{PROJECT_PREVIEW_PORT}/ || true", timeout=10, user=COMMAND_USER)
+    code = str(getattr(result, "stdout", "") or "").strip()
+    return bool(code) and code not in {"000", "403"}
+
+
+# Stops whatever listens on the preview port, found through /proc (no lsof/fuser needed).
+_STOP_PORT_SERVER = (
+    "ino=$(awk '$2 ~ /:%04X$/ && $4 == \"0A\" {print $10}' /proc/net/tcp /proc/net/tcp6 2>/dev/null | head -1); "
+    "[ -n \"$ino\" ] && for p in /proc/[0-9]*; do ls -l \"$p/fd\" 2>/dev/null | grep -q \"socket:\\[$ino\\]\" "
+    "&& kill \"${p#/proc/}\"; done; true"
+) % PROJECT_PREVIEW_PORT
+
+
+async def _replace_foreign_server(sandbox: Any, sleep: Callable[[float], Awaitable[None]]) -> None:
+    await _run(sandbox, _STOP_PORT_SERVER, timeout=20)
+    for _ in range(10):
+        if not await _listening(sandbox):
+            return
+        await sleep(READY_POLL_SECONDS)
+    raise ProjectPreviewError("Another server keeps the app's preview port busy.")
+
+
 async def start_dev_server(sandbox: Any, folder: str, *, sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
                            ready_timeout: float = READY_TIMEOUT_SECONDS) -> str:
     """Start (or reuse) the dev server in ``folder``; return the sandbox host of the preview port."""
@@ -97,7 +128,10 @@ async def start_dev_server(sandbox: Any, folder: str, *, sleep: Callable[[float]
 
     preview_host = _host_name(str(sandbox.get_host(PROJECT_PREVIEW_PORT)))
     if await _listening(sandbox):
-        return preview_host
+        if await _admits_host(sandbox, preview_host):
+            return preview_host
+        logger.info("Project preview: replacing a dev server that refuses the preview host")
+        await _replace_foreign_server(sandbox, sleep)
     project_dir = command_line(WorkspaceCommand(argv=("true",), cwd=folder or ".", timeout_seconds=10,
                                                 background=False, ready_url=None)).split(" && ", 1)[0]
     code, out = await _run(sandbox, f"{project_dir} && node -e "

@@ -233,7 +233,7 @@ async function openProject(page: Page): Promise<void> {
   await expect(page.getByTestId('project-workspace-header')).toBeVisible({ timeout: 60_000 });
 }
 
-/** Files view (folder with the application card) and Timeline (the commit) of the Project. */
+/** Files view (the web-app folder with the written files) and Timeline (the commit) of the Project. */
 async function showProjectViews(page: Page, testInfo: any, label: string, proof: Proof): Promise<void> {
   await openProject(page);
   await page.getByTestId('project-tab-folders').click();
@@ -242,8 +242,11 @@ async function showProjectViews(page: Page, testInfo: any, label: string, proof:
   await expect(folder, 'the web-app folder in the Project files').toBeVisible({ timeout: 60_000 });
   await shot(page, testInfo, `${label}-20-files`);
   await folder.click();
-  const card = page.getByTestId('project-item-card').first();
-  await expect(card, 'application card in the folder').toContainText(/files/, { timeout: 60_000 });
+  // The folder holds the files the replies wrote as code embeds (newest first), not one app card.
+  await expect(page.getByTestId('project-item-card').filter({ hasText: 'package.json' }).first(),
+    'the app files in the web-app folder').toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId('project-virtual-folder-card').filter({ hasText: 'tests' }).first(),
+    'the recorded test folder').toContainText('recipe', { timeout: 60_000 });
   await page.waitForTimeout(2_000);
   await shot(page, testInfo, `${label}-21-files-web-app`);
   await proof.checkpoint('cloud-project-files');
@@ -395,7 +398,11 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     await expect(start.or(frame).first(), 'application fullscreen').toBeVisible({ timeout: 30_000 });
     if (await start.isVisible() && await start.isEnabled()) await start.click();
     await expect(frame, 'running application preview').toBeVisible({ timeout: 240_000 });
-    await expect(page.frameLocator('[data-testid="application-preview-iframe"]').locator('body')).not.toBeEmpty({ timeout: 60_000 });
+    const appBody = page.frameLocator('[data-testid="application-preview-iframe"]').locator('body');
+    await expect(appBody).not.toBeEmpty({ timeout: 60_000 });
+    // The recipe app itself, not a dev-server error page (run on d7eee86: Vite "Blocked request" for the host).
+    await expect(appBody, 'the recipe app in the preview').toContainText(/recipe/i, { timeout: 60_000 });
+    await expect(appBody, 'no dev-server host block').not.toContainText('Blocked request');
     await shot(page, testInfo, 'laptop-07-preview');
     await proof.checkpoint('cloud-preview');
     const stop = page.getByTestId('application-stop-preview');
