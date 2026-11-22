@@ -263,7 +263,9 @@ def media_kind(content_type: str) -> str:
         return "image"
     if content_type.startswith("video/"):
         return "video"
-    if content_type in ("application/pdf", "text/markdown; charset=utf-8"):
+    # ZIP and octet-stream: output files a Discord push links when too big to attach (push_proof.py).
+    if content_type in ("application/pdf", "text/markdown; charset=utf-8", "application/zip",
+                        "application/octet-stream"):
         return "document"
     raise ValueError(f"Unsupported content type: {content_type}")
 

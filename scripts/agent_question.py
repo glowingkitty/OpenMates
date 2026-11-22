@@ -23,8 +23,9 @@ rewrite instruction (exit 1); after two rejections one cheap model call shortens
 word boundary with "…". --option values go to the push log only. Every text is scrubbed (secrets,
 personal data) before it is sent, logged or given to the model.
 
-Proof (scripts/push_proof.py): ``--attach`` puts screenshots and videos into the push as real
-Discord files (compressed, or a 7-day private storage link when over Discord's limit); ``--link``
+Proof (scripts/push_proof.py): ``--attach`` puts screenshots, videos and output files (machine
+files, ZIP, PDF) into the push as real Discord files (compressed, or a 7-day private storage link
+when over Discord's limit); ``--link``
 adds a signed link to our private proof storage. Both come on top of the short text. A chat that
 changed UI files or ran end-to-end/visual CI jobs must attach proof; its push is refused without
 it unless ``--no-proof "<why>"`` (sent with a loud "No screenshot or video" line). Research,
@@ -370,9 +371,9 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
     attach, links = getattr(args, "attach", None) or [], getattr(args, "link", None) or []
     no_proof = (getattr(args, "no_proof", None) or "").strip()
     reasons = push_proof.proof_reasons(root, chat_id)
-    if reasons and not attach and not links and not no_proof:
+    if reasons and not any(push_proof.is_visual(raw) for raw in attach) and not links and not no_proof:
         raise QuestionError(push_proof.refusal(reasons))
-    if no_proof and not attach and not links:
+    if no_proof and not any(push_proof.is_visual(raw) for raw in attach) and not links:
         message += f"\n⚠️ No screenshot or video: {discord_summary.clean_text(scrub(no_proof))[:160]}"
     if args.dry_run:
         for raw in attach:
@@ -418,7 +419,8 @@ def main(argv: list[str] | None = None) -> int:
     ask_parser.add_argument("--option", action="append", help="logged for the connector; not sent")
     for each in (done_parser, ask_parser):
         each.add_argument("--attach", action="append", metavar="FILE",
-                          help="screenshot or video sent as a Discord file (repeatable); required when the chat "
+                          help="screenshot, video or output file (zip, machine files, pdf, svg, stl, csv) sent as a "
+                               "Discord file (repeatable); a screenshot or video is required when the chat "
                                "changed UI files or ran end-to-end/visual CI jobs")
         each.add_argument("--link", action="append", metavar="URL",
                           help="signed link to our private proof storage, sent on top of the text (repeatable)")

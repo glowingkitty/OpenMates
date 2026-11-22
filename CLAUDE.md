@@ -93,7 +93,8 @@ when a skill or this file points to it.
   Proof goes into the push: after UI/visual changes or E2E runs add
   `--attach <screenshot/video>` (repeatable; CI files are under
   `test-results/ci-runs/`), sent as Discord files or a private 7-day link, on
-  top of the short text; such a push without proof is refused (`--no-proof
+  top of the short text. Files the user asked for (ZIP, machine files, PDF) go
+  with `--attach` too, as downloads. A push without proof is refused (`--no-proof
   "<why>"` only when there is truly nothing to show). Research, backend,
   security and tooling pushes need none. Proof videos of voice and audio flows
   carry the browser's sound in sync (`withProofAudio`, `.claude/rules/testing.md`):

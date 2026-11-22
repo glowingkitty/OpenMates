@@ -171,6 +171,33 @@ def test_video_over_the_limit_is_reencoded_or_linked_from_private_storage(root, 
     assert linked.link_lines() == [f"long.webm: <{OWN_LINK}>"]
 
 
+def test_output_files_go_out_unchanged_as_downloads_and_a_too_big_one_as_a_private_link(root, tmp_path, monkeypatch):
+    machine = tmp_path / "fire-tail.pes"
+    machine.write_bytes(b"#PES0001" + b"1" * 300)
+    bundle = tmp_path / "fire-tail.zip"
+    bundle.write_bytes(b"PK\x03\x04" + b"2" * 600)
+    sent = []
+    aq.send(done(attach=[str(machine), str(bundle)]), root, "chat-1", 1.0,
+            post=lambda **_: pytest.fail("text-only post"),
+            post_files=lambda **kw: sent.append(kw) or {"message_id": "1", "attachment_ids": ["a", "b"]})
+    assert sent[0]["files"] == [("fire-tail.pes", machine.read_bytes()), ("fire-tail.zip", bundle.read_bytes())]
+    monkeypatch.setattr(push_proof, "MESSAGE_BYTES", 500)
+    uploads = []
+    linked = push_proof.prepare([str(machine), str(bundle)], [], "chat-1", tmp_path, own_link=aq.own_storage_link,
+                                uploader=lambda path, chat: uploads.append(path) or OWN_LINK)
+    assert linked.files == [("fire-tail.pes", machine.read_bytes())] and uploads == [bundle]
+    assert linked.link_lines() == [f"fire-tail.zip: <{OWN_LINK}>"]
+
+
+def test_output_files_alone_are_not_visual_proof(root, tmp_path):
+    sessions(root, aa11=("chat-1", ["frontend/packages/ui/src/components/Settings.svelte"]))
+    bundle = tmp_path / "result.zip"
+    bundle.write_bytes(b"PK")
+    with pytest.raises(aq.QuestionError, match="needs a screenshot or video"):
+        aq.send(done(attach=[str(bundle)]), root, "chat-1", 1.0,
+                post=lambda **_: pytest.fail("posted"), post_files=lambda **_: pytest.fail("posted"))
+
+
 def test_link_lines_are_not_counted_against_the_text_limit(root, tmp_path, monkeypatch):
     monkeypatch.setattr(push_proof, "MESSAGE_BYTES", 10)
     sessions(root, aa11=("chat-1", ["frontend/packages/ui/src/components/Settings.svelte"]))

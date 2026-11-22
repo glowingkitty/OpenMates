@@ -1,4 +1,4 @@
-"""Screenshots and videos on the ✅/❓ Discord pushes of scripts/agent_question.py, and the proof check.
+"""Screenshots, videos and output files on the ✅/❓ Discord pushes of scripts/agent_question.py, and the proof check.
 
 Attachments (``--attach PATH``, repeatable): screenshots (.png .jpg .jpeg .webp .gif) and videos
 (.mp4 .webm .mov) go into the push as real Discord files (webhook multipart upload, at most
@@ -10,6 +10,11 @@ AI test users video bucket, signed link valid as long as the object) and the pus
 ``--link URL`` adds an existing proof link; only presigned links to our own private buckets are
 accepted (agent_question.own_storage_link). The short-text limit covers the text only; attachments
 and links go out on top of it.
+
+Output files (owner, 22 Nov 2026): what a chat produced for the owner to download (FILE_SUFFIXES:
+archives, embroidery machine files, PDF, SVG, 3D models, CSV) are attached as they are, so Discord
+offers them as downloads. One that does not fit the message goes to the same private 7-day storage
+and the push carries its link. Output files are not visual proof (see the proof check below).
 
 Privacy: proof can show user-like data. It goes only to the push webhook (the owner's private
 channel) and the private bucket, never into the repository; compressed copies live in a temporary
@@ -44,8 +49,11 @@ from typing import Callable
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 VIDEO_SUFFIXES = {".mp4", ".webm", ".mov"}
+# Output files the owner downloads; stored as application/zip, application/pdf or octet-stream.
+FILE_SUFFIXES = {".zip", ".pes", ".dst", ".exp", ".jef", ".vp3", ".pdf", ".svg", ".stl", ".3mf", ".csv"}
 CONTENT_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp",
-                 ".gif": "image/gif", ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime"}
+                 ".gif": "image/gif", ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
+                 ".zip": "application/zip", ".pdf": "application/pdf"}
 MAX_FILES = 10  # Discord: attachments per message
 MESSAGE_BYTES = 9 * 1024 * 1024 + 512 * 1024  # under Discord's 10 MiB webhook upload limit, with room for the form
 IMAGE_MAX_BYTES = 4 * 1024 * 1024  # a screenshot above this is re-encoded even when it would fit
@@ -158,10 +166,16 @@ def check_path(raw: str) -> Path:
         raise ProofError(f"{path.name}: private paths (.auth, ci-private, .env) are never attached")
     if not path.is_file():
         raise ProofError(f"{raw}: no such file")
-    if path.suffix.lower() not in IMAGE_SUFFIXES | VIDEO_SUFFIXES:
-        raise ProofError(f"{path.name}: only screenshots ({', '.join(sorted(IMAGE_SUFFIXES))}) and videos "
-                         f"({', '.join(sorted(VIDEO_SUFFIXES))}) can be attached")
+    if path.suffix.lower() not in IMAGE_SUFFIXES | VIDEO_SUFFIXES | FILE_SUFFIXES:
+        raise ProofError(f"{path.name}: only screenshots ({', '.join(sorted(IMAGE_SUFFIXES))}), videos "
+                         f"({', '.join(sorted(VIDEO_SUFFIXES))}) and output files "
+                         f"({', '.join(sorted(FILE_SUFFIXES))}) can be attached")
     return path
+
+
+def is_visual(raw: str) -> bool:
+    """True for a screenshot or video, the attachments that count as proof."""
+    return Path(raw).suffix.lower() in IMAGE_SUFFIXES | VIDEO_SUFFIXES
 
 
 def unique_name(name: str, taken: set[str]) -> str:
@@ -216,8 +230,9 @@ def upload_to_storage(path: Path, chat_id: str) -> str:
     digest = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
     key = f"{STORAGE_PREFIX}/{videos.KEY_PART.sub('_', chat_id or 'chat')}/{digest}-{videos.KEY_PART.sub('_', path.name)}"
     try:
-        return videos.upload(path, key, content_type=CONTENT_TYPES[path.suffix.lower()])["url"]
-    except (RuntimeError, OSError, KeyError, ValueError) as error:
+        content_type = CONTENT_TYPES.get(path.suffix.lower(), "application/octet-stream")
+        return videos.upload(path, key, content_type=content_type)["url"]
+    except (RuntimeError, OSError, ValueError) as error:
         raise ProofError(f"{path.name}: upload to the private proof storage failed ({error})") from error
 
 
@@ -233,6 +248,7 @@ def prepare(paths: list[str], links: list[str], chat_id: str, work: Path, *,
     checked = [check_path(raw) for raw in paths]
     images = [p for p in checked if p.suffix.lower() in IMAGE_SUFFIXES]
     videos = [p for p in checked if p.suffix.lower() in VIDEO_SUFFIXES]
+    outputs = [p for p in checked if p.suffix.lower() in FILE_SUFFIXES]
     budget, taken = MESSAGE_BYTES, set()
 
     def attach(name: str, content: bytes) -> bool:
@@ -264,6 +280,9 @@ def prepare(paths: list[str], links: list[str], chat_id: str, work: Path, *,
         if smaller is not None and attach(f"{path.stem}.mp4", smaller):
             prepared.notes.append(f"{path.name}: re-encoded from {len(content)} to {len(smaller)} bytes")
         else:
+            to_link(path, "over Discord's upload limit")
+    for path in outputs:
+        if not attach(path.name, path.read_bytes()):
             to_link(path, "over Discord's upload limit")
     return prepared
 
