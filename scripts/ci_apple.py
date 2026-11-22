@@ -24,7 +24,8 @@ version the release Mac builds with), never on the shared dev host.
                iOS simulator, serially. The app under test is the Debug build, so tests
                that talk to a server reach the dev backend; the lane passes no secrets,
                so real-account tests skip themselves. A focused run (at most
-               MAX_RECORDED_UI_SPECS targets) keeps the screen recording of every test,
+               MAX_RECORDED_UI_SPECS targets) runs from a patched copy of the built
+               .xctestrun that keeps the screen recording of every test,
                passing ones too, so a UI change has its result video; larger runs keep
                only the recordings of failed tests.
 
@@ -50,6 +51,10 @@ MAX_UI_SPECS = 40
 # run would upload hundreds of megabytes of passing-test video nobody watches.
 MAX_RECORDED_UI_SPECS = 12
 KEEP_RECORDINGS_STEP = "keep screen recordings of passing tests"
+RECORDED_XCTESTRUN = "OpenMates_recorded.xctestrun"
+# Attachment lifetimes in an .xctestrun: system attachments and, separately, the automatic
+# UI-test screen capture ("On, and keep all" in a test plan).
+KEEP_ALL_KEYS = ("SystemAttachmentLifetime", "UITestingScreenshotsLifetime")
 TEST_ALLOWANCE_SECONDS = 300  # per test; the longest real UI flow waits about 90 s
 XCODE_MODES = ("apple-build", "apple-unit", "apple-ui")
 RESULT_BUNDLES = {
@@ -194,8 +199,9 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
         "-IDEBuildingContinueBuildingAfterErrors=YES", *settings,
     ]
     steps: list[Step] = [(BUILD_STEP, build, {}, "")]
-    if mode == "apple-ui" and len(only) <= MAX_RECORDED_UI_SPECS:
-        products = results / "DerivedData" / "Build" / "Products"
+    products = results / "DerivedData" / "Build" / "Products"
+    recorded = mode == "apple-ui" and len(only) <= MAX_RECORDED_UI_SPECS
+    if recorded:
         steps.append((
             KEEP_RECORDINGS_STEP,
             [sys.executable, str(Path(__file__).resolve()), "keep-recordings", str(products)],
@@ -226,8 +232,14 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
         # The tests run on the products of the build above; nothing is compiled twice.
         # A test that never returns (for example audio playback without an output device on
         # the runner) is failed after its allowance instead of stalling the lane.
+        # A recorded run tests from the patched copy of the built .xctestrun; `-scheme`
+        # would run Xcode's own unpatched one.
+        source = (
+            ["-xctestrun", str(products / RECORDED_XCTESTRUN), "-destination", f"platform=iOS Simulator,name={SIMULATOR}"]
+            if recorded else shared
+        )
         test = [
-            "xcodebuild", "test-without-building", *shared,
+            "xcodebuild", "test-without-building", *source,
             "-resultBundlePath", str(results / RESULT_BUNDLES[mode]),
             "-test-timeouts-enabled", "YES",
             "-default-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
@@ -238,7 +250,8 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
             test += ["-parallel-testing-enabled", "NO"]
         for selector in only:
             test += ["-only-testing", selector]
-        steps.append((f"xcodebuild test {' '.join(only)}"[:160], test + settings, {}, ""))
+        # Build settings belong to the scheme run; the patched .xctestrun carries the built ones.
+        steps.append((f"xcodebuild test {' '.join(only)}"[:160], test + ([] if recorded else settings), {}, ""))
     return [
         (
             "design tokens and locales",
@@ -260,32 +273,36 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
 
 
 def keep_recordings(products: Path) -> int:
-    """Keep the screen recordings of passing UI tests in the built .xctestrun files.
+    """Write RECORDED_XCTESTRUN: the built .xctestrun with passing-test recordings kept.
 
-    `xcodebuild test-without-building -scheme` runs the .xctestrun that build-for-testing
-    wrote; its default deletes system attachments (screen recordings) of passing tests.
-    Returns the number of UI test targets changed and raises when there is none, so a
-    missing video is a failed step rather than a silent gap.
+    The .xctestrun that build-for-testing wrote deletes system attachments (screen
+    recordings) of passing tests. The copy sits beside it, so its __TESTROOT__ paths stay
+    valid, and the recorded test step runs it with `-xctestrun`. Returns the number of UI
+    test targets changed and raises when there is no single built .xctestrun or no UI test
+    target in it, so a missing video is a failed step rather than a silent gap.
     """
     import plistlib
 
-    changed = 0
-    for path in sorted(products.glob("*.xctestrun")):
-        data = plistlib.loads(path.read_bytes())
-        if "TestConfigurations" in data:
-            targets = [t for c in data["TestConfigurations"] for t in c.get("TestTargets", [])]
-        else:  # format version 1: one top-level dictionary per test target
-            targets = [v for v in data.values() if isinstance(v, dict) and "TestBundlePath" in v]
-        for target in targets:
-            if target.get("IsUITestBundle"):
-                target["SystemAttachmentLifetime"] = "keepAlways"
-                target["PreferredScreenCaptureFormat"] = "screenRecording"
-                changed += 1
-        path.write_bytes(plistlib.dumps(data))
-    if not changed:
-        raise ValueError(f"no UI test target in any .xctestrun under {products}")
-    print(f"screen recordings kept for {changed} UI test target(s)", flush=True)
-    return changed
+    built = [p for p in sorted(products.glob("*.xctestrun")) if p.name != RECORDED_XCTESTRUN]
+    if len(built) != 1:
+        raise ValueError(f"expected one built .xctestrun under {products}, found {len(built)}")
+    data = plistlib.loads(built[0].read_bytes())
+    if "TestConfigurations" in data:
+        targets = [t for c in data["TestConfigurations"] for t in c.get("TestTargets", [])]
+    else:  # format version 1: one top-level dictionary per test target
+        targets = [v for v in data.values() if isinstance(v, dict) and "TestBundlePath" in v]
+    ui = [t for t in targets if t.get("IsUITestBundle")]
+    if not ui:
+        raise ValueError(f"no UI test target in {built[0].name}")
+    for target in ui:
+        # The key names, so a run shows which lifetime settings this Xcode writes.
+        print(f"{target.get('BlueprintName', '?')} keys: {', '.join(sorted(target))}", flush=True)
+        for key in KEEP_ALL_KEYS:
+            target[key] = "keepAlways"
+        target["PreferredScreenCaptureFormat"] = "screenRecording"
+    (products / RECORDED_XCTESTRUN).write_bytes(plistlib.dumps(data))
+    print(f"screen recordings kept for {len(ui)} UI test target(s) in {RECORDED_XCTESTRUN}", flush=True)
+    return len(ui)
 
 
 def swift_errors(lines: list[str], root: Path) -> list[str]:
