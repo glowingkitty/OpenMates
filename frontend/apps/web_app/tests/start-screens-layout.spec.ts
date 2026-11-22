@@ -21,6 +21,7 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
+	assertNoMissingTranslations,
 	createSignupLogger,
 	createStepScreenshotter,
 	getE2EDebugUrl,
@@ -483,5 +484,41 @@ test.describe('start screens layout', () => {
 		await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toContainText(chatText);
 		await testInfo.attach('signed-in-chats-suggestion-filled', { body: await page.screenshot(), contentType: 'image/png' });
 		await proof.attach();
+	});
+
+	// contract-test: direct surface=gui.web assertions=workspace-shell.start.available-space-cards
+	test('signed-in start screens of all five workspaces are clean on desktop and phone', async ({ page }: { page: any }, testInfo: any) => {
+		test.slow();
+		test.setTimeout(300000);
+		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+		const log = createSignupLogger('START_SCREENS_ALL');
+		const screenshot = createStepScreenshotter(log);
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await loginToTestAccount(page, log, screenshot);
+
+		const workspaces = [
+			...SIGNED_IN_SCREENS.map((screen) => ({ name: screen.name as string, path: screen.path, ready: screen.headingTestId })),
+			{ name: 'tasks', path: '/tasks', ready: 'task-board' }
+		];
+		// Tasks last at both sizes, so a Tasks problem never hides the other four screens.
+		const visits = [false, true].flatMap((tasksPass) => [VIEWPORTS[2], VIEWPORTS[0]].flatMap((viewport) =>
+			workspaces.filter((workspace) => (workspace.name === 'tasks') === tasksPass).map((workspace) => ({ viewport, workspace }))));
+		for (const { viewport, workspace } of visits) {
+			{
+				await page.setViewportSize({ width: viewport.width, height: viewport.height });
+				await page.goto(getE2EDebugUrl(workspace.path), { waitUntil: 'domcontentloaded' });
+				await expect(page.getByTestId(workspace.ready), `${workspace.name} ready at ${viewport.name}`).toBeVisible({ timeout: 30000 });
+				if (workspace.name === 'tasks') {
+					await expect(page.getByTestId('tasks-loading')).toHaveCount(0, { timeout: 30000 });
+				} else {
+					await expect(page.getByTestId(`${workspace.name === 'chats' ? 'start-row' : workspace.name + '-start-row'}-actions`)).toBeVisible({ timeout: 30000 });
+				}
+				const text: string = await page.locator('body').innerText();
+				await assertNoMissingTranslations(page);
+				expect(text, `${workspace.name} shows Untitled chat at ${viewport.name}`).not.toContain('Untitled chat');
+				await expect(page.locator('[data-testid="notification"].notification-error'), `error notification on ${workspace.name} at ${viewport.name}`).toHaveCount(0);
+				await testInfo.attach(`${viewport.name}-${workspace.name}`, { body: await page.screenshot(), contentType: 'image/png' });
+			}
+		}
 	});
 });

@@ -234,3 +234,32 @@ def test_open_ended_event_search_also_looks_for_next_years_edition() -> None:
     assert extraction.search_query(extraction.KIND_EVENT, {**request, "start_date": "2026-03-01",
                                                            "end_date": "2026-06-30"}, today) == \
         "Example conference Example City 2026"
+
+
+# contract-test: direct surface=rest_api assertions=instance-app-packages.web-source
+@pytest.mark.anyio
+async def test_a_named_events_official_page_is_read_before_second_pages_of_one_site(monkeypatch):
+    """Several pages of one site must not take the page budget (and reader queue) from other sites."""
+    read_urls: List[str] = []
+    top = "https://conf.example.org/2027/"
+
+    async def search(query, secrets_manager, **kwargs):
+        return {"results": [{"url": top}, {"url": "https://conf.example.org/2027/news/"},
+                            {"url": "https://conf.example.org/2027/calendar/"},
+                            {"url": "https://conf.example.org/2027/about/"},
+                            {"url": "https://archive.example.org/2026/"}, {"url": "https://wiki.example.org/Conf"}]}
+
+    async def read(url, **kwargs):
+        read_urls.append(url)
+        return {"markdown": EVENT_PAGE, "title": "Conferences"}
+
+    async def complete(kind, request, page_url, page_title, page_text, **kwargs):
+        return [{"title": "Libre Days", "date_start": "2027-01-14"}], 10, 5
+
+    monkeypatch.setattr(extraction, "search_web", search)
+    monkeypatch.setattr(extraction, "read_public_web_page", read)
+    monkeypatch.setattr(extraction, "complete_page", complete)
+    outcome = await extraction.extract_web_results(extraction.KIND_EVENT, {"query": "Libre Days"},
+                                                   secrets_manager=None)
+    assert read_urls[:3] == [top, "https://archive.example.org/2026/", "https://wiki.example.org/Conf"]
+    assert len(read_urls) == extraction.MAX_PAGES and top in {row["source_page_url"] for row in outcome.results}
