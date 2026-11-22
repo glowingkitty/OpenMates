@@ -423,3 +423,31 @@ async def test_operations_the_sandbox_does_not_run_keep_the_device_path():
             log_prefix="t",
         ) is None
     assert executor.SANDBOX_OPERATIONS >= {"read_text", "update_file", "create_file"}
+
+
+# contract-test: direct surface=rest_api assertions=projects.sandbox.device-fallback
+@pytest.mark.asyncio
+async def test_worker_secrets_reach_the_sandbox_and_a_missing_e2b_key_keeps_the_device_path(monkeypatch):
+    """The AI worker's secrets manager (Vault) reaches the sandbox service; without an E2B key the device path runs."""
+    built = []
+
+    async def allowed(user_id, directus_service):
+        return {"decision": "allowed"}
+
+    class KeylessService:
+        def __init__(self, cache_service, directus_service, **kwargs):
+            built.append(kwargs)
+
+        async def ensure_ready(self, **kwargs):
+            raise ProjectSandboxUnavailable("create_failed")
+
+    monkeypatch.setattr(executor.e2b_upload_consent, "get_decision", allowed)
+    monkeypatch.setattr(executor, "ProjectSandboxService", KeylessService)
+    vault = object()
+    result = await executor.run_project_tool_in_sandbox(
+        request_data=SimpleNamespace(user_id="u1", chat_id="chat-1"), operation="create_file",
+        operation_arguments={"path": "web-app/package.json"}, dispatch_focus={"project_id": "p1"},
+        cache_service=None, directus_service=object(), secrets_manager=vault, log_prefix="t",
+    )
+    assert result is None
+    assert built == [{"secrets_manager": vault}]

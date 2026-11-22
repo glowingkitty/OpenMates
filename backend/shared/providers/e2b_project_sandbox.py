@@ -119,6 +119,14 @@ def _sdk_errors() -> tuple[type[BaseException], ...]:
             httpx.HTTPError)
 
 
+async def _api_key(secrets_manager: Any) -> str:
+    """The E2B API key; a missing key is a sandbox error, so callers keep the device path."""
+    try:
+        return await get_e2b_api_key_async(secrets_manager)
+    except RuntimeError as exc:
+        raise ProjectSandboxError("api_key_unavailable") from exc
+
+
 def host_url(sandbox_host: str) -> str:
     return f"https://{sandbox_host}"
 
@@ -140,7 +148,7 @@ async def create_project_sandbox(
         raise ProjectSandboxError("template_missing")
     from e2b import AsyncSandbox
 
-    api_key = await get_e2b_api_key_async(secrets_manager)
+    api_key = await _api_key(secrets_manager)
     bearer = secrets.token_urlsafe(32)
     try:
         sandbox = await AsyncSandbox.create(
@@ -192,7 +200,7 @@ async def connect_project_sandbox(sandbox_id: str, *, secrets_manager: Any = Non
     """Reconnect to a running sandbox; raises ``ProjectSandboxError('gone')`` when it is not running."""
     from e2b import AsyncSandbox
 
-    api_key = await get_e2b_api_key_async(secrets_manager)
+    api_key = await _api_key(secrets_manager)
     try:
         return await AsyncSandbox.connect(sandbox_id, api_key=api_key)
     except _sdk_errors() as exc:
@@ -207,7 +215,7 @@ async def kill_project_sandbox(sandbox_id: str, *, secrets_manager: Any = None) 
     """Kill a sandbox; True when it existed."""
     from e2b import AsyncSandbox
 
-    api_key = await get_e2b_api_key_async(secrets_manager)
+    api_key = await _api_key(secrets_manager)
     return bool(await AsyncSandbox.kill(sandbox_id, api_key=api_key))
 
 
@@ -215,7 +223,7 @@ async def list_project_sandbox_ids(*, secrets_manager: Any = None) -> dict[str, 
     """Running sandboxes created by this module (tagged by metadata): id -> start time (epoch seconds)."""
     from e2b import AsyncSandbox
 
-    api_key = await get_e2b_api_key_async(secrets_manager)
+    api_key = await _api_key(secrets_manager)
     paginator = AsyncSandbox.list(query={"metadata": dict(PROJECT_SANDBOX_METADATA), "state": ["running"]},
                                   api_key=api_key)
     ids: dict[str, float] = {}

@@ -9812,7 +9812,7 @@ async def handle_main_processing(
                                     request_data=request_data, operation=operation,
                                     operation_arguments=operation_arguments, dispatch_focus=dispatch_focus,
                                     cache_service=cache_service, directus_service=directus_service,
-                                    log_prefix=log_prefix,
+                                    secrets_manager=secrets_manager, log_prefix=log_prefix,
                                 )
                                 if sandbox_result is not None:
                                     # Hosted sandbox ran it inline: no pending operation, no continuation.

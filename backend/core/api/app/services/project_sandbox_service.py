@@ -149,8 +149,6 @@ class ProjectSandboxService:
             await sandbox_provider.kill_project_sandbox(record["sandbox_id"], secrets_manager=self.secrets_manager)
         except ProjectSandboxError as exc:
             logger.error("Project sandbox %s kill failed: %s", record["sandbox_id"], exc.code)
-        except RuntimeError as exc:
-            logger.error("Project sandbox %s kill failed: %s", record["sandbox_id"], type(exc).__name__)
         logger.info("Project sandbox %s killed (%s)", record["sandbox_id"], reason)
         await self._bill(user_id, record)
 

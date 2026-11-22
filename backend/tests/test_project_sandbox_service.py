@@ -338,3 +338,25 @@ async def test_sandbox_where_user_can_still_become_root_is_killed_before_the_dae
         await provider.create_project_sandbox(project_id="p1", job_id="j1", chat_id="c1")
     assert refused.value.code == "escalation_possible" and killed == ["sb9"]
     assert commands.daemon_starts() == []
+
+
+# contract-test: direct surface=rest_api assertions=projects.sandbox.device-fallback
+@pytest.mark.asyncio
+async def test_missing_e2b_key_is_a_sandbox_error_not_a_crash(monkeypatch):
+    """No E2B key in Vault or env: creation fails with a sandbox error, so the caller keeps the device path."""
+    monkeypatch.setenv(provider.PROJECT_SANDBOX_TEMPLATE_ENV, "tmpl")
+
+    async def no_key(_):
+        raise RuntimeError("E2B API key is not configured.")
+
+    import sys
+    import types
+
+    monkeypatch.setitem(sys.modules, "e2b", types.SimpleNamespace(AsyncSandbox=types.SimpleNamespace()))
+    monkeypatch.setattr(provider, "get_e2b_api_key_async", no_key)
+    with pytest.raises(ProjectSandboxError) as err:
+        await provider.create_project_sandbox(project_id="p1", job_id="j1", chat_id="c1")
+    assert err.value.code == "api_key_unavailable"
+    with pytest.raises(ProjectSandboxError) as err:
+        await provider.kill_project_sandbox("sb1")
+    assert err.value.code == "api_key_unavailable"

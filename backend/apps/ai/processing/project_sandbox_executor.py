@@ -29,7 +29,8 @@ SANDBOX_OPERATIONS = frozenset(
 async def run_project_tool_in_sandbox(
     *, request_data: Any, operation: str, operation_arguments: dict, dispatch_focus: dict,
     cache_service: Any, directus_service: Any, log_prefix: str,
-    sandbox_service: Optional[ProjectSandboxService] = None, head_loader: Any = None,
+    secrets_manager: Any = None, sandbox_service: Optional[ProjectSandboxService] = None,
+    head_loader: Any = None,
 ) -> Optional[dict]:
     """Return the model-facing tool result, or None when the device path must handle the operation."""
     if dispatch_focus.get("source_id"):
@@ -46,7 +47,8 @@ async def run_project_tool_in_sandbox(
         return None
     project_id = str(dispatch_focus["project_id"])
     team_id = dispatch_focus.get("team_id")
-    service = sandbox_service or ProjectSandboxService(cache_service, directus_service)
+    service = sandbox_service or ProjectSandboxService(cache_service, directus_service,
+                                                       secrets_manager=secrets_manager)
     try:
         handle = await service.ensure_ready(user_id=user_id, chat_id=chat_id, project_id=project_id,
                                             team_id=team_id)
