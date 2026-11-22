@@ -67,6 +67,11 @@ FIRST_CHUNK_TIMEOUT_SECONDS = _get_env_float("AI_FIRST_CHUNK_TIMEOUT_SECONDS", 1
 # Override via env: AI_REASONING_FIRST_CHUNK_TIMEOUT_SECONDS
 REASONING_FIRST_CHUNK_TIMEOUT_SECONDS = _get_env_float("AI_REASONING_FIRST_CHUNK_TIMEOUT_SECONDS", 15.0)
 
+# First-chunk timeout when the request has exactly one usable route (a Gemini tool-loop
+# follow-up bound to the API surface that minted its thought signatures). Failing over is
+# impossible there, so a slow first token is waited for instead of ending the turn.
+SOLE_ROUTE_FIRST_CHUNK_TIMEOUT_SECONDS = _get_env_float("AI_SOLE_ROUTE_FIRST_CHUNK_TIMEOUT_SECONDS", 60.0)
+
 # Inter-chunk timeout (in seconds).
 # Used to detect hung streams where the provider stops sending mid-stream.
 # Default: 30 seconds - if no chunk is received within 30s, the stream is likely dead.

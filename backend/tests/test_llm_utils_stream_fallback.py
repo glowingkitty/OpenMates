@@ -1043,3 +1043,80 @@ def test_mercury_high_deadline_is_not_shortened_by_generic_watchdogs(monkeypatch
         )]
     assert asyncio.run(run()) == ["answer"]
     assert observed == [(60., 60.)]
+
+
+def _first_chunk_timeout_for_history(monkeypatch, message_history):
+    """Runs one AI Studio stream and returns the first-chunk timeout it was given."""
+    timeouts = []
+    real_timeout_stream = llm_utils.stream_with_first_chunk_timeout
+
+    def capture_timeout_stream(stream, first_chunk_timeout, inter_chunk_timeout=None):
+        timeouts.append(first_chunk_timeout)
+        return real_timeout_stream(stream, first_chunk_timeout, inter_chunk_timeout)
+
+    async def google_ai_studio_provider(**_kwargs):
+        async def _stream():
+            yield "answer"
+        return _stream()
+
+    def fake_get_provider_client(provider_prefix):
+        if provider_prefix == "google_ai_studio":
+            return google_ai_studio_provider
+        raise AssertionError(f"Unexpected provider prefix: {provider_prefix}")
+
+    monkeypatch.setattr(llm_utils, "stream_with_first_chunk_timeout", capture_timeout_stream)
+    monkeypatch.setattr(llm_utils, "_get_provider_client", fake_get_provider_client)
+    monkeypatch.setattr(
+        llm_utils, "resolve_default_server_from_provider_config",
+        lambda model_id, _region="eu": ("google_ai_studio", "google_ai_studio/gemini-3-flash-preview")
+        if model_id == "google/gemini-3-flash-preview" else (None, None),
+    )
+    monkeypatch.setattr(
+        llm_utils, "resolve_fallback_servers_from_provider_config",
+        lambda model_id, _region="eu": ["google/gemini-3-flash-preview"]
+        if model_id == "google/gemini-3-flash-preview" else [],
+    )
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model_id: True)
+
+    async def consume_stream():
+        stream = llm_utils.call_main_llm_stream(
+            task_id="task-sole-route-timeout",
+            model_id="google/gemini-3-flash-preview",
+            system_prompt="system",
+            message_history=message_history,
+            temperature=0.2,
+            tools=[{"type": "function", "function": {"name": "code-run", "parameters": {"type": "object"}}}],
+            tool_choice="auto",
+        )
+        return [chunk async for chunk in stream]
+
+    assert asyncio.run(consume_stream()) == ["answer"]
+    return timeouts
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+def test_signed_tool_continuation_with_one_usable_route_waits_longer_for_the_first_chunk(monkeypatch):
+    """Proof runs 23/24: AI Studio was cut at 15 s on a coding follow-up, the Vertex fallback
+    refused the AI Studio thought signatures, and the turn ended without tools."""
+    signed_history = [
+        {
+            "role": "assistant", "content": None,
+            "tool_calls": [{
+                "id": "code-run-1", "type": "function",
+                "function": {"name": "code-run", "arguments": "{}"},
+                "thought_signature": "studio-signature",
+                "provider_transport_state": {GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY: "google_ai_studio"},
+            }],
+        },
+        {"role": "tool", "tool_call_id": "code-run-1", "name": "code-run", "content": "{}"},
+    ]
+    from backend.apps.ai.utils import timeout_utils
+
+    assert _first_chunk_timeout_for_history(monkeypatch, signed_history) == [
+        timeout_utils.SOLE_ROUTE_FIRST_CHUNK_TIMEOUT_SECONDS
+    ]
+    # A first turn can still fail over to the other route: the usual reasoning timeout stays.
+    assert _first_chunk_timeout_for_history(monkeypatch, [{"role": "user", "content": "hi"}]) == [
+        timeout_utils.REASONING_FIRST_CHUNK_TIMEOUT_SECONDS
+    ]
+    assert timeout_utils.SOLE_ROUTE_FIRST_CHUNK_TIMEOUT_SECONDS > timeout_utils.REASONING_FIRST_CHUNK_TIMEOUT_SECONDS
