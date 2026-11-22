@@ -20,12 +20,15 @@ class FakeExit(Exception):
 
 
 class FakeHandle:
-    def __init__(self, sandbox, exit_code, hang):
-        self.sandbox, self.exit_code, self.hang, self.killed = sandbox, exit_code, hang, False
+    """Mirrors e2b 2.x `AsyncCommandHandle`: callbacks come from `commands.run`, `wait()` takes no arguments."""
 
-    async def wait(self, on_stdout=None, on_stderr=None):
-        on_stdout("hello\n")
-        on_stderr("warn\n")
+    def __init__(self, sandbox, exit_code, hang, on_stdout, on_stderr):
+        self.sandbox, self.exit_code, self.hang, self.killed = sandbox, exit_code, hang, False
+        self.on_stdout, self.on_stderr = on_stdout, on_stderr
+
+    async def wait(self):
+        self.on_stdout("hello\n")
+        self.on_stderr("warn\n")
         while self.hang and not self.killed:
             await asyncio.sleep(0.05)
         if self.exit_code:
@@ -40,10 +43,10 @@ class FakeCommands:
     def __init__(self, sandbox):
         self.sandbox, self.calls, self.handles = sandbox, [], []
 
-    async def run(self, command, background=False, timeout=None, user=None, **_):
+    async def run(self, command, background=False, timeout=None, user=None, on_stdout=None, on_stderr=None, **_):
         self.calls.append({"command": command, "background": background, "timeout": timeout, "user": user})
         if background and "nohup" not in command:
-            handle = FakeHandle(self.sandbox, self.sandbox.exit_code, self.sandbox.hang)
+            handle = FakeHandle(self.sandbox, self.sandbox.exit_code, self.sandbox.hang, on_stdout, on_stderr)
             self.handles.append(handle)
             return handle
         return SimpleNamespace(stdout="200" if "curl" in command else "server log", exit_code=0)
@@ -207,3 +210,14 @@ def test_sandbox_gate(monkeypatch, decision, focus, expected):
     monkeypatch.setattr(gate.e2b_upload_consent, "get_decision", get_decision)
     result = asyncio.run(gate.sandbox_applies_to_command(user_id="u1", focus=focus, directus_service=None))
     assert result is expected
+
+
+# contract-test: direct surface=rest_api assertions=code-run.cloud.commands
+def test_fake_handle_matches_the_installed_e2b_async_api():
+    """The real SDK's `wait()` takes no callbacks (run 5 failed on `wait(on_stdout=...)`)."""
+    import inspect
+    handle_module = pytest.importorskip("e2b.sandbox_async.commands.command_handle")
+    commands_module = pytest.importorskip("e2b.sandbox_async.commands.command")
+    assert list(inspect.signature(handle_module.AsyncCommandHandle.wait).parameters) == ["self"]
+    run_params = inspect.signature(commands_module.Commands.run).parameters
+    assert {"on_stdout", "on_stderr", "background", "user"} <= set(run_params)

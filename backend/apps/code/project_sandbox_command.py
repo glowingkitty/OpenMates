@@ -80,15 +80,16 @@ def _exit_exception() -> type[BaseException]:
 
 
 async def _start_foreground(sandbox: Any, line: str, timeout_seconds: int, sink: _Sink):
+    # The async E2B SDK takes the output callbacks at start; `AsyncCommandHandle.wait()` takes none.
     handle = await sandbox.commands.run(
         _timeout_wrapper(line, timeout_seconds), background=True, timeout=timeout_seconds + 10,
-        user=COMMAND_USER)
+        user=COMMAND_USER, on_stdout=lambda d: sink.push("stdout", d),
+        on_stderr=lambda d: sink.push("stderr", d))
     exit_type = _exit_exception()
 
     async def wait() -> int | None:
         try:
-            result = await handle.wait(on_stdout=lambda d: sink.push("stdout", d),
-                                       on_stderr=lambda d: sink.push("stderr", d))
+            result = await handle.wait()
         except exit_type as exc:  # E2B raises on a non-zero exit code
             return getattr(exc, "exit_code", None)
         return getattr(result, "exit_code", None)
