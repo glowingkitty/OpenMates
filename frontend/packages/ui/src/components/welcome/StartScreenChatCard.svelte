@@ -15,6 +15,8 @@
   import { getContinueGradientColors, getResumeCardGradientStyle } from '../activeChatUtils';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import type { ResumeCardImageBubble } from '../../types/chat';
+  // Privacy placeholders in the summary read as in the message view ([PERSON_NAME_1]), never with their nonce.
+  import { aliasEnhancedPlaceholders } from '../../services/piiDisplayAliases';
 
   /** Optional long-press / context-menu handlers of own chat cards. */
   export type StartScreenCardGestures = {
@@ -196,7 +198,7 @@
       {/if}
       <span class="resume-large-title" data-testid="resume-large-title">{title}</span>
       {#if summary}
-        <p class="resume-large-summary">{summary}</p>
+        <p class="resume-large-summary">{aliasEnhancedPlaceholders(summary)}</p>
       {/if}
     {/if}
   </div>

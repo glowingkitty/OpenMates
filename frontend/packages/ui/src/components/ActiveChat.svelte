@@ -110,7 +110,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     } from '../stores/signupState';
     import { signupStore } from '../stores/signupStore';
     import { firstMessageDisplayTitle, resolveChatDisplayTitle } from '../utils/chatDisplayTitle';
-    import { loadFirstMessageDisplayTitle } from '../services/chatFirstMessageTitle';
+    import { knownMentionProjectName, loadFirstMessageDisplayTitle, mentionProjectNamesVersion, resolveMentionProjectNames } from '../services/chatFirstMessageTitle';
     import SignupStatusbar from './signup/SignupStatusbar.svelte';
     import { userDB } from '../services/userDB';
 
@@ -3561,13 +3561,17 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
         let draftPreview: string | null = null;
 
-        const sanitizeVisibleDraftPreview = (value: string | null): string | null => formatDraftPreview(value) || null;
+        // Project mentions in the draft show the Project's name, never its id.
+        const sanitizeVisibleDraftPreview = async (value: string | null): Promise<string | null> => {
+            await resolveMentionProjectNames(value, chat.team_id);
+            return formatDraftPreview(value) || null;
+        };
 
         if (isDraftOnly) {
             try {
                 const toDecrypt = chat.encrypted_draft_preview || chat.encrypted_draft_md;
                 if (toDecrypt) {
-                    draftPreview = sanitizeVisibleDraftPreview(await decryptWithMasterKey(toDecrypt));
+                    draftPreview = await sanitizeVisibleDraftPreview(await decryptWithMasterKey(toDecrypt));
                 }
             } catch {
                 draftPreview = null;
@@ -3613,7 +3617,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             const imageBubbles = chat.resume_card_image_bubbles ?? null;
             // A chat whose generated title is still pending shows its first message.
             const title = resolveChatDisplayTitle(meta?.title, isDraftOnly || meta?.title ? null : await loadFirstMessageDisplayTitle(chat.chat_id));
-            return { chat, title, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? sanitizeVisibleDraftPreview(meta?.draftPreview ?? null) };
+            return { chat, title, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? await sanitizeVisibleDraftPreview(meta?.draftPreview ?? null) };
         } catch {
             return { chat, title: null, category: null, icon: null, summary: null, imageBubbles: null, draftPreview };
         }
@@ -5430,8 +5434,16 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
           message.role === 'user' && message.status === 'queued'));
       // A display-only first-message prefix fills the header until generated
       // encrypted title metadata arrives; it never becomes saved chat metadata.
-      let provisionalChatTitle = $derived(firstMessageDisplayTitle(
-          currentMessages.filter(message => message.chat_id === currentChat?.chat_id)));
+      let provisionalChatTitle = $derived.by(() => {
+          void $mentionProjectNamesVersion; // re-derive once a mentioned Project's name is known
+          return firstMessageDisplayTitle(
+              currentMessages.filter(message => message.chat_id === currentChat?.chat_id), knownMentionProjectName);
+      });
+      $effect(() => {
+          const firstContent = currentMessages.find(message =>
+              message.chat_id === currentChat?.chat_id && message.role === 'user')?.content;
+          if (typeof firstContent === 'string') void resolveMentionProjectNames(firstContent, currentChat?.team_id);
+      });
       let assistantSpeechOverlayHeight = $state(0);
       let autoSpeakResponse = $state(false);
       let assistantSpeechPreferenceLoad = 0;

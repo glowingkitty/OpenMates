@@ -724,7 +724,7 @@ specifications:
     version: 7
     status: approved
     path: features/chats
-    fingerprint: 31b45ae3a41940bd405985ef416b1bb7d8e7e33055cc2e2a2d4025c2df377676
+    fingerprint: 612c8857a3ff6c988a46a7cb4bfe36d8a9bb2986c4568767b4fcd7bfd6c0996a
     required_applies_to:
     - cli
     - gui.web
@@ -877,7 +877,7 @@ specifications:
     version: 13
     status: approved
     path: features/message-input
-    fingerprint: ac14e8f5748dee04ed59d9cc53b8f5b9d5290ffc85ef2d9eff91d437947b1367
+    fingerprint: ac2240065bbb5d4a6de56bbbccceeae6c20c9d40282e76f816833053f4c12377
     required_applies_to:
     - gui.web
     - gui.apple
@@ -9726,7 +9726,7 @@ assertions:
     specification: feature.chats@7
     specification_id: feature.chats
     type: behavior
-    fingerprint: 9bf6b80f0dd50600a7393abd013514de3d6602f654f29484ad5e792cc755ff17
+    fingerprint: bfdef5332a547f631aee8dd5ccc44bdda716a9ce66ecd18aad733484edddcccd
     required_applies_to:
     - cli
     - gui.web
@@ -9906,7 +9906,7 @@ assertions:
     specification: feature.chats@7
     specification_id: feature.chats
     type: parity
-    fingerprint: f7e78f46b50ee7832ba7ac270e3ac136089de9a537f7332e16b371ad5d861793
+    fingerprint: 304e33d829311b1056fcaf7d58aa1ba976f2efda0c94503ecd2f1153170003ab
     required_applies_to:
     - cli
     - gui.web
@@ -11672,7 +11672,7 @@ assertions:
     specification: feature.message-input@13
     specification_id: feature.message-input
     type: behavior
-    fingerprint: e1df43ad52aab2282b904c86b19914144543b21ec4ad30fe8dc2be787cb82bcc
+    fingerprint: 640529ae4fc024dd4ec43ec4810b922d61232c875233f0e1ae99e7510cf817dc
     required_applies_to:
     - gui.web
     - gui.apple

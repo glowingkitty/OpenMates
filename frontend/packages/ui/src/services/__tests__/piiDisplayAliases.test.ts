@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createPIIDisplayAliases } from '../piiDisplayAliases';
+import { aliasEnhancedPlaceholders, createPIIDisplayAliases } from '../piiDisplayAliases';
 
 const first = { type: 'ADDRESS', original: 'Maple Avenue', placeholder: '[ADDRESS_1_0000000000000001]' };
 const second = { type: 'ADDRESS', original: 'Birch Lane', placeholder: '[ADDRESS_1_0000000000000002]' };
@@ -49,5 +49,18 @@ describe('compact PII display aliases', () => {
     const content = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: mapping.original }] }] };
     expect(createPIIDisplayAliases(content, [mapping]).get(mapping.placeholder)).toBe('[ADDRESS_1]');
     expect(content.content[0].content[0].text).toBe(mapping.original);
+  });
+});
+
+describe('aliasEnhancedPlaceholders', () => {
+  // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
+  it('shows a chat summary with short placeholder labels, never the nonce', () => {
+    expect(aliasEnhancedPlaceholders('Works as a sales lead at [PERSON_NAME_1_aa6c4a4339f34bee] with [PERSON_NAME_2_aa6c4a4339f34bef]'))
+      .toBe('Works as a sales lead at [PERSON_NAME_1] with [PERSON_NAME_2]');
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
+  it('keeps text without enhanced placeholders unchanged', () => {
+    expect(aliasEnhancedPlaceholders('Plan the garden beds [EMAIL_1_com]')).toBe('Plan the garden beds [EMAIL_1_com]');
   });
 });

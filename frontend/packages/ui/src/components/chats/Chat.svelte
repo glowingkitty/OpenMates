@@ -7,7 +7,7 @@
   import type { IndicatorLine } from '../../services/rustCore/chatState/transitionProtocol';
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
-  import { loadFirstMessageDisplayTitle } from '../../services/chatFirstMessageTitle';
+  import { knownMentionProjectName, loadFirstMessageDisplayTitle } from '../../services/chatFirstMessageTitle';
   import { firstMessageDisplayTitle } from '../../utils/chatDisplayTitle';
   import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
   import { notificationStore } from '../../stores/notificationStore';
@@ -418,7 +418,7 @@
         const { incognitoChatService } = await import('../../services/incognitoChatService');
         const messages = await incognitoChatService.getMessagesForChat(currentChat.chat_id);
         lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-        firstMessageTitle = firstMessageDisplayTitle(messages) || null;
+        firstMessageTitle = firstMessageDisplayTitle(messages, knownMentionProjectName) || null;
       } catch (error) {
         console.debug(`[Chat] Error loading incognito messages for ${currentChat.chat_id}:`, error);
         lastMessage = null;
@@ -447,7 +447,7 @@
         const { anonymousChatStorage } = await import('../../services/anonymousChatStorage');
         const messages = await anonymousChatStorage.getMessagesForChat(currentChat.chat_id);
         lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
-        firstMessageTitle = firstMessageDisplayTitle(messages) || null;
+        firstMessageTitle = firstMessageDisplayTitle(messages, knownMentionProjectName) || null;
       } catch (error) {
         console.debug(`[Chat] Error loading anonymous messages for ${currentChat.chat_id}:`, error);
         lastMessage = null;

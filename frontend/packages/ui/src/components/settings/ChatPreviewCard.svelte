@@ -13,6 +13,7 @@
     import { getContinueGradientColors, getResumeCardGradientStyle } from '../activeChatUtils';
     import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
     import { loadFirstMessageDisplayTitle } from '../../services/chatFirstMessageTitle';
+    import { aliasEnhancedPlaceholders } from '../../services/piiDisplayAliases';
 
     interface Props {
         chat: Chat;
@@ -42,7 +43,8 @@
         return () => { current = false; };
     });
     let title = $derived(chat.title || firstMessageTitle || $text('common.new_chat'));
-    let summary = $derived(chat.chat_summary || '');
+    // Privacy placeholders read as in the message view ([PERSON_NAME_1]), never with their nonce.
+    let summary = $derived(aliasEnhancedPlaceholders(chat.chat_summary || ''));
 </script>
 
 <button

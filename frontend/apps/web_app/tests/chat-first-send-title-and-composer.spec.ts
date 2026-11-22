@@ -27,6 +27,7 @@ const {
 const { deleteActiveChat, loginToTestAccount, setChatSidebarOpen, startNewChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+const { naturalProjectName } = require('./helpers/project-names');
 
 // iPhone 15-sized touch context (Chromium; WebKit is not installed in CI).
 test.use({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, hasTouch: true, isMobile: true });
@@ -35,6 +36,9 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const UNTITLED = 'Untitled chat';
 const FIRST_MESSAGE = 'Plan a relaxed weekend in Lisbon with one museum';
 const GENERATED_TITLE = 'Capital of Germany';
+const MENTION_TEXT = 'Add a harvest log to the planner';
+const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const RAW_MENTION_PATTERN = /@(project|project-folder|project-file|focus|skill|memory|memory-entry|mate|ai-model):/i;
 
 const FIRST_SEND_PROOF = defineVideoProof({
 	id: 'first-send-title-and-composer',
@@ -147,7 +151,9 @@ test('first send collapses the composer at once and the chat is never shown as U
 		await expect(banner).toContainText(GENERATED_TITLE, { timeout: 90000 });
 		await expect(banner).not.toContainText(FIRST_MESSAGE.slice(0, 24));
 		await banner.evaluate((el: HTMLElement) => el.scrollIntoView({ block: 'start' }));
-		await expect(banner.getByText(GENERATED_TITLE)).toBeInViewport();
+		// The summary also mentions the topic, so check the title element itself.
+		await expect(banner.getByTestId('chat-header-title')).toHaveText(GENERATED_TITLE);
+		await expect(banner.getByTestId('chat-header-title')).toBeInViewport();
 		await attach('04-header-generated-title');
 		const headerTexts: string[] = await page.evaluate(() => {
 			const w = window as any;
@@ -180,6 +186,119 @@ test('first send collapses the composer at once and the chat is never shown as U
 			await deleteActiveChat(page, logStep, takeStepScreenshot, 'first-send-title-cleanup').catch((error: Error) =>
 				logStep(`Cleanup failed: ${error.message}`)
 			);
+		}
+	}
+});
+
+// contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback,message-input.drafts.preview-persistence
+test('a first message that mentions a Project titles the chat with the Project name, never an id', async ({
+	page
+}: {
+	page: any;
+}) => {
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	test.setTimeout(300000);
+	const logStep = createSignupLogger('FIRST_SEND_MENTION_TITLE');
+	const takeStepScreenshot = createStepScreenshotter(logStep, { filenamePrefix: 'first-send-mention-title' });
+	page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
+	const attach = async (name: string, target: any = page) =>
+		test.info().attach(name, { body: await target.screenshot(), contentType: 'image/png' });
+	const projectName = naturalProjectName('Garden planner');
+
+	await loginToTestAccount(page, logStep, takeStepScreenshot);
+	let chatId: string | null = null;
+	let projectId: string | null = null;
+	let apiOrigin: string | null = null;
+	try {
+		// Create a Project and start a chat from it, so the composer holds a Project mention.
+		await page.goto('/projects');
+		await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
+		const created = page.waitForResponse(
+			(response: any) =>
+				response.request().method() === 'POST' && new URL(response.url()).pathname === '/v1/projects' && response.ok()
+		);
+		await page.getByTestId('project-input-textarea').fill(projectName);
+		await page.getByTestId('project-input-submit').click();
+		await page.getByTestId('project-write-policy-apply-and-show').check();
+		await page.getByTestId('project-write-policy-confirm').click();
+		const createdResponse = await created;
+		apiOrigin = new URL(createdResponse.url()).origin;
+		projectId = (await createdResponse.json()).project.project_id;
+		await page.getByTestId('project-tab-folders').click();
+		await page.getByTestId('project-folder-create-menu-button').click();
+		await page.getByTestId('project-create-chat').click();
+		await expect(page).toHaveURL(/\/$/);
+
+		const field = page.getByTestId('message-field').last();
+		const editor = field.getByTestId('message-editor');
+		await expect(editor).toBeVisible({ timeout: 30000 });
+		await field.click();
+		const projectMention = editor.locator('[data-type="generic-mention"].mention-project');
+		await expect(projectMention).toContainText(projectName, { timeout: 10000 });
+		await page.keyboard.press('End');
+		await page.keyboard.insertText(withMockMarker(` ${MENTION_TEXT}`, 'chat_flow_capital'));
+		await attach('mention-01-composer-with-project-mention');
+
+		// The unsent draft's start-screen card shows the Project by name, never its id.
+		await page.getByTestId('input-dismiss-button').click();
+		await expect(field).toHaveAttribute('data-focused', 'false');
+		const draftCard = page.locator('[data-testid="resume-chat-draft-card"]').filter({ hasText: MENTION_TEXT }).first();
+		await expect(draftCard).toBeVisible({ timeout: 30000 });
+		await draftCard.scrollIntoViewIfNeeded();
+		await attach('mention-04-start-screen-draft-card', draftCard);
+		await expect(draftCard).toContainText(projectName);
+		await expect(draftCard).not.toContainText(UUID_PATTERN);
+		await expect(draftCard).not.toContainText(RAW_MENTION_PATTERN);
+		await draftCard.click();
+		await expect(field).toHaveAttribute('data-focused', 'true');
+		await expect(editor).toContainText(MENTION_TEXT);
+		await expect(projectMention).toContainText(projectName);
+
+		await page.evaluate(() => {
+			const w = window as any;
+			w.__mentionHeaderTexts = [];
+			w.__mentionHeaderSampler = setInterval(() => {
+				const text = document.querySelector('[data-testid="chat-header-banner"]')?.textContent?.trim();
+				if (text) w.__mentionHeaderTexts.push(text);
+			}, 50);
+		});
+		await field.getByTestId('composer-send-button').tap();
+		await expect.poll(() => page.url(), { timeout: 20000 }).toMatch(/chat-id=/);
+		chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
+
+		// The temporary title: the Project by name, then the typed text; no id or mention syntax.
+		const banner = page.getByTestId('chat-header-banner');
+		await expect(banner).toContainText(MENTION_TEXT.slice(0, 20), { timeout: 15000 });
+		await banner.evaluate((el: HTMLElement) => el.scrollIntoView({ block: 'start' }));
+		await attach('mention-02-header-temporary-title', banner);
+		await expect(banner).toContainText(projectName);
+		await expect(banner).not.toContainText(UUID_PATTERN);
+		await expect(banner).not.toContainText(RAW_MENTION_PATTERN);
+
+		await expect(banner).toContainText(GENERATED_TITLE, { timeout: 90000 });
+		const headerTexts: string[] = await page.evaluate(() => {
+			const w = window as any;
+			clearInterval(w.__mentionHeaderSampler);
+			return w.__mentionHeaderTexts;
+		});
+		expect(headerTexts.length).toBeGreaterThan(0);
+		expect(headerTexts.filter((text) => UUID_PATTERN.test(text) || RAW_MENTION_PATTERN.test(text))).toEqual([]);
+
+		// Sidebar rows never show an id or raw mention syntax either.
+		await setChatSidebarOpen(page, true, logStep);
+		await expect(page.locator('[data-testid="chat-item-wrapper"]').first()).toBeVisible({ timeout: 15000 });
+		const sidebarTitles: string[] = await page.getByTestId('chat-title').allTextContents();
+		expect(sidebarTitles.filter((text) => UUID_PATTERN.test(text) || RAW_MENTION_PATTERN.test(text))).toEqual([]);
+		await attach('mention-03-sidebar-titles');
+	} finally {
+		if (chatId) {
+			await page.goto(`/#chat-id=${chatId}`).catch(() => undefined);
+			await deleteActiveChat(page, logStep, takeStepScreenshot, 'first-send-mention-cleanup').catch((error: Error) =>
+				logStep(`Cleanup failed: ${error.message}`)
+			);
+		}
+		if (projectId && apiOrigin) {
+			await page.request.delete(`${apiOrigin}/v1/projects/${encodeURIComponent(projectId)}`).catch(() => null);
 		}
 	}
 });

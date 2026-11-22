@@ -15,6 +15,7 @@
  */
 import { playEventCue, type EventCue } from "../services/eventSounds";
 import { writable } from "svelte/store";
+import { convertMentionSyntaxToDisplayName } from "../utils/mentionDisplay";
 
 /**
  * Notification types supported by the system
@@ -507,7 +508,8 @@ export const notificationStore = {
   ) =>
     notificationStore.addNotificationWithOptions("chat_message", {
       title: chatTitle,
-      message: takePendingHeadline(chatId) ?? message,
+      // Mention tokens in the preview show their display names, never ids.
+      message: takePendingHeadline(chatId) ?? convertMentionSyntaxToDisplayName(message).trim(),
       chatId,
       chatTitle,
       avatarUrl,

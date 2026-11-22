@@ -503,3 +503,8 @@ first_message_title:
   given: The user sends "Plan a relaxed weekend in Lisbon with one museum" as the first message of a new chat and the generated title has not arrived yet.
   when: The chat header, the sidebar row and the start-screen card for that chat render, before and after the generated title "Lisbon weekend" arrives.
   then: Each place shows the beginning of the first message, decrypted on the device and never stored or sent, and then "Lisbon weekend"; "Untitled chat" never appears. A chat with no title, draft or message is not shown as a start-screen card.
+- id: pending-title-shows-mention-names
+  assertion_ids: [chats.titles.first-message-fallback]
+  given: The user starts a chat from the Project "Garden planner", so the first message is the Project mention followed by "Add a harvest log to the planner", and the generated title has not arrived yet.
+  when: The chat header and the sidebar row render the temporary title.
+  then: Both show "@Garden planner Add a harvest log to the planner"; no Project id and no raw mention text appears at any moment, before the generated title replaces it.

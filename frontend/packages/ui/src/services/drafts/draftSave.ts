@@ -158,8 +158,14 @@ function buildPreviewTokensFromTiptap(doc: unknown): string[] {
       } else if (childType === "genericMention") {
         const attrs = (child.attrs ?? {}) as Record<string, unknown>;
         const syntax = (attrs.mentionSyntax as string) ?? "";
-        // Convert mention syntax to display name (e.g. @skill:app:id → @App-Skill)
-        if (syntax) tokens.push(convertMentionSyntaxToDisplayName(syntax));
+        // Convert mention syntax to display name (e.g. @project:id:read → @Project Name).
+        // A Project chip already carries the Project's name; use it when the
+        // local name lookup does not know the Project yet.
+        const converted = syntax ? convertMentionSyntaxToDisplayName(syntax).trim() : "";
+        const chipName = typeof attrs.displayName === "string" ? attrs.displayName.trim() : "";
+        const chipNameIsReadable = chipName && chipName !== "Project" && !/^Project-[0-9a-f]{8}$/i.test(chipName);
+        if (converted === "@Project" && chipNameIsReadable) tokens.push(`@${chipName}`);
+        else if (converted) tokens.push(converted);
       } else if (childType === "hardBreak") {
         // Treat a hard break as a space between tokens
         tokens.push(" ");

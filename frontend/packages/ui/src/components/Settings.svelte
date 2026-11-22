@@ -115,6 +115,7 @@ changes to the documentation (to keep the documentation up to date).
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore, resetSettingsNavigation } from '../stores/settingsNavigationStore';
     import { firstMessageDisplayTitle } from '../utils/chatDisplayTitle';
+    import { knownMentionProjectName, mentionProjectNamesVersion } from '../services/chatFirstMessageTitle';
     
 
     // Create event dispatcher for forwarding events to parent components
@@ -1234,11 +1235,15 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     let chatSettingsContext = $derived($chatSettingsStore);
+    let chatSettingsFirstMessageTitle = $derived.by(() => {
+        void $mentionProjectNamesVersion; // re-derive once a mentioned Project's name is known
+        return firstMessageDisplayTitle(chatSettingsContext?.messages, knownMentionProjectName);
+    });
     let chatSettingsTitle = $derived(
         chatSettingsContext?.display?.title ||
         chatSettingsContext?.chat.title ||
         [...(chatSettingsContext?.messages ?? [])].reverse().find((message) => message.current_chat_title)?.current_chat_title ||
-        firstMessageDisplayTitle(chatSettingsContext?.messages) ||
+        chatSettingsFirstMessageTitle ||
         $text('common.new_chat')
     );
     let chatSettingsCategory = $derived(chatSettingsContext?.display?.category || chatSettingsContext?.chat.category || 'general_knowledge');

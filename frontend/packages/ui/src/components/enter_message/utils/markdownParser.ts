@@ -7,6 +7,7 @@ import { modelsMetadata } from "../../../data/modelsMetadata";
 import { matesMetadata } from "../../../data/matesMetadata";
 import { currentPersonalDocumentMemories } from '../../../stores/personalDocumentMemories';
 import { deriveEmbedDisplayTextFromRef } from "../../../utils/embedDisplayText";
+import { knownProjectMentionName } from "../../../utils/mentionProjectNames";
 import {
   getRenderableInternalHref,
   isInternalHashLink,
@@ -731,7 +732,8 @@ function formatProjectMentionDisplayName(
   projectId: string,
   projectPath?: string,
 ): string {
-  if (mentionType === "project") return `Project-${projectId.slice(0, 8)}`;
+  // A chip never shows an id: the Project's name when known, else a generic label.
+  if (mentionType === "project") return knownProjectMentionName(projectId) ?? "Project";
 
   const pathLabel = projectPath
     ?.replace(/\/+$/, "")
@@ -741,7 +743,7 @@ function formatProjectMentionDisplayName(
     ?.trim()
     .replace(/\s+/g, "-");
   const prefix = mentionType === "project_folder" ? "Folder" : "File";
-  return `${prefix}-${pathLabel || projectId.slice(0, 8)}`;
+  return pathLabel ? `${prefix}-${pathLabel}` : prefix;
 }
 
 function convertNodeToTiptap(node: Node): any {

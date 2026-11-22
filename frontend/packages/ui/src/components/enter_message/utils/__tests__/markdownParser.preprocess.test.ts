@@ -11,6 +11,7 @@
 // the regex back to ^``` this test fires.
 
 import { describe, it, expect, vi } from "vitest";
+import { registerMentionProjectNameLookup } from "../../../../utils/mentionProjectNames";
 
 // markdownParser.ts pulls in Svelte store modules and metadata tables at
 // module load. In the GH-Actions node environment these imports can hang
@@ -445,6 +446,21 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
       projectPath: "notes.md",
       projectAccessMode: "read_write",
     });
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.drafts.preview-persistence
+  it("labels a restored Project chip by the Project name and never by an id", () => {
+    const projectId = "dedbc539-5896-464a-adb0-f5eed0fcd381";
+    const chipName = () =>
+      parseMarkdownToTiptap(`@project:${projectId}:read Plan the beds`).content[0].content.find(
+        (node: { type: string }) => node.type === "genericMention",
+      ).attrs.displayName;
+
+    registerMentionProjectNameLookup(null);
+    expect(chipName()).toBe("Project");
+    registerMentionProjectNameLookup((id) => (id === projectId ? "Garden planner" : undefined));
+    expect(chipName()).toBe("Garden planner");
+    registerMentionProjectNameLookup(null);
   });
 
   it("keeps malformed Project-like text inert", () => {

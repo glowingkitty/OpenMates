@@ -17,6 +17,7 @@ import {
   type NotificationPermission,
 } from "../stores/pushNotificationStore";
 import { getApiEndpoint, apiEndpoints } from "../config/api";
+import { convertMentionSyntaxToDisplayName } from "../utils/mentionDisplay";
 
 // Browser check for SSR safety
 const browser = typeof window !== "undefined";
@@ -434,7 +435,8 @@ class PushNotificationService {
 
     return this.showNotification({
       title: chatTitle,
-      body: messagePreview,
+      // Mention tokens in the preview show their display names, never ids.
+      body: convertMentionSyntaxToDisplayName(messagePreview).trim(),
       tag: `chat-${chatId}`,
       data: {
         type: "chat_message",

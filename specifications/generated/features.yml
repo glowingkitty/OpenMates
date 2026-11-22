@@ -3287,7 +3287,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      unit_test_files: 154
+      unit_test_files: 156
     apple:
       status: failing
       source: tests
@@ -6580,7 +6580,7 @@ features:
       - backend/tests/test_streaming_transcript_correction.py
       - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
       - frontend/packages/ui/src/services/__tests__/audioRealtimeTranscription.test.ts
-      unit_test_files: 47
+      unit_test_files: 49
     apple:
       status: failing
       source: tests

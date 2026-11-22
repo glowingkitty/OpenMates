@@ -6,6 +6,7 @@ import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import type { Chat } from "../types/chat";
 import { formatDraftPreview } from "../utils/draftPreview";
+import { mentionedProjectIds } from "../utils/mentionDisplay";
 import { invalidateRecentChatWindow, type RecentChatInvalidationCategory } from "./recentChatWindowCache";
 
 /**
@@ -189,7 +190,14 @@ class ChatMetadataCache {
       // Decrypt draft preview with master key
       let draftPreview: string | null = null;
       if (chat.encrypted_draft_preview) {
-        draftPreview = formatDraftPreview(await decryptWithMasterKey(chat.encrypted_draft_preview)) || null;
+        const decryptedPreview = await decryptWithMasterKey(chat.encrypted_draft_preview);
+        // Older previews were saved with raw Project mention syntax; show those by Project name.
+        // Loaded lazily: the Project service is only needed when a Project is mentioned.
+        if (mentionedProjectIds(decryptedPreview).length) {
+          const { resolveMentionProjectNames } = await import("./chatFirstMessageTitle");
+          await resolveMentionProjectNames(decryptedPreview, chat.team_id);
+        }
+        draftPreview = formatDraftPreview(decryptedPreview) || null;
       }
 
       // Decrypt chat-key fields in parallel — all use the same key and are independent

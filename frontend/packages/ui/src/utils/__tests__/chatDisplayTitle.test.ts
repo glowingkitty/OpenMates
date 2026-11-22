@@ -1,7 +1,16 @@
 // Display-only chat title rule (TASK-6864): generated title, else the first
 // user message, never "Untitled chat".
 import { describe, expect, it } from 'vitest';
-import { FIRST_MESSAGE_TITLE_MAX_LENGTH, firstMessageDisplayTitle, resolveChatDisplayTitle } from '../chatDisplayTitle';
+import {
+  FIRST_MESSAGE_TITLE_MAX_LENGTH,
+  firstMessageDisplayTitle,
+  mentionedProjectIds,
+  readableTitleText,
+  resolveChatDisplayTitle,
+} from '../chatDisplayTitle';
+
+const PROJECT_ID = '6b0c2f4e-3a91-4d2b-9c57-1f8e2a7d4c10';
+const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-/i;
 
 describe('firstMessageDisplayTitle', () => {
   // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
@@ -48,5 +57,60 @@ describe('resolveChatDisplayTitle', () => {
   // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
   it('returns null for an empty chat so callers can hide it instead of saying Untitled chat', () => {
     expect(resolveChatDisplayTitle(undefined, '')).toBeNull();
+  });
+});
+
+describe('readableTitleText', () => {
+  const projectName = (projectId: string) => (projectId === PROJECT_ID ? 'Garden planner' : undefined);
+
+  // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
+  it('shows a mentioned Project by its name, never its id', () => {
+    const title = firstMessageDisplayTitle(
+      [{ role: 'user', content: `@project:${PROJECT_ID}:read Add a harvest log to the planner.` }],
+      projectName,
+    );
+    expect(title).toBe('@Garden planner Add a harvest log to the planner.');
+    expect(title).not.toMatch(UUID_PATTERN);
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
+  it('falls back to a generic Project label while the name is unknown', () => {
+    expect(readableTitleText(`@project:${PROJECT_ID}:read_write Plan the beds`)).toBe('@Project Plan the beds');
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
+  it('shows Focus and skill mentions by readable names', () => {
+    expect(readableTitleText('@focus:example_app:write_specification Draft the harvest log'))
+      .toBe('@Write specification Draft the harvest log');
+    expect(readableTitleText('@skill:example_app:get_docs Check this')).toBe('@Get docs Check this');
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
+  it('uses folder and file names, memory and Wikipedia labels', () => {
+    expect(readableTitleText(`@project-file:${PROJECT_ID}:notes%2Fharvest%20log.md:read Summarize`))
+      .toBe('@harvest log.md Summarize');
+    expect(readableTitleText(`@project-folder:${PROJECT_ID}:src-1:docs%2Fbeds:read List files`))
+      .toBe('@beds List files');
+    expect(readableTitleText(`@memory-entry:openmates:memories:${PROJECT_ID} Use my notes`)).toBe('@Memory Use my notes');
+    expect(readableTitleText('@wikipedia:en:Crop_rotation Explain')).toBe('@Crop rotation Explain');
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
+  it('strips leftover mention syntax and bare ids', () => {
+    expect(readableTitleText(`@mate:unknown_mate_id Hello ${PROJECT_ID} @unknown-kind:abc:def there`)).toBe('Hello there');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.titles.first-message-fallback
+  it('lists the mentioned Project ids once each', () => {
+    expect(mentionedProjectIds(`@project:${PROJECT_ID}:read and @project-file:${PROJECT_ID}:a.md:read`))
+      .toEqual([PROJECT_ID]);
+    expect(mentionedProjectIds('no mentions')).toEqual([]);
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.titles.first-message-fallback
+  it('shows privacy placeholders by their short alias, never with the nonce', () => {
+    expect(
+      readableTitleText('Hello, my name is [PERSON_NAME_1_56b5ce76693a4a01] [PERSON_NAME_2_56b5ce76693a4a01]'),
+    ).toBe('Hello, my name is [PERSON_NAME_1] [PERSON_NAME_2]');
   });
 });

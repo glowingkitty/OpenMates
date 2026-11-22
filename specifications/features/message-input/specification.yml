@@ -302,7 +302,9 @@ assertions:
     every inactive draft, with or without embeds, collapses into a single-line preview that shortens overflow with an
     ellipsis without discarding the full draft; embeds appear in that line in document order as the same type tokens
     the chat list uses (such as [Image] or [Sheet]); focusing the composer restores the rendered embeds and their
-    controls; and empty composer content does not create a sendable draft.
+    controls; and empty composer content does not create a sendable draft. Mentions in that line, in start-screen
+    draft cards, chat-list previews, message notifications and the chips of a restored draft show their display names (the Project name, the Focus
+    or skill title), never an identifier or raw mention syntax.
   depends_on:
   - models.DraftState
   - models.ComposerState.has_content
