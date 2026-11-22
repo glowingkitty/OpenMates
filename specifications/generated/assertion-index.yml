@@ -44401,12 +44401,12 @@ assertions:
       surface: rest_api
     - &id5604
       path: frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
-      line: 207
+      line: 209
       name: assistant turns a vector graphic into embroidery files that show and download
       surface: gui.web
     - &id5605
       path: frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
-      line: 232
+      line: 234
       name: assistant sews an uploaded SVG file with the requested hoop and border
       surface: gui.web
     supporting_tests:
@@ -44724,7 +44724,7 @@ assertions:
     direct_tests:
     - &id5647
       path: frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
-      line: 232
+      line: 234
       name: assistant sews an uploaded SVG file with the requested hoop and border
       surface: gui.web
     supporting_tests:
@@ -45043,7 +45043,7 @@ assertions:
       surface: rest_api
     - &id5678
       path: frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
-      line: 207
+      line: 209
       name: assistant turns a vector graphic into embroidery files that show and download
       surface: gui.web
     supporting_tests:
@@ -45132,12 +45132,12 @@ assertions:
       surface: rest_api
     - &id5699
       path: frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
-      line: 207
+      line: 209
       name: assistant turns a vector graphic into embroidery files that show and download
       surface: gui.web
     - &id5700
       path: frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
-      line: 232
+      line: 234
       name: assistant sews an uploaded SVG file with the requested hoop and border
       surface: gui.web
     supporting_tests:

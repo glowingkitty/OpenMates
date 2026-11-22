@@ -5,7 +5,7 @@ export {};
  * Design embroidery chat E2E (real inference, dev server only): the assistant
  * (Gemini 3.8 Flash, picked through the @ mention dropdown) first creates a
  * flat SVG graphic, then calls design.embroidery on it. The result card shows
- * the stitch preview with size and stitch count, the opened view shows the
+ * the stitch preview with size, sewing time and thread length, the opened view shows the
  * Stitches/Graphic switch, numbers, threads and five downloads, and the PES
  * download hands the browser a non-empty .pes file.
  *
@@ -123,7 +123,9 @@ async function expectEmbroideryResult(page: any, overlay: any, log: any, screens
 		.toBeGreaterThan(0);
 	const numbers = card.getByTestId('design-embroidery-numbers');
 	await expect(numbers).toContainText(/\d+\s*×\s*\d+\s*mm/);
-	await expect(numbers).toContainText(/[\d.,]+\s*stitch/i);
+	// The card shows the estimated sewing time and thread length; the stitch count is in the opened view.
+	await expect(numbers).toContainText(/~\s*(\d+\s*h\s*)?\d+\s*min/);
+	await expect(numbers).toContainText(/~\s*[\d.,]+\s*m of thread/);
 	log(`card numbers: ${await numbers.textContent()}`);
 	await card.scrollIntoViewIfNeeded();
 	await screenshot(page, 'embroidery-card', { fullPage: false });
