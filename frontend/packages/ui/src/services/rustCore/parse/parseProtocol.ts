@@ -19,7 +19,8 @@ export type ParseOperation =
 	| { kind: 'commit-tail' }
 	| { kind: 'replace-block'; index: number; blockId: string }
 	| { kind: 'delete-block'; index: number; blockId: string }
-	| { kind: 'convergence-failure'; reason: 'non-local-divergence' };
+	| { kind: 'convergence-failure'; reason: 'non-local-divergence' }
+	| { kind: 'replace-document'; reason: 'non-local-divergence' };
 /** `reuse` is the previous committed index whose compiled document is reused; null means compile. */
 export interface ParsePlan {
 	committed: Array<ParseBlockRef & { reuse: number | null }>;

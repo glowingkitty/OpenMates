@@ -7,7 +7,10 @@
 //! `isSafeCompletedBlock`, `isClosedStandaloneFence`, `partitionAuthoredMarkdown`,
 //! block id/reuse assignment, `deriveOperations`, `normalizeAssistantRenderPlan`).
 //! Compiled TipTap documents stay opaque JSON owned by the page compiler.
-//! Spec: specifications/surfaces/sdk (sdk.client.thin-platform-boundary).
+//! Deliberate deviation from npm: a final-phase divergence renders the final
+//! text fresh (`replace-document`) instead of failing (see [`plan_blocks_json`]).
+//! Spec: specifications/surfaces/sdk (sdk.client.thin-platform-boundary),
+//! chats.rendering.assistant-document-convergence.
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 
@@ -236,6 +239,19 @@ fn convergence_failure() -> Vec<Value> {
     vec![json!({"kind": "convergence-failure", "reason": "non-local-divergence"})]
 }
 
+/// Blocks with content-derived ids and nothing reused from a previous plan.
+fn fresh_blocks(committed_md: &[String]) -> Vec<Block> {
+    let mut occurrences: HashMap<&str, usize> = HashMap::new();
+    committed_md
+        .iter()
+        .map(|md| {
+            let occurrence = *occurrences.entry(md.as_str()).and_modify(|n| *n += 1).or_insert(0);
+            let id = format!("assistant-block:{}:{}", hash_text(md), occurrence);
+            Block { id, markdown: md.clone(), reuse: None }
+        })
+        .collect()
+}
+
 fn derive_operations(blocks: &mut [Block], tail: &Option<String>, prev: &Previous) -> Vec<Value> {
     let mut ops = Vec::new();
     let (pb, nb) = (&prev.committed, blocks.len());
@@ -288,6 +304,13 @@ fn derive_operations(blocks: &mut [Block], tail: &Option<String>, prev: &Previou
 /// reuses (`null` means compile), and `failed` marks a convergence failure (the
 /// page then keeps the previous plan and appends the failure notice).
 ///
+/// Only a streaming update can fail. A final-phase update carries the complete,
+/// authoritative message (an async continuation may rewrite earlier text), so a
+/// divergence there renders the final text fresh with one `replace-document`
+/// operation: live completion then converges with reload and sync
+/// (chats.rendering.assistant-document-convergence) instead of keeping stale
+/// blocks under a failure notice. npm still fails here; this is deliberate.
+///
 /// # Errors
 /// `protocol` for an unknown phase or malformed `previous_json`.
 pub fn plan_blocks_json(markdown: &str, phase: &str, previous_json: &str) -> Result<String, String> {
@@ -328,11 +351,16 @@ pub fn plan_blocks_json(markdown: &str, phase: &str, previous_json: &str) -> Res
             }
         }
     }
-    let operations = match &previous {
+    let mut operations = match &previous {
         Some(p) => derive_operations(&mut blocks, &tail, p),
         None => Vec::new(),
     };
-    let failed = previous.is_some() && operations.first().is_some_and(|op| op["kind"] == "convergence-failure");
+    let mut failed = previous.is_some() && operations.first().is_some_and(|op| op["kind"] == "convergence-failure");
+    if failed && final_phase {
+        blocks = fresh_blocks(&committed_md);
+        operations = vec![json!({"kind": "replace-document", "reason": "non-local-divergence"})];
+        failed = false;
+    }
     let committed: Vec<Value> = blocks
         .iter()
         .map(|b| json!({"id": b.id, "markdown": b.markdown, "reuse": b.reuse}))

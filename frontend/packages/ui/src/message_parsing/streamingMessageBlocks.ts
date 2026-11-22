@@ -20,7 +20,8 @@ export type AssistantRenderOperation =
   | { kind: "commit-tail" }
   | { kind: "replace-block"; index: number; blockId: string }
   | { kind: "delete-block"; index: number; blockId: string }
-  | { kind: "convergence-failure"; reason: "non-local-divergence" };
+  | { kind: "convergence-failure"; reason: "non-local-divergence" }
+  | { kind: "replace-document"; reason: "non-local-divergence" };
 
 export interface AssistantRenderPlan {
   sourceMarkdown: string;
