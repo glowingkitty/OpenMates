@@ -550,19 +550,19 @@ skills:
       A processing result
       only acknowledges dispatch. Use the completed execution's checked terminal
       output, exit code, and artifacts to explain the actual result; never claim
-      success or invent output while the execution is pending. Pricing is 5
-      credits per started minute of sandbox runtime.
+      success or invent output while the execution is pending. Pricing is
+      billed per second of sandbox runtime (3 credits per minute).
     class_path: backend.apps.code.skills.run_code_skill.RunCodeSkill
     providers:
       - name: E2B
     pricing:
-      per_minute: 3
+      per_second: 0.05
     supplier_costs:
-      per_minute:
-        price: 0.00182
+      per_second:
+        price: 0.00003034
         currency: USD
         source_url: https://e2b.dev/pricing
-        note: E2B 2 vCPU, 512 MiB
+        note: E2B 2 vCPU, 512 MiB, billed per second (about 0.00182 USD per minute)
     api_config:
       expose_post: false
     sdk_exposed: true
@@ -683,8 +683,8 @@ skills:
                     type: number
                   charged_credits:
                     type: integer
-                  charged_minutes:
-                    type: integer
+                  charged_seconds:
+                    type: number
                   artifacts:
                     type: array
                     items:

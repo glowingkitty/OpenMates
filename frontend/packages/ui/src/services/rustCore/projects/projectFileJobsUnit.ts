@@ -29,6 +29,7 @@ export interface ProjectFileJobsClient {
 	project_file_job_set_privacy(handle: string, generation: number, chatId: string, projectId: string, enabled: boolean, memoriesJson: string, sealed: string | null): Promise<void>;
 	project_file_job_set_mappings(handle: string, generation: number, chatId: string, mappingsJson: string): void | Promise<void>;
 	project_create_step(handle: string, generation: number, kind: string, eventJson: string): Promise<string>;
+	answer_project_sandbox_key_request(handle: string, generation: number, eventJson: string, nowSeconds: number): Promise<string>;
 }
 
 export interface ProjectFileJobsDeps {
@@ -88,6 +89,28 @@ export function parseProjectCreateResult(raw: unknown): ProjectCreateResult | nu
 	if (!isRecord(value) || typeof value.chat_id !== 'string' || typeof value.request_id !== 'string'
 		|| typeof value.status !== 'string' || !CREATE_STATUSES.has(value.status)) throw new UnitRefusal(PROTOCOL);
 	return value as ProjectCreateResult;
+}
+
+const SANDBOX_KEY_EVENTS: ReadonlySet<string> = new Set(['project_sandbox_key_grant', 'project_sandbox_key_decline']);
+const SANDBOX_KEY_DECLINES: ReadonlySet<string> = new Set(['no_key', 'expired', 'invalid']);
+
+/** Strict parse of the core's sandbox key frame: a grant with `sealed_grant` or a decline with a known reason. */
+export function parseProjectSandboxKeyFrame(raw: unknown): ProjectSandboxKeyFrame {
+	if (typeof raw !== 'string') throw new UnitRefusal(PROTOCOL);
+	let value: unknown;
+	try {
+		value = JSON.parse(raw);
+	} catch {
+		throw new UnitRefusal(PROTOCOL);
+	}
+	if (!isRecord(value) || typeof value.event !== 'string' || !SANDBOX_KEY_EVENTS.has(value.event) || !isRecord(value.payload)) throw new UnitRefusal(PROTOCOL);
+	const payload = value.payload;
+	if (typeof payload.request_id !== 'string' || typeof payload.job_id !== 'string') throw new UnitRefusal(PROTOCOL);
+	const keys = Object.keys(payload).sort().join(',');
+	if (value.event === 'project_sandbox_key_grant'
+		? keys !== 'job_id,request_id,sealed_grant' || typeof payload.sealed_grant !== 'string' || payload.sealed_grant === ''
+		: keys !== 'job_id,reason,request_id' || typeof payload.reason !== 'string' || !SANDBOX_KEY_DECLINES.has(payload.reason)) throw new UnitRefusal(PROTOCOL);
+	return value as unknown as ProjectSandboxKeyFrame;
 }
 
 /** Validated privacy inputs of a step/decide request (shapes owned by the core). */
@@ -189,6 +212,15 @@ export function createProjectFileJobsHandlers(principal: string, deps: ProjectFi
 			const chatId = typeof event.chat_id === 'string' ? event.chat_id : '';
 			return withClient(chatId, async (client, handle, generation) =>
 				({ result: parseProjectCreateResult(await client.project_create_step(handle, generation, kind, JSON.stringify(event))) }));
+		},
+		async sandboxKey(payload) {
+			const request = payload as { event?: unknown } | null;
+			if (!isRecord(request?.event)) throw new UnitRefusal('project_sandbox_key_bad_event');
+			const event = request.event;
+			// The core resolves the Project key and seals it; only the finished frame comes back.
+			const chatId = typeof event.chat_id === 'string' ? event.chat_id : '';
+			return withClient(chatId, async (client, handle, generation) =>
+				({ frame: parseProjectSandboxKeyFrame(await client.answer_project_sandbox_key_request(handle, generation, JSON.stringify(event), Math.floor(Date.now() / 1000))) }));
 		}
 	};
 }

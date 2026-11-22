@@ -14,7 +14,7 @@ from typing import Any, Literal
 
 from fastapi import HTTPException
 
-E2B_UPLOAD_CONSENT_VERSION = 1
+E2B_UPLOAD_CONSENT_VERSION = 2
 CONSENT_FIELD = f"e2b_upload_consent_v{E2B_UPLOAD_CONSENT_VERSION}"
 CONSENT_AT_FIELD = f"{CONSENT_FIELD}_at"
 DECISIONS = ("allowed", "declined")

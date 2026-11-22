@@ -888,7 +888,10 @@
         "text": "Pokaż wizualizację"
       },
       "interactive_html_blocked": {
-        "text": "Ta wizualizacja próbowała otworzyć inną stronę i została zatrzymana."
+        "text": "Ta wizualizacja próbowała otworzyć inną stronę. Nie jest to dozwolone w czacie, więc została wstrzymana."
+      },
+      "interactive_html_reload": {
+        "text": "Załaduj wizualizację ponownie"
       },
       "search_repos": {
         "text": "Szukaj repozytoriów",
@@ -4585,7 +4588,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "Aby to uruchomić, twój kod i pliki są wysyłane do E2B, dostawcy piaskownicy w chmurze, i tam uruchamiane."
+        "text": "Aby to uruchomić, twój kod i pliki są wysyłane do E2B, dostawcy piaskownicy w chmurze, i tam uruchamiane, w USA. W zadaniach Projektu do piaskownicy trafia też cały Projekt i klucz, który go otwiera, zapieczętowany tak, że otworzyć go może tylko ta piaskownica. Piaskownica jest potem usuwana."
       },
       "privacy_policy": {
         "text": "Polityka prywatności"
@@ -4616,7 +4619,7 @@
         "text": "Uruchamiaj kod w chmurowej piaskownicy E2B"
       },
       "description": {
-        "text": "Gdy jest dozwolone, kod i pliki, które uruchamiasz, są wysyłane do E2B, dostawcy piaskownicy w chmurze. Gdy nie jest dozwolone, nic nie jest wysyłane."
+        "text": "Gdy jest dozwolone, kod i pliki, które uruchamiasz, są wysyłane do E2B, dostawcy piaskownicy w chmurze, i przetwarzane w USA. W zadaniach Projektu obejmuje to Projekt i klucz, który go otwiera, zapieczętowany tak, że otworzyć go może tylko ta piaskownica. Piaskownica jest potem usuwana. Gdy nie jest dozwolone, nic nie jest wysyłane."
       },
       "status_allowed": {
         "text": "Dozwolone"
@@ -12413,7 +12416,7 @@
               "text": "E2B (izolowana piaskownica kodu)"
             },
             "description": {
-              "text": "E2B uruchamia wybrane fragmenty kodu i wygenerowane podglądy aplikacji w izolowanych piaskownicach. E2B otrzymuje kod lub wygenerowane pliki i zasoby aplikacji, które zdecydujesz się uruchomić, dane wejściowe środowiska wykonawczego, logi podglądu oraz dane wyjściowe niezbędne do uruchomienia i wyświetlenia wyniku piaskownicy. Udostępnianie to następuje tylko wtedy, gdy jawnie uruchomisz kod, utworzysz wygenerowaną aplikację z automatycznym podglądem zrzutu ekranu lub uruchomisz/wznowisz podgląd aplikacji na żywo."
+              "text": "E2B uruchamia wybrane fragmenty kodu i wygenerowane podglądy aplikacji w izolowanych piaskownicach. E2B otrzymuje kod lub wygenerowane pliki i zasoby aplikacji, które zdecydujesz się uruchomić, dane wejściowe środowiska wykonawczego, logi podglądu oraz dane wyjściowe niezbędne do uruchomienia i wyświetlenia wyniku piaskownicy. Udostępnianie to następuje tylko wtedy, gdy jawnie uruchomisz kod, utworzysz wygenerowaną aplikację z automatycznym podglądem zrzutu ekranu lub uruchomisz/wznowisz podgląd aplikacji na żywo. Gdy zadanie agenta działa w projekcie w chmurze, E2B w USA otrzymuje dodatkowo wszystkie pliki projektu oraz, zapieczętowany tak, by tylko ta piaskownica mogła go otworzyć, klucz otwierający projekt, na czas trwania zadania. Piaskownica jest usuwana po 15 minutach bezczynności lub najpóźniej po 4 godzinach (do 24 godzin, jeśli to włączysz) i nigdy nie jest wstrzymywana."
             }
           }
         },

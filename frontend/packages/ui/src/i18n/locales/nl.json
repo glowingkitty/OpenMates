@@ -888,7 +888,10 @@
         "text": "Visual bekijken"
       },
       "interactive_html_blocked": {
-        "text": "Deze visual probeerde een andere pagina te openen en is gestopt."
+        "text": "Deze visual probeerde een andere pagina te openen. Dat mag niet binnen een chat, dus hij is gepauzeerd."
+      },
+      "interactive_html_reload": {
+        "text": "Visual opnieuw laden"
       },
       "search_repos": {
         "text": "Repo's zoeken",
@@ -4585,7 +4588,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "Om dit uit te voeren, worden je code en bestanden naar E2B gestuurd, een aanbieder van cloudsandboxen, en daar uitgevoerd."
+        "text": "Om dit uit te voeren, worden je code en bestanden naar E2B gestuurd, een aanbieder van cloudsandboxen, en daar uitgevoerd, in de VS. Bij Project-taken worden ook het hele Project en de sleutel die het opent in de sandbox geplaatst, verzegeld zodat alleen die sandbox hem kan openen. De sandbox wordt daarna verwijderd."
       },
       "privacy_policy": {
         "text": "Privacybeleid"
@@ -4616,7 +4619,7 @@
         "text": "Code uitvoeren in de E2B-cloudsandbox"
       },
       "description": {
-        "text": "Als dit is toegestaan, worden de code en bestanden die je uitvoert naar E2B gestuurd, een aanbieder van cloudsandboxen. Als het niet is toegestaan, wordt er niets verstuurd."
+        "text": "Als dit is toegestaan, worden de code en bestanden die je uitvoert naar E2B gestuurd, een aanbieder van cloudsandboxen, en in de VS verwerkt. Bij Project-taken omvat dit het Project en de sleutel die het opent, verzegeld zodat alleen die sandbox hem kan openen. De sandbox wordt daarna verwijderd. Als het niet is toegestaan, wordt er niets verzonden."
       },
       "status_allowed": {
         "text": "Toegestaan"
@@ -12413,7 +12416,7 @@
               "text": "E2B (geïsoleerde code-sandbox)"
             },
             "description": {
-              "text": "E2B voert geselecteerde code-insluitingen en gegenereerde applicatievoorbeelden uit in geïsoleerde sandboxes. E2B ontvangt de code of gegenereerde applicatiebestanden en assets die je kiest om uit te voeren, runtime-inputs, voorbeeldlogs en de uitvoer die nodig is om het sandbox-resultaat uit te voeren en weer te geven. Dit delen gebeurt alleen wanneer je expliciet code uitvoert, een gegenereerde applicatie maakt die automatisch een kort screenshot-voorbeeld start, of een live-voorbeeld van een applicatie start of hervat."
+              "text": "E2B voert geselecteerde code-insluitingen en gegenereerde applicatievoorbeelden uit in geïsoleerde sandboxes. E2B ontvangt de code of gegenereerde applicatiebestanden en assets die je kiest om uit te voeren, runtime-inputs, voorbeeldlogs en de uitvoer die nodig is om het sandbox-resultaat uit te voeren en weer te geven. Dit delen gebeurt alleen wanneer je expliciet code uitvoert, een gegenereerde applicatie maakt die automatisch een kort screenshot-voorbeeld start, of een live-voorbeeld van een applicatie start of hervat. Wanneer een agenttaak op een cloudproject draait, ontvangt E2B in de VS bovendien alle bestanden van het project en, verzegeld zodat alleen die sandbox hem kan openen, de sleutel die het project opent, zolang de taak duurt. De sandbox wordt verwijderd na 15 minuten inactiviteit of uiterlijk na 4 uur (tot 24 uur als je dat inschakelt) en wordt nooit gepauzeerd."
             }
           }
         },

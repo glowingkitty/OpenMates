@@ -888,7 +888,10 @@
         "text": "Voir le visuel"
       },
       "interactive_html_blocked": {
-        "text": "Ce visuel a tenté d'ouvrir une autre page et a été arrêté."
+        "text": "Ce visuel a tenté d'ouvrir une autre page. Ce n'est pas autorisé dans un chat, il a donc été mis en pause."
+      },
+      "interactive_html_reload": {
+        "text": "Recharger le visuel"
       },
       "search_repos": {
         "text": "Rechercher des dépôts",
@@ -4612,7 +4615,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "Pour exécuter ceci, ton code et tes fichiers sont envoyés à E2B, un fournisseur de sandbox cloud, et y sont exécutés."
+        "text": "Pour exécuter ceci, ton code et tes fichiers sont envoyés à E2B, un fournisseur de sandbox cloud, et y sont exécutés, aux États-Unis. Pour les tâches de Projet, le Projet entier et la clé qui l'ouvre sont aussi placés dans le sandbox, scellés pour que seul ce sandbox puisse l'ouvrir. Le sandbox est supprimé ensuite."
       },
       "privacy_policy": {
         "text": "Politique de confidentialité"
@@ -4643,7 +4646,7 @@
         "text": "Exécuter du code dans le sandbox cloud E2B"
       },
       "description": {
-        "text": "Si tu l'autorises, le code et les fichiers que tu exécutes sont envoyés à E2B, un fournisseur de sandbox cloud. Sinon, rien n'est envoyé."
+        "text": "Si tu l'autorises, le code et les fichiers que tu exécutes sont envoyés à E2B, un fournisseur de sandbox cloud, et traités aux États-Unis. Pour les tâches de Projet, cela inclut le Projet et la clé qui l'ouvre, scellés pour que seul ce sandbox puisse l'ouvrir. Le sandbox est supprimé ensuite. Sinon, rien n'est envoyé."
       },
       "status_allowed": {
         "text": "Autorisé"
@@ -12440,7 +12443,7 @@
               "text": "E2B (bac à sable de code isolé)"
             },
             "description": {
-              "text": "E2B exécute les intégrations de code sélectionnées et les aperçus d'applications générés dans des bacs à sable isolés. E2B reçoit le code ou les fichiers et ressources d'application générés que tu choisis d'exécuter, les entrées d'exécution, les journaux d'aperçu et la sortie d'exécution nécessaires pour faire fonctionner et afficher le résultat du bac à sable. Ce partage n'a lieu que lorsque tu exécutes explicitement du code, crées une application générée qui lance automatiquement un court aperçu par capture d'écran, ou démarres/reprends un aperçu en direct d'une application."
+              "text": "E2B exécute les intégrations de code sélectionnées et les aperçus d'applications générés dans des bacs à sable isolés. E2B reçoit le code ou les fichiers et ressources d'application générés que tu choisis d'exécuter, les entrées d'exécution, les journaux d'aperçu et la sortie d'exécution nécessaires pour faire fonctionner et afficher le résultat du bac à sable. Ce partage n'a lieu que lorsque tu exécutes explicitement du code, crées une application générée qui lance automatiquement un court aperçu par capture d'écran, ou démarres/reprends un aperçu en direct d'une application. Lorsqu'une tâche d'agent s'exécute sur un projet cloud, E2B, aux États-Unis, reçoit aussi tous les fichiers du projet et, scellée de sorte que seul ce bac à sable puisse l'ouvrir, la clé qui ouvre le projet, pendant la durée de la tâche. Le bac à sable est supprimé après 15 minutes d'inactivité ou au plus tard après 4 heures (jusqu'à 24 heures si tu l'actives) et n'est jamais mis en pause."
             }
           }
         },

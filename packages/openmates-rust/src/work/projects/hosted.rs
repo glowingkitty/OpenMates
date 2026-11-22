@@ -15,8 +15,8 @@ use zeroize::Zeroizing;
 
 mod api;
 mod apply_changes;
-mod io;
-mod job;
+pub(crate) mod io;
+pub(crate) mod job;
 mod moves;
 mod patch_repair;
 mod policy;

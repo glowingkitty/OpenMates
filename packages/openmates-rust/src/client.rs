@@ -232,6 +232,8 @@ use project_file_jobs::{PROJECT_FILE_JOBS_AVAILABLE, PROJECT_FILE_JOBS_CAPABILIT
 pub use project_file_jobs::{ProjectFileJobFrame, ProjectFilePrivacyBlob, ProjectFileJobStep};
 #[cfg(feature = "workflow-yaml")]
 mod hosted_file_io;
+#[cfg(feature = "workflow-yaml")]
+mod project_sandbox_key;
 mod project_commit_restore;
 pub use project_commit_restore::{
     ProjectCommitFileOutcome, ProjectCommitFileRestore, ProjectCommitUserRestore,

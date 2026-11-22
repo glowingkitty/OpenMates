@@ -1,0 +1,45 @@
+schema_version: 2
+profile: concise
+id: hosted-project-sandbox
+title: Hosted Project agent jobs in an E2B sandbox with a sealed Project key
+status: implementing
+goal: >-
+  Every agentic job on a hosted (cloud) Project runs in an E2B sandbox that holds
+  the decrypted Project as a normal file tree, so file operations, tests and
+  builds are fast at any repository size. The user's device hands the Project
+  key, sealed, only to that sandbox; the main server relays an opaque blob and
+  never stores or sees the key. Changes are written back encrypted after every
+  change, conflicts with other devices are merged without losing edits, and the
+  sandbox is killed after 15 idle minutes or 4 hours (opt-in up to 24 hours),
+  never paused. The consent says plainly that Projects are processed by E2B in
+  the US. Code execution is billed per second. On dev the path is on directly
+  (no feature flag); production has agentic coding off.
+# Approved by Marco (owner) 22 Nov 2026 02:30, receipt ad958bae52e82511;
+# correction "no feature flag" receipt 2007f7a02dbd3177.
+# Design and rationale: docs/investigations/project-encryption-agentic-coding-2026-11/e2b-sandbox-plan.md
+# Contracts between lanes: contracts.md in this folder.
+# OpenMates Task afd0c127-44fe-4a6f-b187-97757ff0515f owns progress.
+scope:
+  - Rust core - sandbox key exchange (sealed box with binding), device-side answer to the key request on web, CLI and Apple through the shared core.
+  - New Rust binary crate packages/openmates-sandbox-host - holds the key in memory, decrypts the ciphertext bundle into a file tree, runs file operations, builds encrypted revisions, merges conflicts.
+  - Backend - sandbox lifecycle (create, key relay, sync-in, idle and hard maximum, kill), inline execution of Project file tools and commands through the sandbox, server-side commit of sandbox-built ciphertext revisions.
+  - E2B consent wording v2 (processed in the US).
+  - Per-second billing for code runs and sandbox jobs.
+contracts:
+  - projects.keys.client-wrapped
+  - code-run.e2b.upload-consent
+  - code-run.cloud.workspace
+decisions:
+  - Server relays only a sealed blob (crypto_box sealed box to the sandbox's fresh X25519 key); binding fields live inside the sealed plaintext and are checked by the sandbox.
+  - The sandbox holds no OpenMates credential. The server moves ciphertext in (sync-in, merge heads) and out (revision commits). A compromised sandbox cannot fetch more Project data.
+  - Phase 1 keeps the model loop in the existing AI task and executes Project tools inline through E2B's authenticated command channel (no task end per operation). Moving the loop into the sandbox can follow; the key and storage design is the same.
+  - Users who declined E2B keep the existing device executor, frozen.
+  - Never pause a sandbox; E2B on-timeout action is kill.
+verification:
+  required:
+    - Rust unit tests for key sealing, binding, expiry and wrong-key refusal; a test that relayed frames never contain the raw key.
+    - Backend tests that the key relay stores and logs nothing and that sandbox records hold ids only.
+    - Write-back tests with two devices editing the same file at once (clean merge, real conflict, no edit lost).
+    - Per-second billing tests for code runs and sandbox jobs.
+    - A real sandbox job on dev (web), with screenshots or a video, and the non-coding video flows still green.
+  evidence: pending

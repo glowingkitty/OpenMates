@@ -395,6 +395,61 @@ class ProjectWriteAuthorizationService:
             raise ProjectWriteAuthorizationError("PROJECT_WRITE_APPROVAL_CACHE_UNAVAILABLE", status_code=503)
         return approval
 
+    @staticmethod
+    def _sandbox_auth_key(user_id: str, chat_id: str, project_id: str, operation_id: str) -> str:
+        return f"project_sandbox_write_auth:v1:{_hash(user_id)}:{chat_id}:{_hash(project_id)}:{_hash(operation_id)}"
+
+    async def authorize_sandbox_write(
+        self, *, user_id: str, chat_id: str, project_id: str, operation_id: str,
+        proposal_digest: str, team_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Record, server-side, that the hosted sandbox job of this chat may commit one revision.
+
+        Runs the same chat/Project/focus/role checks as the device path. Only the
+        ``apply_and_show`` write mode applies: ``always_ask`` needs a user approval
+        the sandbox job cannot give, so it is refused. The record is bound to
+        user, chat, Project, operation and digest, and is consumed once by
+        ``consume_sandbox_write``; the device-path checks are unchanged.
+        """
+        _validate_write_binding(operation_id, proposal_digest)
+        decision = await self._current_write_decision(
+            user_id=user_id, chat_id=chat_id, project_id=project_id, team_id=team_id)
+        if decision["write_mode"] != "apply_and_show":
+            raise ProjectWriteAuthorizationError("PROJECT_WRITE_APPROVAL_REQUIRED", status_code=409)
+        record = {
+            "operation_id": operation_id, "proposal_digest": proposal_digest, "chat_id": chat_id,
+            "project_id_hash": _hash(project_id), "team_id_hash": _hash(team_id) if team_id else None,
+            "focus_id_hash": decision["focus_id_hash"],
+            "settings_revision": decision["settings_revision"], "authorized_at": int(time.time()),
+        }
+        if not await self.cache_service.set(
+            self._sandbox_auth_key(user_id, chat_id, project_id, operation_id), record,
+            ttl=PROJECT_WRITE_APPROVAL_TTL_SECONDS,
+        ):
+            raise ProjectWriteAuthorizationError("PROJECT_WRITE_APPROVAL_CACHE_UNAVAILABLE", status_code=503)
+        return decision
+
+    async def consume_sandbox_write(
+        self, *, user_id: str, chat_id: str, project_id: str, operation_id: str,
+        proposal_digest: str, team_id: str | None = None,
+    ) -> None:
+        """Consume the record of ``authorize_sandbox_write`` right before the durable commit."""
+        _validate_write_binding(operation_id, proposal_digest)
+        decision = await self._current_write_decision(
+            user_id=user_id, chat_id=chat_id, project_id=project_id, team_id=team_id)
+        record = await self.cache_service.get_and_delete(
+            self._sandbox_auth_key(user_id, chat_id, project_id, operation_id))
+        if (
+            not isinstance(record, dict)
+            or record.get("proposal_digest") != proposal_digest
+            or record.get("chat_id") != chat_id
+            or record.get("project_id_hash") != _hash(project_id)
+            or record.get("team_id_hash") != (_hash(team_id) if team_id else None)
+            or record.get("focus_id_hash") != decision["focus_id_hash"]
+            or record.get("settings_revision") != decision["settings_revision"]
+        ):
+            raise ProjectWriteAuthorizationError("PROJECT_WRITE_APPROVAL_REQUIRED", status_code=409)
+
     async def _current_write_decision(
         self,
         *,

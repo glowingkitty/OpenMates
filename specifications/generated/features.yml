@@ -11948,7 +11948,7 @@ features:
       - backend/tests/test_code_run_billing_attribution.py
       - backend/tests/test_e2b_code_runner.py
       - backend/tests/test_application_preview_config.py
-      unit_test_files: 30
+      unit_test_files: 32
     sdk_npm:
       status: not_run
       source: tests
@@ -16007,7 +16007,7 @@ features:
     - platform:projects
     dev: enabled
     prod: disabled
-  assertions: 68
+  assertions: 73
   surfaces:
     web:
       status: failing
@@ -16017,8 +16017,8 @@ features:
         passing: 20
         failing: 14
         not_run: 12
-        missing: 22
-        counted: 68
+        missing: 27
+        counted: 73
       failing_tests:
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_mixed_project_and_web_batch_defers_web_until_file_result
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_multiple_project_jobs_dispatch_only_first
@@ -16082,8 +16082,8 @@ features:
         passing: 15
         failing: 2
         not_run: 1
-        missing: 50
-        counted: 68
+        missing: 55
+        counted: 73
       failing_tests:
       - apple/OpenMatesUITests/DevComponentPreviewUITests.swift › testProjectsWorkspaceLandingOverviewAndFilesAtWebPhoneWidth
       key_tests: []
@@ -16116,8 +16116,8 @@ features:
         passing: 21
         failing: 0
         not_run: 16
-        missing: 31
-        counted: 68
+        missing: 36
+        counted: 73
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
@@ -16164,9 +16164,9 @@ features:
       assertions:
         passing: 27
         failing: 0
-        not_run: 10
+        not_run: 15
         missing: 31
-        counted: 68
+        counted: 73
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/jev-project-context-api.spec.ts
@@ -16176,7 +16176,7 @@ features:
       - backend/core/directus/extensions/embed-version-transaction/test/operations.test.js
       - backend/tests/test_embed_version_routes.py
       - backend/tests/test_async_skill_continuation.py
-      unit_test_files: 43
+      unit_test_files: 46
     sdk_npm:
       status: not_run
       source: tests
@@ -16185,8 +16185,8 @@ features:
         passing: 0
         failing: 0
         not_run: 6
-        missing: 62
-        counted: 68
+        missing: 67
+        counted: 73
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -16202,8 +16202,8 @@ features:
         passing: 0
         failing: 0
         not_run: 5
-        missing: 63
-        counted: 68
+        missing: 68
+        counted: 73
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -16218,6 +16218,7 @@ features:
     - projects.creation.assistant-inferred
     - projects.creation.machine-folder
     - projects.keys.client-wrapped
+    - projects.keys.sandbox-sealed-handover
     - projects.lifecycle.encrypted-crud
     - projects.links.openmates-only-encrypted
     - projects.uploads.project-wrapped
@@ -16230,8 +16231,8 @@ features:
           passing: 0
           failing: 3
           not_run: 3
-          missing: 1
-          counted: 7
+          missing: 2
+          counted: 8
         failing_tests:
         - frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts › groups saved chats, navigates deep folders and reveals
           running descendants globally
@@ -16247,8 +16248,8 @@ features:
           passing: 3
           failing: 0
           not_run: 0
-          missing: 4
-          counted: 7
+          missing: 5
+          counted: 8
       cli:
         status: partial
         source: tests
@@ -16257,8 +16258,8 @@ features:
           passing: 1
           failing: 0
           not_run: 3
-          missing: 3
-          counted: 7
+          missing: 4
+          counted: 8
       tui:
         status: unverified
         source: intent
@@ -16276,9 +16277,9 @@ features:
         assertions:
           passing: 4
           failing: 0
-          not_run: 1
+          not_run: 2
           missing: 2
-          counted: 7
+          counted: 8
       sdk_npm:
         status: not_run
         source: tests
@@ -16287,8 +16288,8 @@ features:
           passing: 0
           failing: 0
           not_run: 3
-          missing: 4
-          counted: 7
+          missing: 5
+          counted: 8
       sdk_pypi:
         status: not_run
         source: tests
@@ -16297,8 +16298,8 @@ features:
           passing: 0
           failing: 0
           not_run: 3
-          missing: 4
-          counted: 7
+          missing: 5
+          counted: 8
   - id: file-reading-search
     name: Project files and search
     description: Search scope/consistency, embed adoption, previews, items

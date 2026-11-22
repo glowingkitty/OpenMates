@@ -888,7 +888,10 @@
         "text": "Visa visualisering"
       },
       "interactive_html_blocked": {
-        "text": "Den här visualiseringen försökte öppna en annan sida och stoppades."
+        "text": "Den här visualiseringen försökte öppna en annan sida. Det är inte tillåtet i en chatt, så den pausades."
+      },
+      "interactive_html_reload": {
+        "text": "Läs in visualiseringen igen"
       },
       "search_repos": {
         "text": "Sök repon",
@@ -4585,7 +4588,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "För att köra detta skickas din kod och dina filer till E2B, en leverantör av molnsandlådor, och körs där."
+        "text": "För att köra detta skickas din kod och dina filer till E2B, en leverantör av molnsandlådor, och körs där, i USA. För Projektjobb läggs även hela Projektet och nyckeln som öppnar det i sandlådan, förseglad så att bara den sandlådan kan öppna den. Sandlådan raderas efteråt."
       },
       "privacy_policy": {
         "text": "Integritetspolicy"
@@ -4616,7 +4619,7 @@
         "text": "Kör kod i molnsandlådan E2B"
       },
       "description": {
-        "text": "När det är tillåtet skickas koden och filerna du kör till E2B, en leverantör av molnsandlådor. När det inte är tillåtet skickas ingenting."
+        "text": "När det är tillåtet skickas koden och filerna du kör till E2B, en leverantör av molnsandlådor, och behandlas i USA. För Projektjobb ingår Projektet och nyckeln som öppnar det, förseglad så att bara den sandlådan kan öppna den. Sandlådan raderas efteråt. När det inte är tillåtet skickas ingenting."
       },
       "status_allowed": {
         "text": "Tillåtet"
@@ -12413,7 +12416,7 @@
               "text": "E2B (isolerad kodsandlåda)"
             },
             "description": {
-              "text": "E2B kör valda kodinbäddningar och genererade applikationsförhandsvisningar i isolerade sandlådor. E2B tar emot koden eller de genererade applikationsfilerna och tillgångarna du väljer att köra, indata för körtid, förhandsvisningsloggar och utdata som behövs för att köra och visa sandlåderesultatet. Denna delning sker endast när du uttryckligen kör kod, skapar en genererad applikation som automatiskt startar en kort skärmbildsförhandsvisning, eller startar/återupptar en live-förhandsvisning av en applikation."
+              "text": "E2B kör valda kodinbäddningar och genererade applikationsförhandsvisningar i isolerade sandlådor. E2B tar emot koden eller de genererade applikationsfilerna och tillgångarna du väljer att köra, indata för körtid, förhandsvisningsloggar och utdata som behövs för att köra och visa sandlåderesultatet. Denna delning sker endast när du uttryckligen kör kod, skapar en genererad applikation som automatiskt startar en kort skärmbildsförhandsvisning, eller startar/återupptar en live-förhandsvisning av en applikation. När ett agentjobb körs på ett molnprojekt tar E2B i USA också emot alla projektets filer och, förseglad så att bara den sandlådan kan öppna den, nyckeln som öppnar projektet, så länge jobbet pågår. Sandlådan raderas efter 15 minuters inaktivitet eller senast efter 4 timmar (upp till 24 timmar om du väljer det) och pausas aldrig."
             }
           }
         },

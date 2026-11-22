@@ -197,6 +197,17 @@ directus_users:
       nullable: true
       note: "Server timestamp of the e2b_upload_consent_v1 decision."
 
+    e2b_upload_consent_v2:
+      type: string
+      length: 16
+      nullable: true
+      note: "Account decision (allowed or declined) on sending code and Project files, and for Project jobs the sealed Project key, to E2B (processed in the US), consent wording version 2. A new wording version uses a new field and asks again."
+
+    e2b_upload_consent_v2_at:
+      type: integer
+      nullable: true
+      note: "Server timestamp of the e2b_upload_consent_v2 decision."
+
     consent_mates_default_settings:
       type: string
       length: 256

@@ -134,4 +134,26 @@ impl BrowserCoreClient {
         self.status(handle, generation)?;
         serde_json::to_string(&report).map_err(|_| JsValue::from_str("protocol"))
     }
+
+    /// Answer one `project_sandbox_key_request` payload; returns the finished
+    /// WS frame JSON `{event, payload}` (grant sealed to the sandbox, or a
+    /// decline). The Project key never leaves the core.
+    pub async fn answer_project_sandbox_key_request(
+        &mut self,
+        handle: &str,
+        generation: f64,
+        event_json: &str,
+        now_seconds: f64,
+    ) -> Result<String, JsValue> {
+        self.status(handle, generation)?;
+        let event: serde_json::Value =
+            serde_json::from_str(event_json).map_err(|_| JsValue::from_str("invalid_request"))?;
+        let frame = self
+            .client
+            .answer_project_sandbox_key_request(&event, now_seconds as i64)
+            .await
+            .map_err(code)?;
+        self.status(handle, generation)?;
+        serde_json::to_string(&frame).map_err(|_| JsValue::from_str("protocol"))
+    }
 }

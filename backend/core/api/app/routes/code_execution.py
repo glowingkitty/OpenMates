@@ -48,8 +48,11 @@ MAX_TOTAL_CHARS = 10_000_000
 MAX_ATTACHMENT_BYTES = 5_000_000
 MAX_TOTAL_ATTACHMENT_BYTES = 20_000_000
 EXECUTION_TTL_SECONDS = 3600
-# Catalog price per started sandbox minute (code.run pricing.per_minute).
-RUN_CREDITS_PER_MINUTE = whole_credits(skill_price("code", "run", "per_minute"))
+# Catalog price per sandbox second (code.run pricing.per_second); a run is charged
+# ceil(seconds * rate), at least 1 credit once started (code_execution_credits).
+RUN_CREDITS_PER_SECOND = skill_price("code", "run", "per_second")
+# Whole-credit minute rate for display and balance checks only; billing is per second.
+RUN_CREDITS_PER_MINUTE = whole_credits(RUN_CREDITS_PER_SECOND * 60)
 ACTIVE_RUN_TTL_SECONDS = 600
 MAX_ACTIVE_RUNS_PER_USER = 5
 PROVIDER_ACTIVE_RUN_TTL_SECONDS = 600
@@ -1257,7 +1260,7 @@ async def start_code_run_execution(
     command_run: dict[str, Any] | None = None,
     directus_service: DirectusService | None = None,
 ) -> CodeRunStartResponse:
-    if current_user.credits < RUN_CREDITS_PER_MINUTE:
+    if current_user.credits < 1:
         raise HTTPException(status_code=402, detail="Not enough credits to run code")
     # Hard gate: nothing is queued (and no E2B slot reserved) without the account's consent.
     await e2b_upload_consent.require_e2b_upload_consent(current_user.id, directus_service)

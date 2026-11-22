@@ -305,7 +305,7 @@ def _usage_payload_with_charge(generation: ImageToHtmlGenerationResult, max_corr
             "provider_cost_credits": estimated_cost_credits,
             "model_credits": charge.model_credits,
             "e2b_credits": charge.e2b_credits,
-            "e2b_started_minutes": charge.e2b_started_minutes,
+            "e2b_seconds": charge.e2b_seconds,
             "reserved_credits": reserved_credits,
             "credits_charged": charge.credits_charged,
             "credits_refunded": max(0, reserved_credits - charge.credits_charged),

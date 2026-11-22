@@ -122,7 +122,12 @@ def without_forged_snapshot(arguments: Any) -> Any:
     """
     if not is_cloud_command(arguments):
         return arguments
-    return {key: value for key, value in arguments.items() if key not in {"files", "project_snapshot"}}
+    return {key: value for key, value in arguments.items() if key not in {"files", "project_snapshot", "project_sandbox"}}
+
+
+def use_project_sandbox(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Mark a cloud command to run in the hosted Project sandbox: no client snapshot is needed."""
+    return {**arguments, "project_sandbox": True, "project_snapshot": True}
 
 
 def needs_snapshot(arguments: Any) -> bool:

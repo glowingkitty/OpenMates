@@ -888,7 +888,10 @@
         "text": "Mostra visualizzazione"
       },
       "interactive_html_blocked": {
-        "text": "Questa visualizzazione ha tentato di aprire un'altra pagina ed è stata fermata."
+        "text": "Questa visualizzazione ha tentato di aprire un'altra pagina. Non è consentito in una chat, quindi è stata messa in pausa."
+      },
+      "interactive_html_reload": {
+        "text": "Ricarica visualizzazione"
       },
       "search_repos": {
         "text": "Cerca repo",
@@ -4612,7 +4615,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "Per eseguirlo, il tuo codice e i tuoi file vengono inviati a E2B, un fornitore di sandbox cloud, ed eseguiti lì."
+        "text": "Per eseguirlo, il tuo codice e i tuoi file vengono inviati a E2B, un fornitore di sandbox cloud, ed eseguiti lì, negli Stati Uniti. Per i lavori di Progetto, anche l'intero Progetto e la chiave che lo apre vengono messi nella sandbox, sigillati in modo che solo quella sandbox possa aprirli. La sandbox viene eliminata dopo."
       },
       "privacy_policy": {
         "text": "Informativa sulla privacy"
@@ -4643,7 +4646,7 @@
         "text": "Esegui codice nella sandbox cloud di E2B"
       },
       "description": {
-        "text": "Se consentito, il codice e i file che esegui vengono inviati a E2B, un fornitore di sandbox cloud. Se non consentito, non viene inviato nulla."
+        "text": "Se consentito, il codice e i file che esegui vengono inviati a E2B, un fornitore di sandbox cloud, ed elaborati negli Stati Uniti. Per i lavori di Progetto ciò include il Progetto e la chiave che lo apre, sigillati in modo che solo quella sandbox possa aprirli. La sandbox viene eliminata dopo. Se non consentito, non viene inviato nulla."
       },
       "status_allowed": {
         "text": "Consentito"
@@ -12440,7 +12443,7 @@
               "text": "E2B (sandbox di codice isolata)"
             },
             "description": {
-              "text": "E2B esegue i codici incorporati selezionati e le anteprime delle applicazioni generate all'interno di sandbox isolate. E2B riceve il codice o i file e gli asset dell'applicazione generata che scegli di eseguire, gli input di runtime, i log di anteprima e l'output di esecuzione necessari per eseguire e visualizzare il risultato della sandbox. Questa condivisione avviene solo quando esegui esplicitamente il codice, crei un'applicazione generata che avvia automaticamente una breve anteprima dello screenshot o avvii/riprendi un'anteprima live dell'applicazione."
+              "text": "E2B esegue i codici incorporati selezionati e le anteprime delle applicazioni generate all'interno di sandbox isolate. E2B riceve il codice o i file e gli asset dell'applicazione generata che scegli di eseguire, gli input di runtime, i log di anteprima e l'output di esecuzione necessari per eseguire e visualizzare il risultato della sandbox. Questa condivisione avviene solo quando esegui esplicitamente il codice, crei un'applicazione generata che avvia automaticamente una breve anteprima dello screenshot o avvii/riprendi un'anteprima live dell'applicazione. Quando un lavoro dell'agente viene eseguito su un progetto cloud, E2B, negli Stati Uniti, riceve anche tutti i file del progetto e, sigillata in modo che solo quella sandbox possa aprirla, la chiave che apre il progetto, per tutta la durata del lavoro. La sandbox viene eliminata dopo 15 minuti di inattività o al massimo dopo 4 ore (fino a 24 ore se lo attivi) e non viene mai messa in pausa."
             }
           }
         },

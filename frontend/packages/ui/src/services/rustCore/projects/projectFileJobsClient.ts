@@ -10,7 +10,7 @@ import { requireSharedRustCore, type SharedRustCore } from '../host/sharedCoreRe
 import { createUnitPort, UnitPortError, type UnitPort } from '../host/unitPort';
 import { withServerSession } from './projectTimelineClient';
 import {
-	PROJECT_FILE_JOBS_UNIT_CLOSE, type ProjectCreateEventKind, type ProjectCreateResult, type ProjectFileJobEventKind, type ProjectFileJobPrivacyInputs, type ProjectFileJobStep, type ProjectFileJobsProtocol
+	PROJECT_FILE_JOBS_UNIT_CLOSE, type ProjectCreateEventKind, type ProjectCreateResult, type ProjectSandboxKeyFrame, type ProjectFileJobEventKind, type ProjectFileJobPrivacyInputs, type ProjectFileJobStep, type ProjectFileJobsProtocol
 } from './projectFileJobsProtocol';
 
 export const PROJECT_FILE_JOBS_ENABLED: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
@@ -81,4 +81,10 @@ export function decideProjectFileJob(chatId: string, operationId: string, accept
 export async function stepProjectCreate(kind: ProjectCreateEventKind, event: Record<string, unknown>): Promise<ProjectCreateResult | null> {
 	const { result } = await withServerSession(async () => (await unit()).request('createStep', { kind, event }, { timeoutMs: CREATE_TIMEOUT_MS }));
 	return result;
+}
+
+/** Ask the core to answer one `project_sandbox_key_request`; resolves with the finished frame to send. */
+export async function answerProjectSandboxKey(event: Record<string, unknown>): Promise<ProjectSandboxKeyFrame> {
+	const { frame } = await withServerSession(async () => (await unit()).request('sandboxKey', { event }, { timeoutMs: CREATE_TIMEOUT_MS }));
+	return frame;
 }

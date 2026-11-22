@@ -164,7 +164,7 @@ assertions:
     depends_on: [models.Sandbox.runtime, models.EmbroideryResult.files, examples.convert]
   - id: design-embroidery.billing.metered
     type: invariant
-    must: A conversion is charged 5 credits per started minute of sandbox time plus, when a model reworked the graphic, that call's reported tokens at that model's price. Before a conversion starts, the balance must cover three sandbox minutes (plus the possible model rework); a conversion that runs longer is still charged in full and may take the balance slightly below zero. A conversion that fails before any file is delivered is not charged. The platform minimum charge applies.
+    must: A conversion is charged per second of sandbox time at 5 credits per minute (rounded up to whole credits once per run) plus, when a model reworked the graphic, that call's reported tokens at that model's price. Before a conversion starts, the balance must cover three sandbox minutes (plus the possible model rework); a conversion that runs longer is still charged in full and may take the balance slightly below zero. A conversion that fails before any file is delivered is not charged. The platform minimum charge applies.
     depends_on: [models.Sandbox.runtime, examples.billing]
   - id: design-embroidery.surface.semantic-parity
     type: parity

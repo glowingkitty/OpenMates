@@ -540,7 +540,52 @@ assertions:
 - id: projects.keys.client-wrapped
   type: privacy
   must: Project keys remain client-wrapped for the authorized Personal or Team context; Team wrappers include hashed Team
-    identity and key epoch and no surface exposes raw Project keys.
+    identity and key epoch and no surface exposes raw Project keys. The only hand-over of a Project key outside the user's
+    devices is the sealed grant to a hosted Project job's own E2B sandbox in projects.keys.sandbox-sealed-handover.
+  depends_on:
+  - models.ProjectKeyWrapper
+  - examples.project_key_wrappers
+- id: projects.keys.sandbox-sealed-handover
+  type: privacy
+  must: For an agent job on a hosted Project, a device that holds the Project key gives it only to that job's E2B sandbox,
+    sealed to the sandbox's fresh in-memory X25519 public key, with the sandbox id, job id, Project id and an expiry bound
+    inside the sealed grant. The OpenMates server only relays the sealed grant, which it cannot open, and never stores, logs
+    or traces it. The sandbox refuses a grant whose binding or expiry does not match, keeps the key in memory only, and the
+    key is gone when the sandbox is killed. The server moves only ciphertext into the sandbox and commits only revisions the
+    sandbox encrypted; Project keys and files stay client-encrypted at rest.
+  depends_on:
+  - models.ProjectKeyWrapper
+  - examples.project_key_wrappers
+- id: projects.sandbox.jobs
+  type: behavior
+  must: Every agent job in a chat on a hosted Project of a user who allows E2B processing runs its Project file operations
+    and commands in that chat's E2B sandbox, which holds the decrypted Project as a normal file tree. The job uses the model
+    that the user or model routing picks, as in any other chat. Sandbox time is billed per second.
+  depends_on:
+  - models.ProjectKeyWrapper
+  - examples.project_key_wrappers
+- id: projects.sandbox.lifetime
+  type: privacy
+  must: A Project sandbox is killed 15 minutes after its last activity and at the latest 4 hours after it started; the user
+    can opt in per job to up to 24 hours, for jobs that should go on while every device is closed. A sandbox is never paused,
+    so neither the key nor plaintext rests at E2B, and the server kills any sandbox past its maximum or without a job record.
+  depends_on:
+  - models.ProjectKeyWrapper
+  - examples.project_key_wrappers
+- id: projects.sandbox.write-back
+  type: invariant
+  must: Each file change in the sandbox is committed as it happens as a new encrypted revision against the revision it was
+    based on. When another device changed the file meanwhile, a three-way merge keeps both edits; a real conflict goes to the
+    assistant while the job runs and is offered as a proposed change after it ended. No device's edit is overwritten or lost.
+    The sandbox holds only the Project key, so a file it creates carries only the Project key wrapper; only the server's
+    sandbox write-back may store such a create, and creates sent by devices still need both wrappers.
+  depends_on:
+  - models.ProjectKeyWrapper
+  - examples.project_key_wrappers
+- id: projects.sandbox.device-fallback
+  type: behavior
+  must: Users who decline E2B processing keep today's device-based execution of Project file operations unchanged, as a slow
+    fallback for small edits that receives no further development.
   depends_on:
   - models.ProjectKeyWrapper
   - examples.project_key_wrappers

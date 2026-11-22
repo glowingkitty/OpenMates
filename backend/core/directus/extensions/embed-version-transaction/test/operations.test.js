@@ -948,6 +948,38 @@ test('hosted create atomically stores encrypted head, v1 history, link, wrappers
   }
 });
 
+// contract-test: supporting surface=rest_api assertions=projects.sandbox.write-back,projects.keys.sandbox-sealed-handover
+test('sandbox-origin create stores only the Project key wrapper; ordinary creates still need both', async () => {
+  const freshSeed = () => {
+    const seed = existingSeed();
+    seed.project_items = [];
+    seed.embeds = [];
+    seed.embed_diffs = [];
+    seed.projects[0].item_count = 0;
+    return seed;
+  };
+  const projectOnly = (overrides = {}) => {
+    const body = createBody(overrides);
+    body.create = { ...body.create, key_wrappers: [body.create.key_wrappers[0]] };
+    return body;
+  };
+
+  const database = fakeDatabase(freshSeed());
+  const result = await commitEmbedRevision(database, projectOnly({ origin: 'project_sandbox' }));
+  assert.equal(result.status, 'committed');
+  assert.deepEqual(database.rows.embed_keys.map((row) => row.key_type), ['project']);
+
+  for (const [body, code] of [
+    [projectOnly(), 'invalid_key_wrappers'],
+    [projectOnly({ origin: 'other' }), 'invalid_origin'],
+    [createBody({ origin: 'project_sandbox' }), 'invalid_key_wrappers'],
+  ]) {
+    const refused = fakeDatabase(freshSeed());
+    await assert.rejects(commitEmbedRevision(refused, body), (error) => error.code === code);
+    assert.equal(refused.rows.embeds.length, 0);
+  }
+});
+
 // contract-test: supporting surface=rest_api assertions=projects.files.commit-replay,projects.files.hosted-ciphertext-commit
 test('same operation and ciphertext payload replays without a second write', async () => {
   const database = fakeDatabase(existingSeed());

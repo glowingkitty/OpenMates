@@ -145,7 +145,7 @@ async def test_no_decision_publishes_request_and_pauses_without_queueing(queued)
     channel, event = cache.redis.published[0]
     assert channel == "user_cache_events:user-1"
     assert event["event_type"] == "send_e2b_upload_consent_request"
-    assert event["payload"] == {"request_id": gate.request_id, "chat_id": "chat-1", "version": 1}
+    assert event["payload"] == {"request_id": gate.request_id, "chat_id": "chat-1", "version": consent.E2B_UPLOAD_CONSENT_VERSION}
     stored = cache.redis.store["pending_e2b_upload_consent:chat-1"]
     assert stored.startswith("enc:")
     assert queued == []
@@ -163,7 +163,7 @@ async def test_allow_records_allowed_queues_continuation_and_gate_proceeds(queue
     assert queued[0]["kwargs"]["request_data_dict"]["is_e2b_upload_consent_continuation"] is True
     assert "pending_e2b_upload_consent:chat-1" not in cache.redis.store
     updated = [e for _, e in cache.redis.published if e["event_type"] == "send_e2b_upload_consent_updated"]
-    assert updated[0]["payload"]["decision"] == "allowed" and updated[0]["payload"]["version"] == 1
+    assert updated[0]["payload"]["decision"] == "allowed" and updated[0]["payload"]["version"] == consent.E2B_UPLOAD_CONSENT_VERSION
     assert (await _gate(cache, directus)).kind == "allowed"
 
 

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import os
 import re
 import secrets
@@ -22,6 +21,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
+from backend.shared.python_utils.metered_author_billing import code_execution_credits
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services import e2b_upload_consent
 from backend.core.api.app.services.feature_availability_guards import ensure_application_preview_enabled
@@ -35,8 +35,8 @@ from backend.shared.providers.e2b_application_preview import (
 
 router = APIRouter(prefix="/v1/applications", tags=["Application Preview"])
 
-# Previews run in the Code Run sandbox, so its catalog minute price applies.
-APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE = whole_credits(skill_price("code", "run", "per_minute"))
+# Previews run in the Code Run sandbox, so its per-second catalog price applies.
+APPLICATION_PREVIEW_CREDITS_PER_SECOND = skill_price("code", "run", "per_second")
 APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS = 60
 APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS = 5 * 60
 APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS = 30 * 60
@@ -63,7 +63,7 @@ class ApplicationPreviewStartResponse(BaseModel):
     session_id: str
     preview_url: str
     status: str
-    credits_per_minute: int = APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE
+    credits_per_minute: int = whole_credits(APPLICATION_PREVIEW_CREDITS_PER_SECOND * 60)
 
 
 class ApplicationPreviewStopResponse(BaseModel):
@@ -380,8 +380,7 @@ def application_preview_host_key(preview_host: str) -> str:
 def calculate_preview_charge_credits(duration_seconds: float) -> int:
     if duration_seconds <= 0:
         return 0
-    charged_minutes = max(1, math.ceil(duration_seconds / 60))
-    return charged_minutes * APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE
+    return code_execution_credits(duration_seconds, APPLICATION_PREVIEW_CREDITS_PER_SECOND)
 
 
 def hash_preview_gateway_token(preview_token: str) -> str:
@@ -425,9 +424,9 @@ def build_preview_session_record(
         "idle_deadline": now + idle_timeout,
         "hard_deadline": now + APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS,
         "billing_state": {
-            "credits_per_started_minute": APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE,
+            "credits_per_second": str(APPLICATION_PREVIEW_CREDITS_PER_SECOND),
             "charged_credits": 0,
-            "charged_minutes": 0,
+            "charged_seconds": 0,
         },
     }
 
@@ -478,7 +477,7 @@ async def create_application_preview_session(
     preview_host_label: str | None = None,
     directus_service: Any | None = None,
 ) -> ApplicationPreviewStartResponse:
-    if getattr(current_user, "credits", 0) < APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE:
+    if getattr(current_user, "credits", 0) < 1:
         raise HTTPException(status_code=402, detail="Not enough credits to start application preview")
     # Hard gate: no preview session or sandbox task (including auto-starts) without E2B consent.
     await e2b_upload_consent.require_e2b_upload_consent(current_user.id, directus_service)

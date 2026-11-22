@@ -1655,8 +1655,8 @@
                   "charged_credits": {
                     "type": "integer"
                   },
-                  "charged_minutes": {
-                    "type": "integer"
+                  "charged_seconds": {
+                    "type": "number"
                   },
                   "artifacts": {
                     "type": "array",

@@ -1665,8 +1665,8 @@ export const APP_SKILL_METADATA = [
                   "charged_credits": {
                     "type": "integer"
                   },
-                  "charged_minutes": {
-                    "type": "integer"
+                  "charged_seconds": {
+                    "type": "number"
                   },
                   "artifacts": {
                     "type": "array",

@@ -96,11 +96,22 @@ async def test_older_version_decision_does_not_carry_over():
 
 @pytest.mark.anyio
 # contract-test: direct surface=rest_api assertions=code-run.e2b.upload-consent
+async def test_stored_v1_allowed_decision_asks_again_under_v2():
+    directus = FakeDirectus({"e2b_upload_consent_v1": "allowed", "e2b_upload_consent_v1_at": 5})
+    assert consent.E2B_UPLOAD_CONSENT_VERSION == 2
+    assert consent.CONSENT_FIELD == "e2b_upload_consent_v2"
+    with pytest.raises(HTTPException) as err:
+        await consent.require_e2b_upload_consent("owner", directus)
+    assert err.value.detail == {"code": "e2b_consent_required"}
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=code-run.e2b.upload-consent
 async def test_consent_endpoints_get_and_put_are_owner_scoped():
     directus = FakeDirectus()
     user = SimpleNamespace(id="owner")
     unset = await consent_routes.get_e2b_upload_consent.__wrapped__(None, user, directus)
-    assert unset == {"decision": None, "decided_at": None, "version": 1}
+    assert unset == {"decision": None, "decided_at": None, "version": consent.E2B_UPLOAD_CONSENT_VERSION}
     body = consent_routes.E2bUploadConsentBody(decision="declined")
     stored = await consent_routes.put_e2b_upload_consent.__wrapped__(None, body, user, directus)
     assert stored["decision"] == "declined" and type(stored["decided_at"]) is int

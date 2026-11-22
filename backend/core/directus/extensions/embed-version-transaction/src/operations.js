@@ -38,8 +38,12 @@ const CREATE_FIELDS = new Set([
 const KEY_WRAPPER_FIELDS = new Set(['key_type', 'encrypted_embed_key', 'created_at']);
 const BODY_FIELDS = new Set([
   'operation_id', 'embed_id', 'project_id', 'chat_id', 'proposal_digest', 'team_id',
-  'expected_revision', 'head', 'history_rows', 'create', 'actor_user_hash',
+  'expected_revision', 'head', 'history_rows', 'create', 'actor_user_hash', 'origin',
 ]);
+// Set only by the backend's Project sandbox write-back (internal token); the
+// WebSocket commit path refuses it. A sandbox holds the Project key but never
+// a chat key, so its new files carry only the Project key wrapper.
+const SANDBOX_ORIGIN = 'project_sandbox';
 const LEGACY_EMBED_FIELDS = new Set([
   'embed_id', 'hashed_chat_id', 'hashed_message_id', 'hashed_task_id',
   'encrypted_type', 'status', 'hashed_user_id', 'app_id', 'skill_id',
@@ -124,7 +128,7 @@ function validateHead(raw) {
   return result;
 }
 
-function validateCreate(raw, expectedRevision, embedId) {
+function validateCreate(raw, expectedRevision, embedId, origin) {
   if (raw == null) return null;
   if (expectedRevision !== 0 || !UUID_V5_RE.test(embedId)) fail(400, 'invalid_create');
   const create = exactFields(raw, CREATE_FIELDS, [
@@ -133,14 +137,15 @@ function validateCreate(raw, expectedRevision, embedId) {
   ]);
   const projectItemId = boundedString(create.project_item_id, 'invalid_create', 36);
   if (!UUID_V5_RE.test(projectItemId)) fail(400, 'invalid_create');
-  if (!Array.isArray(create.key_wrappers) || create.key_wrappers.length !== 2) {
+  const expectedTypes = origin === SANDBOX_ORIGIN ? ['project'] : ['project', 'chat'];
+  if (!Array.isArray(create.key_wrappers) || create.key_wrappers.length !== expectedTypes.length) {
     fail(400, 'invalid_key_wrappers');
   }
   const wrappers = create.key_wrappers.map((rawWrapper) => {
     const wrapper = exactFields(rawWrapper, KEY_WRAPPER_FIELDS, [
       'key_type', 'encrypted_embed_key', 'created_at',
     ]);
-    if (!['project', 'chat'].includes(wrapper.key_type)) fail(400, 'invalid_key_wrappers');
+    if (!expectedTypes.includes(wrapper.key_type)) fail(400, 'invalid_key_wrappers');
     return {
       key_type: wrapper.key_type,
       encrypted_embed_key: boundedString(
@@ -151,7 +156,7 @@ function validateCreate(raw, expectedRevision, embedId) {
       created_at: safeInteger(wrapper.created_at, 'invalid_timestamp'),
     };
   });
-  if (new Set(wrappers.map((wrapper) => wrapper.key_type)).size !== 2) {
+  if (new Set(wrappers.map((wrapper) => wrapper.key_type)).size !== expectedTypes.length) {
     fail(400, 'invalid_key_wrappers');
   }
   return {
@@ -209,6 +214,8 @@ function validateRequest(raw) {
   const newRevision = expectedRevision + 1;
   const teamId = body.team_id == null ? null : boundedString(body.team_id, 'invalid_team_id', 512);
   const embedId = boundedString(body.embed_id, 'invalid_embed_id', 512);
+  if (body.origin != null && body.origin !== SANDBOX_ORIGIN) fail(400, 'invalid_origin');
+  const origin = body.origin == null ? null : SANDBOX_ORIGIN;
   return {
     operation_id: operationId,
     embed_id: embedId,
@@ -219,7 +226,7 @@ function validateRequest(raw) {
     expected_revision: expectedRevision,
     head: validateHead(body.head),
     history_rows: validateHistoryRows(body.history_rows, newRevision),
-    create: validateCreate(body.create, expectedRevision, embedId),
+    create: validateCreate(body.create, expectedRevision, embedId, origin),
     actor_user_hash: hexDigest(body.actor_user_hash, 'invalid_actor'),
   };
 }

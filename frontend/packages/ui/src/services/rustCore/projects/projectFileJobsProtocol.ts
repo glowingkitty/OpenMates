@@ -66,7 +66,17 @@ export type ProjectFileJobsProtocol = {
 		request: { kind: ProjectCreateEventKind; event: Record<string, unknown> };
 		response: { result: ProjectCreateResult | null };
 	};
+	sandboxKey: {
+		request: { event: Record<string, unknown> };
+		response: { frame: ProjectSandboxKeyFrame };
+	};
 };
+
+/** The finished WS frame the core builds for a `project_sandbox_key_request` (sealed grant or decline). */
+export interface ProjectSandboxKeyFrame {
+	event: 'project_sandbox_key_grant' | 'project_sandbox_key_decline';
+	payload: Record<string, unknown> & { request_id: string; job_id: string };
+}
 
 export const PROJECT_FILE_JOBS_UNIT_CLOSE = Object.freeze({ v: 1, type: 'project_file_jobs_close' });
 export function isProjectFileJobsUnitClose(value: unknown): boolean {

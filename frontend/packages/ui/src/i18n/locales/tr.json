@@ -888,7 +888,10 @@
         "text": "Görseli göster"
       },
       "interactive_html_blocked": {
-        "text": "Bu görsel başka bir sayfa açmaya çalıştı ve durduruldu."
+        "text": "Bu görsel farklı bir sayfa açmaya çalıştı. Sohbet içinde buna izin verilmediği için duraklatıldı."
+      },
+      "interactive_html_reload": {
+        "text": "Görseli yeniden yükle"
       },
       "search_repos": {
         "text": "Repo ara",
@@ -4585,7 +4588,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "Bunu çalıştırmak için kodun ve dosyaların bir bulut sandbox sağlayıcısı olan E2B'ye gönderilir ve orada çalıştırılır."
+        "text": "Bunu çalıştırmak için kodun ve dosyaların bir bulut sandbox sağlayıcısı olan E2B'ye gönderilir ve ABD'de çalıştırılır. Proje işlerinde tüm Proje ve onu açan anahtar da sandbox'a konur; anahtar yalnızca o sandbox açabilecek şekilde mühürlenir. Sandbox daha sonra silinir."
       },
       "privacy_policy": {
         "text": "Gizlilik politikası"
@@ -4616,7 +4619,7 @@
         "text": "Kodu E2B bulut sandbox'ında çalıştır"
       },
       "description": {
-        "text": "İzin verildiğinde, çalıştırdığın kod ve dosyalar bir bulut sandbox sağlayıcısı olan E2B'ye gönderilir. İzin verilmediğinde hiçbir şey gönderilmez."
+        "text": "İzin verildiğinde, çalıştırdığın kod ve dosyalar bir bulut sandbox sağlayıcısı olan E2B'ye gönderilir ve ABD'de işlenir. Proje işlerinde buna Proje ve onu açan anahtar da dahildir; anahtar yalnızca o sandbox açabilecek şekilde mühürlenir. Sandbox daha sonra silinir. İzin verilmezse hiçbir şey gönderilmez."
       },
       "status_allowed": {
         "text": "İzin verildi"
@@ -12413,7 +12416,7 @@
               "text": "E2B (izole kod kum havuzu)"
             },
             "description": {
-              "text": "E2B, seçilen kod gömmelerini ve oluşturulan uygulama önizlemelerini izole kum havuzları içinde çalıştırır. E2B; çalıştırmayı seçtiğin kodu veya oluşturulan uygulama dosyalarını ve varlıklarını, çalışma zamanı girdilerini, önizleme günlüklerini ve kum havuzu sonucunu çalıştırmak ve görüntülemek için gereken yürütme çıktılarını alır. Bu paylaşım yalnızca açıkça kod çalıştırdığında, kısa bir ekran görüntüsü önizlemesini otomatik olarak başlatan oluşturulmuş bir uygulama oluşturduğunda veya bir uygulamanın canlı önizlemesini başlattığında/devam ettirdiğinde gerçekleşir."
+              "text": "E2B, seçilen kod gömmelerini ve oluşturulan uygulama önizlemelerini izole kum havuzları içinde çalıştırır. E2B; çalıştırmayı seçtiğin kodu veya oluşturulan uygulama dosyalarını ve varlıklarını, çalışma zamanı girdilerini, önizleme günlüklerini ve kum havuzu sonucunu çalıştırmak ve görüntülemek için gereken yürütme çıktılarını alır. Bu paylaşım yalnızca açıkça kod çalıştırdığında, kısa bir ekran görüntüsü önizlemesini otomatik olarak başlatan oluşturulmuş bir uygulama oluşturduğunda veya bir uygulamanın canlı önizlemesini başlattığında/devam ettirdiğinde gerçekleşir. Bir ajan işi bulut projesinde çalıştığında, ABD'deki E2B işin süresince projenin tüm dosyalarını ve yalnızca o sanal alanın açabileceği şekilde mühürlenmiş, projeyi açan anahtarı da alır. Sanal alan 15 dakika boşta kaldıktan sonra veya en geç 4 saat sonra silinir (etkinleştirirsen 24 saate kadar) ve hiçbir zaman duraklatılmaz."
             }
           }
         },

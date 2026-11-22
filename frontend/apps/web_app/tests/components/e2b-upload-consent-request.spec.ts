@@ -19,6 +19,7 @@ test('asks before sending code to E2B and reports each choice', async ({ page },
   await expect(card).toBeVisible();
   await expect(page.getByTestId('e2b-consent-text')).toContainText('E2B');
   await expect(page.getByTestId('e2b-consent-text')).toContainText('cloud sandbox');
+  await expect(page.getByTestId('e2b-consent-text')).toContainText('in the US');
   await expect(page.getByTestId('e2b-consent-privacy-link')).toHaveAttribute('href', 'https://openmates.org/privacy');
   await expect(page.getByTestId('e2b-consent-own-machine-hint')).toContainText('openmates remote-access');
   for (const id of ['e2b-consent-allow', 'e2b-consent-own-machine', 'e2b-consent-not-now']) {

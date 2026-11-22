@@ -888,7 +888,10 @@
         "text": "Ver visualización"
       },
       "interactive_html_blocked": {
-        "text": "Esta visualización intentó abrir otra página y se detuvo."
+        "text": "Esta visualización intentó abrir otra página. Eso no está permitido dentro de un chat, así que se pausó."
+      },
+      "interactive_html_reload": {
+        "text": "Recargar visualización"
       },
       "search_repos": {
         "text": "Buscar repos",
@@ -4612,7 +4615,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "Para ejecutar esto, tu código y tus archivos se envían a E2B, un proveedor de sandbox en la nube, y se ejecutan allí."
+        "text": "Para ejecutar esto, tu código y tus archivos se envían a E2B, un proveedor de sandbox en la nube, y se ejecutan allí, en EE. UU. En las tareas de Proyecto, todo el Proyecto y la clave que lo abre también se colocan en el sandbox, selladas para que solo ese sandbox pueda abrirlas. El sandbox se elimina después."
       },
       "privacy_policy": {
         "text": "Política de privacidad"
@@ -4643,7 +4646,7 @@
         "text": "Ejecutar código en el sandbox en la nube de E2B"
       },
       "description": {
-        "text": "Si lo permites, el código y los archivos que ejecutes se envían a E2B, un proveedor de sandbox en la nube. Si no lo permites, no se envía nada."
+        "text": "Si lo permites, el código y los archivos que ejecutes se envían a E2B, un proveedor de sandbox en la nube, y se procesan en EE. UU. En las tareas de Proyecto esto incluye el Proyecto y la clave que lo abre, selladas para que solo ese sandbox pueda abrirlas. El sandbox se elimina después. Si no lo permites, no se envía nada."
       },
       "status_allowed": {
         "text": "Permitido"
@@ -12440,7 +12443,7 @@
               "text": "E2B (entorno de pruebas de código aislado)"
             },
             "description": {
-              "text": "E2B ejecuta incrustaciones de código seleccionadas y vistas previas de aplicaciones generadas dentro de entornos aislados. E2B recibe el código o los archivos y activos de la aplicación generada que elijas ejecutar, las entradas de tiempo de ejecución, los registros de vista previa y la salida de ejecución necesaria para ejecutar y mostrar el resultado del entorno de pruebas. Este intercambio solo ocurre cuando ejecutas código explícitamente, creas una aplicación generada que inicia automáticamente una breve vista previa de captura de pantalla, o inicias/renuevas una vista previa en vivo de la aplicación."
+              "text": "E2B ejecuta incrustaciones de código seleccionadas y vistas previas de aplicaciones generadas dentro de entornos aislados. E2B recibe el código o los archivos y activos de la aplicación generada que elijas ejecutar, las entradas de tiempo de ejecución, los registros de vista previa y la salida de ejecución necesaria para ejecutar y mostrar el resultado del entorno de pruebas. Este intercambio solo ocurre cuando ejecutas código explícitamente, creas una aplicación generada que inicia automáticamente una breve vista previa de captura de pantalla, o inicias/renuevas una vista previa en vivo de la aplicación. Cuando un trabajo de agente se ejecuta en un proyecto en la nube, E2B, en EE. UU., recibe además todos los archivos del proyecto y, sellada de modo que solo ese entorno aislado pueda abrirla, la clave que abre el proyecto, mientras dure el trabajo. El entorno se elimina tras 15 minutos de inactividad o como máximo a las 4 horas (hasta 24 horas si lo activas) y nunca se pausa."
             }
           }
         },

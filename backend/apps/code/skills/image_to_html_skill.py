@@ -22,6 +22,7 @@ from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_c
 from backend.apps.base_skill import BaseSkill
 from backend.shared.python_utils.app_skill_helpers import execute_skill_via_celery
 from backend.shared.python_utils.billing_utils import get_usd_per_credit
+from backend.shared.python_utils.metered_author_billing import sandbox_run_credits
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ DEFAULT_INPUT_TOKENS_PER_CREDIT = 200
 DEFAULT_OUTPUT_TOKENS_PER_CREDIT = 45
 DEFAULT_CACHE_READ_TOKENS_PER_CREDIT = 5000
 DEFAULT_CACHE_WRITE_TOKENS_PER_CREDIT = 5000
-# Catalog price per started sandbox minute (code.image_to_html pricing.per_minute).
+# Catalog price per sandbox minute, billed per second (code.image_to_html pricing.per_minute).
 DEFAULT_E2B_CREDITS_PER_STARTED_MINUTE = whole_credits(skill_price("code", "image_to_html", "per_minute"))
 DEFAULT_MINIMUM_CREDITS = 30
 DEFAULT_RESERVED_CREDITS_PER_REQUEST = 500
@@ -89,7 +90,7 @@ class ImageToHtmlCreditCharge:
     provider_cost_usd: float
     model_credits: int
     e2b_credits: int
-    e2b_started_minutes: int
+    e2b_seconds: float
     credits_charged: int
 
 
@@ -235,15 +236,16 @@ def calculate_image_to_html_credits(
         + _credits_for_tokens(usage.cache_read_tokens, cache_read_tokens_per_credit)
         + _credits_for_tokens(usage.cache_write_tokens, cache_write_tokens_per_credit)
     )
-    e2b_started_minutes = math.ceil(max(0.0, usage.e2b_render_seconds) / 60.0)
-    e2b_credits = e2b_started_minutes * e2b_credits_per_started_minute
+    e2b_seconds = max(0.0, usage.e2b_render_seconds)
+    # Billed per second at the catalog per-minute rate (see code_execution_credits).
+    e2b_credits = sandbox_run_credits(e2b_seconds, credits_per_started_minute=e2b_credits_per_started_minute)
     credits_charged = max(minimum_credits, model_credits + e2b_credits)
     return ImageToHtmlCreditCharge(
         usage=usage,
         provider_cost_usd=provider_cost_usd,
         model_credits=model_credits,
         e2b_credits=e2b_credits,
-        e2b_started_minutes=e2b_started_minutes,
+        e2b_seconds=e2b_seconds,
         credits_charged=credits_charged,
     )
 
@@ -497,7 +499,7 @@ def _usage_payload_with_credits(
             "provider_cost_credits": estimated_cost_credits,
             "model_credits": charge.model_credits,
             "e2b_credits": charge.e2b_credits,
-            "e2b_started_minutes": charge.e2b_started_minutes,
+            "e2b_seconds": charge.e2b_seconds,
             "reserved_credits": reserved_credits,
             "credits_charged": charge.credits_charged,
             "credits_refunded": max(0, reserved_credits - charge.credits_charged),

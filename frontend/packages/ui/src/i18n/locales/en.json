@@ -891,7 +891,10 @@
         "text": "View visual"
       },
       "interactive_html_blocked": {
-        "text": "This visual tried to open another page and was stopped."
+        "text": "This visual tried to open a different page. That isn't allowed inside a chat, so it was paused."
+      },
+      "interactive_html_reload": {
+        "text": "Reload visual"
       },
       "search_repos": {
         "text": "Search repos",
@@ -1822,7 +1825,7 @@
           "text": "Make a short video from your description and pictures in the chat, as AI footage or as an exact composed video."
         },
         "pricing_note": {
-          "text": "Generated clips: 35 (360p), 105 (720p), 160 (1080p) or 315 (4K) credits per second. Composed videos: the tokens the writing model uses plus 10 credits per started minute of rendering. Changes are charged only for what they add. You are not charged when no video is delivered. Sound in composed videos: 2 credits per second of narration, 15 credits per second of sound effect and 120 credits per music track; only clips newly made for a version are charged."
+          "text": "Generated clips: 35 (360p), 105 (720p), 160 (1080p) or 315 (4K) credits per second. Composed videos: the tokens the writing model uses plus 10 credits per minute of rendering, billed per second. Changes are charged only for what they add. You are not charged when no video is delivered. Sound in composed videos: 2 credits per second of narration, 15 credits per second of sound effect and 120 credits per music track; only clips newly made for a version are charged."
         }
       },
       "create": {
@@ -6126,7 +6129,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "To run this, your code and files are sent to E2B, a cloud sandbox provider, and run there."
+        "text": "To run this, your code and files are sent to E2B, a cloud sandbox provider, and run there in the US. For Project jobs, the whole Project and the key that opens it are placed in the sandbox too, sealed so only that sandbox can open it. The sandbox is deleted afterwards."
       },
       "privacy_policy": {
         "text": "Privacy policy"
@@ -6157,7 +6160,7 @@
         "text": "Run code in the E2B cloud sandbox"
       },
       "description": {
-        "text": "When allowed, the code and files you run are sent to E2B, a cloud sandbox provider. When not allowed, nothing is sent."
+        "text": "When allowed, the code and files you run are sent to E2B, a cloud sandbox provider, and processed in the US. For Project jobs this includes the Project and the key that opens it, sealed so only that sandbox can open it. The sandbox is deleted afterwards. When not allowed, nothing is sent."
       },
       "status_allowed": {
         "text": "Allowed"
@@ -15212,7 +15215,7 @@
               "text": "E2B (isolated code sandbox)"
             },
             "description": {
-              "text": "E2B runs selected code embeds, generated application previews, and Remotion video renders inside isolated sandboxes. E2B receives the code or generated application/Remotion files and assets needed to run or render the result, runtime inputs, preview/render logs, and execution output needed to display the sandbox result. This sharing happens when you explicitly run code, create a generated application that auto-starts a short screenshot preview, start/resume an application live preview, or when a Remotion video render auto-starts after the assistant closes an explicit remotion code fence."
+              "text": "E2B runs selected code embeds, generated application previews, and Remotion video renders inside isolated sandboxes. E2B receives the code or generated application/Remotion files and assets needed to run or render the result, runtime inputs, preview/render logs, and execution output needed to display the sandbox result. This sharing happens when you explicitly run code, create a generated application that auto-starts a short screenshot preview, start/resume an application live preview, or when a Remotion video render auto-starts after the assistant closes an explicit remotion code fence. When an agent job runs on a cloud Project, E2B in the US also receives all of the Project's files and, sealed so that only that sandbox can open it, the key that opens the Project, for the duration of the job. The sandbox is deleted after 15 idle minutes or after 4 hours at most (up to 24 hours if you opt in) and is never paused."
             }
           }
         },
@@ -17618,6 +17621,9 @@
     "project_authoring": {
       "ready": {
         "text": "Your Project result is ready."
+      },
+      "ready_named": {
+        "text": "Your result in {project} is ready."
       },
       "view": {
         "text": "View result"
@@ -28694,12 +28700,6 @@
     },
     "connecting_short": {
       "text": "Connecting…"
-    },
-    "hold": {
-      "text": "Hold"
-    },
-    "resume_hold": {
-      "text": "I'm back"
     },
     "waiting": {
       "text": "Waiting for you"

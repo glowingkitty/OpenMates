@@ -12,7 +12,6 @@ import base64
 import hashlib
 import json
 import logging
-import math
 import os
 import time
 import uuid
@@ -22,7 +21,8 @@ from typing import Any
 
 import httpx
 
-from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
+from backend.shared.python_utils.catalog_unit_prices import skill_price
+from backend.shared.python_utils.metered_author_billing import code_execution_credits
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
 from backend.apps.code.tasks.command_parent_embed import finalize_command_parent_embed
@@ -67,8 +67,9 @@ except Exception:  # pragma: no cover - deployment image dependency guard
 logger = logging.getLogger(__name__)
 
 EXECUTION_TTL_SECONDS = 3600
-# Catalog price per started sandbox minute (code.run pricing.per_minute).
-RUN_CREDITS_PER_MINUTE = whole_credits(skill_price("code", "run", "per_minute"))
+# Catalog price per sandbox second (code.run pricing.per_second); a run is
+# billed once, rounded up to whole credits (code_execution_credits).
+RUN_CREDITS_PER_SECOND = skill_price("code", "run", "per_second")
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 CODE_RUN_CHANNEL_PREFIX = "code_run_stream"
@@ -422,7 +423,7 @@ def _build_code_run_completion_result(
         "exit_code": final_status.get("exit_code"),
         "duration_seconds": final_status.get("duration_seconds"),
         "charged_credits": final_status.get("charged_credits"),
-        "charged_minutes": final_status.get("charged_minutes"),
+        "charged_seconds": final_status.get("charged_seconds"),
         "artifacts": _safe_artifact_metadata(final_status.get("artifacts")),
         "skipped_artifacts": _safe_skipped_artifacts(final_status.get("skipped_artifacts")),
         # Provider/runtime errors are terminal text. Once the terminal safety
@@ -514,7 +515,7 @@ async def _charge_run_credits(
         "target_filename": payload.get("target_path"),
         "chat_id": payload.get("chat_id"),
         "message_id": payload.get("message_id"),
-        "credits_per_minute": RUN_CREDITS_PER_MINUTE,
+        "credits_per_second": str(RUN_CREDITS_PER_SECOND),
         "files_count": len(payload.get("files", [])),
         "code_run_filenames": file_names,
         **usage_details,
@@ -579,7 +580,7 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
 
     started_at = time.time()
     billable_started_at = 0.0
-    billing_state = {"charged_credits": 0, "charged_minutes": 0}
+    billing_state = {"charged_credits": 0, "charged_seconds": 0}
     completion_output_parts: list[str] = []
     command_outcome: dict[str, Any] = {"value": None}
     run_async(_store_execution(execution_id, {"status": "preparing_sandbox", "started_at": started_at}))
@@ -589,25 +590,24 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             return
         if duration <= 0:
             return
-        charged_minutes = max(1, math.ceil(duration / 60))
+        charged_seconds = round(duration, 3)
         charged_credits = run_async(
             _charge_run_credits(
                 payload,
-                charged_minutes * RUN_CREDITS_PER_MINUTE,
+                code_execution_credits(duration, RUN_CREDITS_PER_SECOND),
                 execution_id,
                 {
                     "billing_phase": billing_phase,
-                    "duration_seconds": round(duration, 3),
-                    "charged_minutes": charged_minutes,
-                    "total_charged_minutes": charged_minutes,
+                    "duration_seconds": charged_seconds,
+                    "charged_seconds": charged_seconds,
                 },
             )
         )
         billing_state["charged_credits"] = charged_credits
-        billing_state["charged_minutes"] = charged_minutes
+        billing_state["charged_seconds"] = charged_seconds
         run_async(_store_execution(
             execution_id,
-            {"charged_credits": charged_credits, "charged_minutes": charged_minutes},
+            {"charged_credits": charged_credits, "charged_seconds": charged_seconds},
         ))
 
     def on_output(kind: str, text: str) -> None:
@@ -706,7 +706,7 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             "status": "cancelled",
             "duration_seconds": duration,
             "charged_credits": credits,
-            "charged_minutes": billing_state["charged_minutes"],
+            "charged_seconds": billing_state["charged_seconds"],
             "finished_at": time.time(),
         }
         run_async(_store_execution(
@@ -730,9 +730,17 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
         test_outcome = None
         if payload.get("command_run"):
             cache_service = run_async(get_worker_cache_service())
-            result, command_outcome["value"] = cloud_cmd.execute_cloud_command(
-                payload, on_output, api_key, should_cancel, cache_service, run_async,
-            )
+            if payload["command_run"].get("project_sandbox"):
+                # Hosted Project sandbox: the Project is already in it; no snapshot, no apply_changes job.
+                from backend.apps.code.project_sandbox_command import execute_sandbox_command
+                billable_started_at = time.time()
+                result, command_outcome["value"] = execute_sandbox_command(
+                    payload, on_output, should_cancel, cache_service, run_async, secrets_manager,
+                )
+            else:
+                result, command_outcome["value"] = cloud_cmd.execute_cloud_command(
+                    payload, on_output, api_key, should_cancel, cache_service, run_async,
+                )
         elif payload.get("test_run"):
             result, test_outcome = execute_test_run(payload, on_output, api_key, should_cancel)
         else:
@@ -747,7 +755,6 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             )
         duration = result.duration_seconds
         status = "finished" if result.exit_code in (None, 0) else "failed"
-        charged_minutes = max(1, math.ceil(duration / 60))
         charge_run(duration, "completed")
         credits = billing_state["charged_credits"]
         run_async(_append_output(
@@ -770,7 +777,7 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             "exit_code": result.exit_code if result.exit_code is not None else 0,
             "duration_seconds": duration,
             "charged_credits": credits,
-            "charged_minutes": charged_minutes,
+            "charged_seconds": billing_state["charged_seconds"],
             "artifacts": _safe_artifact_metadata(
                 stored_artifacts,
                 include_download_url=True,
@@ -816,7 +823,7 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             "error": safe_error,
             "duration_seconds": time.time() - started_at,
             "charged_credits": billing_state["charged_credits"],
-            "charged_minutes": billing_state["charged_minutes"],
+            "charged_seconds": billing_state["charged_seconds"],
             "finished_at": time.time(),
         }
         run_async(_store_execution(

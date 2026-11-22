@@ -143,6 +143,7 @@ from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
 from .handlers.websocket_handlers.connected_account_permission_confirmed_handler import handle_connected_account_permission_confirmed
 from .handlers.websocket_handlers.e2b_upload_consent_answer_handler import handle_e2b_upload_consent_answer
+from .handlers.websocket_handlers.project_sandbox_key_grant_handler import handle_project_sandbox_key_answer
 from .handlers.websocket_handlers.store_app_settings_memories_handler import handle_store_app_settings_memories_entry # Handler for storing app settings/memories entries to Directus
 from .handlers.websocket_handlers.delete_app_settings_memories_handler import handle_delete_app_settings_memories_entry # Handler for deleting app settings/memories entries with cross-device sync
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
@@ -1191,6 +1192,16 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for app_settings_memories request {request_id}")
+                    elif event_type == "send_project_sandbox_key_request":
+                        # Frame goes to every device; the first one holding the Project key answers.
+                        for device_id in list(manager.get_connections_for_user(user_id) or {}):
+                            await manager.send_personal_message(
+                                {"type": "project_sandbox_key_request", "payload": payload}, user_id, device_id)
+                    elif event_type == "send_embed_revision_committed":
+                        # A hosted-sandbox commit: every device refreshes the file like after a device commit.
+                        for device_id in list(manager.get_connections_for_user(user_id) or {}):
+                            await manager.send_personal_message(
+                                {"type": "embed_revision_committed", "payload": payload}, user_id, device_id)
                     elif event_type in ("send_e2b_upload_consent_request", "send_e2b_upload_consent_updated"):
                         # request_e2b_upload_consent / e2b_upload_consent_updated to every device.
                         # Mapped inline: the listener must not depend on module globals.
@@ -5072,6 +5083,11 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
 
+            elif message_type in ("project_sandbox_key_grant", "project_sandbox_key_decline"):
+                await handle_project_sandbox_key_answer(
+                    manager, cache_service, user_id, device_fingerprint_hash, payload,
+                    granted=message_type == "project_sandbox_key_grant", user_otel_attrs=user_otel_attrs,
+                )
             elif message_type == "e2b_upload_consent_answer":
                 await handle_e2b_upload_consent_answer(
                     websocket=websocket,

@@ -132,7 +132,7 @@ assertions:
     depends_on: [models.Sandbox.runtime, models.ModifyResult.image, examples.request]
   - id: images-modify.billing.metered
     type: invariant
-    must: A request is charged the reported tokens of every author and review call at each model's price plus 5 credits per started minute of each sandbox run. A request that delivers no picture is not charged. The platform minimum charge applies.
+    must: A request is charged the reported tokens of every author and review call at each model's price plus the sandbox time of each run per second at 5 credits per minute, rounded up to whole credits once per run. A request that delivers no picture is not charged. The platform minimum charge applies.
     depends_on: [models.Sandbox.runtime, examples.billing]
   - id: images-modify.surface.semantic-parity
     type: parity

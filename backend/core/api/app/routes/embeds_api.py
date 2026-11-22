@@ -1012,25 +1012,13 @@ async def _require_project_embed_access(
     return project
 
 
-@router.get("/{embed_id}/encrypted")
-@limiter.limit("120/minute")
-async def get_encrypted_project_embed(
-    embed_id: str,
-    request: Request,
-    project_id: str = Query(..., min_length=1),
-    team_id: str | None = None,
-    current_user: User = Depends(get_current_user),
-    directus_service: DirectusService = Depends(get_directus_service),
-):
-    """Return a fresh hosted-file ciphertext head to first-party clients only.
-
-    This endpoint never decrypts content and returns only the wrapper bound to
-    the requested Project. Private paths and plaintext content hashes are not
-    part of the projection.
-    """
+async def build_project_embed_head(
+    *, directus_service, user_id: str, project_id: str, embed_id: str, team_id: str | None = None,
+) -> dict[str, Any]:
+    """Ciphertext head of one Project file exactly as hosted clients receive it (also used by the sandbox sync-in)."""
     await _require_project_embed_access(
         directus_service=directus_service,
-        user_id=current_user.id,
+        user_id=user_id,
         project_id=project_id,
         embed_id=embed_id,
         team_id=team_id,
@@ -1072,6 +1060,28 @@ async def get_encrypted_project_embed(
         "embed_keys": list(wrappers) if isinstance(wrappers, list) else [],
         "has_initial_history": isinstance(initial_rows, list) and bool(initial_rows),
     }
+
+
+@router.get("/{embed_id}/encrypted")
+@limiter.limit("120/minute")
+async def get_encrypted_project_embed(
+    embed_id: str,
+    request: Request,
+    project_id: str = Query(..., min_length=1),
+    team_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """Return a fresh hosted-file ciphertext head to first-party clients only.
+
+    This endpoint never decrypts content and returns only the wrapper bound to
+    the requested Project. Private paths and plaintext content hashes are not
+    part of the projection.
+    """
+    return await build_project_embed_head(
+        directus_service=directus_service, user_id=current_user.id,
+        project_id=project_id, embed_id=embed_id, team_id=team_id,
+    )
 
 
 @router.get("/{embed_id}/revision-receipts/{operation_id}")

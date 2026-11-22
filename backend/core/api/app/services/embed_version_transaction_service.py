@@ -199,10 +199,30 @@ class EmbedVersionTransactionService:
     async def commit(self, data: Mapping[str, Any], *, user_id: str) -> dict[str, Any]:
         if not isinstance(data, Mapping):
             raise TypeError("Embed revision transaction data must be a mapping")
+        body = dict(data)
+        if "origin" in body:
+            # Only commit_sandbox_revision may mark a sandbox origin; a client
+            # payload relayed by the WebSocket handler can never carry it.
+            raise EmbedVersionTransactionError(400, "invalid_origin")
+        return await self._post_transaction(body, user_id=user_id)
+
+    async def commit_sandbox_revision(self, data: Mapping[str, Any], *, user_id: str) -> dict[str, Any]:
+        """Commit a revision built by the chat's Project sandbox (projects.sandbox.write-back).
+
+        The sandbox holds the Project key but no chat key, so a new file carries
+        only the Project key wrapper; the extension accepts that only with this
+        server-set origin.
+        """
+        if not isinstance(data, Mapping):
+            raise TypeError("Embed revision transaction data must be a mapping")
+        body = dict(data)
+        body["origin"] = "project_sandbox"
+        return await self._post_transaction(body, user_id=user_id)
+
+    async def _post_transaction(self, body: dict[str, Any], *, user_id: str) -> dict[str, Any]:
         token = os.getenv("INTERNAL_API_SHARED_TOKEN")
         if not token:
             raise RuntimeError("INTERNAL_API_SHARED_TOKEN is required for embed revision transactions")
-        body = dict(data)
         body["actor_user_hash"] = hashlib.sha256(user_id.encode()).hexdigest()
         response = await self._directus._make_api_request(
             "POST",

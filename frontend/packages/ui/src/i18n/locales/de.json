@@ -891,7 +891,10 @@
         "text": "Visualisierung anzeigen"
       },
       "interactive_html_blocked": {
-        "text": "Diese Visualisierung wollte eine andere Seite öffnen und wurde gestoppt."
+        "text": "Diese Visualisierung wollte eine andere Seite öffnen. Das ist im Chat nicht erlaubt, deshalb wurde sie angehalten."
+      },
+      "interactive_html_reload": {
+        "text": "Visualisierung neu laden"
       },
       "search_repos": {
         "text": "Repos suchen",
@@ -6067,7 +6070,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "Um das auszuführen, werden dein Code und deine Dateien an E2B gesendet, einen Cloud-Sandbox-Anbieter, und dort ausgeführt."
+        "text": "Um das auszuführen, werden dein Code und deine Dateien an E2B gesendet, einen Cloud-Sandbox-Anbieter, und dort in den USA ausgeführt. Bei Projekt-Aufgaben werden auch das ganze Projekt und der Schlüssel, der es öffnet, in die Sandbox gelegt, versiegelt, sodass nur diese Sandbox ihn öffnen kann. Die Sandbox wird danach gelöscht."
       },
       "privacy_policy": {
         "text": "Datenschutzerklärung"
@@ -6098,7 +6101,7 @@
         "text": "Code in der E2B-Cloud-Sandbox ausführen"
       },
       "description": {
-        "text": "Wenn erlaubt, werden der Code und die Dateien, die du ausführst, an E2B gesendet, einen Cloud-Sandbox-Anbieter. Wenn nicht erlaubt, wird nichts gesendet."
+        "text": "Wenn erlaubt, werden der Code und die Dateien, die du ausführst, an E2B gesendet, einen Cloud-Sandbox-Anbieter, und in den USA verarbeitet. Bei Projekt-Aufgaben gehören dazu das Projekt und der Schlüssel, der es öffnet, versiegelt, sodass nur diese Sandbox ihn öffnen kann. Die Sandbox wird danach gelöscht. Wenn nicht erlaubt, wird nichts gesendet."
       },
       "status_allowed": {
         "text": "Erlaubt"
@@ -15021,7 +15024,7 @@
               "text": "E2B (isolierte Code-Sandbox)"
             },
             "description": {
-              "text": "E2B führt ausgewählte Code-Einbettungen, Vorschauen generierter Anwendungen und Remotion-Video-Renderings in isolierten Sandboxes aus. E2B erhält den Code oder die generierten Anwendungs-/Remotion-Dateien und Assets, die zum Ausführen oder Rendern des Ergebnisses benötigt werden, Laufzeiteingaben, Vorschau-/Render-Logs und die zur Anzeige des Sandbox-Ergebnisses erforderliche Ausgabe. Diese Weitergabe erfolgt, wenn du explizit Code ausführst, eine generierte Anwendung erstellst, die automatisch eine kurze Screenshot-Vorschau startet, eine Live-Vorschau einer Anwendung startest/fortsetzt oder wenn ein Remotion-Video-Rendering automatisch startet, nachdem der Assistent einen expliziten Remotion-Codeblock geschlossen hat."
+              "text": "E2B führt ausgewählte Code-Einbettungen, Vorschauen generierter Anwendungen und Remotion-Video-Renderings in isolierten Sandboxes aus. E2B erhält den Code oder die generierten Anwendungs-/Remotion-Dateien und Assets, die zum Ausführen oder Rendern des Ergebnisses benötigt werden, Laufzeiteingaben, Vorschau-/Render-Logs und die zur Anzeige des Sandbox-Ergebnisses erforderliche Ausgabe. Diese Weitergabe erfolgt, wenn du explizit Code ausführst, eine generierte Anwendung erstellst, die automatisch eine kurze Screenshot-Vorschau startet, eine Live-Vorschau einer Anwendung startest/fortsetzt oder wenn ein Remotion-Video-Rendering automatisch startet, nachdem der Assistent einen expliziten Remotion-Codeblock geschlossen hat. Wenn ein Agent-Job in einem Cloud-Projekt läuft, erhält E2B in den USA zusätzlich alle Dateien des Projekts und, versiegelt, sodass nur diese Sandbox es öffnen kann, den Schlüssel zum Öffnen des Projekts, solange der Job läuft. Die Sandbox wird nach 15 Minuten Inaktivität oder spätestens nach 4 Stunden gelöscht (bei Aktivierung bis zu 24 Stunden) und nie pausiert."
             }
           }
         },
@@ -17427,6 +17430,9 @@
     "project_authoring": {
       "ready": {
         "text": "Dein Projektergebnis ist bereit."
+      },
+      "ready_named": {
+        "text": "Dein Ergebnis in {project} ist bereit."
       },
       "view": {
         "text": "Ergebnis ansehen"
@@ -27718,12 +27724,6 @@
     },
     "connecting_short": {
       "text": "Verbindung wird hergestellt…"
-    },
-    "hold": {
-      "text": "Halten"
-    },
-    "resume_hold": {
-      "text": "Ich bin wieder da"
     },
     "waiting": {
       "text": "Wartet auf dich"

@@ -88,7 +88,7 @@ export interface CodeRunStatus {
   exit_code?: number;
   duration_seconds?: number;
   charged_credits?: number;
-  charged_minutes?: number;
+  charged_seconds?: number;
   artifacts?: CodeRunArtifact[];
   skipped_artifacts?: CodeRunSkippedArtifact[];
   error?: string;

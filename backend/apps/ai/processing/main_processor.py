@@ -9640,6 +9640,13 @@ async def handle_main_processing(
                     if active_project_focus:
                         parsed_args = _pts.route_machine_test_run(parsed_args, active_project_sources)
                     parsed_args = _pts.without_forged_snapshot(parsed_args)
+                    if _pts.is_cloud_command(parsed_args) and active_project_focus:
+                        from backend.apps.ai.processing.project_sandbox_gate import sandbox_applies_to_command
+                        if await sandbox_applies_to_command(
+                            user_id=request_data.user_id, focus=active_project_focus,
+                            directus_service=directus_service, log_prefix=log_prefix,
+                        ):
+                            parsed_args = _pts.use_project_sandbox(parsed_args)
                     if _pts.needs_snapshot(parsed_args) and active_project_focus and cache_service:
                         _snapshot = await _pts.take_snapshot(
                             cache_service,
@@ -9798,6 +9805,24 @@ async def handle_main_processing(
                                         raise PermissionError("Project source is unavailable or not authorized")
                                     dispatch_focus["source_id"] = str(requested_source_id)
 
+                                from backend.apps.ai.processing.project_sandbox_executor import (
+                                    run_project_tool_in_sandbox,
+                                )
+                                sandbox_result = await run_project_tool_in_sandbox(
+                                    request_data=request_data, operation=operation,
+                                    operation_arguments=operation_arguments, dispatch_focus=dispatch_focus,
+                                    cache_service=cache_service, directus_service=directus_service,
+                                    log_prefix=log_prefix,
+                                )
+                                if sandbox_result is not None:
+                                    # Hosted sandbox ran it inline: no pending operation, no continuation.
+                                    project_result = sandbox_result
+                                    current_message_history.append({
+                                        "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
+                                        "content": json.dumps(project_result),
+                                    })
+                                    completed_skill_calls[call_hash] = project_result
+                                    continue
                                 awaiting_before_operation = bool(request_data.awaiting_async_skill_continuation)
                                 await cache_async_skill_continuation_context(
                                     cache_service=cache_service,

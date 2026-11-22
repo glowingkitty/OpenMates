@@ -67,6 +67,11 @@ pub struct ProjectSettingsPatch {
     pub focus_activation_policy: Option<ProjectFocusActivationPolicy>,
     pub default_focus: Option<ProjectDefaultFocus>,
 }
+pub mod sandbox_key;
+#[cfg(test)]
+mod sandbox_key_tests;
+#[cfg(all(feature = "sandbox-host", not(target_arch = "wasm32")))]
+pub mod sandbox_host;
 mod ask;
 pub use ask::*;
 mod assistant_request;

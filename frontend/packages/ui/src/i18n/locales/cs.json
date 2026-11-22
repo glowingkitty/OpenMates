@@ -888,7 +888,10 @@
         "text": "Zobrazit vizualizaci"
       },
       "interactive_html_blocked": {
-        "text": "Tato vizualizace se pokusila otevřít jinou stránku a byla zastavena."
+        "text": "Tato vizualizace se pokusila otevřít jinou stránku. V chatu to není povoleno, proto byla pozastavena."
+      },
+      "interactive_html_reload": {
+        "text": "Znovu načíst vizualizaci"
       },
       "search_repos": {
         "text": "Hledat repozitáře",
@@ -4585,7 +4588,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "Aby se to spustilo, tvůj kód a soubory se odešlou do E2B, poskytovatele cloudového sandboxu, a spustí se tam."
+        "text": "Aby se to spustilo, tvůj kód a soubory se odešlou do E2B, poskytovatele cloudového sandboxu, a spustí se tam, v USA. U úloh Projektu se do sandboxu vloží i celý Projekt a klíč, který ho otevírá, zapečetěný tak, aby ho mohl otevřít jen tento sandbox. Sandbox se poté smaže."
       },
       "privacy_policy": {
         "text": "Zásady ochrany osobních údajů"
@@ -4616,7 +4619,7 @@
         "text": "Spouštět kód v cloudovém sandboxu E2B"
       },
       "description": {
-        "text": "Když je to povoleno, kód a soubory, které spouštíš, se odesílají do E2B, poskytovatele cloudového sandboxu. Když to povoleno není, nic se neodesílá."
+        "text": "Když je to povoleno, kód a soubory, které spouštíš, se odešlou do E2B, poskytovatele cloudového sandboxu, a zpracují se v USA. U úloh Projektu to zahrnuje Projekt a klíč, který ho otevírá, zapečetěný tak, aby ho mohl otevřít jen tento sandbox. Sandbox se poté smaže. Když to není povoleno, nic se neodešle."
       },
       "status_allowed": {
         "text": "Povoleno"
@@ -12413,7 +12416,7 @@
               "text": "E2B (izolovaný sandbox pro kód)"
             },
             "description": {
-              "text": "E2B spouští vybrané vložené kódy a náhledy generovaných aplikací v izolovaných sandboxech. E2B přijímá kód nebo soubory a prostředky generované aplikace, které se rozhodneš spustit, vstupy za běhu, protokoly náhledů a výstupy spuštění potřebné ke spuštění a zobrazení výsledku v sandboxu. K tomuto sdílení dochází pouze tehdy, když explicitně spustíš kód, vytvoříš generovanou aplikaci, která automaticky spustí krátký náhled snímku obrazovky, nebo spustíš/obnovíš živý náhled aplikace."
+              "text": "E2B spouští vybrané vložené kódy a náhledy generovaných aplikací v izolovaných sandboxech. E2B přijímá kód nebo soubory a prostředky generované aplikace, které se rozhodneš spustit, vstupy za běhu, protokoly náhledů a výstupy spuštění potřebné ke spuštění a zobrazení výsledku v sandboxu. K tomuto sdílení dochází pouze tehdy, když explicitně spustíš kód, vytvoříš generovanou aplikaci, která automaticky spustí krátký náhled snímku obrazovky, nebo spustíš/obnovíš živý náhled aplikace. Když úloha agenta běží v cloudovém projektu, E2B v USA navíc po dobu úlohy přijímá všechny soubory projektu a klíč, který projekt otevírá, zapečetěný tak, aby jej mohl otevřít jen tento sandbox. Sandbox se maže po 15 minutách nečinnosti nebo nejpozději po 4 hodinách (až 24 hodin, pokud to zapneš) a nikdy se nepozastavuje."
             }
           }
         },

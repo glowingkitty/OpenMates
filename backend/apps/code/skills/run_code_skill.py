@@ -101,6 +101,8 @@ class RunCodeRequest(BaseModel):
     )
     # Set by the pipeline when it injected the client's Project snapshot as files.
     project_snapshot: bool = Field(default=False, exclude=True)
+    # Set by the pipeline when the command runs in the chat's hosted Project sandbox: no snapshot is sent.
+    project_sandbox: bool = Field(default=False, exclude=True)
 
 
 class RunCodeResponse(BaseModel):
@@ -807,6 +809,8 @@ class RunCodeSkill(BaseSkill):
                 "repeat_fingerprint": fingerprint,
                 "parent_embed_id": (kwargs.get("placeholder_embed_ids") or [None])[0],
                 "focus_id_hash": (focus or {}).get("focus_id_hash"),
+                **({"project_sandbox": True, "team_id": (focus or {}).get("team_id")}
+                   if request.project_sandbox else {}),
             },
         )
         return RunCodeResponse(

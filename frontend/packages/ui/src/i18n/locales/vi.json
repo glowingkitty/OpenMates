@@ -888,7 +888,10 @@
         "text": "Xem hình ảnh trực quan"
       },
       "interactive_html_blocked": {
-        "text": "Hình ảnh trực quan này đã cố mở trang khác và đã bị dừng."
+        "text": "Hình ảnh trực quan này đã cố mở một trang khác. Điều đó không được phép trong cuộc trò chuyện nên nó đã bị tạm dừng."
+      },
+      "interactive_html_reload": {
+        "text": "Tải lại hình ảnh trực quan"
       },
       "search_repos": {
         "text": "Tìm repo",
@@ -4585,7 +4588,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "Để chạy nội dung này, mã và tệp của bạn sẽ được gửi đến E2B, một nhà cung cấp sandbox đám mây, và chạy ở đó."
+        "text": "Để chạy nội dung này, mã và tệp của bạn sẽ được gửi đến E2B, một nhà cung cấp sandbox đám mây, và chạy ở đó, tại Hoa Kỳ. Với các tác vụ Dự án, toàn bộ Dự án và khóa mở nó cũng được đặt vào sandbox, được niêm phong để chỉ sandbox đó mới mở được. Sandbox sẽ bị xóa sau đó."
       },
       "privacy_policy": {
         "text": "Chính sách quyền riêng tư"
@@ -4616,7 +4619,7 @@
         "text": "Chạy mã trong sandbox đám mây E2B"
       },
       "description": {
-        "text": "Khi được cho phép, mã và tệp bạn chạy sẽ được gửi đến E2B, một nhà cung cấp sandbox đám mây. Khi không được phép, sẽ không có gì được gửi."
+        "text": "Khi được cho phép, mã và tệp bạn chạy sẽ được gửi đến E2B, một nhà cung cấp sandbox đám mây, và được xử lý tại Hoa Kỳ. Với các tác vụ Dự án, điều này gồm cả Dự án và khóa mở nó, được niêm phong để chỉ sandbox đó mới mở được. Sandbox sẽ bị xóa sau đó. Khi không được phép, không có gì được gửi đi."
       },
       "status_allowed": {
         "text": "Đã cho phép"
@@ -12413,7 +12416,7 @@
               "text": "E2B (môi trường sandbox mã nguồn biệt lập)"
             },
             "description": {
-              "text": "E2B chạy các mã nguồn nhúng được chọn và bản xem trước ứng dụng được tạo bên trong các sandbox biệt lập. E2B nhận mã nguồn hoặc các tệp và tài sản ứng dụng được tạo mà bạn chọn chạy, đầu vào thời gian chạy, nhật ký xem trước và đầu ra thực thi cần thiết để chạy và hiển thị kết quả sandbox. Việc chia sẻ này chỉ xảy ra khi bạn chạy mã một cách rõ ràng, tạo một ứng dụng được tạo tự động bắt đầu xem trước ảnh chụp màn hình ngắn, hoặc bắt đầu/tiếp tục xem trước trực tiếp ứng dụng."
+              "text": "E2B chạy các mã nguồn nhúng được chọn và bản xem trước ứng dụng được tạo bên trong các sandbox biệt lập. E2B nhận mã nguồn hoặc các tệp và tài sản ứng dụng được tạo mà bạn chọn chạy, đầu vào thời gian chạy, nhật ký xem trước và đầu ra thực thi cần thiết để chạy và hiển thị kết quả sandbox. Việc chia sẻ này chỉ xảy ra khi bạn chạy mã một cách rõ ràng, tạo một ứng dụng được tạo tự động bắt đầu xem trước ảnh chụp màn hình ngắn, hoặc bắt đầu/tiếp tục xem trước trực tiếp ứng dụng. Khi một tác vụ của tác tử chạy trên dự án đám mây, E2B tại Hoa Kỳ còn nhận toàn bộ tệp của dự án và khóa mở dự án, được niêm phong để chỉ sandbox đó mới mở được, trong suốt thời gian tác vụ. Sandbox bị xóa sau 15 phút không hoạt động hoặc chậm nhất sau 4 giờ (tối đa 24 giờ nếu bạn chọn bật) và không bao giờ bị tạm dừng."
             }
           }
         },

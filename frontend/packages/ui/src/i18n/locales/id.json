@@ -888,7 +888,10 @@
         "text": "Lihat visual"
       },
       "interactive_html_blocked": {
-        "text": "Visual ini mencoba membuka halaman lain dan dihentikan."
+        "text": "Visual ini mencoba membuka halaman lain. Itu tidak diizinkan di dalam chat, jadi visual dijeda."
+      },
+      "interactive_html_reload": {
+        "text": "Muat ulang visual"
       },
       "search_repos": {
         "text": "Cari repo",
@@ -4585,7 +4588,7 @@
   "e2b_consent": {
     "request": {
       "body": {
-        "text": "Untuk menjalankan ini, kode dan file kamu dikirim ke E2B, penyedia sandbox cloud, dan dijalankan di sana."
+        "text": "Untuk menjalankan ini, kode dan file kamu dikirim ke E2B, penyedia sandbox cloud, dan dijalankan di sana, di AS. Untuk tugas Proyek, seluruh Proyek dan kunci yang membukanya juga ditempatkan di sandbox, disegel agar hanya sandbox itu yang bisa membukanya. Sandbox dihapus setelahnya."
       },
       "privacy_policy": {
         "text": "Kebijakan privasi"
@@ -4616,7 +4619,7 @@
         "text": "Jalankan kode di sandbox cloud E2B"
       },
       "description": {
-        "text": "Jika diizinkan, kode dan file yang kamu jalankan dikirim ke E2B, penyedia sandbox cloud. Jika tidak diizinkan, tidak ada yang dikirim."
+        "text": "Jika diizinkan, kode dan file yang kamu jalankan dikirim ke E2B, penyedia sandbox cloud, dan diproses di AS. Untuk tugas Proyek, ini mencakup Proyek dan kunci yang membukanya, disegel agar hanya sandbox itu yang bisa membukanya. Sandbox dihapus setelahnya. Jika tidak diizinkan, tidak ada yang dikirim."
       },
       "status_allowed": {
         "text": "Diizinkan"
@@ -12413,7 +12416,7 @@
               "text": "E2B (sandbox kode terisolasi)"
             },
             "description": {
-              "text": "E2B menjalankan sematan kode yang dipilih dan pratinjau aplikasi yang dihasilkan di dalam sandbox yang terisolasi. E2B menerima kode atau file aplikasi dan aset yang dihasilkan yang kamu pilih untuk dijalankan, input runtime, log pratinjau, dan output eksekusi yang diperlukan untuk menjalankan dan menampilkan hasil sandbox. Berbagi ini hanya terjadi saat kamu secara eksplisit menjalankan kode, membuat aplikasi yang dihasilkan yang memulai pratinjau tangkapan layar singkat secara otomatis, atau memulai/melanjutkan pratinjau langsung aplikasi."
+              "text": "E2B menjalankan sematan kode yang dipilih dan pratinjau aplikasi yang dihasilkan di dalam sandbox yang terisolasi. E2B menerima kode atau file aplikasi dan aset yang dihasilkan yang kamu pilih untuk dijalankan, input runtime, log pratinjau, dan output eksekusi yang diperlukan untuk menjalankan dan menampilkan hasil sandbox. Berbagi ini hanya terjadi saat kamu secara eksplisit menjalankan kode, membuat aplikasi yang dihasilkan yang memulai pratinjau tangkapan layar singkat secara otomatis, atau memulai/melanjutkan pratinjau langsung aplikasi. Saat tugas agen berjalan pada proyek cloud, E2B di AS juga menerima semua berkas proyek dan, dalam keadaan tersegel sehingga hanya sandbox itu yang dapat membukanya, kunci yang membuka proyek, selama tugas berlangsung. Sandbox dihapus setelah 15 menit tidak aktif atau paling lama setelah 4 jam (hingga 24 jam jika kamu memilihnya) dan tidak pernah dijeda."
             }
           }
         },

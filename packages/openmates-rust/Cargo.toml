@@ -15,8 +15,12 @@ publish = false
 browser-metadata-prototype = []
 # Native/headless Workflow formatting only; essential browser builds remain off.
 workflow-yaml = ["dep:serde_yaml"]
+# Plaintext Project working tree for the hosted E2B sandbox host (native only).
+sandbox-host = ["workflow-yaml", "dep:httparse"]
 
 [dependencies]
+# HTTP/1.1 request parser of the sandbox host daemon (already in the lockfile via hyper).
+httparse = { version = "1", optional = true }
 tokio-util = "0.7"
 futures-util = "0.3"
 tungstenite = { version = "0.28", default-features = false, features = ["handshake"] }
@@ -49,6 +53,11 @@ icu_locale_core = { version = "=2.3.0", features = ["alloc"] }
 # Yjs v1 CRDT engine for live documents, sheets and decks (plan live-collaboration-crdt;
 # pinned: pre-1.0, upgrade deliberately).
 yrs = "=0.28.1"
+
+[[bin]]
+name = "openmates-sandbox-host"
+path = "src/bin/openmates_sandbox_host/main.rs"
+required-features = ["sandbox-host"]
 
 [dev-dependencies]
 tempfile = "3"

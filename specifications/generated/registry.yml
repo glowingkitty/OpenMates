@@ -240,7 +240,7 @@ specifications:
     version: 3
     status: approved
     path: features/app-skills/code-run
-    fingerprint: 56d499bdbdfe07bcdb1e3fe8b460c83f04599267f8a22781ada4d22bd8eff32f
+    fingerprint: 8e2b3dd13040133444c0f864cd40a1a8b1aff914fbee8a3210824d4deb3c6d2f
     required_applies_to:
     - rest_api
     - cli
@@ -263,7 +263,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/design-embroidery
-    fingerprint: 70a1699d95898c655cbb539777e72ed32919b9a41acc862cc5fb9284e788ccda
+    fingerprint: b76557a130d08d07fffcf6374ff247a00ceb32e859e5a4254f37ad4594aefbaa
     required_applies_to:
     - cli
     - sdks.npm
@@ -332,7 +332,7 @@ specifications:
     version: 1
     status: approved
     path: features/app-skills/images-generate
-    fingerprint: 3670a8f8f3854f080dd458258842947d3f547614f05d16b3438b88cee08f3b40
+    fingerprint: 53f9a873f09ab3a787710c10916d4c2a73f2cf6480e8eb0b583cb6d2594a6193
     required_applies_to:
     - rest_api
     - cli
@@ -344,7 +344,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/images-modify
-    fingerprint: c413006e2475d0b6a6edc9075f9713e803f70d7c5b7cf6ee54e241f0682261d4
+    fingerprint: 68b74dd4b846582d1d846a0595c4242ab9b36f18526207111420c7d6ae4944b8
     required_applies_to:
     - cli
     - sdks.npm
@@ -436,7 +436,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/videos-generate
-    fingerprint: 656264e74bc2e757f688756a0bcb02adf0db5d918b802f96e7a7cd74ec95d5f7
+    fingerprint: 596a942da3d186bcecfa9e9debcb789c9aa835b9204758f261fb7a2043b1452e
     required_applies_to:
     - rest_api
     - cli
@@ -945,7 +945,7 @@ specifications:
     version: 2
     status: approved
     path: features/projects
-    fingerprint: 7fa5f99494046b19067f2986ca159d47afeadb48fe9a56deaa6ced9435331ad9
+    fingerprint: dcf3bed66c8bb77116e54d0a35402d0a7112d6d6f696b69e07fe39a5ea8ffbcf
     required_applies_to:
     - rest_api
     - cli
@@ -4314,7 +4314,7 @@ assertions:
     specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: 9d31dbaadda2a3105ac2c64ecff4e2a1841d6dcc36f07641c2df0db9f4d27375
+    fingerprint: 8054182248673423f6755507c235fb046b956ae8b9f16270551871a57553681b
     required_applies_to:
     - rest_api
     - cli
@@ -4326,7 +4326,7 @@ assertions:
     specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: fc21a4590fd9c8bf3ca2cc7add849c0120109733c22f253d2df65d963cef9cac
+    fingerprint: 40daef8fcc051ebd21bd62e6ce644326834a51924990a717e9820e4129d4db2b
     required_applies_to:
     - rest_api
     - cli
@@ -4350,7 +4350,7 @@ assertions:
     specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: privacy
-    fingerprint: a5aee2d3f2eded19c8f580b51ccd54b83daa04b58d748a2b5ebbdbf5af4bccc5
+    fingerprint: 0ebb8318689b8ab77209f88c225d0aa8ea99b12d23d56b8e372313bba95d9ee1
     required_applies_to:
     - rest_api
     - cli
@@ -4566,7 +4566,7 @@ assertions:
     specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: invariant
-    fingerprint: 833d856df0abdd52ff04113d0d0b46f5ffcf3832a6abb205467f345a1abc0d83
+    fingerprint: 8dac46bb282c0eed67595547ac5abda9e84ff6024c9e8b6763a709f38a7156b8
     required_applies_to:
     - rest_api
     - cli
@@ -4908,7 +4908,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: invariant
-    fingerprint: 3cc3220a1b02fcec9f931921febbf16ad92bdbee9ce5825da0643da28f2801c3
+    fingerprint: 6a59aff68b845191edaf596e9156241c0acfdc09c3291e7efe885b0d5d5ca84d
     required_applies_to:
     - cli
     - sdks.npm
@@ -5570,7 +5570,7 @@ assertions:
     specification: feature.app-skill.images-generate@1
     specification_id: feature.app-skill.images-generate
     type: invariant
-    fingerprint: f804b106f1d3d1898e27cc8ee5812b55feb269c18eace5f5f5848754e019bc6d
+    fingerprint: f9f8e1c9683a68fd5de8856743a4c904f95480e1c80f871ee5204a0e83040112
     required_applies_to:
     - rest_api
     - cli
@@ -5706,7 +5706,7 @@ assertions:
     specification: feature.app-skill.images-modify@1
     specification_id: feature.app-skill.images-modify
     type: invariant
-    fingerprint: da52991de2d5078cca925c57a185a236639e1ee141ba1312e705ad558188e488
+    fingerprint: 1f04a50e923683bb00eb8377319a19afd85121357e36f6d4f5a6058da14bcccf
     required_applies_to:
     - cli
     - sdks.npm
@@ -6491,7 +6491,7 @@ assertions:
     specification: feature.app-skill.videos-generate@1
     specification_id: feature.app-skill.videos-generate
     type: invariant
-    fingerprint: 27c616d2c7be9583d644b6d740c375de998db68bfd6692b8e6b46650cb0bba59
+    fingerprint: 531940ca3e06d4e1bb21692bc48b121e260a187e49e80b386023a8f1bd8f1258
     required_applies_to:
     - rest_api
     - cli
@@ -13086,7 +13086,67 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: privacy
-    fingerprint: aff17f650811ff6ac68f2db08cd0055774aad740127abea79428a716bb684c6d
+    fingerprint: ada440e539185abf444ff2779f99ec3890131ce8fff82bb9b3dd54f34cb13211
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.keys.sandbox-sealed-handover:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: privacy
+    fingerprint: 5fde4fa7a1b0575792870267e4684ed9de471c613509871d110d9b48cad9008e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.sandbox.jobs:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: a7a0bbc4faf9860d28b310381c535cb6ef3f5947354eb9ca2db9829330ec3228
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.sandbox.lifetime:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: privacy
+    fingerprint: 5c6e26620ca16d1f94c08597d999a4e4d05c681891080a73cb14ff83c59b19b5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.sandbox.write-back:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: invariant
+    fingerprint: 61f3d78d393593727757c999a5cbcb479e05d5bf2089279a15a9bce85f568fef
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.sandbox.device-fallback:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: 0fe58bf9b6018c22a97346f07bc176dbd9d9a87e278042ff5c2fcda4f18d96ce
     required_applies_to:
     - rest_api
     - cli

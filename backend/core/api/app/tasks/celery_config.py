@@ -224,6 +224,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.embed_version_archive_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_rollout_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.project_sandbox_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
     {'name': 'app_docs',    'module': 'backend.apps.docs.tasks'},  # DOCX artifact + preview generation tasks
@@ -1896,6 +1897,12 @@ if (archive_feature_enabled("EMBED_VERSION_ARCHIVE_COPY_ENABLED")
         'schedule': timedelta(minutes=30),
         'options': {'queue': 'persistence', 'expires': 1500},
     }
+# Hosted Project sandboxes: kill those past their hard maximum or without a cache record.
+app.conf.beat_schedule['reap-project-sandboxes'] = {
+    'task': 'project_sandbox.reap',
+    'schedule': timedelta(minutes=5),
+    'options': {'queue': 'persistence', 'expires': 240},
+}
 app.conf.timezone = 'UTC'
 
 # Pool children must finish worker_process_init before Celery's start-up
