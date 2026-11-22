@@ -57,6 +57,7 @@ import { generateUUID } from "../message_parsing/utils";
 import { isTeamAIInvocation } from "./teamService";
 import type { EmbedType } from "../message_parsing/types";
 import { getApiEndpoint } from "../config/api";
+import { addProjectFocusContextAfterActivation } from "./projectContextAfterActivation";
 import {
 	activateProjectFocusForSend,
 	isProjectFocusId,
@@ -84,10 +85,18 @@ export { isPreflightAcknowledgementTimeout } from "./preflightAcknowledgement";
  * bodies and the catalog with the Ask first rows. A failed read keeps the earlier
  * (personal-only) context and is logged, like the first collection.
  */
-async function addProjectMemoriesAfterActivation(
+async function addProjectContextAfterActivation(
 	chatId: string,
-	payload: { custom_memory_documents?: Array<Record<string, unknown>>; memory_catalog?: Array<Record<string, unknown>> },
+	text: string,
+	payload: {
+		custom_memory_documents?: Array<Record<string, unknown>>; memory_catalog?: Array<Record<string, unknown>>;
+		project_focus_catalog?: Array<Record<string, unknown>>; project_focus_documents?: Array<Record<string, unknown>>;
+		project_context_documents?: Array<Record<string, unknown>>;
+	},
 ): Promise<void> {
+	// The Project's own Focus modes and reference documents were also collected before the
+	// mention activated the Project; without them a stored Focus cannot layer on this turn.
+	await addProjectFocusContextAfterActivation(chatId, text, payload);
 	let documents: ReadonlyArray<import("../utils/ruleDocuments").CustomRuleDocument>;
 	try {
 		const { collectCustomRuleDocuments } = await import("./ruleDocumentService");
@@ -3475,8 +3484,9 @@ export async function sendNewMessageImpl(
 			throw error;
 		}
 		// The @Project mention activates the focus only now: the private context
-		// collected above saw no focus, so this turn's Project Memories are added here.
-		await addProjectMemoriesAfterActivation(message.chat_id, payload);
+		// collected above saw no focus, so this turn's Project Memories, Focus modes
+		// and reference documents are added here.
+		await addProjectContextAfterActivation(message.chat_id, contentForServer ?? "", payload);
 	}
 
 	// OTel: WebSocket dispatch span — the actual send over the wire

@@ -5041,8 +5041,8 @@ features:
       - frontend/packages/ui/src/services/__tests__/projectAuthoringClientService.test.ts
       - frontend/packages/ui/src/components/settings/focusModeInstructions.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      - frontend/packages/ui/src/services/__tests__/projectFocusSendPreflight.test.ts
-      unit_test_files: 8
+      - frontend/packages/ui/src/services/__tests__/projectContextAfterActivation.test.ts
+      unit_test_files: 9
     apple:
       status: partial
       source: tests
