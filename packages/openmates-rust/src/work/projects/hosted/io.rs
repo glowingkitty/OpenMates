@@ -32,10 +32,12 @@ pub(crate) trait HostedIo {
 }
 
 /// Session-backed effects for one resolved Project.
-pub(super) struct ProjectIo<'p, 'a> {
-    pub(super) projects: &'p mut Projects<'a>,
-    pub(super) project_id: String,
-    pub(super) key: Key,
+/// Visible to the whole `projects` module: the sandbox change preview
+/// (`sandbox_change.rs`) reads a committed head through the same effects.
+pub(in crate::work::projects) struct ProjectIo<'p, 'a> {
+    pub(in crate::work::projects) projects: &'p mut Projects<'a>,
+    pub(in crate::work::projects) project_id: String,
+    pub(in crate::work::projects) key: Key,
 }
 
 impl ProjectIo<'_, '_> {

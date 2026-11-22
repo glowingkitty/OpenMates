@@ -81,6 +81,14 @@ The request is answered by the first device that holds the Project key.
   carries only the Project key wrapper; the extension accepts that only with
   the sandbox origin, which `commit()` (the device path) refuses.
 - Revisions are committed strictly in order, each followed by `/v1/committed`.
+- After each commit the user's devices get `embed_revision_committed`
+  `{embed_id, current_revision, operation_id, chat_id, project_id, kind,
+  source: "project_sandbox"}`: ids only, never a path or file text. The Rust
+  core (`Client::describe_project_sandbox_commit`) checks the chat's Project
+  focus, decrypts the committed head with the device's Project key and returns
+  the applied-change card the shell records like a device write (web
+  `projectSandboxCommitRelay.ts`), so Apply and show changes presents sandbox
+  writes too. Deletes and moves show no card.
   `delete` and `move` carry `transaction = {action: delete|rename, item_id, body}`,
   applied through `apply_item_link_operation` with the routes' own checks.
 - Merge: three-way, base = what the sandbox read, ours = sandbox, theirs =

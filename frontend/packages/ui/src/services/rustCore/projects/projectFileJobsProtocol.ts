@@ -6,6 +6,7 @@
  * the core's stable codes. Frames are sent by the page on its one main socket.
  */
 import type { ProjectFileMutation } from '../../../utils/projectFileMutationProtocol';
+import type { ProjectWriteApprovalRequest } from '../../projectFileJobTypes';
 
 /** The only frames the core may ask the page to send. */
 export const PROJECT_FILE_JOB_FRAME_NAMES = [
@@ -69,6 +70,10 @@ export type ProjectFileJobsProtocol = {
 	sandboxKey: {
 		request: { event: Record<string, unknown> };
 		response: { frame: ProjectSandboxKeyFrame };
+	};
+	sandboxCommit: {
+		request: { event: Record<string, unknown> };
+		response: { change: ProjectWriteApprovalRequest | null };
 	};
 };
 

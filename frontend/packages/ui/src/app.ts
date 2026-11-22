@@ -17,6 +17,7 @@ import { createBrowserProjectFileJobRunner } from "./services/rustCore/projects/
 import { createBrowserRemoteCommandClient } from "./services/browserRemoteCommandClient";
 import { installProjectCreateRelay } from "./services/rustCore/projects/projectCreateRelay";
 import { installProjectSandboxKeyRelay } from "./services/rustCore/projects/projectSandboxKeyRelay";
+import { installProjectSandboxCommitRelay } from "./services/rustCore/projects/projectSandboxCommitRelay";
 import { PROJECT_FILE_JOBS_ENABLED } from "./services/rustCore/projects/projectFileJobsClient";
 import { chatSyncService } from "./services/chatSyncService";
 import { get } from "svelte/store";
@@ -47,6 +48,7 @@ function initProjectFileExecutorLifecycle(): void {
     // `project_create_requests` too; only cores that run file jobs create Projects.
     const removeCreateRelay = PROJECT_FILE_JOBS_ENABLED ? installProjectCreateRelay() : () => {};
     const removeSandboxKeyRelay = PROJECT_FILE_JOBS_ENABLED ? installProjectSandboxKeyRelay() : () => {};
+    const removeSandboxCommitRelay = PROJECT_FILE_JOBS_ENABLED ? installProjectSandboxCommitRelay() : () => {};
     const removeAgentClients = chatSyncService.installProjectAgentClients(
       executor,
       remoteCommandClient,
@@ -54,6 +56,7 @@ function initProjectFileExecutorLifecycle(): void {
     removeProjectAgentClients = () => {
       removeCreateRelay();
       removeSandboxKeyRelay();
+      removeSandboxCommitRelay();
       removeAgentClients();
     };
   });

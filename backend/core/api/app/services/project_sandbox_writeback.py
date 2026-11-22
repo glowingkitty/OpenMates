@@ -143,7 +143,7 @@ async def _apply_item_transaction(handle, rev, path, kind, transaction, result, 
         return
     result.committed.append(path)
     await _after_commit(handle, publish, path, str(rev.get("embed_id") or ""), None, chat_id=chat_id,
-                        operation_id=op_id, kind=kind, tell_daemon=False)
+                        project_id=project_id, operation_id=op_id, kind=kind, tell_daemon=False)
 
 
 async def _commit_one(handle, rev, path, embed_id, kind, transaction, result, *, user_id, chat_id,
@@ -173,7 +173,8 @@ async def _commit_one(handle, rev, path, embed_id, kind, transaction, result, *,
         if outcome.get("status") == "committed":
             (result.merged if merged else result.committed).append(path)
             await _after_commit(handle, publish, path, embed_id, outcome.get("current_revision"),
-                                chat_id=chat_id, operation_id=op_id, kind="update" if merged else kind)
+                                chat_id=chat_id, project_id=project_id, operation_id=op_id,
+                                kind="update" if merged else kind)
             return
         # Stale base: another device committed first. Merge on top of its head, never over it.
         head = await _load_head(head_loader, directus_service, user_id, project_id, embed_id, team_id)
@@ -210,15 +211,16 @@ async def _load_head(head_loader, directus_service, user_id, project_id, embed_i
         return None
 
 
-async def _after_commit(handle, publish, path, embed_id, version, *, chat_id, operation_id, kind,
-                        tell_daemon: bool = True) -> None:
+async def _after_commit(handle, publish, path, embed_id, version, *, chat_id, project_id, operation_id,
+                        kind, tell_daemon: bool = True) -> None:
     if tell_daemon and version is not None:
         try:
             await handle.client.call("/v1/committed",
                                      {"path": path, "embed_id": embed_id, "version_number": version})
         except ProjectSandboxError as exc:
             logger.warning("Sandbox daemon did not take the committed base: %s", exc.code)
-    # No path and no content: the client decrypts the embed itself.
+    # No path and no content: the client decrypts the embed itself. `project_id` lets the
+    # device pick the Project key and show the applied change in the chat.
     await publish(COMMITTED_EVENT, {
         "embed_id": embed_id, "current_revision": version, "operation_id": operation_id,
-        "chat_id": chat_id, "kind": kind, "source": "project_sandbox"})
+        "chat_id": chat_id, "project_id": project_id, "kind": kind, "source": "project_sandbox"})

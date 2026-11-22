@@ -124,7 +124,8 @@ async def test_clean_commit_tells_daemon_and_devices():
     channel, event = cache.events[0]
     assert channel == "user_cache_events:u1" and event["event_type"] == "send_embed_revision_committed"
     assert event["payload"] == {"embed_id": "e1", "current_revision": 2, "operation_id": "op-1",
-                                "chat_id": "chat-1", "kind": "update", "source": "project_sandbox"}
+                                "chat_id": "chat-1", "project_id": "p1", "kind": "update",
+                                "source": "project_sandbox"}
     assert "a.txt" not in json.dumps(event)  # paths are private
     assert directus.commits[0]["chat_id"] == "chat-1" and directus.commits[0]["operation_id"] == "op-1"
     assert directus.commits[0]["proposal_digest"] == "a" * 64  # the sandbox's digest, not recomputed

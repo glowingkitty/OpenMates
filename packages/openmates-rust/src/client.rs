@@ -234,6 +234,8 @@ pub use project_file_jobs::{ProjectFileJobFrame, ProjectFilePrivacyBlob, Project
 mod hosted_file_io;
 #[cfg(feature = "workflow-yaml")]
 mod project_sandbox_key;
+#[cfg(feature = "workflow-yaml")]
+mod project_sandbox_commit;
 mod project_commit_restore;
 pub use project_commit_restore::{
     ProjectCommitFileOutcome, ProjectCommitFileRestore, ProjectCommitUserRestore,

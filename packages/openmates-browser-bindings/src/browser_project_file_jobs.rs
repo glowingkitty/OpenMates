@@ -156,4 +156,25 @@ impl BrowserCoreClient {
         self.status(handle, generation)?;
         serde_json::to_string(&frame).map_err(|_| JsValue::from_str("protocol"))
     }
+
+    /// Describe one `embed_revision_committed` payload of a hosted-sandbox
+    /// write as the applied-change card JSON `{projectId, chatId, mutation}`,
+    /// or `null` when the core shows nothing (another source, no focus, no key).
+    pub async fn describe_project_sandbox_commit(
+        &mut self,
+        handle: &str,
+        generation: f64,
+        event_json: &str,
+    ) -> Result<String, JsValue> {
+        self.status(handle, generation)?;
+        let event: serde_json::Value =
+            serde_json::from_str(event_json).map_err(|_| JsValue::from_str("invalid_request"))?;
+        let card = self
+            .client
+            .describe_project_sandbox_commit(&event)
+            .await
+            .map_err(code)?;
+        self.status(handle, generation)?;
+        serde_json::to_string(&card).map_err(|_| JsValue::from_str("protocol"))
+    }
 }

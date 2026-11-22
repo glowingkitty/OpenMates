@@ -35,7 +35,10 @@ fn grant_opens_in_sandbox_and_never_carries_the_key() {
         project_id: "p1".into(),
     };
     let sealed = frame["payload"]["sealed_grant"].as_str().unwrap();
-    assert_eq!(&pair.open_grant(sealed, &binding, NOW).unwrap()[..], &RAW[..]);
+    assert_eq!(
+        &pair.open_grant(sealed, &binding, NOW).unwrap()[..],
+        &RAW[..]
+    );
 }
 
 #[test]
@@ -48,7 +51,10 @@ fn declines_map_to_the_reason() {
     assert_eq!(reason(&ok, KeyLookup::NoKey), "no_key");
     assert_eq!(reason(&ok, KeyLookup::Invalid), "invalid");
     let expired = request(&pair, NOW - 1);
-    assert_eq!(reason(&expired, KeyLookup::Key(Zeroizing::new(RAW))), "expired");
+    assert_eq!(
+        reason(&expired, KeyLookup::Key(Zeroizing::new(RAW))),
+        "expired"
+    );
     let far = request(&pair, NOW + 10 * 24 * 3600);
     assert_eq!(reason(&far, KeyLookup::Key(Zeroizing::new(RAW))), "invalid");
     let mut bad = request(&pair, NOW + 600);

@@ -165036,17 +165036,17 @@ assertions:
       surface: rest_api
     - &id20898
       path: backend/tests/test_project_sandbox_executor.py
-      line: 254
+      line: 255
       name: test_happy_path_returns_envelope_with_write_back
       surface: rest_api
     - &id20899
       path: backend/tests/test_project_sandbox_executor.py
-      line: 395
+      line: 396
       name: test_client_commit_payload_cannot_claim_sandbox_origin
       surface: rest_api
     - &id20900
       path: backend/tests/test_project_sandbox_executor.py
-      line: 411
+      line: 412
       name: test_operations_the_sandbox_does_not_run_keep_the_device_path
       surface: rest_api
     - &id20901
@@ -165116,52 +165116,52 @@ assertions:
     direct_tests:
     - &id20907
       path: backend/tests/test_project_sandbox_executor.py
-      line: 136
+      line: 137
       name: test_two_devices_stale_base_is_merged_on_top_and_other_edit_kept
       surface: rest_api
     - &id20908
       path: backend/tests/test_project_sandbox_executor.py
-      line: 148
+      line: 149
       name: test_real_conflict_commits_nothing_and_is_returned
       surface: rest_api
     - &id20909
       path: backend/tests/test_project_sandbox_executor.py
-      line: 159
+      line: 160
       name: test_authorization_record_not_consumable_from_another_chat
       surface: rest_api
     - &id20910
       path: backend/tests/test_project_sandbox_executor.py
-      line: 181
+      line: 182
       name: test_always_ask_mode_refuses_sandbox_write
       surface: rest_api
     - &id20911
       path: backend/tests/test_project_sandbox_executor.py
-      line: 273
+      line: 274
       name: test_revisions_are_committed_in_order_each_followed_by_committed
       surface: rest_api
     - &id20912
       path: backend/tests/test_project_sandbox_executor.py
-      line: 285
+      line: 286
       name: test_later_revisions_of_a_failed_path_are_skipped
       surface: rest_api
     - &id20913
       path: backend/tests/test_project_sandbox_executor.py
-      line: 296
+      line: 297
       name: test_merge_with_no_revision_counts_as_merged_and_commits_nothing
       surface: rest_api
     - &id20914
       path: backend/tests/test_project_sandbox_executor.py
-      line: 358
+      line: 359
       name: test_delete_and_move_call_the_item_service_and_broadcast_kind
       surface: rest_api
     - &id20915
       path: backend/tests/test_project_sandbox_executor.py
-      line: 371
+      line: 372
       name: test_delete_refused_for_foreign_user_and_for_team_member_not_owning_the_item
       surface: rest_api
     - &id20916
       path: backend/tests/test_project_sandbox_executor.py
-      line: 382
+      line: 383
       name: test_item_transaction_needs_matching_action_digest_and_valid_body
       surface: rest_api
     supporting_tests:
@@ -165205,27 +165205,27 @@ assertions:
     direct_tests:
     - &id20917
       path: backend/tests/test_project_sandbox_executor.py
-      line: 226
+      line: 227
       name: test_falls_through_without_allowed_consent
       surface: rest_api
     - &id20918
       path: backend/tests/test_project_sandbox_executor.py
-      line: 232
+      line: 233
       name: test_falls_through_when_consent_unavailable
       surface: rest_api
     - &id20919
       path: backend/tests/test_project_sandbox_executor.py
-      line: 238
+      line: 239
       name: test_falls_through_for_remote_source
       surface: rest_api
     - &id20920
       path: backend/tests/test_project_sandbox_executor.py
-      line: 245
+      line: 246
       name: test_falls_through_when_unavailable_and_logs_no_content
       surface: rest_api
     - &id20921
       path: backend/tests/test_project_sandbox_executor.py
-      line: 430
+      line: 431
       name: test_worker_secrets_reach_the_sandbox_and_a_missing_e2b_key_keeps_the_device_path
       surface: rest_api
     - &id20922

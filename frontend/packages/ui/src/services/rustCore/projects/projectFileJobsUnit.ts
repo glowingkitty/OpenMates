@@ -11,11 +11,17 @@
 import type { UnitInstallContext } from '../host/sharedWorkerProtocol';
 import { serveUnitPort, UnitRefusal, type UnitHandlers } from '../host/unitPort';
 import { borrowCoreClient } from '../drafts/coreClientBorrow';
+import type { ProjectWriteApprovalRequest } from '../../projectFileJobTypes';
 import type { CoreBorrowRefusal, CoreClientBorrow } from '../drafts/coreClientBorrow';
 import {
 	PROJECT_FILE_JOB_FRAME_NAMES, isProjectFileJobsUnitClose,
-	type ProjectCreateResult, type ProjectFileJobEventKind, type ProjectFileJobStep, type ProjectFileJobsProtocol
+	type ProjectCreateResult, type ProjectFileJobEventKind, type ProjectFileJobStep, type ProjectFileJobsProtocol,
+	type ProjectSandboxKeyFrame
 } from './projectFileJobsProtocol';
+
+/** `WeakRef` exists in every Worker runtime we ship to; the package's ES2015 type target only lacks its declaration. */
+interface WeakRef<T extends object> { deref(): T | undefined }
+declare const WeakRef: { new <T extends object>(value: T): WeakRef<T> };
 
 /** Bounded wait for the history dispatcher to become idle. */
 export const PROJECT_FILE_JOBS_BORROW_TIMEOUT_MS = 10_000;
@@ -30,6 +36,7 @@ export interface ProjectFileJobsClient {
 	project_file_job_set_mappings(handle: string, generation: number, chatId: string, mappingsJson: string): void | Promise<void>;
 	project_create_step(handle: string, generation: number, kind: string, eventJson: string): Promise<string>;
 	answer_project_sandbox_key_request(handle: string, generation: number, eventJson: string, nowSeconds: number): Promise<string>;
+	describe_project_sandbox_commit(handle: string, generation: number, eventJson: string): Promise<string>;
 }
 
 export interface ProjectFileJobsDeps {
@@ -93,6 +100,27 @@ export function parseProjectCreateResult(raw: unknown): ProjectCreateResult | nu
 
 const SANDBOX_KEY_EVENTS: ReadonlySet<string> = new Set(['project_sandbox_key_grant', 'project_sandbox_key_decline']);
 const SANDBOX_KEY_DECLINES: ReadonlySet<string> = new Set(['no_key', 'expired', 'invalid']);
+
+const SANDBOX_CHANGE_OPERATIONS: ReadonlySet<string> = new Set(['create_file', 'update_file']);
+
+/** Strict parse of the core's sandbox commit card: `null`, or `{projectId, chatId, mutation}` of an applied create/update. */
+export function parseProjectSandboxChange(raw: unknown): ProjectWriteApprovalRequest | null {
+	if (typeof raw !== 'string') throw new UnitRefusal(PROTOCOL);
+	let value: unknown;
+	try {
+		value = JSON.parse(raw);
+	} catch {
+		throw new UnitRefusal(PROTOCOL);
+	}
+	if (value === null) return null;
+	if (!isRecord(value) || typeof value.projectId !== 'string' || typeof value.chatId !== 'string' || !isRecord(value.mutation)) throw new UnitRefusal(PROTOCOL);
+	const mutation = value.mutation;
+	if (Object.keys(mutation).sort().join(',') !== 'content,expected_base,operation,operation_id,path'
+		|| typeof mutation.operation !== 'string' || !SANDBOX_CHANGE_OPERATIONS.has(mutation.operation)
+		|| typeof mutation.operation_id !== 'string' || typeof mutation.path !== 'string'
+		|| typeof mutation.content !== 'string' || mutation.expected_base !== null) throw new UnitRefusal(PROTOCOL);
+	return value as unknown as ProjectWriteApprovalRequest;
+}
 
 /** Strict parse of the core's sandbox key frame: a grant with `sealed_grant` or a decline with a known reason. */
 export function parseProjectSandboxKeyFrame(raw: unknown): ProjectSandboxKeyFrame {
@@ -221,6 +249,15 @@ export function createProjectFileJobsHandlers(principal: string, deps: ProjectFi
 			const chatId = typeof event.chat_id === 'string' ? event.chat_id : '';
 			return withClient(chatId, async (client, handle, generation) =>
 				({ frame: parseProjectSandboxKeyFrame(await client.answer_project_sandbox_key_request(handle, generation, JSON.stringify(event), Math.floor(Date.now() / 1000))) }));
+		},
+		async sandboxCommit(payload) {
+			const request = payload as { event?: unknown } | null;
+			if (!isRecord(request?.event)) throw new UnitRefusal('project_sandbox_commit_bad_event');
+			const event = request.event;
+			// The core decrypts the committed file with this device's Project key; only the card comes back.
+			const chatId = typeof event.chat_id === 'string' ? event.chat_id : '';
+			return withClient(chatId, async (client, handle, generation) =>
+				({ change: parseProjectSandboxChange(await client.describe_project_sandbox_commit(handle, generation, JSON.stringify(event))) }));
 		}
 	};
 }

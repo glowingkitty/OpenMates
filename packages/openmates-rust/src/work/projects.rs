@@ -68,6 +68,10 @@ pub struct ProjectSettingsPatch {
     pub default_focus: Option<ProjectDefaultFocus>,
 }
 pub mod sandbox_key;
+#[cfg(feature = "workflow-yaml")]
+mod sandbox_change;
+#[cfg(all(test, feature = "workflow-yaml"))]
+mod sandbox_change_tests;
 #[cfg(test)]
 mod sandbox_key_tests;
 #[cfg(all(feature = "sandbox-host", not(target_arch = "wasm32")))]

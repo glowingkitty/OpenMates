@@ -66,30 +66,53 @@ impl Client {
     }
 
     async fn sandbox_key_lookup(&mut self, request: &SandboxKeyRequest) -> Result<KeyLookup> {
+        Ok(self
+            .project_key_for_chat(&request.chat_id, &request.project_id)
+            .await?
+            .0)
+    }
+
+    /// The Project key when `chat_id` is focused on `project_id`, with the
+    /// filters that resolved it (personal or the focus's team). Shared by the
+    /// key answer and the sandbox commit card (`project_sandbox_commit.rs`).
+    ///
+    /// # Errors
+    /// Missing credentials, cancellation and transport failures.
+    pub(super) async fn project_key_for_chat(
+        &mut self,
+        chat_id: &str,
+        project_id: &str,
+    ) -> Result<(KeyLookup, crate::work::ProjectFilters)> {
         self.require_credentials()?;
-        let focus = match self.projects().active_focus(&request.chat_id).await {
+        let none = || crate::work::ProjectFilters {
+            personal: true,
+            team_id: None,
+            include_archived: None,
+        };
+        let focus = match self.projects().active_focus(chat_id).await {
             Ok(focus) => focus,
-            Err(Error::Invalid(_) | Error::Forbidden) => return Ok(KeyLookup::Invalid),
+            Err(Error::Invalid(_) | Error::Forbidden) => return Ok((KeyLookup::Invalid, none())),
             Err(error) => return Err(error),
         };
-        if focus["project_id"].as_str() != Some(request.project_id.as_str()) {
-            return Ok(KeyLookup::Invalid);
+        if focus["project_id"].as_str() != Some(project_id) {
+            return Ok((KeyLookup::Invalid, none()));
         }
         let filters = crate::work::ProjectFilters {
             personal: focus["team_id"].as_str().is_none(),
             team_id: focus["team_id"].as_str().map(str::to_owned),
             include_archived: None,
         };
-        match self
+        let lookup = match self
             .projects()
-            .with_filters(filters)
-            .project_key_for_command(&request.project_id)
+            .with_filters(filters.clone())
+            .project_key_for_command(project_id)
             .await
         {
-            Ok(key) => Ok(KeyLookup::Key(key)),
-            Err(Error::Forbidden | Error::Crypto) => Ok(KeyLookup::NoKey),
-            Err(error) => Err(error),
-        }
+            Ok(key) => KeyLookup::Key(key),
+            Err(Error::Forbidden | Error::Crypto) => KeyLookup::NoKey,
+            Err(error) => return Err(error),
+        };
+        Ok((lookup, filters))
     }
 }
 

@@ -6521,6 +6521,7 @@
             "client.Client.delete_message",
             "client.Client.delete_messages",
             "client.Client.delete_personal_memory_document",
+            "client.Client.describe_project_sandbox_commit",
             "client.Client.detail",
             "client.Client.discard_chat_details_prefetch",
             "client.Client.display_name_hint",

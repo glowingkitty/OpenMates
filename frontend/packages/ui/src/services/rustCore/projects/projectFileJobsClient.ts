@@ -12,6 +12,7 @@ import { withServerSession } from './projectTimelineClient';
 import {
 	PROJECT_FILE_JOBS_UNIT_CLOSE, type ProjectCreateEventKind, type ProjectCreateResult, type ProjectSandboxKeyFrame, type ProjectFileJobEventKind, type ProjectFileJobPrivacyInputs, type ProjectFileJobStep, type ProjectFileJobsProtocol
 } from './projectFileJobsProtocol';
+import type { ProjectWriteApprovalRequest } from '../../projectFileJobTypes';
 
 export const PROJECT_FILE_JOBS_ENABLED: boolean = import.meta.env.VITE_OPENMATES_RUST_CORE === '1';
 
@@ -87,4 +88,10 @@ export async function stepProjectCreate(kind: ProjectCreateEventKind, event: Rec
 export async function answerProjectSandboxKey(event: Record<string, unknown>): Promise<ProjectSandboxKeyFrame> {
 	const { frame } = await withServerSession(async () => (await unit()).request('sandboxKey', { event }, { timeoutMs: CREATE_TIMEOUT_MS }));
 	return frame;
+}
+
+/** Ask the core for the applied-change card of one sandbox `embed_revision_committed` event (`null`: nothing to show). */
+export async function describeProjectSandboxCommit(event: Record<string, unknown>): Promise<ProjectWriteApprovalRequest | null> {
+	const { change } = await withServerSession(async () => (await unit()).request('sandboxCommit', { event }, { timeoutMs: CREATE_TIMEOUT_MS }));
+	return change;
 }
