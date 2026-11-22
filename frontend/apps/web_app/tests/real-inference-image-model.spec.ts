@@ -204,8 +204,9 @@ async function attachImage(
 	// TipTap NodeView wrapper can be recreated while upload attrs propagate, so
 	// wait on the preview's canonical data-status instead of the wrapper attr.
 	await expect(editorPreview.first()).toHaveAttribute('data-status', 'finished', { timeout: 120000 });
+	// Escape on a focused composer blurs and collapses it, so only the
+	// fullscreen overlay is closed here, never with a bare Escape.
 	await closeEmbedFullscreenIfOpen(page, log);
-	await page.keyboard.press('Escape');
 	await focusMessageEditor(editor);
 	await editor.locator('[contenteditable="true"]').press('ControlOrMeta+End');
 	log('Image upload finished and editor cursor moved after embed.');
@@ -236,7 +237,7 @@ async function typePromptAndSendAfterAttachment(
 ) {
 	const editor = page.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 10000 });
-	await page.keyboard.press('Escape');
+	await closeEmbedFullscreenIfOpen(page, log);
 	const editable = editor.locator('[contenteditable="true"]');
 	await focusMessageEditor(editor);
 	await editable.press('ControlOrMeta+End');
@@ -256,7 +257,6 @@ async function typePromptAndSendAfterAttachment(
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeVisible({ timeout: 15000 });
 	await expect(sendButton).toBeEnabled({ timeout: 10000 });
-	await page.keyboard.press('Escape');
 	await sendButton.click({ timeout: 10000 });
 	log('Clicked send button after image upload.');
 

@@ -72,7 +72,6 @@ steps:
 			const created = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'create', '--file', yamlFile], 'create AI chat workflow');
 			workflowId = created.workflow.id;
 			expect(created.validation.enable_ready).toBe(true);
-			await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'enable', workflowId], 'enable AI chat workflow');
 
 			const acceptedRun = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'run', workflowId, '--idempotency-key', `${workflowId}-manual`], 'run AI chat workflow', 120_000);
 			const waitingRun = await waitForWorkflowRunStatus(apiUrl, homeDir, workflowId, acceptedRun.id, ['waiting'], 'AI chat workflow', 240_000);
