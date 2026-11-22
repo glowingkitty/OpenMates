@@ -6,7 +6,14 @@ icon_image: |
   event.svg
 category: personal
 last_updated: "2026-03-08"
-instructions: []
+instructions:
+  - for_skills:
+      - search
+    instruction: |-
+      Answering with events-search results: for every event you name, state its start date (and end date when
+      the result has one) and its city or venue in the answer text, copied from the result fields date_start,
+      date_end and venue. The cards alone do not replace the dates. If a result has no usable date, say that the
+      date is unconfirmed instead of guessing.
 # Embed type definitions — single source of truth for frontend embed routing.
 embed_types:
   - id: search

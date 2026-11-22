@@ -12611,7 +12611,7 @@ features:
     - skill:events:search
     dev: partial
     prod: enabled
-  assertions: 12
+  assertions: 13
   surfaces:
     web:
       status: failing
@@ -12620,9 +12620,9 @@ features:
       assertions:
         passing: 2
         failing: 2
-        not_run: 0
+        not_run: 1
         missing: 9
-        counted: 13
+        counted: 14
       failing_tests:
       - frontend/apps/web_app/tests/components/apps-request-composer.spec.ts › event fullscreen forwards visible event fields
         while excluding raw and nested transport metadata
@@ -12636,8 +12636,8 @@ features:
       - frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts
       - frontend/apps/web_app/tests/components/skill-failure-feedback.spec.ts
       key_unit_tests:
-      - backend/tests/test_preprocessor_skill_resolver.py
       - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.test.ts
+      - backend/tests/test_preprocessor_skill_resolver.py
       - frontend/packages/ui/src/components/embeds/events/__tests__/eventResult.test.ts
       - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
       - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
@@ -12650,8 +12650,8 @@ features:
         passing: 1
         failing: 0
         not_run: 0
-        missing: 11
-        counted: 12
+        missing: 12
+        counted: 13
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -12670,8 +12670,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 12
-        counted: 12
+        missing: 13
+        counted: 13
       key_tests: []
       evidence: openmates apps events search
       e2e_tests: []
@@ -12699,9 +12699,9 @@ features:
       assertions:
         passing: 11
         failing: 1
-        not_run: 0
+        not_run: 1
         missing: 0
-        counted: 12
+        counted: 13
       failing_tests:
       - backend/tests/test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned
       key_tests: []
@@ -12712,7 +12712,7 @@ features:
       - backend/tests/test_app_skill_processing_quality.py
       - backend/tests/test_events_provider_routing.py
       - backend/tests/test_search_relevance.py
-      unit_test_files: 8
+      unit_test_files: 9
     sdk_npm:
       status: implemented
       source: intent
@@ -12721,8 +12721,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 12
-        counted: 12
+        missing: 13
+        counted: 13
       key_tests: []
       evidence: src/generated/appSkills.ts apps.events (generic skill call)
       e2e_tests: []
@@ -12736,8 +12736,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 12
-        counted: 12
+        missing: 13
+        counted: 13
       key_tests: []
       evidence: generated/app_skills.py apps.events (generic skill call)
       e2e_tests: []

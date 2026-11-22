@@ -129,7 +129,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Diagrams](#diagrams) | impl | impl |  | wip | wip | — | impl | wip | on | on | untagged-main |
 | [Docs](#docs) | partial 2/4 | impl |  | — | — | — | impl | impl | on | on | v0.5.0-alpha |
 | [Electronics](#electronics) | not run 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.11.0-alpha |
-| [Events](#events) | **FAIL** 2/13 | partial 1/12 |  | impl | impl | **FAIL** 11/12 | impl | impl | partly on | on | v0.5.0-alpha |
+| [Events](#events) | **FAIL** 2/14 | partial 1/13 |  | impl | impl | **FAIL** 11/13 | impl | impl | partly on | on | v0.5.0-alpha |
 | [File](#file) | impl | impl |  | wip | impl | — | impl | wip | on | on | v0.19.0 |
 | [Finance](#finance) | impl | impl |  | impl | impl | impl | impl | impl | on | on | v0.19.0 |
 | [Fitness](#fitness) | partial 1/2 | impl |  | impl | impl | impl | impl | impl | on | on | v0.1-alpha-1 |
@@ -1476,7 +1476,7 @@ Edit an image, diagram, slide deck, sheet or document; each edit becomes a new v
 
 Keep saved event information.
 
-- Specifications: [feature.app-skill.events-search](../../specifications/features/app-skills/events-search/specification.yml) (approved) · 12 assertion(s)
+- Specifications: [feature.app-skill.events-search](../../specifications/features/app-skills/events-search/specification.yml) (approved) · 13 assertion(s)
 - Apps: `events`
 - Flags: `app:events`, `skill:events:search` · dev partly on · prod on · release v0.5.0-alpha
 
@@ -1484,13 +1484,13 @@ Keep saved event information.
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | **FAIL** 2/13 | 2 pass · 2 fail · 0 not run · 9 no test | [skill-events-search.spec.ts](../../frontend/apps/web_app/tests/skill-events-search.spec.ts)<br>[apps-request-composer.spec.ts](../../frontend/apps/web_app/tests/components/apps-request-composer.spec.ts)<br>[event-reference-hydration.spec.ts](../../frontend/apps/web_app/tests/components/event-reference-hydration.spec.ts)<br>[events-search-pricing.spec.ts](../../frontend/apps/web_app/tests/components/events-search-pricing.spec.ts)<br>[result-travel-event-design.spec.ts](../../frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts)<br>[skill-failure-feedback.spec.ts](../../frontend/apps/web_app/tests/components/skill-failure-feedback.spec.ts)<br>6 unit test file(s), e.g. [test_preprocessor_skill_resolver.py](../../backend/tests/test_preprocessor_skill_resolver.py), [EventEmbedPreview.test.ts](../../frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.test.ts)<br>❌ [apps-request-composer.spec.ts › event fullscreen forwards visible event fields while excluding raw and nested transport metadata](../../frontend/apps/web_app/tests/components/apps-request-composer.spec.ts › event fullscreen forwards visible event fields while excluding raw and nested transport metadata)<br>❌ [skill-events-search.spec.ts](../../frontend/apps/web_app/tests/skill-events-search.spec.ts) |
-| Apple | partial 1/12 | 1 pass · 0 fail · 0 not run · 11 no test | 2 unit test file(s), e.g. [EmbedCardParityFixesTests.swift](../../apple/OpenMatesTests/EmbedCardParityFixesTests.swift), [SkillApplicationParityTests.swift](../../apple/OpenMatesTests/SkillApplicationParityTests.swift) |
-| CLI | impl | 0 pass · 0 fail · 0 not run · 12 no test | — |
+| Web | **FAIL** 2/14 | 2 pass · 2 fail · 1 not run · 9 no test | [skill-events-search.spec.ts](../../frontend/apps/web_app/tests/skill-events-search.spec.ts)<br>[apps-request-composer.spec.ts](../../frontend/apps/web_app/tests/components/apps-request-composer.spec.ts)<br>[event-reference-hydration.spec.ts](../../frontend/apps/web_app/tests/components/event-reference-hydration.spec.ts)<br>[events-search-pricing.spec.ts](../../frontend/apps/web_app/tests/components/events-search-pricing.spec.ts)<br>[result-travel-event-design.spec.ts](../../frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts)<br>[skill-failure-feedback.spec.ts](../../frontend/apps/web_app/tests/components/skill-failure-feedback.spec.ts)<br>6 unit test file(s), e.g. [EventEmbedPreview.test.ts](../../frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.test.ts), [test_preprocessor_skill_resolver.py](../../backend/tests/test_preprocessor_skill_resolver.py)<br>❌ [apps-request-composer.spec.ts › event fullscreen forwards visible event fields while excluding raw and nested transport metadata](../../frontend/apps/web_app/tests/components/apps-request-composer.spec.ts › event fullscreen forwards visible event fields while excluding raw and nested transport metadata)<br>❌ [skill-events-search.spec.ts](../../frontend/apps/web_app/tests/skill-events-search.spec.ts) |
+| Apple | partial 1/13 | 1 pass · 0 fail · 0 not run · 12 no test | 2 unit test file(s), e.g. [EmbedCardParityFixesTests.swift](../../apple/OpenMatesTests/EmbedCardParityFixesTests.swift), [SkillApplicationParityTests.swift](../../apple/OpenMatesTests/SkillApplicationParityTests.swift) |
+| CLI | impl | 0 pass · 0 fail · 0 not run · 13 no test | — |
 | TUI | impl | — | — |
-| REST API | **FAIL** 11/12 | 11 pass · 1 fail · 0 not run · 0 no test | 8 unit test file(s), e.g. [test_events_topic_relevance.py](../../backend/tests/test_events_topic_relevance.py), [test_rest_api_events.py](../../backend/tests/test_rest_api_events.py)<br>❌ [test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned](../../backend/tests/test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned) |
-| npm SDK | impl | 0 pass · 0 fail · 0 not run · 12 no test | — |
-| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 12 no test | — |
+| REST API | **FAIL** 11/13 | 11 pass · 1 fail · 1 not run · 0 no test | 9 unit test file(s), e.g. [test_events_topic_relevance.py](../../backend/tests/test_events_topic_relevance.py), [test_rest_api_events.py](../../backend/tests/test_rest_api_events.py)<br>❌ [test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned](../../backend/tests/test_events_search_output_safety.py › test_events_search_titles_and_descriptions_are_semantically_scanned) |
+| npm SDK | impl | 0 pass · 0 fail · 0 not run · 13 no test | — |
+| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 13 no test | — |
 
 </details>
 

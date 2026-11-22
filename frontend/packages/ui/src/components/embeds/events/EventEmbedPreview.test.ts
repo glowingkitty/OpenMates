@@ -2,6 +2,7 @@ import { mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { chatSyncService } from '../../../services/chatSyncService';
 import EventEmbedPreview from './EventEmbedPreview.svelte';
+import { AUTHORED_RESULT_PRESENTATION_CONTEXT } from '../../../types/authoredResult';
 
 const mocks = vi.hoisted(() => ({ resolve: vi.fn(), decode: vi.fn(), request: vi.fn() }));
 vi.mock('@repo/ui', async () => {
@@ -88,4 +89,18 @@ it('does not show the source domain on a researched event card but keeps the dra
   expect(target.textContent).not.toContain('User-provided');
   await mountCard('draft');
   expect(target.querySelector('[data-testid="authored-result-origin"]')?.textContent).toBe('Draft');
+});
+
+// contract-test: supporting surface=gui.web assertions=events-search.results.actionable
+it('shows its own event inside the Events search fullscreen, not the parent search content', async () => {
+  // Every registry fullscreen provides the presentation context with its own (parent search)
+  // content; a grid card must not read it, or every card shows only the word "Event".
+  const parentSearch = { query: 'open source conferences', embed_ids: [eventId] };
+  component = mount(EventEmbedPreview, { target,
+    context: new Map([[AUTHORED_RESULT_PRESENTATION_CONTEXT, { authoring: undefined, content: parentSearch, presentationContent: parentSearch }]]),
+    props: { id: eventId, event: { ...event, embed_id: eventId } as never, onFullscreen: () => {} } });
+  await tick();
+  expect(target.textContent).toContain(event.title);
+  expect(target.textContent).toContain('Community Builders');
+  expect(target.querySelector('[data-status="finished"]')).not.toBeNull();
 });

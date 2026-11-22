@@ -66,7 +66,12 @@
     event = normalizeEventResult(decodedContent, id);
   }
 
-  const sourceEvent = $derived(normalizeEventResult(presentation?.presentationContent ?? presentation?.content ?? event, id));
+  // Only an authored-result context describes this event. Every registry fullscreen
+  // also provides the context with its own content, so a card inside the Events
+  // search grid would otherwise read the parent search (no title) and show a blank
+  // "Event" card instead of its own event.
+  const authoredPresentation = $derived(presentation?.authoring ? presentation : undefined);
+  const sourceEvent = $derived(normalizeEventResult(authoredPresentation?.presentationContent ?? authoredPresentation?.content ?? event, id));
   const previewStatus = $derived(sourceEvent.authoring && ['processing', 'error', 'cancelled'].includes(String(sourceEvent.status))
     ? sourceEvent.status as 'processing' | 'error' | 'cancelled' : sourceEvent.title ? 'finished' : 'processing');
   const badge = $derived(eventCalendarBadge(sourceEvent.date_start, sourceEvent.timezone));

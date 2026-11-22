@@ -125,6 +125,14 @@ assertions:
     the current token prices and a typical cost per search.
   depends_on:
   - examples.billing
+- id: events-search.answer.states-dates
+  type: invariant
+  must: The answer text names every event it mentions with its start date (and end date when known) and its city or
+    venue, taken from the result fields the model receives (date_start, date_end, venue are never excluded from the
+    model's result view); an event without a usable date is reported as unconfirmed, never guessed. Draft change
+    requested by the owner on 2026-11-22.
+  depends_on:
+  - examples.boundary_and_history
 - id: events-search.results.actionable
   type: invariant
   must: Returned conference sessions and saved event cards retain nonblank titles, usable source links, dates and
