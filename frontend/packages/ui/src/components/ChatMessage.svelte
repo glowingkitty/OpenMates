@@ -1,7 +1,7 @@
 <script lang="ts">
     import { vibrateDevice } from '../services/eventSounds';
   import type { SvelteComponent } from 'svelte';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import MessageBookmarkButton from './MessageBookmarkButton.svelte';
@@ -980,14 +980,19 @@
   const includedMemoryIds = $derived(role === 'user' && appSettingsMemoriesResponse?.action === 'included'
     ? (appSettingsMemoriesResponse.categories ?? []).filter((cat) => cat.appId === MEMORY_RESPONSE_APP_ID).map((cat) => cat.itemType)
     : []);
+  // A string, so a re-parsed response with the same ids (every streamed update of a spoken
+  // reply) neither reruns the effect nor drops titles already shown.
+  const includedMemoryKey = $derived(includedMemoryIds.join('\n'));
   let includedMemories = $state<IncludedMemoryBadge[]>([]);
   $effect(() => {
-    const ids = includedMemoryIds;
+    const ids = includedMemoryKey ? includedMemoryKey.split('\n') : [];
     const chatId = currentChatId;
     if (ids.length === 0) { includedMemories = []; return; }
     const isKnownApp = (appId: string) => !!appSkillsStore.getState().apps[appId];
-    // Shown at once (untitled), then with titles when the local documents are read.
-    includedMemories = resolveIncludedMemories(ids, [], isKnownApp);
+    // Shown at once (untitled unless already resolved), then with titles when the local documents are read.
+    const shown = untrack(() => includedMemories);
+    const known = new Map(shown.map((memory) => [memory.id, memory]));
+    includedMemories = resolveIncludedMemories(ids, [], isKnownApp).map((memory) => known.get(memory.id) ?? memory);
     let cancelled = false;
     loadLocalMemoryDocuments(chatId || undefined)
       .then((documents) => { if (!cancelled) includedMemories = resolveIncludedMemories(ids, documents, isKnownApp); })

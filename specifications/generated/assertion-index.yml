@@ -196587,7 +196587,7 @@ assertions:
       surface: gui.web
     - &id24909
       path: frontend/apps/web_app/tests/voice-call-real.spec.ts
-      line: 205
+      line: 221
       name: 'a spoken question in a new chat is transcribed, answered aloud${scenario.videos
         ? '
       surface: gui.web
@@ -201275,7 +201275,7 @@ assertions:
       surface: rest_api
     - &id25522
       path: frontend/apps/web_app/tests/voice-call-real.spec.ts
-      line: 205
+      line: 221
       name: 'a spoken question in a new chat is transcribed, answered aloud${scenario.videos
         ? '
       surface: gui.web
@@ -202133,7 +202133,7 @@ assertions:
       surface: rest_api
     - &id25590
       path: frontend/apps/web_app/tests/voice-call-real.spec.ts
-      line: 205
+      line: 221
       name: 'a spoken question in a new chat is transcribed, answered aloud${scenario.videos
         ? '
       surface: gui.web

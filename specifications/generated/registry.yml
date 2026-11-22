@@ -1069,9 +1069,9 @@ specifications:
     - gui.web
   feature.video-call:
     version: 19
-    status: draft
+    status: approved
     path: features/video-call
-    fingerprint: 0adb8c1aa35ee0694fce3396228b52953d9b33dd60193feddc2c36d7cf4ca60c
+    fingerprint: 06f023ccd380f650b861a35a2ff6776a26cc76c29652e7cb5157b09625f83cc4
     required_applies_to:
     - gui.web
     - gui.apple

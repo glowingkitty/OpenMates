@@ -54,6 +54,8 @@ interface Scenario {
   memory?: boolean;
   /** Starts filling a web form by a typed message first; the call continues it in that chat. */
   form?: boolean;
+  /** An earlier spoken turn in the same call, answered before `question` is spoken. */
+  firstTurn?: { heard: RegExp; answer: RegExp };
 }
 
 // The typed request with the form link (kept out of the repository; passed by the runner).
@@ -76,10 +78,24 @@ const SCENARIOS: Scenario[] = [
   // must still be spoken in the Mate's voice.
   { slug: 'memory', question: 'Which employer should I mention in my cover letter? Use my saved job application profile memory.',
     heard: /cover letter/i, answer: /Example Retail/i, videos: false, memory: true },
+  // Two consecutive spoken turns in one call, the second needing a Memory approval: every word of
+  // both turns arrives, the Mate stays, and the included Memory shows by name.
+  { slug: 'two-turns-memory', question: 'Which employer should I mention in my cover letter? Use my saved job application profile memory.',
+    heard: /cover letter/i, answer: /Example Retail/i, videos: false, memory: true,
+    firstTurn: { heard: /capital of France/i, answer: /Paris/i } },
   // Marco's "fill a form together" flow by voice: one spoken answer, one spoken question back.
   { slug: 'form', question: "I'm not sure. What would you suggest? Please go with your suggestion.",
     heard: /suggest/i, answer: /\?/, videos: false, form: true },
 ];
+
+/** The approved turn names every included Memory by its title (never the generic "Memories" label). */
+async function expectIncludedMemoryTitles(page: Page, log: (message: string) => void, when: string): Promise<void> {
+  const titles = page.getByTestId('included-memory-pill').getByTestId('included-memory-title');
+  await expect(titles.filter({ hasText: MEMORY_TITLE })).toHaveCount(1, { timeout: 20_000 });
+  const shown = (await titles.allTextContents()).map((text) => text.trim());
+  log(`included memories ${when}: ${shown.join(', ')}`);
+  expect(shown.filter((title) => title === 'Memories'), `every included Memory is titled ${when}`).toEqual([]);
+}
 
 /** Settings > Memories rows titled MEMORY_TITLE (left over from an aborted run when non-empty). */
 async function leftoverMemoryRows(page: Page) {
@@ -240,7 +256,7 @@ for (const scenario of SCENARIOS) {
         try {
           if (scenario.memory) memoryChatId = await saveMemoryFirst(page, log, screenshot);
           if (scenario.form) await startFormFirst(page, log, screenshot);
-          const repliesBeforeCall = await page.getByTestId('message-assistant').count();
+          let repliesBeforeCall = await page.getByTestId('message-assistant').count();
           const microphone = await page.evaluate(async () => {
             const devices = await navigator.mediaDevices.enumerateDevices();
             return devices.filter((device) => device.kind === 'audioinput').length;
@@ -262,6 +278,18 @@ for (const scenario of SCENARIOS) {
           const timerAtStart = await timerSeconds(page);
           await snap(page, testInfo, `${scenario.slug}-01-listening`);
 
+          if (scenario.firstTurn) {
+            // First turn: heard in full and answered before the second question is spoken.
+            const firstMessage = page.getByTestId('message-user').filter({ hasText: scenario.firstTurn.heard });
+            await expect(firstMessage).toHaveCount(1, { timeout: 60_000 });
+            const firstReply = page.getByTestId('message-assistant').filter({ hasText: scenario.firstTurn.answer });
+            await expect(firstReply).toHaveCount(1, { timeout: 120_000 });
+            const firstMate = (await firstReply.first().getByTestId('chat-mate-name').first()
+              .textContent().catch(() => ''))?.trim();
+            log(`first turn: heard "${(await firstMessage.first().textContent())?.trim()}"; mate ${firstMate || 'unknown'}`);
+            await snap(page, testInfo, `${scenario.slug}-01b-first-turn`);
+            repliesBeforeCall = await page.getByTestId('message-assistant').count();
+          }
           // The question is spoken once by the fake microphone; it must arrive as the user's message.
           const userMessage = page.getByTestId('message-user').filter({ hasText: scenario.heard });
           await expect(userMessage).toHaveCount(1, { timeout: 60_000 });
@@ -277,7 +305,7 @@ for (const scenario of SCENARIOS) {
             const dialog = page.getByTestId('app-settings-memories-permission-dialog');
             await expect(dialog).toBeVisible({ timeout: 90_000 });
             await expect(dialog.getByText(MEMORY_TITLE, { exact: true })).toBeVisible({ timeout: 10_000 });
-            await expect(page.getByTestId('message-assistant')).toHaveCount(0);
+            await expect(page.getByTestId('message-assistant')).toHaveCount(repliesBeforeCall);
             await snap(page, testInfo, `${scenario.slug}-02b-memory-approval`);
             await dialog.getByTestId('btn-include').click();
             await expect(dialog).not.toBeVisible({ timeout: 10_000 });
@@ -302,6 +330,7 @@ for (const scenario of SCENARIOS) {
           await expect.poll(async () => (await recorded(page)).unspoken.some((chars) => chars > 0),
             { timeout: 90_000, message: 'reply words must be dimmed until spoken' }).toBe(true);
           await snap(page, testInfo, `${scenario.slug}-04-speaking`);
+          if (scenario.memory) await expectIncludedMemoryTitles(page, log, 'while spoken');
           await expect.poll(async () => {
             const samples = (await recorded(page)).unspoken;
             return samples.length > 30 && samples.slice(-20).every((chars) => chars === 0);
@@ -322,8 +351,17 @@ for (const scenario of SCENARIOS) {
               'a new chat confirms once with the neutral system clip').toHaveLength(1);
             expect(clipDownloads.some((url) => url.includes(`${ACK_ROOT}system/`)), 'the system clip is fetched for playback').toBe(true);
           }
-          expect([...acknowledgementUrls, ...clipDownloads].filter((url) => MATE_WAITING_CLIP.test(url)),
-            'no guessed Mate waiting clip').toHaveLength(0);
+          const mateClips = [...acknowledgementUrls, ...clipDownloads].filter((url) => MATE_WAITING_CLIP.test(url));
+          if (scenario.firstTurn) {
+            // A follow-up turn may wait in the voice of the Mate that answers it, never another one.
+            const mate = (await reply.getByTestId('chat-mate-name').first().textContent())?.trim().toLowerCase() ?? '';
+            log(`follow-up turn mate: ${mate}; mate clips: ${JSON.stringify(mateClips)}`);
+            expect(mate, 'the follow-up reply names its Mate').toBeTruthy();
+            expect(mateClips.filter((url) => !url.includes(`${ACK_ROOT}${mate}/`)),
+              'no waiting clip of a Mate other than the one that answers').toEqual([]);
+          } else {
+            expect(mateClips, 'no guessed Mate waiting clip').toHaveLength(0);
+          }
           const speech = played.filter((entry) => !entry.src.includes(ACK_ROOT));
           expect(speech.length, 'the reply is played as audio').toBeGreaterThan(0);
           expect(Math.max(...speech.map((entry) => entry.maxTime)), 'reply audio really advances').toBeGreaterThan(1.5);
@@ -341,6 +379,7 @@ for (const scenario of SCENARIOS) {
           }
           const generatedBy = reply.getByTestId('generated-by');
           if (await generatedBy.isVisible().catch(() => false)) log(`reply generated by: ${(await generatedBy.textContent())?.trim()}`);
+          if (scenario.memory) await expectIncludedMemoryTitles(page, log, 'after the reply');
           await snap(page, testInfo, `${scenario.slug}-05-answered`);
 
           await page.getByTestId('voice-call-hangup').click();

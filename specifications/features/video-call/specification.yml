@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.video-call
 version: 19
-status: draft
+status: approved
 title: Chat-bound Voice And Video Calls
 summary: Voxtral transcription and Eleven v4 Turbo speech connect authenticated web and supported Apple calls to the existing encrypted chat pre/main/post
   pipeline. Normal automatic model and thinking-level routing, app skills and rich embeds are preserved; the old Gemini
@@ -695,8 +695,11 @@ notes:
     after a focus decision to stay spoken, an in-call countdown with a reminder at about 15 s and a self-cancel
     "without memories" at about 30 s with a timed-out chat event, and a clear "Continue without memories" action in
     text chats; approval stays a manual tap.
+  version_19_approval: >-
+    The owner approved version 19 on 2026-11-22 as his own decision on record (verified dev-connector receipt
+    d35806980f111a04); camera, screen share, menu and close stay as they are.
   version_19_hold_button_removed: >-
-    version 19 (draft): hold button removed on owner request 2026-11-21 (verified dev-connector message). Waiting starts
+    version 19: hold button removed on owner request 2026-11-21 (verified dev-connector message). Waiting starts
     only from the caller's natural-language request or the hard signals (typing, file picker, upload). Also in 19:
     consecutive turns keep every word while the call's per-minute charge runs (video-call.chat.transcripts), and an
     approved memory request shows each included memory by title, icon and colour circle (video-call.chat.permission-prompt).
