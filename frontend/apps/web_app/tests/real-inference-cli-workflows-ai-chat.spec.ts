@@ -53,7 +53,6 @@ steps:
     use_app_skill: ai.ask
     input:
       prompt: "Reply with exactly: Workflow AI OK"
-      conversation: e2e-local
   - id: chat
     send_chat_message:
       title: "${chatTitle}"

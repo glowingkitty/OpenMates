@@ -642,7 +642,6 @@
         "voice-call-ambient-sounds.spec.ts",
         "voice-call-screen-share.spec.ts",
         "authored-results-media.spec.ts",
-        "real-inference-image-upload-svg.spec.ts",
         "real-inference-image-model.spec.ts"
       ]
     },
@@ -1116,6 +1115,7 @@
         "chat-orchestration-main-chats.spec.ts",
         "design-embroidery-chat.spec.ts",
         "real-inference-events-question.spec.ts",
+        "real-inference-image-upload-svg.spec.ts",
         "skill-search-live-progress-chat.spec.ts",
         "teams-chat-collaboration-real.spec.ts",
         "vector-graphic-chat.spec.ts",
@@ -1355,7 +1355,6 @@
         "real-inference-focus-mode-video.spec.ts",
         "real-inference-gemini-chat.spec.ts",
         "real-inference-image-model.spec.ts",
-        "real-inference-image-upload-svg.spec.ts",
         "real-inference-memory-suggestions.spec.ts",
         "real-inference-life-compass-focus.spec.ts",
         "real-inference-press-release-project-memory.spec.ts",
@@ -2113,6 +2112,11 @@
       "dependency": "A recorded or allowlisted public-page path for event search in the keyed CI stack",
       "next_action": "Event search reads official event schedules and public web pages, which the keyed CI stack cannot reach (its egress allows only the four dev-only providers), and the skill ships default-off outside backend_config.yml. Run it against dev until the CI stack has a recorded public-page path.",
       "user_input_required": false
+    },
+    "real-inference-image-upload-svg.spec.ts": {
+      "dependency": "A dev-only key for the image-safety reasoner in the keyed CI stack",
+      "next_action": "Image generation checks every request with the image-safety reasoner before drawing; without its key the check fails closed and refuses, so the SVG card never appears. Run this spec against dev until the real-inference environment holds a dev-only key for that reasoner, then move it back to the real_inference group.",
+      "user_input_required": true
     }
   },
   "selfhost_recipe_targets": {
