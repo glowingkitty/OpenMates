@@ -108,6 +108,36 @@ async function sendSvgFileWithGemini(page: any, file: string, prompt: string, lo
 	await sendMessage(page, ` ${prompt}`, log, screenshot, 'embroidery', { preserveExistingContent: true });
 }
 
+/**
+ * The sent message keeps the uploaded file as a file card after the model mention: never a raw
+ * json embed reference block (TASK-1610: the mention used to be joined with a space, which pushed
+ * the embed reference into the middle of a line).
+ */
+async function expectUserMessageShowsFileNotRawReference(page: any, log: any, screenshot: any) {
+	const userMessage = page.getByTestId('message-user').last();
+	await expect(userMessage).toBeVisible({ timeout: 30_000 });
+	await expect(userMessage.locator('[data-testid="embed-preview"]').first()).toBeVisible({ timeout: 60_000 });
+	await expect(userMessage).not.toContainText('embed_id');
+	await expect(userMessage.locator('pre code')).toHaveCount(0);
+	log('user message shows the uploaded file as a card, no raw embed reference');
+	await screenshot(page, 'user-message-file-card', { fullPage: false });
+}
+
+/**
+ * While the conversion runs, the request card shows the needle skill icon, the uploaded graphic and
+ * the current step in plain words (TASK-1610).
+ */
+async function expectEmbroideryProgressCard(page: any, log: any, screenshot: any) {
+	const step = page.locator('[data-embroidery-stage]').last();
+	await expect(step).toBeVisible({ timeout: 120_000 });
+	const card = step.locator('xpath=ancestor::*[@data-testid="embed-preview"][1]');
+	await expect(card.locator('[data-skill-icon]').first()).toHaveAttribute('data-skill-icon', 'embroidery');
+	await expect(card.getByTestId('image-generate-request-input').locator('img').first()).toBeVisible({ timeout: 60_000 });
+	log(`progress step: ${await step.getAttribute('data-embroidery-stage')} (${(await step.textContent())?.trim()})`);
+	await card.scrollIntoViewIfNeeded();
+	await screenshot(page, 'embroidery-progress', { fullPage: false });
+}
+
 /** Check the finished result card, its opened view and both downloads; keep the ZIP in the test output. */
 async function expectEmbroideryResult(page: any, overlay: any, log: any, screenshot: any, testInfo: any) {
 	const preview = page.locator('[data-testid="design-embroidery-preview"][data-status="finished"]').last();
@@ -118,6 +148,10 @@ async function expectEmbroideryResult(page: any, overlay: any, log: any, screens
 
 	const image = card.getByTestId('design-embroidery-preview-image');
 	await expect(image).toBeVisible({ timeout: 60_000 });
+	// The title is the file's own name or a short design name, never a generic word like "source".
+	const title = ((await image.getAttribute('alt')) || '').trim();
+	expect(title).not.toMatch(/^(source|image|file|untitled|design|graphic|logo)$/i);
+	log(`result title: ${title}`);
 	await expect
 		.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth))
 		.toBeGreaterThan(0);
@@ -230,7 +264,7 @@ test('assistant turns a vector graphic into embroidery files that show and downl
 	}
 });
 
-// contract-test: direct surface=gui.web assertions=design-embroidery.request.vector-source,design-embroidery.prepare.sew-on-border,design-embroidery.result.view-and-download
+// contract-test: direct surface=gui.web assertions=design-embroidery.request.vector-source,design-embroidery.prepare.sew-on-border,design-embroidery.result.view-and-download,design-embroidery.progress.input-and-stages,design-embroidery.result.meaningful-title,chats.rendering.embed-references-never-raw
 test('assistant sews an uploaded SVG file with the requested hoop and border', async ({ page }, testInfo) => {
 	test.setTimeout(1_200_000);
 	test.skip(!SOURCE_SVG || !SOURCE_PROMPT, 'needs E2E_EMBROIDERY_SOURCE_SVG and E2E_EMBROIDERY_PROMPT');
@@ -245,6 +279,8 @@ test('assistant sews an uploaded SVG file with the requested hoop and border', a
 	const overlay = page.getByTestId('embed-fullscreen-overlay').last();
 	try {
 		await sendSvgFileWithGemini(page, SOURCE_SVG, SOURCE_PROMPT, log, screenshot);
+		await expectUserMessageShowsFileNotRawReference(page, log, screenshot);
+		await expectEmbroideryProgressCard(page, log, screenshot);
 		await expectEmbroideryResult(page, overlay, log, screenshot, testInfo);
 	} finally {
 		await cleanUp(page, overlay, log);

@@ -15,6 +15,16 @@ import XCTest
         XCTAssertEqual(c.prefix(selection: "host/family/model", text: "Hello"), "@ai-model:family/model:owner Hello")
         XCTAssertEqual(c.prefix(selection: "owner/family/model", text: "@best-model:fast Hello"), "@best-model:fast Hello")
     }
+    // TASK-1610: a model mention never shares a line with the uploaded file's embed fence.
+    // contract-test: direct surface=gui.apple assertions=chats.rendering.embed-references-never-raw
+    func testMentionBeforeUploadedFileKeepsEmbedFenceOnItsOwnLine() {
+        let c = catalog()
+        let fence = "```json\n{\"type\": \"image\", \"embed_id\": \"ea6cc310\"}\n```"
+        XCTAssertEqual(c.prefix(selection: "owner/family/model", text: fence + "\n\nTurn this into a patch"),
+                       "@ai-model:family/model:owner\n\n" + fence + "\n\nTurn this into a patch")
+        XCTAssertEqual(c.prefix(selection: "owner/family/model", text: "# Plan"), "@ai-model:family/model:owner\n\n# Plan")
+        XCTAssertEqual(c.prefix(selection: "owner/family/model", text: "#hashtag idea"), "@ai-model:family/model:owner #hashtag idea")
+    }
     // contract-test: supporting surface=gui.apple assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
     func testNoHealthyEnabledServerMakesSelectionUnavailable() {
         var c = catalog(); c.unhealthyServers = ["host"]

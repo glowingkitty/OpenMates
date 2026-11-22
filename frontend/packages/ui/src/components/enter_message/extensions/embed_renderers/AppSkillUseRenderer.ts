@@ -949,6 +949,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
               : embedData?.status || decodedContent?.status || attrs.status || "processing") as "processing" | "finished" | "error" | "cancelled",
             resultCount: typeof decodedContent?.result_count === "number" ? decodedContent.result_count : undefined,
             childEmbedIds: generatedMediaChildIds(decodedContent),
+            // The invocation's input graphics show on the card from the first frame (TASK-1610).
+            inputEmbedIds: Array.isArray(decodedContent?.input_embed_ids)
+              ? decodedContent.input_embed_ids.filter((value: unknown): value is string => typeof value === "string" && value.length > 0)
+              : [],
             error: typeof decodedContent?.error === "string" ? decodedContent.error : undefined,
             taskId: decodedContent?.skill_task_id || decodedContent?.task_id || "",
             onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),

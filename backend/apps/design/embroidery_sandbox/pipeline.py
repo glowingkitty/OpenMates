@@ -22,7 +22,7 @@ import zipfile
 from pathlib import Path
 
 from .border import BORDER_INDEX, apply_border
-from .geometry import Prepared, check, prepare
+from .geometry import Prepared, check, load_and_scale, prepare
 from .limits import (
     MAX_STITCHES, RESIZE_MAX_FIRST_RUN_SECONDS, RUN_LIMIT_SECONDS, Options, PipelineError,
     hoop_fit, hoop_fit_width, resized_width,
@@ -177,12 +177,14 @@ def run_convert(workdir: Path, options: Options, started: float) -> dict[str, ob
     timings["prepare"] = timings["inkstitch"] = 0.0
     for attempt in range(2):
         mark = time.monotonic()
-        prepared = prepare(svg_text, scan, width_mm, end_colour)
         if options.fit_hoop and not sized_to_hoop:
-            width_mm = hoop_fit_width(prepared.width_mm, prepared.height_mm,
+            # Only the proportions are needed to size the design to the hoop: skip the full
+            # preparation (overlap cutting, ordering) of the throw-away first size.
+            _, _, proportion_width, proportion_height = load_and_scale(svg_text, scan, width_mm)
+            width_mm = hoop_fit_width(proportion_width, proportion_height,
                                       2 * float(options.border_mm) if bordered else 0.0, options.hoop)
-            prepared = prepare(svg_text, scan, width_mm, end_colour)
             sized_to_hoop = True
+        prepared = prepare(svg_text, scan, width_mm, end_colour)
         if options.fit_hoop:
             prepared.notes.append({"code": "sized_to_hoop", "text": "Sized to fill the hoop"})
         if bordered:

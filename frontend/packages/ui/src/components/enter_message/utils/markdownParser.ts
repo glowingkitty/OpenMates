@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, no-case-declarations */
 // Markdown Parser for converting markdown text to TipTap JSON
 // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
+import { repairInlineEmbedFences } from "../../../message_parsing/embedFenceRepair";
 import MarkdownIt from "markdown-it";
 import { preserveUserBlankLines } from "../../../message_parsing/userReadSpacing";
 import { modelsMetadata } from "../../../data/modelsMetadata";
@@ -335,6 +336,12 @@ export function preprocessMarkdown(markdownText: string, preserveUserLineBreaks 
     /^(?:[^\S\n]*[^`\w\s][^\S\n]*|[ \t]+)(```json)\n([ \t]*\{[^\n]*"embed_id"[^\n]*\})\n[ \t]*(```)/gm,
     "$1\n$2\n$3",
   );
+
+  // 3. Preceded by inline text on the same line, e.g. a model mention that a
+  //    client prefixed with only a space: `@ai-model:x:y ```json`. Messages
+  //    sent that way before TASK-1610 still render their file as an embed:
+  //    the text stays, the fence moves to its own block.
+  markdownText = repairInlineEmbedFences(markdownText);
 
   // Fix LLM hallucination: writing both an https:// URL and a bare (embed:ref)
   // next to a markdown link. The LLM sometimes writes:

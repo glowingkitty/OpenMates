@@ -263,7 +263,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/design-embroidery
-    fingerprint: 9efb016b7fed1390ccbe4b126e9586590479a366f095e3fb078fe9aae69cf632
+    fingerprint: 59d85f9ffe81a7cca31c1f90a1a7def31907653a72307aa333772ffb78388afe
     required_applies_to:
     - cli
     - sdks.npm
@@ -724,7 +724,7 @@ specifications:
     version: 7
     status: approved
     path: features/chats
-    fingerprint: 2db25e484f35fa39044cdeb444f78f2337a48bdceb58a99d6e205912e672838c
+    fingerprint: acde42333d816918f90d81b3cba7f484daddd9fdbb972ca4e774dec38ea3a93a
     required_applies_to:
     - cli
     - gui.web
@@ -4811,7 +4811,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: behavior
-    fingerprint: 127d543aa047b44e1a8717a72b7ac5eb2e1ebad45b5638358fcb4c138d7015b8
+    fingerprint: 40a1b7f325b6c0a460b874e76629cd2ca91779bcdb9021b6d25364cefd6e6963
     required_applies_to:
     - cli
     - sdks.npm
@@ -4822,7 +4822,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: behavior
-    fingerprint: 033c9852750d67f733e13f0cb18da429e499bb84fb906e134a05507c4e5d9fcb
+    fingerprint: f3e88664e982b35bad0a57d8ad54bbee1eb559f532d4f5f072514c7de3f233aa
     required_applies_to:
     - cli
     - sdks.npm
@@ -4910,7 +4910,29 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: behavior
-    fingerprint: 39d433d4ff3c4cd8b65a374b6e8a5578c99bf43954571995492e0f4880b6f0b6
+    fingerprint: 7c7f7f209a9e4f2a00c68700653576f90c2a0e46fd526ae6ff1c4e1fa284c414
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.progress.input-and-stages:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: behavior
+    fingerprint: eb71e702a3f98538d930a837a4afbdfa9b99d43226dc66fcc842e8e4372d2da2
+    required_applies_to:
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  design-embroidery.result.meaningful-title:
+    specification: feature.app-skill.design-embroidery@1
+    specification_id: feature.app-skill.design-embroidery
+    type: behavior
+    fingerprint: 6fa23057157f690da1e79ff490fd7f7281574b05a50cbab934b81e66862950f1
     required_applies_to:
     - cli
     - sdks.npm
@@ -4943,7 +4965,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: parity
-    fingerprint: d12bcb7430b93cc02dfde7ef796b1ce5ffa986130570653a9bfa2131e09aa2da
+    fingerprint: df5a4a1c1959adf75a91af5001a1b85f5ef4dcafc7875835db4f0a8663abbfbd
     required_applies_to:
     - cli
     - sdks.npm
@@ -9902,11 +9924,20 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  chats.rendering.embed-references-never-raw:
+    specification: feature.chats@7
+    specification_id: feature.chats
+    type: behavior
+    fingerprint: 7e2fd0c8c284fab655c685d8dfb486ffbed4498972f2d5a55bd9c5a6e743b2a6
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
   chats.rendering.skill-card-call-order:
     specification: feature.chats@7
     specification_id: feature.chats
     type: behavior
-    fingerprint: 4cbe4a0fb37e7391ec1364fd59faee4e107a21110f13838159bae97f2a1f73a7
+    fingerprint: ea361e077dfef899e6cd6aa388a258df62a999493d6ead86cfedb64470054991
     required_applies_to:
     - cli
     - gui.web

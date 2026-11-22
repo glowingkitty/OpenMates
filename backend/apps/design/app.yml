@@ -379,6 +379,16 @@ skills:
           description: >
             Optional design wishes from the user for this conversion, e.g. "sew
             the outline as a thick satin border". Leave empty when there are none.
+        title:
+          x-ui:
+            basic: false
+          type: string
+          maxLength: 60
+          description: >
+            Short descriptive name for the design in the user's language, two to
+            four words that say what it shows, e.g. "Red tail patch". Shown as the
+            result title when the source file has no descriptive name. Never a
+            generic word like "source", "image" or "design".
       required:
         - source
   - id: get_design

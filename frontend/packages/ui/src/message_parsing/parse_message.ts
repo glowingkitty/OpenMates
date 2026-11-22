@@ -12,6 +12,7 @@ import { groupConsecutiveEmbedsInDocument } from "./embedGrouping";
 import { migrateEmbedNodes, needsMigration } from "./migration";
 import { resolveEmbedDisplayText } from "../utils/embedDisplayText";
 import { parseEmbedLinkTarget } from "../utils/embedFragmentUtils";
+import { repairInlineEmbedFences, reportRawEmbedReferences } from "./embedFenceRepair";
 import {
   resolveEmbedRefIndexReference,
 } from "../services/embedRefIndex";
@@ -1180,6 +1181,21 @@ export function parse_message(
   markdown: string,
   mode: "write" | "read",
   opts: ParseMessageOptions = {},
+): any {
+  const doc = parseMessageDocument(repairInlineEmbedFences(markdown), mode, opts);
+  // A user message that still shows a raw embed reference is a rendering
+  // defect nobody sees in error logs: report it (content-free) so the error
+  // monitoring picks it up (TASK-1610).
+  if (mode === "read" && opts.role === "user") {
+    reportRawEmbedReferences(doc, { role: "user", messageKey: String(markdown.length) + ":" + markdown.slice(-24) });
+  }
+  return doc;
+}
+
+function parseMessageDocument(
+  markdown: string,
+  mode: "write" | "read",
+  opts: ParseMessageOptions,
 ): any {
   if (mode === "read" && opts.role === "assistant") {
     markdown = stripVoiceDeliveryCues(markdown);

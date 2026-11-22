@@ -1,6 +1,7 @@
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.layout.responsive-history,
-//             chats.rendering.inline-entity-interaction
+//             chats.rendering.inline-entity-interaction,
+//             chats.rendering.skill-card-call-order
 // Specification: specifications/architecture/app-skill-execution/specification.yml
 // Assertions: app-skills.progress.live-status
 //
@@ -113,6 +114,8 @@ enum EmbedVisualSkillIcon {
         case "health-appointment": return "health"
         case "home-listing": return fullscreen ? "home" : "search"
         case "app:images:generate", "app:images:generate_draft", "app:images:modify", "app:music:generate": return "ai"
+        // design.embroidery has its own needle icon, never the AI sparkle (TASK-1610).
+        case "app:design:embroidery", "design-embroidery": return "embroidery"
         case "image", "images-image-result": return "image"
         case "jobs-job-result": return "jobs"
         case "app:mail:search", "mail-email": return "mail"

@@ -388,11 +388,22 @@ assertions:
   depends_on:
   - models.AssistantRenderDocument
   - examples.assistant_rendering
+- id: chats.rendering.embed-references-never-raw
+  type: behavior
+  must: A message never shows the raw reference of an embed (the JSON code block with an embed id) in place of the
+    embed. A file attached to a message renders as its normal embed on every client, also when the message starts
+    with a model mention or other text on the same line. When a client still finds a raw embed reference in a
+    rendered user message, it records one content-free error (no message text, no embed id) that reaches the
+    error monitoring like any client error.
+  depends_on:
+  - models.AssistantRenderDocument
+  - examples.assistant_rendering
 - id: chats.rendering.skill-card-call-order
   type: behavior
   must: Skill cards of different skills in one assistant message appear in call order, left to right, and the
     running or newest card is visible without scrolling the card row. Cards of one repeated skill keep the newest
-    first. An AI generation card uses the AI sparkle as its skill icon (the app icon is unchanged) and, while it
+    first. An AI generation card uses the AI sparkle as its skill icon (the app icon is unchanged), except a skill
+    with its own icon (the needle of design.embroidery), and, while it
     runs, shows a shortened prompt, the model, the input image thumbnail when one was given, and the vector draft
     as it streams. A View card shows the uploaded file it refers to.
   depends_on:

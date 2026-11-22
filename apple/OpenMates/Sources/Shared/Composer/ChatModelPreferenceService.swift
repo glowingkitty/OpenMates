@@ -43,7 +43,16 @@ struct ModelRoutingCatalog: Sendable {
     func prefix(selection: String, text: String) -> String {
         guard !text.contains("@ai-model:"), !text.contains("@best-model:"),
               let value = canonical(selection), value != "auto", let slash = value.firstIndex(of: "/") else { return text }
-        return "@ai-model:\(value[value.index(after: slash)...]):\(value[..<slash]) " + text
+        return "@ai-model:\(value[value.index(after: slash)...]):\(value[..<slash])"
+            + Self.mentionSeparator(before: text) + text
+    }
+    /// A blank line before block content (an uploaded file's embed fence, a
+    /// heading, list, quote or table), a space before plain text. A fence that
+    /// does not start its line renders as raw JSON (TASK-1610).
+    /// Web: frontend/packages/ui/src/components/enter_message/handlers/chatModelSendRouting.ts
+    static func mentionSeparator(before text: String) -> String {
+        let pattern = #"^[ \t]*(?:```|~~~|#{1,6}[ \t]|>|[-*+][ \t]|\d+[.)][ \t]|\|)"#
+        return text.range(of: pattern, options: .regularExpression) != nil ? "\n\n" : " "
     }
 }
 

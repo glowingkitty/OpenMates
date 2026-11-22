@@ -19,6 +19,9 @@ from backend.shared.python_utils.app_skill_helpers import execute_skill_via_cele
 logger = logging.getLogger(__name__)
 
 
+MAX_TITLE_ARG_CHARS = 60
+
+
 class EmbroiderySkill(BaseSkill):
     """Turn a vector graphic from the chat into embroidery machine files."""
 
@@ -32,6 +35,7 @@ class EmbroiderySkill(BaseSkill):
         border_mm: float | None = None,
         border_colour: str | None = None,
         fit_hoop: bool | None = None,
+        title: str | None = None,
         **kwargs: Any,
     ) -> dict[str, Any]:
         if not self.celery_producer:
@@ -64,6 +68,10 @@ class EmbroiderySkill(BaseSkill):
             "hoop": request.hoop,
             "fabric": request.fabric,
             "instructions": request.instructions,
+            # Short name the assistant gave the design; the result title prefers the
+            # source's own descriptive name (storage.result_title, TASK-1610).
+            **({"title": " ".join(title.split())[:MAX_TITLE_ARG_CHARS]}
+               if isinstance(title, str) and title.strip() else {}),
             **({"border_mm": request.border_mm, "border_colour": request.border_colour}
                if request.border_mm is not None else {}),
             **({"fit_hoop": True} if request.fit_hoop else {}),

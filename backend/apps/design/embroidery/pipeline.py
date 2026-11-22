@@ -14,9 +14,10 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 import httpx
 
@@ -30,6 +31,9 @@ from backend.apps.design.embroidery.content import (
     assistant_summary,
     build_failed_content,
     build_finished_content,
+)
+from backend.apps.design.embroidery.progress import (
+    STAGE_ADJUSTING, STAGE_CHECKING, STAGE_READING, STAGE_SAVING, STAGE_STITCHING, EmbroideryProgressPublisher,
 )
 from backend.apps.design.embroidery.request import parse_embroidery_request
 from backend.apps.design.embroidery.rework import (
@@ -64,6 +68,7 @@ logger = logging.getLogger(__name__)
 TEMPLATE_ENV = "E2B_EMBROIDERY_TEMPLATE"
 PUBLIC_API_BASE_URL = os.getenv("PUBLIC_API_BASE_URL", "https://api.dev.openmates.org")
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
+SANDBOX_LOG_METRICS = ("timings", "estimated_stitches", "render_dpi", "shapes_sewn")
 INCOMPLETE_FILES_MESSAGE = "The conversion did not produce every machine file, so no files are offered."
 
 
@@ -102,7 +107,8 @@ async def _assert_can_generate(task: Any, *, embed_id: str, chat_id: Any, messag
 
 async def _check_rework_convert(
     task: Any, *, request: Any, svg: str, options: Any, api_key: str, template: str,
-    keep_as_is: bool = False,
+    keep_as_is: bool = False, timings: dict[str, float] | None = None,
+    progress: Callable[[str], Awaitable[None]] | None = None,
 ) -> tuple[Any, Any, Any, float]:
     """Check, optionally rework with the model, convert; returns total billed sandbox seconds.
 
@@ -110,29 +116,66 @@ async def _check_rework_convert(
     convert. Otherwise the check session is closed before the model call so the sandbox is
     not billed while idle, and a second session converts the reworked graphic.
     ``keep_as_is`` (a file the user uploaded) never involves the model: the file is sewn as it is
-    and its findings are only named in the result.
+    and its findings are only named in the result. ``timings`` receives step seconds for the log.
+    ``progress`` is told each stage (``progress.STAGES``) before it starts.
     """
+    async def stage(name: str) -> None:
+        if progress is not None:
+            await progress(name)
+
     async def rework() -> Any:
         if keep_as_is:
             return ReworkOutcome(svg=svg, reworked=False)
+        await stage(STAGE_ADJUSTING)
         return await rework_for_embroidery(
             svg=svg, findings=check.findings, width_mm=request.width_mm,
             instructions=request.instructions, task_id=str(task.request.id),
             secrets_manager=task._secrets_manager,
         )
 
+    from backend.shared.providers.e2b_embroidery import EmbroideryCheck
+
+    timings = timings if timings is not None else {}
+    if keep_as_is:
+        # An uploaded file is sewn as it is; the conversion already reports its findings, so the
+        # separate check run is skipped. The check result is only used to name findings fixed by a
+        # rework, which never happens here.
+        started = time.monotonic()
+        async with open_embroidery_session(api_key=api_key, template=template) as only:
+            timings["sandbox_create"] = round(time.monotonic() - started, 1)
+            await stage(STAGE_STITCHING)
+            mark = time.monotonic()
+            run = await only.convert(svg, options)
+            timings["convert"] = round(time.monotonic() - mark, 1)
+        outcome = await rework()
+        check = EmbroideryCheck(findings=list(run.findings), colour_count=0, shape_count=0)
+        return check, outcome, run, float(only.sandbox_seconds)
+
+    started = time.monotonic()
     async with open_embroidery_session(api_key=api_key, template=template) as first:
+        timings["sandbox_create"] = round(time.monotonic() - started, 1)
+        await stage(STAGE_CHECKING)
+        mark = time.monotonic()
         check = await first.check(svg, options)
-        reworking = not keep_as_is and needs_rework(check.findings, request.instructions)
+        timings["check"] = round(time.monotonic() - mark, 1)
+        reworking = needs_rework(check.findings, request.instructions)
         if not reworking:
             outcome = await rework()
+            await stage(STAGE_STITCHING)
+            mark = time.monotonic()
             run = await first.convert(outcome.svg, options)
+            timings["convert"] = round(time.monotonic() - mark, 1)
     # sandbox_seconds is final only once the session has closed.
     if not reworking:
         return check, outcome, run, float(first.sandbox_seconds)
+    mark = time.monotonic()
     outcome = await rework()
+    timings["rework"] = round(time.monotonic() - mark, 1)
     async with open_embroidery_session(api_key=api_key, template=template) as second:
+        await stage(STAGE_STITCHING)
+        mark = time.monotonic()
         run = await second.convert(outcome.svg, options)
+        timings["convert"] = round(time.monotonic() - mark, 1)
     return check, outcome, run, float(first.sandbox_seconds) + float(second.sandbox_seconds)
 
 
@@ -163,6 +206,14 @@ async def run_embroidery(task: Any, app_id: str, skill_id: str, arguments: dict[
     s3_service = await initialize_task_storage(task)
     await require_storage_available(s3_service)
     embed_service = _embed_service(task)
+    progress = EmbroideryProgressPublisher(
+        embed_service, skill_id=skill_id, embed_id=embed_id, parent_embed_id=parent_embed_id, user_id=user_id,
+        chat_id=chat_id, message_id=message_id,
+        prompt=request.instructions or " ".join(str(arguments.get("title") or "").split()),
+        input_embed_ids=[source_embed_id], log_prefix=log_prefix,
+    )
+    # First update before any slow step: the card shows the input graphic and the stage at once.
+    await progress(STAGE_READING)
 
     async def publish(content: dict[str, Any]) -> None:
         await send_generated_media_child(
@@ -185,7 +236,8 @@ async def run_embroidery(task: Any, app_id: str, skill_id: str, arguments: dict[
 
     bucket_name = get_bucket_name("chatfiles", s3_service.environment)
     if not source_embed_id:
-        return await fail("invalid_source", INVALID_SOURCE_MESSAGE, result_title(source_ref))
+        return await fail("invalid_source", INVALID_SOURCE_MESSAGE, result_title(source_ref, arguments.get("title")))
+    run_started = time.monotonic()
     try:
         source = await resolve_vector_source_embed(
             embed_id=source_embed_id, user_id=user_id, user_vault_key_id=user_vault_key_id,
@@ -195,8 +247,9 @@ async def run_embroidery(task: Any, app_id: str, skill_id: str, arguments: dict[
         )
     except VectorSourceError as exc:
         logger.info("%s Source is not a readable vector graphic: %s", log_prefix, exc)
-        return await fail("invalid_source", INVALID_SOURCE_MESSAGE, result_title(source_ref))
-    title = result_title(source.label or source_ref)
+        return await fail("invalid_source", INVALID_SOURCE_MESSAGE, result_title(source_ref, arguments.get("title")))
+    title = result_title(source.label, source_ref, arguments.get("title"))
+    step_timings: dict[str, float] = {"source": round(time.monotonic() - run_started, 1)}
 
     template = os.getenv(TEMPLATE_ENV, "").strip() or EMBROIDERY_TEMPLATE_NAME
 
@@ -213,7 +266,7 @@ async def run_embroidery(task: Any, app_id: str, skill_id: str, arguments: dict[
     try:
         check, outcome, run, sandbox_seconds = await _check_rework_convert(
             task, request=request, svg=source.svg, options=options, api_key=api_key, template=template,
-            keep_as_is=source.origin == ORIGIN_UPLOADED,
+            keep_as_is=source.origin == ORIGIN_UPLOADED, timings=step_timings, progress=progress,
         )
     except EmbroideryError as exc:
         logger.info("%s Conversion failed with %s", log_prefix, exc.code)
@@ -224,9 +277,15 @@ async def run_embroidery(task: Any, app_id: str, skill_id: str, arguments: dict[
         logger.error("%s %s", log_prefix, exc)
         return await fail("sandbox_failed", INCOMPLETE_FILES_MESSAGE, title)
 
+    await progress(STAGE_SAVING)
+    store_started = time.monotonic()
     stored = await store_embroidery_files(
         s3_service=task._s3_service, user_id=user_id, embed_id=embed_id, title=title, files=files,
     )
+    step_timings["store"] = round(time.monotonic() - store_started, 1)
+    sandbox_metrics = {key: value for key, value in run.metrics.items() if key in SANDBOX_LOG_METRICS}
+    logger.info("%s Timings (s): %s; sandbox: %s; total %.1f s", log_prefix, step_timings, sandbox_metrics,
+                time.monotonic() - run_started)
     wrapped_key, _ = await task._encryption_service.encrypt_with_user_key(stored.aes_key_b64, user_vault_key_id)
     s3_base_url = f"https://{bucket_name}.{task._s3_service.base_domain}"
     indexed = bool(wrapped_key) and await index_generated_asset(

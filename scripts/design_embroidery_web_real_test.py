@@ -284,7 +284,9 @@ def main(spec: str = SPEC, title: str = "Design embroidery", doc: str | None = N
         grep = getattr(args, "grep", None)
         if source_svg is not None:
             # Inside the proof folder, which is copied into the remote run at the same path.
-            copied = out / "source.svg"
+            # Keeps the original file name: the result card is titled after it (TASK-1610).
+            copied = out / "upload" / source_svg.name
+            copied.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source_svg, copied)
             env.update(E2E_EMBROIDERY_SOURCE_SVG=str(copied), E2E_EMBROIDERY_PROMPT=args.prompt)
             grep = UPLOAD_TEST

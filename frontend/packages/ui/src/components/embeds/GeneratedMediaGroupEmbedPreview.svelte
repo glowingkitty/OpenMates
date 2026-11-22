@@ -1,4 +1,5 @@
-<!-- Skill-use parent card for one invocation with zero or more generated children. -->
+<!-- Skill-use parent card for one invocation with zero or more generated children.
+     design.embroidery: shows the input graphic and the current step from the start (TASK-1610). -->
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
   import { fade } from 'svelte/transition';
@@ -15,7 +16,8 @@
   import { EMPTY_IMAGE_MODIFY, isModifySkill, mergeImageModify, readImageModify, type ImageModifyState } from './images/imageDraft';
   import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
   import GeneratedMediaThumbnails from './GeneratedMediaThumbnails.svelte';
-  import { generatedMediaChildIds, isGeneratedMediaSkill } from './generatedMediaGroup';
+  import { generatedMediaChildIds, generatedMediaSkillIcon } from './generatedMediaGroup';
+  import { embroideryStageLabelKey, isEmbroiderySkill, readEmbroideryStage, type EmbroideryProgressStage } from './design/embroideryProgress';
   import { pinnedEmbedsOf } from '../../services/rustCore/embeds/messageEmbedVersion';
   import VideoSourceThumbnail from './videos/VideoSourceThumbnail.svelte';
   import { readVideoProgress, videoChangeText, videoStageText, type VideoAudioKind, type VideoChange, type VideoProgress, type VideoProgressStage } from './videos/videoGenerateCard';
@@ -32,6 +34,8 @@
     error?: string;
     /** Current step of a running videos.generate request (deciding, writing, rendering, correcting, generating). */
     progressStage?: VideoProgressStage;
+    /** Current step of a running design.embroidery request. */
+    embroideryStage?: EmbroideryProgressStage;
     /** 1-based round of the current videos.generate step. */
     progressAttempt?: number;
     progressAudio?: VideoAudioKind[];
@@ -52,7 +56,7 @@
   }
 
   let {
-    id, appId, skillId, status, resultCount, childEmbedIds = [], prompt: promptProp, error = '', progressStage, progressAttempt, progressAudio, change, sourceEmbedId,
+    id, appId, skillId, status, resultCount, childEmbedIds = [], prompt: promptProp, error = '', progressStage, embroideryStage: embroideryStageProp, progressAttempt, progressAudio, change, sourceEmbedId,
     model: modelProp, inputEmbedIds: inputEmbedIdsProp = [], svgDraft: svgDraftProp, draftStage: draftStageProp, taskId, isMobile = false, onFullscreen,
   }: Props = $props();
   // The card is mounted once; later status changes of the parent arrive as updates.
@@ -83,8 +87,14 @@
   const videoChangeLabel = $derived(appId === 'videos' ? videoChangeText(videoProgress.change, translate) : undefined);
   const videoSourceId = $derived(appId === 'videos' ? videoProgress.sourceEmbedId : undefined);
 
+  // design.embroidery names its current step (reading, checking, adjusting, stitching, saving).
+  const isEmbroidery = $derived(isEmbroiderySkill(appId, skillId));
+  let embroideryStage = $state<EmbroideryProgressStage | undefined>(untrack(() => embroideryStageProp));
+  const embroideryStageKey = $derived(isEmbroidery ? embroideryStageLabelKey(embroideryStage) : undefined);
+
   function readRequestFrame(frame: Record<string, unknown>) {
     request = readGenerationRequest(frame, request);
+    if (isEmbroidery) embroideryStage = readEmbroideryStage(frame, embroideryStage);
     svgDraftState = mergeSvgDraft(svgDraftState, readSvgDraft(frame));
     if (appId === 'images' && isModifySkill(skillId)) modifyState = mergeImageModify(modifyState, readImageModify(frame));
   }
@@ -127,7 +137,8 @@
   // draft has something to look at, the card shows the request instead.
   let svgDraftState = $state<SvgDraftState>(untrack(() => ({ draft: svgDraftProp ?? '', stage: draftStageProp, attempt: undefined })));
   const showSvgDraft = $derived(shownStatus === 'processing' && hasDrawableSvg(svgDraftState.draft));
-  const showRequest = $derived(shownStatus === 'processing' && !showSvgDraft && (!!prompt || !!videoStageLabel || !!videoChangeLabel));
+  const showRequest = $derived(shownStatus === 'processing' && !showSvgDraft && (!!prompt || !!videoStageLabel || !!videoChangeLabel
+    || (isEmbroidery && (!!embroideryStageKey || request.inputEmbedIds.length > 0))));
   const draftStageLabelKey = $derived(svgDraftStageLabelKey(svgDraftState.stage));
   const modelLabel = $derived(request.model ? imageGenerationAttribution(request.model) : undefined);
   const FADE_MS = 350;
@@ -147,7 +158,7 @@
 </script>
 
 <UnifiedEmbedPreview
-  {id} {appId} {skillId} skillIconName={isGeneratedMediaSkill(appId, skillId) ? 'ai' : appId}
+  {id} {appId} {skillId} skillIconName={generatedMediaSkillIcon(appId, skillId)}
   {status} {skillName} {taskId} {isMobile} {onFullscreen}
   onEmbedDataUpdated={handleUpdated}
   onStatusChanged={(next) => { liveStatus = next; }}
@@ -186,8 +197,9 @@
                 {#if videoChangeLabel}
                   <span class="request-change" data-testid="video-generate-request-change" data-change={videoProgress.change}>{videoChangeLabel}</span>
                 {/if}
-                <span class="request-model shimmer" data-testid="image-generate-request-model" data-video-stage={videoProgress.stage} data-video-audio-kinds={videoProgress.stage === 'audio' ? (videoProgress.audio ?? []).join(',') : undefined}>
+                <span class="request-model shimmer" data-testid="image-generate-request-model" data-video-stage={videoProgress.stage} data-embroidery-stage={embroideryStage} data-video-audio-kinds={videoProgress.stage === 'audio' ? (videoProgress.audio ?? []).join(',') : undefined}>
                   {draftStageLabelKey ? $text(draftStageLabelKey)
+                    : embroideryStageKey ? $text(embroideryStageKey)
                     : videoStageLabel ? videoStageLabel
                     : modelLabel ? `${$text('embeds.image_generate.generating_via')} ${modelLabel}` : skillName}
                 </span>

@@ -9,6 +9,15 @@ export function isGeneratedMediaSkill(appId: unknown, skillId: unknown): boolean
   );
 }
 
+/**
+ * Icon of a generation invocation card: the skill's own icon when it has one
+ * (design.embroidery: the needle, TASK-1610), else the generic AI sparkle.
+ */
+export function generatedMediaSkillIcon(appId: string, skillId: string): string {
+  if (!isGeneratedMediaSkill(appId, skillId)) return appId;
+  return appId === 'design' && skillId === 'embroidery' ? 'embroidery' : 'ai';
+}
+
 /** Distinguish a generation invocation from a historical single-asset embed. */
 export function isGeneratedMediaParent(
   appId: unknown,

@@ -17,9 +17,9 @@ summary:
       not_planned: 19
     apple:
       tested: 14
-      partial: 35
+      partial: 36
       failing: 5
-      implemented: 40
+      implemented: 39
       in_progress: 6
       planned: 7
       not_planned: 20
@@ -3069,7 +3069,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 31
+  assertions: 32
   surfaces:
     web:
       status: failing
@@ -3078,9 +3078,9 @@ features:
       assertions:
         passing: 10
         failing: 15
-        not_run: 4
+        not_run: 5
         missing: 2
-        counted: 31
+        counted: 32
       failing_tests:
       - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts › captures ${dimension.id} stable history manifest
       - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts › captures ${dimension.id} chat UI umbrella contract
@@ -3239,6 +3239,7 @@ features:
       - frontend/apps/web_app/tests/connection-status.spec.ts
       - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
       - frontend/apps/web_app/tests/deepseek-model-override.spec.ts
+      - frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
       - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
       - frontend/apps/web_app/tests/embed-canonical-replay.spec.ts
       - frontend/apps/web_app/tests/embed-catalog-hyphen-roundtrip.spec.ts
@@ -3288,17 +3289,17 @@ features:
       - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
       - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      unit_test_files: 157
+      unit_test_files: 159
     apple:
       status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 12
+        passing: 13
         failing: 4
         not_run: 0
         missing: 15
-        counted: 31
+        counted: 32
       failing_tests:
       - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift › testLegacyPreflightAcknowledgementPreservesSendWithoutRecoveryClaim
       - apple/OpenMatesTests/ChatCompletionRecoveryTests.swift › testSavedChatCommitsTheExactPreflightInferencePayload
@@ -3360,7 +3361,7 @@ features:
       - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
       - apple/OpenMatesTests/StreamingClientFanoutTests.swift
       - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
-      unit_test_files: 70
+      unit_test_files: 71
       platforms:
       - ios
       - ipados
@@ -3389,8 +3390,8 @@ features:
         passing: 1
         failing: 5
         not_run: 10
-        missing: 15
-        counted: 31
+        missing: 16
+        counted: 32
       failing_tests:
       - frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts › pair login, whoami, chats list, send/stream, cancel,
         follow-up, show, restart, TUI and logout
@@ -12003,7 +12004,7 @@ features:
     - app:design
     dev: enabled
     prod: enabled
-  assertions: 28
+  assertions: 30
   surfaces:
     web:
       status: partial
@@ -12012,36 +12013,38 @@ features:
       assertions:
         passing: 7
         failing: 0
-        not_run: 3
+        not_run: 5
         missing: 18
-        counted: 28
+        counted: 30
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
+      - frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts
       - frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts
       - frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
       key_unit_tests:
       - backend/tests/test_design_embroidery_skill.py
       - frontend/packages/ui/src/data/__tests__/designEmbroideryText.test.ts
       - backend/tests/test_generated_media_graph.py
+      - frontend/packages/ui/src/components/embeds/design/embroideryProgress.test.ts
       - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
-      - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
-      unit_test_files: 5
+      unit_test_files: 6
     apple:
-      status: implemented
-      source: intent
+      status: partial
+      source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 1
         failing: 0
         not_run: 0
-        missing: 14
-        counted: 14
+        missing: 15
+        counted: 16
       key_tests: []
       evidence: apple/OpenMates/Sources/Features/Embeds/Renderers/DesignEmbroideryEmbedRenderer.swift, app:design:search_icons
       e2e_tests: []
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - apple/OpenMatesTests/HostingEmbedModelTests.swift
+      unit_test_files: 1
       platforms:
       - ios
       - ipados
@@ -12054,8 +12057,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 28
-        counted: 28
+        missing: 30
+        counted: 30
       key_tests: []
       evidence: openmates apps design search_icons|export-icon
       e2e_tests: []
@@ -12081,16 +12084,16 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 21
+        passing: 23
         failing: 0
         not_run: 0
         missing: 7
-        counted: 28
+        counted: 30
       key_tests: []
       e2e_tests: []
       key_unit_tests:
-      - backend/tests/test_design_embroidery_skill.py
       - backend/tests/test_design_embroidery_task.py
+      - backend/tests/test_design_embroidery_skill.py
       - backend/tests/test_embroidery_geometry.py
       - backend/tests/test_figma_get_design_skill.py
       - backend/tests/test_embroidery_sandbox_rules.py
@@ -12103,8 +12106,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 28
-        counted: 28
+        missing: 30
+        counted: 30
       key_tests: []
       evidence: sdk.design facade (npm)
       e2e_tests: []
@@ -12118,8 +12121,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 28
-        counted: 28
+        missing: 30
+        counted: 30
       key_tests: []
       evidence: sdk.design facade (py)
       e2e_tests: []
