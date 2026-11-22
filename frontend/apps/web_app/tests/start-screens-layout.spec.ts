@@ -125,8 +125,7 @@ const SIGNED_IN_SCREENS: Screen[] = [...SCREENS, PROJECTS_SCREEN];
 const SUGGESTION_LAYOUTS: Record<string, { suggestions: string; composer: string }> = {
 	chats: { suggestions: 'start-screen-suggestions', composer: 'message-field' },
 	workflows: { suggestions: 'workflows-start-suggestions', composer: 'workflow-input-composer' },
-	projects: { suggestions: 'projects-start-suggestions', composer: 'project-input-composer' },
-	tasks: { suggestions: 'tasks-start-suggestions', composer: 'task-workspace-composer' }
+	projects: { suggestions: 'projects-start-suggestions', composer: 'project-input-composer' }
 };
 
 /**
@@ -135,7 +134,12 @@ const SUGGESTION_LAYOUTS: Record<string, { suggestions: string; composer: string
  */
 async function expectSuggestionsLayoutB(page: any, name: string, viewport: string) {
 	const ids = SUGGESTION_LAYOUTS[name];
-	if (!ids) return;
+	if (!ids) {
+		// Apps has no start-screen input; Tasks has no suggestions at all, nothing overlays its board (Marco, 22 Nov).
+		await expect(page.getByTestId(`${name}-start-suggestions`), `${name} shows no suggestions at ${viewport}`).toHaveCount(0);
+		await expect(page.getByTestId('follow-up-suggestion-item'), `${name} shows no suggestion lines at ${viewport}`).toHaveCount(0);
+		return;
+	}
 	const suggestions = page.getByTestId(ids.suggestions);
 	await expect(suggestions.getByTestId('follow-up-suggestion-item').first(), `${name} shows suggestions at ${viewport}`).toBeVisible({ timeout: 30000 });
 	let layout: any = null;

@@ -28,9 +28,13 @@
     guest: boolean;
     /** How many of the chats start as running (shown first, marked active). */
     activeCount?: number;
+    /** Puts a draft-only chat (label plus draft text) first in the row. */
+    draft?: boolean;
   };
 
-  let { ownCount, inspirationCount, showUpcoming, guest, activeCount = 0 }: Props = $props();
+  let { ownCount, inspirationCount, showUpcoming, guest, activeCount = 0, draft = false }: Props = $props();
+  // Same 120-character cut as ActiveChat; long enough to need the third line.
+  const DRAFT_TEXT = 'Can you help me plan a surprise birthday dinner for eight people next Saturday, with a vegetarian menu and a small budget?'.slice(0, 120);
 
   const CHATS: PreviewChat[] = [
     { id: 'chat-garden', title: 'Balcony herb garden plan', summary: 'Which herbs grow well together on a sunny balcony and how often to water them.', category: 'life_coach_psychology', icon: 'sprout', pinned: true },
@@ -87,6 +91,17 @@
 
 <div class="start-row-harness" data-testid="start-row-harness" data-last-activated={lastActivated}>
   <div class="harness-row start-row" data-testid="recent-chats-scroll-container">
+    {#if draft}
+      <div class="harness-slot">
+        <StartScreenChatCard
+          testId="start-row-draft-card"
+          title=""
+          preview={{ label: 'Draft', text: DRAFT_TEXT }}
+          gestures={null}
+          onActivate={() => (lastActivated = 'draft')}
+        />
+      </div>
+    {/if}
     {#each entries as entry (entry.item.key)}
       <div class="harness-slot" animate:startRowCardFlip={{ enabled: motionEnabled }} in:startRowCardIn={{ enabled: motionEnabled }}>
       {#if entry.kind === 'inspiration'}

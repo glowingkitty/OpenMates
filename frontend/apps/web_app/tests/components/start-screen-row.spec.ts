@@ -131,6 +131,26 @@ test.describe('start-screen row', () => {
     await attach(page, testInfo, 'desktop-1280-inspiration-without-image');
   });
 
+  // contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-cards
+  test('a draft card shows up to three lines of the draft text', async ({ page }, testInfo) => {
+    await openPreview(page, 390, 844, 'draftCard');
+    const card = page.getByTestId('start-row-draft-card');
+    await expect(card).toBeVisible();
+    const text = card.getByTestId('resume-large-title');
+    await expect(text).toContainText('surprise birthday dinner');
+    const metrics = await text.evaluate((node: Element) => {
+      const style = getComputedStyle(node);
+      const element = node as HTMLElement;
+      return { clamp: style.webkitLineClamp, lines: Math.round(element.clientHeight / parseFloat(style.lineHeight)), cut: element.scrollHeight > element.clientHeight + 1 };
+    });
+    // Marco, 22 Nov: two lines wasted the card; the long draft fills three lines, then the ellipsis.
+    expect(metrics).toEqual({ clamp: '3', lines: 3, cut: true });
+    await testInfo.attach('phone-390-draft-card-3-lines', { body: await card.screenshot(), contentType: 'image/png' });
+    // Same card with the old two-line limit, for the before/after comparison.
+    await text.evaluate((node: Element) => { (node as HTMLElement).style.setProperty('-webkit-line-clamp', '2'); (node as HTMLElement).style.setProperty('line-clamp', '2'); });
+    await testInfo.attach('phone-390-draft-card-2-lines-before', { body: await card.screenshot(), contentType: 'image/png' });
+  });
+
   // contract-test: direct surface=gui.web assertions=daily-inspiration.start-row-actions,daily-inspiration.start-row-suggestions
   for (const viewport of [
     { name: 'phone-390', width: 390, height: 844 },

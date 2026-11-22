@@ -6,7 +6,6 @@
 
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { text } from '@repo/ui';
   import TaskBoard from './TaskBoard.svelte';
   import TaskDetailFullscreen from './TaskDetailFullscreen.svelte';
   import WorkflowRunTaskDetail from './WorkflowRunTaskDetail.svelte';
@@ -947,7 +946,6 @@
           heading={`Hey ${greetingName}!`}
           subtitle="What task is next?"
           showReportIssue
-          startSuggestions={{ items: [1, 2, 3].map((index) => $text(`tasks.home.suggestion_${index}`)), onClick: (suggestion) => { taskPromptValue = suggestion; taskComposerFocused = true; } }}
         >
       <svelte:fragment slot="top-right">
         <div class="task-workspace-toolbar">

@@ -165,11 +165,8 @@
   /** Surfaces that show no daily inspirations at all (no banner, none in a row). */
   const NO_INSPIRATION_SURFACES: ReadonlySet<WorkspaceSurface> = new Set(['tasks']);
   let isStartScreen = $derived(START_SCREEN_SURFACES.has(surface));
-  /** Tasks keeps its board in the content slot, so its suggestions sit between the board and the input. */
-  const SUGGESTIONS_WITH_CONTENT_SURFACES: ReadonlySet<WorkspaceSurface> = new Set(['tasks']);
   let showStartSuggestions = $derived(
-    (isStartScreen ? !contentSlotVisible : SUGGESTIONS_WITH_CONTENT_SURFACES.has(surface))
-      && !showAllMode && !composerFocused && (startSuggestions?.items.length ?? 0) > 0
+    isStartScreen && !contentSlotVisible && !showAllMode && !composerFocused && (startSuggestions?.items.length ?? 0) > 0
   );
   let showsBanner = $derived(!isStartScreen && !NO_INSPIRATION_SURFACES.has(surface));
   let isTallViewport = $derived(isStartScreen || hasRoomForLargeContinueCards(containerWidth, availableCardHeight));

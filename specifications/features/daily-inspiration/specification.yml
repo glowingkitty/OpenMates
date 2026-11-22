@@ -348,7 +348,8 @@ assertions:
     inspiration card is the same chat card as the user's own chats (category gradient, icon, title and
     summary) with a small "Daily inspiration" label; it never shows a video or article image as its
     background. Activating it opens the inspiration as an unsaved chat preview, and it reports itself as
-    viewed once at least half of it is visible.
+    viewed once at least half of it is visible. A draft-only chat card shows the "Draft" label and up to
+    three lines of the draft text before cutting it with an ellipsis.
   depends_on:
   - models.StartRow
   - examples.start_row
@@ -378,11 +379,11 @@ assertions:
   - examples.start_row
 - id: daily-inspiration.start-suggestions-layout
   type: behavior
-  must: On the Chats, Workflows, Projects and Tasks screens the suggestions sit directly above the input
-    as one block exactly as wide as the input, centred on it, with every line starting at the same left
-    edge (Marco's layout B, 22 Nov; the right-aligned layout is gone). Projects suggests names for a new
-    project and Tasks suggests tasks; tapping one puts it into that input. Apps has no input on its start
-    screen and shows no suggestions.
+  must: On the Chats, Workflows and Projects screens the suggestions sit directly above the input as one
+    block exactly as wide as the input, centred on it, with every line starting at the same left edge
+    (Marco's layout B, 22 Nov; the right-aligned layout is gone). Projects suggests names for a new
+    project; tapping one puts it into that input. Apps has no input on its start screen and Tasks shows
+    no suggestions at all, so nothing overlays its board.
   depends_on:
   - models.StartRow
   - examples.start_row

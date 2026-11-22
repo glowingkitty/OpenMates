@@ -27323,17 +27323,6 @@
       "add_check": {
         "text": "Prüfung hinzufügen"
       }
-    },
-    "home": {
-      "suggestion_1": {
-        "text": "Morgen um 10 Uhr den Zahnarzt anrufen"
-      },
-      "suggestion_2": {
-        "text": "Folien für das Meeting am Montag vorbereiten"
-      },
-      "suggestion_3": {
-        "text": "Steuererklärung auf nächste Woche verschieben"
-      }
     }
   },
   "team_mates": {

@@ -12,4 +12,5 @@ export const variants = {
   plainInspirations: { ownCount: 4, inspirationCount: 3, showUpcoming: true, guest: false },
   guest: { ownCount: 6, inspirationCount: 3, showUpcoming: true, guest: true },
   activeChats: { ownCount: 6, inspirationCount: 3, showUpcoming: false, guest: false, activeCount: 2 },
+  draftCard: { ownCount: 2, inspirationCount: 0, showUpcoming: false, guest: false, draft: true },
 };

@@ -189,7 +189,7 @@
     {/if}
     {#if preview}
       <span class="start-card-preview-label">{preview.label}</span>
-      <span class="resume-large-title" data-testid="resume-large-title">{preview.text}</span>
+      <span class="resume-large-title start-card-preview-text" data-testid="resume-large-title">{preview.text}</span>
     {:else}
       {#if IconComponent}
         <div class="resume-large-icon" data-testid="start-card-icon"><IconComponent size={32} color="white" /></div>
@@ -344,6 +344,12 @@
     text-align: center;
     line-height: 1.3;
     max-width: 100%;
+  }
+
+  /* Draft text gets a third line (Marco, 22 Nov): two lines wasted the card. */
+  .resume-large-title.start-card-preview-text {
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
   }
 
   .start-card-preview-label {
