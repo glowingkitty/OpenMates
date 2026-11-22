@@ -34,6 +34,9 @@ when a skill or this file points to it.
    --message "why + verification"`. Scoped dev deploys are authorized for
    assigned implementation work. Never run raw `git commit/push/stash`,
    create branches (only `dev` and `main` exist) or rewrite history.
+   An owner deploy freeze (`python3 scripts/deploy_freeze.py status`) refuses
+   every deploy and push to dev until he clears it; keep work committed in the
+   worktree or parked meanwhile and never ask him to lift it.
    "Done" means committed, tested and deployed to dev; a chat never ends its
    work with uncommitted changes. Work that must wait (e.g. on an owner answer)
    is parked: note what remains in its Task and run `python3

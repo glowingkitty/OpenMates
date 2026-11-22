@@ -13002,6 +13002,11 @@ def _auto_fast_forward_worktree_for_deploy(sid: str, args: argparse.Namespace, w
 
 def cmd_deploy(args: argparse.Namespace) -> None:
     """Execute deployment: lint, git add, commit, push."""
+    try:  # a dev deploy freeze set by the owner refuses every deploy first (scripts/deploy_freeze.py)
+        from scripts import deploy_freeze
+    except ModuleNotFoundError:
+        import deploy_freeze
+    deploy_freeze.refuse_if_frozen()
     data = _load_sessions()
     sid = args.session
 
