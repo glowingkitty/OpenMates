@@ -16109,8 +16109,8 @@ features:
       assertions:
         passing: 21
         failing: 14
-        not_run: 11
-        missing: 29
+        not_run: 12
+        missing: 28
         counted: 75
       failing_tests:
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_mixed_project_and_web_batch_defers_web_until_file_result
@@ -16167,7 +16167,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/projectReadme.test.ts
       - backend/tests/test_project_file_references.py
       - backend/tests/test_project_focus_early_routing.py
-      unit_test_files: 37
+      unit_test_files: 38
     apple:
       status: failing
       source: tests
@@ -16928,8 +16928,8 @@ features:
         assertions:
           passing: 3
           failing: 0
-          not_run: 0
-          missing: 7
+          not_run: 1
+          missing: 6
           counted: 10
       apple:
         status: partial

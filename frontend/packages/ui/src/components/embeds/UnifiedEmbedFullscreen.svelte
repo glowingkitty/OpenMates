@@ -34,6 +34,11 @@
   import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
   const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
   const sourceChatId = sourceChatContext?.exampleChatId ?? sourceChatContext?.lookupChatId ?? sourceChatContext?.chatId ?? null;
+  import { get } from 'svelte/store';
+  import { activeChatStore } from '../../stores/activeChatStore';
+  import { chatSelectionClosesFullscreen, fullscreenOwnerChatId } from './fullscreenChatOwner';
+  // A same-chat announcement (e.g. after a page load) must not close this view.
+  const activeChatIdAtOpen = get(activeChatStore);
   import { onMount, onDestroy, tick, getContext } from 'svelte';
   import { EMBED_CHAT_CONTEXT, EMBED_FULLSCREEN_LIFETIME_CONTEXT, type EmbedChatContext, type EmbedFullscreenLifetimeContext } from '../../types/embedFullscreen';
   import { panelState } from '../../stores/panelStateStore';
@@ -1006,7 +1011,7 @@
     if (!closeOnChatSelection || isDestroyed) return;
     const detail = (event as CustomEvent<{ chatId?: unknown; chat?: { chat_id?: unknown } }>).detail;
     const selectedId = detail?.chatId ?? detail?.chat?.chat_id;
-    if (owningChatId && selectedId === owningChatId) return;
+    if (!chatSelectionClosesFullscreen(selectedId, fullscreenOwnerChatId(owningChatId, activeChatIdAtOpen, sourceChatId))) return;
     console.debug('[UnifiedEmbedFullscreen] Chat selected, closing fullscreen');
     onClose(); // Close immediately without animation for smoother UX
   }
