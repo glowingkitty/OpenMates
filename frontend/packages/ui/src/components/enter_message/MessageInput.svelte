@@ -2457,8 +2457,10 @@
             // A preview that outran its budget while the model is still downloading
             // is not "unavailable": the download continues, the draft is rechecked when
             // it finishes and a send waits for the model. Only a failed or stalled
-            // model gets the notice.
-            const unavailable = state.status === 'error' || (!!state.fallbackReason && state.status !== 'loading');
+            // model gets the notice. A 'partial' preview is a working but slow model
+            // whose remaining scan finishes in the background, so it gets none either.
+            const stalled = state.fallbackReason === 'timeout' || state.fallbackReason === 'size';
+            const unavailable = state.status === 'error' || (stalled && state.status !== 'loading');
             if (!unavailable || !cachedPIISettings?.masterEnabled
                 || !isWebPIIModelEnabled() || !claimWebPIIFallbackNotice()) return;
             notificationStore.addNotificationWithOptions('info', {

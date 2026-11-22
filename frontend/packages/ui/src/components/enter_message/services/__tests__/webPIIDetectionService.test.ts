@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
-import { createWebPIIDocumentScanContext, createWebPIIScanContext, WEB_PII_DOCUMENT_BUDGET_MS, WEB_PII_MAX_ENHANCED_CHARS, WEB_PII_SCAN_BUDGET_MS, detectPIIForWeb, isWebPIIModelSupported, isWebPIIModelEnabled, preloadWebPIIDetector, resetWebPIIDetector, webPIIDetectorState } from '../webPIIDetectionService';
+import { createWebPIIDocumentScanContext, createWebPIIScanContext, WEB_PII_DOCUMENT_BUDGET_MS, WEB_PII_MAX_ENHANCED_CHARS, WEB_PII_PREVIEW_STALL_MS, WEB_PII_SCAN_BUDGET_MS, detectPIIForWeb, isWebPIIModelSupported, isWebPIIModelEnabled, preloadWebPIIDetector, resetWebPIIDetector, webPIIDetectorState } from '../webPIIDetectionService';
 import * as basicDetector from '../piiDetectionService';
 import { buildWebPIIWindows } from '../webPIIWindows';
 
@@ -347,9 +347,54 @@ describe('browser PII runtime lifecycle', () => {
     const worker = FakeWorker.workers[0];
     await tick(); worker.respond(0); await tick();
     vi.setSystemTime(Date.now() + WEB_PII_SCAN_BUDGET_MS + 1);
+    const revisionBefore = get(webPIIDetectorState).enhancedRevision;
     worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Amina', start: 0, end: 5, confidence: 1 }] });
     await expect(scan).resolves.toEqual(basicDetector.detectPII('Amina anna@example.com'));
+    // The model answered late, so it works: no 'unavailable' notice, and the late answer
+    // reaches the composer's next check of the same text through the background result.
+    expect(get(webPIIDetectorState).fallbackReason).toBe('partial');
+    await tick(); await tick();
+    expect(get(webPIIDetectorState).enhancedRevision).toBe((revisionBefore ?? 0) + 1);
+    const again = await detectPIIForWeb('Amina anna@example.com', {}, { purpose: 'preview' });
+    expect(again.map(match => match.match)).toEqual(['Amina', 'anna@example.com']);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.web.local-bounded-inference
+  it('marks a preview inference that stays silent past the stall limit as timed out', async () => {
+    vi.useFakeTimers();
+    const preview = detectPIIForWeb('Jonas Albrecht', {}, { purpose: 'preview' });
+    const worker = FakeWorker.workers[0];
+    await tick(); worker.respond(0); await tick();
+    await vi.advanceTimersByTimeAsync(WEB_PII_SCAN_BUDGET_MS);
+    await expect(preview).resolves.toEqual(basicDetector.detectPII('Jonas Albrecht'));
+    expect(get(webPIIDetectorState).fallbackReason).toBe('partial');
+    await vi.advanceTimersByTimeAsync(WEB_PII_PREVIEW_STALL_MS);
     expect(get(webPIIDetectorState).fallbackReason).toBe('timeout');
+    expect(worker.terminated).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference
+  it('a preview whose first window outlasts the budget on a loaded CPU-only model shows no unavailable notice and finishes later', async () => {
+    vi.useFakeTimers();
+    const text = 'My name is Lena Hoffmann, write to lena@example.org';
+    const at = text.indexOf('Lena');
+    const preview = detectPIIForWeb(text, {}, { purpose: 'preview' });
+    const worker = FakeWorker.workers[0];
+    await tick(); worker.respond(0); await tick();
+    // The first inference after load runs past the 2.5 s preview budget: the timer fires mid-inference.
+    await vi.advanceTimersByTimeAsync(WEB_PII_SCAN_BUDGET_MS);
+    await expect(preview).resolves.toEqual(basicDetector.detectPII(text));
+    expect(get(webPIIDetectorState)).toMatchObject({ status: 'ready', fallbackReason: 'partial' });
+    const revisionBefore = get(webPIIDetectorState).enhancedRevision;
+    worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Lena', start: at, end: at + 4, confidence: 1 },
+      { label: 'SURNAME', original: 'Hoffmann', start: at + 5, end: at + 13, confidence: 1 }] });
+    await tick(); await tick(); await tick();
+    expect(get(webPIIDetectorState).enhancedRevision).toBe((revisionBefore ?? 0) + 1);
+    await vi.advanceTimersByTimeAsync(WEB_PII_PREVIEW_STALL_MS);
+    expect(get(webPIIDetectorState).fallbackReason).toBe('partial');
+    const again = await detectPIIForWeb(text, {}, { purpose: 'preview' });
+    expect(again.some(match => match.type === 'PERSON_NAME' && match.match.includes('Lena'))).toBe(true);
+    expect(worker.terminated).toBe(false);
   });
 
 

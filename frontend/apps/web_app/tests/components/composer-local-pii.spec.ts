@@ -331,7 +331,10 @@ test.describe('Local PII composer integration', () => {
   // A deliberately nonresponsive worker verifies the latency guard; the case
   // above independently verifies actual model inference and warm recovery.
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
-  test('falls back within the scan budget when inference stalls, using one normal notification', async ({ page, context }) => {
+  // A loaded model that misses the 2.5 s preview budget is only slow (CPU-only
+  // browsers); it counts as stalled once it stays silent past the stall limit
+  // (WEB_PII_PREVIEW_STALL_MS, 10 s), and only then the notice appears.
+  test('falls back when inference stalls, using one normal notification', async ({ page, context }) => {
     await context.route('**/pii-runtime/redact-4.1.0-litert-2.6.0/worker.js', route => route.fulfill({
       contentType: 'application/javascript',
       body: "self.onmessage = ({data}) => { if (data.kind === 'load') self.postMessage({id: data.id, items: []}); };",
@@ -341,13 +344,35 @@ test.describe('Local PII composer integration', () => {
     const highlights = page.getByTestId('pii-highlight');
     await expect(highlights.filter({ hasText: 'protected.reference@example.net' })).toHaveAttribute('data-pii-type', 'EMAIL');
     const notice = page.getByTestId('notification').filter({ hasText: FALLBACK_NOTICE });
-    await expect(notice).toBeVisible({ timeout: 4000 });
+    await expect(notice).toBeVisible({ timeout: 16000 });
     await expect(notice).toHaveCount(1);
     await expect(highlights.filter({ hasText: /Nadia|Rahman/ })).toHaveCount(0);
     await expect(page.getByTestId('pii-model-status')).toHaveCount(0);
     await fillDraft(editor, 'Reply to protected.reference@example.net. New draft after fallback.');
     await expect(highlights.filter({ hasText: 'protected.reference@example.net' })).toHaveAttribute('data-pii-type', 'EMAIL');
     await expect(notice).toHaveCount(1);
+  });
+
+  // A CPU-only browser: the loaded model needs longer than the 2.5 s preview budget
+  // for its first window but answers. No notice; the name is highlighted once it does.
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference
+  test('shows no fallback notice when a loaded model answers after the preview budget', async ({ page, context }, testInfo) => {
+    await context.route('**/pii-runtime/redact-4.1.0-litert-2.6.0/worker.js', route => route.fulfill({
+      contentType: 'application/javascript',
+      body: "self.onmessage = ({data}) => { if (data.kind === 'load') { self.postMessage({id: data.id, items: []}); return; } "
+        + "const at = (data.text || '').indexOf('Nadia'); const items = at < 0 ? [] : [{label: 'GIVEN_NAME', original: 'Nadia', start: at, end: at + 5, confidence: 1}]; "
+        + "setTimeout(() => self.postMessage({id: data.id, items}), 5000); };",
+    }));
+    const editor = await openComposer(page);
+    await fillDraft(editor, 'Our customer Nadia Rahman needs help. Reply to protected.reference@example.net.');
+    const highlights = page.getByTestId('pii-highlight');
+    await expect(highlights.filter({ hasText: 'protected.reference@example.net' })).toHaveAttribute('data-pii-type', 'EMAIL');
+    await expect(highlights.filter({ hasText: /Nadia/ })).toHaveAttribute('data-pii-type', 'PERSON_NAME', { timeout: 15000 });
+    const notice = page.getByTestId('notification').filter({ hasText: FALLBACK_NOTICE });
+    // Past the stall limit too: the model answered, so it never counts as stalled.
+    await page.waitForTimeout(9000);
+    await expect(notice).toHaveCount(0);
+    await testInfo.attach('slow-inference-no-notice', { body: await page.screenshot(), contentType: 'image/png' });
   });
 
   // A first visit downloads the model for longer than one preview budget. That

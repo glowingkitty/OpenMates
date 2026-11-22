@@ -11,6 +11,11 @@ export const WEB_PII_ASSET_BASE = '/pii-runtime/redact-4.1.0-litert-2.6.0/';
 // highlights. A send never uses it: the message waits for the model and is not
 // sent when the model fails (owner decision 2026-11-20, TASK-6594).
 export const WEB_PII_SCAN_BUDGET_MS = 2_500;
+// A preview that ran out of its budget while the loaded model was still inferring
+// is only slow (CPU-only browsers need several seconds for the first window). It
+// counts as stalled, with the "unavailable" notice, only when the model then stays
+// silent for this long.
+export const WEB_PII_PREVIEW_STALL_MS = 10_000;
 // The SDK uses 256-token windows. Keep enhancement limited to short inputs;
 // 2,048 UTF-16 code units is roughly two windows of typical prose, not a token
 // guarantee. Token-dense text is additionally bounded by the shared deadline.
@@ -112,10 +117,23 @@ function getWorker(): Worker {
     const item = pending.get(data.id);
     if (!item) return;
     clearTimeout(item.timer); pending.delete(data.id);
+    lastAnswerAt = Date.now();
     if (data.error) { item.reject(new Error('Enhanced private data detection is unavailable. Basic protection remains active.')); failWorker(workerGeneration); }
     else item.resolve(data.items ?? []);
   };
   return worker;
+}
+
+// Time of the worker's latest answer; tells a slow preview inference from a stalled one.
+let lastAnswerAt = 0;
+
+/** Marks the model stalled when an inference still in flight stays unanswered past the stall limit. */
+function watchPreviewStall(watchGeneration: number): void {
+  const armedAt = Date.now();
+  setTimeout(() => {
+    if (watchGeneration !== generation || lastAnswerAt >= armedAt || pending.size === 0) return;
+    state.set({ ...get(state), fallbackReason: 'timeout' });
+  }, WEB_PII_PREVIEW_STALL_MS);
 }
 
 function request(kind: 'load' | 'scan', text?: string): Promise<WebPIIEntity[]> {
@@ -151,9 +169,9 @@ export async function preloadWebPIIDetector(): Promise<void> {
 
 interface Scan { text: string; options: PIIDetectionOptions; purpose: 'preview' | 'send' | 'document'; deadline: number; phase: 'queued' | 'loading' | 'inference' | 'done'; resolve: (matches: PIIMatch[]) => void; reject: (error: Error) => void }
 function isScanDone(scan: Scan): boolean { return scan.phase === 'done'; }
-function expireScan(scan: Scan): boolean {
+function expireScan(scan: Scan, reason: 'timeout' | 'partial' = 'timeout'): boolean {
   if (Date.now() < scan.deadline) return false;
-  state.set({ ...get(state), fallbackReason: 'timeout' });
+  state.set({ ...get(state), fallbackReason: reason });
   scan.reject(new WebPIIBudgetError());
   return true;
 }
@@ -165,26 +183,34 @@ function expireScan(scan: Scan): boolean {
  * entities of the finished windows instead of losing the whole enhanced scan
  * (and its loaded model) to the deadline timer.
  */
-async function scanWindows(scan: Scan, scanGeneration: number): Promise<{ entities: WebPIIEntity[]; windowsDone: number }> {
+async function scanWindows(scan: Scan, scanGeneration: number): Promise<{ entities: WebPIIEntity[]; windowsDone: number; continued: boolean }> {
   const windows = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
     ? await (await import('./rustComposerPII')).rustBuildWebPIIWindows(scan.text)
     : buildWebPIIWindows(scan.text);
   const found: WebPIIEntity[] = [];
   let slowestMs = 0;
   let windowsDone = 0;
+  let continued = false;
   for (const window of windows) {
     if (windowsDone > 0 && Date.now() + slowestMs * 1.25 >= scan.deadline) {
       state.set({ ...get(state), fallbackReason: 'partial' });
-      if (scan.purpose === 'preview') void continueInBackground(scan.text, windows.slice(windowsDone), found, scanGeneration);
+      if (scan.purpose === 'preview') { continued = true; void continueInBackground(scan.text, windows.slice(windowsDone), found, scanGeneration); }
       break;
     }
     const startedAt = Date.now();
     const items = await request('scan', scan.text.slice(window.start, window.end));
     if (scanGeneration !== generation) break;
     if (Date.now() >= scan.deadline) {
-      if (windowsDone > 0) {
+      if (windowsDone === 0 && scan.purpose === 'preview') {
+        // The model answered, only after the preview budget (a slow first inference
+        // without WebGPU). This preview keeps its basic result; the answer and the
+        // remaining windows finish in the background like a 'partial' preview.
+        const late = items.map(item => ({ ...item, start: item.start + window.start, end: item.end + window.start }));
+        continued = true;
+        void continueInBackground(scan.text, windows.slice(1), late, scanGeneration);
+      } else if (windowsDone > 0) {
         state.set({ ...get(state), fallbackReason: 'partial' });
-        if (scan.purpose === 'preview') void continueInBackground(scan.text, windows.slice(windowsDone), found, scanGeneration);
+        if (scan.purpose === 'preview') { continued = true; void continueInBackground(scan.text, windows.slice(windowsDone), found, scanGeneration); }
       }
       break;
     }
@@ -195,7 +221,7 @@ async function scanWindows(scan: Scan, scanGeneration: number): Promise<{ entiti
   const entities = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
     ? await (await import('./rustComposerPII')).rustMergeWebPIIWindowEntities(found)
     : mergeWebPIIWindowEntities(found);
-  return { entities, windowsDone };
+  return { entities, windowsDone, continued };
 }
 
 /** Entities of a partly or fully scanned preview text; reused when the composer rechecks the same text. */
@@ -249,10 +275,11 @@ async function drain(): Promise<void> {
         if (scanGeneration !== generation) throw new Error('Private data detection was reset');
         if (expireScan(scan)) continue;
         scan.phase = 'inference';
-        const { entities, windowsDone } = await scanWindows(scan, scanGeneration);
+        const { entities, windowsDone, continued } = await scanWindows(scan, scanGeneration);
         if (scanGeneration !== generation) throw new Error('Private data detection was reset');
-        // Nothing arrived in time: same fallback as before. Otherwise keep the finished windows.
-        if (windowsDone === 0 && expireScan(scan)) continue;
+        // Nothing arrived in time: basic result for this scan. A preview whose late answer
+        // continues in the background is 'partial' (the model works), not 'timeout'.
+        if (windowsDone === 0 && expireScan(scan, continued ? 'partial' : 'timeout')) continue;
         scan.resolve(import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
           ? await (await import('./rustComposerPII')).rustMergeWebPIIMatches(scan.text, entities, scan.options)
           : mergeWebPIIMatches(scan.text, entities, scan.options));
@@ -343,7 +370,12 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
         else {
           const index = queue.indexOf(scan);
           if (index !== -1) queue.splice(index, 1);
-          state.set({ ...get(state), fallbackReason: 'timeout' });
+          // A preview already running on a loaded model is only slow (CPU inference):
+          // its answer still arrives and finishes in the background, so no 'unavailable'
+          // notice unless the model then stays silent past the stall limit.
+          const slowInference = scan.phase === 'inference' && purpose === 'preview';
+          state.set({ ...get(state), fallbackReason: slowInference ? 'partial' : 'timeout' });
+          if (slowInference) watchPreviewStall(operationGeneration);
         }
         scan.reject(new WebPIIBudgetError());
       }, remaining) : undefined;
