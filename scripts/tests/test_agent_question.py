@@ -47,10 +47,42 @@ def test_done_dry_run_format(root, monkeypatch):
     monkeypatch.setenv("CLAUDE_CHAT_TITLE", "Billing fix")
     text = aq.send(done_args(), root, "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
     assert text == "✅ Billing fix: Billing retries ship on dev; the E2E is green."
-    paused = aq.send(done_args(summary="Parked until the owner's answer", paused_until="2026-11-24"), root,
+    paused = aq.send(done_args(summary="Parked until the provider quota resets", paused_until="2026-11-24"), root,
                      "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
-    assert paused == "✅ Billing fix: Parked until the owner's answer. Paused until 2026-11-24."
+    assert paused == "✅ Billing fix: Parked until the provider quota resets. Paused until 2026-11-24."
     assert not (root / "logs").exists()
+
+
+@pytest.mark.parametrize("summary", [
+    "Encryption report is on dev: it costs little, keep it. Open for you: allow opt-in job keys?",
+    "Sandbox plan is ready: much faster, large repos work, four decisions for you; link inside.",
+    "Project chat works on dev: files, build, commit; the preview card awaits your answer.",
+    "Test users run daily on dev; production stays off until your go-ahead.",
+    "Parked until Marco decides the backup region.",
+    "Fix is on dev. Should I also release it to production",
+    "Report is ready. One question: keep the founder as contact",
+])
+def test_a_done_push_that_asks_the_user_is_refused(root, summary):
+    # Owner rule (22 Nov): a question always goes out as its own ❓ push, never inside a ✅ push.
+    with pytest.raises(aq.QuestionError, match="must not ask the user anything"):
+        aq.send(done_args(summary=summary), root, "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
+    assert not (root / "logs").exists()
+
+
+@pytest.mark.parametrize("summary", [
+    "Live payment keys are off dev, and real-AI tests now run in their own CI stack.",
+    "Users now see your answer history in settings; the E2E is green.",
+    "Specification approved as an owner decision on record; deployed to dev.",
+    "Proof video: https://bucket.your-objectstorage.com/a.webm?X-Amz-Algorithm=AWS4 shows the reply.",
+])
+def test_ordinary_done_texts_still_pass(root, summary):
+    assert aq.send(done_args(summary=summary), root, "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
+
+
+def test_the_same_question_goes_out_as_an_ask_push(root):
+    text = aq.send(args(dry_run=True, question="Allow opt-in job keys?", recommendation="yes"), root, "chat-1",
+                   1000.0, post=lambda **_: pytest.fail("posted"))
+    assert text.startswith("❓")
 
 
 def test_ask_dry_run_format_has_no_option_list(root):

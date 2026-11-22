@@ -83,6 +83,8 @@ when a skill or this file points to it.
   recommendation) under 120; plain words, no markdown, ids, icon (the script adds
   one) or list; details stay in the chat and its Task. Too long = rejected, rewrite
   it shorter (after two rejections a cheap model shortens it, then it is cut).
+  A question for Marco always goes out as its own ❓ push, never inside a ✅ push
+  (he reads ✅ as nothing to do); the script refuses a ✅ text that asks him something.
   Done, also parked or paused:
   `python3 scripts/agent_question.py done --summary "..." [--paused-until DATE]`;
   put open follow-ups in the Task first, since a done chat is archived at its turn end.

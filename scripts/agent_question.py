@@ -12,7 +12,10 @@ dev connector, which matches the push to its chat through the push log):
                                                               with --paused-until)
   ❓ <short chat title>: <decision needed> Recommendation: …  (ask)
 A chat sends exactly one push when it finishes (done) or is blocked on the user (ask), never for
-progress and never both for one event; blocked and later finished is one ❓ then one ✅. The chat
+progress and never both for one event; blocked and later finished is one ❓ then one ✅. A ✅ push
+never asks the user anything: a done text with a question mark or an ask aimed at the user ("your
+go-ahead", "should I", "decisions for you", "waiting on Marco") is refused (exit 1), because the user
+reads ✅ as nothing-to-do and misses it; the question goes out as its own ❓ push. The chat
 writes the short text itself (scripts/discord_summary.py): done at most SUMMARY_MAX characters, ask
 (question plus recommendation) at most ASK_MAX, title shortened to TITLE_MAX; markdown, ids and
 icons the chat wrote are stripped (the script adds exactly one icon). Longer text is rejected with a
@@ -95,6 +98,25 @@ _LONG_TOKEN = re.compile(r"(?<![\w-])[A-Za-z0-9_-]{32,}(?![\w-])")
 _UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 _GIT_OR_SHA256 = re.compile(r"(?:sha-)?(?:[0-9a-f]{40}|[0-9a-f]{64})")  # sha-<commit> image tags too
 _WORDS = re.compile(r"(?:[a-z0-9]{1,20}(?:[_-]+[a-z0-9]{1,20})+|[A-Z0-9]{1,20}(?:[_-]+[A-Z0-9]{1,20})+)")
+_OWNER = r"(?:you|marco|the\s+owner)"
+_OWNERS = r"(?:your|marco'?s|the\s+owner'?s)"
+# A done text that asks the user something (owner rule, 22 Nov). Links are removed first, so a "?"
+# in a signed URL is not a question.
+DONE_ASKS_USER = tuple(re.compile(pattern, re.I) for pattern in (
+    r"\?",
+    rf"\b(?:until|awaits?|awaiting|needs?|for|after|pending|on|with)\s+{_OWNERS}\s+(?:answer|decision|call"
+    r"|approval|input|go-ahead|ok|okay|choice|feedback|confirmation|sign-off|reply|pick)\b",
+    rf"\b(?:open|questions?|decisions?|choices?)\s+(?:for|to)\s+{_OWNER}\b",
+    r"\b(?:one|an?|open|my)\s+question\b",
+    r"\b(?:should|shall)\s+(?:i|we)\b",
+    r"\b(?:do|would)\s+you\s+(?:want|like|prefer)\b",
+    r"\blet\s+me\s+know\b",
+    r"\bplease\s+(?:confirm|decide|approve|choose|pick|answer|reply|check)\b",
+    rf"\bwait(?:s|ing)?\s+(?:for|on)\s+{_OWNER}\b",
+    rf"\bawait(?:s|ing)?\s+(?:{_OWNER}|{_OWNERS})\b",
+    rf"\b{_OWNER}\s+(?:decides?|confirms?|approves?|answers?|chooses?|picks?|replies)\b",
+    rf"\bneeds?\s+{_OWNERS}\b",
+))
 
 
 class QuestionError(RuntimeError):
@@ -195,6 +217,12 @@ def session_info(root: Path, chat_id: str) -> tuple[str, str]:
         return "", ""
     _, key, task = max(matches)
     return key, task
+
+
+def done_asks_user(text: str) -> bool:
+    """True when a ✅ text asks the user something; that belongs in its own ❓ push."""
+    plain = _URL.sub(" ", text)
+    return any(pattern.search(plain) for pattern in DONE_ASKS_USER)
 
 
 def short_title(title: str) -> str:
@@ -323,6 +351,11 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
     title = os.environ.get("CLAUDE_CHAT_TITLE") or task_text
     limit = discord_summary.SUMMARY_MAX if kind == DONE else discord_summary.ASK_MAX
     body = build_body(kind, text, recommendation, getattr(args, "paused_until", None) or "", title)
+    if kind == DONE and done_asks_user(text):
+        raise QuestionError(
+            "a ✅ push must not ask the user anything: the user reads ✅ as nothing to do and misses it. "
+            "Send the question as its own push (agent_question.py ask --question '...' --recommendation "
+            "'...') and write the ✅ text without it, or wait with the ✅ until the answer is in.")
     rejections = rejection_count(root, chat_id, kind) if chat_id else discord_summary.MAX_REJECTIONS
     try:
         body = discord_summary.fit(
