@@ -989,14 +989,17 @@
     const chatId = currentChatId;
     if (ids.length === 0) { includedMemories = []; return; }
     const isKnownApp = (appId: string) => !!appSkillsStore.getState().apps[appId];
-    // Shown at once (untitled unless already resolved), then with titles when the local documents are read.
-    const shown = untrack(() => includedMemories);
-    const known = new Map(shown.map((memory) => [memory.id, memory]));
-    includedMemories = resolveIncludedMemories(ids, [], isKnownApp).map((memory) => known.get(memory.id) ?? memory);
+    // Shown once the local documents are read, so a pill never flashes the generic label before
+    // its title; ids already shown keep their pill meanwhile. Unreadable documents: untitled pills.
+    const known = new Map(untrack(() => includedMemories).map((memory) => [memory.id, memory]));
+    includedMemories = ids.flatMap((id) => known.get(id) ?? []);
     let cancelled = false;
     loadLocalMemoryDocuments(chatId || undefined)
       .then((documents) => { if (!cancelled) includedMemories = resolveIncludedMemories(ids, documents, isKnownApp); })
-      .catch((error: unknown) => console.warn('[ChatMessage] Included memory titles unavailable', error));
+      .catch((error: unknown) => {
+        console.warn('[ChatMessage] Included memory titles unavailable', error);
+        if (!cancelled) includedMemories = resolveIncludedMemories(ids, [], isKnownApp);
+      });
     return () => { cancelled = true; };
   });
 
