@@ -6754,6 +6754,7 @@ async def handle_main_processing(
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
+    search_budget_refused_this_round = False  # Reset per round; set when the search budget refuses a call
     # Specialised skills that found nothing and web-search runs of this turn: the next iteration
     # must call web-search as the fallback unless web search already ran.
     empty_specialised_skills: set[str] = set()
@@ -9326,6 +9327,8 @@ async def handle_main_processing(
                     MAX_PARALLEL_APP_SKILL_EXECUTIONS,
                 )
 
+        # Set when the per-answer search budget refuses any call of this round.
+        search_budget_refused_this_round = False
         # Execute all tool calls (skills) in this turn
         for tool_call in tool_calls_for_this_turn:
             tool_name = explicit_task_app_skill_tool_name(tool_call.function_name, task_app_skill_mentions)
@@ -9618,10 +9621,11 @@ async def handle_main_processing(
                     current_message_history.append({
                         "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
                         "content": json.dumps({
-                            "status": "skipped", "reason": "This request's retrieval/enrichment query budget is used. Answer from existing evidence and state material unsearched gaps.",
+                            "status": "skipped", "reason": "This request's retrieval/enrichment query budget is used. No further searches are possible in this response. Answer now from existing evidence and state material unsearched gaps.",
                             "omitted_requests": omitted_answer_search_requests,
                         }),
                     })
+                    search_budget_refused_this_round = True
                     continue
 
                 # === SKILL CALL BUDGET CHECK ===
@@ -13285,6 +13289,15 @@ async def handle_main_processing(
         # If we're on the second-to-last iteration and the LLM is still requesting tools,
         # force the next (final) iteration to generate an answer without tools.
         # This ensures the user ALWAYS gets an answer based on gathered information.
+        if search_budget_refused_this_round and not force_no_tools:
+            # A refused search cannot succeed on retry; another tool round would
+            # only stream one more lead-in sentence before being refused again.
+            force_no_tools = True
+            budget_warning_injected = True
+            logger.info(
+                f"{log_prefix} [SKILL_BUDGET] Search budget refused a call - "
+                f"next iteration is answer-only."
+            )
         if budget_iteration == MAX_TOOL_CALL_ITERATIONS - 2:
             # We're on the second-to-last iteration - force the final iteration to answer
             force_no_tools = True

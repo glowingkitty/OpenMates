@@ -3385,6 +3385,35 @@ async def test_actual_image_batch_is_clamped_and_video_retry_is_reported_without
     assert "retrieval/enrichment query budget is used" in final_history
 
 
+# contract-test: supporting surface=rest_api assertions=answer-composition.search.bounded-enrichment
+async def test_refused_search_round_makes_next_provider_call_answer_only(monkeypatch):
+    """A call refused by the search budget must not start another tool round.
+
+    Each extra round would stream one more lead-in sentence before being refused
+    again, so the user saw the same sentence repeated.
+    """
+    dispatched = AsyncMock(return_value=[{"results": [{"id": 1, "results": []}]}])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_reserve_skill_credits", AsyncMock(return_value=[]))
+    metadata = {app: SimpleNamespace(skills=[SimpleNamespace(
+        id="search", parallel_safe=True, exclude_fields_for_llm=None, pricing=None, providers=[],
+        tool_schema={"type": "object", "properties": {"requests": {"type": "array", "items": {"type": "object"}}}, "required": ["requests"]},
+    )], instructions=[], focuses=[]) for app in ("images", "videos")}
+    _, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "images-search", "arguments": {"requests": [{"query": "a"}]}, "tool_call_id": "one"}],
+         [{"fake_google_tool_call": "videos-search", "arguments": {"requests": [{"query": "b"}]}, "tool_call_id": "two"}],
+         ["Here is the answer."]],
+        generated_tools=[{"type": "function", "function": {"name": f"{app}-search", "description": "Search."}} for app in metadata],
+        discovered_apps_metadata=metadata,
+        preprocessing_overrides={"selected_app_ids": list(metadata), "relevant_app_skills": ["images-search", "videos-search"]},
+        request_overrides={"current_user_content": "Show me Gothic architecture."},
+    )
+    assert len(calls) == 3
+    assert calls[2]["tool_choice"] == "none"
+    assert "No further searches are possible" in str(calls[2]["message_history"])
+
+
 # contract-test: supporting surface=rest_api assertions=app-memories.selection.source-scoped,app-memories.transparency.loaded-set
 async def test_on_demand_memory_reaches_next_provider_call_and_answer_recovery(monkeypatch):
     from backend.apps.diagrams.diagram_guidance import diagram_guidance_prompt
