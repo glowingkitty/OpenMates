@@ -209,6 +209,19 @@ async def created_project_activation_reference(*, task_id: str, request_data: An
     return embed["embed_reference"]
 
 
+def focus_modes_after_project_creation(focus_modes: list[str], project_candidates: dict[str, Any],
+                                       created_project_reference: str | None) -> list[str]:
+    """The focus modes a reply may still propose once it created and focused its own Project.
+
+    Such a reply never offers another Project: recipe proof 22 Nov, the model also activated
+    an earlier "Recipe Web App" Project, so one reply held two activations, the header lost
+    both names and the "Created ... project" event its marker.
+    """
+    if not created_project_reference:
+        return focus_modes
+    return [focus for focus in focus_modes if focus not in project_candidates]
+
+
 def carried_created_project_reference(request_data: Any) -> str | None:
     """The created-Project card of an earlier continuation of this reply, or None.
 

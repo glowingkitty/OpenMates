@@ -220,3 +220,15 @@ async def test_a_first_turn_never_shows_a_carried_card(monkeypatch):
         request_overrides={"is_async_skill_continuation": False, "created_project_card_reference": CARRIED},
     )
     assert not any(isinstance(chunk, str) and "focus_mode_activation" in chunk for chunk in output)
+
+
+# contract-test: supporting surface=rest_api assertions=projects.creation.assistant-inferred
+def test_a_reply_that_created_its_project_never_offers_another_project() -> None:
+    """Recipe proof 22 Nov: the model also activated an earlier Recipe Project; the reply held two activations."""
+    from backend.apps.ai.processing.project_focus_orchestration import focus_modes_after_project_creation
+
+    candidates = {"project-old": {"project_id": "old", "name": "Recipe Web App"}}
+    offered = ["project-old", "code-web-dev"]
+    card = '{"type": "focus_mode_activation", "embed_id": "e-1", "project_created": true}'
+    assert focus_modes_after_project_creation(offered, candidates, card) == ["code-web-dev"]
+    assert focus_modes_after_project_creation(offered, candidates, None) == offered

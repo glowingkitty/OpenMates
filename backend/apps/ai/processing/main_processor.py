@@ -4891,6 +4891,7 @@ async def handle_main_processing(
     # Assistant-created Project: the activation card leads the resumed answer.
     from backend.apps.ai.processing.project_focus_orchestration import (
         carried_created_project_reference, created_project_activation_reference,
+        focus_modes_after_project_creation,
     )
     created_project_reference = await created_project_activation_reference(
         task_id=task_id, request_data=request_data, active_project_focus=active_project_focus,
@@ -5793,6 +5794,8 @@ async def handle_main_processing(
     # An accepted specialist already supplies its instructions. Reoffering it
     # would restart the countdown on every continuation of the same user turn.
     relevant_focus_modes = [focus for focus in relevant_focus_modes if focus != request_data.active_focus_id]
+    relevant_focus_modes = focus_modes_after_project_creation(relevant_focus_modes, project_candidates,
+                                                              created_project_reference)
     if has_active_focus_mode:
         relevant_focus_modes = [focus for focus in relevant_focus_modes if focus in project_candidates or focus in private_candidates]
     # Whether the user explicitly specified this focus mode via @focus:app:id mention
