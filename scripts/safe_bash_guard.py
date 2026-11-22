@@ -52,6 +52,11 @@ COMPOSE_OPTIONS_WITH_VALUES = {
 
 
 # Commands that are allowed locally but must not start while the host is overloaded.
+# Claude Code's per-chat scratchpad: /tmp/claude-<uid>/<project>/<chat>/scratchpad[/...].
+SCRATCHPAD_PARTS = 5
+# Foreground sleeps at or above this many seconds are polling; short retry pauses are fine.
+SLEEP_POLL_SECONDS = 10
+SLEEP_UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
 LOAD_GATED_BINARIES = {"svelte-check", "tsc", "tsup", "eslint", "pytest"}
 _heavy_override = False
 
@@ -683,6 +688,30 @@ def shell_command_payload(args: list[str]) -> str | None:
     return None
 
 
+def _scratchpad_path(cwd: Path, destination: str) -> Path | None:
+    """The resolved destination when it is inside this user's Claude scratchpad, else None."""
+    path = Path(os.path.expanduser(destination))
+    resolved = (path if path.is_absolute() else cwd / path).resolve()
+    parts = resolved.parts  # ('/', 'tmp', 'claude-1001', '<project>', '<chat>', 'scratchpad', ...)
+    if (len(parts) > SCRATCHPAD_PARTS and parts[1] == "tmp" and parts[2] == f"claude-{os.getuid()}"
+            and parts[SCRATCHPAD_PARTS] == "scratchpad"):
+        return resolved
+    return None
+
+
+def sleep_seconds(args: list[str]) -> float:
+    """Total duration of a `sleep` invocation (GNU suffixes s/m/h/d); unparsable parts count 0."""
+    total = 0.0
+    for arg in args:
+        unit = SLEEP_UNITS.get(arg[-1:], 0)
+        number = arg[:-1] if unit else arg
+        try:
+            total += float(number) * (unit or 1)
+        except ValueError:
+            continue
+    return total
+
+
 def main(argv: list[str]) -> int:
     global _heavy_override
     command = argv[1] if len(argv) > 1 else ""
@@ -698,14 +727,25 @@ def main(argv: list[str]) -> int:
             executable, args = unwrap_invocation(segment)
             if executable == "cd":
                 destination = next_non_option(args)
-                resolved = _resolved_repo_path(candidate_cwd, destination) if destination else None
+                resolved = (_resolved_repo_path(candidate_cwd, destination)
+                            or _scratchpad_path(candidate_cwd, destination)) if destination else None
                 if resolved is None:
                     return block(
-                        "BLOCKED: local command changes directory outside the OpenMates repository. "
+                        "BLOCKED: local command changes directory outside the OpenMates repository "
+                        "(only your own scratchpad folder is allowed). "
                         "Use absolute paths instead of cd (for git: git -C <path>)."
                     )
                 candidate_cwd = resolved
                 continue
+            if (executable == "sleep" and os.environ.get("OPENMATES_BASH_BACKGROUND") != "true"
+                    and sleep_seconds(args) >= SLEEP_POLL_SECONDS):
+                return block(
+                    "BLOCKED: sleep polling. Wait on the process instead: CI with "
+                    "`python3 scripts/ci_coordinator.py wait <id> [<id> ...]` run in the background "
+                    "(one notification for the whole set), deploys with `sessions.py wait-deploy`, "
+                    "anything else with the Monitor tool or `claude_chat_waiters.py add`. "
+                    "Short pauses under 10 s are allowed."
+                )
             if executable in SHELL_EXECUTABLES:
                 payload = shell_command_payload(args)
                 if payload is None:

@@ -8,6 +8,8 @@
 
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+# A background command may sleep (a deliberate delayed wake-up); a foreground one may not poll.
+export OPENMATES_BASH_BACKGROUND=$(echo "$INPUT" | jq -r '.tool_input.run_in_background // false')
 HOOK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_ROOT=${OPENMATES_PROJECT_ROOT:-$(cd "$HOOK_DIR/../.." && pwd)}
 

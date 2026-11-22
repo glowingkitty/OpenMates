@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -245,3 +246,24 @@ def test_block_messages_name_the_working_alternative() -> None:
         result = run_guard(command)
         assert result.returncode == 2, command
         assert hint in json.loads(result.stderr)["reason"], command
+
+
+def test_cd_into_own_scratchpad_is_allowed_but_not_into_other_tmp(tmp_path) -> None:
+    """TASK-9435: 390 blocked calls were cd into the chat's own scratchpad."""
+    scratch = Path(f"/tmp/claude-{os.getuid()}/-home-x-OpenMates/chat-1/scratchpad/sub")
+    guard = load_guard()
+    assert guard._scratchpad_path(Path("/"), str(scratch)) == scratch
+    assert guard._scratchpad_path(Path("/"), f"/tmp/claude-{os.getuid()}/-home-x-OpenMates") is None
+    assert guard._scratchpad_path(Path("/"), "/tmp/claude-0/p/c/scratchpad") is None
+    assert run_guard(f"cd {scratch} && ls").returncode == 0
+    assert run_guard("cd /tmp && ls").returncode == 2
+
+
+def test_foreground_sleep_polling_is_blocked_with_a_pointer() -> None:
+    blocked = run_guard("sleep 300 && python3 scripts/ci_coordinator.py status")
+    assert blocked.returncode == 2 and "ci_coordinator.py wait" in blocked.stderr
+    assert run_guard("sleep 1m").returncode == 2
+    assert run_guard("sleep 2 && ls").returncode == 0
+    background = subprocess.run(["python3", str(GUARD), "sleep 600 && ls"], text=True, capture_output=True,
+                                env={**HEALTHY_HOST_ENV, "OPENMATES_BASH_BACKGROUND": "true"}, check=False)
+    assert background.returncode == 0
