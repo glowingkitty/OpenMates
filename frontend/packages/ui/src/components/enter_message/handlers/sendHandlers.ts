@@ -909,6 +909,11 @@ export async function handleSend(
   try {
   recordSendDebugStep("send_guard_acquired", { currentChatId });
   recordSendPreparationPhase('send_accepted');
+  // The accepted click owns the composer content. A debounced draft save still
+  // pending here would fire during the privacy wait below, reload the new chat and
+  // change the composer's owner, so the model restore aborts the send after its row
+  // shows "sending" (TASK-1843: first send right after login never left).
+  if (!options.preserveDraft) saveDraftDebounced.cancel();
   const submittedEditorDoc = editor.state.doc;
   const submittedEditorText = editor.getText();
   const submittedEditorJSON = structuredClone(editor.getJSON());
