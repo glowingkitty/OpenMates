@@ -118,7 +118,9 @@ async function send(page: Page, prompt: string, kind = 'follow-up'): Promise<voi
   await focusMessageEditor(page.getByTestId('message-editor'));
   await page.keyboard.press('End');
   await insertModelMention(page);
-  await sendMessage(page, ` ${prompt}`, undefined, undefined, kind, { preserveExistingContent: true });
+  // Send checkpoints (including the page's send-debug state when a message stays pending) go to the run log.
+  const logSend = (message: string, metadata?: Record<string, unknown>) => console.log(`[send] ${message}${metadata ? ` ${JSON.stringify(metadata)}` : ''}`);
+  await sendMessage(page, ` ${prompt}`, logSend, undefined, kind, { preserveExistingContent: true });
   await recordOwnedChat(page);
 }
 
