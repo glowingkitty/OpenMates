@@ -128,5 +128,7 @@ def test_cloud_project_chats_write_files_as_code_blocks() -> None:
     prompt = build_project_focus_prompt({"instruction": "Work in this Project."}, [], code_fences=True)
     assert "```tsx:web-app/src/App.tsx" in prompt
     assert "```diff:" in prompt
+    # Recipe proof 22 Nov: the model ran the test before writing it, then wrote it in the final answer.
+    assert "before you call code-run" in prompt and "final answer is never run" in prompt
     assert "[App.tsx](embed:web-app/src/App.tsx)" in prompt
     assert "never emit an application_preview block" in prompt
