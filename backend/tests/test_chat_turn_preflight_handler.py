@@ -724,6 +724,23 @@ def test_project_memories_added_after_mention_activation_keep_the_commitment(mon
     dispatched["memory_catalog"][0] = {**personal, "title": "Changed"}
     assert commit(prepared) != commit(dispatched)
 
+# contract-test: supporting surface=gui.web assertions=projects.focus.mention-activation,focus-modes.project-layering
+def test_project_focus_context_added_after_mention_activation_keeps_the_commitment(monkeypatch) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    commit = chat_turn_preflight_handler.build_inference_commitment
+    prepared = {**_payload()["inference_request"]}
+    dispatched = {
+        **deepcopy(prepared),
+        "project_focus_catalog": [{"kind": "focus", "id": "item-1", "title": "Add a new provider", "revision": "r1"}],
+        "project_focus_documents": [{"item_id": "item-1", "revision": "r1", "document": "Steps"}],
+        "project_context_documents": [{"item_id": "item-2", "kind": "spec", "revision": "r2", "document": "Spec"}],
+    }
+    assert commit(prepared) == commit(dispatched)
+    # The user's own request stays bound to the preflight.
+    dispatched["message"] = {"content": "a different user request"}
+    assert commit(prepared) != commit(dispatched)
+
+
 @pytest.mark.asyncio
 # contract-test: supporting surface=gui.web assertions=projects.focus.mention-activation,chats.message.identity-idempotent
 async def test_preflight_commitment_ignores_untrusted_project_fields_without_focus_read(monkeypatch) -> None:

@@ -64,6 +64,10 @@ def _end_ws_span(otel_span: Any, otel_token: Any) -> None:
 
 # Memory fields whose Project rows may be added after preflight (see below).
 PROJECT_BOUND_MEMORY_FIELDS = ("custom_memory_documents", "custom_rule_documents", "memory_catalog")
+# Fields that only ever carry the active Project's own Focus modes and reference
+# documents. Dispatch re-checks each row against the live Project (Focus bodies via
+# validate_specialist_context, references by owned item and revision).
+PROJECT_ONLY_CONTEXT_FIELDS = ("project_focus_catalog", "project_focus_documents", "project_context_documents")
 
 
 def canonicalize_inference_request(inference_request: dict[str, Any]) -> bytes:
@@ -91,6 +95,10 @@ def canonicalize_inference_request(inference_request: dict[str, Any]) -> bytes:
                 committed_request[key] = committed_rows
             else:
                 committed_request.pop(key)
+    # The Project's Focus modes and reference documents follow the same lifecycle:
+    # an @Project mention can add them only after activation, so they never commit.
+    for key in PROJECT_ONLY_CONTEXT_FIELDS:
+        committed_request.pop(key, None)
     return json.dumps(
         committed_request,
         sort_keys=True,
