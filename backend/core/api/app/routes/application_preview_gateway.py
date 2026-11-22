@@ -54,6 +54,9 @@ QUOTED_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>[\"'])/(?!/|p/)(?P<path>[^\"'
 CSS_URL_ROOT_PATH_PATTERN = re.compile(r"(?P<prefix>url\(\s*[\"']?)/(?!/|p/)(?P<path>[^)\"'\s]+)")
 UPSTREAM_PATH_SEGMENT_SAFE_CHARS = "@"
 VITE_HMR_CLIENT_PATH = "@vite/client"
+# Stand-in for Vite's HMR client: it exports every name the real client exports, since one
+# missing name fails the whole importing module graph. Recipe proof 22 Nov: /@react-refresh
+# imports injectQuery; without it React's refresh runtime never linked and the app stayed blank.
 VITE_HMR_CLIENT_SHIM = b"""
 const styles = new Map();
 
@@ -89,6 +92,15 @@ export function removeStyle(id) {
     styles.delete(id);
   }
 }
+
+export function injectQuery(url, queryToInject) {
+  if (url[0] !== '.' && url[0] !== '/') return url;
+  const pathname = url.replace(/[?#].*$/, '');
+  const { search, hash } = new URL(url, 'http://vite.dev');
+  return `${pathname}?${queryToInject}${search ? '&' + search.slice(1) : ''}${hash || ''}`;
+}
+
+export class ErrorOverlay extends HTMLElement {}
 """.strip()
 # An inline <script> (no src): Vite's React plugin puts its refresh preamble here as
 # `import { injectIntoGlobalHook } from "/@react-refresh"`; unrewritten, it misses the signed

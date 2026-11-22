@@ -313,6 +313,11 @@ async def test_gateway_returns_noop_module_for_direct_vite_hmr_client() -> None:
     body = response.body.decode("utf-8")
     assert "export function createHotContext" in body
     assert "export function updateStyle" in body
+    # Every export of Vite's real client (vite/dist/client/client.mjs, Vite 5 to 7): /@react-refresh
+    # imports injectQuery, and one missing name blanks the whole app (recipe proof 22 Nov).
+    for name in ("export function createHotContext", "export function injectQuery",
+                 "export function removeStyle", "export class ErrorOverlay"):
+        assert name in body
     assert "new WebSocket" not in body
     assert response.headers["content-type"].startswith("application/javascript")
 

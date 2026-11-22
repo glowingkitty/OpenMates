@@ -40654,7 +40654,7 @@ assertions:
       surface: rest_api
     - &id5138
       path: backend/tests/test_application_preview_gateway.py
-      line: 322
+      line: 327
       name: test_gateway_rewrites_root_relative_module_imports_to_signed_path
       surface: rest_api
     - &id5139
