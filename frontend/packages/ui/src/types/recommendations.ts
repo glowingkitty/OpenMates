@@ -35,7 +35,7 @@ export interface ChatRecommendation {
  * suggestions (project_authoring_recommendation events of the active Project);
  * they are not persisted in chats.encrypted_recommendations.
  */
-export type RecommendationCardKind = ChatRecommendationKind | 'focus';
+export type RecommendationCardKind = Exclude<ChatRecommendationKind, 'workflow'> | 'focus';
 
 /** One entry of the Recommendations card: a chat recommendation or a Project Focus suggestion. */
 export interface RecommendationCardItem {

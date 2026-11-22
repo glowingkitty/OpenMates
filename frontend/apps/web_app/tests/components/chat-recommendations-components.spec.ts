@@ -30,7 +30,7 @@ async function expectInside(page: any, outerTestId: string, innerTestId: string)
 }
 
 // contract-test: direct surface=gui.web assertions=app-memories.suggestions.post-processor
-test('recommendations card shows Project focus suggestions next to memories and workflows', async ({ page }, testInfo) => {
+test('recommendations card shows Project focus suggestions next to memories', async ({ page }, testInfo) => {
 	await openPreview(page, 'RecommendationsCard', 'variant=project_focus&width=680');
 	const card = page.getByTestId('recommendations-card');
 	await expect(card).toHaveAttribute('data-count', '3');
@@ -97,9 +97,10 @@ for (const width of [390, 680]) {
 
 		await card.getByTestId('recommendation-next').click();
 		await expect(card).toHaveAttribute('data-index', '1');
-		await expect(card.getByTestId('recommendation-heading')).toHaveText('New workflow recommended');
-		await expect(card.getByTestId('embed-preview')).toContainText('Workflow');
-		await expect(card.getByTestId('recommendation-embed')).toHaveAttribute('data-kind', 'workflow');
+		await expect(card.getByTestId('recommendation-heading')).toHaveText('New memory recommended');
+		await expect(card.getByTestId('recommendation-embed')).toHaveAttribute('data-kind', 'memory');
+		// Workflow suggestions never appear in the chat view (same rule as linked Tasks).
+		await expect(card).not.toContainText('workflow recommended');
 		await expect(card.getByTestId('recommendation-title')).toHaveText('Weekly open source conference digest');
 		await expect(card.getByTestId('recommendation-dot').nth(1)).toHaveAttribute('aria-current', 'true');
 

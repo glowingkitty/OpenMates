@@ -246,8 +246,8 @@ assertions:
     reusable goal that a Memory never covers; the assistant does not save it as a Memory or Project file but points to the
     Create Focus suggestion, and the assessment recommends Create unless a catalog Focus covers it. Improvement proposals for public/app Focuses or
     personal/global Focuses outside Projects are excluded. Catalog assessment performs no generative authoring. Where the
-    chat Recommendations card is shown, Project Focus Create/Update suggestions appear in it next to Memory and Workflow
-    recommendations instead of a separate "Suggested Project improvements" block; the started job's progress and Save step
+    chat Recommendations card is shown, Project Focus Create/Update suggestions appear in it next to Memory
+    recommendations (Workflow suggestions never appear in the open chat view) instead of a separate "Suggested Project improvements" block; the started job's progress and Save step
     stay in the chat history.
   depends_on:
   - examples.recommendation_catalog

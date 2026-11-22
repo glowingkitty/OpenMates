@@ -183,7 +183,7 @@ specifications:
     version: 6
     status: draft
     path: features/app-memories
-    fingerprint: 666bd4a4b220bfb3ff6dae2fa744d44e7c3e7eceff7cce2d3e750357bc19f6b3
+    fingerprint: dc244a2f5dbff3750bb3e98b0dd39fc57a5271e41d5dad275be5ecdc67d79078
     required_applies_to:
     - rest_api
     - cli
@@ -788,7 +788,7 @@ specifications:
     version: 4
     status: approved
     path: features/focus-modes
-    fingerprint: ac3a7d459acd0981fd49b2190b40277ede4197f34ecf515c8f35df4ca9822de3
+    fingerprint: b06dbec8a45e81a92068dddcd0805c83ae9af0767589065ccbf1ad368a299c87
     required_applies_to:
     - rest_api
     - cli
@@ -3674,7 +3674,7 @@ assertions:
     specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: behavior
-    fingerprint: da1e9f8b6b0f1ecdf95ae316e9837cd346cd5fc712779ffd388796c020eeee66
+    fingerprint: 4b8a0c88c49f4eed6efc80710eb4530dba47cc3825240b9225f4a11dcde60317
     required_applies_to:
     - rest_api
     - cli
@@ -10925,7 +10925,7 @@ assertions:
     specification: feature.focus-modes@4
     specification_id: feature.focus-modes
     type: behavior
-    fingerprint: 1b2b2df54df700a4cedc51764e27de292c796e839a14fef108738e2460291b8e
+    fingerprint: c6aa02d0a1c8656b1d3ecd5ee9cf58fe5bec6182434753d9d5e52777dfce54e8
     required_applies_to:
     - rest_api
     - cli

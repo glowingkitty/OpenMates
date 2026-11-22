@@ -1,7 +1,7 @@
 <!-- frontend/packages/ui/src/components/RecommendationsCard.svelte
      Recommendations container between the chat history and the follow-up suggestion
      chips. Keeps the colored chat-category gradient of the former quick tips card and
-     shows one recommendation at a time: a heading naming the kind (memory/workflow, or
+     shows one recommendation at a time: a heading naming the kind (memory, or
      a Project focus suggested for the active Project)
      and whether it is new or an update, then the entry as an embed preview card (a
      click opens the same draft as the button), with the Create/Update button below it and previous/next buttons plus one dot per
@@ -30,7 +30,6 @@
 
   const HEADING_KEYS = {
     memory: { create: 'recommendations.heading_memory_create', update: 'recommendations.heading_memory_update' },
-    workflow: { create: 'recommendations.heading_workflow_create', update: 'recommendations.heading_workflow_update' },
     focus: { create: 'recommendations.heading_focus_create', update: 'recommendations.heading_focus_update' },
   } as const;
 
