@@ -1,10 +1,13 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-// frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+// frontend/apps/web_app/tests/real-inference-focus-mode-video.spec.ts
 // Real-provider regression coverage for video focus-mode activation.
 // This intentionally does not use TEST_MOCK markers: the bug only reproduced
 // after real auto-confirm rebuilt continuation history and called preprocessing.
 // The test verifies the video focus embed activates and continuation completes
 // without surfacing the raw/technical preprocessing failure to the user.
+// Runs in the `real_inference` CI group (isolated per-run stack with real Gemini, Mistral, Brave
+// and Jev keys) and still manually against dev (OPENMATES_PROOF_REAL_DEV=1).
+// proof-video: not_required reason=account_health
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -48,9 +51,10 @@ const {
 	startNewChat,
 	waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
-const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { requireRealInference } = require('./helpers/real-inference-guard');
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 
-const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const { email: TEST_EMAIL } = getTestAccount();
 
 const SELECTORS = {
 	focusModeBar: '[data-testid="focus-mode-bar"][data-app-id="videos"]',
@@ -93,6 +97,7 @@ async function waitForAssistantIdle(
 	logCheckpoint('Assistant stream idle and editor is visible.');
 }
 
+// contract-test: direct surface=gui.web assertions=daily-ai-tests.real.semantic-signal
 test('real YouTube analysis request activates video focus mode and continues without preprocessing error', async ({
 	page
 }: {
@@ -107,7 +112,8 @@ test('real YouTube analysis request activates video focus mode and continues wit
 		filenamePrefix: 'focus-video-real'
 	});
 
-	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	requireRealInference('Focus mode video', BASE_URL);
+	if (!TEST_EMAIL) throw new Error('Real-inference CI requires a provisioned test account.');
 
 	await archiveExistingScreenshots(logCheckpoint);
 	logCheckpoint('Starting real video focus mode regression test.');

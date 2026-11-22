@@ -1,16 +1,17 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
 // proof-video: not_required reason=visual_smoke_not_needed (the raw Playwright video and attached screenshots show the notice)
 /**
- * Background chat notice shows the summary headline (dev-only real-inference proof, TASK-390 follow-up).
+ * Background chat notice shows the summary headline (real-inference proof, TASK-390 follow-up).
  *
- * Runs without mocks against the deployed dev stack through
+ * Runs in the `real_inference` CI group (isolated per-run stack with real Gemini, Mistral, Brave
+ * and Jev keys) and still manually against dev through
  * scripts/chat_notice_headline_web_real_test.py. A code-heavy request in a new chat,
  * answered by @Gemini-3.8-Flash while another new chat is open, used to produce a notice
  * reading only "New AI response ready" with no mate image. Now:
  *   1. The in-app notice of the background chat appears for that chat.
  *   2. Its body becomes the summary headline: starts with ✅, ❓ or ℹ️, never the generic text.
  *   3. The header shows the chat title and the mate profile image is shown.
- * The chat is deleted afterwards. Never run in CI: it needs real providers.
+ * The chat is deleted afterwards.
  */
 import type { Page } from '@playwright/test';
 
@@ -22,6 +23,8 @@ const {
 	setChatSidebarOpen,
 	startNewChat
 } = require('./helpers/chat-test-helpers');
+const { requireRealInference } = require('./helpers/real-inference-guard');
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 const PROMPT =
@@ -31,7 +34,7 @@ const GENERIC_TEXT = 'New AI response ready';
 // contract-test: direct surface=gui.web assertions=notifications.delivery.foreground-chat-suppression
 test('a background chat notice shows the summary headline, the chat title and the mate image', async ({ page }: { page: Page }, testInfo: any) => {
 	test.setTimeout(600_000);
-	test.skip(Boolean(process.env.E2E_USE_MOCKS), 'Real dev inference only.');
+	requireRealInference('Chat notice headline', BASE_URL);
 	test.skip(!getTestAccount().email, 'Test account credentials required.');
 	await page.setViewportSize({ width: 390, height: 844 });
 	const log = createSignupLogger('CHAT_NOTICE_HEADLINE');

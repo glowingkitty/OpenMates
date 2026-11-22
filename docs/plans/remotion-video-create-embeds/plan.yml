@@ -80,7 +80,7 @@ context_discovery:
     - frontend/apps/web_app/tests/embed-showcase.spec.ts
     - frontend/apps/web_app/tests/skill-videos-search.spec.ts
     - frontend/apps/web_app/tests/skill-videos-transcript.spec.ts
-    - frontend/apps/web_app/tests/focus-mode-video-real-request.spec.ts
+    - frontend/apps/web_app/tests/real-inference-focus-mode-video.spec.ts
     - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
 
 apple_impact:

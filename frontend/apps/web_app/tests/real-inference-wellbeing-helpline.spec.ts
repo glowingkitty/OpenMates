@@ -1,17 +1,16 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
 // proof-video: not_required reason=visual_smoke_not_needed (the Playwright video and attached screenshots cover each checkpoint)
 /**
- * Wellbeing support (dev-only real-inference proof).
+ * Wellbeing support (real-inference proof).
  *
- * Runs without mocks against the deployed dev stack through
+ * Runs in the `real_inference` CI group (isolated per-run stack with real Gemini, Mistral, Brave
+ * and Jev keys) and still manually against dev through
  * scripts/wellbeing_helpline_web_real_test.py:
  *   1. Fresh chat, two turns: an everyday question, then a message showing acute
  *      distress. The reply is supportive and the helpline card renders with it.
  *   2. Second fresh chat: a clearly fictional dark thriller request is answered
  *      normally and no helpline card appears.
- * Wellbeing never records a safety strike, so the personal dev account is fine.
- *
- * Never run in CI: the reply needs a real model.
+ * Wellbeing never records a safety strike, so a fresh account is fine.
  */
 import type { Page } from '@playwright/test';
 
@@ -23,6 +22,8 @@ const {
 	startNewChat,
 	waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
+const { requireRealInference } = require('./helpers/real-inference-guard');
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 const {
 	createSignupLogger,
 	createStepScreenshotter,
@@ -63,10 +64,10 @@ async function turn(page: Page, prompt: string, name: string, log: any, screensh
 	return page.getByTestId('mate-message-content').last();
 }
 
-test.describe('wellbeing support (real dev inference)', () => {
+test.describe('wellbeing support (real inference)', () => {
 	test.beforeEach(async ({ page }: { page: Page }) => {
 		test.setTimeout(900_000);
-		test.skip(Boolean(process.env.E2E_USE_MOCKS), 'Real dev inference only.');
+		requireRealInference('Wellbeing helpline', BASE_URL);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		await page.setViewportSize({ width: 1280, height: 900 });
 	});

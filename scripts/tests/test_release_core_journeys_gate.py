@@ -118,7 +118,7 @@ def test_core_journey_manifest_is_canonical_and_machine_readable(capsys: pytest.
 
     orchestrator.core_journeys = False
     assert "deep-research-real-inference.spec.ts" in orchestrator.EXCLUDED_SPECS
-    assert "sub-chats-real-inference.spec.ts" in orchestrator.EXCLUDED_SPECS
+    assert "real-inference-sub-chats.spec.ts" in orchestrator.EXCLUDED_SPECS
 
 
 def test_release_matrix_fails_closed_when_account_capacity_is_exceeded(

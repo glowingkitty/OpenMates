@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
-// proof-video: required reason=real_inference_dev_only (Project Memories press style reused in a second chat)
-// playwright-account: required reason=real_ai_personal_dev_only
+// proof-video: required reason=real_inference (Project Memories press style reused in a second chat)
 /**
- * Real-inference, dev-only: a press style the assistant saved into a Project's Memories is
- * reused in a second chat of the same Project. Run through
- * scripts/press_release_project_memory_web_real_test.py; never in CI, no mocks.
+ * Real-inference: a press style the assistant saved into a Project's Memories is
+ * reused in a second chat of the same Project. Runs in the `real_inference` CI group (isolated per-run stack, no mocks) and manually
+ * against dev through scripts/press_release_project_memory_web_real_test.py.
  *
  * "3,000" appears only in the saved style (About paragraph), never in the news prompt.
  */
@@ -16,12 +15,13 @@ const { test, expect } = require('./helpers/cookie-audit');
 const {
   deleteActiveChat, focusMessageEditor, loginToTestAccount, sendMessage, startNewChat, waitForAssistantMessage,
 } = require('./helpers/chat-test-helpers');
+const { requireRealInference } = require('./helpers/real-inference-guard');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { naturalProjectName } = require('./helpers/project-names');
 
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
-const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL
+const API_BASE_URL = process.env.OPENMATES_E2E_API_URL || process.env.OPENMATES_API_URL || process.env.PLAYWRIGHT_TEST_API_URL
   || BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
 const TURN_TIMEOUT = 420_000;
 // Real-inference proofs pin Gemini 3.8 Flash and fail when another model answered.
@@ -30,18 +30,6 @@ const MODEL_NAME = /Gemini 3\.8 Flash/i;
 
 const STYLE = "Our press style: always write 'Example Solar' (never 'ExampleSolar'), product name 'SunShare' in camel case, plain and friendly tone, no superlatives, English with AP style, end with ###. About paragraph: Example Solar GmbH, based in Leipzig, makes plug-in balcony solar kits for renters. Founded in 2021, the company has equipped more than 3,000 apartments in Germany.";
 const NEWS = "All synthetic test data. Company: Example Solar GmbH, Leipzig, founded 2021, 24 employees, makes balcony solar kits for renters. News: on 18 November 2026 we launch SunShare, an app that lets neighbours in one building pool their balcony solar power. Pilot: 120 households in Leipzig saved on average 11 percent on electricity over six months (our own pilot data, May to October 2026). Available from 18 November in Germany, free for Example Solar customers, 2 EUR a month otherwise, at example.org/sunshare. Quote from Mara Example, CEO: she wants renters to share energy like they share a stairwell. Media contact: Jonas Example, press officer, press@example.org, +49 341 0000000. Release for immediate publication.";
-
-function requireDirectDevRealInference(): void {
-  if (process.env.CI || process.env.GITHUB_ACTIONS || process.env.OPENMATES_CI_ISOLATED === '1') {
-    throw new Error('Real-inference Project Memories proof is dev-only and must never run in CI.');
-  }
-  if (process.env.E2E_USE_MOCKS || process.env.E2E_USE_LIVE_MOCKS) {
-    throw new Error('This proof requires real inference; mock replay must be disabled.');
-  }
-  if (!new URL(BASE_URL).hostname.includes('.dev.')) {
-    throw new Error('This proof may target only the dev web host.');
-  }
-}
 
 async function createProject(page: Page, name: string, writeMode: 'always_ask' | 'apply_and_show'): Promise<string> {
   // In-app navigation only: a full reload drops a session that is not "stay logged in".
@@ -197,7 +185,7 @@ test.describe('Press style saved in Project Memories is reused (real inference, 
   test.use({ actionTimeout: 60_000, navigationTimeout: 60_000 });
 
   test.beforeAll(() => {
-    requireDirectDevRealInference();
+    requireRealInference('Real-inference Project Memories proof', BASE_URL);
   });
 
   // contract-test: direct surface=gui.web assertions=projects.memories.active-access,projects.focus.mention-activation,app-memories.conversation.explicit-approval

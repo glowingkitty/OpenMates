@@ -99,7 +99,10 @@ paths:
   `scripts/ci_coverage_manifest.json` and submit it like any e2e spec (one per
   job). The job gets its own stack, the protected `real-inference` environment's
   dev-only keys (Google AI Studio, Mistral, Brave, Typesafe) and egress only to those
-  providers; never add a provider whose key is shared with production. There is
+  providers; never add a provider whose key is shared with production. Guard
+  the spec with `requireRealInference()` (`tests/helpers/real-inference-guard.ts`).
+  A real-inference spec stays outside the group only while it needs what the
+  job lacks (another key, E2B, outside sites, a dev-only fixture). There is
   no dev test lock: deploys and dev restarts never wait for a test. The dev-host
   `*_real_test.py` runners remain for manual checks against dev. Either way: use
   disposable Projects and isolated CLI state, select `@Gemini-3.8-Flash` (unless

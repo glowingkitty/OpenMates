@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
 // proof-video: not_required reason=visual_smoke_not_needed (the raw Playwright video and attached phone screenshots cover each checkpoint)
 /**
- * Upload an image in a new chat and ask for an SVG based on it (dev-only real-inference proof, TASK-2115).
+ * Upload an image in a new chat and ask for an SVG based on it (real-inference proof, TASK-2115).
  *
- * Runs without mocks against the deployed dev stack through
- * scripts/image_upload_svg_web_real_test.py on a phone viewport. Before the fix
+ * Runs in the `real_inference` CI group (isolated per-run stack, fresh CI account) and
+ * still manually against dev through scripts/image_upload_svg_web_real_test.py, on a
+ * phone viewport, without mocks. The model is @Gemini-3.8-Flash. Before the fix
  * the turn ended with an AI error: images.view put the photo bytes into the turn
  * transcript, the generate pause could not store it ("too large to suspend"),
  * and the generate card kept spinning because its error state was never sealed.
@@ -12,7 +13,7 @@
  *   2. The turn completes: no card stays on "processing", no message error banner.
  *   3. The View card shows the uploaded image; cards are in call order (View, then Generate).
  *   4. The Generate card uses the AI sparkle as its skill icon and ends finished.
- * The chat is deleted afterwards. Never run in CI: it needs real providers.
+ * The chat is deleted afterwards.
  */
 import type { Page } from '@playwright/test';
 
@@ -28,6 +29,9 @@ const {
 } = require('./helpers/chat-test-helpers');
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
+const { requireRealInference } = require('./helpers/real-inference-guard');
+
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 const IMAGE_FIXTURE = path.join(__dirname, 'fixtures', 'golden_gate_bridge.jpg');
 const PROMPT = ' Create an SVG file based on this image.';
 const TURN_TIMEOUT_MS = 600_000;
@@ -105,8 +109,8 @@ async function waitForIdle(page: Page): Promise<void> {
 // contract-test: direct surface=gui.web assertions=app-skills.assistant.same-turn-completion,chats.rendering.skill-card-call-order
 test('an uploaded photo plus "make an SVG of it" completes on a phone with View and Generate cards in call order', async ({ page }: { page: Page }, testInfo: any) => {
 	test.setTimeout(900_000);
-	test.skip(Boolean(process.env.E2E_USE_MOCKS), 'Real dev inference only.');
-	test.skip(!getTestAccount().email, 'Test account credentials required.');
+	requireRealInference('image-upload-svg', BASE_URL);
+	if (!getTestAccount().email) throw new Error('Real-inference run requires a provisioned test account.');
 	await page.setViewportSize({ width: 390, height: 844 });
 	const log = createSignupLogger('IMAGE_UPLOAD_SVG');
 	const screenshot = createStepScreenshotter(log);

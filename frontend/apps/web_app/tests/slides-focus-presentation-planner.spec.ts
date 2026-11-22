@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
-// proof-video: not_required reason=visual_smoke_not_needed (fixture replay; the result video comes from slides-focus-modes-real.spec.ts on dev)
+// proof-video: not_required reason=visual_smoke_not_needed (fixture replay; the result video comes from real-inference-slides-focus-modes.spec.ts on dev)
 /**
  * Slides focus mode "Plan a presentation" (web). Real focus activation, Jev phase
  * gates, stream consumer and embeds; only the Jev and model providers are replaced by

@@ -43,7 +43,7 @@ context_discovery:
     - scripts/extract-shared-chat.mjs
   tests:
     - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
-    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    - frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
     - frontend/apps/web_app/tests/focus-mode-mention.spec.ts
     - frontend/apps/web_app/tests/focus-mode-rejection.spec.ts
     - frontend/apps/web_app/tests/embed-json-leak.spec.ts

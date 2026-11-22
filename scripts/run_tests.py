@@ -366,7 +366,7 @@ REVIEWED_BROAD_CHAT_SPECS = frozenset({
     "show-more-chats-flow.spec.ts",
     "stop-new-chat-draft.spec.ts",
     "sub-chats-flow.spec.ts",
-    "sub-chats-real-inference.spec.ts",
+    "real-inference-sub-chats.spec.ts",
     "task-workflow-example-chats.spec.ts",
     "tasks-chat-settings-parity.spec.ts",
     "unauthenticated-chat-navigation.spec.ts",

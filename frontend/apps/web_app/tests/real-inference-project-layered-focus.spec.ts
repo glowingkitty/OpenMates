@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
-// playwright-account: required reason=real_ai_personal_dev_only
 /**
- * Real-inference, dev-only web proof of layered focuses in a Project chat.
+ * Real-inference web proof of layered focuses in a Project chat.
  *
  * The Project focus stays active as the base; a request for a new feature layers the built-in
  * Write specification focus on top (countdown proposal), ending that layer leaves the Project
  * focus active, and a Focus stored in the Project (Add a new provider) layers the same way.
  * The override note under the first layered answer is model-written, so it is only recorded.
- * Run through scripts/project_layered_focus_web_real_test.py; never in CI, no mocks.
+ * Runs in the `real_inference` CI group (isolated per-run stack, no mocks) and manually
+ * against dev through scripts/project_layered_focus_web_real_test.py.
  */
 export {};
 
@@ -17,6 +17,7 @@ const { test, expect } = require('./helpers/cookie-audit');
 const {
   focusMessageEditor, loginToTestAccount, sendMessage, waitForAssistantMessage,
 } = require('./helpers/chat-test-helpers');
+const { requireRealInference } = require('./helpers/real-inference-guard');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { naturalProjectName } = require('./helpers/project-names');
@@ -42,7 +43,8 @@ const proofContract = defineVideoProof({
 });
 
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
-const API_BASE_URL = BASE_URL.replace('://app.', '://api.');
+const API_BASE_URL = process.env.OPENMATES_E2E_API_URL || process.env.OPENMATES_API_URL
+  || BASE_URL.replace('://app.', '://api.');
 const TURN_TIMEOUT = 420_000;
 const SPEC_FOCUS_ID = 'code-write_specification';
 const PROVIDER_FOCUS_NAME = 'Add a new provider';
@@ -56,21 +58,6 @@ const PROVIDER_REQUEST = 'Please add a weather data provider to this project.';
 const SEED_FOCUS = `Please create a Project Focus named "${PROVIDER_FOCUS_NAME}". It applies when I want to add a new data `
   + 'provider or integration. Its process: research the official API, write the wrapper, add tests, and ask me before '
   + 'adding any dependency.';
-
-function requireDirectDevRealInference(): void {
-  // The dev proof harness runs this spec in an E2B sandbox, which sets CI=1 for its tools; only the
-  // harness sets OPENMATES_PROOF_REAL_DEV (it refuses to start under CI itself). GitHub CI never does.
-  const harnessRun = process.env.OPENMATES_PROOF_REAL_DEV === '1';
-  if (process.env.GITHUB_ACTIONS || process.env.OPENMATES_CI_ISOLATED === '1' || (process.env.CI && !harnessRun)) {
-    throw new Error('Real-inference layered focus proof is dev-only and must never run in CI.');
-  }
-  if (process.env.E2E_USE_MOCKS || process.env.E2E_USE_LIVE_MOCKS) {
-    throw new Error('This proof requires real inference; mock replay must be disabled.');
-  }
-  if (!new URL(BASE_URL).hostname.includes('.dev.')) {
-    throw new Error('This proof may target only the dev web host.');
-  }
-}
 
 async function insertModelMention(page: Page): Promise<void> {
   await page.keyboard.insertText(`@${MODEL_QUERY}`);
@@ -267,7 +254,7 @@ test.describe('Layered focuses over the Project focus (real inference, dev only)
   test.use({ actionTimeout: 60_000, navigationTimeout: 60_000 });
 
   test.beforeAll(() => {
-    requireDirectDevRealInference();
+    requireRealInference('Real-inference layered focus proof', BASE_URL);
   });
 
   // contract-test: direct surface=gui.web assertions=focus-modes.project-layering,focus-modes.layer-end,focus-modes.override-note

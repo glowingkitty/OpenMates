@@ -50,7 +50,7 @@ context_discovery:
     - frontend/packages/openmates-cli/tests/client.test.ts
     - frontend/packages/openmates-cli/tests/cli.test.ts
     - backend/tests/test_sub_chat_confirmation_handler.py
-    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    - frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
 
 apple_impact:
   affected_files:

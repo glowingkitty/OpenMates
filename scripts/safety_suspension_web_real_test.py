@@ -2,7 +2,7 @@
 # contract-test-file: infrastructure
 """Opt-in dev-only real-inference browser proof that a second strike suspends.
 
-Runs frontend/apps/web_app/tests/safety-suspension-real.spec.ts without mocks
+Runs frontend/apps/web_app/tests/real-inference-safety-suspension.spec.ts without mocks
 against https://app.dev.openmates.org. The spec SUSPENDS its account, so this
 runner always uses a throwaway dev account: it adds --throwaway-account (skips
 the personal account) and refuses --personal-only. Same harness and leases as
@@ -21,7 +21,7 @@ import sys
 
 from design_embroidery_web_real_test import main
 
-SPEC = "tests/safety-suspension-real.spec.ts"
+SPEC = "tests/real-inference-safety-suspension.spec.ts"
 
 if __name__ == "__main__":
     if "--personal-only" in sys.argv:

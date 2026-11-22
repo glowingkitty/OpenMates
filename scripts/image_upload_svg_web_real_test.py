@@ -1,7 +1,7 @@
 # contract-test-file: infrastructure
 """Opt-in dev-only real-inference phone proof for upload + SVG generate (TASK-2115).
 
-Runs frontend/apps/web_app/tests/image-upload-svg-generate-real.spec.ts without
+Runs frontend/apps/web_app/tests/real-inference-image-upload-svg.spec.ts without
 mocks against https://app.dev.openmates.org: a photo is uploaded in a new chat,
 @Gemini-3.8-Flash is asked for an SVG based on it, and the turn must complete
 with the View card showing the photo and the Generate card finished, in call
@@ -21,7 +21,7 @@ import sys
 
 from design_embroidery_web_real_test import main
 
-SPEC = "tests/image-upload-svg-generate-real.spec.ts"
+SPEC = "tests/real-inference-image-upload-svg.spec.ts"
 
 if __name__ == "__main__":
     sys.exit(main(spec=SPEC, title="Image upload SVG generate", doc=__doc__))

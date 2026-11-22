@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
-// playwright-account: required reason=real_ai_personal_dev_only
 /**
- * Real-inference, dev-only web proof of the Life coaching "Life compass" focus.
+ * Real-inference web proof of the Life coaching "Life compass" focus.
  *
  * A synthetic burned-out founder ("Ana", invented) describes her situation. The focus
  * activates, asks one question at a time, reflects issues and strengths, agrees on small
@@ -9,7 +8,8 @@
  * chat the Memory is approved in the permission dialog and the reply follows up on the
  * agreed steps. The user's replies are fixed (no persona model), chosen by what the last
  * reply asks, so a failure points at the product, not at role-play.
- * Run through scripts/life_compass_focus_web_real_test.py; never in CI, no mocks.
+ * Runs in the `real_inference` CI group (isolated per-run stack, no mocks) and manually
+ * against dev through scripts/life_compass_focus_web_real_test.py.
  */
 export {};
 
@@ -19,6 +19,7 @@ const { test, expect } = require('./helpers/cookie-audit');
 const {
   deleteActiveChat, focusMessageEditor, loginToTestAccount, sendMessage, startNewChat, waitForAssistantMessage,
 } = require('./helpers/chat-test-helpers');
+const { requireRealInference } = require('./helpers/real-inference-guard');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { expandActivity } = require('./helpers/assistant-activity');
@@ -66,21 +67,6 @@ const REMEMBER = 'Yes, please remember that for next time.';
 const MORE = "That's all for now, let's continue.";
 const FOLLOW_UP = "Hi again. It's been a week since we talked about my exhaustion and the steps we agreed. "
   + 'I went climbing on Saturday and loved it, but I still answered emails late most evenings. How do we continue?';
-
-function requireDirectDevRealInference(): void {
-  // The dev proof harness runs this spec in an E2B sandbox, which sets CI=1 for its tools; only the
-  // harness sets OPENMATES_PROOF_REAL_DEV (it refuses to start under CI itself). GitHub CI never does.
-  const harnessRun = process.env.OPENMATES_PROOF_REAL_DEV === '1';
-  if (process.env.GITHUB_ACTIONS || process.env.OPENMATES_CI_ISOLATED === '1' || (process.env.CI && !harnessRun)) {
-    throw new Error('Real-inference Life compass proof is dev-only and must never run in CI.');
-  }
-  if (process.env.E2E_USE_MOCKS || process.env.E2E_USE_LIVE_MOCKS) {
-    throw new Error('This proof requires real inference; mock replay must be disabled.');
-  }
-  if (!new URL(BASE_URL).hostname.includes('.dev.')) {
-    throw new Error('This proof may target only the dev web host.');
-  }
-}
 
 async function insertModelMention(page: Page): Promise<void> {
   await page.keyboard.insertText(`@${MODEL_QUERY}`);
@@ -171,7 +157,7 @@ test.describe('Life compass focus: steps as Tasks, consented Memory, follow-up (
   test.use({ actionTimeout: 60_000, navigationTimeout: 60_000 });
 
   test.beforeAll(() => {
-    requireDirectDevRealInference();
+    requireRealInference('Real-inference Life compass proof', BASE_URL);
   });
 
   // contract-test: direct surface=gui.web assertions=life-compass.activation,life-compass.flow,life-compass.next-steps,life-compass.memory-consent,life-compass.follow-up

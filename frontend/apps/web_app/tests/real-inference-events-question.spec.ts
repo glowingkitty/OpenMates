@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
 // proof-video: not_required reason=visual_smoke_not_needed (the Playwright video and attached screenshots cover each checkpoint)
 /**
- * Conference questions are answered through the Events app (dev-only real-inference proof, TASK-2134).
+ * Conference questions are answered through the Events app (real-inference proof, TASK-2134).
  *
- * Runs without mocks against the deployed dev stack through
- * scripts/events_question_web_real_test.py with the personal dev test account
- * (or a throwaway account when it is busy):
+ * Runs in the `real_inference` CI group (isolated per-run stack with real Gemini, Mistral, Brave
+ * and Jev keys) and still manually against dev through
+ * scripts/events_question_web_real_test.py:
  *   1. @Gemini-3.8-Flash is asked for the largest open source conference in
  *      Europe and when it happens. The Events app search skill must run first
  *      (its app icon in the answer's activity line), never plain web search only.
@@ -14,7 +14,7 @@
  *      answering from memory (specialised skill first, web search as fallback).
  *   3. A chat header image bubble, when the header shows one, opens fullscreen
  *      without the "Embed not found" server error.
- * The chat is deleted afterwards. Never run in CI: it needs real providers.
+ * The chat is deleted afterwards.
  */
 import type { Page } from '@playwright/test';
 
@@ -27,6 +27,8 @@ const {
 	startNewChat
 } = require('./helpers/chat-test-helpers');
 const { closeFullscreen, openFullscreen } = require('./helpers/embed-test-helpers');
+const { requireRealInference } = require('./helpers/real-inference-guard');
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 const QUESTION = ' What is the largest open source software conference in Europe and when does it happen?';
@@ -66,7 +68,7 @@ async function askWithGemini(page: Page, log: any): Promise<void> {
 // contract-test: direct surface=gui.web assertions=ai-model-routing.preprocessing.conditional-context
 test('the largest open source conference question is answered through the Events app, with web search only as fallback', async ({ page }: { page: Page }, testInfo: any) => {
 	test.setTimeout(900_000);
-	test.skip(Boolean(process.env.E2E_USE_MOCKS), 'Real dev inference only.');
+	requireRealInference('Events question', BASE_URL);
 	test.skip(!getTestAccount().email, 'Test account credentials required.');
 	await page.setViewportSize({ width: 1280, height: 900 });
 	const log = createSignupLogger('EVENTS_QUESTION');

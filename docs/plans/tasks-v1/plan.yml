@@ -97,7 +97,7 @@ context_discovery:
     - backend/tests/test_feature_availability_enforcement.py
     - frontend/apps/web_app/tests/projects-flow.spec.ts
     - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
-    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    - frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
     - frontend/packages/openmates-cli/tests/client.test.ts
     - packages/openmates-python/tests/test_sdk.py
   design_references:

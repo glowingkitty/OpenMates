@@ -101,7 +101,7 @@ jobs:
     # the protected environment whose dev-only provider keys exist only for the
     # dev branch. Every other job runs without an environment and gets no keys.
     environment: ${{ inputs.mode == 'e2e' && startsWith(inputs.specs_json, '["real-inference-') && 'real-inference' || '' }}
-    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-') || inputs.web_rust_core == 'true') && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
+    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-') || startsWith(inputs.specs_json, '["real-inference-') || inputs.web_rust_core == 'true') && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
         working-directory: subject
@@ -125,8 +125,10 @@ jobs:
       VITE_API_URL: http://localhost:8000
       VITE_UPLOAD_URL: http://localhost:5173
       VITE_ENV: self_hosted
-      E2E_USE_MOCKS: '1'
-      E2E_USE_LIVE_MOCKS: '1'
+      # Real-inference jobs replay nothing; the flag tells their specs they run in the keyed stack.
+      OPENMATES_CI_REAL_INFERENCE: ${{ inputs.mode == 'e2e' && startsWith(inputs.specs_json, '["real-inference-') && '1' || '' }}
+      E2E_USE_MOCKS: ${{ !(inputs.mode == 'e2e' && startsWith(inputs.specs_json, '["real-inference-')) && '1' || '' }}
+      E2E_USE_LIVE_MOCKS: ${{ !(inputs.mode == 'e2e' && startsWith(inputs.specs_json, '["real-inference-')) && '1' || '' }}
       DOCKER_BUILD_RECORD_UPLOAD: 'false'
       NODE_OPTIONS: --max-old-space-size=6144
       # Rust lane selectors by spec-name pattern instead of closed specs_json
@@ -900,7 +902,7 @@ jobs:
       - name: Install Python packages for the synthetic SDK test peers
         if: inputs.mode == 'rust-check'
         timeout-minutes: 5
-        run: python3 -m pip install "cryptography>=41"
+        run: python3 -m pip install --require-hashes -r ../tooling/.github/requirements/sdk-test-peers.txt
       - name: Restore Rust check dependency cache
         if: inputs.mode == 'rust-check'
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
@@ -1294,7 +1296,8 @@ jobs:
           mkdir -p frontend/apps/web_app/node_modules
           ln -sfn "$RUNNER_TEMP/web-decoder-ts/node_modules/typescript" \
             frontend/apps/web_app/node_modules/typescript
-          python3 -m pip install --break-system-packages "cryptography>=41" || python3 -m pip install "cryptography>=41"
+          python3 -m pip install --break-system-packages --require-hashes -r ../tooling/.github/requirements/sdk-test-peers.txt \
+            || python3 -m pip install --require-hashes -r ../tooling/.github/requirements/sdk-test-peers.txt
       - name: Restore Rust dependency cache
         if: inputs.mode == 'apple-core'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4

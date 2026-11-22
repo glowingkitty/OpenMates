@@ -1,7 +1,7 @@
 # contract-test-file: infrastructure
 """Opt-in dev-only real-inference proof that the background chat notice shows the summary headline (TASK-390).
 
-Runs frontend/apps/web_app/tests/chat-notice-headline-real.spec.ts without mocks
+Runs frontend/apps/web_app/tests/real-inference-chat-notice-headline.spec.ts without mocks
 against https://app.dev.openmates.org on a phone viewport: a code-heavy request
 is answered by @Gemini-3.8-Flash while another new chat is open, and the in-app
 notice of the background chat must read "<icon> <summary>" with the chat title
@@ -21,7 +21,7 @@ import sys
 
 from design_embroidery_web_real_test import main
 
-SPEC = "tests/chat-notice-headline-real.spec.ts"
+SPEC = "tests/real-inference-chat-notice-headline.spec.ts"
 
 if __name__ == "__main__":
     sys.exit(main(spec=SPEC, title="Chat notice headline", doc=__doc__))

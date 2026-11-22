@@ -2,6 +2,9 @@
 /**
  * Real sub-chat inference regression test.
  *
+ * Runs in the `real_inference` CI group (isolated per-run stack, fresh CI account) and
+ * still manually against dev. Model: auto selection (not asserted).
+ *
  * Exercises the live LLM + tool pipeline without route mocks or IndexedDB
  * injection: parent chat spawn, server-created sub-chat sync, sub-chat send,
  * and assistant response rendering inside the sub-chat.
@@ -22,17 +25,18 @@ const {
 	deleteActiveChat,
 	waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
-const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { requireRealInference } = require('./helpers/real-inference-guard');
 
-const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 
 // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('real LLM sub-chat pipeline supports sending inside a synced sub-chat', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(420_000);
-	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	requireRealInference('sub-chats', BASE_URL);
+	if (!getTestAccount().email) throw new Error('Real-inference run requires a provisioned test account.');
 
-	const log = createSignupLogger('sub-chats-real-inference');
+	const log = createSignupLogger('real-inference-sub-chats');
 	await archiveExistingScreenshots(log);
 	const screenshot = createStepScreenshotter(log);
 

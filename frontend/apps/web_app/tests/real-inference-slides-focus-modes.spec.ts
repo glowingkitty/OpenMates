@@ -3,21 +3,18 @@ export {};
 // proof-video: not_required reason=visual_smoke_not_needed (the Playwright video and step screenshots cover each checkpoint)
 
 /**
- * Slides focus modes (real inference, dev server only): "Design a template" and
+ * Slides focus modes (real inference): "Design a template" and
  * "Plan a presentation" run with Gemini 3.8 Flash and the real Jev phase gates. A third
  * case presents a real Gemini deck on a laptop and steers it from a phone remote (same
  * account, relayed encrypted presenter state).
  * Replies are scripted short answers sent in a bounded loop until the expected
  * element (template cards, deck embed) appears.
  *
- * Run through scripts/slides_focus_web_real_test.py (personal dev test account,
- * leases, installed Chromium, output outside the repository).
+ * Runs in the `real_inference` CI group (isolated per-run stack, fresh CI account) and
+ * still manually against dev through scripts/slides_focus_web_real_test.py (dev test
+ * account, leases, installed Chromium, output outside the repository).
  *
- * REQUIRED ENV VARS:
- * - OPENMATES_TEST_ACCOUNT_EMAIL
- * - OPENMATES_TEST_ACCOUNT_PASSWORD
- * - OPENMATES_TEST_ACCOUNT_OTP_KEY
- * - PLAYWRIGHT_TEST_BASE_URL
+ * ENV VARS: OPENMATES_TEST_ACCOUNT_* (email, password, OTP key), PLAYWRIGHT_TEST_BASE_URL
  */
 
 const { test, expect, attachConsoleListeners, attachNetworkListeners, allowConsoleErrorPatterns } = require('./console-monitor');
@@ -29,11 +26,11 @@ const {
 	deleteActiveChat,
 	focusMessageEditor
 } = require('./helpers/chat-test-helpers');
-const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { requireRealInference } = require('./helpers/real-inference-guard');
 const { openFullscreen, closeFullscreen, showCarouselCard } = require('./helpers/embed-test-helpers');
 const { openChatAfterContextSync, waitForContextSyncComplete } = require('./helpers/chat-hydration');
 
-const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 
 const MODEL_QUERY = 'gemini-3.8-flash';
 const MODEL_NAME = /Gemini 3\.8 Flash/i;
@@ -193,7 +190,8 @@ async function pressUseDesign(page: any, overlay: any, chatUrl: string): Promise
 
 async function begin(page: any, name: string) {
 	test.setTimeout(1_500_000);
-	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	requireRealInference('slides-focus-modes', BASE_URL);
+	if (!getTestAccount(1).email) throw new Error('Real-inference run requires a provisioned test account.');
 	const log = createSignupLogger(name);
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: name });
 	attachConsoleListeners(page);

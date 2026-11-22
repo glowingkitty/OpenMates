@@ -974,7 +974,7 @@ features:
       sdk_npm: "sdk.ts runAppSkill(app,skill) generic skill call"
       sdk_pypi: "sdk.py _run_app_skill is private; no generated namespace"
     key_tests:
-      web: [frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts]
+      web: [frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts]
   - id: mail
     name: "Mail"
     kind: app

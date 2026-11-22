@@ -429,8 +429,19 @@ Each run gets its own throwaway stack:
   of exactly those providers' hosts (`REAL_INFERENCE_HOSTS` in `scripts/ci_tcp_gateway.py`).
 - Uploaded stack logs drop outgoing request lines and redact key-shaped values.
 
-The dev-host `*_real_test.py` runners still work against dev for manual checks, without any
-lock; a deploy or restart may interrupt them.
+- The job sets `OPENMATES_CI_REAL_INFERENCE=1` and clears `E2E_USE_MOCKS`/`E2E_USE_LIVE_MOCKS`.
+  Specs call `requireRealInference(label, BASE_URL)` from
+  `frontend/apps/web_app/tests/helpers/real-inference-guard.ts`, which allows exactly that job
+  (on its own localhost stack) or a manual run against a `.dev.` host, and refuses every other
+  CI job and any fixture replay.
+- Python installs in this workflow are hash-locked and resolved from releases older than 7 days
+  (`.github/requirements/`, guarded by `scripts/tests/test_ci_pip_installs_locked.py`).
+
+Every real-inference E2E spec that can work with those providers is in the group. A spec stays
+out only while it needs a provider key that is not in the list, an E2B sandbox, an
+operator-installed provider package, outside websites or a fixture that exists only on dev; it
+joins the group once that is solved. The dev-host `*_real_test.py` runners still work against
+dev for manual checks, without any lock; a deploy or restart may interrupt them.
 
 ## Setup
 

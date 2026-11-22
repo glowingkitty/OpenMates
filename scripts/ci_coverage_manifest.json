@@ -239,7 +239,6 @@
         "example-chat-clone.spec.ts",
         "file-attachment-code-flow.spec.ts",
         "file-attachment-flow.spec.ts",
-        "focus-mode-video-real-request.spec.ts",
         "image-enhance.spec.ts",
         "image-model-inference-real.spec.ts",
         "message-highlights.spec.ts",
@@ -255,7 +254,6 @@
         "skill-audio-generate-speak.spec.ts",
         "skill-images-generate-safety-upload.spec.ts",
         "skill-images-generate-safety.spec.ts",
-        "sub-chats-real-inference.spec.ts",
         "usage-token-breakdown.spec.ts",
         "webhook-incoming-chat.spec.ts",
         "wikipedia-mentions.spec.ts",
@@ -645,7 +643,8 @@
         "voice-call.spec.ts",
         "voice-call-ambient-sounds.spec.ts",
         "voice-call-screen-share.spec.ts",
-        "authored-results-media.spec.ts"
+        "authored-results-media.spec.ts",
+        "real-inference-image-upload-svg.spec.ts"
       ]
     },
     "credential_free_domains": {
@@ -1117,7 +1116,6 @@
         "teams-chat-collaboration-real.spec.ts",
         "vector-graphic-chat.spec.ts",
         "design-embroidery-chat.spec.ts",
-        "slides-focus-modes-real.spec.ts",
         "skill-search-live-progress-chat.spec.ts",
         "videos-generate-chat.spec.ts",
         "chat-orchestration-main-chats.spec.ts"
@@ -1351,7 +1349,19 @@
       "execution": "e2e",
       "enabling_work": "Real provider inference in the run's own isolated stack. Only the protected real-inference GitHub environment (dev branch) supplies the dev-only provider keys, which reach only that run's throwaway Vault; the stack's only egress is the gateway's HTTPS allowlist for those providers. Own batch; never mixed with replay fixtures.",
       "specs": [
-        "real-inference-gemini-chat.spec.ts"
+        "real-inference-chat-notice-headline.spec.ts",
+        "real-inference-events-question.spec.ts",
+        "real-inference-focus-mode-video.spec.ts",
+        "real-inference-gemini-chat.spec.ts",
+        "real-inference-image-upload-svg.spec.ts",
+        "real-inference-life-compass-focus.spec.ts",
+        "real-inference-press-release-project-memory.spec.ts",
+        "real-inference-project-layered-focus.spec.ts",
+        "real-inference-safety-suspension.spec.ts",
+        "real-inference-slides-focus-modes.spec.ts",
+        "real-inference-spec-authoring-focus.spec.ts",
+        "real-inference-sub-chats.spec.ts",
+        "real-inference-wellbeing-helpline.spec.ts"
       ]
     }
   },
@@ -1656,12 +1666,6 @@
     "file-attachment-flow.spec.ts": {
       "dependency": "live_media_provider_and_storage",
       "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: attaches a PNG image, shows embed preview in editor, and appears in chat after send. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add isolated object storage/upload/scan and required media worker; preserve real image safety, transcription, file encryption, or PDF processing assertions.",
-      "user_input_required": true,
-      "source_environment_names": []
-    },
-    "focus-mode-video-real-request.spec.ts": {
-      "dependency": "original_live_inference",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: real YouTube analysis request activates video focus mode and continues without preprocessing error. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
       "user_input_required": true,
       "source_environment_names": []
     },
@@ -2036,12 +2040,6 @@
         "weather_forecast_cli": 0,
         "weather_forecast_web": 0
       }
-    },
-    "sub-chats-real-inference.spec.ts": {
-      "dependency": "original_live_inference",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: real LLM sub-chat pipeline supports sending inside a synced sub-chat. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
-      "user_input_required": true,
-      "source_environment_names": []
     },
     "usage-token-breakdown.spec.ts": {
       "dependency": "original_live_inference",

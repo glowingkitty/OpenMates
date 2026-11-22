@@ -253,7 +253,6 @@ features:
       - frontend/apps/web_app/tests/components/glm-mistral-pricing.spec.ts
       - frontend/apps/web_app/tests/composer-model-routing.spec.ts
       - frontend/apps/web_app/tests/default-model-settings.spec.ts
-      - frontend/apps/web_app/tests/events-question-real.spec.ts
       - frontend/apps/web_app/tests/gpt61-sol-model-picker.spec.ts
       - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
       - frontend/apps/web_app/tests/mercury3-model-picker.spec.ts
@@ -263,6 +262,7 @@ features:
       - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
       - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
       - frontend/apps/web_app/tests/provider-temporary-pricing.spec.ts
+      - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
       - frontend/apps/web_app/tests/storage-capacity-replay.spec.ts
       - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
       - frontend/apps/web_app/tests/voice-call.spec.ts
@@ -573,7 +573,7 @@ features:
       - frontend/apps/web_app/tests/example-chats-load.spec.ts
       - frontend/apps/web_app/tests/memory-reuse.spec.ts
       - frontend/apps/web_app/tests/memory-write-undo.spec.ts
-      - frontend/apps/web_app/tests/press-release-project-memory-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-press-release-project-memory.spec.ts
       - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-chat-recommendations-flow.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-workflow-side-panel.spec.ts
@@ -3250,7 +3250,6 @@ features:
       - frontend/apps/web_app/tests/hidden-chats-flow.spec.ts
       - frontend/apps/web_app/tests/historical-image-child-recovery.spec.ts
       - frontend/apps/web_app/tests/hpfsl-acknowledgement-timing.spec.ts
-      - frontend/apps/web_app/tests/image-upload-svg-generate-real.spec.ts
       - frontend/apps/web_app/tests/legacy-first-chat-admission.spec.ts
       - frontend/apps/web_app/tests/legacy-search-parent-previews.spec.ts
       - frontend/apps/web_app/tests/logout-blocked-userdb-relogin.spec.ts
@@ -3261,6 +3260,8 @@ features:
       - frontend/apps/web_app/tests/persisted-draft-discovery.spec.ts
       - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
       - frontend/apps/web_app/tests/questionnaire-recipe-options-public.spec.ts
+      - frontend/apps/web_app/tests/real-inference-image-upload-svg.spec.ts
+      - frontend/apps/web_app/tests/real-inference-sub-chats.spec.ts
       - frontend/apps/web_app/tests/search-parent-preview-stress.spec.ts
       - frontend/apps/web_app/tests/slides-manual-edit.spec.ts
       - frontend/apps/web_app/tests/source-quote-verification.spec.ts
@@ -3272,7 +3273,6 @@ features:
       - frontend/apps/web_app/tests/storage-recovery-canonical-receipts.spec.ts
       - frontend/apps/web_app/tests/storage-recovery-replay.spec.ts
       - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
-      - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
       - frontend/apps/web_app/tests/voice-call.spec.ts
       - frontend/apps/web_app/tests/voice-first-preflight-order.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-chat.spec.ts
@@ -5034,8 +5034,8 @@ features:
       - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
       - frontend/apps/web_app/tests/focus-mode-mention.spec.ts
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
-      - frontend/apps/web_app/tests/project-layered-focus-web-real.spec.ts
-      - frontend/apps/web_app/tests/spec-authoring-focus-web-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-project-layered-focus.spec.ts
+      - frontend/apps/web_app/tests/real-inference-spec-authoring-focus.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
       - frontend/packages/ui/src/services/__tests__/projectAuthoringClientService.test.ts
@@ -7824,7 +7824,6 @@ features:
       - frontend/apps/web_app/tests/background-chat-notification.spec.ts
       - frontend/apps/web_app/tests/chat-error-report-consent.spec.ts
       - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
-      - frontend/apps/web_app/tests/chat-notice-headline-real.spec.ts
       - frontend/apps/web_app/tests/components/event-sounds.spec.ts
       - frontend/apps/web_app/tests/components/notification-grouping.spec.ts
       - frontend/apps/web_app/tests/components/settings-chat-notifications.spec.ts
@@ -7838,6 +7837,7 @@ features:
       - frontend/apps/web_app/tests/notification-mobile.spec.ts
       - frontend/apps/web_app/tests/notification-stack.spec.ts
       - frontend/apps/web_app/tests/project-result-notice.spec.ts
+      - frontend/apps/web_app/tests/real-inference-chat-notice-headline.spec.ts
       - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
       - frontend/apps/web_app/tests/reminder-email-delivery.spec.ts
       - frontend/apps/web_app/tests/reminder-email.spec.ts
@@ -8563,7 +8563,7 @@ features:
       e2e_tests:
       - frontend/apps/web_app/tests/components/safety-appeal.spec.ts
       - frontend/apps/web_app/tests/image-safety-explanations-real.spec.ts
-      - frontend/apps/web_app/tests/safety-suspension-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-safety-suspension.spec.ts
       key_unit_tests:
       - backend/tests/test_generated_media_graph.py
       unit_test_files: 1
@@ -10386,7 +10386,7 @@ features:
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/helpline-card.spec.ts
-      - frontend/apps/web_app/tests/wellbeing-helpline-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-wellbeing-helpline.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/HelplinesRenderer.test.ts
       unit_test_files: 1
@@ -13986,11 +13986,11 @@ features:
         missing: 2
         counted: 8
       key_tests:
-      - frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts
       evidence: 'real dev web proof: scripts/life_compass_focus_web_real_test.py (activation, Tasks, consented Memory, later-chat
         follow-up)'
       e2e_tests:
-      - frontend/apps/web_app/tests/life-compass-focus-web-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts
       key_unit_tests: []
       unit_test_files: 0
     apple:
@@ -16058,7 +16058,6 @@ features:
       - frontend/apps/web_app/tests/components/projects-remote-preview.spec.ts
       - frontend/apps/web_app/tests/components/projects-workspace-figma.spec.ts
       - frontend/apps/web_app/tests/components/remote-command-review.spec.ts
-      - frontend/apps/web_app/tests/press-release-project-memory-real.spec.ts
       - frontend/apps/web_app/tests/project-plans-flow.spec.ts
       - frontend/apps/web_app/tests/project-task-sync.spec.ts
       - frontend/apps/web_app/tests/project-timeline-flow.spec.ts
@@ -16068,6 +16067,7 @@ features:
       - frontend/apps/web_app/tests/projects-presentation-flow.spec.ts
       - frontend/apps/web_app/tests/projects-readme-focus.spec.ts
       - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+      - frontend/apps/web_app/tests/real-inference-press-release-project-memory.spec.ts
       - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
       - frontend/apps/web_app/tests/voice-call.spec.ts
       key_unit_tests:
@@ -17463,7 +17463,7 @@ features:
       - frontend/apps/web_app/tests/components/slides-presenter.spec.ts
       - frontend/apps/web_app/tests/components/slides-svg-animation.spec.ts
       - frontend/apps/web_app/tests/components/slides-template-embed.spec.ts
-      - frontend/apps/web_app/tests/slides-focus-modes-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-slides-focus-modes.spec.ts
       - frontend/apps/web_app/tests/slides-focus-presentation-planner.spec.ts
       - frontend/apps/web_app/tests/slides-focus-template-designer.spec.ts
       - frontend/apps/web_app/tests/slides-manual-edit.spec.ts
@@ -20760,7 +20760,6 @@ features:
       - frontend/apps/web_app/tests/example-chat-brand-naming.spec.ts
       - frontend/apps/web_app/tests/example-chat-hosting-domains.spec.ts
       - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      - frontend/apps/web_app/tests/image-upload-svg-generate-real.spec.ts
       - frontend/apps/web_app/tests/jobs-search-example.spec.ts
       - frontend/apps/web_app/tests/landing-audio-targeted.spec.ts
       - frontend/apps/web_app/tests/landing-home-replacement.spec.ts
@@ -20773,6 +20772,7 @@ features:
       - frontend/apps/web_app/tests/models3d-search.spec.ts
       - frontend/apps/web_app/tests/pdf-flow.spec.ts
       - frontend/apps/web_app/tests/provider-boundary.spec.ts
+      - frontend/apps/web_app/tests/real-inference-image-upload-svg.spec.ts
       - frontend/apps/web_app/tests/search-parent-preview-stress.spec.ts
       - frontend/apps/web_app/tests/skill-business-trademarks-browser.spec.ts
       - frontend/apps/web_app/tests/skill-electronics-search-components.spec.ts
@@ -23980,6 +23980,7 @@ features:
         counted: 2
       key_tests: []
       e2e_tests:
+      - frontend/apps/web_app/tests/real-inference-focus-mode-video.spec.ts
       - frontend/apps/web_app/tests/real-inference-gemini-chat.spec.ts
       key_unit_tests:
       - backend/tests/test_message_received_test_markers.py

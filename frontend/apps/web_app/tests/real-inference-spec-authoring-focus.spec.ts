@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
-// playwright-account: required reason=real_ai_personal_dev_only
 /**
- * Real-inference, dev-only web proof of the Code app's "Write specification" focus.
+ * Real-inference web proof of the Code app's "Write specification" focus.
  *
  * A bakery owner asks for a spec; the focus walks scope, requirements and design with
  * confirmations, drafts a Specification and Checks as embeds, asks for approval and only
  * then creates the Plan and its Tasks. The user's replies are fixed (no persona model), so
  * a failure points at the product, not at the test's role-play.
- * Run through scripts/spec_authoring_focus_web_real_test.py; never in CI, no mocks.
+ * Runs in the `real_inference` CI group (isolated per-run stack, no mocks) and manually
+ * against dev through scripts/spec_authoring_focus_web_real_test.py.
  */
 export {};
 
@@ -17,6 +17,7 @@ const { test, expect } = require('./helpers/cookie-audit');
 const {
   deleteActiveChat, focusMessageEditor, loginToTestAccount, sendMessage, startNewChat, waitForAssistantMessage,
 } = require('./helpers/chat-test-helpers');
+const { requireRealInference } = require('./helpers/real-inference-guard');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { expandActivity } = require('./helpers/assistant-activity');
@@ -64,21 +65,6 @@ const FACTS = "Here is everything at once. Customers are locals and regulars ord
   + "Out of scope for now: delivery, loyalty points, cakes. One specification is fine.";
 const CONFIRM = 'Yes, that is right. Please go on to the next step.';
 const APPROVE = 'Yes, I approve the Specification and its Checks as drafted. Please create the Plan and the Tasks.';
-
-function requireDirectDevRealInference(): void {
-  // The dev proof harness runs this spec in an E2B sandbox, which sets CI=1 for its tools; only the
-  // harness sets OPENMATES_PROOF_REAL_DEV (it refuses to start under CI itself). GitHub CI never does.
-  const harnessRun = process.env.OPENMATES_PROOF_REAL_DEV === '1';
-  if (process.env.GITHUB_ACTIONS || process.env.OPENMATES_CI_ISOLATED === '1' || (process.env.CI && !harnessRun)) {
-    throw new Error('Real-inference Specification focus proof is dev-only and must never run in CI.');
-  }
-  if (process.env.E2E_USE_MOCKS || process.env.E2E_USE_LIVE_MOCKS) {
-    throw new Error('This proof requires real inference; mock replay must be disabled.');
-  }
-  if (!new URL(BASE_URL).hostname.includes('.dev.')) {
-    throw new Error('This proof may target only the dev web host.');
-  }
-}
 
 /** Inserts the Gemini 3.8 Flash mention through the dropdown at the caret. */
 async function insertModelMention(page: Page): Promise<void> {
@@ -177,7 +163,7 @@ test.describe('Write specification focus guides an idea to an approved Spec, Pla
   test.use({ actionTimeout: 60_000, navigationTimeout: 60_000 });
 
   test.beforeAll(() => {
-    requireDirectDevRealInference();
+    requireRealInference('Real-inference Specification focus proof', BASE_URL);
   });
 
   // contract-test: direct surface=gui.web assertions=focus-modes.guided-spec-authoring
