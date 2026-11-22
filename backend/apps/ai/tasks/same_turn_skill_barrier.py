@@ -7,6 +7,7 @@ Provider results are sealed by the existing API-process private context handoff.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 import uuid
@@ -16,6 +17,8 @@ from typing import Any
 
 from backend.apps.ai.tasks.result_embed_references import completed_command_embed_ids, completed_result_embed_ids
 from backend.shared.python_utils.skill_use_body_refs import is_skill_use_ref
+
+logger = logging.getLogger(__name__)
 
 PREFIX = "same_turn_skill"
 TTL_SECONDS = 90 * 60
@@ -138,6 +141,38 @@ def compact_inline_images(value: Any) -> Any:
     return value
 
 
+def _compressed_size(value: Any) -> int:
+    return len(zlib.compress(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"), 6))
+
+
+def _entry_label(entry: Any) -> str:
+    """Role and tool name of one history entry; never its content."""
+    if not isinstance(entry, dict):
+        return type(entry).__name__
+    role = str(entry.get("role") or entry.get("type") or "?")[:20]
+    name = entry.get("name") or entry.get("tool_name")
+    calls = entry.get("tool_calls")
+    if not name and isinstance(calls, list) and calls and isinstance(calls[0], dict):
+        name = (calls[0].get("function") or {}).get("name") if isinstance(calls[0].get("function"), dict) else None
+    return f"{role}:{str(name)[:40]}" if name else role
+
+
+def checkpoint_size_breakdown(request_payload: dict[str, Any], checkpoint: dict[str, Any]) -> dict[str, Any]:
+    """Compressed byte sizes per checkpoint part and the largest history entries, for diagnosing
+    an oversized handoff. Sizes and labels only: no message text, file content or keys."""
+    parts = {f"checkpoint.{key}": _compressed_size(compact_inline_images(value))
+             for key, value in checkpoint.items()}
+    parts["request"] = _compressed_size(compact_inline_images(request_payload))
+    history = checkpoint.get("current_message_history")
+    largest: list[tuple[int, str]] = []
+    if isinstance(history, list):
+        largest = sorted(((len(json.dumps(compact_inline_images(entry), ensure_ascii=False)), _entry_label(entry))
+                          for entry in history), reverse=True)[:6]
+    top_parts = dict(sorted(parts.items(), key=lambda item: item[1], reverse=True)[:6])
+    return {"parts": top_parts, "history_entries": len(history) if isinstance(history, list) else None,
+            "largest_history_entries_raw": largest}
+
+
 def pack_private_checkpoint(request_payload: dict[str, Any], checkpoint: dict[str, Any]) -> dict[str, str]:
     """One bounded JSON copy of the private turn in the API-only sealed handoff."""
     raw = json.dumps({"request": compact_inline_images(request_payload),
@@ -147,6 +182,8 @@ def pack_private_checkpoint(request_payload: dict[str, Any], checkpoint: dict[st
         raise RuntimeError("Same-turn private checkpoint exceeds the bounded handoff")
     compressed = zlib.compress(raw, level=6)
     if len(compressed) > 140_000:
+        logger.warning("Same-turn checkpoint over the handoff limit: compressed=%d raw=%d parts=%s",
+                       len(compressed), len(raw), checkpoint_size_breakdown(request_payload, checkpoint))
         raise RuntimeError("Same-turn private checkpoint cannot fit in transient handoff")
     return {"codec": "json-zlib-base64-v1", "data": base64.b64encode(compressed).decode("ascii")}
 

@@ -293,6 +293,22 @@ def test_private_checkpoint_round_trips_one_bounded_json_copy():
 
 
 # contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure
+def test_oversized_checkpoint_logs_sizes_and_labels_only(caplog):
+    rng = random.Random(7)
+    secret = "".join(rng.choice("0123456789abcdef") for _ in range(400_000))  # ~200 KB compressed
+    checkpoint = {"current_message_history": [
+        {"role": "user", "content": "short private question"},
+        {"role": "tool", "name": "project-read-text", "content": secret},
+    ], "native_main_snapshot": []}
+    with caplog.at_level("WARNING"), pytest.raises(RuntimeError, match="cannot fit in transient handoff"):
+        barrier.pack_private_checkpoint({"message_history": []}, checkpoint)
+    logged = caplog.text
+    assert "checkpoint.current_message_history" in logged
+    assert "tool:project-read-text" in logged
+    assert secret[:64] not in logged and "short private question" not in logged
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure
 def test_deadline_uses_longest_job_envelope_in_mixed_batch():
     assert barrier.deadline_seconds_for_jobs([
         {"app_id": "web", "skill_id": "search"},
