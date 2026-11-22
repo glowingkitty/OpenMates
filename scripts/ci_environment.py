@@ -2882,11 +2882,13 @@ def main():
             # a longer bounded tail so a stall early in the run stays visible.
             # HTTP client request lines dominate the API log; without them the
             # same bound covers the whole spec instead of its last minute.
-            for service in ("api", "cms"):
+            # The AI worker gets it too: real-inference specs fail on a model
+            # round minutes before the end, which a 150-line tail drops.
+            for service in ("api", "cms", "ai-worker"):
                 if service in profile["services"]:
                     longer = compose("logs", "--no-color", service, capture=True)
                     kept = [line for line in longer.stdout.splitlines()
-                            if '"name": "httpx"' not in line][-6000:]
+                            if '"name": "httpx"' not in line and "openobserve" not in line][-6000:]
                     output += f"\n==== {service} (last 6000 lines, httpx omitted) ====\n" + "\n".join(kept)
             containers = compose("ps", "-aq", capture=True).stdout.split()
             for container in containers:

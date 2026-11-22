@@ -49,6 +49,7 @@ fn foreign_contract_version_chat_or_ids_are_invalid() {
         |a: &mut Value| a["plan_id"] = json!("not-a-uuid"),
         |a: &mut Value| a["assumptions"][0]["assumption_id"] = json!("x"),
         |a: &mut Value| a["assumptions"][0]["required_before"] = json!("never"),
+        |a: &mut Value| a["project_id"] = json!("not-a-uuid"),
     ] {
         let out = decide(&event(mutate)).unwrap();
         assert_eq!(out["ok"], false);
@@ -75,4 +76,37 @@ fn oversize_text_is_refused() {
         let out = decide(&event(mutate)).unwrap();
         assert_eq!(code(&out), "PLAN_CREATE_REQUEST_INVALID");
     }
+}
+
+#[test]
+fn missing_goal_falls_back_to_summary_then_title() {
+    let out = decide(&event(|a| a["goal"] = Value::Null)).unwrap();
+    assert_eq!(out["ok"], true);
+    assert_eq!(out["plan"]["goal"], "Short summary");
+    let out = decide(&event(|a| {
+        a["goal"] = json!("");
+        a["summary"] = Value::Null;
+    }))
+    .unwrap();
+    assert_eq!(out["plan"]["goal"], "Kitchen renovation plan");
+}
+
+#[test]
+fn every_failure_report_carries_the_server_plan_id() {
+    let invalid = decide(&event(|a| a["title"] = json!(""))).unwrap();
+    assert_eq!(invalid["result"]["plan_id"], PLAN);
+    let expired = decide(&event(|a| a["expires_at"] = json!(1000))).unwrap();
+    assert_eq!(expired["result"]["plan_id"], PLAN);
+    let ok = decide(&event(|_| {})).unwrap();
+    assert_eq!(ok["failed"]["plan_id"], PLAN);
+    assert_eq!(ok["conflict"]["plan_id"], PLAN);
+}
+
+#[test]
+fn server_project_id_is_returned_for_linking() {
+    const PROJECT: &str = "22222222-3333-4444-8555-666666666666";
+    let out = decide(&event(|a| a["project_id"] = json!(PROJECT))).unwrap();
+    assert_eq!(out["project_ids"], json!([PROJECT]));
+    let none = decide(&event(|_| {})).unwrap();
+    assert_eq!(none["project_ids"], json!([]));
 }

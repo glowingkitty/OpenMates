@@ -23,6 +23,8 @@ export type PlanCreateDecision =
 		ok: true;
 		request_id: string;
 		chat_id: string;
+		/** The chat's active Project as named by the server (empty when it named none). */
+		project_ids: string[];
 		plan: CreateUserPlanInput;
 		assumptions: CreatePlanAssumptionInput[];
 		created: PlanCreateResult;
@@ -72,8 +74,14 @@ const isConflict = (error: unknown) => error instanceof Error && /\(409\)/.test(
 
 /** Runs the creates of one validated request and returns the report to send. */
 async function execute(deps: PlanCreateRelayDeps, decision: Extract<PlanCreateDecision, { ok: true }>): Promise<PlanCreateResult> {
-	const projectIds = await deps.projectIdsForChat(decision.chat_id);
-	if (projectIds.length === 0) return { ...decision.failed, error_code: 'PLAN_PROJECT_REQUIRED' };
+	// The server's focus binding names the chat's Project. A chat bound by a
+	// composer mention is not a filed Project item, so the sidebar index alone
+	// misses it; it stays the source only when the server named none.
+	const projectIds = decision.project_ids.length > 0 ? decision.project_ids : await deps.projectIdsForChat(decision.chat_id);
+	if (projectIds.length === 0) {
+		console.warn('[PlanCreate] refused', 'PLAN_PROJECT_REQUIRED');
+		return { ...decision.failed, error_code: 'PLAN_PROJECT_REQUIRED' };
+	}
 	try {
 		const plan = await deps.createPlan({ ...decision.plan, linkedProjectIds: projectIds });
 		for (const assumption of decision.assumptions) await deps.createAssumption(plan, assumption);
@@ -99,8 +107,10 @@ export function installPlanCreateRelay(deps: PlanCreateRelayDeps = defaultDeps):
 			if (stopped) return;
 			const decision = await deps.decide(payload, Math.floor(Date.now() / 1000));
 			let result: PlanCreateResult;
-			if (!decision.ok) result = decision.result;
-			else {
+			if (!decision.ok) {
+				result = decision.result;
+				console.warn('[PlanCreate] refused', result.error_code);
+			} else {
 				result = reports.get(decision.request_id) ?? await execute(deps, decision);
 				reports.set(decision.request_id, result);
 			}

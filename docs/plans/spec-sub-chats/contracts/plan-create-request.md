@@ -10,8 +10,10 @@ Plans are client-encrypted, so after `plans:create` the server asks a first-part
   "contract":"openmates.plan_create_request","version":1,"request_id":"plan-create-request-<uuid>",
   "action":"create","plan_id","title","summary","goal","specification_ref",
   "assumptions":[{"assumption_id","text","required_before"}],
-  "chat_id","message_id","expires_at":<unix seconds>,"notification_queued":true}}}
+  "chat_id","message_id","project_id","expires_at":<unix seconds>,"notification_queued":true}}}
 ```
+
+`project_id` is the chat's active Project focus from the server's focus binding (null when the chat has none); the client links the Plan to it. `goal` may be empty: the client falls back to the summary, then the title. Every result, also a failed one, carries the request's `plan_id`.
 
 `notification_queued` is true only when the event was published. The request lives 10 minutes.
 

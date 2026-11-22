@@ -102,6 +102,20 @@ async function lastAssistantId(page: Page): Promise<string | null> {
   return ids.at(-1) ?? null;
 }
 
+/** True when the last reply only activated a focus: the server's follow-up reply is still to come. */
+async function onlyFocusActivated(page: Page): Promise<boolean> {
+  const last = page.getByTestId('message-assistant').last();
+  const text = (await last.innerText().catch(() => '')).replace(/\s+/g, ' ');
+  if (!/Focus activated/i.test(text)) return false;
+  const prose = await last.getByTestId('message-content').last().evaluate((element) => {
+    const copy = element.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll('[data-testid*="embed"], [class*="embed"], [data-testid*="tool"], [data-testid*="focus"]')
+      .forEach((node) => node.remove());
+    return (copy.textContent ?? '').replace(/\s+/g, ' ').trim().length;
+  }).catch(() => 0);
+  return prose < 20;
+}
+
 async function waitForTurn(page: Page, lastBefore: string | null): Promise<void> {
   await expect.poll(async () => {
     const last = await lastAssistantId(page);
@@ -109,6 +123,14 @@ async function waitForTurn(page: Page, lastBefore: string | null): Promise<void>
   }, { timeout: TURN_TIMEOUT, intervals: [2_000] }).toBe(true);
   await waitForAssistantMessage(page, { timeout: TURN_TIMEOUT });
   await waitForIdle(page);
+  // A focus activation ends its own message; the answer follows in a server
+  // follow-up. Sending before it starts collides with that queued hand-off.
+  if (await onlyFocusActivated(page)) {
+    const activation = await lastAssistantId(page);
+    await expect.poll(async () => (await lastAssistantId(page)) !== activation || !(await onlyFocusActivated(page)),
+      { message: 'the answer follows the focus activation', timeout: TURN_TIMEOUT, intervals: [2_000] }).toBe(true);
+    await waitForIdle(page);
+  }
   const generatedBy = page.getByTestId('message-assistant').last().getByTestId('generated-by');
   await expect(generatedBy).toBeVisible({ timeout: 120_000 });
   await expect(generatedBy).toContainText(MODEL_NAME);
@@ -217,6 +239,10 @@ test.describe('Approved Specification hands work to sub-chats (real inference, i
     requireRealInference('Spec sub-chats', BASE_URL);
     if (!getTestAccount().email) throw new Error('Real-inference CI requires a provisioned test account.');
     await page.setViewportSize({ width: 1280, height: 900 });
+    // Plan creation runs in the browser; its refusal codes explain a missing Plan.
+    page.on('console', (message) => {
+      if (message.text().startsWith('[PlanCreate]')) console.log(`[browser] ${message.text().slice(0, 200)}`);
+    });
     proof = createVideoProofRuntime(proofContract, {
       device: 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot({ type: 'png' }),
     });

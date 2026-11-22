@@ -40,6 +40,25 @@ def plan_create_record_key(user_id: str, request_id: str) -> str:
     return f"plan_create_request:v1:{_hash(user_id)}:{request_id}"
 
 
+async def _active_project_id(cache_service: Any, user_id: str, chat_id: Any) -> str | None:
+    """Project id of the chat's active Project focus, from the server's focus binding.
+
+    The client links the new Plan to this Project. The binding is the server's
+    authority for the chat's Project (set when the focus was authorised); the
+    client's encrypted Plan create re-checks Project access, so the id grants
+    nothing by itself. A chat filed in no Project has no binding: returns None.
+    """
+    if not isinstance(chat_id, str) or not chat_id:
+        return None
+    from backend.core.api.app.services.project_write_authorization_service import (
+        ProjectWriteAuthorizationService,
+    )
+
+    binding = await cache_service.get(ProjectWriteAuthorizationService._focus_key(user_id, chat_id))
+    project_id = binding.get("project_id") if isinstance(binding, dict) else None
+    return project_id if isinstance(project_id, str) and project_id else None
+
+
 def outbound_plan_create_event(payload: Any) -> dict[str, Any] | None:
     """Re-validate a pub/sub event before it is forwarded to a client socket."""
     if not isinstance(payload, dict):
@@ -60,6 +79,7 @@ async def publish_plan_create_request(*, cache_service: Any, user_id: str, actio
     """
     now = time.time()
     action["expires_at"] = int(now + PLAN_CREATE_REQUEST_TTL)
+    action["project_id"] = await _active_project_id(cache_service, user_id, action.get("chat_id")) if cache_service else None
     client = await cache_service.client if cache_service else None
     if not client:
         logger.warning("Plan create request not published request=%s: cache unavailable", action.get("request_id"))

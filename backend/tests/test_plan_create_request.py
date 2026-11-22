@@ -84,6 +84,23 @@ async def test_event_published_with_payload_for_capable_connection():
 
 # contract-test: supporting surface=rest_api assertions=plans.assistant.created-plan-saved
 @pytest.mark.asyncio
+async def test_request_names_the_chats_active_project_from_the_focus_binding():
+    from backend.core.api.app.services.project_write_authorization_service import (
+        ProjectWriteAuthorizationService,
+    )
+
+    cache = _Cache()
+    project = "33333333-3333-4333-8333-333333333333"
+    cache.values[ProjectWriteAuthorizationService._focus_key("owner", "chat")] = {"project_id": project}
+    action = await _published(cache)
+    assert action["project_id"] == project
+    assert cache._redis.published[0][1]["payload"]["pending_client_action"]["project_id"] == project
+    unbound = await _published(_Cache())
+    assert unbound["project_id"] is None
+
+
+# contract-test: supporting surface=rest_api assertions=plans.assistant.created-plan-saved
+@pytest.mark.asyncio
 async def test_result_accepted_for_owner_and_record_cleared():
     cache, manager = _Cache(), _Manager()
     action = await _published(cache)

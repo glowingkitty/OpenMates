@@ -46,9 +46,12 @@ fn text<'a>(value: &'a Value, max: usize, required: bool) -> Option<&'a str> {
     }
 }
 
-fn failed(request_id: Option<&str>, code: &str) -> Value {
+/// Builds the refusal answer. The report carries the server-minted `plan_id`
+/// whenever it could be read, because the server matches reports to its request
+/// record by request id and plan id and drops a report without one.
+fn failed(request_id: Option<&str>, plan_id: Option<&str>, code: &str) -> Value {
     json!({ "ok": false, "request_id": request_id, "result": {
-        "request_id": request_id, "status": "failed", "error_code": code } })
+        "request_id": request_id, "status": "failed", "plan_id": plan_id, "error_code": code } })
 }
 
 /// Validates one `plan_create_requested` payload for `now_s` (unix seconds).
@@ -65,7 +68,7 @@ pub(crate) fn decide(input: &Value) -> Decision {
     let action = &event["pending_client_action"];
     let request_id = is_request_id(&action["request_id"]);
     let Some(rid) = request_id else {
-        return Ok(failed(None, "PLAN_CREATE_REQUEST_INVALID"));
+        return Ok(failed(None, None, "PLAN_CREATE_REQUEST_INVALID"));
     };
     let chat_id = is_uuid(&action["chat_id"]);
     let plan_id = is_uuid(&action["plan_id"]);
@@ -77,13 +80,21 @@ pub(crate) fn decide(input: &Value) -> Decision {
         && event["chat_id"] == action["chat_id"]
         && plan_id.is_some();
     let title = text(&action["title"], MAX_TITLE_CHARS, true);
-    let goal = text(&action["goal"], MAX_LONG_TEXT_CHARS, true);
+    // The skill requires only a title; a missing goal falls back to the summary,
+    // then the title, so a model that leaves it out still gets its Plan.
+    let goal = text(&action["goal"], MAX_LONG_TEXT_CHARS, false);
     let summary = text(&action["summary"], MAX_LONG_TEXT_CHARS, false);
     let spec_ref = text(&action["specification_ref"], MAX_TITLE_CHARS, false);
-    let (Some(title), Some(goal), Some(summary), Some(spec_ref), true) =
-        (title, goal, summary, spec_ref, valid_shape)
+    // The server names the chat's active Project (its focus binding); the page
+    // links the Plan to it. Absent means the chat has no Project focus.
+    let project_id = match &action["project_id"] {
+        Value::Null => Some(None),
+        value => is_uuid(value).map(Some),
+    };
+    let (Some(title), Some(goal), Some(summary), Some(spec_ref), Some(project_id), true) =
+        (title, goal, summary, spec_ref, project_id, valid_shape)
     else {
-        return Ok(failed(request_id, "PLAN_CREATE_REQUEST_INVALID"));
+        return Ok(failed(request_id, plan_id, "PLAN_CREATE_REQUEST_INVALID"));
     };
     let raw = action["assumptions"]
         .as_array()
@@ -91,7 +102,7 @@ pub(crate) fn decide(input: &Value) -> Decision {
     if !action["assumptions"].is_null() && !action["assumptions"].is_array()
         || raw.len() > MAX_ASSUMPTIONS
     {
-        return Ok(failed(request_id, "PLAN_CREATE_REQUEST_INVALID"));
+        return Ok(failed(request_id, plan_id, "PLAN_CREATE_REQUEST_INVALID"));
     }
     let mut assumptions = Vec::with_capacity(raw.len());
     for item in raw {
@@ -100,10 +111,10 @@ pub(crate) fn decide(input: &Value) -> Decision {
             is_uuid(&item["assumption_id"]),
             text(&item["text"], MAX_ASSUMPTION_CHARS, true),
         ) else {
-            return Ok(failed(request_id, "PLAN_CREATE_REQUEST_INVALID"));
+            return Ok(failed(request_id, plan_id, "PLAN_CREATE_REQUEST_INVALID"));
         };
         if !REQUIRED_BEFORE.contains(&required_before) {
-            return Ok(failed(request_id, "PLAN_CREATE_REQUEST_INVALID"));
+            return Ok(failed(request_id, plan_id, "PLAN_CREATE_REQUEST_INVALID"));
         }
         assumptions.push(json!({ "assumptionId": id, "text": body,
             "requiredBefore": required_before, "status": "unchecked" }));
@@ -112,8 +123,12 @@ pub(crate) fn decide(input: &Value) -> Decision {
         .as_u64()
         .is_none_or(|expires| expires <= now_s)
     {
-        return Ok(failed(request_id, "PLAN_CREATE_REQUEST_EXPIRED"));
+        return Ok(failed(request_id, plan_id, "PLAN_CREATE_REQUEST_EXPIRED"));
     }
+    let goal = [goal, summary, title]
+        .into_iter()
+        .find(|value| !value.trim().is_empty())
+        .unwrap_or(title);
     let constraints = if spec_ref.is_empty() {
         String::new()
     } else {
@@ -123,11 +138,14 @@ pub(crate) fn decide(input: &Value) -> Decision {
         "ok": true,
         "request_id": rid,
         "chat_id": chat_id,
+        "project_ids": project_id.into_iter().collect::<Vec<_>>(),
         "plan": { "planId": plan_id, "title": title, "goal": goal, "scopeIn": summary,
             "constraints": constraints, "primaryChatId": chat_id },
         "assumptions": assumptions,
         "created": { "request_id": rid, "status": "created", "plan_id": plan_id },
-        "failed": { "request_id": rid, "status": "failed", "error_code": "PLAN_CREATE_FAILED" },
-        "conflict": { "request_id": rid, "status": "failed", "error_code": "PLAN_ID_CONFLICT" },
+        "failed": { "request_id": rid, "status": "failed", "plan_id": plan_id,
+            "error_code": "PLAN_CREATE_FAILED" },
+        "conflict": { "request_id": rid, "status": "failed", "plan_id": plan_id,
+            "error_code": "PLAN_ID_CONFLICT" },
     }))
 }

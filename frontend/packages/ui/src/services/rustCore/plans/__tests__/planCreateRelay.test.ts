@@ -5,12 +5,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { installPlanCreateRelay, type PlanCreateDecision, type PlanCreateRelayDeps } from '../planCreateRelay';
 
 const OK: PlanCreateDecision = {
-	ok: true, request_id: 'r1', chat_id: 'c1',
+	ok: true, request_id: 'r1', chat_id: 'c1', project_ids: [],
 	plan: { planId: 'p1', title: 'Kitchen renovation plan', goal: 'Renovate' },
 	assumptions: [{ assumptionId: 'a1', text: 'Budget fixed' }, { assumptionId: 'a2', text: 'Permit ready' }],
 	created: { request_id: 'r1', status: 'created', plan_id: 'p1' },
-	failed: { request_id: 'r1', status: 'failed', error_code: 'PLAN_CREATE_FAILED' },
-	conflict: { request_id: 'r1', status: 'failed', error_code: 'PLAN_ID_CONFLICT' }
+	failed: { request_id: 'r1', status: 'failed', plan_id: 'p1', error_code: 'PLAN_CREATE_FAILED' },
+	conflict: { request_id: 'r1', status: 'failed', plan_id: 'p1', error_code: 'PLAN_ID_CONFLICT' }
 };
 
 function setup(overrides: Partial<PlanCreateRelayDeps> = {}) {
@@ -49,11 +49,19 @@ describe('planCreateRelay', () => {
 		expect(deps.createPlan).not.toHaveBeenCalled();
 	});
 
+	it('links the Plan to the Project the server named, without the sidebar index', async () => {
+		const { deps, handlers } = setup({ decide: vi.fn(async () => ({ ...OK, project_ids: ['server-proj'] }) as PlanCreateDecision) });
+		handlers.get('plan_create_requested')!(EVENT);
+		await vi.waitFor(() => expect(deps.send).toHaveBeenCalledWith('plan_create_result', OK.ok && OK.created));
+		expect(deps.createPlan).toHaveBeenCalledWith(expect.objectContaining({ linkedProjectIds: ['server-proj'] }));
+		expect(deps.projectIdsForChat).not.toHaveBeenCalled();
+	});
+
 	it('fails with PLAN_PROJECT_REQUIRED when the chat has no Project', async () => {
 		const { deps, handlers } = setup({ projectIdsForChat: vi.fn(async () => []) });
 		handlers.get('plan_create_requested')!(EVENT);
 		await vi.waitFor(() => expect(deps.send).toHaveBeenCalledWith('plan_create_result',
-			{ request_id: 'r1', status: 'failed', error_code: 'PLAN_PROJECT_REQUIRED' }));
+			{ request_id: 'r1', status: 'failed', plan_id: 'p1', error_code: 'PLAN_PROJECT_REQUIRED' }));
 		expect(deps.createPlan).not.toHaveBeenCalled();
 	});
 
