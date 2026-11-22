@@ -30,7 +30,7 @@
     countDocWords
   } from './docsEmbedContent';
   import { fetchAndDecryptDocArtifact } from './docsArtifactCrypto';
-  import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
+  import { displayPIIEmbedText } from '../../../services/piiEmbedDisplay';
   import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
   import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { hydrateWikiLinks } from '../../../utils/embedLinkUtils';
@@ -157,12 +157,7 @@
    */
   let piiProcessedHtml = $derived.by(() => {
     const { mappings, revealed } = embedPIIState;
-    if (!mappings.length || !htmlContent) return htmlContent;
-    if (revealed) {
-      return restorePIIInText(htmlContent, mappings);
-    } else {
-      return replacePIIOriginalsWithPlaceholders(htmlContent, mappings);
-    }
+    return displayPIIEmbedText(htmlContent, mappings, revealed);
   });
 
   // Sanitize HTML content for safe rendering in preview

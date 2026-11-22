@@ -42,6 +42,7 @@
     extractDocumentFilename,
     generateFilenameFromTitle
   } from './docsEmbedContent';
+  import { displayPIIEmbedText } from '../../../services/piiEmbedDisplay';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { includeOriginalPIIInDraftEmbed, loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
@@ -268,12 +269,7 @@
    * Apply PII masking to the raw HTML string before sanitizing.
    */
   let piiProcessedHtml = $derived.by(() => {
-    if (!hasPII || !htmlContent) return htmlContent;
-    if (piiRevealed) {
-      return restorePIIInText(htmlContent, allPIIMappings);
-    } else {
-      return replacePIIOriginalsWithPlaceholders(htmlContent, allPIIMappings);
-    }
+    return displayPIIEmbedText(htmlContent, allPIIMappings, piiRevealed);
   });
 
   // Sanitize HTML content for safe rendering (DOMPurify)
