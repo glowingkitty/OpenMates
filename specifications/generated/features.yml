@@ -11950,7 +11950,7 @@ features:
       - backend/tests/test_code_run_billing_attribution.py
       - backend/tests/test_e2b_code_runner.py
       - backend/tests/test_application_preview_config.py
-      unit_test_files: 35
+      unit_test_files: 34
     sdk_npm:
       status: not_run
       source: tests
@@ -16011,7 +16011,7 @@ features:
     - platform:projects
     dev: enabled
     prod: disabled
-  assertions: 74
+  assertions: 75
   surfaces:
     web:
       status: failing
@@ -16021,8 +16021,8 @@ features:
         passing: 21
         failing: 14
         not_run: 11
-        missing: 28
-        counted: 74
+        missing: 29
+        counted: 75
       failing_tests:
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_mixed_project_and_web_batch_defers_web_until_file_result
       - backend/tests/test_main_processor_invalid_tool_calls.py › test_multiple_project_jobs_dispatch_only_first
@@ -16050,7 +16050,6 @@ features:
       - frontend/apps/web_app/tests/components/focus-mode-activation.spec.ts
       - frontend/apps/web_app/tests/components/project-chat-previews.spec.ts
       - frontend/apps/web_app/tests/components/project-file-approval.spec.ts
-      - frontend/apps/web_app/tests/components/project-file-change-event-notice.spec.ts
       - frontend/apps/web_app/tests/components/project-file-references.spec.ts
       - frontend/apps/web_app/tests/components/project-focus-policy.spec.ts
       - frontend/apps/web_app/tests/components/project-read-reference-card.spec.ts
@@ -16079,7 +16078,7 @@ features:
       - frontend/packages/ui/src/services/__tests__/projectReadme.test.ts
       - backend/tests/test_project_file_references.py
       - backend/tests/test_project_focus_early_routing.py
-      unit_test_files: 38
+      unit_test_files: 37
     apple:
       status: failing
       source: tests
@@ -16088,8 +16087,8 @@ features:
         passing: 15
         failing: 2
         not_run: 1
-        missing: 56
-        counted: 74
+        missing: 57
+        counted: 75
       failing_tests:
       - apple/OpenMatesUITests/DevComponentPreviewUITests.swift › testProjectsWorkspaceLandingOverviewAndFilesAtWebPhoneWidth
       key_tests: []
@@ -16122,8 +16121,8 @@ features:
         passing: 21
         failing: 0
         not_run: 16
-        missing: 37
-        counted: 74
+        missing: 38
+        counted: 75
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-native-agentic-app-real.spec.ts
@@ -16170,9 +16169,9 @@ features:
       assertions:
         passing: 27
         failing: 0
-        not_run: 16
+        not_run: 17
         missing: 31
-        counted: 74
+        counted: 75
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/jev-project-context-api.spec.ts
@@ -16191,8 +16190,8 @@ features:
         passing: 0
         failing: 0
         not_run: 6
-        missing: 68
-        counted: 74
+        missing: 69
+        counted: 75
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -16208,8 +16207,8 @@ features:
         passing: 0
         failing: 0
         not_run: 5
-        missing: 69
-        counted: 74
+        missing: 70
+        counted: 75
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -16823,6 +16822,7 @@ features:
     description: Long turns, test results, checks, workspace chain, remote access
     assertion_ids:
     - projects.agentic.earlier-steps-stay
+    - projects.agentic.files-as-code-embeds
     - projects.agentic.long-turn-stays-online
     - projects.agentic.test-result-in-reply
     - projects.agentic.test-run-installs-dependencies
@@ -16840,8 +16840,8 @@ features:
           passing: 3
           failing: 0
           not_run: 0
-          missing: 6
-          counted: 9
+          missing: 7
+          counted: 10
       apple:
         status: partial
         source: tests
@@ -16850,8 +16850,8 @@ features:
           passing: 1
           failing: 0
           not_run: 0
-          missing: 8
-          counted: 9
+          missing: 9
+          counted: 10
       cli:
         status: partial
         source: tests
@@ -16860,8 +16860,8 @@ features:
           passing: 1
           failing: 0
           not_run: 1
-          missing: 7
-          counted: 9
+          missing: 8
+          counted: 10
       tui:
         status: unverified
         source: intent
@@ -16879,9 +16879,9 @@ features:
         assertions:
           passing: 2
           failing: 0
-          not_run: 3
+          not_run: 4
           missing: 4
-          counted: 9
+          counted: 10
       sdk_npm:
         status: unverified
         source: intent
@@ -16890,8 +16890,8 @@ features:
           passing: 0
           failing: 0
           not_run: 0
-          missing: 9
-          counted: 9
+          missing: 10
+          counted: 10
       sdk_pypi:
         status: unverified
         source: intent
@@ -16900,8 +16900,8 @@ features:
           passing: 0
           failing: 0
           not_run: 0
-          missing: 9
-          counted: 9
+          missing: 10
+          counted: 10
   - id: tile-presentation
     name: Project tile description, icon and category
     description: Encrypted one-line description, icon and category gradient on Project tiles; set at assistant creation and

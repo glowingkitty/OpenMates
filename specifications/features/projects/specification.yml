@@ -792,9 +792,21 @@ assertions:
   type: behavior
   must: A coding turn that continues after a command, a test run or another background step keeps every earlier step of
     its reply visible while the next step streams and after it finishes. The skill cards the earlier steps showed (Run,
-    Read files, file changes, the created Project) lead the continued reply in their original order, and the assistant's
-    skill area holds only skill cards; a command's terminal output belongs to its Run card, never to the reply as a
+    Read files, web research) lead the continued reply in their original order, and the assistant's skill area holds
+    only skill cards, never file content; a command's terminal output belongs to its Run card, never to the reply as a
     separate code block. The server keeps only the references of those cards between steps, never their text.
+  depends_on:
+  - examples.project_agentic_coding
+- id: projects.agentic.files-as-code-embeds
+  type: behavior
+  must: In a chat on a cloud Project, every file the assistant creates appears as a normal code embed inside its reply,
+    streaming live as it is written, exactly as when a user asks for code in a normal chat, and that embed is the
+    Project file, saved in the Project before any later command of the turn runs. An edit of an existing file appears
+    as the normal diff embed and is saved as a new revision of that Project file. The files of a step sit in the normal
+    horizontal embed row with show more at its end. The reply refers to those files with the normal inline embed
+    references instead of listing folder or file names as plain text. No separate "File changed" or "Project file
+    changed" entry is shown, neither in the reply nor below the chat; "Created <name> project · Undo" stays the system
+    event above the reply, followed by the focus activation embed.
   depends_on:
   - examples.project_agentic_coding
 - id: projects.agentic.test-run-installs-dependencies

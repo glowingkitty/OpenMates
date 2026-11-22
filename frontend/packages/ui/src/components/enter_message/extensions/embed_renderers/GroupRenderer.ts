@@ -2076,17 +2076,8 @@ export class GroupRenderer implements EmbedRenderer {
       }
 
       if (appId === "projects" && skillId === "change") {
-        // Applied file changes are system events, in groups as standalone.
-        const { default: ProjectFileChangeEventNotice } = await import("../../../projects/ProjectFileChangeEventNotice.svelte");
-        const { readProjectFileChangeRows } = await import("../../../projects/projectFileChangeEvent");
-        const rows = readProjectFileChangeRows(decodedContent);
-        if (rows.length) {
-          const component = mount(ProjectFileChangeEventNotice, {
-            target,
-            props: { rows, onOpen: handleFullscreen },
-          });
-          mountedComponents.set(target, component);
-        }
+        // Older chats' projects/change embeds show nothing: the reply's code embeds are the files.
+        target.hidden = true;
         return;
       }
 

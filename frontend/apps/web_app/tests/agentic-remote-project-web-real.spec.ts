@@ -297,10 +297,12 @@ test.describe('Flow 2 from the web app: spec to commit on a connected machine (r
       + 'and add the harvest log to web-app/index.html so I can preview it.');
     await waitForTurn(page, testInfo);
     await shot(page, testInfo, 'laptop-03-code');
-    // A reply that only shows code in text leaves nothing to test on the machine;
-    // the step passes only when the turn wrote Project files (Project file change events).
-    await proof.assert('flow2.code_files', () =>
-      expect(page.getByTestId('project-file-change-event').first()).toBeVisible({ timeout: 60_000 }));
+    // The machine folder's files are written with the Project file tools; the unit test run on the
+    // machine in step 4 proves they exist. No separate "File changed" entry is shown (owner, 22 Nov).
+    await proof.assert('flow2.code_files', async () => {
+      await expect(lastAssistant(page), 'the reply names the files it wrote').toContainText(/web-app\//);
+      await expect(page.getByTestId('project-file-change-event')).toHaveCount(0);
+    });
     await proof.checkpoint('flow2-code');
 
     // 4. The unit tests run on the machine.

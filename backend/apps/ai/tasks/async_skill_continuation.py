@@ -88,16 +88,6 @@ def _project_file_reference_preview(
     )
 
 
-def _project_file_change_preview(
-    *, context: dict[str, Any], completed_results: list[dict[str, Any]], result_status: str,
-) -> dict[str, Any] | None:
-    from backend.apps.ai.processing.project_file_change_references import build_project_file_change_preview
-
-    return build_project_file_change_preview(
-        context=context, completed_results=completed_results, result_status=result_status,
-    )
-
-
 def _project_app_folders(*, context: dict[str, Any], completed_results: list[dict[str, Any]]) -> list[str] | None:
     from backend.apps.ai.processing.project_app_preview_card import built_app_folders
 
@@ -827,9 +817,6 @@ async def dispatch_async_skill_continuation(
             and any(result.get("access_granted") is False for result in completed_results)
         ),
         active_project_focus=original_request.active_project_focus,
-        project_file_change_preview=_project_file_change_preview(
-            context=context, completed_results=completed_results, result_status=result_status,
-        ),
         project_app_folders=_project_app_folders(context=context, completed_results=completed_results),
         project_file_reference_preview=_project_file_reference_preview(
             context=context, completed_results=completed_results, result_status=result_status,

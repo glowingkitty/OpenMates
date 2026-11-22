@@ -466,7 +466,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // This ensures consistent styling and proper preview display during streaming
     if (appId && skillId) {
       if (appId === "projects" && skillId === "change") {
-        return this.renderProjectFileChangeEvent(attrs, embedData, decodedContent, content);
+        return this.renderProjectFileChangeEvent(content);
       }
       if (appId === "projects" && (skillId === "search" || skillId === "read")) {
         return this.renderProjectReferenceComponent(attrs, embedData, decodedContent, content, skillId);
@@ -1200,28 +1200,13 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
   }
 
-  /** A projects/change embed is a chat-history system event, not a card. */
-  private async renderProjectFileChangeEvent(
-    attrs: EmbedNodeAttributes,
-    embedData: any,
-    decodedContent: any,
-    content: HTMLElement,
-  ): Promise<void> {
+  /**
+   * A projects/change embed (older chats) shows nothing: the files a reply writes are its
+   * code embeds (plan project-files-as-chat-code-embeds).
+   */
+  private renderProjectFileChangeEvent(content: HTMLElement): void {
     this.prepareMount(content);
-    try {
-      const { default: ProjectFileChangeEventNotice } = await import("../../../projects/ProjectFileChangeEventNotice.svelte");
-      const { readProjectFileChangeRows } = await import("../../../projects/projectFileChangeEvent");
-      const rows = readProjectFileChangeRows(decodedContent);
-      if (!rows.length) return;
-      const component = mount(ProjectFileChangeEventNotice, {
-        target: content,
-        props: { rows, onOpen: () => this.openFullscreen(attrs, embedData, { ...decodedContent, skill_id: "read" }) },
-      });
-      mountedComponents.set(content, component);
-    } catch (error) {
-      console.error("[AppSkillUseRenderer] Error mounting ProjectFileChangeEventNotice:", error);
-      this.renderGenericSkill(attrs, embedData, decodedContent, content);
-    }
+    content.hidden = true;
   }
 
   private async renderProjectReferenceComponent(

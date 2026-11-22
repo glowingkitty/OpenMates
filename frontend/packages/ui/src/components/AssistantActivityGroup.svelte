@@ -208,14 +208,12 @@
   // Skill cards that are the requested result (a drafted Specification, Check
   // or Plan; answer_card in app.yml) stay visible below the collapsed summary.
   const answerCardSkills = new Set(EMBED_ANSWER_CARD_SKILLS);
-  // Applied Project file changes are system events of the turn, so they stay visible while the group is collapsed.
-  const isProjectFileChange = (item: Record<string, unknown>) => item.app_id === 'projects' && item.skill_id === 'change';
   // Items may sit in a grouped node (a Specification and its Checks in one
   // "app-skill-use-group"), so each answer-card item gets its own embed node.
   const answerCardDocument = $derived.by(() => {
     const seen = new Set<string>();
     const content = assistantActivityItems(document).filter((item) => {
-      if (item.type !== 'app-skill-use' || !(answerCardSkills.has(`app:${String(item.app_id)}:${String(item.skill_id)}`) || isProjectFileChange(item))) return false;
+      if (item.type !== 'app-skill-use' || !answerCardSkills.has(`app:${String(item.app_id)}:${String(item.skill_id)}`)) return false;
       const key = String(item.id ?? item.contentRef ?? '');
       if (!key || seen.has(key)) return false;
       seen.add(key);

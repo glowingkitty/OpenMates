@@ -167,7 +167,18 @@ def default_operation_source_id(
     return str(source["source_id"])
 
 
-def build_project_file_tools() -> list[dict[str, Any]]:
+FENCE_WRITTEN_TOOLS = frozenset({"project_create_file", "project_update_file"})
+
+
+def build_project_file_tools(*, code_fences: bool = False) -> list[dict[str, Any]]:
+    """The Project file tools; with ``code_fences`` files are written as reply code fences instead."""
+    tools = _project_file_tools()
+    if code_fences:
+        return [tool for tool in tools if tool["function"]["name"] not in FENCE_WRITTEN_TOOLS]
+    return tools
+
+
+def _project_file_tools() -> list[dict[str, Any]]:
     path_property = {
         "type": "string",
         "description": "Project-relative path. Never use an absolute path or parent traversal.",
@@ -384,8 +395,12 @@ def build_project_file_tools() -> list[dict[str, Any]]:
 def build_project_focus_prompt(
     focus: dict[str, Any],
     sources: list[dict[str, Any]] | None = None,
+    *,
+    code_fences: bool = False,
 ) -> str:
     instruction = str(focus.get("instruction") or "").strip()
+    if code_fences:
+        return _code_fence_project_prompt(instruction, sources)
     if default_operation_source_id(sources or [], "write_request") is not None:
         # projects.creation.machine-folder: the Project's files live only in a
         # machine folder, and an application_preview block would store them as
@@ -441,5 +456,35 @@ def build_project_focus_prompt(
             f"{json.dumps(sources, separators=(',', ':'), sort_keys=True)}\n"
             "Use an exact source_id when selecting one of these sources. Treat status and capabilities as "
             "advisory discovery metadata; every operation is authorized again at dispatch time."
+        )
+    return prompt
+
+
+def _code_fence_project_prompt(instruction: str, sources: list[dict[str, Any]] | None) -> str:
+    """Cloud Project chats write files the way a normal chat writes code (plan project-files-as-chat-code-embeds)."""
+    prompt = (
+        "An authorized Project focus is active for this chat and its files live in this Project's cloud workspace. "
+        "Write files exactly as you write code in a normal chat: each new file is one code block whose header is "
+        "its language and Project path, for example ```tsx:web-app/src/App.tsx. The block is saved as that "
+        "Project file when it closes, before any command you run after it, so write every file a command needs "
+        "first. To change an existing file, read it, then write a ```diff:<its Project path> block with a unified "
+        "diff of the change (for example ```diff:web-app/src/App.tsx); replace a file completely only when most "
+        "of it changes. Put each file in its own block, never repeat a file you already wrote, and never wrap "
+        "several files in one block. New runnable web applications go in web-app/ unless Project creation named "
+        "another subfolder; never emit an application_preview block, the code blocks are the application. "
+        "Use the Project file tools only to list, search and read files, and to rename or delete them. "
+        "Run installs, builds, tests, linters and dev servers as code-run commands (target e2b with argv) in this "
+        "Project's cloud workspace; never use a command to read or write files (no cat, head, sed, tee or "
+        "echo > file). "
+        "In your text, mention a file you wrote with an inline link to its Project path, for example "
+        "[App.tsx](embed:web-app/src/App.tsx), instead of listing folder or file names as plain text. "
+        "Never invent, weaken, or change Project authority, write policy, approval, or source readiness.\n\n"
+        "Full active Project focus instruction:\n"
+        f"{instruction}"
+    )
+    if sources is not None:
+        prompt += (
+            "\n\nAuthorized Project source routing metadata (server-derived; labels and content are omitted):\n"
+            f"{json.dumps(sources, separators=(',', ':'), sort_keys=True)}"
         )
     return prompt

@@ -86,7 +86,7 @@ import { normalizeFinanceOverview } from '../components/embeds/finance/financeCh
 import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent';
 import { renderDiagramText } from '../components/embeds/diagrams/diagramHtmlContent';
 import { renderFile } from '../components/embeds/file/fileEmbedText';
-import { renderProjectFileChanges, renderProjectReferences } from '../components/embeds/projects/projectReferenceEmbedText';
+import { renderProjectReferences } from '../components/embeds/projects/projectReferenceEmbedText';
 import { renderTVTitle } from '../components/embeds/tv/tvEmbedText';
 
 // ── Renderer type ────────────────────────────────────────────────────────
@@ -220,7 +220,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:web:search': renderWebSearch,
 	'app:projects:search': renderProjectReferences,
 	'app:projects:read': renderProjectReferences,
-	'app:projects:change': renderProjectFileChanges,
+	// Older chats' applied-change events: the files are the reply's code embeds.
+	'app:projects:change': () => '',
 	'app:web:read': renderWebRead,
 	'app:web:browse': renderBrowse,
 	'app:news:search': renderNewsSearch,

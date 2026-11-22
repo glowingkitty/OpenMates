@@ -3902,27 +3902,12 @@ async def _command_outcome_references(
     request_data: Any, *, cache_service: Any, directus_service: Any, encryption_service: Any,
     user_vault_key_id: str | None, task_id: str, log_prefix: str,
 ) -> list[str]:
-    """Publish the pending Project file change event and app cards once; return their references.
+    """Publish the pending Project app cards once; return their references.
 
     Async continuations attach them before the stream starts; a same-turn resume
     attaches them while restoring the batch results, so both call this.
     """
     references: list[str] = []
-    change_preview = getattr(request_data, "project_file_change_preview", None)
-    if change_preview is not None:
-        request_data.project_file_change_preview = None
-        from backend.apps.ai.processing.project_file_change_references import (
-            publish_project_file_change_preview,
-        )
-
-        change_reference = await publish_project_file_change_preview(
-            preview=change_preview, request_data=request_data, cache_service=cache_service,
-            directus_service=directus_service, encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
-        )
-        # The commands' terminal code embeds are the Run cards' children, never reply content.
-        if change_reference:
-            references.append(change_reference)
     app_folders = getattr(request_data, "project_app_folders", None)
     if app_folders:
         request_data.project_app_folders = None
@@ -4979,6 +4964,11 @@ async def handle_main_processing(
         )
         project_reference_setup_last = now
 
+    # Cloud Project chats write files as reply code fences that become the Project files.
+    from backend.apps.ai.processing.project_code_fence_commit import project_code_fence_mode
+    project_code_fences = bool(active_project_focus) and await project_code_fence_mode(
+        request_data, active_project_sources, directus_service)
+    request_data.project_code_fences = project_code_fences
     if active_project_focus:
         project_instruction_focus = parse_project_phase_focus(
             active_project_focus.get("instruction") or "", active_project_focus["focus_id"])
@@ -4991,7 +4981,8 @@ async def handle_main_processing(
             await project_runtime.load()
             focus_phase_runtimes.append(project_runtime)
             effective_project_focus["instruction"] = phase_prompt(project_instruction_focus, project_runtime.state)
-        project_phase_prompt_section = build_project_focus_prompt(effective_project_focus, active_project_sources)
+        project_phase_prompt_section = build_project_focus_prompt(
+            effective_project_focus, active_project_sources, code_fences=project_code_fences)
         prompt_parts.append(project_phase_prompt_section)
     mark_project_reference_setup("project_focus")
     suppress_task_runtime_tools = should_suppress_task_runtime_tools_for_app_skill(
@@ -5734,7 +5725,7 @@ async def handle_main_processing(
         )
 
     if project_file_tools_enabled and active_project_focus:
-        project_tools = build_project_file_tools()
+        project_tools = build_project_file_tools(code_fences=project_code_fences)
         available_tools_for_llm.extend(project_tools)
         logger.info("%s Added %s authorized Project file tool(s)", log_prefix, len(project_tools))
 
@@ -6799,7 +6790,8 @@ async def handle_main_processing(
                         answer_recovery_system_prompt = answer_recovery_system_prompt.replace(active_focus_prompt_section, section, 1)
                     active_focus_prompt_section = section
                 elif active_project_focus and runtime.state.focus_id == active_project_focus["focus_id"]:
-                    section = build_project_focus_prompt({**active_project_focus, "instruction": instruction}, active_project_sources)
+                    section = build_project_focus_prompt({**active_project_focus, "instruction": instruction},
+                                                         active_project_sources, code_fences=project_code_fences)
                     if project_phase_prompt_section:
                         full_system_prompt = full_system_prompt.replace(project_phase_prompt_section, section, 1)
                         answer_recovery_system_prompt = answer_recovery_system_prompt.replace(project_phase_prompt_section, section, 1)
@@ -6910,7 +6902,8 @@ async def handle_main_processing(
                 request_data.active_project_focus = fresh
                 request_data.current_project = ({key: fresh.get(key) for key in
                     ("project_id", "project_id_hash", "team_id", "team_id_hash")} if fresh else None)
-                project_phase_prompt_section = build_project_focus_prompt(fresh, active_project_sources) if fresh else None
+                project_phase_prompt_section = build_project_focus_prompt(
+                    fresh, active_project_sources, code_fences=project_code_fences) if fresh else None
                 if project_phase_prompt_section:
                     full_system_prompt += "\n\n" + project_phase_prompt_section
                     answer_recovery_system_prompt += "\n\n" + project_phase_prompt_section
@@ -9963,18 +9956,6 @@ async def handle_main_processing(
                                 if sandbox_result is not None:
                                     # Hosted sandbox ran it inline: no pending operation, no continuation.
                                     project_result = sandbox_result
-                                    from backend.apps.ai.processing.project_file_change_references import (
-                                        publish_inline_project_file_change,
-                                    )
-                                    inline_change_reference = await publish_inline_project_file_change(
-                                        request_data=request_data, operation=operation,
-                                        operation_arguments=operation_arguments, envelope=sandbox_result,
-                                        dispatch_focus=dispatch_focus, cache_service=cache_service,
-                                        directus_service=directus_service, encryption_service=encryption_service,
-                                        user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
-                                    )
-                                    if inline_change_reference:
-                                        yield f"```json\n{inline_change_reference}\n```\n\n"
                                     if operation in {"read_text", "search"}:
                                         # Inline reads publish the same "Read files" card a
                                         # continuation read does (reference ids only, no content).

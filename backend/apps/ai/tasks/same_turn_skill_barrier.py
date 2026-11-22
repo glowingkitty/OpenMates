@@ -537,23 +537,11 @@ async def verify_resume_delivery(cache: Any, request: Any, delivery_task_id: str
 
 
 def _attach_project_command_outcomes(request: Any, results: list[dict[str, Any]]) -> None:
-    """The batch's Project write-back becomes one change row; passing builds get app cards."""
+    """Passing builds of the batch get app cards (the files themselves show as code embeds)."""
     from backend.apps.ai.processing.project_app_preview_card import built_app_folders
-    from backend.apps.ai.processing.project_file_change_references import build_change_preview, command_change_rows
 
     focus = getattr(request, "active_project_focus", None) or {}
     project_id = focus.get("project_id")
     if not isinstance(project_id, str) or not project_id:
         return
-    rows: list[dict[str, Any]] = []
-    for result in results:
-        for row in command_change_rows(result):
-            if row["path"] not in {existing["path"] for existing in rows}:
-                rows.append(row)
-    request.project_file_change_preview = build_change_preview(
-        origin="command", project_id=project_id, rows=rows,
-        project_name=next((c.get("name") for c in getattr(request, "project_focus_candidates", None) or []
-                           if isinstance(c, dict) and c.get("project_id") == project_id), None),
-        team_id=getattr(request, "team_id", None) or focus.get("team_id"),
-    )
     request.project_app_folders = built_app_folders(results) or None

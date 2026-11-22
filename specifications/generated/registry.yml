@@ -240,7 +240,7 @@ specifications:
     version: 3
     status: approved
     path: features/app-skills/code-run
-    fingerprint: b88fca626577184f990df57c4aa9d667a8a9f686b3911d22a37e27e82279be2c
+    fingerprint: 019de6ec12372de23efb03932fe0fa6bb7d28813f7c3654c7a09ef32aa39df44
     required_applies_to:
     - rest_api
     - cli
@@ -945,7 +945,7 @@ specifications:
     version: 2
     status: approved
     path: features/projects
-    fingerprint: 856e5fd7e01244b0de2483e22d0f44eb23c733c7fd209ed34e4335803098f807
+    fingerprint: ea5e500e2646fda42306adcb81a2a4c3628b2f4f73a2e22b04b811751204da12
     required_applies_to:
     - rest_api
     - cli
@@ -4350,7 +4350,7 @@ assertions:
     specification: feature.app-skill.code-run@3
     specification_id: feature.app-skill.code-run
     type: behavior
-    fingerprint: 8d9a1e7337d069043026ba7e6046c1c0a5609eefdfc90e3bc14c051ba2afe855
+    fingerprint: 4dae81677ea19dea383772053cc2ae8e7a67c1fb2c95f4aa015d2cdac2383864
     required_applies_to:
     - rest_api
     - cli
@@ -13450,7 +13450,19 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: e90365e4a977927cc2771f65abae547f49579f2dc0066daf4bcc2e0cab0b251d
+    fingerprint: 59d100a953dbee2dd931dea2d5613622e18d5a6daa1477d6f22955cfe0199a78
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.agentic.files-as-code-embeds:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: 9ccc4482dc6563b64fe59b27472c31436bf07d9e5c0be220b13ffd39003abb2e
     required_applies_to:
     - rest_api
     - cli

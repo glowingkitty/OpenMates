@@ -35,7 +35,7 @@ const proofContract = defineVideoProof({
   devices: ['web-laptop', 'web-phone'],
   domain: 'app.dev.openmates.org',
   transcript: [
-    { id: 'app-built', text: 'The chat shows the recipe app, its file changes and the new Project.', checkpoint: 'cloud-app-embed', devices: L },
+    { id: 'app-built', text: 'The chat shows the recipe app as code embeds in the reply and the new Project.', checkpoint: 'cloud-app-embed', devices: L },
     { id: 'commands', text: 'The install and build commands ran in the Project workspace.', checkpoint: 'cloud-commands', devices: L },
     { id: 'test-recorded', text: 'The recorded browser test opens with its video beside the step timeline.', checkpoint: 'cloud-test-result', devices: L },
     { id: 'commit', text: 'The reply names the commit by its short id.', checkpoint: 'cloud-commit', devices: L },
@@ -63,7 +63,7 @@ const MODEL_NAME = /Gemini 3\.8 Flash/i;
 
 // Same prompt texts as cli-native-agentic-app-real.spec.ts; the model mention is inserted as a real mention.
 // The first turn only writes the files: the install/build turn below must be the one whose commands
-// change the Project (lockfile synced back as a new diff card), so the model must not run them early.
+// change the Project (the lockfile is synced back into the Project), so the model must not run them early.
 const PROMPT = 'Build me a simple recipe web app where I can add recipes with ingredients and steps and see them in a list. Keep it small. Just write the files for now, I will ask you to install and build it next.';
 const COMMAND_PROMPT = 'Install the app dependencies and run its production build in web-app, then tell me whether the build passed and which files the commands changed.';
 const TEST_PROMPT = 'Add a browser test that adds one recipe and checks it appears in the list, run it, and commit when it passes.';
@@ -302,13 +302,14 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     const firstChatId = [...ownedChatIds][0];
     if (firstChatId) await recordOwnedProject(page, firstChatId);
     await proof.assert('cloud.app_files', async () => {
-      // A new app in a Project chat is written file by file with the Project file tools, so its
-      // files are Project files from the first turn (the later install/build turn needs them).
+      // A new app in a cloud Project chat is written as normal code blocks; each one is committed
+      // as the Project file and shows as a code embed in the reply (no separate File changed entry).
       const reply = lastAssistant(page);
-      await expect(page.locator('[data-testid="project-file-change-event"][data-paths*="web-app/package.json"]').first(),
-        'package.json written into web-app/ with the file tools').toBeVisible({ timeout: 60_000 });
-      const changedPaths = await page.getByTestId('project-file-change-event').evaluateAll((rows) => rows.flatMap((row) => (row.getAttribute('data-paths') ?? '').split(',')));
-      expect(new Set(changedPaths).size, 'several app files written with the file tools').toBeGreaterThan(1);
+      const fileCards = reply.locator('[data-testid="embed-preview"][data-app-id="code"][data-skill-id="code"]');
+      await expect(fileCards.filter({ hasText: 'package.json' }).first(),
+        'package.json is a code embed in the reply').toBeVisible({ timeout: 60_000 });
+      expect(await fileCards.count(), 'several app files as code embeds').toBeGreaterThan(1);
+      await expect(page.getByTestId('project-file-change-event'), 'no File changed entries').toHaveCount(0);
       // Only an application card means an inline app block; code-run and test-result cards also
       // carry data-app-id="code" and belong in this reply.
       // A Project app card (built in the Project sandbox) names its folder and is allowed.
@@ -319,8 +320,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     expect(appChatId, 'the app chat has an id in the URL').not.toBe('');
     await proof.checkpoint('cloud-app-embed');
 
-    // b. Install and build: code-run cards with exit code 0, and the synced-back lockfile as a diff card.
-    const fileCardsBefore = await page.getByTestId('project-file-change-event').count();
+    // b. Install and build: code-run cards with exit code 0 (files the commands change are synced back silently).
     await send(page, COMMAND_PROMPT);
     await waitForTurn(page);
     await expandActivity(page);
@@ -333,9 +333,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     expect(cardText, 'the dependency install ran as a command').toMatch(/\b(npm|pnpm|yarn)\s+(i|install|ci)\b/i);
     expect(cardText, 'the production build ran as a command').toMatch(/\b(npm|pnpm|yarn)\s+(run\s+)?build\b|\bvite\s+build\b/i);
     expect(cardText, 'no command of the turn exited non-zero').not.toMatch(/exit(?:ed)?(?:\s+with)?(?:\s+code)?:?\s*[1-9]\d*\b/i);
-    await expect(page.locator(['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock'].map((name) => `[data-testid="project-file-change-event"][data-paths*="${name}"]`).join(', ')).first(),
-      'lockfile synced back as a change event').toBeVisible({ timeout: 60_000 });
-    expect(await page.getByTestId('project-file-change-event').count(), 'new change events after commands').toBeGreaterThan(fileCardsBefore);
+    await expect(page.getByTestId('project-file-change-event'), 'no File changed entries after commands').toHaveCount(0);
     await proof.checkpoint('cloud-commands');
 
     // c. Recorded browser test and the commit by its short id.

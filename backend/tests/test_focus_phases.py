@@ -709,6 +709,7 @@ def test_main_transition_preserves_mate_permissions_and_recovery_prompt(assigned
     wrapper.body[0].body[0] = helper
     scope = dict(focus_phase_runtimes=[runtime], request_data=request, secrets_manager=None,
         phase_prompt=phase_prompt, active_project_focus=project_focus, active_project_sources=[],
+        project_code_fences=False,
         build_project_focus_prompt=build_project_focus_prompt,
         without_unscoped_project_search=without_unscoped_project_search,
         user_requested_skills_only=False, baseline_skills={"web-search", "images-search"},

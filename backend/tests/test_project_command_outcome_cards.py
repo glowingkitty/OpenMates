@@ -1,4 +1,4 @@
-"""A same-turn resume publishes the file change event and app card of its own batch.
+"""A same-turn resume publishes the app card of its own batch.
 
 Run 26 of the recipe-app proof (22 Nov): the resume attached the build's app
 folder while restoring the batch results, after the stream had already passed
@@ -20,7 +20,7 @@ def _request() -> SimpleNamespace:
     return SimpleNamespace(
         active_project_focus={"project_id": "p-1"},
         project_focus_candidates=[{"project_id": "p-1", "name": "Recipe Manager"}],
-        team_id=None, project_file_change_preview=None, project_app_folders=None,
+        team_id=None, project_app_folders=None,
     )
 
 
@@ -38,22 +38,18 @@ async def test_resume_publishes_its_own_build_card_once(monkeypatch) -> None:
 
     published: list[str] = []
 
-    async def change(**kwargs):
-        published.append("change")
-        return '{"type": "app_skill_use", "embed_id": "c"}'
-
     async def apps(**kwargs):
         published.append(f"app:{kwargs['folders']}")
         return ['{"type": "application", "embed_id": "a"}']
 
-    from backend.apps.ai.processing import project_app_preview_card, project_file_change_references
-    monkeypatch.setattr(project_file_change_references, "publish_project_file_change_preview", change)
+    from backend.apps.ai.processing import project_app_preview_card
     monkeypatch.setattr(project_app_preview_card, "publish_project_app_cards", apps)
     kwargs = dict(cache_service=None, directus_service=None, encryption_service=None,
                   user_vault_key_id="v", task_id="t", log_prefix="")
     references = await main_processor._command_outcome_references(request, **kwargs)
-    assert published == ["change", "app:['web-app']"]
-    assert len(references) == 2
+    # Only the app card: the files themselves are the reply's code embeds, never a change event.
+    assert published == ["app:['web-app']"]
+    assert len(references) == 1
     # Consumed: a later stream of the same reply does not publish them again.
     assert await main_processor._command_outcome_references(request, **kwargs) == []
 

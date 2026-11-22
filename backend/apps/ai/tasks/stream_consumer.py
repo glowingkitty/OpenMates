@@ -55,6 +55,10 @@ from backend.shared.providers.e2b_application_preview import (
 
 from backend.apps.code.application_identity import derive_application_identity
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.apps.ai.processing.project_code_fence_commit import (
+    apply_project_diff_fence, code_reference, commit_code_fence, fence_project_focus,
+    link_project_file_references, project_file_path, swap_streamed_code_reference,
+)
 from backend.apps.ai.assistant_speech.projection import (
     build_app_use_announcement,
     classify_acknowledgement_category,
@@ -2266,6 +2270,18 @@ async def _apply_diff_block_to_existing_embed(
     from backend.core.api.app.services.embed_version_transaction_service import PROJECT_FILE_TOOL_REQUIRED, requires_atomic_project_embed_write
     from toon_format import decode
 
+    # A cloud Project file is edited through the Project sandbox; the reply shows that file's embed.
+    project_diff_path = project_file_path(diff_embed_ref) if fence_project_focus(request_data) else None
+    if project_diff_path:
+        project_file = await apply_project_diff_fence(
+            request_data, path=project_diff_path, patch=diff_content, cache_service=cache_service,
+            directus_service=directus_service, log_prefix=log_prefix,
+        )
+        if project_file:
+            logger.info(f"{log_prefix} [PROJECT_FENCE] Applied diff fence to Project file embed {project_file['embed_id']}")
+            return code_reference(project_file["embed_id"])
+        return _render_diff_visual_card(project_diff_path, diff_content, "could not apply to the Project file")
+
     file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
     resolved_ref = diff_embed_ref or next(iter(file_path_index), None)
 
@@ -2282,10 +2298,10 @@ async def _apply_diff_block_to_existing_embed(
             f"{list(file_path_index.keys())[:10]}. Showing visual diff card."
         )
         return _render_diff_visual_card(resolved_ref, diff_content)
-    # One write path (P11): a Project-linked embed changes only through the Project file tools.
+    # One write path (P11): a Project-linked embed changes only through the Project sandbox or file tools.
     if await requires_atomic_project_embed_write(directus_service, target_embed_id):
         logger.info(f"{log_prefix} [DIFF_BLOCK] Not applied to Project-linked embed {target_embed_id}: {PROJECT_FILE_TOOL_REQUIRED}")
-        return _render_diff_visual_card(resolved_ref, diff_content, f"not applied: {PROJECT_FILE_TOOL_REQUIRED}; use project_update_file")
+        return _render_diff_visual_card(resolved_ref, diff_content, "not applied: name the file by its Project path")
 
     cached_embed = await cache_service.get_embed_from_cache(target_embed_id)
     if not cached_embed:
@@ -10069,56 +10085,82 @@ async def _consume_main_processing_stream(
                                                 f"for streaming target {current_code_embed_id}; finalizing without version rows."
                                             )
 
-                                    if version_history_rows and new_version:
-                                        await embed_service.update_code_embed_content(
-                                            embed_id=current_code_embed_id,
-                                            code_content=current_code_content,
-                                            chat_id=request_data.chat_id,
-                                            user_id=request_data.user_id,
-                                            user_id_hash=request_data.user_id_hash,
-                                            user_vault_key_id=user_vault_key_id,
-                                            status="finished",
-                                            version_number=new_version,
-                                            content_hash=hashlib.sha256(current_code_content.encode("utf-8")).hexdigest(),
-                                            version_history_rows=version_history_rows,
-                                            learning_mode_metadata=learning_mode_metadata,
+                                    # A file of a cloud Project chat: commit it as the Project file and show that
+                                    # embed; the streamed placeholder is never stored (plan
+                                    # project-files-as-chat-code-embeds).
+                                    project_fence_path = (
+                                        project_file_path(current_code_filename)
+                                        if not current_code_replacement_ref and fence_project_focus(request_data)
+                                        else None
+                                    )
+                                    project_fence_file = (
+                                        await commit_code_fence(
+                                            request_data, path=project_fence_path, content=current_code_content,
+                                            cache_service=cache_service, directus_service=directus_service,
                                             log_prefix=log_prefix,
+                                        )
+                                        if project_fence_path else None
+                                    )
+                                    if project_fence_file:
+                                        swap_streamed_code_reference(
+                                            final_response_chunks, old_embed_id=current_code_embed_id,
+                                            new_embed_id=project_fence_file["embed_id"],
+                                        )
+                                        logger.info(
+                                            f"{log_prefix} [PROJECT_FENCE] Committed code fence as Project file embed "
+                                            f"{project_fence_file['embed_id']} (created={project_fence_file['created']})"
                                         )
                                     else:
-                                        await embed_service.update_code_embed_content(
+                                        if version_history_rows and new_version:
+                                            await embed_service.update_code_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                code_content=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="finished",
+                                                version_number=new_version,
+                                                content_hash=hashlib.sha256(current_code_content.encode("utf-8")).hexdigest(),
+                                                version_history_rows=version_history_rows,
+                                                learning_mode_metadata=learning_mode_metadata,
+                                                log_prefix=log_prefix,
+                                            )
+                                        else:
+                                            await embed_service.update_code_embed_content(
+                                                embed_id=current_code_embed_id,
+                                                code_content=current_code_content,
+                                                chat_id=request_data.chat_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                status="finished",
+                                                learning_mode_metadata=learning_mode_metadata,
+                                                log_prefix=log_prefix,
+                                            )
+                                        if finalized_as_notebook:
+                                            _replace_streamed_json_embed_reference_type(
+                                                final_response_chunks,
+                                                embed_id=current_code_embed_id,
+                                                old_type="code",
+                                                new_type="notebook",
+                                                log_prefix=log_prefix,
+                                            )
+                                        _record_generated_code_file_embed(
+                                            generated_code_file_embeds,
                                             embed_id=current_code_embed_id,
-                                            code_content=current_code_content,
-                                            chat_id=request_data.chat_id,
-                                            user_id=request_data.user_id,
-                                            user_id_hash=request_data.user_id_hash,
-                                            user_vault_key_id=user_vault_key_id,
-                                            status="finished",
-                                            learning_mode_metadata=learning_mode_metadata,
+                                            filename=current_code_filename,
+                                            language=current_code_language,
+                                        )
+                                        await _mark_code_embed_assistant_runnable(
+                                            cache_service=cache_service,
+                                            request_data=request_data,
+                                            embed_id=current_code_embed_id,
+                                            action="edited" if current_code_replacement_ref else "created",
                                             log_prefix=log_prefix,
                                         )
-                                    if finalized_as_notebook:
-                                        _replace_streamed_json_embed_reference_type(
-                                            final_response_chunks,
-                                            embed_id=current_code_embed_id,
-                                            old_type="code",
-                                            new_type="notebook",
-                                            log_prefix=log_prefix,
-                                        )
-                                    _record_generated_code_file_embed(
-                                        generated_code_file_embeds,
-                                        embed_id=current_code_embed_id,
-                                        filename=current_code_filename,
-                                        language=current_code_language,
-                                    )
-                                    await _mark_code_embed_assistant_runnable(
-                                        cache_service=cache_service,
-                                        request_data=request_data,
-                                        embed_id=current_code_embed_id,
-                                        action="edited" if current_code_replacement_ref else "created",
-                                        log_prefix=log_prefix,
-                                    )
                                       
-                                    logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
+                                        logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
 
                                     if (
                                         not application_parent_embed_created
@@ -11390,6 +11432,22 @@ async def _consume_main_processing_stream(
                     f"(length: {len(aggregated_response)})",
                 )
 
+    # --- Project file inline references (plan project-files-as-chat-code-embeds) ---
+    # The model links files it wrote this turn by Project path; point them at the committed file embeds.
+    project_fence_files = getattr(request_data, "project_fence_files", None) or {}
+    if aggregated_response and project_fence_files:
+        linked_response = link_project_file_references(aggregated_response, project_fence_files)
+        if linked_response != aggregated_response:
+            aggregated_response = linked_response
+            final_response_chunks = [aggregated_response]
+            if cache_service:
+                await _publish_to_redis(
+                    cache_service, redis_channel_name,
+                    _create_redis_payload(task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                                          is_final=False, model_name=stream_model_name),
+                    log_prefix, "Published response with Project file links pointed at their file embeds",
+                )
+
     # --- Backticked Inline Embed Reference Fix ---
     # Detect and rewrite patterns where the LLM wrapped a correct embed markdown
     # link in inline-code backticks, e.g.:
@@ -11611,6 +11669,7 @@ async def _consume_main_processing_stream(
             from backend.shared.python_utils.generated_media_graph import authenticated_generated_outputs
             generated_outputs = authenticated_generated_outputs(authored_inline_outputs)
             known_refs = authored_web_refs | set(generated_outputs) | (parent_source_refs or set())
+            known_refs |= set((getattr(request_data, "project_fence_files", None) or {}).values())
             ref_validated_response = await _strip_invalid_inline_embed_links(
                 aggregated_response=aggregated_response,
                 tool_calls_info=tool_calls_info,
