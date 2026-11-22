@@ -1555,6 +1555,24 @@ def _get_skill_execution_args(
 _TOOL_NAME_SEPARATORS = (":", "|", "_", ".")
 
 
+def _project_focus_card_identity(request_data: Any, focus_id: str) -> tuple[str, str] | None:
+    """Card name and app of a Project's own Focus (``project-focus:<project>:<item>``).
+
+    Such a Focus belongs to no app, so the app.yml lookup falls back to the raw id. Its title
+    comes from the Project Focus catalog the client sent for this turn, from which the Focus was
+    offered in the first place.
+    """
+    parts = focus_id.split(":")
+    if len(parts) != 3 or parts[0] != "project-focus":
+        return None
+    for item in getattr(request_data, "project_focus_catalog", None) or []:
+        if isinstance(item, dict) and item.get("id") == parts[2]:
+            title = str(item.get("title") or "").strip()[:200]
+            if title:
+                return title, "projects"
+    return None
+
+
 def _resolve_focus_mode_display_name(
     translation_service: TranslationService,
     translation_key: str,
@@ -3995,9 +4013,13 @@ async def handle_main_processing(
                 except Exception:
                     pass
 
+                fm_app_id = focus_id.split('-', 1)[0] if '-' in focus_id else focus_id
+                project_focus_identity = _project_focus_card_identity(request_data, focus_id)
+                if project_focus_identity:
+                    focus_mode_display_name, fm_app_id = project_focus_identity
                 fm_embed_data = await embed_service.create_focus_mode_activation_embed(
                     focus_id=focus_id,
-                    app_id=focus_id.split('-', 1)[0] if '-' in focus_id else focus_id,
+                    app_id=fm_app_id,
                     focus_mode_name=focus_mode_display_name,
                     chat_id=request_data.chat_id,
                     message_id=request_data.message_id,
@@ -6326,9 +6348,13 @@ async def handle_main_processing(
                 except Exception:
                     pass
 
+                fm_app_id = focus_id.split('-', 1)[0] if '-' in focus_id else focus_id
+                project_focus_identity = _project_focus_card_identity(request_data, focus_id)
+                if project_focus_identity:
+                    focus_mode_display_name, fm_app_id = project_focus_identity
                 fm_embed_data = await embed_service.create_focus_mode_activation_embed(
                     focus_id=focus_id,
-                    app_id=focus_id.split('-', 1)[0] if '-' in focus_id else focus_id,
+                    app_id=fm_app_id,
                     focus_mode_name=focus_mode_display_name,
                     chat_id=request_data.chat_id,
                     message_id=request_data.message_id,

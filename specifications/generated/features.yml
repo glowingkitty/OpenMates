@@ -5040,9 +5040,9 @@ features:
       - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
       - frontend/packages/ui/src/services/__tests__/projectAuthoringClientService.test.ts
       - backend/tests/test_chat_turn_preflight_handler.py
+      - backend/tests/test_project_focus_card_identity.py
       - frontend/packages/ui/src/components/settings/focusModeInstructions.test.ts
-      - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
-      unit_test_files: 10
+      unit_test_files: 11
     apple:
       status: partial
       source: tests
