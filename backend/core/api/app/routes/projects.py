@@ -1615,7 +1615,9 @@ async def activate_project_focus(
 
 
 @router.get("/focus/current")
-@limiter.limit("60/minute")
+# Clients re-read this binding before every Project authority check (several times per
+# send and per save), and the limit is per IP, so clients sharing one address hit 60/min.
+@limiter.limit("300/minute")
 async def get_current_project_focus(
     request: Request,
     chat_id: str = Query(..., min_length=1, max_length=128),
