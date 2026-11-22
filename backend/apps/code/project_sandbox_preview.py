@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import shlex
 import time
@@ -37,6 +38,22 @@ TOUCH_INTERVAL_SECONDS = 60.0
 MAX_FOLDER_LENGTH = 512
 VITE_ALLOWED_HOSTS_ENV = "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"
 DEV_ARGV = ("npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", str(PROJECT_PREVIEW_PORT), "--strictPort")
+# Vite before 6 ignores the allowed-hosts variable but still blocks unknown hosts (recipe proof
+# 22 Nov: Vite 5.4.21 answered the preview with "Blocked request"). This wrapper config loads the
+# app's own Vite config and adds the preview host to server.allowedHosts. It lives in node_modules,
+# which is never written back to the Project.
+VITE_PREVIEW_CONFIG = "node_modules/.openmates-preview.vite.config.mjs"
+_VITE_PREVIEW_CONFIG_SOURCE = """import { loadConfigFromFile, mergeConfig } from 'vite';
+export default async (env) => {
+  const own = await loadConfigFromFile(env, undefined, process.cwd(), 'silent');
+  const config = own ? own.config : {};
+  if (config.server && config.server.allowedHosts === true) return config;
+  return mergeConfig(config, { server: { allowedHosts: [%s] } });
+};
+"""
+# Exit codes of the dev-script check: 0 a Vite dev script, 4 another dev script, 3 none.
+_DEV_SCRIPT_CHECK = ("node -e \"const d=require('./package.json').scripts?.dev;"
+                     "process.exit(!d ? 3 : /\\bvite\\b/.test(d) ? 0 : 4)\"")
 
 Patch = Callable[[str, dict[str, Any]], Awaitable[None]]
 
@@ -58,10 +75,11 @@ def normalize_preview_folder(value: Any) -> str:
     return folder
 
 
-def dev_server_command(folder: str, allowed_host: str) -> WorkspaceCommand:
+def dev_server_command(folder: str, allowed_host: str, *, vite_config: str | None = None) -> WorkspaceCommand:
     """`npm run dev` on the fixed preview port, admitting the sandbox's own preview host."""
+    config_args = ("--config", vite_config) if vite_config else ()
     return WorkspaceCommand(
-        argv=("env", f"{VITE_ALLOWED_HOSTS_ENV}={allowed_host}", *DEV_ARGV), cwd=folder or ".",
+        argv=("env", f"{VITE_ALLOWED_HOSTS_ENV}={allowed_host}", *DEV_ARGV, *config_args), cwd=folder or ".",
         timeout_seconds=int(READY_TIMEOUT_SECONDS), background=True,
         ready_url=f"http://127.0.0.1:{PROJECT_PREVIEW_PORT}/")
 
@@ -134,9 +152,8 @@ async def start_dev_server(sandbox: Any, folder: str, *, sleep: Callable[[float]
         await _replace_foreign_server(sandbox, sleep)
     project_dir = command_line(WorkspaceCommand(argv=("true",), cwd=folder or ".", timeout_seconds=10,
                                                 background=False, ready_url=None)).split(" && ", 1)[0]
-    code, out = await _run(sandbox, f"{project_dir} && node -e "
-                           "\"process.exit(require('./package.json').scripts?.dev ? 0 : 3)\"", timeout=20)
-    if code != 0:
+    dev_script, _ = await _run(sandbox, f"{project_dir} && {_DEV_SCRIPT_CHECK}", timeout=20)
+    if dev_script not in {0, 4}:
         raise ProjectPreviewError("This folder has no app with a dev script to preview.")
     code, _ = await _run(sandbox, f"{project_dir} && test -d node_modules", timeout=10)
     if code != 0:
@@ -144,11 +161,21 @@ async def start_dev_server(sandbox: Any, folder: str, *, sleep: Callable[[float]
                              "--no-fund", timeout=INSTALL_TIMEOUT_SECONDS + 15)
         if code != 0:
             raise ProjectPreviewError("Installing the app's dependencies failed.")
-    command = dev_server_command(folder, preview_host)
+    vite_config = None
+    if dev_script == 0:
+        source = _VITE_PREVIEW_CONFIG_SOURCE % json.dumps(preview_host)
+        code, _ = await _run(sandbox, f"{project_dir} && printf '%s' {shlex.quote(source)} > {VITE_PREVIEW_CONFIG}",
+                             timeout=10)
+        if code != 0:
+            raise ProjectPreviewError("The app's preview settings could not be prepared.")
+        vite_config = VITE_PREVIEW_CONFIG
+    command = dev_server_command(folder, preview_host, vite_config=vite_config)
     await _start_background(sandbox, command, command_line(command))
     deadline = time.monotonic() + ready_timeout
     while time.monotonic() < deadline:
         if await _listening(sandbox):
+            if not await _admits_host(sandbox, preview_host):
+                raise ProjectPreviewError("The app's dev server refuses the preview address.")
             return preview_host
         await sleep(READY_POLL_SECONDS)
     raise ProjectPreviewError("The app's dev server did not become ready in time.")

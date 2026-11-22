@@ -140,8 +140,10 @@ async def test_start_dev_server_replaces_a_server_that_blocks_the_preview_host(m
     async def probe(sandbox: Any, url: str) -> bool:
         return next(probes)
 
+    admitted = iter([False, True])  # the foreign server refuses the host, ours admits it
+
     async def admits(sandbox: Any, host: str) -> bool:
-        return False
+        return next(admitted)
 
     async def start_background(sandbox: Any, command: Any, line: str) -> str:
         started.append(line)
@@ -185,7 +187,7 @@ async def test_start_dev_server_without_dev_script_raises(monkeypatch: pytest.Mo
 
     monkeypatch.setattr("backend.apps.code.project_sandbox_command._probe", probe)
     with pytest.raises(ProjectPreviewError, match="dev script"):
-        await start_dev_server(FakeSandbox([("process.exit(require", 3)]), "web", sleep=_no_sleep)
+        await start_dev_server(FakeSandbox([("scripts?.dev", 3)]), "web", sleep=_no_sleep)
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
@@ -201,12 +203,67 @@ async def test_start_dev_server_installs_then_starts_and_probes(monkeypatch: pyt
         started.append(line)
         return "log"
 
+    async def admits(sandbox: Any, host: str) -> bool:
+        return True
+
     monkeypatch.setattr("backend.apps.code.project_sandbox_command._probe", probe)
+    monkeypatch.setattr("backend.apps.code.project_sandbox_preview._admits_host", admits)
     monkeypatch.setattr("backend.apps.code.project_sandbox_command._start_background", start_background)
-    sandbox = FakeSandbox([("test -d node_modules", 1)])
+    sandbox = FakeSandbox([("test -d node_modules", 1), ("scripts?.dev", 4)])  # a dev script without Vite
     assert await start_dev_server(sandbox, "web", sleep=_no_sleep) == HOST
     assert any("npm install" in line for line in sandbox.commands.lines)
-    assert len(started) == 1 and "npm run dev" in started[0]
+    assert len(started) == 1 and "npm run dev" in started[0] and "--config" not in started[0]
+
+
+# Recipe proof 22 Nov: Vite 5.4.21 ignores the allowed-hosts variable and blocked the preview host.
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
+@pytest.mark.anyio
+async def test_a_vite_app_starts_through_a_config_that_admits_the_preview_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    probes = iter([False, True])
+    started: list[str] = []
+    admitted = iter([True])
+
+    async def probe(sandbox: Any, url: str) -> bool:
+        return next(probes)
+
+    async def admits(sandbox: Any, host: str) -> bool:
+        return next(admitted)
+
+    async def start_background(sandbox: Any, command: Any, line: str) -> str:
+        started.append(line)
+        return "log"
+
+    monkeypatch.setattr("backend.apps.code.project_sandbox_command._probe", probe)
+    monkeypatch.setattr("backend.apps.code.project_sandbox_preview._admits_host", admits)
+    monkeypatch.setattr("backend.apps.code.project_sandbox_command._start_background", start_background)
+    sandbox = FakeSandbox()
+    assert await start_dev_server(sandbox, "web", sleep=_no_sleep) == HOST
+    written = [line for line in sandbox.commands.lines if preview.VITE_PREVIEW_CONFIG in line]
+    assert len(written) == 1 and "allowedHosts" in written[0] and f'"{HOST}"' in written[0]
+    assert preview.VITE_PREVIEW_CONFIG.startswith("node_modules/")  # never written back to the Project
+    assert f"--config {preview.VITE_PREVIEW_CONFIG}" in started[0]
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
+@pytest.mark.anyio
+async def test_a_dev_server_that_still_refuses_the_preview_host_fails_with_a_clear_message(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    probes = iter([False, True])
+
+    async def probe(sandbox: Any, url: str) -> bool:
+        return next(probes)
+
+    async def admits(sandbox: Any, host: str) -> bool:
+        return False
+
+    async def start_background(sandbox: Any, command: Any, line: str) -> str:
+        return "log"
+
+    monkeypatch.setattr("backend.apps.code.project_sandbox_command._probe", probe)
+    monkeypatch.setattr("backend.apps.code.project_sandbox_preview._admits_host", admits)
+    monkeypatch.setattr("backend.apps.code.project_sandbox_command._start_background", start_background)
+    with pytest.raises(ProjectPreviewError, match="refuses the preview address"):
+        await start_dev_server(FakeSandbox(), "web", sleep=_no_sleep)
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.cloud.project-preview
