@@ -95,7 +95,9 @@ when a skill or this file points to it.
   `test-results/ci-runs/`), sent as Discord files or a private 7-day link, on
   top of the short text; such a push without proof is refused (`--no-proof
   "<why>"` only when there is truly nothing to show). Research, backend,
-  security and tooling pushes need none.
+  security and tooling pushes need none. Proof videos of voice and audio flows
+  carry the browser's sound in sync (`withProofAudio`, `.claude/rules/testing.md`):
+  attach the `*-with-audio.webm`.
   Good: "Production is healthy: both alerts were false alarms (Brevo stats
   timeout, runner error). No fix needed." Bad: "Check production health now: ✅
   Production is healthy: emails are going out (Brevo accepted sends at 12:14 and

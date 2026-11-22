@@ -6,7 +6,13 @@ import type { Locator, Page, TestInfo } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { clickChatTarget, scrollChatHistoryToStart } from './helpers/chat-scroll';
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing shared helpers use CommonJS. */
-const { expect, test } = require('./helpers/cookie-audit');
+const { expect, test: auditedTest } = require('./helpers/cookie-audit');
+const { withProofAudio, proofAudioLaunchArgs } = require('./helpers/proof-audio');
+// Proof videos carry the call's sound in sync: the fake microphone, the Mate's speech and every
+// chime (tests/helpers/proof-audio.ts). The built-in fake microphone (beeps with silence between)
+// stays, because the voice-activity cases here depend on that silence; the spoken caller side is
+// in voice-call-real.spec.ts, whose scenarios play a recorded question.
+const test = withProofAudio(auditedTest);
 const { loginToTestAccount, startNewChat, waitForChatReady, sendMessage, waitForAssistantMessage } = require('./helpers/chat-test-helpers');
 const { naturalProjectName } = require('./helpers/project-names');
 const { withMockMarker } = require('./signup-flow-helpers');
@@ -203,7 +209,7 @@ interface CallEvidence {
 
 test.use({
   actionTimeout: 30_000,
-  launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
+  launchOptions: { args: proofAudioLaunchArgs({ voiceWav: null }) },
   permissions: ['microphone'],
 });
 

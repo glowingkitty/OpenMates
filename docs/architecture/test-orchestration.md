@@ -48,6 +48,25 @@ expired artifacts or upload failures for selected evidence explicitly.
 Retry uploads from retained artifacts without rerunning passing tests. See
 `.claude/rules/testing.md` for waivers, privacy and delivery acknowledgements.
 
+Proof videos with sound (owner decision 22 Nov 2026): Playwright records no
+audio, so voice and audio specs use `frontend/apps/web_app/tests/helpers/proof-audio.ts`.
+An init script taps, per page, every Web Audio graph connected to its context's
+speakers, every playing `<audio>`/`<video>` element (via `captureStream`, silent
+while muted) and the `getUserMedia` microphone track (Chromium's fake microphone
+plays a spoken test voice), mixes them in one MediaRecorder and streams WebM/Opus
+chunks to the test through an exposed binding, stamped with the wall-clock start
+of each document's recording. At teardown the helper closes the context, copies
+each page's video, writes `proof-audio-manifest.json` and runs
+`scripts/proof_video_audio.py mux`, which delays each segment by (segment start −
+page creation, the start of Playwright's video) and writes `video-N-with-audio.webm`
+(video copied, Opus audio), attached as `video-with-audio`. Capture happens inside
+the browser, so it works the same in GitHub CI, E2B sandboxes and scripts run
+against `app.dev.openmates.org`, with no system audio device. When the run has no
+ffmpeg, the manifest is attached instead and `ci_evidence.py` (or the real-test
+runners' `summarise`) muxes it on the host. Audio that plays before the first
+click stays out unless the spec opts into `proofAudioLaunchArgs({ autoplay: true })`,
+because product flows test their own autoplay handling.
+
 `scripts/ci_evidence.py` keeps the per-run inventory in `ci-evidence.json` next
 to `receipt.json` (receipts and inventories written before the rename use
 `codex_evidence_command` and `codex-evidence.json`; both are still read). Each

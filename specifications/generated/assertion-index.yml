@@ -29481,7 +29481,7 @@ assertions:
       surface: rest_api
     - &id3782
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 3031
+      line: 3037
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web
@@ -77316,13 +77316,13 @@ assertions:
       surface: rest_api
     - &id9674
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2688
+      line: 2694
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
     - &id9675
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 3031
+      line: 3037
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web
@@ -78153,7 +78153,7 @@ assertions:
       surface: gui.web
     - &id9762
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2688
+      line: 2694
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
@@ -79560,7 +79560,7 @@ assertions:
       surface: rest_api
     - &id9949
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2688
+      line: 2694
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
@@ -109804,7 +109804,7 @@ assertions:
       surface: gui.web
     - &id13981
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2500
+      line: 2506
       name: uses one canonical turn for voice and typed input, preserves rich replies
         and retains its chat across navigation and reload
       surface: gui.web
@@ -165303,12 +165303,12 @@ assertions:
       surface: gui.web
     - &id20945
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1641
+      line: 1647
       name: registers an unsent personal Project chat before opening its voice call
       surface: gui.web
     - &id20946
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1823
+      line: 1829
       name: keeps Project draft Cancel available and restores normal chat with a notification
         after startup failure
       surface: gui.web
@@ -193639,19 +193639,19 @@ assertions:
       surface: gui.apple
     - &id24488
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2346
+      line: 2352
       name: keeps lifecycle-only calls neutral in another tab and removes their empty
         chat after hangup
       surface: gui.web
     - &id24489
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2457
+      line: 2463
       name: removes and closes an empty call chat after the call is interrupted by
         a reload
       surface: gui.web
     - &id24490
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2500
+      line: 2506
       name: uses one canonical turn for voice and typed input, preserves rich replies
         and retains its chat across navigation and reload
       surface: gui.web
@@ -194447,12 +194447,12 @@ assertions:
     direct_tests:
     - &id24588
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1641
+      line: 1647
       name: registers an unsent personal Project chat before opening its voice call
       surface: gui.web
     - &id24589
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1823
+      line: 1829
       name: keeps Project draft Cancel available and restores normal chat with a notification
         after startup failure
       surface: gui.web
@@ -194582,7 +194582,7 @@ assertions:
     direct_tests:
     - &id24608
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2934
+      line: 2940
       name: a memory request in a live call is spoken, counts down, is confirmed after
         the tap and self-cancels at 30 seconds
       surface: gui.web
@@ -194804,18 +194804,18 @@ assertions:
       surface: rest_api
     - &id24733
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2262
+      line: 2268
       name: refuses an unauthenticated call before opening speech processing
       surface: gui.web
     - &id24734
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2688
+      line: 2694
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
     - &id24735
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 3031
+      line: 3037
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web
@@ -196587,13 +196587,13 @@ assertions:
       surface: gui.web
     - &id24909
       path: frontend/apps/web_app/tests/voice-call-real.spec.ts
-      line: 201
+      line: 205
       name: 'a spoken question in a new chat is transcribed, answered aloud${scenario.videos
         ? '
       surface: gui.web
     - &id24910
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2500
+      line: 2506
       name: uses one canonical turn for voice and typed input, preserves rich replies
         and retains its chat across navigation and reload
       surface: gui.web
@@ -197227,7 +197227,7 @@ assertions:
       surface: gui.web
     - &id24976
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2500
+      line: 2506
       name: uses one canonical turn for voice and typed input, preserves rich replies
         and retains its chat across navigation and reload
       surface: gui.web
@@ -197553,7 +197553,7 @@ assertions:
       surface: rest_api
     - &id24993
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2500
+      line: 2506
       name: uses one canonical turn for voice and typed input, preserves rich replies
         and retains its chat across navigation and reload
       surface: gui.web
@@ -197619,66 +197619,66 @@ assertions:
       surface: gui.web
     - &id25018
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1641
+      line: 1647
       name: registers an unsent personal Project chat before opening its voice call
       surface: gui.web
     - &id25019
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1823
+      line: 1829
       name: keeps Project draft Cancel available and restores normal chat with a notification
         after startup failure
       surface: gui.web
     - &id25020
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1931
+      line: 1937
       name: requires a saved voice processing acknowledgement before first capture
         and remembers it after reload
       surface: gui.web
     - &id25021
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2090
+      line: 2096
       name: flushes genuine pre-ready speech once in capture order with the bounded
         startup allowance
       surface: gui.web
     - &id25022
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2148
+      line: 2154
       name: keeps the authenticated call continuously uploading after the actual model
         fetch fails
       surface: gui.web
     - &id25023
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2277
+      line: 2283
       name: keeps capture live while detection loads, idles on genuine silence and
         resumes buffered speech on the same call
       surface: gui.web
     - &id25024
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2500
+      line: 2506
       name: uses one canonical turn for voice and typed input, preserves rich replies
         and retains its chat across navigation and reload
       surface: gui.web
     - &id25025
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2688
+      line: 2694
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
     - &id25026
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2870
+      line: 2876
       name: attaches the exact encrypted camera source to the ordinary user request
         on ${viewport.name}
       surface: gui.web
     - &id25027
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2902
+      line: 2908
       name: speaks one localized waiting confirmation for a slow German turn without
         creating a second assistant message
       surface: gui.web
     - &id25028
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 3327
+      line: 3333
       name: starts the first voice call right after password signup without reload
       surface: gui.web
     - &id25029
@@ -198096,7 +198096,7 @@ assertions:
       surface: gui.apple
     - &id25060
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2277
+      line: 2283
       name: keeps capture live while detection loads, idles on genuine silence and
         resumes buffered speech on the same call
       surface: gui.web
@@ -198270,19 +198270,19 @@ assertions:
       surface: gui.web
     - &id25084
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2090
+      line: 2096
       name: flushes genuine pre-ready speech once in capture order with the bounded
         startup allowance
       surface: gui.web
     - &id25085
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2148
+      line: 2154
       name: keeps the authenticated call continuously uploading after the actual model
         fetch fails
       surface: gui.web
     - &id25086
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2277
+      line: 2283
       name: keeps capture live while detection loads, idles on genuine silence and
         resumes buffered speech on the same call
       surface: gui.web
@@ -198376,7 +198376,7 @@ assertions:
       surface: gui.web
     - &id25097
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2277
+      line: 2283
       name: keeps capture live while detection loads, idles on genuine silence and
         resumes buffered speech on the same call
       surface: gui.web
@@ -198485,13 +198485,13 @@ assertions:
       surface: gui.web
     - &id25112
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2090
+      line: 2096
       name: flushes genuine pre-ready speech once in capture order with the bounded
         startup allowance
       surface: gui.web
     - &id25113
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2277
+      line: 2283
       name: keeps capture live while detection loads, idles on genuine silence and
         resumes buffered speech on the same call
       surface: gui.web
@@ -198622,7 +198622,7 @@ assertions:
       surface: gui.web
     - &id25126
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2277
+      line: 2283
       name: keeps capture live while detection loads, idles on genuine silence and
         resumes buffered speech on the same call
       surface: gui.web
@@ -198720,43 +198720,43 @@ assertions:
       surface: gui.web
     - &id25184
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1823
+      line: 1829
       name: keeps Project draft Cancel available and restores normal chat with a notification
         after startup failure
       surface: gui.web
     - &id25185
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2090
+      line: 2096
       name: flushes genuine pre-ready speech once in capture order with the bounded
         startup allowance
       surface: gui.web
     - &id25186
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2148
+      line: 2154
       name: keeps the authenticated call continuously uploading after the actual model
         fetch fails
       surface: gui.web
     - &id25187
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2346
+      line: 2352
       name: keeps lifecycle-only calls neutral in another tab and removes their empty
         chat after hangup
       surface: gui.web
     - &id25188
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2457
+      line: 2463
       name: removes and closes an empty call chat after the call is interrupted by
         a reload
       surface: gui.web
     - &id25189
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2500
+      line: 2506
       name: uses one canonical turn for voice and typed input, preserves rich replies
         and retains its chat across navigation and reload
       surface: gui.web
     - &id25190
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2870
+      line: 2876
       name: attaches the exact encrypted camera source to the ordinary user request
         on ${viewport.name}
       surface: gui.web
@@ -199560,18 +199560,18 @@ assertions:
     direct_tests:
     - &id25255
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2148
+      line: 2154
       name: keeps the authenticated call continuously uploading after the actual model
         fetch fails
       surface: gui.web
     - &id25256
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2262
+      line: 2268
       name: refuses an unauthenticated call before opening speech processing
       surface: gui.web
     - &id25257
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2277
+      line: 2283
       name: keeps capture live while detection loads, idles on genuine silence and
         resumes buffered speech on the same call
       surface: gui.web
@@ -199716,7 +199716,7 @@ assertions:
       surface: gui.web
     - &id25273
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2870
+      line: 2876
       name: attaches the exact encrypted camera source to the ordinary user request
         on ${viewport.name}
       surface: gui.web
@@ -200001,7 +200001,7 @@ assertions:
       surface: gui.apple
     - &id25340
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2870
+      line: 2876
       name: attaches the exact encrypted camera source to the ordinary user request
         on ${viewport.name}
       surface: gui.web
@@ -200821,7 +200821,7 @@ assertions:
       surface: rest_api
     - &id25427
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 3031
+      line: 3037
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web
@@ -201275,31 +201275,31 @@ assertions:
       surface: rest_api
     - &id25522
       path: frontend/apps/web_app/tests/voice-call-real.spec.ts
-      line: 201
+      line: 205
       name: 'a spoken question in a new chat is transcribed, answered aloud${scenario.videos
         ? '
       surface: gui.web
     - &id25523
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2500
+      line: 2506
       name: uses one canonical turn for voice and typed input, preserves rich replies
         and retains its chat across navigation and reload
       surface: gui.web
     - &id25524
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2688
+      line: 2694
       name: keeps call audio ephemeral, caches later manual Speak once, and removes
         its audio access when the chat is deleted
       surface: gui.web
     - &id25525
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2902
+      line: 2908
       name: speaks one localized waiting confirmation for a slow German turn without
         creating a second assistant message
       surface: gui.web
     - &id25526
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 3031
+      line: 3037
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web
@@ -202133,13 +202133,13 @@ assertions:
       surface: rest_api
     - &id25590
       path: frontend/apps/web_app/tests/voice-call-real.spec.ts
-      line: 201
+      line: 205
       name: 'a spoken question in a new chat is transcribed, answered aloud${scenario.videos
         ? '
       surface: gui.web
     - &id25591
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2902
+      line: 2908
       name: speaks one localized waiting confirmation for a slow German turn without
         creating a second assistant message
       surface: gui.web
@@ -202397,12 +202397,12 @@ assertions:
       surface: gui.apple
     - &id25613
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2192
+      line: 2198
       name: resumes the same call on a new connection after the page was in the background
       surface: gui.web
     - &id25614
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2232
+      line: 2238
       name: ends the call with a notice when the platform mutes the microphone of
         a hidden page
       surface: gui.web
@@ -202625,24 +202625,24 @@ assertions:
     direct_tests:
     - &id25677
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 1641
+      line: 1647
       name: registers an unsent personal Project chat before opening its voice call
       surface: gui.web
     - &id25678
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2500
+      line: 2506
       name: uses one canonical turn for voice and typed input, preserves rich replies
         and retains its chat across navigation and reload
       surface: gui.web
     - &id25679
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 2870
+      line: 2876
       name: attaches the exact encrypted camera source to the ordinary user request
         on ${viewport.name}
       surface: gui.web
     - &id25680
       path: frontend/apps/web_app/tests/voice-call.spec.ts
-      line: 3031
+      line: 3037
       name: keeps continuous playback progress conservative on interruption while
         retaining the complete rich answer
       surface: gui.web

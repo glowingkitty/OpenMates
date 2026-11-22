@@ -30,6 +30,7 @@ from pathlib import Path
 
 from code_run_real_test import ROOT, personal_dev_leases, personal_test_environment
 from personal_dev_draft_guard import API_URL, DraftGuard, DraftGuardError, record_leftovers
+import proof_video_audio
 from workflow_schedule_real_test import ProofError, sessions, write_receipt
 
 APP_URL = "https://app.dev.openmates.org"
@@ -151,7 +152,14 @@ LOG_PATTERNS = (("card_numbers", r"card numbers: ([^\n]+)"),
 def summarise(out: Path, receipt: dict, patterns: tuple[tuple[str, str], ...] = LOG_PATTERNS) -> None:
     """Record media paths and the numbers the spec logged (no credentials are logged)."""
     receipt["screenshots"] = sorted(str(p) for p in (out / "artifacts").glob("*.png"))
+    # Voice and audio specs record the page's sound (tests/helpers/proof-audio.ts); mux what the
+    # sandbox could not (no ffmpeg there), so the proof video carries it.
+    try:
+        proof_video_audio.mux_all(out / "results")
+    except proof_video_audio.MuxError as error:
+        receipt["videos_with_audio_error"] = str(error)
     receipt["videos"] = sorted(str(p) for p in (out / "results").rglob("*.webm"))
+    receipt["videos_with_audio"] = [v for v in receipt["videos"] if v.endswith(proof_video_audio.SUFFIX)]
     log = (out / "run.log").read_text(errors="replace") if (out / "run.log").exists() else ""
     receipt["output_videos"] = sorted(str(p) for p in (out / "artifacts").glob("*.mp4"))
     for key, pattern in patterns:

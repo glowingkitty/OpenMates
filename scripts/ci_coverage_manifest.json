@@ -1363,6 +1363,13 @@
         "real-inference-sub-chats.spec.ts",
         "real-inference-wellbeing-helpline.spec.ts"
       ]
+    },
+    "proof_audio_capture_component": {
+      "execution": "e2e",
+      "enabling_work": "Account-free routed test page that plays a Web Audio beep, an <audio> element, a muted <audio> element and the fake microphone test voice. Proves the proof-audio recorder (tests/helpers/proof-audio.ts) muxes the page's sound into the proof video at the right moments. No backend, account, provider or AI inference.",
+      "specs": [
+        "components/proof-audio-capture.spec.ts"
+      ]
     }
   },
   "holds": {

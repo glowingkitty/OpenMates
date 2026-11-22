@@ -170,6 +170,18 @@ behavior or material scope growth; keep the patch and evidence.
 4. Report missing capture, expiry or upload failure beside the test result.
    Retry uploads or renew signed links from S3; never rerun a test just for
    media. Do not pass `--ack` (Claude has no delivered-message ID).
+4b. Sound (owner, 22 Nov): Playwright video is silent, so every spec or script
+   whose flow plays or records audio (voice calls, assistant speech, chimes,
+   dictation) wraps its `test` with `withProofAudio` and launches with
+   `proofAudioLaunchArgs()` from `tests/helpers/proof-audio.ts` (scripts with
+   their own contexts: `installProofAudio(context, dir)` then `finish()`). It
+   records every Web Audio output, every playing media element and the fake
+   microphone (a spoken test voice, `TEST_VOICE_WAV`) inside the page and muxes
+   them in sync into `video-with-audio.webm`, which is the proof video to send.
+   Without ffmpeg in the run the manifest is attached and `ci_evidence.py` or
+   `proof_video_audio.py mux-all <folder>` muxes it on the host. The spec audit
+   asks for it; opt out only with `// proof-audio: not_required reason=<why>`.
+   Check the sound is there: `proof_video_audio.py loudness <video>`.
 5. Keep Playwright video on for all attempts. CLI E2E needs real terminal
    recordings (`cli-tui-proof-helpers.ts` / `cli_video_capture.py`). Dev-host
    real-inference recordings: `response_media.py <video> --output markdown`.

@@ -26,7 +26,8 @@ import type { Page, TestInfo } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const { expect, test } = require('@playwright/test');
+const { expect, test: playwrightTest } = require('@playwright/test');
+const { withProofAudio } = require('./helpers/proof-audio');
 const {
   deleteActiveChat, loginToTestAccount, sendMessage, setChatSidebarOpen, startNewChat, waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
@@ -39,6 +40,9 @@ const SPEECH_DIR = process.env.VOICE_CALL_REAL_SPEECH_DIR || '';
 // differ per describe group, so one run covers one scenario (the runner's --scenario).
 const SCENARIO = process.env.VOICE_CALL_REAL_SCENARIO || '';
 const ARTIFACTS = 'artifacts';
+// Proof videos carry the call's sound: the spoken question (fake microphone), the Mate's speech
+// and every chime, muxed in sync into video-with-audio.webm (tests/helpers/proof-audio.ts).
+const test = withProofAudio(playwrightTest);
 
 interface Scenario {
   slug: string;

@@ -42,7 +42,7 @@ case "$REL" in
     case "$REL" in
       frontend/apps/web_app/tests/*.spec.ts)
         if ! PROOF_OUTPUT=$(python3 "$HOOK_ROOT/scripts/audit_playwright_proof_metadata.py" "$FILE" 2>&1); then
-          MESSAGE="[OpenMates proof-video backfill] Changed Playwright spec is missing proof-video metadata or an explicit not-required classification: ${REL}. Add defineVideoProof(...) with transcript/assertions/checkpoints/devices when the spec proves visible user behavior, or add a top-of-file comment like // proof-video: not_required reason=non_visual_setup. ${PROOF_OUTPUT}"
+          MESSAGE="[OpenMates proof-video backfill] Changed Playwright spec is missing proof-video metadata or an explicit not-required classification: ${REL}. Add defineVideoProof(...) with transcript/assertions/checkpoints/devices when the spec proves visible user behavior, or add a top-of-file comment like // proof-video: not_required reason=non_visual_setup. Voice and audio specs also record their sound with withProofAudio from ./helpers/proof-audio. ${PROOF_OUTPUT}"
           emit_context "$MESSAGE"
         fi
         ;;

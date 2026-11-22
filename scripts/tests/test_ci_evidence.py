@@ -334,3 +334,29 @@ def test_legacy_inventory_name_is_reused_in_place(tmp_path):
     path.rename(legacy)
     assert media.prepare(tmp_path, receipt()) == legacy
     assert not (tmp_path / "ci-evidence.json").exists()
+
+
+def test_unmuxed_proof_audio_manifest_becomes_a_video_with_sound(tmp_path, monkeypatch):
+    from scripts import proof_video_audio
+
+    folder = tmp_path / "results" / "voice" / "proof-audio"
+    folder.mkdir(parents=True)
+    manifest = folder / "proof-audio-manifest.json"
+    manifest.write_text("{}")
+    muxed = folder / "video-0-with-audio.webm"
+
+    def fake_mux(path):
+        assert path == manifest
+        muxed.write_bytes(b"video with sound")
+        return [muxed]
+
+    monkeypatch.setattr(proof_video_audio, "mux", fake_mux)
+    attachments = [{"name": "proof-audio-manifest", "path": "/runner/out/voice/proof-audio/proof-audio-manifest.json",
+                    "contentType": "application/json"}]
+    results = [{"retry": 0, "status": "passed", "attachments": attachments}]
+    specs = [{"file": "voice-call.spec.ts", "id": "1", "tests": [{"projectName": "laptop", "results": results}]}]
+    (tmp_path / "ci-spec-0.json").write_text(json.dumps({"suites": [{"specs": specs}]}))
+    records = media.collect(tmp_path, receipt())
+    [record] = [r for r in records if r.get("path")]  # the receipt also expects chat.spec.ts
+    assert record["kind"] == "video" and record["recording"] == "available"
+    assert record["path"] == "results/voice/proof-audio/video-0-with-audio.webm"
