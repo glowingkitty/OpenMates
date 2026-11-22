@@ -11,7 +11,10 @@ deploying or mutating the shared dev stack.
 
 Prepare a source with `sessions.py ci-source`; dirty candidate bytes move through
 a private expiring patch artifact, never a Git branch. Submit the matching supported
-mode/spec, then use `ci_coordinator.py wait <id>`. Waiting reads the cache and
+mode/spec, then use `ci_coordinator.py wait <id> [<id> ...]`. Several ids are one
+set: the wait returns once, when all are final (or at the first failure with
+`--first-failure`), and prints one summary with the `failures` command for the
+failed ones, so a chat gets one notification per set. Waiting reads the cache and
 validates exact-source result artifacts once when a workflow succeeds. Status,
 submission and result commands default to concise text; `--json` retains complete
 programmatic receipts. Timeout, attention, cancellation and failure return a

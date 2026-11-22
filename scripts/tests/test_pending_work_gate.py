@@ -55,3 +55,10 @@ def test_missing_db_raises_for_main_to_fail_open(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("OPENMATES_CANONICAL_ROOT", str(tmp_path))
     monkeypatch.setattr(sys, "stdin", __import__("io").StringIO(json.dumps({"session_id": "c"})))
     assert gate.main() == 0
+
+
+def test_prepare_producer_needs_no_waiter_of_its_own(tmp_path):
+    root = make_root(tmp_path, [("prep", "aa11", "[]", "prepare", "running", 1),
+                                ("job1", "aa11", '["a.spec.ts"]', "e2e", "queued", 2)])
+    waiter = ["python3 scripts/ci_coordinator.py wait job1 job2"]
+    assert gate.evaluate({"session_id": "chat-1"}, root, commands=waiter) == ""

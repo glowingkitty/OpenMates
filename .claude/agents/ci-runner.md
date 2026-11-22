@@ -22,15 +22,16 @@ a spec, mode or source, and do not widen the set of checks.
 
 ## Commands
 - Submit: `python3 scripts/ci_coordinator.py submit --session <id> --source <source> --mode <mode> --spec <spec> --json`
-- Wait: `python3 scripts/ci_coordinator.py wait <job-id> --json` (one call per
-  job; run several in parallel as background commands). Never write sleep/poll
-  loops.
+- Wait: `python3 scripts/ci_coordinator.py wait <id> [<id> ...] --first-failure`
+  (one call for the whole set; it returns once, at the first failure or when
+  all are final, with one summary). Never one wait per job and never
+  sleep/poll loops.
 - Result: `python3 scripts/ci_coordinator.py result <job-id> --json`
 - Deploy: `python3 scripts/sessions.py wait-deploy --commit <sha>`
 
 ## Rules
-- Hand back at the first failed job; do not wait for the rest. List the jobs
-  still running by id.
+- Hand back once per set: at the first failed job (the summary lists the jobs
+  still running and the `failures` command) or when all are final.
 - Never resubmit, retry, cancel or prioritize jobs unless the parent asked.
 - Never run `sessions.py deploy`, git commands that change state, or anything
   that edits files.

@@ -81,7 +81,9 @@ paths:
   dev/production serve it; job log shows `RUST-CORE-ON`); `--no-web-rust-core`
   opts out, `--web-rust-core` is an accepted no-op. Daily reports list `web_build`.
   Flow: `sessions.py ci-source` → `ci_coordinator.py submit` →
-  `ci_coordinator.py wait <id>`. Never start a second scheduler, deploy before
+  `ci_coordinator.py wait <id> [<id> ...]`: one background wait for the whole
+  set, which returns once (all final, or `--first-failure`) with one summary,
+  so a set brings one notification, not one per job. Never start a second scheduler, deploy before
   E2E, or use the shared dev stack for these tests.
   - E2B overflow: when the 20 GitHub-hosted slots are full, the coordinator
     runs queued component, pytest and e2e jobs (e2e once its preparation
@@ -149,7 +151,13 @@ paths:
 ## Debugging bounds
 Existing browser observations, logs or failing checks suffice to start; do not
 re-reproduce known bugs. After two failed attempts with the same approach,
-reassess. Ask before unrelated infrastructure repair, uncertain expected
+reassess. Triage gate (owner, 22 Nov): once a spec failed twice in a row for
+your chat (any commits, no success since), `ci_coordinator.py submit` refuses
+it until you diagnose the cause (`ci_coordinator.py failures <ids>`,
+`test-failure-triager`, `e2e-test-investigator`) and pass
+`--after-triage "<cause found and what this run changes>"`
+(`scripts/ci_triage_gate.py`, notes in `logs/ci-coordinator/triage-notes.jsonl`,
+switch `logs/ci-coordinator/triage-gate.json`). Ask before unrelated infrastructure repair, uncertain expected
 behavior or material scope growth; keep the patch and evidence.
 
 ## E2E recording delivery (web, component, CLI)
