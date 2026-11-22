@@ -183,7 +183,7 @@ specifications:
     version: 6
     status: draft
     path: features/app-memories
-    fingerprint: c04a45a41614288b96f4ea8a64d7b23e159d03f4f37a383c744f18aa2a0c4ee1
+    fingerprint: 666bd4a4b220bfb3ff6dae2fa744d44e7c3e7eceff7cce2d3e750357bc19f6b3
     required_applies_to:
     - rest_api
     - cli
@@ -3674,7 +3674,7 @@ assertions:
     specification: feature.app-memories@6
     specification_id: feature.app-memories
     type: behavior
-    fingerprint: ab1d4bfb4e5fa6200db205d138f9ae64a65f6ae35542fde61d5c6994dd9326a3
+    fingerprint: da1e9f8b6b0f1ecdf95ae316e9837cd346cd5fc712779ffd388796c020eeee66
     required_applies_to:
     - rest_api
     - cli
@@ -3699,6 +3699,18 @@ assertions:
     specification_id: feature.app-memories
     type: privacy
     fingerprint: 270f142ff1cc45159a3b76f22c3b6b1a1ba2df51af8a677d0266650760e6adde
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-memories.suggestions.quality:
+    specification: feature.app-memories@6
+    specification_id: feature.app-memories
+    type: behavior
+    fingerprint: 37c0eff14f63e22f3f16753cdaa29bd6321c71f5b2493abaff381e10478f8668
     required_applies_to:
     - rest_api
     - cli

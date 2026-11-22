@@ -531,7 +531,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 32
+  assertions: 33
   surfaces:
     web:
       status: failing
@@ -540,9 +540,9 @@ features:
       assertions:
         passing: 19
         failing: 3
-        not_run: 4
+        not_run: 5
         missing: 6
-        counted: 32
+        counted: 33
       failing_tests:
       - frontend/apps/web_app/tests/ai-settings-breadcrumb.spec.ts › model and provider detail pages use banner shell and
         back returns to AI settings
@@ -573,6 +573,7 @@ features:
       - frontend/apps/web_app/tests/example-chats-load.spec.ts
       - frontend/apps/web_app/tests/memory-reuse.spec.ts
       - frontend/apps/web_app/tests/memory-write-undo.spec.ts
+      - frontend/apps/web_app/tests/real-inference-memory-suggestions.spec.ts
       - frontend/apps/web_app/tests/real-inference-press-release-project-memory.spec.ts
       - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
       - frontend/apps/web_app/tests/web-rust-core-chat-recommendations-flow.spec.ts
@@ -592,8 +593,8 @@ features:
         passing: 10
         failing: 0
         not_run: 1
-        missing: 21
-        counted: 32
+        missing: 22
+        counted: 33
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/ChatCardsParityUITests.swift
@@ -618,8 +619,8 @@ features:
         passing: 2
         failing: 4
         not_run: 6
-        missing: 20
-        counted: 32
+        missing: 21
+        counted: 33
       failing_tests:
       - frontend/apps/web_app/tests/cli-memories.spec.ts › AI memory types are absent and creation is rejected
       - 'frontend/apps/web_app/tests/cli-memories.spec.ts › full memory lifecycle: create → list (decrypted) → update → delete'
@@ -659,11 +660,11 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 14
+        passing: 15
         failing: 2
         not_run: 6
         missing: 10
-        counted: 32
+        counted: 33
       failing_tests:
       - frontend/apps/web_app/tests/memories-public-catalog.spec.ts › public metadata exposes reviewed app Memories separately
         from encrypted private types
@@ -686,8 +687,8 @@ features:
         passing: 2
         failing: 0
         not_run: 4
-        missing: 26
-        counted: 32
+        missing: 27
+        counted: 33
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/memories-public-catalog.spec.ts
@@ -704,8 +705,8 @@ features:
         passing: 2
         failing: 0
         not_run: 0
-        missing: 30
-        counted: 32
+        missing: 31
+        counted: 33
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/memories-public-catalog.spec.ts

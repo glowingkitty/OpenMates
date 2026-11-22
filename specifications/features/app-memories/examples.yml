@@ -275,6 +275,31 @@ suggestions:
   given: The user asks for open source conferences in Europe next year and the assistant lists FOSDEM 2027 and others.
   when: Post-processing finishes.
   then: The Recommendations card offers at least one memory such as "Interested in open source conferences in Europe" and at least one workflow such as a weekly alert for new open source conference calls for papers, with dots for each recommendation and previous/next buttons; the follow-up chips below are unchanged.
+- id: arithmetic-no-memory
+  assertion_ids: [app-memories.suggestions.quality]
+  given: The user asks "What is 17 plus 25?" and the assistant answers 42.
+  when: Post-processing finishes.
+  then: No memory is recommended (not "The user asked a basic mathematical calculation"); only workflow recommendations may appear.
+- id: one-off-fact-no-memory
+  assertion_ids: [app-memories.suggestions.quality]
+  given: The user asks how tall Mount Everest is.
+  when: Post-processing finishes.
+  then: No memory is recommended, because one factual question says nothing lasting about the person.
+- id: stated-learning-goal
+  assertion_ids: [app-memories.suggestions.quality]
+  given: The user says "I'm learning maths for an exam" and asks what a derivative is.
+  when: Post-processing finishes.
+  then: A memory such as "Learning maths for an upcoming exam" is recommended, phrased as a fact about the person.
+- id: upcoming-trip-short-lived
+  assertion_ids: [app-memories.suggestions.quality]
+  given: The user says they are going to Lisbon next week and asks what to see in the old town.
+  when: Post-processing finishes.
+  then: A short-lived memory such as "Travelling to Lisbon next week, wants to see the old town" is recommended.
+- id: stated-preference
+  assertion_ids: [app-memories.suggestions.quality]
+  given: The user says they prefer short answers.
+  when: Post-processing finishes.
+  then: A memory such as "Prefers short, concise answers" is recommended.
 - id: update-title-only
   given: The memory "Staging API" says port 8001 and the chat reveals port 8002.
   when: The post-processor recommends it.

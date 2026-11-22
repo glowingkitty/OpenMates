@@ -1356,6 +1356,7 @@
         "real-inference-gemini-chat.spec.ts",
         "real-inference-image-model.spec.ts",
         "real-inference-image-upload-svg.spec.ts",
+        "real-inference-memory-suggestions.spec.ts",
         "real-inference-life-compass-focus.spec.ts",
         "real-inference-press-release-project-memory.spec.ts",
         "real-inference-project-layered-focus.spec.ts",

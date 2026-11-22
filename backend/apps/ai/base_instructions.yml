@@ -378,13 +378,19 @@ postprocess_response_tool:
          - **NO POLITICAL PARTIES OR ELECTORAL CONTENT**: NEVER extract a political party, political candidate, electoral campaign, or partisan ideology as a topic — in any country or language. If the conversation touched politics, capture the underlying policy, governance, or societal question instead — never the party or candidate. Examples to avoid: "Democratic Party platform", "Trump immigration policy", "Labour manifesto", "AfD views", "BJP campaign". Rephrase to the underlying concept: "universal healthcare economics" instead of "Labour health policy", "immigration economics" instead of any party's border stance. The goal is educational curiosity, not political advocacy.
           - **NO RELIGIOUS PROMOTION**: NEVER extract topics that promote, advocate for, or proselytize a specific religion or religious movement. Historical, archaeological, cultural, mathematical, or architectural context is allowed — promotional or devotional framing is not. Examples to avoid: "why Islam is the true religion", "Christian salvation message", "join Buddhism", "Hinduism is the answer". Examples that are fine: "Islamic Golden Age mathematics", "Byzantine church architecture", "Buddhist monastery engineering", "ancient temple construction techniques".
 
-      8. **memory_recommendations** and **workflow_recommendations**: Recommend 1 to 3 durable entries of each kind (metadata only: title and summary).
-          - memory_recommendations: durable personal memories worth keeping: facts, preferences or interests the USER stated about themselves (e.g. "Interested in open source conferences in Europe"). Base them only on what the USER said and on the assistant answer to the user. NEVER derive a memory from tool or search results alone, and never from third-party facts the user did not make their own.
+      8. **memory_recommendations** and **workflow_recommendations**: Recommend entries of each kind (metadata only: title and summary). memory_recommendations may be an EMPTY list and usually is; workflow_recommendations always has 1 to 3 items.
+          - memory_recommendations: suggest a memory ONLY when it will still help in later chats. Good memories are lasting interests, preferences, goals, the person's situation and how they like to work, and also short-lived but relevant plans (e.g. an upcoming trip in a few days and what they want to do there).
+          - NEVER save the single question or task itself. Ask: "what does this say about the person that will help later?" Suggest a memory only if the answer is clear.
+          - Only from a CLEAR SIGNAL: something the USER explicitly stated about themselves ("I'm learning maths for an exam", "I'm going to Lisbon next week", "I prefer short answers") or a pattern that repeats in this chat. One simple question, calculation, lookup or factual query is NOT an interest and NOT a memory.
+          - When in doubt, return an empty list. No suggestion is better than a pointless one.
+          - Phrase every memory as a fact about the person, never as a log of what they asked. Good: "Interested in mathematics and learning new things about it"; "Travelling to Lisbon next week, wants to see the old town and try local food". Bad: "The user asked a basic mathematical calculation"; "Asked about the capital of Australia".
+          - Examples: user asks "What is 17 plus 25?" -> []. User asks "How tall is Mount Everest?" -> []. User says "I'm learning maths for an exam, can you explain derivatives?" -> one memory such as "Learning maths for an upcoming exam". User says "I'm going to Lisbon next week, what should I see?" -> one short-lived memory such as "Travelling to Lisbon next week and wants sightseeing ideas". User says "Please always answer briefly, I like short answers" -> one memory such as "Prefers short, concise answers".
+          - Base memories only on what the USER said and on the assistant answer to the user. NEVER derive a memory from tool or search results alone, and never from third-party facts the user did not make their own.
           - workflow_recommendations: repeatable or scheduled automation ideas the turn suggests (e.g. "Weekly alert for new open source conference CFPs").
           - NEVER include secrets, passwords, API keys, tokens, or private identifiers in any title or summary.
           - Use action "create" for a new entry. If the "Existing memories" or "Existing workflows" lists in the system message already cover the idea, use action "update" and set ref to that item's alias (m1, m2, ... for memories; w1, w2, ... for workflows). Never invent aliases; ref is only allowed for update.
           - title is at most 80 characters, summary at most 200 characters, both in the user's system language.
-          - Prefer fewer, higher-value items over padding, but always return at least one of each.
+          - Prefer fewer, higher-value items over padding. For workflows always return at least one; for memories return none unless the rules above are clearly met.
 
       9. **share_cta_text**: Generate one short call-to-open line for shared chat previews.
           - This is NOT a summary. It appears as large text inside a 1200x630 social image, so it must be punchy and readable.
@@ -473,8 +479,8 @@ postprocess_response_tool:
           maxItems: 3
         memory_recommendations:
           type: "array"
-          description: "1-3 durable personal memories (facts, preferences, interests stated by the USER) worth saving, or updates of an existing memory by alias. Never from tool or search results alone, never secrets."
-          minItems: 1
+          description: "0-3 personal memories that will still help in later chats: lasting interests, preferences, goals, the person's situation, or short-lived but relevant plans (e.g. an upcoming trip), phrased as facts about the person (e.g. 'Interested in mathematics'), never as a log of what they asked. Only from a clear signal: an explicit statement by the USER or a repeated pattern. A single question, calculation or lookup is never a memory. Return an EMPTY list when in doubt, which is usual. Or updates of an existing memory by alias. Never from tool or search results alone, never secrets."
+          minItems: 0
           maxItems: 3
           items:
             type: "object"
