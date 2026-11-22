@@ -72,7 +72,8 @@ const SPEC_PROMPT = 'Write a Specification with Checks for adding a search box t
 // Shared by the serial tests: the Project this run created (named by the assistant) and its chat.
 let projectName = '';
 let projectLabel = naturalProjectName('Recipe keeper');
-let appChatTitle = '';
+/** Chat id of the app chat, to reopen it after a fresh page load. */
+let appChatId = '';
 // Ids this run created, recorded as they appear; the afterAll cleanup deletes only these.
 const ownedChatIds = new Set<string>();
 let ownedProjectId = '';
@@ -309,7 +310,8 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
       // carry data-app-id="code" and belong in this reply.
       await expect(reply.locator('[data-testid="embed-preview"][data-skill-id="application"]'), 'no inline application block').toHaveCount(0);
     });
-    appChatTitle = ((await page.getByTestId('chat-title').first().textContent().catch(() => '')) ?? '').trim();
+    appChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
+    expect(appChatId, 'the app chat has an id in the URL').not.toBe('');
     await proof.checkpoint('cloud-app-embed');
 
     // b. Install and build: code-run cards with exit code 0, and the synced-back lockfile as a diff card.
@@ -372,9 +374,9 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     await proof.checkpoint('cloud-commit');
 
     // d. Preview from the application card, then the Project views.
-    await page.goto(`${BASE_URL}/`);
-    const openedChat = page.getByTestId('chat-title').filter({ hasText: appChatTitle }).first();
-    if (appChatTitle && await openedChat.count() > 0) await openedChat.click();
+    // A fresh page load of the app chat (by id: the chat list is closed at laptop width, and
+    // the start screen shows only some recent chats).
+    await page.goto(`${BASE_URL}/#chat-id=${encodeURIComponent(appChatId)}`, { waitUntil: 'domcontentloaded' });
     const app = page.locator('[data-testid="embed-preview"][data-app-id="code"]').first();
     await expect(app, 'application card for the preview').toBeVisible({ timeout: 90_000 });
     await app.getByTestId('result-preview-expand').click();
