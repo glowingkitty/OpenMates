@@ -305,8 +305,10 @@ async def test_chat_diff_block_never_writes_a_project_linked_embed() -> None:
         cache_service=cache, directus_service=LinkedDirectus(), encryption_service=SimpleNamespace(),
         embed_service=NoWriteEmbedService(), user_vault_key_id="vault-1", log_prefix="[test]",
     )
-    assert "not applied: project_file_tool_required" in chunk
-    assert "project_update_file" in chunk
+    # The chat shows the change, unapplied, and tells the model to edit the file by its Project path
+    # (a ```diff:<Project path> fence goes through the Project sandbox).
+    assert "not applied: name the file by its Project path" in chunk
+    assert "-old\n+new" in chunk
     assert lookups[0]["collection"] == "project_items"
     assert lookups[0]["filter[target_id_hash][_eq]"] == sha("embed-1")
     cache.get_embed_from_cache.assert_not_awaited()

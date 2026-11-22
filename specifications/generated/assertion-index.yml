@@ -165968,17 +165968,17 @@ assertions:
       surface: rest_api
     - &id21009
       path: backend/tests/test_project_code_fence_commit.py
-      line: 42
+      line: 44
       name: test_a_closed_fence_is_created_as_the_project_file
       surface: rest_api
     - &id21010
       path: backend/tests/test_project_code_fence_commit.py
-      line: 55
+      line: 63
       name: test_a_fence_for_an_existing_file_becomes_a_revision_of_it
       surface: rest_api
     - &id21011
       path: backend/tests/test_project_code_fence_commit.py
-      line: 88
+      line: 96
       name: test_a_diff_fence_updates_the_project_file_against_its_revision
       surface: rest_api
     tests:
@@ -169365,32 +169365,32 @@ assertions:
     supporting_tests:
     - &id21444
       path: backend/tests/test_project_code_fence_commit.py
-      line: 42
+      line: 44
       name: test_a_closed_fence_is_created_as_the_project_file
       surface: rest_api
     - &id21445
       path: backend/tests/test_project_code_fence_commit.py
-      line: 55
+      line: 63
       name: test_a_fence_for_an_existing_file_becomes_a_revision_of_it
       surface: rest_api
     - &id21446
       path: backend/tests/test_project_code_fence_commit.py
-      line: 71
+      line: 79
       name: test_a_refused_commit_leaves_the_fence_a_chat_embed
       surface: rest_api
     - &id21447
       path: backend/tests/test_project_code_fence_commit.py
-      line: 88
+      line: 96
       name: test_a_diff_fence_updates_the_project_file_against_its_revision
       surface: rest_api
     - &id21448
       path: backend/tests/test_project_code_fence_commit.py
-      line: 102
-      name: test_the_streamed_reference_and_inline_links_point_at_the_project_file
+      line: 109
+      name: test_inline_links_point_at_the_chat_code_embed_of_the_file
       surface: rest_api
     - &id21449
       path: backend/tests/test_project_code_fence_commit.py
-      line: 115
+      line: 123
       name: test_cloud_project_chats_write_files_as_code_blocks
       surface: rest_api
     tests:
@@ -169617,7 +169617,7 @@ assertions:
       surface: rest_api
     - &id21474
       path: backend/tests/test_project_embed_adoption.py
-      line: 316
+      line: 318
       name: test_assistant_rename_and_delete_tools_issue_client_jobs
       surface: rest_api
     - &id21475
@@ -169669,7 +169669,7 @@ assertions:
     supporting_tests:
     - &id21478
       path: backend/tests/test_project_embed_adoption.py
-      line: 371
+      line: 373
       name: test_thumbnail_refresh_passes_but_content_changes_never_do
       surface: rest_api
     tests:

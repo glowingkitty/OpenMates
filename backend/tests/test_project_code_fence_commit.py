@@ -28,9 +28,11 @@ class _Sandbox:
     def __init__(self, answers: dict[str, list[dict[str, Any]]]) -> None:
         self.answers = answers
         self.calls: list[tuple[str, dict[str, Any]]] = []
+        self.secrets: list[Any] = []
 
-    async def __call__(self, request_data, focus, operation, arguments, **_kwargs):
+    async def __call__(self, request_data, focus, operation, arguments, **kwargs):
         self.calls.append((operation, arguments))
+        self.secrets.append(kwargs.get("secrets_manager"))
         return self.answers[operation].pop(0)
 
 
@@ -40,14 +42,20 @@ KW = dict(cache_service=None, directus_service=None, log_prefix="")
 # contract-test: supporting surface=rest_api assertions=projects.agentic.files-as-code-embeds,projects.sandbox.write-back
 @pytest.mark.asyncio
 async def test_a_closed_fence_is_created_as_the_project_file(monkeypatch) -> None:
-    sandbox = _Sandbox({"create_file": [{"embed_id": FILE_ID, "revision": 1, "created": True}]})
+    sandbox = _Sandbox({"create_file": [{"embed_id": FILE_ID, "revision": 1, "created": True},
+                                        {"embed_id": FILE_ID, "revision": 1, "created": True}]})
     monkeypatch.setattr(fence, "_sandbox_op", sandbox)
     request = _request()
     committed = await fence.commit_code_fence(request, path="web-app/src/App.tsx", content="export {}\n", **KW)
     assert committed == {"embed_id": FILE_ID, "path": "web-app/src/App.tsx", "created": True}
     assert sandbox.calls == [("create_file", {"path": "web-app/src/App.tsx", "expected_base": None,
                                               "content": "export {}\n"})]
-    assert request.project_fence_files == {"web-app/src/App.tsx": FILE_ID}
+    # Saving does not decide what the reply shows: the chat code embed stays (the sandbox has no chat key).
+    assert request.project_fence_files is None
+    # Recipe proof 22 Nov: without the secrets manager the first file of a turn could not start the sandbox.
+    vault = object()
+    await fence.commit_code_fence(_request(), path="web-app/b.ts", content="x", secrets_manager=vault, **KW)
+    assert sandbox.secrets[-1] is vault
 
 
 # contract-test: supporting surface=rest_api assertions=projects.agentic.files-as-code-embeds,projects.sandbox.write-back
@@ -95,14 +103,14 @@ async def test_a_diff_fence_updates_the_project_file_against_its_revision(monkey
     applied = await fence.apply_project_diff_fence(_request(), path="web-app/a.ts", patch=patch, **KW)
     assert applied and applied["embed_id"] == FILE_ID
     assert sandbox.calls[-1] == ("update_file", {"path": "web-app/a.ts", "expected_base": "base-7", "patch": patch})
-    assert fence.code_reference(FILE_ID) == f'```json\n{{"type": "code", "embed_id": "{FILE_ID}"}}\n```\n\n'
 
 
 # contract-test: supporting surface=rest_api assertions=projects.agentic.files-as-code-embeds
-def test_the_streamed_reference_and_inline_links_point_at_the_project_file() -> None:
-    chunks = ['intro ```json\n{"type": "code", "embed_id": "temp-1"}\n```\n']
-    assert fence.swap_streamed_code_reference(chunks, old_embed_id="temp-1", new_embed_id=FILE_ID)
-    assert "temp-1" not in chunks[0] and FILE_ID in chunks[0]
+def test_inline_links_point_at_the_chat_code_embed_of_the_file() -> None:
+    request = _request()
+    fence.remember_shown_file(request, "web-app/src/App.tsx", FILE_ID)
+    fence.remember_shown_file(request, "web-app/none.ts", None)
+    assert request.project_fence_files == {"web-app/src/App.tsx": FILE_ID}
     text = "See [App.tsx](embed:web-app/src/App.tsx#L3) and [x](embed:web-app/other.ts)."
     linked = fence.link_project_file_references(text, {"web-app/src/App.tsx": FILE_ID})
     assert linked == f"See [App.tsx](embed:{FILE_ID}#L3) and [x](embed:web-app/other.ts)."

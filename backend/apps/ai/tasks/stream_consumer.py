@@ -56,8 +56,8 @@ from backend.shared.providers.e2b_application_preview import (
 from backend.apps.code.application_identity import derive_application_identity
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.processing.project_code_fence_commit import (
-    apply_project_diff_fence, code_reference, commit_code_fence, fence_project_focus,
-    link_project_file_references, project_file_path, swap_streamed_code_reference,
+    apply_project_diff_fence, commit_code_fence, fence_project_focus, link_project_file_references,
+    project_file_path, remember_shown_file,
 )
 from backend.apps.ai.assistant_speech.projection import (
     build_app_use_announcement,
@@ -2262,6 +2262,7 @@ async def _apply_diff_block_to_existing_embed(
     embed_service: Any,
     user_vault_key_id: str,
     log_prefix: str,
+    secrets_manager: Optional[SecretsManager] = None,
 ) -> str:
     """Apply a unified diff fence to an existing embed and return response markdown."""
     from backend.core.api.app.services.embed_diff_service import (
@@ -2270,17 +2271,20 @@ async def _apply_diff_block_to_existing_embed(
     from backend.core.api.app.services.embed_version_transaction_service import PROJECT_FILE_TOOL_REQUIRED, requires_atomic_project_embed_write
     from toon_format import decode
 
-    # A cloud Project file is edited through the Project sandbox; the reply shows that file's embed.
+    # A cloud Project file is edited through the Project sandbox; the reply shows the normal diff embed below.
     project_diff_path = project_file_path(diff_embed_ref) if fence_project_focus(request_data) else None
     if project_diff_path:
         project_file = await apply_project_diff_fence(
             request_data, path=project_diff_path, patch=diff_content, cache_service=cache_service,
-            directus_service=directus_service, log_prefix=log_prefix,
+            directus_service=directus_service, log_prefix=log_prefix, secrets_manager=secrets_manager,
         )
-        if project_file:
-            logger.info(f"{log_prefix} [PROJECT_FENCE] Applied diff fence to Project file embed {project_file['embed_id']}")
-            return code_reference(project_file["embed_id"])
-        return _render_diff_visual_card(project_diff_path, diff_content, "could not apply to the Project file")
+        if not project_file:
+            return _render_diff_visual_card(project_diff_path, diff_content, "could not apply to the Project file")
+        logger.info(f"{log_prefix} [PROJECT_FENCE] Applied diff fence to Project file embed {project_file['embed_id']}")
+    # The chat shows the file through this turn's chat code embed of the path, when there is one.
+    shown_project_embed_id = (
+        (getattr(request_data, "project_fence_files", None) or {}).get(project_diff_path) if project_diff_path else None
+    )
 
     file_path_index = getattr(request_data, "embed_file_path_index", None) or {}
     resolved_ref = diff_embed_ref or next(iter(file_path_index), None)
@@ -2290,7 +2294,7 @@ async def _apply_diff_block_to_existing_embed(
         f"embed_ref={resolved_ref!r} ({len(diff_content)} chars)"
     )
 
-    target_embed_id = resolve_diff_target_embed_id(resolved_ref, file_path_index)
+    target_embed_id = shown_project_embed_id or resolve_diff_target_embed_id(resolved_ref, file_path_index)
     if not target_embed_id:
         logger.warning(
             f"{log_prefix} [DIFF_BLOCK] Could not resolve embed_ref "
@@ -8059,6 +8063,7 @@ async def _consume_main_processing_stream(
                                         embed_service=embed_service,
                                         user_vault_key_id=user_vault_key_id,
                                         log_prefix=log_prefix,
+                                        secrets_manager=secrets_manager,
                                     )
 
                                     # Reset code block state
@@ -8519,9 +8524,9 @@ async def _consume_main_processing_stream(
                                                         f"for {target_embed_id}; creating a new embed instead."
                                                     )
 
-                                            # A file of a cloud Project chat that arrived as one complete block:
-                                            # commit it as the Project file and reference that embed (plan
-                                            # project-files-as-chat-code-embeds).
+                                            # A file of a cloud Project chat that arrived as one complete block is
+                                            # also saved as the Project file; the reply keeps the normal chat code
+                                            # embed below (plan project-files-as-chat-code-embeds).
                                             complete_fence_path = (
                                                 project_file_path(current_code_filename)
                                                 if not replacement_applied and fence_project_focus(request_data)
@@ -8531,18 +8536,17 @@ async def _consume_main_processing_stream(
                                                 await commit_code_fence(
                                                     request_data, path=complete_fence_path, content=code_content,
                                                     cache_service=cache_service, directus_service=directus_service,
-                                                    log_prefix=log_prefix,
+                                                    log_prefix=log_prefix, secrets_manager=secrets_manager,
                                                 )
                                                 if complete_fence_path else None
                                             )
                                             if complete_fence_file:
-                                                chunk = code_reference(complete_fence_file["embed_id"])
                                                 logger.info(
-                                                    f"{log_prefix} [PROJECT_FENCE] Committed complete code block as Project "
+                                                    f"{log_prefix} [PROJECT_FENCE] Saved complete code block as Project "
                                                     f"file embed {complete_fence_file['embed_id']} "
                                                     f"(created={complete_fence_file['created']})"
                                                 )
-                                            if replacement_applied or complete_fence_file:
+                                            if replacement_applied:
                                                 in_code_block = False
                                                 current_code_language = ""
                                                 current_code_filename = None
@@ -8569,6 +8573,9 @@ async def _consume_main_processing_stream(
 
                                                 if embed_data:
                                                     current_code_embed_id = embed_data["embed_id"]
+                                                    if complete_fence_file:
+                                                        remember_shown_file(request_data, complete_fence_path,
+                                                                            current_code_embed_id)
 
                                                     # Update with full content and finalize
                                                     await embed_service.update_code_embed_content(
@@ -8582,12 +8589,13 @@ async def _consume_main_processing_stream(
                                                         learning_mode_metadata=learning_mode_metadata,
                                                         log_prefix=log_prefix
                                                     )
-                                                    _record_generated_code_file_embed(
-                                                        generated_code_file_embeds,
-                                                        embed_id=current_code_embed_id,
-                                                        filename=current_code_filename,
-                                                        language=current_code_language,
-                                                    )
+                                                    if not complete_fence_file:
+                                                        _record_generated_code_file_embed(
+                                                            generated_code_file_embeds,
+                                                            embed_id=current_code_embed_id,
+                                                            filename=current_code_filename,
+                                                            language=current_code_language,
+                                                        )
                                                     await _mark_code_embed_assistant_runnable(
                                                         cache_service=cache_service,
                                                         request_data=request_data,
@@ -9807,6 +9815,7 @@ async def _consume_main_processing_stream(
                                 embed_service=embed_service,
                                 user_vault_key_id=user_vault_key_id,
                                 log_prefix=log_prefix,
+                                secrets_manager=secrets_manager,
                             )
 
                             in_code_block = False
@@ -10108,8 +10117,8 @@ async def _consume_main_processing_stream(
                                                 f"for streaming target {current_code_embed_id}; finalizing without version rows."
                                             )
 
-                                    # A file of a cloud Project chat: commit it as the Project file and show that
-                                    # embed; the streamed placeholder is never stored (plan
+                                    # A file of a cloud Project chat is also saved as the Project file; the reply
+                                    # keeps this normal chat code embed with the same content (plan
                                     # project-files-as-chat-code-embeds).
                                     project_fence_path = (
                                         project_file_path(current_code_filename)
@@ -10120,70 +10129,69 @@ async def _consume_main_processing_stream(
                                         await commit_code_fence(
                                             request_data, path=project_fence_path, content=current_code_content,
                                             cache_service=cache_service, directus_service=directus_service,
-                                            log_prefix=log_prefix,
+                                            log_prefix=log_prefix, secrets_manager=secrets_manager,
                                         )
                                         if project_fence_path else None
                                     )
                                     if project_fence_file:
-                                        swap_streamed_code_reference(
-                                            final_response_chunks, old_embed_id=current_code_embed_id,
-                                            new_embed_id=project_fence_file["embed_id"],
-                                        )
                                         logger.info(
-                                            f"{log_prefix} [PROJECT_FENCE] Committed code fence as Project file embed "
+                                            f"{log_prefix} [PROJECT_FENCE] Saved code fence as Project file embed "
                                             f"{project_fence_file['embed_id']} (created={project_fence_file['created']})"
                                         )
+                                        # The reply shows this chat code embed; inline links to the path point at it.
+                                        remember_shown_file(request_data, project_fence_path, current_code_embed_id)
+                                    if version_history_rows and new_version:
+                                        await embed_service.update_code_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=current_code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            version_number=new_version,
+                                            content_hash=hashlib.sha256(current_code_content.encode("utf-8")).hexdigest(),
+                                            version_history_rows=version_history_rows,
+                                            learning_mode_metadata=learning_mode_metadata,
+                                            log_prefix=log_prefix,
+                                        )
                                     else:
-                                        if version_history_rows and new_version:
-                                            await embed_service.update_code_embed_content(
-                                                embed_id=current_code_embed_id,
-                                                code_content=current_code_content,
-                                                chat_id=request_data.chat_id,
-                                                user_id=request_data.user_id,
-                                                user_id_hash=request_data.user_id_hash,
-                                                user_vault_key_id=user_vault_key_id,
-                                                status="finished",
-                                                version_number=new_version,
-                                                content_hash=hashlib.sha256(current_code_content.encode("utf-8")).hexdigest(),
-                                                version_history_rows=version_history_rows,
-                                                learning_mode_metadata=learning_mode_metadata,
-                                                log_prefix=log_prefix,
-                                            )
-                                        else:
-                                            await embed_service.update_code_embed_content(
-                                                embed_id=current_code_embed_id,
-                                                code_content=current_code_content,
-                                                chat_id=request_data.chat_id,
-                                                user_id=request_data.user_id,
-                                                user_id_hash=request_data.user_id_hash,
-                                                user_vault_key_id=user_vault_key_id,
-                                                status="finished",
-                                                learning_mode_metadata=learning_mode_metadata,
-                                                log_prefix=log_prefix,
-                                            )
-                                        if finalized_as_notebook:
-                                            _replace_streamed_json_embed_reference_type(
-                                                final_response_chunks,
-                                                embed_id=current_code_embed_id,
-                                                old_type="code",
-                                                new_type="notebook",
-                                                log_prefix=log_prefix,
-                                            )
+                                        await embed_service.update_code_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=current_code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="finished",
+                                            learning_mode_metadata=learning_mode_metadata,
+                                            log_prefix=log_prefix,
+                                        )
+                                    if finalized_as_notebook:
+                                        _replace_streamed_json_embed_reference_type(
+                                            final_response_chunks,
+                                            embed_id=current_code_embed_id,
+                                            old_type="code",
+                                            new_type="notebook",
+                                            log_prefix=log_prefix,
+                                        )
+                                    if not project_fence_file:
+                                        # A Project's app is previewed from its sandbox, not as a chat application.
                                         _record_generated_code_file_embed(
                                             generated_code_file_embeds,
                                             embed_id=current_code_embed_id,
                                             filename=current_code_filename,
                                             language=current_code_language,
                                         )
-                                        await _mark_code_embed_assistant_runnable(
-                                            cache_service=cache_service,
-                                            request_data=request_data,
-                                            embed_id=current_code_embed_id,
-                                            action="edited" if current_code_replacement_ref else "created",
-                                            log_prefix=log_prefix,
-                                        )
-                                      
-                                        logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
+                                    await _mark_code_embed_assistant_runnable(
+                                        cache_service=cache_service,
+                                        request_data=request_data,
+                                        embed_id=current_code_embed_id,
+                                        action="edited" if current_code_replacement_ref else "created",
+                                        log_prefix=log_prefix,
+                                    )
+
+                                    logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
 
                                     if (
                                         not application_parent_embed_created

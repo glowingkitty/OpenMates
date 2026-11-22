@@ -159,7 +159,7 @@ class AskSkillRequest(BaseModel):
     project_access_declined: bool = Field(default=False, description="Internal continuation guard: do not request Project access again after this turn's declined consent.")
     project_file_reference_preview: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="Internal accepted file completion, projected onto reference-only fields; never file contents or access authority.")
     project_code_fences: bool = Field(default=False, repr=False, description="Internal: this cloud Project chat writes its files as reply code fences.")
-    project_fence_files: Optional[Dict[str, str]] = Field(default=None, repr=False, description="Internal Project path -> committed Project file embed id of the files the reply wrote as code fences this turn.")
+    project_fence_files: Optional[Dict[str, str]] = Field(default=None, repr=False, description="Internal Project path -> chat code embed id that shows that Project file in this reply (files written as code fences this turn).")
     project_app_folders: Optional[List[str]] = Field(default=None, repr=False, description="Internal Project folders whose production build passed in the Project sandbox this turn (one application card each).")
     active_project_focus: Optional[Dict[str, Any]] = Field(default=None, description="Server-authoritative transient Project focus, including its full instruction.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")

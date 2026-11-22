@@ -21,20 +21,25 @@ goal: |
 notes: |
   Design (hosted cloud Projects, the E2B Project sandbox):
   - The model writes a new file as a normal code fence with its Project path
-    (```tsx:web-app/src/App.tsx). It streams as the normal code embed. When the
-    fence closes, the stream consumer commits it through the chat's Project
-    sandbox (create_file; an existing file becomes a whole-file update_file),
-    the one write path of hosted files (P11), so later commands of the turn see
-    it. The streamed reference is then pointed at the committed Project file
-    embed, which the sandbox sealed with the Project key and wrapped for the
-    chat key; the streamed placeholder is never finalized or stored. No sandbox
-    template or client-core change.
-  - An edit is a ```diff:<Project path> fence, applied through the sandbox
-    (read_text for the current revision, then update_file); the reply keeps
-    the normal reference to that file embed.
+    (```tsx:web-app/src/App.tsx). It streams and is stored as the normal chat
+    code embed (chat key, every device). When the fence closes, the stream
+    consumer also commits the same content through the chat's Project sandbox
+    (create_file; an existing file becomes a whole-file update_file), the one
+    write path of hosted files (P11), so later commands of the turn see it.
+    This applies to fences that stream and to blocks that arrive in one chunk.
+    The reply keeps the chat code embed: the sandbox holds only the Project
+    key (never the chat key), so the committed file embed has only a Project
+    wrapper and is read in Project views (recipe proof 22 Nov: swapping the
+    reply to it left "Code snippet" cards the chat could not open).
+  - An edit is a ```diff:<Project path> fence, applied to the Project file
+    through the sandbox (read_text for the current revision, then
+    update_file); the reply shows the existing diff embed of this turn's chat
+    code embed of that path.
   - The model links files inline as [name](embed:<Project path>); at the end of
-    the turn the server points these links at the committed file embeds, and
-    the web resolver accepts an embed id as the link target.
+    the turn the server points these links at this reply's chat code embeds,
+    and the web resolver accepts an embed id as the link target.
+  - Sandbox creation retries an E2B rate limit and the stream consumer passes
+    the secrets manager, so the first file of a turn can start the sandbox.
   - project_create_file and project_update_file are not offered to the model in
     a hosted Project chat; read, list, search, rename, delete and commit stay.
   - No projects/change event is published anymore. Old ones in existing chats,
@@ -42,8 +47,8 @@ notes: |
   - Machine-folder Projects keep the file tools for now (separate Task).
 
   Encryption: file content crosses the server exactly as for a normal chat code
-  embed (model output); the committed row is sealed in the sandbox with the
-  Project key and wrapped for the chat key, as today.
+  embed (model output); the committed Project row is sealed in the sandbox with
+  the Project key only, as today.
 
   Proof: agentic-cloud-project-web-real.spec.ts (recipe app) asserts code
   embeds in the reply and no File changed entries; pytest of fence commit,
