@@ -46,6 +46,7 @@ import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte"
 import BrowseEmbedPreview from "../../../embeds/web/BrowseEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
+import CodeRunEmbedPreview from "../../../embeds/code/CodeRunEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
 import TravelPriceCalendarEmbedPreview from "../../../embeds/travel/TravelPriceCalendarEmbedPreview.svelte";
@@ -464,6 +465,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // Render based on skill type - use Svelte components for ALL states (including processing)
     // This ensures consistent styling and proper preview display during streaming
     if (appId && skillId) {
+      if (appId === "projects" && skillId === "change") {
+        return this.renderProjectFileChangeEvent(attrs, embedData, decodedContent, content);
+      }
       if (appId === "projects" && (skillId === "search" || skillId === "read")) {
         return this.renderProjectReferenceComponent(attrs, embedData, decodedContent, content, skillId);
       }
@@ -898,6 +902,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         );
       }
 
+      if (appId === "code" && skillId === "run") {
+        return this.renderCodeRunComponent(attrs, embedData, decodedContent, content);
+      }
+
       if (appId === "code" && skillId === "search_repos") {
         return this.renderCodeRepoSearchComponent(
           attrs,
@@ -1188,6 +1196,30 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       mountedComponents.set(content, component);
     } catch (error) {
       console.error("[AppSkillUseRenderer] Error mounting TaskCreateEmbedPreview:", error);
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  /** A projects/change embed is a chat-history system event, not a card. */
+  private async renderProjectFileChangeEvent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): Promise<void> {
+    this.prepareMount(content);
+    try {
+      const { default: ProjectFileChangeEventNotice } = await import("../../../projects/ProjectFileChangeEventNotice.svelte");
+      const { readProjectFileChangeRows } = await import("../../../projects/projectFileChangeEvent");
+      const rows = readProjectFileChangeRows(decodedContent);
+      if (!rows.length) return;
+      const component = mount(ProjectFileChangeEventNotice, {
+        target: content,
+        props: { rows, onOpen: () => this.openFullscreen(attrs, embedData, { ...decodedContent, skill_id: "read" }) },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting ProjectFileChangeEventNotice:", error);
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }
@@ -3998,6 +4030,38 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       );
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
+  }
+
+  /** Render the Code app's cloud command card: command line, status and exit code. */
+  private renderCodeRunComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const status =
+      decodedContent?.status || embedData?.status || attrs.status || "processing";
+    this.prepareMount(content);
+    const component = mount(CodeRunEmbedPreview, {
+      target: content,
+      props: {
+        id: attrs.contentRef?.replace("embed:", "") || attrs.id || "",
+        command: decodedContent?.command,
+        argv: Array.isArray(decodedContent?.argv) ? decodedContent.argv.map(String) : undefined,
+        cwd: decodedContent?.cwd,
+        exitCode: decodedContent?.exit_code,
+        durationSeconds: typeof decodedContent?.duration_seconds === "number" ? decodedContent.duration_seconds : undefined,
+        outputTail: typeof decodedContent?.output_tail === "string" ? decodedContent.output_tail : undefined,
+        error: decodedContent?.error,
+        status: status as "processing" | "finished" | "error" | "cancelled",
+        taskId: decodedContent?.task_id || decodedContent?.skill_task_id || "",
+        isMobile: false,
+        onFullscreen: () => {
+          void this.openAppSkillOutputFullscreen(attrs, embedData, decodedContent);
+        },
+      },
+    });
+    mountedComponents.set(content, component);
   }
 
   /**

@@ -158,6 +158,8 @@ class AskSkillRequest(BaseModel):
     agentic_context_request_id: Optional[str] = Field(default=None, description="Content-free binding for the memory handoff.")
     project_access_declined: bool = Field(default=False, description="Internal continuation guard: do not request Project access again after this turn's declined consent.")
     project_file_reference_preview: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="Internal accepted file completion, projected onto reference-only fields; never file contents or access authority.")
+    project_file_change_preview: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="Internal applied Project file change(s), reference-only (paths and revision, never contents).")
+    project_app_folders: Optional[List[str]] = Field(default=None, repr=False, description="Internal Project folders whose production build passed in the Project sandbox this turn (one application card each).")
     active_project_focus: Optional[Dict[str, Any]] = Field(default=None, description="Server-authoritative transient Project focus, including its full instruction.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
     learning_mode: Optional[Dict[str, Any]] = Field(default=None, description="Effective account-wide Learning Mode context resolved by the backend.")

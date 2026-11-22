@@ -11698,6 +11698,16 @@ projects.references.count:
   en: '{count} file references'
   de: '{count} Dateiverweise'
   verified_by_human: []
+projects.references.count_singular:
+  context: Number of project file references found when there is exactly one, count is a placeholder
+  en: '{count} file reference'
+  de: '{count} Dateiverweis'
+  verified_by_human: []
+projects.references.more:
+  context: Hidden files on a Project read card, count is a placeholder
+  en: '+{count} more'
+  de: '+{count} weitere'
+  verified_by_human: []
 projects.references.empty:
   context: Honest empty state when a Project search returned no file references
   en: No file references found

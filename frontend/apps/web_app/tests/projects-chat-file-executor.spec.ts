@@ -203,8 +203,7 @@ async function approvePendingWrite(page: Page, path: string, expectedChange: str
   await expect(pending.getByTestId('project-file-change-diff')).toContainText(expectedChange);
   await pending.getByTestId('project-file-approve').click();
   await expect(pending).toHaveCount(0, { timeout: 60_000 });
-  await expect(page.locator('[data-testid="project-file-approval-card"][data-status="applied"]')
-    .filter({ hasText: path }).last()).toBeVisible({ timeout: 120_000 });
+  await expect(page.locator(`[data-testid="project-file-change-event"][data-paths*="${path}"]`).last()).toBeVisible({ timeout: 120_000 });
 }
 
 async function waitForTurnCompletion(page: Page): Promise<void> {
@@ -601,8 +600,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       chatUrl = page.url();
       await expectProjectFocusPill(page, fixture.project_name as string);
       await waitForTurnCompletion(page);
-      await expect(page.locator('[data-testid="project-file-approval-card"][data-status="applied"]')
-        .filter({ hasText: 'src/remote-demo.ts' }).last()).toBeVisible({ timeout: 120_000 });
+      await expect(page.locator('[data-testid="project-file-change-event"][data-paths*="src/remote-demo.ts"]').last()).toBeVisible({ timeout: 120_000 });
 
       const remoteStatePromise = waitForFixtureEvent(bridge, 'remote_file_state');
       bridge.kill('SIGUSR2');

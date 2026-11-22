@@ -34,13 +34,19 @@ def build_project_file_reference_preview(
     project_name = str(candidate.get("name") or "Project")[:160]
     arguments = context.get("tool_arguments") or {}
     query = str(arguments.get("query") if skill_id in search_tools
-                else arguments.get("path") or "")[:640]
+                else arguments.get("path") or ", ".join(
+                    p for p in arguments.get("paths") or [] if isinstance(p, str)) or "")[:640]
     references: list[dict[str, Any]] = []
     seen: set[tuple[str, str | None, str | None, int | None]] = set()
     for result in completed_results:
         if result.get("status") != "completed":
             continue
-        rows = result.get("matches", []) if skill_id in search_tools else [result]
+        merged_files = result.get("files") if skill_id == "project_read_text" else None
+        if isinstance(merged_files, list):
+            # Multi-path read: one merged result, one row per requested file.
+            rows = [row for row in merged_files if isinstance(row, dict) and row.get("status") == "completed"]
+        else:
+            rows = result.get("matches", []) if skill_id in search_tools else [result]
         if not isinstance(rows, list):
             continue
         source_id = result.get("source_id")
@@ -49,7 +55,8 @@ def build_project_file_reference_preview(
                 continue
             # Remote read_text replies contain bytes/size, not a path. The
             # dispatched read path is authoritative even if a reply adds one.
-            path = arguments.get("path") if skill_id == "project_read_text" else row.get("path")
+            path = (row.get("path") if isinstance(merged_files, list) else arguments.get("path")) \
+                if skill_id == "project_read_text" else row.get("path")
             if (not isinstance(path, str) or not path or len(path) > 4096
                     or path.startswith(("/", "\\")) or "\\" in path
                     or any(part in {"", ".", ".."} for part in path.split("/"))):
@@ -95,12 +102,18 @@ def build_project_file_reference_preview(
 async def publish_project_file_reference_preview(
     *, preview: dict[str, Any], request_data: Any, cache_service: Any, directus_service: Any,
     encryption_service: Any, user_vault_key_id: str | None, task_id: str, log_prefix: str,
+    inline: bool = False,
 ) -> str | None:
-    """Publish through the regular encrypted/recoverable embed pipeline."""
+    """Publish through the regular encrypted/recoverable embed pipeline.
+
+    A remote or device read completes in a continuation; a hosted-sandbox read
+    completes inline in the current stream (``inline=True``). Both publish the
+    same reference-only card after the same superseded-turn recheck.
+    """
     from backend.core.api.app.services.embed_service import EmbedService
 
     focus = request_data.active_project_focus or {}
-    if (not request_data.is_async_skill_continuation
+    if ((not inline and not request_data.is_async_skill_continuation)
             or focus.get("project_id") != preview.get("project_id")
             or not cache_service or not directus_service or not user_vault_key_id):
         return None
@@ -146,3 +159,28 @@ async def publish_project_file_reference_preview(
     if not created:
         raise RuntimeError("Project file reference preview publication failed")
     return created["embed_reference"]
+
+
+async def publish_inline_project_file_reference(
+    *, request_data: Any, skill_id: str, operation_arguments: dict[str, Any], envelope: dict[str, Any],
+    cache_service: Any, directus_service: Any, encryption_service: Any, user_vault_key_id: str | None,
+    task_id: str, log_prefix: str,
+) -> str | None:
+    """Reference card for a read/search the hosted sandbox answered inline; None when it shows nothing."""
+    request = {
+        "active_project_focus": request_data.active_project_focus or {},
+        "project_focus_candidates": list(getattr(request_data, "project_focus_candidates", None) or []),
+        "team_id": getattr(request_data, "team_id", None),
+    }
+    preview = build_project_file_reference_preview(
+        context={"app_id": "system", "skill_id": skill_id, "request_data": request,
+                 "tool_arguments": operation_arguments},
+        completed_results=[envelope], result_status="completed",
+    )
+    if not preview:
+        return None
+    return await publish_project_file_reference_preview(
+        preview=preview, request_data=request_data, cache_service=cache_service,
+        directus_service=directus_service, encryption_service=encryption_service,
+        user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix, inline=True,
+    )

@@ -6,7 +6,7 @@ import { notificationStore } from './notificationStore';
 import { text } from '../i18n/translations';
 
 export type ProjectFileApprovalEntry =
-  | { id: string; kind: 'write'; status: 'pending' | 'applied'; request: ProjectWriteApprovalRequest }
+  | { id: string; kind: 'write'; status: 'pending' | 'applied'; request: ProjectWriteApprovalRequest; recordedAt?: number }
   | { id: string; kind: 'read'; status: 'pending'; request: ProjectReadApprovalRequest };
 
 const state = writable<ProjectFileApprovalEntry[]>([]);
@@ -70,6 +70,7 @@ export function resolveProjectFileApproval(id: string, accepted: boolean): void 
 export function recordProjectFileChange(request: ProjectWriteApprovalRequest): void {
   const entry: ProjectFileApprovalEntry = {
     id: requestId(request), kind: 'write', status: 'applied', request: structuredClone(request),
+    recordedAt: Date.now(),
   };
   state.update((entries) => {
     const remaining = entries.filter((value) => value.id !== entry.id);

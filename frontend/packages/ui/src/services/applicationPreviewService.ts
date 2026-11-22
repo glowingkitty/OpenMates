@@ -51,10 +51,28 @@ export interface CachedApplicationPreviewSession extends ApplicationPreviewStart
   status_updated_at?: number;
 }
 
+/** A Project app previewed from the chat's Project sandbox (no files travel; the server runs its dev server). */
+export interface ProjectSandboxPreviewTarget {
+  project_id: string;
+  cwd: string;
+  team_id?: string;
+}
+
 interface ApplicationPreviewStartOptions {
   sharedContext?: string;
   autoStarted?: boolean;
   sourceMessageId?: string;
+  projectSandbox?: ProjectSandboxPreviewTarget;
+}
+
+/** The sandbox target of a Project application card, or null for a card made of chat files. */
+export function projectSandboxPreviewTarget(content: Record<string, unknown>): ProjectSandboxPreviewTarget | null {
+  if (content.source !== 'project_sandbox' || typeof content.project_id !== 'string' || !content.project_id) return null;
+  return {
+    project_id: content.project_id,
+    cwd: typeof content.cwd === 'string' ? content.cwd : '',
+    ...(typeof content.team_id === 'string' && content.team_id ? { team_id: content.team_id } : {}),
+  };
 }
 
 interface ApplicationFileRef {
@@ -219,6 +237,7 @@ async function performApplicationPreviewStart(
       shared_context: options.sharedContext,
       auto_started: options.autoStarted ?? false,
       source_message_id: options.sourceMessageId,
+      ...(options.projectSandbox ? { project_sandbox: options.projectSandbox } : {}),
     }),
   });
 

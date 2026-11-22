@@ -1559,7 +1559,7 @@
           "text": "Search text"
         },
         "read": {
-          "text": "Read Project File",
+          "text": "Read files",
           "description": {
             "text": "Read a file from an encrypted Project through a connected client."
           }
@@ -9743,6 +9743,12 @@
         },
         "count": {
           "text": "{count} file references"
+        },
+        "count_singular": {
+          "text": "{count} file reference"
+        },
+        "more": {
+          "text": "+{count} more"
         },
         "empty": {
           "text": "No file references found"
@@ -18010,6 +18016,12 @@
     "file_change_applied": {
       "text": "File changed"
     },
+    "file_change_event_one": {
+      "text": "Project file changed: {path}"
+    },
+    "file_change_event_many": {
+      "text": "{count} Project files changed"
+    },
     "file_change_review": {
       "text": "View changes"
     },
@@ -18454,23 +18466,17 @@
     "workspace_error_source_timeout": {
       "text": "The remote machine did not respond. Retry the Project read."
     },
-    "created_project_label": {
-      "text": "Created project"
+    "created_project_event": {
+      "text": "Created {name} project"
     },
     "created_project_undo": {
       "text": "Undo"
     },
     "created_project_undone": {
-      "text": "Project creation undone"
+      "text": "Project removed"
     },
     "created_project_undo_failed": {
       "text": "Could not undo. Please try again."
-    },
-    "work_on_label": {
-      "text": "Work on"
-    },
-    "focus_not_active": {
-      "text": "Not active"
     },
     "create_document": {
       "text": "New document"

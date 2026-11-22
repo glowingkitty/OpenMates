@@ -25,6 +25,20 @@ embed_types:
     groupable: true
     preview_component: projects/ProjectReferenceEmbedPreview.svelte
     fullscreen_component: projects/ProjectReferenceEmbedFullscreen.svelte
+    icon: visible
+    gradient_var: "--color-app-projects"
+    i18n_namespace: embeds.projects.references
+  # Applied Project file change: rendered as a chat-history system event row
+  # (ProjectFileChangeEventNotice) at its place in the turn, never grouped.
+  - id: change
+    category: app-skill-use
+    skill_id: change
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    groupable: false
+    preview_component: projects/ProjectReferenceEmbedPreview.svelte
+    fullscreen_component: projects/ProjectReferenceEmbedFullscreen.svelte
     icon: project
     gradient_var: "--color-app-projects"
     i18n_namespace: embeds.projects.references

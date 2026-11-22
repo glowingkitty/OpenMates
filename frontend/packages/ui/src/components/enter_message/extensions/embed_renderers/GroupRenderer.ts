@@ -38,6 +38,7 @@ import type { InteractiveQuestionPayload } from "../../../interactive_questions/
 import { parseInteractiveQuestionPayloadCandidate } from "../../../interactive_questions/utils/questionState";
 import NotebookEmbedPreview from "../../../embeds/code/NotebookEmbedPreview.svelte";
 import ApplicationEmbedPreview from "../../../embeds/code/ApplicationEmbedPreview.svelte";
+import { applicationProjectSource } from "../../../embeds/code/applicationProjectSource";
 import CodeRepoEmbedPreview from "../../../embeds/code/CodeRepoEmbedPreview.svelte";
 import CodeRepoSearchEmbedPreview from "../../../embeds/code/CodeRepoSearchEmbedPreview.svelte";
 import WebSearchEmbedPreview from "../../../embeds/web/WebSearchEmbedPreview.svelte";
@@ -2047,6 +2048,45 @@ export class GroupRenderer implements EmbedRenderer {
           },
         });
         mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "code" && skillId === "run") {
+        // Cloud command: the same Run card (command, status, exit, duration) as standalone.
+        const { default: CodeRunEmbedPreview } = await import("../../../embeds/code/CodeRunEmbedPreview.svelte");
+        const component = mount(CodeRunEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            command: decodedContent?.command,
+            argv: Array.isArray(decodedContent?.argv) ? decodedContent.argv.map(String) : undefined,
+            cwd: decodedContent?.cwd,
+            exitCode: decodedContent?.exit_code,
+            durationSeconds: typeof decodedContent?.duration_seconds === "number" ? decodedContent.duration_seconds : undefined,
+            outputTail: typeof decodedContent?.output_tail === "string" ? decodedContent.output_tail : undefined,
+            error: decodedContent?.error,
+            status: status as "processing" | "finished" | "error" | "cancelled",
+            taskId: decodedContent?.task_id || decodedContent?.skill_task_id || "",
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "projects" && skillId === "change") {
+        // Applied file changes are system events, in groups as standalone.
+        const { default: ProjectFileChangeEventNotice } = await import("../../../projects/ProjectFileChangeEventNotice.svelte");
+        const { readProjectFileChangeRows } = await import("../../../projects/projectFileChangeEvent");
+        const rows = readProjectFileChangeRows(decodedContent);
+        if (rows.length) {
+          const component = mount(ProjectFileChangeEventNotice, {
+            target,
+            props: { rows, onOpen: handleFullscreen },
+          });
+          mountedComponents.set(target, component);
+        }
         return;
       }
 
@@ -4717,6 +4757,7 @@ export class GroupRenderer implements EmbedRenderer {
           status: status as "processing" | "finished" | "error",
           taskId: decodedContent?.task_id,
           chatId: item.sourceChatId,
+          projectSource: applicationProjectSource(decodedContent),
           isMobile: false,
           onFullscreen: handleFullscreen,
         },

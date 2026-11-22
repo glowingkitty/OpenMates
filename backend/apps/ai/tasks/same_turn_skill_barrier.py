@@ -423,6 +423,7 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
     authored_inline_outputs = list(checkpoint.get("authored_inline_outputs") or [])
     result_embed_ids: list[str] = list(getattr(request, "completed_result_embed_ids", None) or [])
     command_embed_ids: list[str] = list(getattr(request, "completed_command_embed_ids", None) or [])
+    sandbox_command_results: list[dict[str, Any]] = []
     for job, slot in zip(jobs, slots):
         if not isinstance(job, dict) or not isinstance(slot, dict) or job.get("task_id") != slot.get("task_id"):
             raise RuntimeError("Same-turn completion order changed")
@@ -452,6 +453,9 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
         for embed_id in completed_command_embed_ids(payload.get("results")):
             if embed_id not in command_embed_ids:
                 command_embed_ids.append(embed_id)
+        if (job.get("app_id"), job.get("skill_id")) == ("code", "run"):
+            sandbox_command_results.extend(row for row in payload.get("results") or []
+                                           if isinstance(row, dict) and isinstance(row.get("write_back"), dict))
         if job.get("app_id") in {"images", "audio", "music", "videos", "models3d"} or (
             job.get("app_id") == "code" and job.get("skill_id") == "image_to_html"
         ) or (job.get("app_id") == "design" and job.get("skill_id") == "embroidery"):
@@ -481,6 +485,8 @@ async def restore_ordered_tool_results(request: Any, checkpoint: dict[str, Any])
         request.completed_result_embed_ids = result_embed_ids
     if command_embed_ids:
         request.completed_command_embed_ids = command_embed_ids
+    if sandbox_command_results:
+        _attach_project_command_outcomes(request, sandbox_command_results)
     checkpoint["generated_embed_refs"] = generated_refs
     checkpoint["generated_embed_aliases"] = generated_aliases
     checkpoint["authored_inline_outputs"] = authored_inline_outputs
@@ -528,3 +534,26 @@ async def verify_resume_delivery(cache: Any, request: Any, delivery_task_id: str
     if not isinstance(request.same_turn_checkpoint, dict):
         return False
     return True
+
+
+def _attach_project_command_outcomes(request: Any, results: list[dict[str, Any]]) -> None:
+    """The batch's Project write-back becomes one change row; passing builds get app cards."""
+    from backend.apps.ai.processing.project_app_preview_card import built_app_folders
+    from backend.apps.ai.processing.project_file_change_references import build_change_preview, command_change_rows
+
+    focus = getattr(request, "active_project_focus", None) or {}
+    project_id = focus.get("project_id")
+    if not isinstance(project_id, str) or not project_id:
+        return
+    rows: list[dict[str, Any]] = []
+    for result in results:
+        for row in command_change_rows(result):
+            if row["path"] not in {existing["path"] for existing in rows}:
+                rows.append(row)
+    request.project_file_change_preview = build_change_preview(
+        origin="command", project_id=project_id, rows=rows,
+        project_name=next((c.get("name") for c in getattr(request, "project_focus_candidates", None) or []
+                           if isinstance(c, dict) and c.get("project_id") == project_id), None),
+        team_id=getattr(request, "team_id", None) or focus.get("team_id"),
+    )
+    request.project_app_folders = built_app_folders(results) or None

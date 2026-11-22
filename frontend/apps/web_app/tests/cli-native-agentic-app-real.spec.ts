@@ -468,7 +468,7 @@ test('real Gemini turn builds a hosted recipe app into a new Project via the nat
     await page.screenshot({ path: info.outputPath('chat-with-application-embed.png'), fullPage: true });
     await checkpoint('agentic-app-embed-visible');
     await toggle.click();
-    await expect.soft(page.getByTestId('project-created-card').first()).toBeVisible({ timeout: 30_000 });
+    await expect.soft(page.getByTestId('project-created-event').first()).toBeVisible({ timeout: 30_000 });
     await page.screenshot({ path: info.outputPath('chat-activity-expanded.png'), fullPage: true });
 
     // Start the live preview from the chat's application card and wait for the running app.

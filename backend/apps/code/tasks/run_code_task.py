@@ -666,7 +666,8 @@ def _run_code_execution(execution_id: str, payload: dict[str, Any]) -> None:
             if payload.get("target_embed_id"):
                 completion["command_embed_id"] = payload["target_embed_id"]
             try:
-                run_async(finalize_command_parent_embed(payload, final_status, cache_service))
+                run_async(finalize_command_parent_embed(
+                    payload, final_status, cache_service, guarded_output=completion.get("output")))
             except (RuntimeError, ValueError) as parent_exc:
                 logger.error("Cloud command parent card for %s not finalized: %s", execution_id, parent_exc, exc_info=True)
             run_async(cloud_cmd.remember_if_succeeded(

@@ -101,6 +101,8 @@ def command_completion(
     """
     result = dict(completion)
     result["command"] = command_display(list(command_run.get("argv") or []), str(command_run.get("cwd") or ".")).strip()
+    # The Project folder the command ran in (for the change row and the app preview card).
+    result["cwd"] = str(command_run.get("cwd") or ".")
     # The Project snapshot paths are not part of what the command did.
     result["files"] = []
     if isinstance(result.get("output"), str):

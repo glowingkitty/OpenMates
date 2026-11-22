@@ -8,6 +8,7 @@ import { generatedMediaChildIds, isGeneratedMediaParent } from '../components/em
 import { authoredResultMetadata, authoredResultMediaPresentation } from '../utils/authoredResultPresentation';
 import ResolvedEmbedPreview from '../components/embeds/ResolvedEmbedPreview.svelte';
 import { getEmbedPreviewPresentation } from '../types/embedPreviewPresentation';
+import { applicationProjectSource } from '../components/embeds/code/applicationProjectSource';
 
 /**
  * embedPreviewRegistry.ts
@@ -1071,6 +1072,7 @@ resolvers.set("code-application", async ({ embedId, decodedContent, embedData, o
       latest_screenshot: decodedContent.latest_screenshot,
       status: normalizeStatus(embedData.status),
       taskId: decodedContent.task_id,
+      projectSource: applicationProjectSource(decodedContent),
       isMobile: false,
       onFullscreen,
     },

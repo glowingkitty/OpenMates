@@ -2103,8 +2103,12 @@ class EmbedService(SlidesEmbedMixin):
         provenance: Optional[str] = None,
         log_prefix: str = "",
         embed_id: Optional[str] = None,
+        project_source: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create a finished generated-application parent embed for code file embeds.
+
+        ``project_source`` marks an app that lives in a Project folder and is previewed
+        from the chat's Project sandbox (no file refs; keys: project_id, project_name, cwd).
 
         Passing an existing ``embed_id`` re-publishes that parent with a fuller file
         list as its next ``version_number``: a finished version is sealed for chat
@@ -2148,6 +2152,10 @@ class EmbedService(SlidesEmbedMixin):
             }
             if provenance:
                 content["provenance"] = provenance
+            if project_source:
+                content["source"] = "project_sandbox"
+                content.update({key: project_source[key] for key in ("project_id", "project_name", "cwd", "team_id")
+                                if isinstance(project_source.get(key), str)})
             if version_number is not None:
                 content["version_number"] = version_number
             content_toon = encode(_flatten_for_toon_tabular(content))

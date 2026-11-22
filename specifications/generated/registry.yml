@@ -240,7 +240,7 @@ specifications:
     version: 3
     status: approved
     path: features/app-skills/code-run
-    fingerprint: 8e2b3dd13040133444c0f864cd40a1a8b1aff914fbee8a3210824d4deb3c6d2f
+    fingerprint: b88fca626577184f990df57c4aa9d667a8a9f686b3911d22a37e27e82279be2c
     required_applies_to:
     - rest_api
     - cli
@@ -945,7 +945,7 @@ specifications:
     version: 2
     status: approved
     path: features/projects
-    fingerprint: dcf3bed66c8bb77116e54d0a35402d0a7112d6d6f696b69e07fe39a5ea8ffbcf
+    fingerprint: 856e5fd7e01244b0de2483e22d0f44eb23c733c7fd209ed34e4335803098f807
     required_applies_to:
     - rest_api
     - cli
@@ -4339,6 +4339,18 @@ assertions:
     specification_id: feature.app-skill.code-run
     type: behavior
     fingerprint: 8d9a1e7337d069043026ba7e6046c1c0a5609eefdfc90e3bc14c051ba2afe855
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  code-run.cloud.project-preview:
+    specification: feature.app-skill.code-run@3
+    specification_id: feature.app-skill.code-run
+    type: behavior
+    fingerprint: cbf2d80c5612c58e6ef5d0a2f714d1d5421591f41143da39b76f823de52e560e
     required_applies_to:
     - rest_api
     - cli
@@ -13347,7 +13359,7 @@ assertions:
     specification: feature.projects@2
     specification_id: feature.projects
     type: behavior
-    fingerprint: dfa0e77a051e38845be5ca6fbcc1235eb960ebcd6d843bed21fa9da5d1446d1e
+    fingerprint: 9d43c02536d67aecf5805a32222658992585ba3bcea3d9c3c2482b1e3bb01453
     required_applies_to:
     - rest_api
     - cli
@@ -13396,6 +13408,18 @@ assertions:
     specification_id: feature.projects
     type: behavior
     fingerprint: 7671ca0335f34eeff50bd051db6df1b281faa2e4c6caa3705f918d603d4cbe61
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  projects.agentic.earlier-steps-stay:
+    specification: feature.projects@2
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: e90365e4a977927cc2771f65abae547f49579f2dc0066daf4bcc2e0cab0b251d
     required_applies_to:
     - rest_api
     - cli

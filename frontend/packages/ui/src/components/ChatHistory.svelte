@@ -91,6 +91,8 @@ import { storageArchiveFetch } from "../config/api";
   import AppSettingsMemoriesPermissionDialog from './AppSettingsMemoriesPermissionDialog.svelte';
   import ConnectedAccountPermissionDialog from './ConnectedAccountPermissionDialog.svelte';
   import ProjectFileApprovalCard from './projects/ProjectFileApprovalCard.svelte';
+  import ProjectCreatedEvent from './projects/ProjectCreatedEvent.svelte';
+  import { readProjectCreatedEvent } from './projects/projectCreatedEvent';
   import RemoteCommandReviewCard from './projects/RemoteCommandReviewCard.svelte';
   import { remoteCommandEntries, resolveRemoteCommandApproval, requestRemoteCommandStop } from '../stores/remoteCommandApprovalStore';
   import { projectFileApprovals, resolveProjectFileApproval } from '../stores/projectFileApprovalStore';
@@ -3632,6 +3634,14 @@ import { storageArchiveFetch } from "../config/api";
                         <EmbedUpdatedEventNotice group={updatedGroup} onOpen={() => openUpdatedEmbed(updatedGroup.embed_id)} />
                       </div>
                     {:else}
+                    {#if msg.role === 'assistant'}
+                      {@const createdProject = readProjectCreatedEvent(msg.original_message?.content ?? msg.content)}
+                      {#if createdProject}
+                        <div class="context-entry-row">
+                          <ProjectCreatedEvent chatId={msg.original_message?.chat_id ?? currentChatId ?? ''} projectId={createdProject.projectId} projectName={createdProject.projectName} />
+                        </div>
+                      {/if}
+                    {/if}
                     <ChatMessage
                         role={msg.role}
                         teamId={$activeTeamId ?? undefined}
@@ -3761,7 +3771,7 @@ import { storageArchiveFetch } from "../config/api";
                 </div>
             {/if}
 
-            {#each $projectFileApprovals.filter((entry) => entry.request.chatId === currentChatId) as entry (entry.id)}
+            {#each $projectFileApprovals.filter((entry) => entry.status === 'pending' && entry.request.chatId === currentChatId) as entry (entry.id)}
                 <div class="permission-dialog-wrapper">
                     <ProjectFileApprovalCard {entry} onDecision={resolveProjectFileApproval} />
                 </div>

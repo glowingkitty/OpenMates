@@ -165,6 +165,8 @@ embed_types:
     frontend_type: app-skill-use
     backend_type: app_skill_use
     has_children: false
+    # Cloud command card: server icon, command, exit code, duration, output tail.
+    preview_component: code/CodeRunEmbedPreview.svelte
     icon: coding
     gradient_var: "--color-app-code"
     i18n_namespace: embeds.code.run

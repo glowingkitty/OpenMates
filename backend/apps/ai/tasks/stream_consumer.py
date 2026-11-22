@@ -10859,16 +10859,9 @@ async def _consume_main_processing_stream(
                 f"for application embed {streaming_application_embed_id}"
             )
 
-    # Cloud command cards (command, folder, status, exit code) are shown even
-    # when the model did not link the terminal code embed (code-run.cloud.commands).
-    if request_data.completed_command_embed_ids and not was_revoked_during_stream:
-        referenced_response = append_result_embed_references(
-            aggregated_response or "", "code", request_data.completed_command_embed_ids
-        )
-        if referenced_response != aggregated_response:
-            aggregated_response = referenced_response
-            final_response_chunks = [aggregated_response]
-            logger.info(f"{log_prefix} Added completed cloud command embed reference(s) to the reply")
+    # Cloud commands are shown by their Run cards (command, folder, status, exit
+    # code), which the continuation carries over (carried_reply_references). The
+    # terminal code embeds are those cards' children and never reply content.
 
     # Test results of the completed run are shown in the reply even when the
     # model did not link them (they carry the run video and step timeline).
@@ -10880,6 +10873,15 @@ async def _consume_main_processing_stream(
             aggregated_response = referenced_response
             final_response_chunks = [aggregated_response]
             logger.info(f"{log_prefix} Added completed test result embed reference(s) to the reply")
+
+    # A later continuation of this reply re-emits these cards first (ids only).
+    if not was_revoked_during_stream:
+        from backend.apps.ai.processing.carried_reply_references import store_reply_references
+
+        await store_reply_references(
+            cache_service, user_id=request_data.user_id, chat_id=request_data.chat_id,
+            message_id=_assistant_message_id(task_id, request_data), text=aggregated_response,
+        )
 
     # Files streamed after the streaming application parent was created are not in
     # its manifest yet. Re-publish the same parent embed with the complete file list.

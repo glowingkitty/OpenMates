@@ -298,9 +298,9 @@ test.describe('Flow 2 from the web app: spec to commit on a connected machine (r
     await waitForTurn(page, testInfo);
     await shot(page, testInfo, 'laptop-03-code');
     // A reply that only shows code in text leaves nothing to test on the machine;
-    // the step passes only when the turn wrote Project files ("File changed" cards).
+    // the step passes only when the turn wrote Project files (Project file change events).
     await proof.assert('flow2.code_files', () =>
-      expect(page.getByTestId('project-file-approval-card').first()).toBeVisible({ timeout: 60_000 }));
+      expect(page.getByTestId('project-file-change-event').first()).toBeVisible({ timeout: 60_000 }));
     await proof.checkpoint('flow2-code');
 
     // 4. The unit tests run on the machine.

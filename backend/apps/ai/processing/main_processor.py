@@ -4869,8 +4869,53 @@ async def handle_main_processing(
         request_data.created_project_card_reference = created_project_reference
     elif getattr(request_data, "is_async_skill_continuation", False):
         created_project_reference = carried_created_project_reference(request_data)
-    if created_project_reference:
+    # A continuation rewrites this reply from empty: the earlier steps' cards
+    # (Run, Read files, file changes, created Project) lead it again, in order.
+    from backend.apps.ai.processing.carried_reply_references import (
+        load_reply_references, reference_block, reference_embed_id,
+    )
+
+    carried_embed_ids: set[str] = set()
+    continuation_message_id = getattr(request_data, "continuation_message_id", None)
+    # Only a continuation or same-turn resume rewrites an existing reply; a
+    # reply's first stream has nothing earlier to carry.
+    carried_references = await load_reply_references(
+        cache_service, user_id=request_data.user_id, chat_id=request_data.chat_id,
+        message_id=continuation_message_id or task_id,
+    ) if (continuation_message_id or getattr(request_data, "is_async_skill_continuation", False)) else []
+    for carried_reference in carried_references:
+        carried_embed_ids.add(carried_reference["embed_id"])
+        yield reference_block(carried_reference)
+    if created_project_reference and reference_embed_id(created_project_reference) not in carried_embed_ids:
         yield f"```json\n{created_project_reference}\n```\n\n"
+    change_preview = getattr(request_data, "project_file_change_preview", None)
+    if change_preview is not None:
+        request_data.project_file_change_preview = None
+        from backend.apps.ai.processing.project_file_change_references import (
+            publish_project_file_change_preview,
+        )
+
+        change_reference = await publish_project_file_change_preview(
+            preview=change_preview, request_data=request_data, cache_service=cache_service,
+            directus_service=directus_service, encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+        )
+        # Chronological: the carried Run cards (with command, status and exit code)
+        # above, then what the commands changed, then the reply. The commands'
+        # terminal code embeds are the Run cards' children, never reply content.
+        if change_reference:
+            yield f"```json\n{change_reference}\n```\n\n"
+    app_folders = getattr(request_data, "project_app_folders", None)
+    if app_folders:
+        request_data.project_app_folders = None
+        from backend.apps.ai.processing.project_app_preview_card import publish_project_app_cards
+
+        for app_reference in await publish_project_app_cards(
+            request_data=request_data, folders=list(app_folders), cache_service=cache_service,
+            directus_service=directus_service, encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+        ):
+            yield f"```json\n{app_reference}\n```\n\n"
     reference_preview = getattr(request_data, "project_file_reference_preview", None)
     if reference_preview is not None:
         # A continuation may publish only the result of its freshly authorized
@@ -9880,8 +9925,8 @@ async def handle_main_processing(
                                         raise PermissionError("Project source is unavailable or not authorized")
                                     dispatch_focus["source_id"] = str(requested_source_id)
 
-                                from backend.apps.ai.processing.project_sandbox_executor import (
-                                    run_project_tool_in_sandbox,
+                                from backend.apps.ai.processing.project_read_fanout import (
+                                    run_read_text_in_sandbox as run_project_tool_in_sandbox,
                                 )
                                 sandbox_result = await run_project_tool_in_sandbox(
                                     request_data=request_data, operation=operation,
@@ -9892,6 +9937,34 @@ async def handle_main_processing(
                                 if sandbox_result is not None:
                                     # Hosted sandbox ran it inline: no pending operation, no continuation.
                                     project_result = sandbox_result
+                                    from backend.apps.ai.processing.project_file_change_references import (
+                                        publish_inline_project_file_change,
+                                    )
+                                    inline_change_reference = await publish_inline_project_file_change(
+                                        request_data=request_data, operation=operation,
+                                        operation_arguments=operation_arguments, envelope=sandbox_result,
+                                        dispatch_focus=dispatch_focus, cache_service=cache_service,
+                                        directus_service=directus_service, encryption_service=encryption_service,
+                                        user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+                                    )
+                                    if inline_change_reference:
+                                        yield f"```json\n{inline_change_reference}\n```\n\n"
+                                    if operation in {"read_text", "search"}:
+                                        # Inline reads publish the same "Read files" card a
+                                        # continuation read does (reference ids only, no content).
+                                        from backend.apps.ai.processing.project_file_references import (
+                                            publish_inline_project_file_reference,
+                                        )
+                                        inline_read_reference = await publish_inline_project_file_reference(
+                                            request_data=request_data, skill_id=skill_id,
+                                            operation_arguments=operation_arguments, envelope=sandbox_result,
+                                            cache_service=cache_service, directus_service=directus_service,
+                                            encryption_service=encryption_service,
+                                            user_vault_key_id=user_vault_key_id, task_id=task_id,
+                                            log_prefix=log_prefix,
+                                        )
+                                        if inline_read_reference:
+                                            yield f"```json\n{inline_read_reference}\n```\n\n"
                                     current_message_history.append({
                                         "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
                                         "content": json.dumps(project_result),

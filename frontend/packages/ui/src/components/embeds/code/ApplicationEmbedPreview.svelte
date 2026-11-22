@@ -52,6 +52,8 @@
     taskId?: string;
     chatId?: string;
     sourceMessageId?: string;
+    /** Set for an app built in the chat's Project sandbox: the card names the folder instead of chat files. */
+    projectSource?: { projectName: string; cwd: string } | null;
     isMobile?: boolean;
     onFullscreen: () => void;
   }
@@ -69,6 +71,7 @@
     taskId,
     chatId,
     sourceMessageId,
+    projectSource = null,
     isMobile = false,
     onFullscreen,
   }: Props = $props();
@@ -90,6 +93,7 @@
   let statusText = $derived.by(() => {
     if (status === 'processing') return $text('embeds.processing');
     if (status === 'error') return $text('embeds.application_preview_failed');
+    if (projectSource) return [projectSource.projectName, projectSource.cwd].filter(Boolean).join(' / ');
     const facts = [framework, runtime, fileCount ? $text('embeds.application_file_count', { values: { count: String(fileCount) } }) : ''].filter(Boolean);
     return facts.join(' · ') || $text('embeds.application_ready');
   });
@@ -150,6 +154,7 @@
   async function maybeAutoStartThumbnailCapture() {
     if (
       autoStartRequested ||
+      projectSource ||
       status !== 'finished' ||
       screenshotUrl ||
       screenshotRef?.files?.preview?.s3_key ||
@@ -217,9 +222,13 @@
         {/if}
       </div>
       <div class="meta-row">
+        {#if projectSource}
+          <span data-testid="application-preview-project-folder">{projectSource.cwd || projectSource.projectName}</span>
+        {:else}
         <span>{fileCount} {$text(fileCount === 1 ? 'embeds.application_file_singular' : 'embeds.application_file_plural')}</span>
         {#if entrypointCount}
           <span>{entrypointCount} {$text(entrypointCount === 1 ? 'embeds.application_entrypoint_singular' : 'embeds.application_entrypoint_plural')}</span>
+        {/if}
         {/if}
       </div>
     </div>

@@ -254,11 +254,22 @@ def build_project_file_tools() -> list[dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "project_read_text",
-                "description": "Read one complete UTF-8 text file from the active Project and return its current base hash.",
+                "description": (
+                    "Read complete UTF-8 text files from the active Project and return each current base hash. "
+                    "To read several files, pass them together in `paths` (at most 10) in ONE call "
+                    "instead of calling this tool once per file."
+                ),
                 "parameters": {
                     "type": "object",
-                    "properties": {"path": path_property, "source_id": source_property},
-                    "required": ["path"],
+                    "properties": {
+                        "path": path_property,
+                        "paths": {
+                            "type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 10,
+                            "description": "Project-relative paths to read in one call (hosted workspace).",
+                        },
+                        "source_id": source_property,
+                    },
+                    "anyOf": [{"required": ["path"]}, {"required": ["paths"]}],
                 },
             },
         },

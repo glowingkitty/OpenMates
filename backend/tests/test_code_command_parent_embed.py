@@ -7,7 +7,11 @@ import pytest
 from toon_format import decode as toon_decode
 
 from backend.apps.code.tasks import command_parent_embed
-from backend.apps.code.tasks.command_parent_embed import build_command_parent_content, finalize_command_parent_embed
+from backend.apps.code.tasks.command_parent_embed import (
+    build_command_parent_content,
+    finalize_command_parent_embed,
+    publish_running_command_parent,
+)
 
 
 def _payload(parent: str | None = "parent-1") -> dict:
@@ -61,6 +65,17 @@ def test_finished_command_card_carries_command_folder_and_exit_code() -> None:
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.cloud.commands
+def test_finished_command_card_shows_duration_and_the_guarded_output_tail() -> None:
+    output = "\n".join(["> vite build", "", *[f"line {i}" for i in range(10)], "built in 143ms", ""])
+    _status, content = build_command_parent_content(
+        _payload(), {"status": "finished", "exit_code": 0, "duration_seconds": 4.234}, guarded_output=output)
+    assert content["duration_seconds"] == 4.2
+    assert content["output_tail"] == "line 8\nline 9\nbuilt in 143ms"
+    _status, quiet = build_command_parent_content(_payload(), {"status": "finished", "exit_code": 0})
+    assert "output_tail" not in quiet and "duration_seconds" not in quiet
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.commands
 @pytest.mark.asyncio
 async def test_run_end_finishes_the_parent_card_with_the_terminal_card_as_result(recorded: list[dict]) -> None:
     assert await finalize_command_parent_embed(_payload(), {"status": "finished", "exit_code": 0}, cache_service=object())
@@ -86,3 +101,14 @@ async def test_run_without_a_placeholder_touches_no_card(recorded: list[dict]) -
     assert not await finalize_command_parent_embed(_payload(None), {"status": "finished"}, cache_service=object())
     assert recorded == []
     assert command_parent_embed.__doc__
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.cloud.commands
+@pytest.mark.asyncio
+async def test_running_card_shows_the_command_before_the_run_ends(recorded: list[dict]) -> None:
+    assert await publish_running_command_parent(_payload(), cache_service=object())
+    (call,) = recorded
+    content = toon_decode(call["content_toon"])
+    assert call["status"] == "processing" and call["embed_ids"] == ["term-1"]
+    assert content["command"] == "$ cd web-app && npm install"
+    assert "exit_code" not in content

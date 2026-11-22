@@ -51,12 +51,21 @@ class ApplicationPreviewConfigError(ValueError):
     """Raised when application live previews are unsafe or unavailable."""
 
 
+class ProjectSandboxPreviewTarget(BaseModel):
+    """The Project app folder whose dev server runs in the chat's Project sandbox (no files travel)."""
+
+    project_id: str = Field(min_length=1, max_length=128)
+    cwd: str = Field(default="", max_length=512)
+    team_id: str | None = Field(default=None, max_length=128)
+
+
 class ApplicationPreviewStartRequest(BaseModel):
     chat_id: str = Field(min_length=1)
     shared_context: str | None = None
     requested_runtime: str | None = None
     auto_started: bool = False
     source_message_id: str | None = None
+    project_sandbox: ProjectSandboxPreviewTarget | None = None
 
 
 class ApplicationPreviewStartResponse(BaseModel):
@@ -293,6 +302,11 @@ async def collect_application_preview_worker_payload(
     directus_service: Any,
     encryption_service: EncryptionService,
 ) -> dict[str, Any]:
+    if body.project_sandbox:
+        return await collect_project_sandbox_preview_payload(
+            application_embed_id=application_embed_id, body=body, current_user=current_user,
+            cache_service=cache_service, directus_service=directus_service,
+        )
     if body.shared_context:
         return build_application_preview_worker_payload_from_shared_context(
             application_embed_id=application_embed_id,
@@ -344,6 +358,39 @@ async def collect_application_preview_worker_payload(
         application_content=application_content,
         child_contents=child_contents,
     )
+
+
+async def collect_project_sandbox_preview_payload(
+    *,
+    application_embed_id: str,
+    body: ApplicationPreviewStartRequest,
+    current_user: Any,
+    cache_service: Any,
+    directus_service: Any,
+) -> dict[str, Any]:
+    """Owner-only: the card must belong to this viewer's chat; the sandbox record is keyed by user and chat."""
+    from backend.apps.code.project_sandbox_preview import (
+        PROJECT_PREVIEW_SOURCE,
+        ProjectPreviewError,
+        normalize_preview_folder,
+    )
+
+    if body.shared_context or body.auto_started:
+        raise HTTPException(status_code=400, detail="Project previews start only from the owner's chat")
+    await _strict_owner_chat_access(
+        application_embed_id=application_embed_id, body=body, current_user=current_user,
+        cache_service=cache_service, directus_service=directus_service,
+    )
+    target = body.project_sandbox
+    try:
+        folder = normalize_preview_folder(target.cwd)
+    except ProjectPreviewError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "source": PROJECT_PREVIEW_SOURCE, "application_embed_id": application_embed_id,
+        "user_id": current_user.id, "chat_id": body.chat_id, "project_id": target.project_id,
+        "team_id": target.team_id, "cwd": folder,
+    }
 
 
 async def resolve_application_preview_worker_payload(
@@ -501,6 +548,7 @@ async def create_application_preview_session(
             "preview_host": preview_host,
             "requested_runtime": body.requested_runtime,
             "uses_client_shared_context": bool(body.shared_context),
+            "preview_source": "project_sandbox" if body.project_sandbox else "application_files",
             "events": [{"kind": "status", "text": "Queued application preview...", "timestamp": now}],
         }
     )
@@ -743,11 +791,34 @@ async def start_application_preview(
 @router.get("/preview/{session_id}", response_model=ApplicationPreviewStatusResponse)
 async def get_application_preview_status(
     session_id: str,
+    request: Request,
     current_user: Any = Depends(get_application_preview_current_user),
     cache_service: Any = Depends(get_cache_service),
+    directus_service: Any = Depends(get_directus_service),
 ) -> ApplicationPreviewStatusResponse:
     data = await get_application_preview_session(cache_service, session_id, current_user)
+    data = await _keep_project_preview_alive(request, cache_service, directus_service, session_id, data)
     return build_application_preview_status_response(data)
+
+
+async def _keep_project_preview_alive(
+    request: Request, cache_service: Any, directus_service: Any, session_id: str, data: dict[str, Any],
+) -> dict[str, Any]:
+    """A polled Project preview renews its sandbox's idle timeout and its own idle deadline."""
+    from backend.apps.code.project_sandbox_preview import keep_project_preview_alive
+    from backend.core.api.app.services.project_sandbox_service import ProjectSandboxService
+
+    now = time.time()
+    service = ProjectSandboxService(
+        cache_service, directus_service, secrets_manager=getattr(request.app.state, "secrets_manager", None))
+    if not await keep_project_preview_alive(service, data, now=now):
+        return data
+    data["last_sandbox_touch_at"] = now
+    data["idle_deadline"] = min(now + APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS, float(data.get("hard_deadline") or now))
+    client = await cache_service.client
+    await client.set(application_preview_session_key(session_id), json.dumps(data),
+                     ex=APPLICATION_PREVIEW_SESSION_TTL_SECONDS)
+    return data
 
 
 @router.post("/preview/{session_id}/open", response_model=ApplicationPreviewStatusResponse)

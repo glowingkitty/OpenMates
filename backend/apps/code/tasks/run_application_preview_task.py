@@ -753,6 +753,9 @@ def _run_application_preview_session_sync(session_id: str, payload: dict[str, An
     try:
         cache_service = loop.run_until_complete(get_worker_cache_service())
         loop.run_until_complete(secrets_manager.initialize())
+        if payload.get("source") == "project_sandbox":
+            loop.run_until_complete(_run_project_sandbox_preview(cache_service, session_id, payload, secrets_manager))
+            return
         api_key = loop.run_until_complete(get_e2b_api_key_async(secrets_manager))
         loop.run_until_complete(run_application_preview_session(
             cache_service=cache_service,
@@ -766,6 +769,20 @@ def _run_application_preview_session_sync(session_id: str, payload: dict[str, An
     finally:
         loop.run_until_complete(secrets_manager.aclose())
         loop.close()
+
+
+async def _run_project_sandbox_preview(cache_service: Any, session_id: str, payload: dict[str, Any],
+                                       secrets_manager: Any) -> None:
+    """Preview from the chat's Project sandbox: no files are uploaded, no second sandbox is started."""
+    from backend.apps.code.project_sandbox_preview import run_project_sandbox_preview_session
+    from backend.core.api.app.services.project_sandbox_service import ProjectSandboxService
+
+    service = ProjectSandboxService(cache_service, DirectusService(cache_service=cache_service),
+                                    secrets_manager=secrets_manager)
+    await run_project_sandbox_preview_session(
+        cache_service=cache_service, session_id=session_id, payload=payload,
+        patch=lambda sid, data: _patch_session(cache_service, sid, data), service=service,
+        secrets_manager=secrets_manager)
 
 
 def _stop_application_preview_sandbox_sync(session_id: str, sandbox_id: str, *, only_if_unopened: bool = False) -> None:

@@ -726,8 +726,10 @@ assertions:
   type: behavior
   must: When a chat without an active Project asks the assistant to build a multi-file application such as a web app or
     a native app, preprocessing decides that a new Project is needed and the Project is created without a confirmation
-    step. The chat shows a created-Project card with an undo control, the Project uses the Apply and show write policy,
-    and its default Work on (project) focus becomes active in that chat at once. The assistant reply starts with that focus
+    step. The chat shows the system event "Created <name> project · Undo" in the style of the other chat system
+    events, with the Project name as a link and Undo as a small text link, followed by the regular focus activation
+    embed; the Project uses the Apply and show write policy, and its default Work on (project) focus becomes active in
+    that chat at once. The assistant reply starts with that focus
     shown as already active (no countdown, no accept or reject) and marked as following the Project creation, and every
     client keeps it as the chat's active focus, also after a reload. A request for a single script or snippet
     creates no Project. Undo removes the Project and its focus but leaves the chat and its embeds intact. Creation uses
@@ -784,6 +786,15 @@ assertions:
     browser tests, the recording) that is shown in the assistant reply that interprets the run, also when the model does
     not link it itself, so every client shows the failing and the passing runs in the chat. This holds as well when
     several runs of one turn resume together.
+  depends_on:
+  - examples.project_agentic_coding
+- id: projects.agentic.earlier-steps-stay
+  type: behavior
+  must: A coding turn that continues after a command, a test run or another background step keeps every earlier step of
+    its reply visible while the next step streams and after it finishes. The skill cards the earlier steps showed (Run,
+    Read files, file changes, the created Project) lead the continued reply in their original order, and the assistant's
+    skill area holds only skill cards; a command's terminal output belongs to its Run card, never to the reply as a
+    separate code block. The server keeps only the references of those cards between steps, never their text.
   depends_on:
   - examples.project_agentic_coding
 - id: projects.agentic.test-run-installs-dependencies

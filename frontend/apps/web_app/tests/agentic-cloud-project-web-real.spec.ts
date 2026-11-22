@@ -294,8 +294,8 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     await waitForTurn(page);
     await expandActivity(page);
     await shot(page, testInfo, 'laptop-01-app-turn');
-    const created = page.getByTestId('project-created-card').first();
-    await expect(created, 'Project creation card in the chat (Project link)').toBeVisible({ timeout: 60_000 });
+    const created = page.getByTestId('project-created-event').first();
+    await expect(created, 'Created project event in the chat history (Project link)').toBeVisible({ timeout: 60_000 });
     projectName = ((await created.getByTestId('project-created-name').first().textContent()) ?? '').trim();
     expect(projectName, 'the assistant named the Project').not.toBe('');
     projectLabel = projectName || projectLabel;
@@ -305,19 +305,22 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
       // A new app in a Project chat is written file by file with the Project file tools, so its
       // files are Project files from the first turn (the later install/build turn needs them).
       const reply = lastAssistant(page);
-      await expect(page.getByTestId('project-file-approval-card').filter({ hasText: /web-app\/package\.json/ }).first(),
+      await expect(page.locator('[data-testid="project-file-change-event"][data-paths*="web-app/package.json"]').first(),
         'package.json written into web-app/ with the file tools').toBeVisible({ timeout: 60_000 });
-      expect(await page.getByTestId('project-file-approval-card').count(), 'several app files written with the file tools').toBeGreaterThan(1);
+      const changedPaths = await page.getByTestId('project-file-change-event').evaluateAll((rows) => rows.flatMap((row) => (row.getAttribute('data-paths') ?? '').split(',')));
+      expect(new Set(changedPaths).size, 'several app files written with the file tools').toBeGreaterThan(1);
       // Only an application card means an inline app block; code-run and test-result cards also
       // carry data-app-id="code" and belong in this reply.
-      await expect(reply.locator('[data-testid="embed-preview"][data-skill-id="application"]'), 'no inline application block').toHaveCount(0);
+      // A Project app card (built in the Project sandbox) names its folder and is allowed.
+      await expect(reply.locator('[data-testid="embed-preview"][data-skill-id="application"]'
+        + ':not(:has([data-testid="application-preview-project-folder"]))'), 'no inline application block').toHaveCount(0);
     });
     appChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
     expect(appChatId, 'the app chat has an id in the URL').not.toBe('');
     await proof.checkpoint('cloud-app-embed');
 
     // b. Install and build: code-run cards with exit code 0, and the synced-back lockfile as a diff card.
-    const fileCardsBefore = await page.getByTestId('project-file-approval-card').count();
+    const fileCardsBefore = await page.getByTestId('project-file-change-event').count();
     await send(page, COMMAND_PROMPT);
     await waitForTurn(page);
     await expandActivity(page);
@@ -330,9 +333,9 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     expect(cardText, 'the dependency install ran as a command').toMatch(/\b(npm|pnpm|yarn)\s+(i|install|ci)\b/i);
     expect(cardText, 'the production build ran as a command').toMatch(/\b(npm|pnpm|yarn)\s+(run\s+)?build\b|\bvite\s+build\b/i);
     expect(cardText, 'no command of the turn exited non-zero').not.toMatch(/exit(?:ed)?(?:\s+with)?(?:\s+code)?:?\s*[1-9]\d*\b/i);
-    await expect(page.getByTestId('project-file-approval-card').filter({ hasText: /package-lock\.json|pnpm-lock\.yaml|yarn\.lock/ }).first(),
-      'lockfile synced back as a diff card').toBeVisible({ timeout: 60_000 });
-    expect(await page.getByTestId('project-file-approval-card').count(), 'new file cards after commands').toBeGreaterThan(fileCardsBefore);
+    await expect(page.locator(['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock'].map((name) => `[data-testid="project-file-change-event"][data-paths*="${name}"]`).join(', ')).first(),
+      'lockfile synced back as a change event').toBeVisible({ timeout: 60_000 });
+    expect(await page.getByTestId('project-file-change-event').count(), 'new change events after commands').toBeGreaterThan(fileCardsBefore);
     await proof.checkpoint('cloud-commands');
 
     // c. Recorded browser test and the commit by its short id.
@@ -379,8 +382,11 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     // A fresh page load of the app chat (by id: the chat list is closed at laptop width, and
     // the start screen shows only some recent chats).
     await page.goto(`${BASE_URL}/#chat-id=${encodeURIComponent(appChatId)}`, { waitUntil: 'domcontentloaded' });
-    const app = page.locator('[data-testid="embed-preview"][data-app-id="code"]').first();
-    await expect(app, 'application card for the preview').toBeVisible({ timeout: 90_000 });
+    // The passing build published the Project app card; its preview runs in the same Project sandbox.
+    const app = page.locator('[data-testid="embed-preview"][data-skill-id="application"]'
+      + ':has([data-testid="application-preview-project-folder"])').last();
+    await expect(app, 'Project application card for the preview').toBeVisible({ timeout: 90_000 });
+    await expect(app.getByTestId('application-preview-project-folder'), 'the card names the app folder').toContainText('web-app');
     await app.getByTestId('result-preview-expand').click();
     const start = page.getByTestId('application-start-preview');
     const frame = page.getByTestId('application-preview-iframe');

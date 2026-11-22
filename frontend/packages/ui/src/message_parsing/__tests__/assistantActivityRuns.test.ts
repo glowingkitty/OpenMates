@@ -40,4 +40,21 @@ describe('mixed assistant activity source positions', () => {
     expect((group.content[0].attrs as any).groupCount).toBe(3);
     expect(splitAssistantActivityRuns(source)?.map(run => run.id)).toEqual(runs.map(run => run.id));
   });
+  // contract-test: supporting surface=gui.web assertions=code-run.cloud.commands,app-skills.answer.only-result-embeds-in-body
+  it('never puts a terminal code embed into a skills run, however the cards interleave', () => {
+    const run = (id: string) => embed({ type: 'app-skill-use', id, app_id: 'code', skill_id: 'run' });
+    const terminal = (id: string) => embed({ type: 'code', id, filename: 'terminal.sh', language: 'bash' });
+    const large = { type: 'embedPreviewLarge', attrs: { embedId: 'terminal-large' } };
+    const nodes = [run('install'), terminal('terminal-install'), run('build'), large, run('test'), terminal('terminal-test')];
+    const runs = splitAssistantActivityRuns({ type: 'doc', content: nodes })!;
+    for (const skills of runs.filter((entry) => entry.kind === 'skills')) {
+      for (const node of skills.document.content) {
+        expect(JSON.stringify(node)).toContain('app-skill-use');
+        expect(JSON.stringify(node)).not.toContain('terminal');
+      }
+    }
+    expect(runs.map((entry) => entry.kind)).toEqual(['skills', 'content', 'skills', 'content', 'skills', 'content']);
+    expect(runs.filter((entry) => entry.kind === 'content').flatMap((entry) => entry.document.content))
+      .toEqual([nodes[1], nodes[3], nodes[5]]);
+  });
 });

@@ -11,6 +11,7 @@ import base64
 import hashlib
 import inspect
 import json
+import logging
 import re
 import time
 import uuid
@@ -31,6 +32,8 @@ from backend.apps.code.cloud_command import (
 from backend.apps.code.skills.dependency_install import with_dependency_install
 from backend.apps.code.test_run_target import resolve_test_run_target
 from backend.shared.python_schemas.code_test_run import TestRunSpec
+
+logger = logging.getLogger(__name__)
 
 
 CODE_RUN_ASSISTANT_AUTH_TTL_SECONDS = 60 * 60
@@ -798,6 +801,18 @@ class RunCodeSkill(BaseSkill):
             user_vault_key_id=user_vault_key_id, cache_service=cache_service,
             directus_service=directus_service, encryption_service=encryption_service,
         )
+        parent_embed_id = (kwargs.get("placeholder_embed_ids") or [None])[0]
+        from backend.apps.code.tasks.command_parent_embed import publish_running_command_parent
+
+        try:
+            # Before the worker starts, so a fast run's finished card is never overwritten.
+            await publish_running_command_parent({
+                "command_run": {"argv": list(request.argv), "cwd": request.cwd, "parent_embed_id": parent_embed_id},
+                "target_embed_id": target_embed_id, "chat_id": chat_id, "message_id": message_id,
+                "user_id": user_id, "user_id_hash": hashlib.sha256(user_id.encode()).hexdigest(),
+            }, cache_service)
+        except (RuntimeError, ValueError) as card_exc:
+            logger.error("Cloud command card for %s not published while running: %s", target_embed_id, card_exc, exc_info=True)
         execution = await start_code_run_for_assistant(
             current_user=current_user, cache_service=cache_service, files=files, target_path=card_path,
             enable_internet=True, chat_id=chat_id, target_embed_id=target_embed_id, message_id=message_id,

@@ -1529,7 +1529,7 @@
           "text": "Text suchen"
         },
         "read": {
-          "text": "Projektdatei lesen",
+          "text": "Dateien lesen",
           "description": {
             "text": "Eine Datei aus einem verschlüsselten Projekt über einen verbundenen Client lesen."
           }
@@ -9684,6 +9684,12 @@
         },
         "count": {
           "text": "{count} Dateiverweise"
+        },
+        "count_singular": {
+          "text": "{count} Dateiverweis"
+        },
+        "more": {
+          "text": "+{count} weitere"
         },
         "empty": {
           "text": "Keine Dateiverweise gefunden"

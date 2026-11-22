@@ -196,7 +196,22 @@ async def build_preview_gateway_response(
             headers=preview_gateway_security_headers(),
         )
 
-    upstream_base_url = _select_upstream_base_url(session, path)
+    extra_headers: dict[str, str] = {}
+    if session.get("preview_source") == "project_sandbox" and session.get("status") == "running":
+        # Project previews: the sandbox's traffic token is read from the sandbox record per
+        # request and added here only; it is never stored in the session or sent to the browser.
+        from backend.apps.code.project_sandbox_preview import project_preview_upstream
+
+        upstream = await project_preview_upstream(cache_service, session)
+        if upstream is None:
+            return JSONResponse(
+                status_code=410,
+                content={"status": "sandbox_stopped", "session_id": session_id},
+                headers=preview_gateway_security_headers(),
+            )
+        upstream_base_url, extra_headers = upstream
+    else:
+        upstream_base_url = _select_upstream_base_url(session, path)
     if not isinstance(upstream_base_url, str) or not upstream_base_url.strip():
         return JSONResponse(
             status_code=202,
@@ -214,7 +229,7 @@ async def build_preview_gateway_response(
         upstream_url,
         method,
         body=body,
-        headers=_filtered_request_headers(request_headers or {}),
+        headers={**_filtered_request_headers(request_headers or {}), **extra_headers},
     )
     if upstream.status_code >= 500:
         logger.warning(
