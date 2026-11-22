@@ -357,8 +357,8 @@ skills:
           minimum: 1
           maximum: 8
           description: >
-            Optional sew-on border in millimetres: a filled band around the whole
-            design, sewn first. Set it (typically 3) when the user wants a patch or
+            Optional sew-on border in millimetres: a dense satin patch edge around
+            the whole design, sewn last. Set it (typically 3) when the user wants a patch or
             wants to sew the piece onto a garment; leave it out otherwise. width_mm
             stays the design width without the border, so the result is wider by
             twice this value.

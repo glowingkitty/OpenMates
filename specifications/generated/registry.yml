@@ -263,7 +263,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-skills/design-embroidery
-    fingerprint: b76557a130d08d07fffcf6374ff247a00ceb32e859e5a4254f37ad4594aefbaa
+    fingerprint: 9efb016b7fed1390ccbe4b126e9586590479a366f095e3fb078fe9aae69cf632
     required_applies_to:
     - cli
     - sdks.npm
@@ -4855,7 +4855,7 @@ assertions:
     specification: feature.app-skill.design-embroidery@1
     specification_id: feature.app-skill.design-embroidery
     type: behavior
-    fingerprint: 76c357d9ca5c8a226e1a7c681c63841e5aafe0f3c47cd79a72b50c6c7b5f001f
+    fingerprint: 777e13d02217c7a9bed8fdf63aff91fd48c1375cc43e653b39661b070e8b4dff
     required_applies_to:
     - cli
     - sdks.npm

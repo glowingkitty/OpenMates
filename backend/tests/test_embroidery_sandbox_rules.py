@@ -208,17 +208,20 @@ def test_order_respects_stacking_and_defers_unfinishable_colours() -> None:
 
 
 # contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.sew-on-border
-def test_shapes_in_the_border_colour_follow_the_border_without_a_thread_change() -> None:
+def test_shapes_in_the_border_colour_are_sewn_last_so_the_border_follows_without_a_thread_change() -> None:
     items = [
         OrderItem(0, "orange", "fill", (5, 5)),   # head
         OrderItem(1, "black", "fill", (0, 0)),    # free ear
         OrderItem(2, "black", "fill", (5, 6)),    # eye on the head
+        OrderItem(3, "white", "fill", (9, 9)),    # free spot
     ]
     deps = {2: {0}}
-    order = plan_order(items, deps, start_colour="black")
-    assert order == [1, 0, 2]
-    assert colour_changes(["black", *(items[i].colour for i in order)]) == 2
-    assert plan_order(items, deps, start_colour="red") == plan_order(items, deps)
+    order = plan_order(items, deps, end_colour="black")
+    assert [items[i].colour for i in order][-2:] == ["black", "black"]
+    assert colour_changes([*(items[i].colour for i in order), "black"]) == 2
+    # The border colour still waits for what it must lie on.
+    assert order.index(0) < order.index(2)
+    assert plan_order(items, deps, end_colour="red") == plan_order(items, deps)
 
 
 # contract-test: supporting surface=rest_api assertions=design-embroidery.prepare.fixed-rules

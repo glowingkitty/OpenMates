@@ -1347,7 +1347,7 @@ Find icons and visual assets, and read your Figma or Penpot designs to build the
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 7/28 | 7 pass · 0 fail · 2 not run · 19 no test | [design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[figma-connected-accounts.spec.ts](../../frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>5 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [designEmbroideryText.test.ts](../../frontend/packages/ui/src/data/__tests__/designEmbroideryText.test.ts) |
+| Web | partial 7/28 | 7 pass · 0 fail · 3 not run · 18 no test | [design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[figma-connected-accounts.spec.ts](../../frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>5 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [designEmbroideryText.test.ts](../../frontend/packages/ui/src/data/__tests__/designEmbroideryText.test.ts) |
 | Apple | impl | 0 pass · 0 fail · 0 not run · 14 no test | — |
 | CLI | impl | 0 pass · 0 fail · 0 not run · 28 no test | — |
 | TUI | impl | — | — |

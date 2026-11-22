@@ -127,8 +127,16 @@ the growth, so every gap or opening narrower than `2 b` is filled and a wider on
 keeps an opening `2 b` narrower. Slits under 1 mm left by the growth are closed.
 Border fill = outline minus the silhouette shrunk by 0.45 mm, so it covers the
 band, the filled gaps and a 0.45 mm strip under the design's edge, never the
-whole design. It is sewn first; design shapes in the border colour that can be
-sewn at once follow without a thread change. Band width measured from the
+whole design. Since 22 Nov it is sewn as a patch edge (`satin_ring.py`): one
+dense satin column per outline ring (outer edge, each opening that stays open),
+stitches paired square to the edge (each ring point with the nearest point of the
+ring moved `border_mm + 0.45` mm inward, positions only moving forward so
+stitches fan around outward bends and never cross), contour + zigzag underlay,
+zigzag spacing 0.38/0.34/0.30 mm (light/normal/stretchy), short stitches on
+tight bends. Only gaps between parts of the design and rings too tight for a
+column stay a fill (0.4 mm under the satin). The border is sewn after the design;
+design shapes in the border colour go to the end of the design so no thread
+change is added. The table below is from the earlier filled border. Band width measured from the
 outer edge of the border to the design in the prepared SVG.
 
 | Motif | Border | Sewn size mm | Stitches (estimate) | Threads in sewing order (stitches) | Pipeline s / sandbox s | Band width min / median / max mm |
