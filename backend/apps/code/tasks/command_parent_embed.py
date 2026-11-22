@@ -115,3 +115,19 @@ async def finalize_command_parent_embed(
     """Set the parent placeholder to finished/error; False when the run had no placeholder."""
     status, content = build_command_parent_content(payload, final_status, guarded_output=guarded_output)
     return await _publish_parent(payload, status, content, cache_service)
+
+
+def test_run_parent_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """The payload that shows an assistant test run's command on its "Run" card; None without a card.
+
+    A test run's result is its own test result card, so this card points at no child.
+    """
+    test_command = (payload.get("test_run") or {}).get("test_command") or {}
+    parent_id = payload.get("parent_embed_id")
+    if not parent_id or not test_command.get("argv"):
+        return None
+    return {
+        **payload, "target_embed_id": None,
+        "command_run": {"argv": list(test_command["argv"]), "cwd": test_command.get("cwd") or ".",
+                        "parent_embed_id": parent_id},
+    }

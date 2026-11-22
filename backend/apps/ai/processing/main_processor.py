@@ -3898,6 +3898,44 @@ def _convert_timestamps_to_human_readable(value: Any) -> Any:
         return value
 
 
+async def _command_outcome_references(
+    request_data: Any, *, cache_service: Any, directus_service: Any, encryption_service: Any,
+    user_vault_key_id: str | None, task_id: str, log_prefix: str,
+) -> list[str]:
+    """Publish the pending Project file change event and app cards once; return their references.
+
+    Async continuations attach them before the stream starts; a same-turn resume
+    attaches them while restoring the batch results, so both call this.
+    """
+    references: list[str] = []
+    change_preview = getattr(request_data, "project_file_change_preview", None)
+    if change_preview is not None:
+        request_data.project_file_change_preview = None
+        from backend.apps.ai.processing.project_file_change_references import (
+            publish_project_file_change_preview,
+        )
+
+        change_reference = await publish_project_file_change_preview(
+            preview=change_preview, request_data=request_data, cache_service=cache_service,
+            directus_service=directus_service, encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+        )
+        # The commands' terminal code embeds are the Run cards' children, never reply content.
+        if change_reference:
+            references.append(change_reference)
+    app_folders = getattr(request_data, "project_app_folders", None)
+    if app_folders:
+        request_data.project_app_folders = None
+        from backend.apps.ai.processing.project_app_preview_card import publish_project_app_cards
+
+        references.extend(await publish_project_app_cards(
+            request_data=request_data, folders=list(app_folders), cache_service=cache_service,
+            directus_service=directus_service, encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
+        ))
+    return references
+
+
 async def handle_main_processing(
     task_id: str,
     request_data: AskSkillRequest,
@@ -4888,34 +4926,14 @@ async def handle_main_processing(
         yield reference_block(carried_reference)
     if created_project_reference and reference_embed_id(created_project_reference) not in carried_embed_ids:
         yield f"```json\n{created_project_reference}\n```\n\n"
-    change_preview = getattr(request_data, "project_file_change_preview", None)
-    if change_preview is not None:
-        request_data.project_file_change_preview = None
-        from backend.apps.ai.processing.project_file_change_references import (
-            publish_project_file_change_preview,
-        )
-
-        change_reference = await publish_project_file_change_preview(
-            preview=change_preview, request_data=request_data, cache_service=cache_service,
-            directus_service=directus_service, encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
-        )
-        # Chronological: the carried Run cards (with command, status and exit code)
-        # above, then what the commands changed, then the reply. The commands'
-        # terminal code embeds are the Run cards' children, never reply content.
-        if change_reference:
-            yield f"```json\n{change_reference}\n```\n\n"
-    app_folders = getattr(request_data, "project_app_folders", None)
-    if app_folders:
-        request_data.project_app_folders = None
-        from backend.apps.ai.processing.project_app_preview_card import publish_project_app_cards
-
-        for app_reference in await publish_project_app_cards(
-            request_data=request_data, folders=list(app_folders), cache_service=cache_service,
-            directus_service=directus_service, encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id, task_id=task_id, log_prefix=log_prefix,
-        ):
-            yield f"```json\n{app_reference}\n```\n\n"
+    # Chronological: the carried Run cards (with command, status and exit code)
+    # above, then what the commands changed and the built app, then the reply.
+    for outcome_reference in await _command_outcome_references(
+        request_data, cache_service=cache_service, directus_service=directus_service,
+        encryption_service=encryption_service, user_vault_key_id=user_vault_key_id,
+        task_id=task_id, log_prefix=log_prefix,
+    ):
+        yield f"```json\n{outcome_reference}\n```\n\n"
     reference_preview = getattr(request_data, "project_file_reference_preview", None)
     if reference_preview is not None:
         # A continuation may publish only the result of its freshly authorized
@@ -6954,6 +6972,14 @@ async def handle_main_processing(
         current_message_history = await restore_ordered_tool_results(
             request_data, resume_checkpoint,
         )
+        # The restore attaches what this batch's commands changed and built; publish it
+        # now, after the step's Run cards, or the last step's cards would never appear.
+        for outcome_reference in await _command_outcome_references(
+            request_data, cache_service=cache_service, directus_service=directus_service,
+            encryption_service=encryption_service, user_vault_key_id=user_vault_key_id,
+            task_id=task_id, log_prefix=log_prefix,
+        ):
+            yield f"```json\n{outcome_reference}\n```\n\n"
         generated_embed_refs = list(resume_checkpoint.get("generated_embed_refs") or [])
         generated_embed_aliases = dict(resume_checkpoint.get("generated_embed_aliases") or {})
         authored_inline_outputs = list(resume_checkpoint.get("authored_inline_outputs") or [])

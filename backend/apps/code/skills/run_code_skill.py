@@ -690,6 +690,23 @@ class RunCodeSkill(BaseSkill):
                 directus_service=directus_service,
                 encryption_service=encryption_service,
             )
+        test_parent_embed_id = (kwargs.get("placeholder_embed_ids") or [None])[0] if request.test_run else None
+        if test_parent_embed_id:
+            from backend.apps.code.tasks.command_parent_embed import (
+                publish_running_command_parent, test_run_parent_payload,
+            )
+
+            running = test_run_parent_payload({
+                "test_run": request.test_run.model_dump(), "parent_embed_id": test_parent_embed_id,
+                "chat_id": str(chat_id), "message_id": str(message_id), "user_id": str(user_id),
+                "user_id_hash": hashlib.sha256(str(user_id).encode()).hexdigest(),
+            })
+            try:
+                # The test command on the "Run" card while it runs; the worker closes the card.
+                if running:
+                    await publish_running_command_parent(running, cache_service)
+            except (RuntimeError, ValueError) as card_exc:
+                logger.error("Test run card %s not published while running: %s", test_parent_embed_id, card_exc, exc_info=True)
         execution = await start_code_run_for_assistant(
             current_user=current_user,
             cache_service=cache_service,
@@ -704,7 +721,8 @@ class RunCodeSkill(BaseSkill):
             device_hash=kwargs.get("device_hash"),
             assistant_async_task=True,
             same_turn_batch_id=kwargs.get("same_turn_batch_id"),
-            **({"test_run": request.test_run.model_dump()} if request.test_run is not None else {}),
+            **({"test_run": request.test_run.model_dump(), "parent_embed_id": test_parent_embed_id}
+               if request.test_run is not None else {}),
         )
         return RunCodeResponse(
             execution_id=execution.execution_id,

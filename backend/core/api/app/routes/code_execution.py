@@ -1259,6 +1259,7 @@ async def start_code_run_execution(
     test_run: dict[str, Any] | None = None,
     command_run: dict[str, Any] | None = None,
     directus_service: DirectusService | None = None,
+    parent_embed_id: str | None = None,
 ) -> CodeRunStartResponse:
     if current_user.credits < 1:
         raise HTTPException(status_code=402, detail="Not enough credits to run code")
@@ -1327,6 +1328,8 @@ async def start_code_run_execution(
         "same_turn_batch_id": same_turn_batch_id,
         "test_run": test_run,
         "command_run": command_run,
+        # The chat's "Run" card of an assistant test run; the worker closes it when the run ends.
+        "parent_embed_id": parent_embed_id if test_run else None,
         "active_run_key": active_key,
         "active_run_owner": execution_id,
         "provider_active_run_key": _provider_active_run_key(),
