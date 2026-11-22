@@ -2437,9 +2437,17 @@
 
     onMount(() => {
         let previousModelStatus: string | undefined;
+        let previousEnhancedRevision: number | undefined;
         const stopModelState = webPIIDetectorState.subscribe((state) => {
             const finishedBackgroundLoad = previousModelStatus === 'loading' && state.status === 'ready';
             previousModelStatus = state.status;
+            // A partial preview kept scanning its remaining windows in the background.
+            const revisionChanged = state.enhancedRevision !== undefined && state.enhancedRevision !== previousEnhancedRevision;
+            previousEnhancedRevision = state.enhancedRevision;
+            if (revisionChanged && cachedPIISettings?.masterEnabled && editor && !editor.isDestroyed) {
+                lastPIIText = '';
+                void runPIIDetectionImmediate(editor);
+            }
             if (finishedBackgroundLoad && cachedPIISettings?.masterEnabled && editor && !editor.isDestroyed) {
                 // A bounded preview can finish with basic checks while assets
                 // keep downloading. Recheck the current draft once they arrive.

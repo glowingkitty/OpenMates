@@ -406,12 +406,69 @@ describe('browser PII runtime lifecycle', () => {
     worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Amina', start: 6, end: 11, confidence: 1 }] }); await tick();
     await vi.advanceTimersByTimeAsync(1_000);
     worker.respond(2); await tick();
-    // 2s elapsed and a window takes ~1s: the third window cannot finish in the 2.5s preview budget, so it is never posted.
+    // 2s elapsed and a window takes ~1s: the third window cannot finish in the 2.5s preview budget,
+    // so the preview result excludes it; it is only requested afterwards, by the background continuation.
     const matches = await scan;
-    expect(worker.messages.filter(message => message.kind === 'scan')).toHaveLength(2);
+    await tick();
+    const windows = buildWebPIIWindows(text);
+    const scans = worker.messages.filter(message => message.kind === 'scan');
+    expect(scans).toHaveLength(3);
+    expect(scans[2].text).toBe(text.slice(windows[2].start, windows[2].end));
     expect(matches.map(match => match.match)).toEqual(['Amina']);
     expect(worker.terminated).toBe(false);
-    expect(get(webPIIDetectorState)).toMatchObject({ status: 'ready', fallbackReason: 'timeout' });
+    expect(get(webPIIDetectorState)).toMatchObject({ status: 'ready', fallbackReason: 'partial' });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
+  it('finishes the skipped windows in the background and shows their entity on the next check of the same text', async () => {
+    vi.useFakeTimers();
+    const text = ['Hallo', 'Amina', ...Array.from({ length: 38 }, (_, i) => `wort${i}`), 'Lena'].join(' ');
+    const at = text.lastIndexOf('Lena');
+    const windows = buildWebPIIWindows(text);
+    const scan = detectPIIForWeb(text, {}, { purpose: 'preview' });
+    const worker = FakeWorker.workers[0];
+    await tick(); worker.respond(0); await tick();
+    await vi.advanceTimersByTimeAsync(1_000);
+    worker.respond(1, { items: [{ label: 'GIVEN_NAME', original: 'Amina', start: 6, end: 11, confidence: 1 }] }); await tick();
+    await vi.advanceTimersByTimeAsync(1_000);
+    worker.respond(2); await tick();
+    expect((await scan).map(match => match.match)).toEqual(['Amina']);
+    const revisionBefore = get(webPIIDetectorState).enhancedRevision;
+    for (let index = 2; index < windows.length; index++) {
+      await tick();
+      const window = windows[index];
+      const contains = window.start <= at && window.end >= at + 4;
+      worker.respond(index + 1, { items: contains ? [{ label: 'GIVEN_NAME', original: 'Lena', start: at - window.start, end: at - window.start + 4, confidence: 1 }] : [] });
+    }
+    await tick(); await tick();
+    expect(get(webPIIDetectorState).enhancedRevision).toBe((revisionBefore ?? 0) + 1);
+    const again = await detectPIIForWeb(text, {}, { purpose: 'preview' });
+    expect(again.map(match => match.match)).toEqual(['Amina', 'Lena']);
+    expect(worker.messages.filter(message => message.kind === 'scan')).toHaveLength(windows.length);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude
+  it('discards the background result when the draft changed meanwhile', async () => {
+    vi.useFakeTimers();
+    const text = ['Hallo', 'Amina', ...Array.from({ length: 38 }, (_, i) => `wort${i}`), 'Lena'].join(' ');
+    const windows = buildWebPIIWindows(text);
+    const scan = detectPIIForWeb(text, {}, { purpose: 'preview' });
+    const worker = FakeWorker.workers[0];
+    await tick(); worker.respond(0); await tick();
+    await vi.advanceTimersByTimeAsync(1_000);
+    worker.respond(1); await tick();
+    await vi.advanceTimersByTimeAsync(1_000);
+    worker.respond(2); await tick();
+    await scan;
+    const revisionBefore = get(webPIIDetectorState).enhancedRevision;
+    // The test ends with this preview still pending; the next reset rejects it, which is expected.
+    detectPIIForWeb('Changed draft anna@example.com', {}, { purpose: 'preview' }).catch(() => undefined);
+    await tick();
+    await tick();
+    // Only the first background window is in flight; its answer arrives after the text changed.
+    expect(worker.messages[3].text).toBe(text.slice(windows[2].start, windows[2].end));
+    worker.respond(3); await tick(); await tick();
+    expect(get(webPIIDetectorState).enhancedRevision).toBe(revisionBefore);
   });
 
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference

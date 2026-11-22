@@ -27,7 +27,7 @@ export class WebPIIBudgetError extends Error { constructor() { super('Enhanced p
 export function createWebPIIScanContext(): WebPIIScanContext { return { purpose: 'send', enhancedEnabled: isWebPIIModelEnabled() }; }
 /** One budget for every text field of a pasted or attached document. */
 export function createWebPIIDocumentScanContext(): WebPIIScanContext { return { purpose: 'document', enhancedEnabled: isWebPIIModelEnabled() }; }
-export interface WebPIIDetectorState { status: 'disabled' | 'loading' | 'ready' | 'error'; progress?: number; fallbackReason?: 'size' | 'timeout'; failureCode?: WebPIIBrokerFailure }
+export interface WebPIIDetectorState { status: 'disabled' | 'loading' | 'ready' | 'error'; progress?: number; fallbackReason?: 'size' | 'timeout' | 'partial'; enhancedRevision?: number; failureCode?: WebPIIBrokerFailure }
 const state = writable<WebPIIDetectorState>({ status: 'disabled' });
 export const webPIIDetectorState = { subscribe: state.subscribe };
 
@@ -158,6 +158,8 @@ function expireScan(scan: Scan): boolean {
   return true;
 }
 /**
+ * A 'partial' preview proves the model works (some windows finished), so the
+ * composer shows no 'unavailable' notice for it; only 'timeout'/'error' do.
  * Scan overlapping windows one at a time (see webPIIWindows.ts). Stops before a
  * window that would not finish inside the deadline, so slow devices keep the
  * entities of the finished windows instead of losing the whole enhanced scan
@@ -172,14 +174,18 @@ async function scanWindows(scan: Scan, scanGeneration: number): Promise<{ entiti
   let windowsDone = 0;
   for (const window of windows) {
     if (windowsDone > 0 && Date.now() + slowestMs * 1.25 >= scan.deadline) {
-      state.set({ ...get(state), fallbackReason: 'timeout' });
+      state.set({ ...get(state), fallbackReason: 'partial' });
+      if (scan.purpose === 'preview') void continueInBackground(scan.text, windows.slice(windowsDone), found, scanGeneration);
       break;
     }
     const startedAt = Date.now();
     const items = await request('scan', scan.text.slice(window.start, window.end));
     if (scanGeneration !== generation) break;
     if (Date.now() >= scan.deadline) {
-      if (windowsDone > 0) state.set({ ...get(state), fallbackReason: 'timeout' });
+      if (windowsDone > 0) {
+        state.set({ ...get(state), fallbackReason: 'partial' });
+        if (scan.purpose === 'preview') void continueInBackground(scan.text, windows.slice(windowsDone), found, scanGeneration);
+      }
       break;
     }
     slowestMs = Math.max(slowestMs, Date.now() - startedAt);
@@ -190,6 +196,39 @@ async function scanWindows(scan: Scan, scanGeneration: number): Promise<{ entiti
     ? await (await import('./rustComposerPII')).rustMergeWebPIIWindowEntities(found)
     : mergeWebPIIWindowEntities(found);
   return { entities, windowsDone };
+}
+
+/** Entities of a partly or fully scanned preview text; reused when the composer rechecks the same text. */
+let fullPreviewScan: { text: string; entities: WebPIIEntity[] } | undefined;
+let backgroundToken = 0;
+async function mergeEntities(entities: WebPIIEntity[]): Promise<WebPIIEntity[]> {
+  return import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+    ? (await import('./rustComposerPII')).rustMergeWebPIIWindowEntities(entities)
+    : mergeWebPIIWindowEntities(entities);
+}
+/**
+ * After a 'partial' preview the remaining windows keep running (no new deadline;
+ * a send has none either). A newer preview text or a reset bumps the token or
+ * generation and the result is discarded. A finished scan bumps enhancedRevision
+ * so the composer rechecks the unchanged draft against the cached entities.
+ */
+async function continueInBackground(text: string, rest: { start: number; end: number }[], done: WebPIIEntity[], scanGeneration: number): Promise<void> {
+  const token = ++backgroundToken;
+  const found = [...done];
+  fullPreviewScan = { text, entities: await mergeEntities(done) };
+  const stale = () => token !== backgroundToken || scanGeneration !== generation;
+  try {
+    for (const window of rest) {
+      if (stale()) return;
+      const items = await request('scan', text.slice(window.start, window.end));
+      if (stale()) return;
+      for (const item of items) found.push({ ...item, start: item.start + window.start, end: item.end + window.start });
+    }
+    const entities = await mergeEntities(found);
+    if (stale()) return;
+    fullPreviewScan = { text, entities };
+    state.set({ ...get(state), enhancedRevision: (get(state).enhancedRevision ?? 0) + 1 });
+  } catch { /* the worker failure already set the error state and its notice */ }
 }
 
 const queue: Scan[] = [];
@@ -255,6 +294,13 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
   if (!context.enhancedEnabled || !enhancementEnabled) return basic;
   // Supersede obsolete previews before inference starts; sends are never dropped.
   if (purpose === 'preview') {
+    if (fullPreviewScan?.text === text) {
+      const cached = fullPreviewScan.entities;
+      return import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+        ? (await import('./rustComposerPII')).rustMergeWebPIIMatches(text, cached, snapshot)
+        : mergeWebPIIMatches(text, cached, snapshot);
+    }
+    backgroundToken++;
     if (activeScan?.purpose === 'preview' && activeScan.phase === 'loading') activeScan.resolve([]);
     for (let i = queue.length - 1; i >= 0; i--) if (queue[i].purpose === 'preview') queue.splice(i, 1)[0].resolve([]);
   }
@@ -319,7 +365,7 @@ function isPreview(purpose: 'preview' | 'send' | 'document'): boolean { return p
 
 /** Settings disable/retry destroys all model and request memory. Asset cache stays. */
 export function resetWebPIIDetector(): void {
-  generation++; failure = undefined;
+  generation++; failure = undefined; fullPreviewScan = undefined;
   broker?.dispose(); broker = undefined; brokerReady = undefined;
   worker?.terminate(); worker = undefined; ready = undefined;
   const error = new Error('Private data detection was reset');
