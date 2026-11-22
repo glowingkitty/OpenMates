@@ -43,6 +43,8 @@ const JOB_TTL_MS = 7 * 24 * 60 * 60_000;
 const TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
 const LEGACY_RUNNING_TTL_MS = 15 * 60_000;
 const LEGACY_TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
+// An epoch-zero output producer idle this long is retired at epoch-1 activation.
+const LEGACY_PRODUCER_STALE_MS = 24 * 60 * 60_000;
 const SERVER_TRIGGER_TASK_IDENTITY_PREFIX = 'server-trigger:';
 const MAX_CONTENT_BYTES = 16 * 1024 * 1024;
 const MAX_AVAILABLE_JOBS = 100;
@@ -1293,6 +1295,27 @@ async function releaseLegacyInference(database, raw, now) {
   });
 }
 
+/**
+ * Retire epoch-zero output producers that have not moved for a full day.
+ *
+ * Legacy turns live at most LEGACY_RUNNING_TTL_MS, so a producer still PENDING a
+ * day after registration, or RUNNING a day after it started, belongs to a task
+ * that died without reporting. Left alone, such a row blocks the epoch-1
+ * activation forever. It becomes INVALIDATED, the state every finish path
+ * already refuses, so a late task cannot write through it. Runs only inside the
+ * activation transaction, after sends are paused and no legacy turn is running.
+ */
+async function retireStaleLegacyOutputProducers(trx, now) {
+  const cutoff = new Date(now.getTime() - LEGACY_PRODUCER_STALE_MS);
+  const retired = { state: 'INVALIDATED', invalidated_at: now };
+  await trx(LEGACY_OUTPUT_PRODUCERS).where({ state: 'PENDING' })
+    .where('registered_at', '<=', cutoff).update(retired);
+  await trx(LEGACY_OUTPUT_PRODUCERS).where({ state: 'RUNNING' })
+    .where('started_at', '<=', cutoff).update(retired);
+  await trx(LEGACY_OUTPUT_PRODUCERS).where({ state: 'RUNNING' }).whereNull('started_at')
+    .where('registered_at', '<=', cutoff).update(retired);
+}
+
 async function activateProtocolEpoch(database, raw, now) {
   const body = operationBody(raw, 'activate_protocol_epoch');
   const targetEpoch = integer(body.target_epoch, 'invalid_protocol_epoch');
@@ -1315,6 +1338,7 @@ async function activateProtocolEpoch(database, raw, now) {
     if (targetEpoch !== 1) fail(400, 'invalid_protocol_epoch');
     if (!row.sends_paused) fail(409, 'sends_not_paused');
     if (row.legacy_in_flight !== 0) fail(409, 'legacy_in_flight');
+    await retireStaleLegacyOutputProducers(trx, now);
     if (await trx(LEGACY_OUTPUT_PRODUCERS)
       .whereIn('state', ['PENDING', 'RUNNING']).first()) {
       fail(409, 'legacy_output_producers_pending');

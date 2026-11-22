@@ -1174,6 +1174,67 @@ test('activation rollback preserves epoch zero when its durable update fails', a
   assert.equal(database.rows.chat_recovery_protocol_state[0].protocol_epoch, 0);
 });
 
+test('activation retires epoch-zero output producers idle for a day, never a live one', async () => {
+  const now = new Date('2029-01-03T00:00:00Z');
+  const hoursAgo = (hours) => new Date(now.getTime() - hours * 60 * 60_000);
+  const producer = (id, state, registered, started = null) => ({
+    id, state, registered_at: registered, started_at: started,
+    expires_at: new Date(registered.getTime() + 7 * 24 * 60 * 60_000), invalidated_at: null,
+  });
+  const database = fakeDatabase({
+    chat_recovery_protocol_state: [{
+      id: 'chat-recovery', protocol_epoch: 0, sends_paused: true,
+      legacy_in_flight: 0, active_legacy_tasks: [], legacy_task_lifecycle: [],
+    }],
+    chat_recovery_legacy_output_producers: [
+      producer('stale-pending', 'PENDING', hoursAgo(25)),
+      producer('stale-running', 'RUNNING', hoursAgo(48), hoursAgo(30)),
+      producer('stale-running-unstamped', 'RUNNING', hoursAgo(26)),
+      producer('live-running', 'RUNNING', hoursAgo(30), hoursAgo(1)),
+      producer('finished', 'COMPLETED', hoursAgo(72), hoursAgo(71)),
+    ],
+    chat_recovery_legacy_batch_claims: [],
+  });
+  const states = () => Object.fromEntries(database.rows.chat_recovery_legacy_output_producers
+    .map((row) => [row.id, row.state]));
+  const activate = () => executeOperation(database, 'activate_protocol_epoch', {
+    protocol_version: 1, target_epoch: 1,
+  }, now);
+  // A producer that started an hour ago is still live: activation keeps waiting
+  // and its failed transaction leaves every row untouched.
+  await assert.rejects(activate(), (error) => error.code === 'legacy_output_producers_pending');
+  assert.equal(database.rows.chat_recovery_protocol_state[0].protocol_epoch, 0);
+  assert.equal(states()['live-running'], 'RUNNING');
+  database.rows.chat_recovery_legacy_output_producers
+    .find((row) => row.id === 'live-running').state = 'COMPLETED';
+  assert.equal((await activate()).protocol_epoch, 1);
+  assert.deepEqual(states(), {
+    'stale-pending': 'INVALIDATED', 'stale-running': 'INVALIDATED',
+    'stale-running-unstamped': 'INVALIDATED', 'live-running': 'COMPLETED', finished: 'COMPLETED',
+  });
+  assert.ok(database.rows.chat_recovery_legacy_output_producers
+    .filter((row) => row.state === 'INVALIDATED')
+    .every((row) => row.invalidated_at.getTime() === now.getTime()));
+});
+
+test('activation never retires an epoch-zero producer while sends are still open', async () => {
+  const now = new Date('2029-01-03T00:00:00Z');
+  const database = fakeDatabase({
+    chat_recovery_protocol_state: [{
+      id: 'chat-recovery', protocol_epoch: 0, sends_paused: false,
+      legacy_in_flight: 0, active_legacy_tasks: [], legacy_task_lifecycle: [],
+    }],
+    chat_recovery_legacy_output_producers: [{
+      id: 'stale-pending', state: 'PENDING', registered_at: new Date('2029-01-01T00:00:00Z'),
+      started_at: null, invalidated_at: null,
+    }],
+  });
+  await assert.rejects(executeOperation(database, 'activate_protocol_epoch', {
+    protocol_version: 1, target_epoch: 1,
+  }, now), (error) => error.code === 'sends_not_paused');
+  assert.equal(database.rows.chat_recovery_legacy_output_producers[0].state, 'PENDING');
+});
+
 test('available-job projection never discloses sealed payload or lease secrets', () => {
   const projected = testing.availableJobMetadata({
     id: '018f7777-7777-7777-8777-777777777777',
