@@ -271,6 +271,7 @@ REAL_INFERENCE_PROVIDERS = {
 }
 REAL_INFERENCE_SPEC_PREFIX = "real-inference-"
 REAL_INFERENCE_AI_QUEUES = "app_ai,app_ai_routing"
+REAL_INFERENCE_IMAGE_QUEUES = "app_images"
 STACK_START_RETRY_DELAYS = (5, 15)
 TRANSIENT_REGISTRY_FAILURE = re.compile(
     r"connection reset by peer|tls handshake timeout|i/o timeout|"
@@ -1627,10 +1628,23 @@ def compose_profile(
         ]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
+        # Image skills (images.generate draws SVGs with the Gemini vector author)
+        # run on their own queue. The AI worker waits for same-turn skill results
+        # on its single slot, so it cannot consume app_images itself.
+        images_worker = deepcopy(ai_worker)
+        images_worker["environment"]["CELERY_QUEUES"] = REAL_INFERENCE_IMAGE_QUEUES
+        images_worker["command"] = [
+            part.replace(
+                f"--queues={REAL_INFERENCE_AI_QUEUES}",
+                f"--queues={REAL_INFERENCE_IMAGE_QUEUES}",
+            )
+            for part in ai_worker["command"]
+        ]
+        services["images-worker"] = images_worker
         services["runner-gateway"]["environment"][
             "OPENMATES_CI_REAL_INFERENCE_PROXY"
         ] = "1"
-        for service in (api, worker, ai_worker):
+        for service in (api, worker, ai_worker, images_worker):
             service["environment"]["HTTPS_PROXY"] = "http://runner-gateway:3128"
             service["environment"]["OPENMATES_CI_REAL_INFERENCE"] = "1"
         vault_init = services["vault-init"]["environment"]

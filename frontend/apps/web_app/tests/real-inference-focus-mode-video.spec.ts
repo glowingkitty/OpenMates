@@ -52,12 +52,12 @@ const {
 	waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
 const { requireRealInference } = require('./helpers/real-inference-guard');
+const { expandActivity } = require('./helpers/assistant-activity');
 const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 
 const { email: TEST_EMAIL } = getTestAccount();
 
 const SELECTORS = {
-	focusModeBar: '[data-testid="focus-mode-bar"][data-app-id="videos"]',
 	focusModeBarActivated: '[data-testid="focus-mode-bar"].activated[data-app-id="videos"]',
 	focusActiveBanner: '[data-testid="focus-pill"]',
 	focusActiveBannerText: '[data-testid="focus-pill"] [data-testid="focus-pill-label"]'
@@ -129,23 +129,24 @@ test('real YouTube analysis request activates video focus mode and continues wit
 	const chatId = await getActiveChatId(page);
 	logCheckpoint(`Active chat id for backend log verification: ${chatId}`);
 
-	const focusModeEmbed = page.locator(SELECTORS.focusModeBar);
-	await expect(focusModeEmbed.first()).toBeVisible({ timeout: 120000 });
-	const focusId = await focusModeEmbed.first().getAttribute('data-focus-id');
-	logCheckpoint(`Video focus mode ID: "${focusId}"`);
-	expect(focusId).toBe('videos-analyze_video');
-	await takeStepScreenshot(page, 'video-focus-embed-visible');
-
-	const activatedEmbed = page.locator(SELECTORS.focusModeBarActivated);
-	await expect(activatedEmbed.first()).toBeVisible({ timeout: 20000 });
-	logCheckpoint('Video focus mode activated.');
-
+	// The pill above the composer is the persistent state of an active focus.
 	const banner = page.locator(SELECTORS.focusActiveBanner);
-	await expect(banner).toBeVisible({ timeout: 15000 });
+	await expect(banner).toBeVisible({ timeout: 120000 });
 	await expect(page.locator(SELECTORS.focusActiveBannerText)).toContainText(/video/i);
 	await expect(banner).toContainText(/focus on/i);
 
 	await waitForAssistantIdle(page, logCheckpoint);
+
+	// A settled activation folds into the reply's collapsed activity summary; open it so the
+	// activated focus bar renders again and its focus id can be read.
+	await expandActivity(page);
+	const activatedEmbed = page.locator(SELECTORS.focusModeBarActivated);
+	await expect(activatedEmbed.first()).toBeVisible({ timeout: 20000 });
+	const focusId = await activatedEmbed.first().getAttribute('data-focus-id');
+	logCheckpoint(`Video focus mode ID: "${focusId}"`);
+	expect(focusId).toBe('videos-analyze_video');
+	await takeStepScreenshot(page, 'video-focus-embed-visible');
+	logCheckpoint('Video focus mode activated.');
 
 	const assistantMessages = page.getByTestId('message-assistant');
 	const assistantText = (await assistantMessages.last().textContent())?.toLowerCase() ?? '';

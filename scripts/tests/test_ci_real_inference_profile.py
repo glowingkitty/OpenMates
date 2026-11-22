@@ -64,6 +64,16 @@ def test_the_internal_workflow_runtime_runs_with_real_inference() -> None:
     assert profile["services"]["ai-worker"]["environment"]["CELERY_QUEUES"] == "app_ai,app_ai_routing"
 
 
+def test_image_skills_get_their_own_keyed_worker() -> None:
+    services = compose_profile("a" * 40, real_inference=True)["services"]
+    images = services["images-worker"]
+    assert images["environment"]["CELERY_QUEUES"] == "app_images"
+    assert any("--queues=app_images" in part for part in images["command"])
+    assert images["environment"]["HTTPS_PROXY"] == "http://runner-gateway:3128"
+    assert images["environment"]["OPENMATES_CI_REAL_INFERENCE"] == "1"
+    assert "app_images" not in services["ai-worker"]["environment"]["CELERY_QUEUES"]
+
+
 def test_the_vault_seeds_and_checks_exactly_the_keyed_providers() -> None:
     assert "CI_REAL_INFERENCE_PROVIDERS" in VAULT_INITIALIZE
     assert "Real-inference key missing" in VAULT_INITIALIZE
