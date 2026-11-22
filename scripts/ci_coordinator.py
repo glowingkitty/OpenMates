@@ -176,6 +176,16 @@ def partition_source_specs(specs: list[str], source: str, source_root: Path):
     return partition(specs, manifest=source_coverage_manifest(source, source_root))
 
 
+def _speedups_input(job: dict) -> dict:
+    """`ci_speedups` workflow input for this job's owner (scripts/ci_speedups.py); none when all are off."""
+    try:
+        from scripts import ci_speedups
+    except ModuleNotFoundError:
+        import ci_speedups
+    value = ci_speedups.dispatch_value(str(job.get("owner") or ""))
+    return {"ci_speedups": value} if value else {}
+
+
 class GitHubError(RuntimeError):
     def __init__(self, message: str, retry_at: float):
         super().__init__(message)
@@ -413,6 +423,7 @@ class GitHub:
                         else {}
                     ),
                     "proof_video_profile": job.get("proof_profile", ""),
+                    **_speedups_input(job),
                     **(
                         {"web_rust_core": "true"}
                         if job.get("web_rust_core")

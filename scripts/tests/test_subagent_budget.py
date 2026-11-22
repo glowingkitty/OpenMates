@@ -27,16 +27,16 @@ def test_main_chat_no_state(tmp_path):
     assert not (tmp_path / "state").exists()
 
 
-def test_warn_then_block_then_stop_resets(tmp_path):
-    results = [call(tmp_path, agent()) for _ in range(6)]
-    assert [r.returncode for r in results] == [0, 0, 0, 0, 2, 2]
+def test_warns_but_never_blocks(tmp_path):
+    """Owner, 22 Nov: no hard caps on sub-agents; warnings only."""
+    results = [call(tmp_path, agent()) for _ in range(40)]
+    assert all(r.returncode == 0 for r in results)
     assert results[1].stdout == ""
     context = json.loads(results[2].stdout)["hookSpecificOutput"]["additionalContext"]
-    assert context.startswith("Sub-agent budget: 3 of 5 tool calls used.")
-    assert "Sub-agent budget reached (5 tool calls)" in results[4].stderr
+    assert context.startswith("Sub-agent note: 3 tool calls so far.")
+    assert "short summary" in context
+    assert results[3].stdout == "" and results[12].stdout != ""  # every 10 calls after the first warning
     assert call(tmp_path, agent(hook_event_name="SubagentStop")).returncode == 0
-    # count reset to 5-15 -> 0, so calls work again
-    assert call(tmp_path, agent()).returncode == 0
 
 
 def test_ci_runner_exempt(tmp_path):
@@ -45,9 +45,9 @@ def test_ci_runner_exempt(tmp_path):
 
 
 def test_agents_counted_separately(tmp_path):
-    for _ in range(5):
+    for _ in range(3):
         call(tmp_path, agent())
-    assert call(tmp_path, agent(agent_id="a2")).returncode == 0
+    assert call(tmp_path, agent(agent_id="a2")).stdout == ""
 
 
 def test_bad_input_fails_open(tmp_path):

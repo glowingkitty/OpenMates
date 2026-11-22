@@ -404,3 +404,26 @@ def test_a_timed_out_handoff_shows_as_timed_out_not_stalled_and_is_dropped_a_day
     assert cw.expire(state_dir, NOW + (cw.EXPIRE_HOURS - 2) * 3600, events.append) == []  # not a full day past yet
     assert cw.expire(state_dir, NOW + (cw.EXPIRE_HOURS + 1) * 3600, events.append) == [key]
     assert events[0]["event"] == "waiter_expired" and CHAT not in cw.collect(sources(tmp_path), NOW + 26 * HOUR)
+
+
+def test_a_chat_without_a_transcript_here_is_reported_once_and_its_waiters_dropped(tmp_path):
+    """TASK-9435: 5 chats were retried 11,354 times with 'no transcript on this host'."""
+    found = {CHAT: [cw.Waiter(CHAT, "ci", "ci:job", "CI e2e job", NOW - HOUR, NOW + HOUR, ready=True,
+                              ready_text="CI finished", ready_at=NOW - 60)]}
+    registry = {CHAT: {"state": "stopped", "title": "Remote chat"}}
+    rec = Recorder(resume_outcome="no transcript on this host")
+    delivered, failures = rec.run(found, {}, registry, tmp_path)
+    assert delivered == {"ci:job"}
+    assert len(failures) == 1 and "waiting stopped" in failures[0]["reason"]
+    assert [e["event"] for e in rec.events] == ["waiter_wake_failed", "waiter_dropped"]
+    delivered, failures = rec.run(found, {}, registry, tmp_path)
+    assert len(rec.resumed) == 1 and failures == []  # never retried
+
+
+def test_a_transient_wake_failure_is_retried(tmp_path):
+    found = {CHAT: [cw.Waiter(CHAT, "ci", "ci:job", "CI e2e job", NOW - HOUR, NOW + HOUR, ready=True,
+                              ready_text="CI finished", ready_at=NOW - 60)]}
+    rec = Recorder(resume_outcome="no free chat slot (cap)")
+    rec.run(found, {}, {CHAT: {"state": "stopped"}}, tmp_path)
+    rec.run(found, {}, {CHAT: {"state": "stopped"}}, tmp_path)
+    assert len(rec.resumed) == 2

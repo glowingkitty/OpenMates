@@ -15,6 +15,16 @@ if [ "$TYPE" = "fork" ]; then
   exit 2
 fi
 
+# Built-in Explore and Plan agents ignore CLAUDE_CODE_SUBAGENT_MODEL and would
+# inherit the parent's Opus model; pin them to Sonnet by rewriting the input.
+if [ -z "$MODEL" ] && { [ "$TYPE" = "Explore" ] || [ "$TYPE" = "Plan" ]; }; then
+  echo "$INPUT" | jq -c '{hookSpecificOutput: {hookEventName: "PreToolUse",
+    permissionDecision: "allow",
+    permissionDecisionReason: "built-in \(.tool_input.subagent_type) agent runs on Sonnet",
+    updatedInput: (.tool_input + {model: "sonnet"})}}'
+  exit 0
+fi
+
 case "$MODEL" in
   ""|sonnet|haiku|*sonnet*|*haiku*) exit 0 ;;
 esac

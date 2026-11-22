@@ -84,6 +84,10 @@ on:
         description: Run the web app with the Rust client core on for any e2e or component spec ('true' or 'false')
         type: string
         default: 'false'
+      ci_speedups:
+        description: Comma list of enabled CI speedups (scripts/ci_speedups.py); they change preparation, never what is tested
+        type: string
+        default: ''
       runner_label:
         description: Job-unique label of a coordinator-registered single-use E2B runner (empty for GitHub-hosted)
         type: string

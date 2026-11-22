@@ -496,6 +496,10 @@ def wake_text(ready: list[Waiter]) -> str:
             + ". Continue the parked work now (if it is already done, say so in one line).")
 
 
+# resume() outcomes that no later retry can fix (scripts/claude_dispatch.py resume_chat).
+PERMANENT_WAKE_FAILURES = ("no transcript on this host", "its folder is gone")
+
+
 def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, dict], state: Path, now: float, *,
             type_into, resume, room: int, log, asks=lambda chat: False,
             priority: dict[str, int] | None = None) -> tuple[set[str], list[dict]]:
@@ -559,6 +563,16 @@ def deliver(waiters: dict[str, list[Waiter]], live: dict, registry: dict[str, di
         if outcome == "ok":
             marks[mark] = _utc(now)
             delivered |= {w.key for w in ready}
+        elif outcome.startswith(PERMANENT_WAKE_FAILURES):
+            # Retrying cannot help (the chat lives on another host or its folder is gone):
+            # drop these waiters after one report instead of failing every minute.
+            marks[mark] = _utc(now)
+            delivered |= {w.key for w in ready}
+            log({"event": "waiter_dropped", "session_id": chat_id, "outcome": outcome,
+                 "waiters": [w.key for w in ready]})
+            failures.append({"session_id": chat_id, "title": (registry.get(chat_id) or {}).get("title", ""),
+                             "reason": f"wait is over but the chat cannot be woken ({outcome}); waiting stopped",
+                             "waits_on": [w.label(now) for w in ready]})
         else:
             failures.append({"session_id": chat_id, "title": (registry.get(chat_id) or {}).get("title", ""),
                              "reason": f"wait is over but waking it failed ({outcome})",
