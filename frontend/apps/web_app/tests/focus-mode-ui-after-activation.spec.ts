@@ -188,6 +188,7 @@ function setupPageListeners(page: any): void {
 // Combined UI test: ONE activation, then all UI checks sequentially
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=chat-queued-followups.admission.synced
 test('focus mode UI elements work correctly after activation', async ({
 	page
 }: {
@@ -230,6 +231,26 @@ test('focus mode UI elements work correctly after activation', async ({
 	const activatedEmbed = page.locator(SELECTORS.focusModeBarActivated);
 	await expect(activatedEmbed.first()).toBeVisible({ timeout: 15000 });
 	logCheckpoint('Focus mode has been activated!');
+
+	// A message sent in the pause between the focus card and the server's automatic
+	// follow-up waits in the queue and is answered; it is never refused.
+	await test.step('Message sent right after activation is answered, not refused', async () => {
+		const assistantCountBefore = await page.getByTestId('message-assistant').count();
+		await dismissVisibleNotifications(page);
+		await sendMessage(
+			page,
+			withMockMarker('Please also keep the advice practical and short.', 'focus_career_followup'),
+			logCheckpoint,
+			takeStepScreenshot,
+			'ui-right-after-activation'
+		);
+		await waitForAssistantIdle(page, logCheckpoint);
+		// The queued message is answered once the assistant is ready: the whole
+		// exchange ends idle, with an answer after it and no refusal notice.
+		await expect(page.getByTestId('message-assistant').last()).toBeVisible();
+		expect(await page.getByTestId('message-assistant').count()).toBeGreaterThan(assistantCountBefore);
+		await expect(page.getByText(/could not continue with this message/i)).toHaveCount(0);
+	});
 
 	// Wait for AI streaming to fully complete. The send button only exists while
 	// the editor has content, so do not use it as an idle signal after a send.

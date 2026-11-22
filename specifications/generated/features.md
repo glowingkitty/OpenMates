@@ -18,7 +18,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Web | 4 | 0 | 21 | 53 | 11 | 19 | 0 | 0 | 0 | 19 |
+| Web | 4 | 0 | 20 | 54 | 11 | 19 | 0 | 0 | 0 | 19 |
 | Apple | 0 | 14 | 36 | 5 | 0 | 39 | 6 | 7 | 0 | 20 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
 | CLI | 0 | 0 | 17 | 8 | 27 | 41 | 2 | 2 | 0 | 30 |
@@ -89,7 +89,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [PII Placeholder Protection](#pii-protection) | **FAIL** 9/13 | partial 4/13 |  | partial 2/13 | **live** 1/1 | not run 0/1 | not run 0/1 | not run 0/1 | on (no flag) | on (no flag) | v0.5.0-alpha |
 | [Public Example Chats](#public-example-chats) | **FAIL** 4/9 | tested 1/1 |  | not run 0/1 | — | not run 0/2 | — | — | on (no flag) | on (no flag) | v0.8.0-alpha |
 | [Public News, Blog, Press, and Social Publications](#public-publications) | **FAIL** 1/9 | — |  | — | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
-| [Queued Chat Follow-ups and Steering](#chat-queued-followups) | partial 4/5 | **FAIL** 3/5 |  | partial 1/5 | wip | partial 4/5 | — | — | on (no flag) | on (no flag) | untagged-main |
+| [Queued Chat Follow-ups and Steering](#chat-queued-followups) | **FAIL** 3/5 | **FAIL** 3/5 |  | partial 1/5 | wip | partial 4/5 | — | — | on (no flag) | on (no flag) | untagged-main |
 | [Safety Strikes, Suspension, Appeal and Policy Account Deletion](#safety-strikes) | partial 1/22 | planned |  | — | — | partial 14/22 | — | — | on (no flag) | on (no flag) | unverified |
 | [Settings UI](#settings-ui) | **FAIL** 1/10 | partial 6/10 | not run 0/2 | — | impl | not run 0/1 | — | — | on (no flag) | on (no flag) | v0.8.0-alpha |
 | &nbsp;&nbsp;↳ Settings shell and routing | **FAIL** 0/1 | tested 1/1 | ? | — | ? | ? | — | — | | | |
@@ -2522,7 +2522,7 @@ Send follow-ups while the assistant is working, edit them across devices, steer 
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 4/5 | 4 pass · 0 fail · 1 not run · 0 no test | [chat-interrupted-followup.spec.ts](../../frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts)<br>[chat-queued-followups-same-tab.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups-same-tab.spec.ts)<br>[chat-queued-followups.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups.spec.ts)<br>[queued-followup-controls.spec.ts](../../frontend/apps/web_app/tests/components/queued-followup-controls.spec.ts)<br>11 unit test file(s), e.g. [chatSyncServiceHandlersAI.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts), [chatSyncServiceHandlersPhasedSync.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts) |
+| Web | **FAIL** 3/5 | 3 pass · 1 fail · 1 not run · 0 no test | [chat-interrupted-followup.spec.ts](../../frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts)<br>[chat-queued-followups-same-tab.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups-same-tab.spec.ts)<br>[chat-queued-followups.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups.spec.ts)<br>[queued-followup-controls.spec.ts](../../frontend/apps/web_app/tests/components/queued-followup-controls.spec.ts)<br>[focus-mode-ui-after-activation.spec.ts](../../frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts)<br>11 unit test file(s), e.g. [chatSyncServiceHandlersAI.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts), [chatSyncServiceHandlersPhasedSync.test.ts](../../frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts)<br>❌ [focus-mode-ui-after-activation.spec.ts › focus mode UI elements work correctly after activation](../../frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts › focus mode UI elements work correctly after activation) |
 | Apple | **FAIL** 3/5 | 3 pass · 2 fail · 0 not run · 0 no test | [QueuedFollowupUITests.swift](../../apple/OpenMatesUITests/QueuedFollowupUITests.swift)<br>3 unit test file(s), e.g. [ChatSendPipelineParityTests.swift](../../apple/OpenMatesTests/ChatSendPipelineParityTests.swift), [ChatStreamingLifecycleParityTests.swift](../../apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift)<br>❌ [ChatStreamingLifecycleParityTests.swift › testQueuedSnapshotHydratesAndStartedReceiptRejectsLateQueuedStatus](../../apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift › testQueuedSnapshotHydratesAndStartedReceiptRejectsLateQueuedStatus) |
 | CLI | partial 1/5 | 1 pass · 0 fail · 1 not run · 3 no test | [chat-queued-followups-protocol.spec.ts](../../frontend/apps/web_app/tests/chat-queued-followups-protocol.spec.ts)<br>[cli-recovery-discovery.spec.ts](../../frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts)<br>1 unit test file(s), e.g. [client.test.ts](../../frontend/packages/openmates-cli/tests/client.test.ts) |
 | TUI | wip | — | — |

@@ -10,8 +10,8 @@ summary:
   status_by_surface:
     web:
       live: 4
-      partial: 21
-      failing: 53
+      partial: 20
+      failing: 54
       not_run: 11
       implemented: 19
       not_planned: 19
@@ -2376,21 +2376,24 @@ features:
   assertions: 5
   surfaces:
     web:
-      status: partial
+      status: failing
       source: tests
       intent: implemented
       assertions:
-        passing: 4
-        failing: 0
+        passing: 3
+        failing: 1
         not_run: 1
         missing: 0
         counted: 5
+      failing_tests:
+      - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts › focus mode UI elements work correctly after activation
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-interrupted-followup.spec.ts
       - frontend/apps/web_app/tests/chat-queued-followups-same-tab.spec.ts
       - frontend/apps/web_app/tests/chat-queued-followups.spec.ts
       - frontend/apps/web_app/tests/components/queued-followup-controls.spec.ts
+      - frontend/apps/web_app/tests/focus-mode-ui-after-activation.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts

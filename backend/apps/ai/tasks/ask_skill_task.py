@@ -855,6 +855,34 @@ async def _ack_running_recovery_queue_prefix(
     return True
 
 
+async def _ack_own_legacy_queue_prefix(
+    *, request_data: AskSkillRequest, task_id: str, queued_lease: dict,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> bool:
+    """Close the queued batch this very task is already answering.
+
+    The sender may have dispatched this deterministic batch task before its own
+    durable start receipt and prefix ACK finished (for example while the
+    message row was still being persisted). The still-unacked prefix is then
+    this task's own input, not a follower: release it instead of storing a
+    second hand-off for the same batch.
+    """
+    if (request_data.is_incognito or request_data.is_external or request_data.is_anonymous
+            or any(m.get("user_id") != request_data.user_id for m in queued_lease["messages"])):
+        return False
+    ids, _ = _validated_queued_messages(request_data, queued_lease)
+    proof = _legacy_queued_batch_proof(request_data, queued_lease, ids)
+    if proof["celery_task_id"] != task_id:
+        return False
+    await _mark_queued_prefix_started(
+        cache_service, directus_service, queued_lease, request_data.user_id,
+        request_data.team_id_hash, task_id,
+    )
+    if not await cache_service.acknowledge_queued_message_prefix(request_data.chat_id, queued_lease):
+        raise RequiredRecoveryOutputError("Running queued batch prefix ACK failed")
+    return True
+
+
 async def resume_legacy_queued_handoff(
     *, cache_service: CacheService, directus_service: DirectusService,
     chat_id: str, actor_user_id: str, hashed_team_id: Optional[str],
@@ -4655,6 +4683,20 @@ async def _async_process_ai_skill_ask_task(
                     directus_service=directus_service_instance,
                 )
             queued_messages = []
+        elif queued_messages and await _ack_own_legacy_queue_prefix(
+            request_data=request_data, task_id=authority_task_id,
+            queued_lease=queued_lease, cache_service=cache_service_instance,
+            directus_service=directus_service_instance,
+        ):
+            # Our own batch: the next lease (if any) holds only real followers.
+            queued_lease = await cache_service_instance.lease_queued_message_prefix(
+                request_data.chat_id, limit=20,
+            )
+            queued_messages = queued_lease["messages"] if queued_lease else []
+            if not queued_messages:
+                await _complete_active_ai_turn_if_queue_empty(
+                    cache_service_instance, request_data, task_id, main_processor_debug_metadata,
+                )
         
         if queued_messages and len(queued_messages) > 0:
             logger.info(f"[Task ID: {task_id}] Found {len(queued_messages)} queued message(s) for chat {request_data.chat_id}. Processing combined message (post-processing will continue in parallel).")
