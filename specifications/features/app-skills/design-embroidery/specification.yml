@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.app-skill.design-embroidery
 version: 1
-status: draft
+status: approved
 title: Design Embroidery Skill
 summary: >
   Design Embroidery turns a vector graphic that already exists in the chat into

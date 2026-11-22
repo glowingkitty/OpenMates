@@ -1340,7 +1340,7 @@ Scheduled test runs with critical flows first, truthful outcomes and recovery.
 
 Find icons and visual assets, and read your Figma or Penpot designs to build them.
 
-- Specifications: [feature.app-skill.design-embroidery](../../specifications/features/app-skills/design-embroidery/specification.yml) (draft), [feature.app-skills.design-figma](../../specifications/features/app-skills/design-figma/specification.yml) (draft) · 30 assertion(s)
+- Specifications: [feature.app-skill.design-embroidery](../../specifications/features/app-skills/design-embroidery/specification.yml) (approved), [feature.app-skills.design-figma](../../specifications/features/app-skills/design-figma/specification.yml) (draft) · 30 assertion(s)
 - Apps: `design`
 - Flags: `app:design` · dev on · prod on · release v0.19.0
 

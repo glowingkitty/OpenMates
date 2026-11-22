@@ -11990,7 +11990,7 @@ features:
   description: Find icons and visual assets, and read your Figma or Penpot designs to build them.
   specifications:
   - id: feature.app-skill.design-embroidery
-    status: draft
+    status: approved
     path: specifications/features/app-skills/design-embroidery
   - id: feature.app-skills.design-figma
     status: draft
