@@ -436,6 +436,16 @@ describe('browser PII runtime lifecycle', () => {
     expect(context.deadline! - Date.now()).toBeGreaterThan(WEB_PII_SCAN_BUDGET_MS);
   });
 
+  // contract-test: supporting surface=gui.web assertions=pii.web.local-bounded-inference
+  it('flags a preview that ran out of its budget so the composer can finish the check in the background', async () => {
+    vi.useFakeTimers();
+    const context: { purpose: 'preview'; budgetExceeded?: boolean } = { purpose: 'preview' };
+    const preview = detectPIIForWeb('Jonas Albrecht', {}, context);
+    await vi.advanceTimersByTimeAsync(WEB_PII_SCAN_BUDGET_MS);
+    await expect(preview).resolves.toEqual(basicDetector.detectPII('Jonas Albrecht'));
+    expect(context.budgetExceeded).toBe(true);
+  });
+
   // contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.web.local-bounded-inference
   it('a send waits for a slow model past the preview budget and returns the names it finds', async () => {
     vi.useFakeTimers();

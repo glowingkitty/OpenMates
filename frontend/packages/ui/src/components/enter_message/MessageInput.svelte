@@ -157,11 +157,12 @@
     
     // PII Detection
     import { detectPII, restorePIIInText, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
-    import { detectPIIForWeb, preloadWebPIIDetector, resetWebPIIDetector, isWebPIIModelEnabled, isWebPIIModelSupported, webPIIDetectorState } from './services/webPIIDetectionService';
+    import { detectPIIForWeb, preloadWebPIIDetector, resetWebPIIDetector, isWebPIIModelEnabled, isWebPIIModelSupported, webPIIDetectorState, type WebPIIScanContext } from './services/webPIIDetectionService';
     import { mergeWebPIIMatches } from './services/webPIIMatches';
     import { piiScanText } from './services/piiScanText';
     import { claimWebPIIFallbackNotice } from './services/webPIIFallbackNotice';
     import PIIWarningBanner from './PIIWarningBanner.svelte';
+    import { carryOverModelMatches } from './services/piiModelCarryOver';
     import { createComposerInteractionFocusHold } from './services/composerInteractionFocusHold';
     // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
     import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
@@ -1278,6 +1279,14 @@
     });
     // Debounce timer for PII detection - safety net fallback for edge cases
     let piiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    /** Drops the banner and highlights of sent text and cancels any scan still running for it. */
+    function clearPIIPreviewState() {
+        piiPreviewGeneration += 1;
+        if (piiDebounceTimer) { clearTimeout(piiDebounceTimer); piiDebounceTimer = null; }
+        detectedPII = [];
+        currentPIIDecorations = [];
+        lastPIIText = '';
+    }
     // Fallback debounce: if no delimiter is typed for this long, run detection anyway.
     // This catches edge cases like slow typing followed by an immediate send.
     const PII_DEBOUNCE_MS = isWebPIIModelEnabled() ? 400 : 800;
@@ -3410,11 +3419,22 @@
         // Keep known secrets responsive while the on-device model starts.
         // Full basic protection stays immediate during download and on failure.
         // The same hybrid adapter reserves exclusions before adding model spans.
+        const previousMatches = detectedPII;
+        const withModelCarryOver = (basic: PIIMatch[]) => carryOverModelMatches(
+            previousMatches, scanText, basic, detectionOptions.excludedIds ?? new Set());
         publish(isWebPIIModelEnabled()
-            ? mergeWebPIIMatches(scanText, [], detectionOptions)
+            ? withModelCarryOver(mergeWebPIIMatches(scanText, [], detectionOptions))
             : detectPII(scanText, detectionOptions));
         try {
-            publish(await detectPIIForWeb(scanText, detectionOptions, { purpose: 'preview' }));
+            const previewContext: WebPIIScanContext = { purpose: 'preview' };
+            const previewMatches = await detectPIIForWeb(scanText, detectionOptions, previewContext);
+            publish(previewContext.budgetExceeded ? withModelCarryOver(previewMatches) : previewMatches);
+            if (previewContext.budgetExceeded && stillCurrent()) {
+                // The bounded preview ran out of time. The send waits for the
+                // model and replaces its spans, so finish the check in the
+                // background and show those spans once they are known.
+                publish(await detectPIIForWeb(scanText, detectionOptions, { purpose: 'document' }));
+            }
         } catch {
             // Final send independently verifies this snapshot and blocks on model
             // failure. A preview must never log the SDK exception or private text.
@@ -6352,6 +6372,11 @@
             (value) => {
                 hasContent = value;
                 refreshDraftPreviewState(editor);
+                // The send empties the editor without an update event, so the PII scan
+                // never sees the empty text: drop the banner and highlights right here
+                // instead of when the server accepts the send. A rejected send restores
+                // the draft and rescans it (lastPIIText is reset).
+                if (!value && !editor.isDestroyed && editor.isEmpty) clearPIIPreviewState();
             },
             currentChatId,
             piiExclusions, // Pass PII exclusions so excluded matches are not replaced
@@ -6431,8 +6456,9 @@
         })) return true;
         dismissFocus();
         
-        // Clear PII state after sending
-        detectedPII = [];
+        // Clear PII state after sending; a preview still running for the sent
+        // text must not bring the banner back.
+        clearPIIPreviewState();
         piiExclusions = new Set();
         // Clear the URL ignore list — a new message starts with a clean slate
         ignoredEmbedUrls = new Set();
@@ -7027,6 +7053,7 @@
         hasContent = !isContentEmptyExceptMention(editor);
         refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
+        piiPreviewGeneration += 1;
         detectedPII = [];
         currentPIIDecorations = [];
         lastPIIText = '';

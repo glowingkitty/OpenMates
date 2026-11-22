@@ -20,7 +20,9 @@ export const WEB_PII_MAX_ENHANCED_CHARS = 2_048;
 // a loaded host). Text past the budget keeps the basic detector's result.
 export const WEB_PII_DOCUMENT_BUDGET_MS = 30_000;
 export const WEB_PII_MAX_DOCUMENT_CHARS = 200_000;
-export interface WebPIIScanContext { purpose?: 'preview' | 'send' | 'document'; deadline?: number; enhancedEnabled?: boolean; failureRetried?: boolean }
+export interface WebPIIScanContext { purpose?: 'preview' | 'send' | 'document'; deadline?: number; enhancedEnabled?: boolean; failureRetried?: boolean; budgetExceeded?: boolean }
+/** A bounded scan ran out of time; the caller may refine in the background. */
+export class WebPIIBudgetError extends Error { constructor() { super('Enhanced private data detection exceeded its time budget'); } }
 /** One captured send: every text field waits for the model, without a time budget. */
 export function createWebPIIScanContext(): WebPIIScanContext { return { purpose: 'send', enhancedEnabled: isWebPIIModelEnabled() }; }
 /** One budget for every text field of a pasted or attached document. */
@@ -152,7 +154,7 @@ function isScanDone(scan: Scan): boolean { return scan.phase === 'done'; }
 function expireScan(scan: Scan): boolean {
   if (Date.now() < scan.deadline) return false;
   state.set({ ...get(state), fallbackReason: 'timeout' });
-  scan.reject(new Error('Enhanced private data detection exceeded its time budget'));
+  scan.reject(new WebPIIBudgetError());
   return true;
 }
 /**
@@ -270,6 +272,7 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
   const remaining = context.deadline - Date.now();
   if (remaining <= 0) {
     state.set({ ...get(state), fallbackReason: 'timeout' });
+    context.budgetExceeded = true;
     return basic;
   }
   if (queue.length >= 32) {
@@ -296,7 +299,7 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
           if (index !== -1) queue.splice(index, 1);
           state.set({ ...get(state), fallbackReason: 'timeout' });
         }
-        scan.reject(new Error('Enhanced private data detection exceeded its time budget'));
+        scan.reject(new WebPIIBudgetError());
       }, remaining) : undefined;
       queue.push(scan);
       void drain();
@@ -307,6 +310,7 @@ export async function detectPIIForWeb(text: string, options: PIIDetectionOptions
     // Logout, disabling protection and reset/retry invalidate ownership. Never
     // turn cancelled work into a successful fallback from an obsolete request.
     if (operationGeneration !== generation || isSend) throw error;
+    if (error instanceof WebPIIBudgetError) context.budgetExceeded = true;
     return basic;
   }
 }
