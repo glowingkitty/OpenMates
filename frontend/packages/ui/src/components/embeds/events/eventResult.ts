@@ -1,5 +1,5 @@
 /** Event children arrive as nested legacy JSON or flattened persisted TOON. */
-import type { AuthoredResultMetadata } from '../../../types/authoredResult';
+import type { AuthoredResultMetadata, AuthoredResultPresentationContext } from '../../../types/authoredResult';
 import { isAllDayDate, parseCalendarEventDate } from '../../../utils/calendarEvent';
 export interface EventResult extends Record<string, unknown> {
   embed_id: string;
@@ -191,4 +191,15 @@ export function eventResultSourceDomain(value: unknown): string | undefined {
   if (!safe) return;
   const host = new URL(safe).hostname.replace(/^www\./i, '');
   return host || undefined;
+}
+
+/**
+ * The content that describes this event. Only an authored-result context belongs
+ * to the event itself: every registry fullscreen also provides the context with its
+ * own content, so a card or detail view inside the Events search fullscreen would
+ * otherwise read the parent search (no title) and render a blank event.
+ */
+export function ownEventContent<T>(presentation: AuthoredResultPresentationContext | undefined, own: T): Record<string, unknown> | T {
+  if (!presentation?.authoring) return own;
+  return presentation.presentationContent ?? presentation.content;
 }

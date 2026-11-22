@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eventResultSourceDomain, normalizeEventResult, projectVisibleEventResult, validEventCoordinates } from '../eventResult';
+import { eventResultSourceDomain, normalizeEventResult, ownEventContent, projectVisibleEventResult, validEventCoordinates } from '../eventResult';
 
 // contract-test: supporting surface=gui.web assertions=events-search.surface-parity
 describe('event serialization normalization', () => {
@@ -106,4 +106,25 @@ it('labels the open-website action with the bare hostname and rejects unsafe lin
   expect(eventResultSourceDomain('https://events.linuxfoundation.org/kubecon')).toBe('events.linuxfoundation.org');
   expect(eventResultSourceDomain('javascript:alert(1)')).toBeUndefined();
   expect(eventResultSourceDomain(undefined)).toBeUndefined();
+});
+
+describe('own event content inside a parent fullscreen', () => {
+  const own = { title: 'FOSDEM 2027', date_start: '2027-01-30' };
+  const parentSearch = { query: 'open source conferences', embed_ids: ['event-1'] };
+
+  // contract-test: supporting surface=gui.web assertions=events-search.results.actionable
+  it('ignores the Events search context so a grid card or its detail view shows its own event', () => {
+    expect(ownEventContent({ authoring: undefined, content: parentSearch, presentationContent: parentSearch }, own)).toBe(own);
+    expect(normalizeEventResult(ownEventContent({ authoring: undefined, content: parentSearch }, own) as Record<string, unknown>).title).toBe('FOSDEM 2027');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=events-search.results.actionable
+  it('uses an authored result context, preferring its mounted presentation content', () => {
+    const authoring = { schema_version: 1, kind: 'events.event', sources: [] } as never;
+    const authored = { title: 'Authored meetup' };
+    const presented = { title: 'Authored meetup', image_url: 'blob:owned' };
+    expect(ownEventContent({ authoring, content: authored, presentationContent: presented }, own)).toBe(presented);
+    expect(ownEventContent({ authoring, content: authored }, own)).toBe(authored);
+    expect(ownEventContent(undefined, own)).toBe(own);
+  });
 });

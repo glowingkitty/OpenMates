@@ -13,7 +13,7 @@
 <script lang="ts">
   import { getContext } from 'svelte';
   import { AUTHORED_RESULT_PRESENTATION_CONTEXT, type AuthoredResultPresentationContext } from '../../../types/authoredResult';
-  import { formatEventResultDate, formatEventResultTime, isEventDateOnly, eventResultSourceDomain, eventResultSourceUrl, normalizeEventResult, validEventCoordinates, projectVisibleEventResult } from './eventResult';
+  import { formatEventResultDate, formatEventResultTime, isEventDateOnly, eventResultSourceDomain, eventResultSourceUrl, normalizeEventResult, ownEventContent, validEventCoordinates, projectVisibleEventResult } from './eventResult';
   import { eventCalendarInput, downloadEventResultCalendarFile } from './eventCalendar';
   import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
@@ -52,7 +52,7 @@
   // Must be $derived so it updates when navigating between results (prev/next).
   // Handles both nested venue object (from search transformer) and flat TOON fields
   // (venue_lat, venue_lon, etc. — from _flatten_for_toon_tabular in embed_service.py).
-  let dc = $derived(presentation?.presentationContent ?? presentation?.content ?? data.decodedContent);
+  let dc = $derived(ownEventContent(presentation, data.decodedContent));
 
   let event = $derived(normalizeEventResult(dc ?? {}, embedId || data.focusChildEmbedId || String(data.attrs?.id || data.embedData?.embed_id || '')));
   const calendarInput = $derived(eventCalendarInput(event));

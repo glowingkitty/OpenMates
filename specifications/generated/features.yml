@@ -12640,8 +12640,8 @@ features:
       - frontend/apps/web_app/tests/components/skill-failure-feedback.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/embeds/events/EventEmbedPreview.test.ts
-      - backend/tests/test_preprocessor_skill_resolver.py
       - frontend/packages/ui/src/components/embeds/events/__tests__/eventResult.test.ts
+      - backend/tests/test_preprocessor_skill_resolver.py
       - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/__tests__/GroupRenderer.test.ts
       - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
       unit_test_files: 6
