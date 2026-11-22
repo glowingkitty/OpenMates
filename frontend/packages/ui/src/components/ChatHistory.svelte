@@ -4285,6 +4285,13 @@ import { storageArchiveFetch } from "../config/api";
     justify-content: center;
   }
 
+  /* A system event shown above its assistant reply (e.g. "Created <name> project · Undo")
+     takes its own full-width line instead of a stretched column beside the message. */
+  .message-wrapper:has(> .context-entry-row) {
+    flex-wrap: wrap;
+    row-gap: var(--spacing-3, 8px);
+  }
+
   .message-wrapper.compression-boundary-wrapper {
     flex-direction: column;
     align-items: center;

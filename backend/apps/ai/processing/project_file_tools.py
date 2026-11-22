@@ -256,6 +256,7 @@ def build_project_file_tools() -> list[dict[str, Any]]:
                 "name": "project_read_text",
                 "description": (
                     "Read complete UTF-8 text files from the active Project and return each current base hash. "
+                    "Give `path` for one file or `paths` for several. "
                     "To read several files, pass them together in `paths` (at most 10) in ONE call "
                     "instead of calling this tool once per file."
                 ),
@@ -269,7 +270,9 @@ def build_project_file_tools() -> list[dict[str, Any]]:
                         },
                         "source_id": source_property,
                     },
-                    "anyOf": [{"required": ["path"]}, {"required": ["paths"]}],
+                    # Give `path` or `paths`. No anyOf of required-only branches here: Gemini's
+                    # function schema rejects them (400 "required: only allowed for OBJECT type").
+                    # A call with neither is refused by the executor.
                 },
             },
         },

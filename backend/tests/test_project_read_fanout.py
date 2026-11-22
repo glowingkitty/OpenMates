@@ -48,3 +48,27 @@ def test_read_tool_schema_accepts_paths() -> None:
     tools = build_project_file_tools(**kwargs)
     read = next(t for t in tools if t["function"]["name"] == "project_read_text")
     assert read["function"]["parameters"]["properties"]["paths"]["maxItems"] == 10
+
+
+def _schema_nodes(node):
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from _schema_nodes(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from _schema_nodes(value)
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.search-scoped
+def test_project_tool_schemas_are_accepted_by_gemini() -> None:
+    # Gemini rejects the whole request (400 "required: only allowed for OBJECT type") when a
+    # schema branch lists `required` without being an object, e.g. anyOf: [{"required": ["path"]}].
+    import inspect
+    params = inspect.signature(build_project_file_tools).parameters
+    kwargs = {name: None for name, p in params.items() if p.default is inspect._empty}
+    for tool in build_project_file_tools(**kwargs):
+        for node in _schema_nodes(tool["function"]["parameters"]):
+            if "required" in node:
+                assert node.get("type") == "object", (tool["function"]["name"], node)
+                assert set(node["required"]) <= set(node.get("properties", {})), (tool["function"]["name"], node)
