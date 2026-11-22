@@ -25,7 +25,21 @@ Issue chats run on `claude-opus-5-5` at `medium` effort
 (`CLAUDE_DISPATCH_ISSUE_MODEL`, `CLAUDE_DISPATCH_ISSUE_EFFORT`). Production
 chat-failure chats and every other chat started through `launch_claude_chat`
 (the private voice connector, daily-meeting decision handovers) default to
-`claude-opus-5-5` at `high` effort (`CLAUDE_DISPATCH_MODEL`, `CLAUDE_DISPATCH_EFFORT`).
+`claude-opus-5-5` at `medium` effort (`CLAUDE_DISPATCH_MODEL`, `CLAUDE_DISPATCH_EFFORT`).
+
+Effort cap (owner, 2026-11-22): no chat runs above `medium`. `cap_effort` lowers
+`high`, `xhigh`, `max` and unknown values, including environment overrides and
+queued starts. A resumed chat (waiter, WIP wake-up, connector reopen) keeps its
+original effort from its transcript (`chat_effort`), capped at `medium`.
+
+Weekly usage model switch (owner, 2026-11-22): from 70% weekly Claude usage until
+the weekly reset, every new chat started through `launch_claude_chat` or the
+connector starts on `claude-sonnet-5-5`, unless the owner named a model
+(`explicit_model`). Running and resumed chats keep their model. The usage guard
+service (`scripts/claude_usage_guard.py`) records each reading in
+`scripts/claude_weekly_model.py` (state `~/.cache/openmates/usage-guard/weekly-model.json`)
+and sends one short push to the owner when the switch starts and one when it
+ends at the reset; `python3 scripts/claude_weekly_model.py status` shows it.
 
 Fable (`claude-fable-5-2`) is never a default: `launch_claude_chat` refuses it
 unless the caller relays an explicit user request (`explicit_model=True`), also

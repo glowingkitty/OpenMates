@@ -12,13 +12,15 @@ Two cron-driven entry points (see docs/architecture/infrastructure/claude-dispat
                and opens one investigation chat for new failure fingerprints.
 
 Each chat runs ``claude --remote-control <title> --model <model> --effort <effort> <prompt>``
-(issue chats: claude-opus-5-5 at medium effort; prod-errors chats: claude-opus-5-5 at high effort)
+(every chat at most medium effort, never high: owner, 2026-11-22; see cap_effort)
 in its own tab of the persistent zellij session ``claude`` (created on demand,
 with a ``claude remote-control`` bridge tab), from the canonical checkout. It
 appears in the owner's Claude app and stays online while it waits for the
 admin's input. ``--bg`` is not used: background jobs retire after ~8h idle.
 
-Model policy: every chat started here defaults to Opus. Fable is much more
+Model policy: every chat started here defaults to Opus; while the weekly Claude usage is at
+or above 70% every NEW chat starts on Sonnet until the weekly reset, unless the owner named a
+model (scripts/claude_weekly_model.py). Running and resumed chats keep their model. Fable is much more
 expensive and runs only when a caller passes ``explicit_model=True`` for a user's
 explicit request (e.g. the voice connector's ``start_chat`` with model Fable);
 ``launch_claude_chat`` refuses it otherwise, including from environment overrides.
@@ -43,6 +45,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+if str(Path(__file__).resolve().parent) not in sys.path:  # imported as scripts.claude_dispatch by the tests
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+import claude_weekly_model  # noqa: E402 - sibling script, found through the path line above
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 STATE_ROOT = Path(os.getenv("CLAUDE_DISPATCH_ROOT", REPO_ROOT / "logs" / "claude-dispatch"))
 QUEUE_DIR = STATE_ROOT / "queue"
@@ -53,9 +59,20 @@ PENDING_DIR = STATE_ROOT / "pending"  # chats waiting for a free slot (claude_id
 ADMIT_TIMEOUT_SECONDS = 300
 DEFAULT_CHAT_MODEL = "claude-opus-5-5"
 CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_MODEL", DEFAULT_CHAT_MODEL)
-CLAUDE_EFFORT = os.getenv("CLAUDE_DISPATCH_EFFORT", "high")
+EFFORT_ORDER = ("low", "medium", "high", "xhigh", "max")
+MAX_EFFORT = "medium"  # owner, 2026-11-22: no chat runs above medium, whoever starts or resumes it
+
+
+def cap_effort(effort: str) -> str:
+    """The effort a chat runs at: `effort`, never above MAX_EFFORT (unknown values run at MAX_EFFORT)."""
+    if effort in EFFORT_ORDER and EFFORT_ORDER.index(effort) <= EFFORT_ORDER.index(MAX_EFFORT):
+        return effort
+    return MAX_EFFORT
+
+
+CLAUDE_EFFORT = cap_effort(os.getenv("CLAUDE_DISPATCH_EFFORT", MAX_EFFORT))
 ISSUE_CLAUDE_MODEL = os.getenv("CLAUDE_DISPATCH_ISSUE_MODEL", DEFAULT_CHAT_MODEL)
-ISSUE_CLAUDE_EFFORT = os.getenv("CLAUDE_DISPATCH_ISSUE_EFFORT", "medium")
+ISSUE_CLAUDE_EFFORT = cap_effort(os.getenv("CLAUDE_DISPATCH_ISSUE_EFFORT", MAX_EFFORT))
 
 
 def resolve_claude_bin() -> str:
@@ -291,6 +308,8 @@ def launch_claude_chat(
     it once a slot frees. A chat is never dropped.
     """
     check_chat_model(model, explicit_model)
+    model = claude_weekly_model.new_chat_model(model, explicit_model)
+    effort = cap_effort(effort)
     prompt = with_push_rule(prompt)
     why = admit_new_chat()
     if why:
@@ -300,14 +319,33 @@ def launch_claude_chat(
     return _open_chat_tab(title, prompt, model, effort, change_scope)
 
 
+def chat_effort(transcript: Path) -> str:
+    """The effort a resumed chat runs at: its original effort (first assistant record), capped."""
+    try:
+        with transcript.open(encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                if '"effort"' not in line:
+                    continue
+                try:
+                    effort = json.loads(line).get("effort")
+                except (ValueError, AttributeError):
+                    continue
+                if effort:
+                    return cap_effort(str(effort))
+    except OSError:
+        pass
+    return CLAUDE_EFFORT
+
+
 def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, title: str = "",
                 admitted: bool = False) -> str:
     """Reopen a stopped chat in a new tab with `prompt` as its next message; 'ok' or why not.
 
     Used by scripts/worktree_wip.py to wake the owner of unfinished worktree work and by
     the chat lifecycle when a chat's wait is over (scripts/claude_chat_waiters.py). The
-    chat keeps its history (`--resume`) and its model, except Fable, which reopens on the
-    default. It is never queued: with no free slot the caller retries on its next run.
+    chat keeps its history (`--resume`), its model (except Fable, which reopens on the
+    default) and its original effort, capped at MAX_EFFORT. It is never queued: with no
+    free slot the caller retries on its next run.
     `admitted`: the caller (the lifecycle itself) already checked the cap of running
     chats; `admit` would start a second lifecycle cycle inside the first.
     """
@@ -317,7 +355,7 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, titl
     transcripts = sorted(projects.glob(f"*/{chat_id}.jsonl"))
     if not transcripts:
         return "no transcript on this host"
-    cwd, model = "", ""
+    cwd, model, effort = "", "", ""
     with transcripts[0].open(encoding="utf-8", errors="replace") as handle:
         for line in handle:
             try:
@@ -327,6 +365,7 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, titl
             cwd = cwd or str(record.get("cwd") or "")
             message = record.get("message") if isinstance(record.get("message"), dict) else {}
             model = str(message.get("model") or model)
+            effort = effort or str(record.get("effort") or "")  # the chat's original effort
     if not cwd or not Path(cwd).is_dir():
         return f"its folder is gone ({cwd or 'unknown'})"
     model = model if model.startswith("claude-") and not is_fable(model) else CLAUDE_MODEL
@@ -337,7 +376,7 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, titl
     ensure_zellij_session()
     _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", cwd, "--",
             *_chat_command("--resume", chat_id, "--remote-control", title, "--model", model,
-                           "--effort", CLAUDE_EFFORT, "--permission-mode", "auto", prompt))
+                           "--effort", cap_effort(effort or CLAUDE_EFFORT), "--permission-mode", "auto", prompt))
     _record_launch({"kind": "waiter-resume" if admitted else "worktree-wip-resume", "title": title, "model": model,
                     "chat": chat_id})
     subprocess.run([sys.executable, str(REPO_ROOT / "scripts" / "claude_idle_chats.py"), "mark",
@@ -346,6 +385,7 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, titl
 
 
 def _open_chat_tab(title: str, prompt: str, model: str, effort: str, change_scope: str = "") -> str:
+    effort = cap_effort(effort)  # queued entries written before the cap run at most medium too
     command = _chat_command(
         "--remote-control", title, "--model", model, "--effort", effort, "--permission-mode", "auto", prompt,
     )

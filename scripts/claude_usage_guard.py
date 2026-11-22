@@ -38,6 +38,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import claude_weekly_model
 from agent_peers import repository_root, transcripts
 
 THRESHOLD_PERCENT = 90.0
@@ -502,6 +503,11 @@ def main(argv: list[str] | None = None) -> int:
         rules[PACE_TIER] = (0.0, 0.0)  # pace threshold is computed from the time left, see run_check
 
     def check_all() -> None:
+        if not args.dry_run:
+            # New chats start on Sonnet from 70% weekly usage until the reset (claude_weekly_model).
+            change = claude_weekly_model.update(*fetch_weekly_usage())
+            if change:
+                log(f"weekly model switch {change}")
         # Reserve first: it is the more urgent message; each tier fires once per window.
         for tier in (RESERVE_TIER, PACE_TIER, WRAPUP_TIER):
             if tier in rules:

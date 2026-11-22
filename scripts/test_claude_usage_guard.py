@@ -12,6 +12,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import claude_usage_guard as guard  # noqa: E402  (path set above)
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _no_weekly_model_push(monkeypatch, tmp_path):
+    """The guard updates the weekly model switch on every check; tests never push or read the real one."""
+    monkeypatch.setenv("OPENMATES_USAGE_GUARD_DIR", str(tmp_path / "usage-guard"))
+    monkeypatch.setattr(guard.claude_weekly_model, "push", lambda text: "")
 
 NOW = datetime(2026, 11, 3, 12, 0, tzinfo=timezone.utc)
 
@@ -267,6 +275,7 @@ def test_pace_message_demands_a_stop_with_progress_and_open_items() -> None:
 def test_pace_tier_is_off_unless_enabled(monkeypatch, capsys) -> None:
     seen: list[str] = []
     monkeypatch.setattr(guard, "run_check", lambda *args, tier=guard.WRAPUP_TIER, **kw: seen.append(tier))
+    monkeypatch.setattr(guard, "fetch_weekly_usage", lambda: (50.0, resets_in(48)))
     assert guard.main(["check"]) == 0
     assert seen == [guard.RESERVE_TIER, guard.WRAPUP_TIER]
     seen.clear()
@@ -274,3 +283,14 @@ def test_pace_tier_is_off_unless_enabled(monkeypatch, capsys) -> None:
     assert seen == [guard.RESERVE_TIER, guard.PACE_TIER, guard.WRAPUP_TIER]
     guard.main(["message"])
     assert "--- pace ---" not in capsys.readouterr().out
+
+
+def test_each_check_updates_the_weekly_model_switch(monkeypatch) -> None:
+    readings: list[float] = []
+    monkeypatch.setattr(guard, "run_check", lambda *args, **kw: None)
+    monkeypatch.setattr(guard, "fetch_weekly_usage", lambda: (72.0, resets_in(48)))
+    monkeypatch.setattr(guard.claude_weekly_model, "update", lambda used, resets: readings.append(used) or "on")
+    assert guard.main(["check"]) == 0
+    assert readings == [72.0]
+    assert guard.main(["check", "--dry-run"]) == 0
+    assert readings == [72.0], "a dry run changes nothing"
