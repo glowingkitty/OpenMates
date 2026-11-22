@@ -2,6 +2,7 @@
 
 import pytest
 
+from backend.apps.plans.skills.create_skill import CreateSkill
 from backend.apps.plans.skills.check_skill import CheckSkill
 from backend.apps.plans.skills.specification_skill import SpecificationSkill
 
@@ -129,3 +130,35 @@ async def test_executor_keeps_check_and_specification_lists_in_one_call(monkeypa
     result = await skill_executor.execute_skill_with_multiple_requests("plans", skill_id, arguments, max_retries=0)
     assert result == [{"status": "ok"}]
     assert captured == [arguments]
+
+
+# contract-test: supporting surface=rest_api assertions=plans.assumptions.investigated-before-work
+@pytest.mark.asyncio
+async def test_plan_create_mints_ids_and_returns_contract_payload():
+    result = await _skill(CreateSkill).execute(
+        title=" Offline notes ", summary="s", goal="g", specification_ref="spec-1",
+        assumptions=[{"text": " Pickup only "}, {"text": "No delivery", "required_before": "task_execution"}],
+        user_id="u1", chat_id="c1", message_id="m1",
+    )
+    action = result.pending_client_action
+    assert result.success and result.plan_id == action["plan_id"]
+    assert action["contract"] == "openmates.plan_create_request" and action["version"] == 1
+    assert action["title"] == "Offline notes" and action["specification_ref"] == "spec-1"
+    assert action["chat_id"] == "c1" and action["message_id"] == "m1" and action["action"] == "create"
+    assert [a["text"] for a in action["assumptions"]] == ["Pickup only", "No delivery"]
+    assert [a["required_before"] for a in action["assumptions"]] == ["implementation", "task_execution"]
+    ids = [a["assumption_id"] for a in action["assumptions"]]
+    assert result.assumption_ids == ids and len(set(ids)) == 2 and result.plan_id not in ids
+
+
+# contract-test: supporting surface=rest_api assertions=plans.assumptions.investigated-before-work
+@pytest.mark.asyncio
+@pytest.mark.parametrize("assumptions,message", [
+    ([{"text": " "}], "requires text"),
+    ([{"text": "x" * 2001}], "exceeds"),
+    ([{"text": "x", "required_before": "never"}], "required_before"),
+    ([{"text": "x"}] * 21, "At most"),
+])
+async def test_plan_create_rejects_invalid_assumptions(assumptions, message):
+    result = await _skill(CreateSkill).execute(title="t", assumptions=assumptions, user_id="u1")
+    assert not result.success and message in result.error and result.pending_client_action is None

@@ -87,6 +87,20 @@ def test_write_specification_is_proposed_automatically_for_new_features():
     assert "bug fix" in focus["preprocessor_hint"]
 
 
+# contract-test: supporting surface=rest_api assertions=focus-modes.guided-spec-authoring,plans.sub-chats.assumption-and-task-chats
+def test_write_specification_handoff_checks_assumptions_and_runs_tasks_in_linked_sub_chats():
+    focus = load_focus_mode_from_skill_md(
+        str(BACKEND / "apps/code/focus_modes/write-specification/SKILL.md"), "code")
+    handoff = next(phase for phase in focus["phases"] if phase["id"] == "handoff")
+    flat = " ".join(handoff["instructions"].split())
+    assert "This chat only coordinates" in flat
+    assert 'link {kind: "assumption", plan_id, id}' in flat
+    assert 'link {kind: "task", plan_id, id}' in flat
+    assert "one sub-chat per assumption" in flat
+    assert "you never research an assumption or implement a Task here yourself" in flat
+    assert {requirement["id"] for requirement in handoff["requirements"]} == {"plan_started", "tasks_delegated"}
+
+
 # contract-test: supporting surface=rest_api assertions=focus-modes.project-layering,focus-modes.natural-request
 def test_main_processor_does_not_let_the_project_base_block_proposals():
     source = (BACKEND / "apps/ai/processing/main_processor.py").read_text()

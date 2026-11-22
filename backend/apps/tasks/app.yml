@@ -68,6 +68,9 @@ skills:
                 type: boolean
                 default: true
                 description: Link to the current chat; false leaves the Task unlinked.
+              plan_id:
+                type: string
+                description: Link this Task to a saved Plan (overrides the top-level plan_id).
               title:
                 type: string
               description:
@@ -88,6 +91,11 @@ skills:
           type: boolean
           default: true
           description: Default chat-link choice for created Tasks; tasks[] can override it.
+        plan_id:
+          type: string
+          description: >
+            Default Plan to link the created Tasks to. The Plan must belong to
+            the user and be saved; a missing Plan fails the call.
         title:
           type: string
           description: Single-task title when not using tasks[].

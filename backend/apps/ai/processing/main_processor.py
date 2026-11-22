@@ -236,9 +236,11 @@ from backend.apps.ai.processing.chat_orchestration_hooks import (
 )
 from backend.apps.ai.processing.focus_mode_routing import (
     brand_naming_research_skill_scope,
+    DEEP_RESEARCH_FOCUS_ID,
     DelegatedPrimaryReadState,
     has_http_source_url,
     gate_tools_for_deep_research,
+    gate_tools_for_spec_handoff,
     resolve_deep_research_tool_choice,
     resolve_automatic_focus_proposal,
     should_expose_subchat_tool,
@@ -256,6 +258,7 @@ from backend.apps.ai.processing.orchestration_skill_gate import (
     is_root_turn_code_run,
     settle_blocked_placeholders,
 )
+from backend.apps.ai.sub_chat_focus_links import annotate_sub_chats
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_AUTO_SUB_CHATS_PER_TURN,
     MAX_AUTO_SUB_CHAT_CREDITS,
@@ -3837,6 +3840,14 @@ async def _charge_skill_credits(
                     logger.error("%s Failed to release operation reservation %s", log_prefix, operation_id, exc_info=True)
 
 
+def _spec_handoff_phase_id(focus_phase_runtimes: list, active_focus_id: str | None) -> str | None:
+    """Current phase of the active built-in focus, used by the spec hand-off tool gate."""
+    for runtime in focus_phase_runtimes:
+        if runtime.state.focus_id == active_focus_id:
+            return runtime.state.phase_id
+    return None
+
+
 def _convert_timestamps_to_human_readable(value: Any) -> Any:
     """
     Recursively converts Unix timestamps in app settings/memories data to human-readable date strings.
@@ -5590,20 +5601,27 @@ async def handle_main_processing(
     if enable_subchats_results:
         sub_chats_instruction = (
             "### Sub-Chats (Sub-Agents) Orchestration Instruction:\n"
-            "You have the unique ability to spawn one or multiple autonomous background sub-chats "
-            "to parallelize complex tasks (such as parallel web research, batch processing, comparative analysis, or dividing a long-form task into sections) "
-            "using the 'start_sub_chats' tool.\n"
-            "When the user asks a complex question that would benefit from parallel or distributed processing (e.g., comparing multiple items, batch looping, or deep multi-topic research), "
-            "you MUST call 'start_sub_chats' to delegate those tasks to sub-agents. Do not attempt to do everything in a single turn if it would benefit from sub-chats.\n"
-            "When spawning sub-chats, provide precise and focused prompts for each sub-chat so they can work independently and efficiently. "
-            "For Deep research, explicitly require web-read of primary sources for material quantitative, causal, and legal claims. "
-            "Give the independent verifier a numbered list of every material provisional quantitative, causal, intent, and legal-status claim with URLs. "
-            "Require the complete compact per-claim audit before prose: supported, qualified, contradicted, or unresolved; exact source URL; "
-            "timeframe, geography, population, metric, and legal status. Omitted or cut-off audit items remain unverified. "
+            "You can delegate work to autonomous background sub-chats with the 'start_sub_chats' tool. "
+            "Sub-chats keep this chat clean: each part runs in its own chat and only its result comes back here.\n"
+            "Delegate when the request is complex and splits into two or more independent, substantial parts that can each be "
+            "done separately, in any focus: several items to compare or process, several research angles, separate coding or "
+            "test tasks, several assumptions to check. Then you MUST call 'start_sub_chats' with one sub-chat per part instead "
+            "of doing all parts in this chat, and afterwards coordinate: summarise the results and ask the user only for the "
+            "decisions that remain. Do not delegate simple, short or single-answer requests, or parts that depend tightly on "
+            "each other; answer those directly.\n"
+            "Give each sub-chat a precise, self-contained prompt so it can work independently. Each sub-chat inherits this chat's "
+            "Project focus; set its focus_id only to add the one specific focus that part needs.\n"
             "If a sub-chat can answer independently, its final assistant response is automatically treated as its completion summary for the parent. "
             "Sub-chats should not call an end function just to finish. If a sub-chat needs clarification from the user, it MUST call 'ask_user_input' with the exact question instead of embedding a marker in normal text. "
             "If the user is complaining about sub-chats or wants you to try starting them, proceed to call 'start_sub_chats' on their request immediately."
         )
+        if request_data.active_focus_id == DEEP_RESEARCH_FOCUS_ID:
+            sub_chats_instruction += (
+                "\nFor Deep research, explicitly require web-read of primary sources for material quantitative, causal, and legal claims. "
+                "Give the independent verifier a numbered list of every material provisional quantitative, causal, intent, and legal-status claim with URLs. "
+                "Require the complete compact per-claim audit before prose: supported, qualified, contradicted, or unresolved; exact source URL; "
+                "timeframe, geography, population, metric, and legal status. Omitted or cut-off audit items remain unverified."
+            )
         prompt_parts.append(sub_chats_instruction)
         tool_only_prompt_parts.append(("start_sub_chats", sub_chats_instruction))
         research_only_prompt_parts.add(sub_chats_instruction)
@@ -5883,6 +5901,7 @@ async def handle_main_processing(
                 "You can specify a list of sub-chats, each with its own prompt. "
                 "Supports loops/templates where you specify a list of items and a prompt_template "
                 "containing '{x}' which will be replaced with each item from the list. "
+                "A sub-chat inherits this chat's Project focus; focus_id may add one specific focus, and link ties it to the Plan assumption or Task it investigates. "
                 "Use execution_mode='sequential' when child tasks could collide, must build on each other, or should run one after another. "
                 f"Start at most {MAX_AUTO_SUB_CHATS_PER_TURN} sub-chats without explicit user approval; "
                 f"larger batches require confirmation. Parallel batches can have at most {MAX_DIRECT_SUB_CHATS_PER_PARENT} direct sub-chats; sequential queues have no direct-child count limit."
@@ -5947,6 +5966,20 @@ async def handle_main_processing(
                                     "enum": ["each", "all"],
                                     "description": "Whether to report back after 'each' sub-chat completes or only after 'all' have completed. Default 'all'.",
                                     "default": "all"
+                                },
+                                "focus_id": {
+                                    "type": "string",
+                                    "description": "Optional one specific focus for this sub-chat, e.g. 'web-research', added on top of the Project focus the sub-chat inherits. Unknown ids are ignored."
+                                },
+                                "link": {
+                                    "type": "object",
+                                    "description": "Optional link to the Plan assumption or Task this sub-chat investigates.",
+                                    "properties": {
+                                        "kind": {"type": "string", "enum": ["assumption", "task"]},
+                                        "plan_id": {"type": "string", "description": "Plan UUID."},
+                                        "id": {"type": "string", "description": "Assumption id or Task id."}
+                                    },
+                                    "required": ["kind", "plan_id", "id"]
                                 }
                             },
                             "required": ["title", "category", "icon"]
@@ -6017,6 +6050,10 @@ async def handle_main_processing(
         logger.info(
             f"{log_prefix} [SUB_CHAT] Deep research first-step gate: exposing only start_sub_chats to force delegated research."
         )
+
+    available_tools_for_llm = gate_tools_for_spec_handoff(
+        available_tools_for_llm, active_focus_id=request_data.active_focus_id,
+        chat_depth=chat_depth, phase_id=_spec_handoff_phase_id(focus_phase_runtimes, request_data.active_focus_id))
 
     if getattr(request_data, "is_anonymous", False):
         from backend.shared.python_utils.anonymous_skill_policy import filter_anonymous_tools
@@ -6830,6 +6867,9 @@ async def handle_main_processing(
                 generated_names = {t.get("function", {}).get("name") for t in candidate_tools}
                 available_tools_for_llm = [t for t in available_tools_for_llm
                     if t.get("function", {}).get("name") not in generated_names] + selected
+                available_tools_for_llm = gate_tools_for_spec_handoff(
+                    available_tools_for_llm, active_focus_id=request_data.active_focus_id, chat_depth=chat_depth,
+                    phase_id=_spec_handoff_phase_id(focus_phase_runtimes, request_data.active_focus_id))
                 allowed_tool_names = set()
                 for tool in available_tools_for_llm:
                     name = str(tool.get("function", {}).get("name") or "")
@@ -10243,6 +10283,11 @@ async def handle_main_processing(
                                         "message": "Delegate exactly three distinct research angles in parallel and wait for all reports. Source verification is dispatched separately by the server."}),
                                 })
                                 continue
+                        await annotate_sub_chats(
+                            spawned_sub_chats, request_data=request_data,
+                            directus_service=directus_service, cache_service=cache_service,
+                            log_prefix=log_prefix,
+                        )
                         existing_sub_chat_count = await count_direct_sub_chats(directus_service, request_data.chat_id)
                         capacity_result = validate_sub_chat_capacity(
                             existing_sub_chat_count,

@@ -13,6 +13,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
+    import SubChatWorkLink from './chats/SubChatWorkLink.svelte';
+    import { loadSubChatWork, type SubChatWork } from './chats/subChatWork';
     import ChatTimelineToggle from './ChatTimelineToggle.svelte';
     import { responseUserMessageId } from '../message_parsing/assistantResponseTurn';
     import SharedAuxiliaryLoadButton from './SharedAuxiliaryLoadButton.svelte';
@@ -7933,6 +7935,19 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     // Closing returns to the parent or workspace without starting a new input session.
     let closingChat = $state(false);
+    // Reverse lookup: the Plan assumption or Task this sub-chat works on.
+    let subChatWork = $state<SubChatWork | null>(null);
+    $effect(() => {
+        const chatId = currentChat?.chat_id;
+        const parentId = currentChat?.parent_id;
+        subChatWork = null;
+        if (!chatId || !parentId) return;
+        let cancelled = false;
+        loadSubChatWork(chatId, parentId)
+            .then((work) => { if (!cancelled) subChatWork = work; })
+            .catch((error) => console.error('[ActiveChat] Failed to resolve sub-chat work link:', error));
+        return () => { cancelled = true; };
+    });
     let chatNavigationPane = $state<HTMLDivElement | null>(null);
     // Workflow editor (WorkflowChatPane): closing it returns to the chat at the scroll position it had when the editor opened.
     const workflowPaneScroll = createChatScrollKeeper();
@@ -14161,6 +14176,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         </VoiceCallBar>
                     {/snippet}
 
+                    {#if subChatWork}<SubChatWorkLink work={subChatWork} onBack={handleCloseChat} />{/if}
                     {#key currentChat?.chat_id ?? temporaryChatId ?? 'new-chat'}
                      <ChatHistory
                           bind:this={chatHistoryRef}

@@ -6010,6 +6010,9 @@ export async function handleSpawnSubChatsImpl(
       category?: string;
       icon?: string;
       wait_for_completion?: boolean;
+      focus_id?: string | null;
+      project_base?: { project_id: string } | null;
+      link?: { kind: "assumption" | "task"; plan_id: string; id: string } | null;
     }>;
   },
 ): Promise<void> {
@@ -6052,9 +6055,6 @@ export async function handleSpawnSubChatsImpl(
       };
       const scId = subChatPayload.id || subChatPayload.chat_id;
       const prompt = subChatPayload.prompt || "";
-      const title = subChatPayload.title?.trim() || prompt.trim();
-      const category = subChatPayload.category?.trim() || null;
-      const icon = subChatPayload.icon?.trim() || null;
       const userMessageId = subChatPayload.user_message_id || subChatPayload.message_id;
       const waitsForCompletion = subChatPayload.wait_for_completion !== false;
 
@@ -6075,25 +6075,18 @@ export async function handleSpawnSubChatsImpl(
 
       // 2. Retrieve or create sub-chat record locally in IndexedDB
       let childChat = await chatDB.getChat(scId);
+      let childProjectId: string | null = null;
       if (!childChat) {
-        const createdChildChat: Chat = {
-          chat_id: scId,
-          parent_id: parentChatId,
-          is_sub_chat: true,
-          title,
-          encrypted_title: await encryptWithChatKey(title, parentKey),
-          category,
-          encrypted_category: category ? await encryptWithChatKey(category, parentKey) : null,
-          icon,
-          encrypted_icon: icon ? await encryptWithChatKey(icon, parentKey) : null,
-          messages_v: 1,
-          title_v: 0,
-          unread_count: 0,
-          created_at: Math.floor(Date.now() / 1000),
-          updated_at: Math.floor(Date.now() / 1000),
-          last_edited_overall_timestamp: Math.floor(Date.now() / 1000),
-          user_id: currentUserId || undefined,
-        };
+        const { rustSubchatShell } = await import("./rustCore/chatState/rustSubchat");
+        const shell = await rustSubchatShell({
+          parentChatId,
+          parentKey,
+          userId: currentUserId || undefined,
+          now: Math.floor(Date.now() / 1000),
+          child: subChatPayload,
+        });
+        const createdChildChat: Chat = shell.chat as unknown as Chat;
+        childProjectId = shell.project_id;
 
         // Encrypt the chat key with the master key for device sync and storage
         const encryptedChatKey = await encryptChatKeyWithMasterKey(parentKey);
@@ -6106,7 +6099,18 @@ export async function handleSpawnSubChatsImpl(
         console.info(
           `[ChatSyncService:AI] Created child chat record locally for ${scId}`,
         );
+        if (childProjectId) {
+          try {
+            const { placeChatsInProject } = await import("./chatProjectService");
+            await placeChatsInProject([createdChildChat], { projectId: childProjectId, folderId: null }, "add");
+          } catch (error) {
+            console.warn(`[ChatSyncService:AI] Could not add sub-chat ${scId} to its Project`, error);
+          }
+        }
       }
+      void import("./rustCore/chatState/rustSubchat").then(({ linkSubChatAssumption }) =>
+        linkSubChatAssumption(scId, subChatPayload.link),
+      );
       await flushPendingTypingStartedForChat(serviceInstance, scId);
       serviceInstance.setSubChatProcessing?.(scId, waitsForCompletion);
 

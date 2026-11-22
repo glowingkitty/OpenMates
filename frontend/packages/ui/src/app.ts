@@ -15,6 +15,7 @@ import { installE2ETestHooks } from "./services/e2eTestHooks";
 import { activeChatStore } from "./stores/activeChatStore";
 import { createBrowserProjectFileJobRunner } from "./services/rustCore/projects/projectFileJobRunnerBrowser";
 import { createBrowserRemoteCommandClient } from "./services/browserRemoteCommandClient";
+import { installPlanCreateRelay } from "./services/rustCore/plans/planCreateRelay";
 import { installProjectCreateRelay } from "./services/rustCore/projects/projectCreateRelay";
 import { installProjectSandboxKeyRelay } from "./services/rustCore/projects/projectSandboxKeyRelay";
 import { installProjectSandboxCommitRelay } from "./services/rustCore/projects/projectSandboxCommitRelay";
@@ -47,6 +48,7 @@ function initProjectFileExecutorLifecycle(): void {
     // Installed first, so the agent clients' reconnect advertises
     // `project_create_requests` too; only cores that run file jobs create Projects.
     const removeCreateRelay = PROJECT_FILE_JOBS_ENABLED ? installProjectCreateRelay() : () => {};
+    const removePlanCreateRelay = PROJECT_FILE_JOBS_ENABLED ? installPlanCreateRelay() : () => {};
     const removeSandboxKeyRelay = PROJECT_FILE_JOBS_ENABLED ? installProjectSandboxKeyRelay() : () => {};
     const removeSandboxCommitRelay = PROJECT_FILE_JOBS_ENABLED ? installProjectSandboxCommitRelay() : () => {};
     const removeAgentClients = chatSyncService.installProjectAgentClients(
@@ -55,6 +57,7 @@ function initProjectFileExecutorLifecycle(): void {
     );
     removeProjectAgentClients = () => {
       removeCreateRelay();
+      removePlanCreateRelay();
       removeSandboxKeyRelay();
       removeSandboxCommitRelay();
       removeAgentClients();

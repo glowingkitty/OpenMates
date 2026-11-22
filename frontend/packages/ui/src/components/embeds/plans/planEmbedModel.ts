@@ -22,6 +22,13 @@ export interface PlanLinkedTask {
   taskId: string;
   title: string;
   status: UserTaskStatus;
+  /** Sub-chat working on this Task (plaintext link, display only). */
+  linkedSubChatId?: string | null;
+}
+
+/** Opens a chat by id the same way chat links elsewhere do. */
+export function openChatById(chatId: string): void {
+  window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
 }
 
 /** Everything a Plan surface needs, already decrypted. */

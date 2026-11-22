@@ -232,6 +232,51 @@ class ProjectWriteAuthorizationService:
             return None
         return {**binding, "specialist_focus_id": specialist_id}
 
+    async def inherit_focus_for_sub_chat(
+        self,
+        *,
+        user_id: str,
+        parent_chat_id: str,
+        child_chat_id: str,
+        specialist_focus_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Give a sub-chat the parent's active Project base focus.
+
+        Returns the child's verified binding, or None when the parent has no
+        active binding. The child must be a stored sub-chat of the parent in the
+        same owner/Team scope. A Project specialist is copied only when it is
+        exactly the parent's currently accepted specialist.
+        """
+        parent = await self.get_active_focus(user_id=user_id, chat_id=parent_chat_id)
+        if not parent:
+            return None
+        team_id = parent.get("team_id") if isinstance(parent.get("team_id"), str) else None
+        child_chat = await self._require_chat_access(user_id, child_chat_id, team_id)
+        if not child_chat.get("is_sub_chat") or child_chat.get("parent_id") != parent_chat_id:
+            raise ProjectWriteAuthorizationError("SUB_CHAT_PARENT_MISMATCH", status_code=404)
+        binding = {
+            key: value for key, value in parent.items()
+            if key not in {"specialist_focus_id", "activation_request_id", "activation_message_id"}
+        }
+        binding.update(
+            activation_id=str(uuid.uuid4()),
+            parent_activation_id=parent.get("activation_id"),
+            activated_at=int(time.time()),
+        )
+        if not await self.cache_service.set(
+            self._focus_key(user_id, child_chat_id), binding, ttl=PROJECT_FOCUS_TTL_SECONDS,
+        ):
+            raise ProjectWriteAuthorizationError("PROJECT_FOCUS_CACHE_UNAVAILABLE", status_code=503)
+        if specialist_focus_id and specialist_focus_id == parent.get("specialist_focus_id"):
+            specialist = await self.cache_service.get(self._specialist_key(user_id, parent_chat_id))
+            if isinstance(specialist, dict):
+                copied = {**specialist, "base_activation_id": binding["activation_id"]}
+                if not await self.cache_service.set(
+                    self._specialist_key(user_id, child_chat_id), copied, ttl=PROJECT_FOCUS_TTL_SECONDS,
+                ):
+                    raise ProjectWriteAuthorizationError("PROJECT_FOCUS_CACHE_UNAVAILABLE", status_code=503)
+        return await self.get_active_focus(user_id=user_id, chat_id=child_chat_id)
+
     async def deactivate_focus(self, *, user_id: str, chat_id: str) -> bool:
         from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
 

@@ -66,6 +66,15 @@ export function setProjectCreateRequestsCapabilityEnabled(enabled: boolean): voi
   projectCreateRequestsCapabilityEnabled = enabled;
 }
 
+// Assistant Plan creation: enabled only while the plan creation relay is installed
+// (planCreateRelay.ts); the server sends `plan_create_requested` only to sockets
+// advertising it.
+let planCreateRequestsCapabilityEnabled = false;
+
+export function setPlanCreateRequestsCapabilityEnabled(enabled: boolean): void {
+  planCreateRequestsCapabilityEnabled = enabled;
+}
+
 // Assistant Memory writes (save_memory): enabled only while the Rust core job
 // runner is installed (assistantMemoryWrites.ts, flag-on builds).
 let memoryWriteJobsCapabilityEnabled = false;
@@ -161,6 +170,7 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
     ...(projectFileJobsCapabilityEnabled ? ["project_file_jobs"] : []),
     ...(remoteCommandJobsCapabilityEnabled ? ["remote_command_jobs"] : []),
     ...(projectCreateRequestsCapabilityEnabled ? ["project_create_requests"] : []),
+    ...(planCreateRequestsCapabilityEnabled ? ["plan_create_requests"] : []),
     ...(memoryWriteJobsCapabilityEnabled ? ["memory_write_jobs"] : []),
     ...(chatOrchestrationJobsCapabilityEnabled ? ["chat_orchestration_jobs"] : []),
     "agentic-storage-v2",

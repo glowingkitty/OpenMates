@@ -2131,7 +2131,11 @@
             "view_model.send_stream.ViewLease.lease",
             "view_model.send_stream.begin_send",
             "view_model.send_stream.begin_send_with",
-            "view_model.project_documents.create_project_document"
+            "view_model.project_documents.create_project_document",
+            "web_subchat",
+            "web_subchat.LINK_BASE_DELAY_MS",
+            "web_subchat.LINK_MAX_ATTEMPTS",
+            "web_subchat.run_json"
           ],
           "conformance": true,
           "evidence": [
@@ -4599,6 +4603,8 @@
             "sdk.OpenMates.checks",
             "sdk.OpenMates.plans",
             "sdk.OpenMates.specifications",
+            "web_work.plan_create_request.PLAN_CREATE_CONTRACT",
+            "web_work.plan_create_request.PLAN_CREATE_VERSION",
             "work.checks.CheckInput",
             "work.checks.CheckInput.check_id",
             "work.checks.CheckInput.description",

@@ -23,6 +23,7 @@ mod reminders;
 mod team_bodies;
 mod teams;
 mod plan_bodies;
+mod plan_create_request;
 mod plan_flows;
 mod plans;
 mod task_bodies;
@@ -44,6 +45,8 @@ mod reminders_tests;
 mod teams_tests;
 #[cfg(test)]
 mod workflows_tests;
+#[cfg(test)]
+mod plan_create_request_tests;
 #[cfg(test)]
 mod plans_tests;
 #[cfg(test)]
@@ -74,6 +77,7 @@ pub fn run_json(op: &str, input: &str) -> Result<String, String> {
         o if o.starts_with("reminder") => reminders::run(o, &input),
         o if o.starts_with("check") => checks::run(o, &input),
         o if o.starts_with("specification") => specifications::run(o, &input),
+        "planCreateRequestDecide" => plan_create_request::decide(&input),
         o if o.starts_with("plan") && o.ends_with("View") => plans::run(o, &input),
         o if o.starts_with("plan") => plan_bodies::run(o, &input),
         o if o.starts_with("task") => tasks::run(o, &input),

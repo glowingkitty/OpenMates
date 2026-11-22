@@ -1106,6 +1106,11 @@ features:
     flags: ["skill:openmates:get-docs"]
     release: v0.5.0-alpha
     surfaces: {web: implemented, apple: not_planned, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    subfeatures:
+      - id: sub-chats
+        name: "Sub-chats"
+        description: "Complex work splits into sub-chats in any focus; they keep the Project focus and link to the assumption or Task they work on"
+        assertions: ["chat-orchestration.sub-chats.*"]
     evidence:
       cli: "openmates apps openmates get-docs|share-usecase"
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"

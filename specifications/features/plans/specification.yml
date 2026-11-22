@@ -175,6 +175,14 @@ assertions:
     type: security
     must: Confirmed or corrected required assumptions include encrypted typed source/evidence proofs before dependent work can proceed; unsupported status text alone cannot satisfy the gate.
     depends_on: [models.PlanAssumption, examples.plan_completion_gates]
+  - id: plans.assistant.created-plan-saved
+    type: behavior
+    must: A Plan the assistant creates in a chat is saved as the user's encrypted Plan together with its assumptions, using the Plan and assumption ids the assistant received, so sub-chats can be linked to them in the same turn; repeating the same save is harmless and an id already owned by someone else is refused.
+    depends_on: [models.PlanRecord, models.PlanAssumption]
+  - id: plans.sub-chats.assumption-and-task-chats
+    type: behavior
+    must: Each open assumption of an assistant-created Plan is checked in its own sub-chat recorded as the assumption's checking chat, and each Task of the Plan is worked on in its own sub-chat recorded as the Task's working chat; both open from the Plan card, the Specification and Check cards that show the assumption or Task, and the chat's active Plan.
+    depends_on: [models.PlanAssumption, models.PlanTaskLink]
   - id: plans.key-wrappers.contextual
     type: invariant
     must: A per-Plan key is wrapped only for authorized owner, chat, Project, Plan, or Team contexts; replacement wrappers are accepted before obsolete wrappers are removed and raw keys are never durable.
@@ -197,11 +205,11 @@ assertions:
     depends_on: [examples.plan_ui_review, applies_to.gui]
   - id: plans.chat-settings.active-plan
     type: behavior
-    must: Chat settings show the chat's active Plan with its status, approval state, Tasks with status, required and supporting Checks with aggregate status including waiting for confirmation, and assumptions with their checking state, and open the Plan on request.
+    must: Chat settings show the chat's active Plan with its status, approval state, Tasks with status and their working sub-chat, required and supporting Checks with aggregate status including waiting for confirmation, and assumptions with their checking state and checking sub-chat, each sub-chat opening on request, and open the Plan on request.
     depends_on: [models.PlanRecord, models.PlanAssumption, applies_to.gui]
   - id: plans.embed.preview-fullscreen
     type: behavior
-    must: A Plan appears as a chat and Project embed whose preview shows title, goal, status, approval state, Task progress, Check summary and open assumptions, and whose fullscreen view shows goal, assumptions with their checking chats, success criteria with covering Checks, linked Tasks, linked Checks and an approval action bound to the exact shown revision.
+    must: A Plan appears as a chat and Project embed whose preview shows title, goal, status, approval state, Task progress, Check summary and open assumptions, and whose fullscreen view shows goal, assumptions with their checking chats, success criteria with covering Checks, linked Tasks with their working sub-chats, linked Checks and an approval action bound to the exact shown revision.
     depends_on: [models.PlanRevision, models.PlanAssumption, models.PlanCriterion, applies_to.gui]
   - id: plans.surface.semantic-parity
     type: parity

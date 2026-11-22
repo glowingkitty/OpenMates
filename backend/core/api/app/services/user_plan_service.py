@@ -29,6 +29,10 @@ class UserPlanConflictError(ValueError):
     """Raised when a plan update is based on a stale client version."""
 
 
+class UserPlanIdConflictError(ValueError):
+    """Raised when a client-chosen plan_id is already taken by different content or another owner."""
+
+
 class UserPlanNotFoundError(ValueError):
     """Raised when a plan does not exist or belongs to another user."""
 
@@ -72,6 +76,15 @@ class UserPlanService:
         }
         if any(project_id not in authorized_project_ids for project_id in linked_project_ids):
             raise ValueError("Linked Project not found or inaccessible")
+        existing = await self.plan_methods.get_plan(str(payload.get("plan_id")), user_id)
+        if existing:
+            if existing.get("encrypted_title") == payload.get("encrypted_title") and existing.get(
+                "encrypted_goal"
+            ) == payload.get("encrypted_goal"):
+                return existing  # client retry of the same create
+            raise UserPlanIdConflictError("plan_id is already used by a different plan")
+        if await self.plan_methods.plan_id_exists(str(payload.get("plan_id"))):
+            raise UserPlanIdConflictError("plan_id is already used")
         created = await self.plan_methods.create_plan(user_id, payload)
         if not created:
             raise ValueError("Failed to create plan")
@@ -205,6 +218,9 @@ class UserPlanService:
 
     async def create_assumption(self, plan_id: str, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         await self.ensure_plan_owner(plan_id, user_id)
+        for existing in await self.plan_methods.list_assumptions(plan_id):
+            if existing.get("assumption_id") == payload.get("assumption_id"):
+                return existing  # client retry of the same assumption id
         created = await self.plan_methods.create_assumption(plan_id, payload)
         if not created:
             raise ValueError("Failed to create plan assumption")

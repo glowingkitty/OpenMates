@@ -470,6 +470,18 @@ vi.mock("../db/chatCrudOperations", () => ({
   addCandidateKey: mockAddCandidateKey,
 }));
 
+// The sub-chat shell is built by the Rust core (cargo `web_subchat_tests`); here the Worker is replaced.
+vi.mock("../rustCore/chatState/rustSubchat", () => ({
+  rustSubchatShell: vi.fn(async ({ child }: { child: Record<string, string> }) => ({
+    chat: {
+      chat_id: child.id, title: child.title,
+      encrypted_title: `encrypted:${child.title}`, encrypted_category: `encrypted:${child.category}`,
+      encrypted_icon: `encrypted:${child.icon}`,
+    },
+    project_id: null,
+  })),
+  linkSubChatAssumption: vi.fn(async () => undefined),
+}));
 vi.mock("../chatKeyWriteGuard", () => ({
   ensureChatKeySafeForWrite: mockEnsureChatKeySafeForWrite,
 }));

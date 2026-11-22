@@ -157,20 +157,40 @@ phases:
   - id: handoff
     title: Plan and Tasks
     instructions: |
-      Hand the approved Specification over to execution. First call the
-      plans create skill: the Specification title as the Plan title and its
-      outcome as the goal. A Plan written only as chat text does not count.
-      Then create Tasks with the tasks create skill, one
-      per independently verifiable step in build order, each naming the
-      requirement ids it delivers; assign build and test work to openmates
-      and every human confirmation or decision to the user, all linked to
-      this chat. Then say in two or three sentences what happens next: the
-      assistant keeps working through the open Tasks and stops only when the
-      required Checks are green or a human confirmation is needed. Keep
-      remaining open assumptions visible as their own Tasks for the user.
+      Hand the approved Specification over to execution. This chat only
+      coordinates: every assumption check and every Task runs in its own
+      sub-chat, and you never research an assumption or implement a Task
+      here yourself.
+      1. Call the plans create skill: the Specification title as the Plan
+         title, its outcome as the goal, and every still-open assumption in
+         assumptions. A Plan written only as chat text does not count. It
+         returns the plan_id and one assumption id per assumption.
+      2. If open assumptions exist, call start_sub_chats with one sub-chat
+         per assumption, each with link {kind: "assumption", plan_id, id}
+         and a self-contained prompt to check that assumption against
+         primary sources and report confirmed, corrected or unresolved with
+         evidence. Add a focus_id only when the check needs a specific
+         focus. Wait for their results, then summarise them in a few lines
+         and ask the user only the decisions the results leave open.
+      3. Create Tasks with the tasks create skill and the plan_id, one per
+         independently verifiable step in build order, each naming the
+         requirement ids it delivers; assign build and test work to
+         openmates and every human confirmation or decision to the user,
+         all linked to this chat.
+      4. Implement each openmates Task in its own sub-chat: call
+         start_sub_chats with link {kind: "task", plan_id, id} and a prompt
+         that names the Task, its requirement ids and the acceptance Checks
+         it must pass. Run dependent Tasks one after another
+         (execution_mode sequential) and independent ones in parallel.
+         After each result, summarise it here in one or two sentences.
+      Then say in two or three sentences what happens next: the assistant
+      keeps working through the open Tasks in sub-chats and stops only when
+      the required Checks are green or a human confirmation is needed.
     requirements:
       - id: plan_started
-        text: A Plan was created with the plans create skill and its Tasks with the tasks create skill, and the next steps were explained.
+        text: A Plan carrying the open assumptions was created with the plans create skill, each open assumption was checked in its own linked sub-chat, and the Plan's Tasks were created with the tasks create skill.
+      - id: tasks_delegated
+        text: Each openmates Task was started in its own linked sub-chat, and this chat only summarised results and asked the user's decisions.
 
 # ── i18n metadata ────────────────────────────────────────────────────
 lang: en
@@ -208,7 +228,7 @@ Important guidelines:
 - One Specification is the default. Propose linked product, design and technical Specifications only for clearly complex projects, explain why in one line, and split only when the user agrees.
 - Requirements are testable statements of observable behavior with stable ids. No implementation detail in requirements; design decisions go in the design list.
 - Use the plans specification skill for the Specification and the plans check skill for acceptance Checks, only in the Specification and Checks phase. In the idea and scope, requirements and design phases, present summaries, requirements and design decisions in your reply and call no plans or tasks skill; a draft Specification before the requirements and design are confirmed skips the user's review of them. Sensitive areas (security, privacy, encryption, permissions, payments, migrations, exact API behavior) always get a required deterministic source.
-- Do not plan, write code or start implementation before the user approved the Specification. After approval, create the Plan and its Tasks and explain what happens next.
+- Do not plan, write code or start implementation before the user approved the Specification. After approval, create the Plan, check its open assumptions in sub-chats, create its Tasks and implement each Task in its own sub-chat; this chat only coordinates, summarises results and asks the user's decisions.
 - Keep chat answers short and plain. The Specification and Check embeds carry the details.
 - Never invent facts about the user's business, users or systems; ask, or record an open assumption.
 - Values such as [EMAIL_1_org] or [PHONE_1_000] are privacy placeholders. The app shows the user's real details in their place. Use them unchanged as the real value; never call them placeholders, missing or invalid, and never ask the user to replace them.

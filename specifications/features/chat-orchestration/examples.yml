@@ -212,3 +212,45 @@ cross_chat_safety:
   when: The message is sent and "Kitchen quotes" later reports.
   then: '"Weekly planning" shows "Sent to Kitchen quotes" with the text and "Report from Kitchen quotes"; "Kitchen
     quotes" shows the message and "Reported to Weekly planning" with the report text.'
+sub_chat_delegation:
+- id: splittable-work-delegated
+  assertion_ids:
+  - chat-orchestration.sub-chats.general-delegation
+  given: Alice, in a plain chat without a focus, asks to compare the privacy policies of three note-taking apps.
+  when: The assistant answers.
+  then: It starts three sub-chats, one per app, and the main chat summarises their findings and asks which criteria matter
+    most to her.
+- id: simple-request-answered-directly
+  assertion_ids:
+  - chat-orchestration.sub-chats.general-delegation
+  given: Alice asks how many days the month of February 2027 has.
+  when: The assistant answers.
+  then: It answers directly in the chat and starts no sub-chat.
+sub_chat_focus:
+- id: child-keeps-project-base
+  assertion_ids:
+  - chat-orchestration.sub-chats.focus-inheritance
+  given: Alice's chat works in her Project "Garden planner" with its Project focus active.
+  when: The assistant starts a sub-chat to check whether browsers allow scheduled notifications.
+  then: The sub-chat shows the "Garden planner" focus pill and follows the Project's instructions and write rules.
+- id: child-adds-one-specific-focus
+  assertion_ids:
+  - chat-orchestration.sub-chats.focus-inheritance
+  given: The same Project chat starts a sub-chat with the specific focus Deep research for one assumption.
+  when: Alice opens the sub-chat.
+  then: Its pill shows "Garden planner | Deep research"; if Deep research is later replaced by another specific focus, the
+    Garden planner base stays.
+sub_chat_links:
+- id: assumption-links-checking-chat
+  assertion_ids:
+  - chat-orchestration.sub-chats.work-links
+  given: Alice's Plan for watering reminders has the open assumption "Browsers allow scheduled notifications".
+  when: The assistant starts a sub-chat to check it.
+  then: The assumption in the Plan and Specification cards shows that sub-chat and opens it, and the sub-chat names the
+    assumption it checks with a link back to the main chat.
+- id: task-links-working-chat
+  assertion_ids:
+  - chat-orchestration.sub-chats.work-links
+  given: The Plan's Task "Add a per-bed watering interval" is next.
+  when: The assistant starts a sub-chat to implement it.
+  then: The Task in the Plan card and the chat's active Plan shows that sub-chat and opens it.

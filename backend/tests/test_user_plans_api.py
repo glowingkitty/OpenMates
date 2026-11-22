@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from backend.core.api.app.services.directus.user_plan_methods import UserPlanMethods, hash_id
-from backend.core.api.app.services.user_plan_service import UserPlanConflictError, UserPlanService
+from backend.core.api.app.services.user_plan_service import UserPlanConflictError, UserPlanIdConflictError, UserPlanService
 
 
 def plan_payload(**overrides):
@@ -279,7 +279,11 @@ async def test_create_plan_requires_access_to_every_linked_project() -> None:
 # contract-test: direct surface=rest_api assertions=plans.project-links.encrypted
 @pytest.mark.asyncio
 async def test_create_plan_persists_after_linked_project_authorization() -> None:
-    plan_methods = SimpleNamespace(create_plan=AsyncMock(return_value={"plan_id": "plan-1"}))
+    plan_methods = SimpleNamespace(
+        create_plan=AsyncMock(return_value={"plan_id": "plan-1"}),
+        get_plan=AsyncMock(return_value=None),
+        plan_id_exists=AsyncMock(return_value=False),
+    )
     project_methods = SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": "project-1"}]))
     service = UserPlanService(plan_methods, project_methods=project_methods)
 
@@ -666,3 +670,50 @@ async def test_create_verification_can_create_linked_verification_task() -> None
     assert "encrypted_linked_project_ids" not in verification_payload_arg
     assert "encrypted_task_key" not in verification_payload_arg
     assert "primary_chat_id" not in verification_payload_arg
+
+
+def _id_service(existing, any_owner):
+    plan_methods = SimpleNamespace(
+        create_plan=AsyncMock(return_value={"plan_id": "plan-1"}),
+        get_plan=AsyncMock(return_value=existing),
+        plan_id_exists=AsyncMock(return_value=any_owner),
+    )
+    project_methods = SimpleNamespace(list_projects=AsyncMock(return_value=[{"project_id": "project-1"}]))
+    return UserPlanService(plan_methods, project_methods=project_methods), plan_methods
+
+
+# contract-test: direct surface=rest_api assertions=plans.project-links.encrypted
+@pytest.mark.asyncio
+async def test_create_plan_same_client_id_same_content_is_idempotent() -> None:
+    payload = plan_payload()
+    existing = {"plan_id": payload["plan_id"], "encrypted_title": payload["encrypted_title"], "encrypted_goal": payload["encrypted_goal"]}
+    service, plan_methods = _id_service(existing, True)
+    assert await service.create_plan("user-1", payload) == existing
+    plan_methods.create_plan.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=plans.project-links.encrypted
+@pytest.mark.asyncio
+@pytest.mark.parametrize("existing,any_owner", [
+    ({"plan_id": "plan-1", "encrypted_title": "other", "encrypted_goal": "other"}, True),
+    (None, True),
+])
+async def test_create_plan_client_id_taken_is_conflict(existing, any_owner) -> None:
+    service, plan_methods = _id_service(existing, any_owner)
+    with pytest.raises(UserPlanIdConflictError):
+        await service.create_plan("user-1", plan_payload())
+    plan_methods.create_plan.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=plans.project-links.encrypted
+@pytest.mark.asyncio
+async def test_create_assumption_same_id_is_idempotent() -> None:
+    plan_methods = SimpleNamespace(
+        get_plan=AsyncMock(return_value={"plan_id": "plan-1"}),
+        list_assumptions=AsyncMock(return_value=[{"assumption_id": "a-1", "encrypted_text": "x"}]),
+        create_assumption=AsyncMock(),
+    )
+    service = UserPlanService(plan_methods)
+    result = await service.create_assumption("plan-1", "user-1", {"assumption_id": "a-1", "encrypted_text": "y"})
+    assert result["assumption_id"] == "a-1"
+    plan_methods.create_assumption.assert_not_awaited()

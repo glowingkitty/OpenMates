@@ -74,6 +74,10 @@ mod web_share_state_tests;
 /// User Plans (later Tasks/Teams) decisions of the web `work` op.
 pub mod web_work;
 pub mod web_stream;
+/// Sub-chat shell and assumption link decisions of the web `subchatDecide` op.
+pub mod web_subchat;
+#[cfg(test)]
+mod web_subchat_tests;
 pub mod web_sync;
 pub mod web_chat_state;
 #[cfg(test)]

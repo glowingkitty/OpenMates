@@ -13,6 +13,7 @@ const item: SpecificationListItem = {
 export default { id: 'preview-specification', item, isMobile: false, onFullscreen: () => {} };
 
 export const variants = {
+  'with-plan': { id: 'preview-specification-plan', item, isMobile: false, onFullscreen: () => {}, plan: { planId: 'p1', assumptions: [{ text: 'a', status: 'checking', linkedSubChatId: 'c1' }, { text: 'b', status: 'confirmed', linkedSubChatId: 'c2' }], tasks: [1, 2, 3].map((n) => ({ taskId: `t${n}`, title: `Task ${n}`, description: '', status: 'todo', linkedSubChatId: null })) } },
   approved: { id: 'preview-specification-approved', item: { ...item, status: 'approved', proof: { passed: 3, open: 0, stale: 0 } }, isMobile: false, onFullscreen: () => {} },
   'changes-since-approval': { id: 'preview-specification-changes', item: { ...item, status: 'approved', changesSinceApproval: true, revisionNumber: 4 }, isMobile: false, onFullscreen: () => {} },
   mobile: { id: 'preview-specification-mobile', item, isMobile: true, onFullscreen: () => {} },

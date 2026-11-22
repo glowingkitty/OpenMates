@@ -357,3 +357,8 @@ save.no_project:
   en: "Move this chat into a Project to save the Check there."
   de: "Verschiebe diesen Chat in ein Projekt, um die Prüfung dort zu speichern."
   verified_by_human: []
+plan_tasks:
+  context: "Heading of the Plan Tasks related to a Check"
+  en: "Related Tasks"
+  de: "Zugehörige Aufgaben"
+  verified_by_human: []

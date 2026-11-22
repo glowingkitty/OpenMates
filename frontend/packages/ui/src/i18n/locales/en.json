@@ -5420,6 +5420,9 @@
       "no_project": {
         "text": "Move this chat into a Project to save the Check there."
       }
+    },
+    "plan_tasks": {
+      "text": "Related Tasks"
     }
   },
   "common": {
@@ -17754,12 +17757,26 @@
     },
     "assumption": {
       "open_chat": {
-        "text": "Open checking chat"
+        "text": "Checking chat"
       }
     },
     "task": {
+      "open_chat": {
+        "text": "Working chat"
+      },
       "open": {
         "text": "Open task"
+      }
+    },
+    "sub_chat": {
+      "checks": {
+        "text": "Checks: {text}"
+      },
+      "works_on": {
+        "text": "Works on: {title}"
+      },
+      "back": {
+        "text": "Back to main chat"
       }
     },
     "plan": {
@@ -27779,6 +27796,15 @@
       },
       "proof": {
         "text": "{passed} proven · {open} open · {stale} stale"
+      },
+      "plan_progress": {
+        "text": "{checking} assumptions being checked · {tasks} Tasks"
+      },
+      "plan_progress_one": {
+        "text": "{checking} assumption being checked · {tasks} Tasks"
+      },
+      "plan_tasks_only": {
+        "text": "{tasks} Tasks"
       }
     },
     "fullscreen": {
@@ -27799,6 +27825,15 @@
       },
       "related": {
         "text": "Linked Specifications"
+      },
+      "checking_chat": {
+        "text": "Checking chat"
+      },
+      "working_chat": {
+        "text": "Working chat"
+      },
+      "plan_tasks": {
+        "text": "Plan Tasks"
       }
     },
     "revisions": {

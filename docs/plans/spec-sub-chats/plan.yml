@@ -1,0 +1,68 @@
+schema_version: 2
+profile: concise
+id: spec-sub-chats
+title: Sub-chats as general delegation; spec-driven development checks assumptions and runs Tasks in linked sub-chats that inherit the Project focus
+status: implementing
+goal: >-
+  Spec-driven development must use sub-chats, and sub-chats are a general mechanism, not a Deep research special
+  case. Whenever a task is complex and splits into independent parts, the model delegates to sub-chats, in every focus
+  and in plain chats, without over-triggering on simple tasks. The Write specification focus requires one sub-chat per
+  assumption check and one per Task when implementing; the main chat only coordinates, summarises results and asks the
+  user's decisions. Each assumption gets its linked_sub_chat_id and each Task its sub-chat, visible in the
+  Specification, Check and Plan cards and in the sub-chat UI. A sub-chat inherits its parent's Project focus as its base
+  and may add one specific focus on top (two-focus rule). Backend, web and Rust core; Apple gets a note. Proven by a
+  real-inference web run (owner request 2026-11-22, receipt a981bf2c79cd93d4).
+
+tracking:
+  authority: OpenMates Tasks
+  parent_delivery_task: 08517cd4-ad5c-4a9a-b2c3-ebb938250ec7
+  session: "d9de"
+  policy: Lanes below are deliverables of one build; status lives in the OpenMates Task.
+
+related_plans:
+  spec_flow: docs/plans/spec-driven-flow (Specification, Plan and Check embeds, guided spec authoring focus)
+  plans_v1: docs/architecture/platforms/plans-v1.md (assumption-investigation sub-chats were a later step; this plan delivers them)
+  project_create_pattern: docs/plans/cloud-project-development/contracts/project-create-request.md (server-to-client action the Rust core executes; Plan creation copies it)
+  apple_parity: docs/plans/apple-sub-chat-focus-parity (Apple follows through its own chat 061eb4be)
+
+specification_refs:
+  - {id: feature.chat-orchestration}
+  - {id: feature.focus-modes, assertions: [focus-modes.project-layering, focus-modes.guided-spec-authoring]}
+  - {id: feature.plans, assertions: [plans.assumptions.investigated-before-work, plans.embed.preview-fullscreen, plans.chat-settings.active-plan]}
+  - {id: feature.specifications, assertions: [contracts.guided.assumptions-explicit]}
+  - {id: feature.tasks}
+
+decisions:
+  - Sub-chats are a general mechanism; delegate when a request splits into two or more independent, substantial parts; never for simple or single-answer requests (owner 2026-11-22, receipt a981bf2c79cd93d4).
+  - Write specification requires one sub-chat per assumption check and one per Task when implementing; the main chat only coordinates, summarises results and asks the user's decisions (owner, same receipt).
+  - Assumptions get linked_sub_chat_id, Tasks their sub-chat; both visible in the Specification, Check and Plan cards and in the sub-chat UI (owner, same receipt).
+  - A sub-chat inherits its parent's Project focus as base and may add one specific focus; at most two focus modes are active, a newly activated specific focus replaces the current one and the base stays (owner, receipts a981bf2c79cd93d4 and f26a3efc87da4825).
+  - No Plan or Task before the user approved the drafted Specification (owner 2026-11-14, spec-driven-flow). Therefore the Plan with its assumptions is saved right after approval, the Plan state checking_assumptions runs the assumption sub-chats, and Tasks follow; this matches the existing missing_investigation gate.
+  - Plans stay client-encrypted. The assistant's plans:create becomes a server-to-client action executed by the Rust core (same shape as the Project create request); the server mints the Plan and assumption ids so the model can link sub-chats in the same turn, and the client writes linked_sub_chat_id when it applies the spawn event. Task rows are server-written, so the server sets the Task's sub-chat link itself.
+  - Existing sub-chat limits stay (three automatic per turn, more needs the user's confirmation card, depth two is terminal).
+  - A child gets the parent's Project base by copying the parent's server-side Project focus binding to the child chat at dispatch (same user, Project and instruction revision); a child's specific focus is limited to a built-in focus or the parent's currently selected Project Focus.
+
+contract:
+  start_sub_chats_item_fields: >-
+    focus_id (optional; one specific focus for the child, validated as above), link (optional;
+    {kind: assumption|task, plan_id, id}); the spawn_sub_chats event carries both per child.
+  child_binding: "project_focus:v1 binding copied to the child chat id with a new activation_id and parent_activation_id; dropped when the parent has none."
+  plan_create_request_doc: docs/plans/spec-sub-chats/contracts/plan-create-request.md
+  plan_create_request: "openmates.plan_create_request v1: {request_id, plan_id, title, summary, goal, specification_ref, assumptions: [{assumption_id, text, required_before}]}; the client encrypts and creates the Plan and assumption rows with those ids and answers with the result."
+  task_link: "user_tasks.linked_sub_chat_id (string, plaintext like the assumption field); tasks:create accepts plan_id."
+
+lanes:
+  - {id: L1, outcome: "General delegation: preprocessor rule and generic sub-chat instruction work in every focus and plain chats; Deep research keeps its own forced path; tests for complex vs simple requests", files: [backend/apps/ai/base_instructions.yml, backend/apps/ai/processing/focus_mode_routing.py, backend/apps/ai/processing/main_processor.py]}
+  - {id: L2, outcome: "start_sub_chats focus_id and link; child inherits the Project base binding and a validated specific focus; spawn event carries focus and link; Task sub-chat link set server-side; tasks:create plan_id", files: [backend/apps/ai/sub_chat_orchestration.py, backend/core/api/app/services/project_write_authorization_service.py, backend/core/directus/schemas/user_tasks.yml]}
+  - {id: L3, outcome: "Rust core: plan_create_request executor (encrypted Plan and assumption rows with server ids, answer to the server); sub-chat shell creation from the spawn event (encrypted title, category, icon and active focus) moves from TypeScript into the core and writes the assumption linked_sub_chat_id; old TS code deleted"}
+  - {id: L3a, outcome: "Plan create delivery: server publishes plan_create_requested to clients with the plan_create_requests capability and validates plan_create_result (contracts/plan-create-request.md); the Rust core validates the request and plans the encrypted Plan and assumption creates with the server ids; the web relay runs them through the existing Plan service"}
+  - {id: L4, outcome: "Write specification focus: sub-chat instructions per phase, server guard that the depth-0 spec chat delegates assumption checks and Task work (research and code tools not offered there while those are open)"}
+  - {id: L5, outcome: "Web: Specification, Check and Plan cards and the active Plan panel show each assumption's and Task's sub-chat; the sub-chat header names what it checks or implements and links back; component specs with screenshots"}
+  - {id: L6, outcome: "Real-inference web proof: a Specification for a new feature in a Project creates assumption sub-chats, then Task sub-chats, each with the right focus pill; video and screenshots"}
+
+verification:
+  rules:
+    - Backend behaviour has pytest at the API/tool boundary; preprocessor wording has routing tests for complex and simple requests.
+    - Rust core changes have cargo tests; the web shell suite stays green after the TS sub-chat shell code is deleted.
+    - Every changed card has a /dev/preview fixture and component spec; screenshots go to the owner.
+    - Final proof is the L6 real-inference web video on the deployed commit.

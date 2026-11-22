@@ -128,8 +128,12 @@ preprocess_request_tool:
       - china_model_sensitive is true for China-specific political/censorship/human-rights
         topics or value comparisons involving authoritarian/one-party systems; it is false
         for ordinary culture, travel, food, language, business, or neutral facts.
-      - Enable subchats for explicit parallel/subagent requests or genuinely complex batch,
-        comparison, research, coding, or test work; not ordinary factual requests.
+      - Enable subchats, in any focus or plain chat, for explicit parallel/subagent requests or
+        when the work is complex and splits into two or more independent, substantial parts
+        that can each be done separately (several items to compare or process, several research
+        angles, separate coding or test tasks, several assumptions to check). Keep it false for
+        simple, short, single-answer or conversational requests and for parts that depend tightly
+        on each other.
       - ai_model_topics identifies requests discussing AI models, their capabilities,
         versions, availability, or coding subscriptions. Select every relevant family:
         llm, image, video, audio. Do not select a family merely because the user

@@ -145,8 +145,28 @@ criterion.uncovered:
   verified_by_human: []
 assumption.open_chat:
   context: "Action opening the chat that is verifying an assumption"
-  en: "Open checking chat"
-  de: "Prüf-Chat öffnen"
+  en: "Checking chat"
+  de: "Prüf-Chat"
+  verified_by_human: []
+task.open_chat:
+  context: "Action opening the sub-chat that is working on a Task"
+  en: "Working chat"
+  de: "Arbeits-Chat"
+  verified_by_human: []
+sub_chat.checks:
+  context: "Sub-chat header: names the Plan assumption this chat is checking; placeholder is the assumption text"
+  en: "Checks: {text}"
+  de: "Prüft: {text}"
+  verified_by_human: []
+sub_chat.works_on:
+  context: "Sub-chat header: names the Task this chat is working on; placeholder is the Task title"
+  en: "Works on: {title}"
+  de: "Arbeitet an: {title}"
+  verified_by_human: []
+sub_chat.back:
+  context: "Sub-chat header: returns to the chat that started this sub-chat"
+  en: "Back to main chat"
+  de: "Zurück zum Haupt-Chat"
   verified_by_human: []
 task.open:
   context: "Action opening a Task"

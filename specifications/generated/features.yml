@@ -46,9 +46,9 @@ summary:
     rest_api:
       live: 5
       tested: 2
-      partial: 33
+      partial: 34
       failing: 16
-      not_run: 27
+      not_run: 26
       implemented: 16
       planned: 2
       not_planned: 26
@@ -5038,6 +5038,7 @@ features:
       - frontend/apps/web_app/tests/focus-mode-settings.spec.ts
       - frontend/apps/web_app/tests/real-inference-project-layered-focus.spec.ts
       - frontend/apps/web_app/tests/real-inference-spec-authoring-focus.spec.ts
+      - frontend/apps/web_app/tests/real-inference-spec-sub-chats.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/agenticProjectContextService.test.ts
       - frontend/packages/ui/src/services/__tests__/projectAuthoringClientService.test.ts
@@ -5109,10 +5110,10 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 16
+        passing: 18
         failing: 1
-        not_run: 6
-        missing: 8
+        not_run: 5
+        missing: 7
         counted: 31
       failing_tests:
       - backend/tests/test_delegated_primary_read.py › test_observed_search_only_catalog_adds_real_read_only_for_authorized_synthesis
@@ -15220,7 +15221,7 @@ features:
     - skill:openmates:get-docs
     dev: partial
     prod: partial
-  assertions: 18
+  assertions: 21
   surfaces:
     web:
       status: partial
@@ -15229,13 +15230,14 @@ features:
       assertions:
         passing: 2
         failing: 0
-        not_run: 7
-        missing: 9
-        counted: 18
+        not_run: 9
+        missing: 10
+        counted: 21
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/chat-orchestration-main-chats.spec.ts
       - frontend/apps/web_app/tests/components/chat-orchestration-event-notice.spec.ts
+      - frontend/apps/web_app/tests/real-inference-spec-sub-chats.spec.ts
       - frontend/apps/web_app/tests/voice-call-orchestration-real.spec.ts
       key_unit_tests:
       - backend/tests/test_preprocessor_skill_resolver.py
@@ -15266,8 +15268,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 18
-        counted: 18
+        missing: 21
+        counted: 21
       key_tests: []
       evidence: openmates apps openmates get-docs|share-usecase
       e2e_tests: []
@@ -15293,19 +15295,20 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 16
+        passing: 17
         failing: 0
         not_run: 0
-        missing: 2
-        counted: 18
+        missing: 4
+        counted: 21
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_chat_orchestration_skills.py
       - backend/tests/test_chat_orchestration_main_chats_jobs.py
       - backend/tests/test_chat_orchestration_interpretation.py
+      - backend/tests/test_focus_mode_routing.py
       - backend/tests/test_server_turn_dispatch.py
-      unit_test_files: 4
+      unit_test_files: 5
     sdk_npm:
       status: implemented
       source: intent
@@ -15336,6 +15339,86 @@ features:
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
+  subfeatures:
+  - id: sub-chats
+    name: Sub-chats
+    description: Complex work splits into sub-chats in any focus; they keep the Project focus and link to the assumption or
+      Task they work on
+    assertion_ids:
+    - chat-orchestration.sub-chats.focus-inheritance
+    - chat-orchestration.sub-chats.general-delegation
+    - chat-orchestration.sub-chats.work-links
+    surfaces:
+      web:
+        status: not_run
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 2
+          missing: 1
+          counted: 3
+      apple:
+        status: not_planned
+        source: intent
+        intent: not_planned
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      cli:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 3
+          counted: 3
+      tui:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      rest_api:
+        status: partial
+        source: tests
+        intent: unverified
+        assertions:
+          passing: 1
+          failing: 0
+          not_run: 0
+          missing: 2
+          counted: 3
+      sdk_npm:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
+      sdk_pypi:
+        status: unverified
+        source: intent
+        intent: unverified
+        assertions:
+          passing: 0
+          failing: 0
+          not_run: 0
+          missing: 0
+          counted: 0
 - id: pdf
   name: PDF
   kind: app
@@ -15487,7 +15570,7 @@ features:
     - platform:plans
     dev: enabled
     prod: disabled
-  assertions: 17
+  assertions: 19
   surfaces:
     web:
       status: failing
@@ -15496,9 +15579,9 @@ features:
       assertions:
         passing: 7
         failing: 1
-        not_run: 2
-        missing: 7
-        counted: 17
+        not_run: 3
+        missing: 8
+        counted: 19
       failing_tests:
       - frontend/apps/web_app/tests/unified-detail-pages.spec.ts › Plan cards open a canonical shared-header detail page
       key_tests: []
@@ -15507,10 +15590,12 @@ features:
       - frontend/apps/web_app/tests/components/chat-active-plan.spec.ts
       - frontend/apps/web_app/tests/components/plan-embed.spec.ts
       - frontend/apps/web_app/tests/components/plan-skill-embeds.spec.ts
+      - frontend/apps/web_app/tests/components/sub-chat-work-link.spec.ts
       - frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
       - frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
       - frontend/apps/web_app/tests/plans-flow.spec.ts
       - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+      - frontend/apps/web_app/tests/real-inference-spec-sub-chats.spec.ts
       - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
       - frontend/apps/web_app/tests/unified-detail-pages.spec.ts
       key_unit_tests:
@@ -15547,8 +15632,8 @@ features:
         passing: 0
         failing: 0
         not_run: 9
-        missing: 8
-        counted: 17
+        missing: 10
+        counted: 19
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
@@ -15575,15 +15660,15 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_run
+      status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 0
+        passing: 2
         failing: 0
         not_run: 10
         missing: 7
-        counted: 17
+        counted: 19
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -15592,7 +15677,7 @@ features:
       - backend/tests/test_workspace_change_history.py
       - backend/tests/test_plan_assumption_workflow.py
       - backend/tests/test_user_task_admission.py
-      unit_test_files: 7
+      unit_test_files: 13
     sdk_npm:
       status: not_run
       source: tests
@@ -15601,8 +15686,8 @@ features:
         passing: 0
         failing: 0
         not_run: 6
-        missing: 11
-        counted: 17
+        missing: 13
+        counted: 19
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -15618,8 +15703,8 @@ features:
         passing: 0
         failing: 0
         not_run: 7
-        missing: 10
-        counted: 17
+        missing: 12
+        counted: 19
       key_tests: []
       e2e_tests: []
       key_unit_tests:
@@ -24491,6 +24576,7 @@ features:
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/plan-skill-embeds.spec.ts
+      - frontend/apps/web_app/tests/components/spec-sub-chat-links.spec.ts
       - frontend/apps/web_app/tests/components/specification-embed.spec.ts
       - frontend/apps/web_app/tests/components/specification-fullscreen.spec.ts
       - frontend/apps/web_app/tests/project-specifications-web-flow.spec.ts

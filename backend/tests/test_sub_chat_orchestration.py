@@ -7,11 +7,14 @@
 # confirmation UI that is shown for large approved batches.
 
 import asyncio
+import hashlib
 import inspect
+import uuid as _uuid
 from types import SimpleNamespace
 
 import pytest
 
+from backend.apps.ai import sub_chat_focus_links as links
 from backend.apps.ai import sub_chat_orchestration
 from backend.apps.ai.sub_chat_orchestration import (
     MAX_DIRECT_SUB_CHATS_PER_PARENT,
@@ -22,6 +25,9 @@ from backend.apps.ai.sub_chat_orchestration import (
     expand_sub_chat_requests,
     resolve_sub_chat_depth,
     validate_sub_chat_capacity,
+)
+from backend.core.api.app.services.project_write_authorization_service import (
+    ProjectWriteAuthorizationService,
 )
 
 
@@ -174,7 +180,7 @@ def test_capacity_counts_existing_children_against_root_limit() -> None:
 def test_child_dispatch_inherits_active_focus_context() -> None:
     source = inspect.getsource(sub_chat_orchestration.dispatch_sub_chat_task)
 
-    assert '"active_focus_id": request_data.active_focus_id' in source
+    assert '"active_focus_id": child_active_focus_id(sub_chat, request_data)' in source
 
 
 def test_orchestration_pauses_emit_usage_for_reservation_settlement() -> None:
@@ -568,3 +574,191 @@ def test_deep_research_verifier_envelope_is_server_claim_only():
         child = SimpleNamespace(**(vars(request) | change))
         with pytest.raises(RuntimeError, match="claimed root"):
             ensure_orchestration_envelope(child, verification_claim={"research_stage": "verification_due", "root_chat_id": "chat", "root_turn_id": "turn"})
+
+
+# --- Sub-chat focus inheritance and Plan/Task links -------------------------
+
+
+_PLAN = str(_uuid.uuid4())
+_USER, _PARENT, _CHILD, _PROJECT = "user-1", "parent-chat", "child-chat", "proj-1"
+_FOCUS_HASH = hashlib.sha256(b"project-proj1").hexdigest()
+
+
+class _Cache:
+    def __init__(self) -> None:
+        self.data: dict = {}
+
+    async def get(self, key):
+        return self.data.get(key)
+
+    async def set(self, key, value, ttl=None):
+        self.data[key] = value
+        return True
+
+    async def get_discovered_apps_metadata(self):
+        focus = SimpleNamespace(id="research")
+        return {"web": SimpleNamespace(focuses=[focus])}
+
+    async def close(self):
+        return None
+
+
+class _Directus:
+    def __init__(self, *, child_parent=_PARENT, task_owner=_USER) -> None:
+        self.child_parent = child_parent
+        self.updates: list = []
+        outer = self
+        self.project = SimpleNamespace(
+            get_project=self._project, get_project_settings=self._settings,
+        )
+
+        class _Chat:
+            async def get_chat_metadata(self, chat_id, admin_required=False):
+                hashed = hashlib.sha256(_USER.encode()).hexdigest()
+                if chat_id == _PARENT:
+                    return {"hashed_user_id": hashed}
+                return {"hashed_user_id": hashed, "is_sub_chat": True, "parent_id": outer.child_parent}
+
+        class _Task:
+            async def get_task(self, task_id, user_id, team_id=None):
+                if user_id != task_owner:
+                    return None
+                return {"id": "row-1", "task_id": task_id, "plan_id": _PLAN}
+
+        self.chat, self.user_task = _Chat(), _Task()
+
+    async def _project(self, *a, **k):
+        return {"id": _PROJECT}
+
+    async def _settings(self, *a, **k):
+        return {"default_focus_id_hash": _FOCUS_HASH, "focus_instruction": "x"}
+
+    async def update_item(self, collection, item_id, data, admin_required=False):
+        self.updates.append((collection, item_id, data))
+
+
+def _bind_parent(cache: _Cache, directus: _Directus) -> None:
+    service = ProjectWriteAuthorizationService(directus, cache)
+    binding = {
+        "project_id": _PROJECT, "focus_id": "project-proj1", "focus_id_hash": _FOCUS_HASH,
+        "instruction": "x", "instruction_revision": None, "activation_id": "act-parent", "team_id": None,
+    }
+    from backend.core.api.app.services import project_write_authorization_service as mod
+    binding["instruction_revision"] = mod._focus_instruction_revision(
+        {"default_focus_id_hash": _FOCUS_HASH, "focus_instruction": "x"},
+    )
+    cache.data[service._focus_key(_USER, _PARENT)] = binding
+
+
+def _request():
+    return SimpleNamespace(
+        user_id=_USER, chat_id=_PARENT, is_incognito=False, team_id=None, active_focus_id=None,
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-layering
+def test_focus_id_validation_drops_unknown_and_project_base() -> None:
+    known = {"web-research"}
+    def check(value, spec=None):
+        return links.validate_focus_id(value, known_builtin=known, parent_specialist_id=spec)
+
+    assert check("web-research") == "web-research"
+    assert check("web-unknown") is None
+    assert check("project-proj1") is None
+    assert check("project-focus:proj1:item1") is None
+    assert check("project-focus:proj1:item1", "project-focus:proj1:item1") == "project-focus:proj1:item1"
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-layering
+def test_child_inherits_parent_project_base_and_specific_focus() -> None:
+    cache, directus = _Cache(), _Directus()
+    _bind_parent(cache, directus)
+    children = [{"id": _CHILD, "focus_id": "web-research", "link": None}]
+    asyncio.run(links.annotate_sub_chats(
+        children, request_data=_request(), directus_service=directus,
+        cache_service=cache, log_prefix="[t]",
+    ))
+    assert children[0]["project_base"]["project_id"] == _PROJECT
+    asyncio.run(links.apply_inheritance_and_task_links(
+        children, request_data=_request(), directus_service=directus,
+        log_prefix="[t]", cache_factory=lambda: cache,
+    ))
+    child_binding = cache.data[ProjectWriteAuthorizationService._focus_key(_USER, _CHILD)]
+    assert child_binding["parent_activation_id"] == "act-parent"
+    assert child_binding["activation_id"] != "act-parent"
+    assert children[0]["project_base"] is not None
+    assert links.child_active_focus_id(children[0], _request()) == "web-research"
+    children[0]["focus_id"] = None
+    assert links.child_active_focus_id(children[0], _request()) == "project-proj1"
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-layering
+def test_child_without_parent_binding_keeps_parent_focus() -> None:
+    cache, directus = _Cache(), _Directus()
+    children = [{"id": _CHILD, "focus_id": "bogus-focus", "link": None}]
+    asyncio.run(links.annotate_sub_chats(
+        children, request_data=_request(), directus_service=directus,
+        cache_service=cache, log_prefix="[t]",
+    ))
+    assert children[0]["project_base"] is None and children[0]["focus_id"] is None
+    request = _request()
+    request.active_focus_id = "web-research"
+    assert links.child_active_focus_id(children[0], request) == "web-research"
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-layering
+def test_inheritance_refused_for_chat_that_is_not_a_child_of_the_parent() -> None:
+    cache, directus = _Cache(), _Directus(child_parent="other-parent")
+    _bind_parent(cache, directus)
+    children = [{"id": _CHILD, "focus_id": None, "link": None, "project_base": {"project_id": _PROJECT}}]
+    asyncio.run(links.apply_inheritance_and_task_links(
+        children, request_data=_request(), directus_service=directus,
+        log_prefix="[t]", cache_factory=lambda: cache,
+    ))
+    assert children[0]["project_base"] is None
+    assert ProjectWriteAuthorizationService._focus_key(_USER, _CHILD) not in cache.data
+
+
+# contract-test: supporting surface=rest_api assertions=plans.assumptions.investigated-before-work
+def test_assumption_link_passes_through_and_task_link_is_written() -> None:
+    cache, directus = _Cache(), _Directus()
+    raw = {"kind": "assumption", "plan_id": _PLAN, "id": "a-1"}
+    task = {"kind": "task", "plan_id": _PLAN, "id": "t-1"}
+    children = [
+        {"id": "c1", "focus_id": None, "link": raw},
+        {"id": "c2", "focus_id": None, "link": task},
+        {"id": "c3", "focus_id": None, "link": {"kind": "task", "plan_id": "nope", "id": "t"}},
+    ]
+    asyncio.run(links.annotate_sub_chats(
+        children, request_data=_request(), directus_service=directus,
+        cache_service=cache, log_prefix="[t]",
+    ))
+    asyncio.run(links.apply_inheritance_and_task_links(
+        children, request_data=_request(), directus_service=directus, log_prefix="[t]",
+        cache_factory=lambda: cache,
+    ))
+    assert children[0]["link"] == raw
+    assert children[1]["link"] == task
+    assert children[2]["link"] is None
+    assert directus.updates == [("user_tasks", "row-1", {"linked_sub_chat_id": "c2"})]
+
+
+# contract-test: supporting surface=rest_api assertions=plans.assumptions.investigated-before-work
+def test_task_link_refused_for_another_users_task() -> None:
+    cache, directus = _Cache(), _Directus(task_owner="someone-else")
+    children = [{"id": "c2", "focus_id": None, "link": {"kind": "task", "plan_id": _PLAN, "id": "t-1"}}]
+    asyncio.run(links.annotate_sub_chats(
+        children, request_data=_request(), directus_service=directus,
+        cache_service=cache, log_prefix="[t]",
+    ))
+    asyncio.run(links.apply_inheritance_and_task_links(
+        children, request_data=_request(), directus_service=directus, log_prefix="[t]",
+        cache_factory=lambda: cache,
+    ))
+    assert children[0]["link"] is None
+    assert directus.updates == []
+
+
+def test_expand_carries_focus_and_link_fields() -> None:
+    out = expand_sub_chat_requests([{"prompt": "p", "focus_id": "web-research", "link": {"kind": "task"}}])
+    assert out[0]["focus_id"] == "web-research" and out[0]["link"] == {"kind": "task"}

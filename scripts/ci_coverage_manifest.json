@@ -373,6 +373,8 @@
         "components/specification-fullscreen.spec.ts",
         "components/specification-embed.spec.ts",
         "components/plan-embed.spec.ts",
+        "components/spec-sub-chat-links.spec.ts",
+        "components/sub-chat-work-link.spec.ts",
         "components/check-embed.spec.ts",
         "components/chat-active-plan.spec.ts",
         "components/plan-skill-embeds.spec.ts",
@@ -1361,6 +1363,7 @@
         "real-inference-safety-suspension.spec.ts",
         "real-inference-slides-focus-modes.spec.ts",
         "real-inference-spec-authoring-focus.spec.ts",
+        "real-inference-spec-sub-chats.spec.ts",
         "real-inference-sub-chats.spec.ts",
         "real-inference-wellbeing-helpline.spec.ts"
       ]

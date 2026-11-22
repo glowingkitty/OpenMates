@@ -5361,6 +5361,9 @@
       "no_project": {
         "text": "Verschiebe diesen Chat in ein Projekt, um die Prüfung dort zu speichern."
       }
+    },
+    "plan_tasks": {
+      "text": "Zugehörige Aufgaben"
     }
   },
   "common": {
@@ -17563,12 +17566,26 @@
     },
     "assumption": {
       "open_chat": {
-        "text": "Prüf-Chat öffnen"
+        "text": "Prüf-Chat"
       }
     },
     "task": {
+      "open_chat": {
+        "text": "Arbeits-Chat"
+      },
       "open": {
         "text": "Aufgabe öffnen"
+      }
+    },
+    "sub_chat": {
+      "checks": {
+        "text": "Prüft: {text}"
+      },
+      "works_on": {
+        "text": "Arbeitet an: {title}"
+      },
+      "back": {
+        "text": "Zurück zum Haupt-Chat"
       }
     },
     "plan": {
@@ -26803,6 +26820,15 @@
       },
       "proof": {
         "text": "{passed} belegt · {open} offen · {stale} veraltet"
+      },
+      "plan_progress": {
+        "text": "{checking} Annahmen werden geprüft · {tasks} Aufgaben"
+      },
+      "plan_progress_one": {
+        "text": "{checking} Annahme wird geprüft · {tasks} Aufgaben"
+      },
+      "plan_tasks_only": {
+        "text": "{tasks} Aufgaben"
       }
     },
     "fullscreen": {
@@ -26823,6 +26849,15 @@
       },
       "related": {
         "text": "Verknüpfte Spezifikationen"
+      },
+      "checking_chat": {
+        "text": "Prüf-Chat"
+      },
+      "working_chat": {
+        "text": "Arbeits-Chat"
+      },
+      "plan_tasks": {
+        "text": "Aufgaben des Plans"
       }
     },
     "revisions": {

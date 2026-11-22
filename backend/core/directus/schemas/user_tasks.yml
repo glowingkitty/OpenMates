@@ -48,6 +48,11 @@ user_tasks:
       nullable: true
       note: "Primary chat used as task context. Server-visible for routing and chat task lists."
 
+    linked_sub_chat_id:
+      type: string
+      nullable: true
+      note: "Sub-chat investigating this task, set server-side by start_sub_chats. Plaintext like user_plan_assumptions.linked_sub_chat_id."
+
     hashed_primary_chat_id:
       type: string
       nullable: true

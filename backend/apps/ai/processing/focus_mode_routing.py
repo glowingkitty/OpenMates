@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 
 
 DEEP_RESEARCH_FOCUS_ID = "web-research"
+WRITE_SPECIFICATION_FOCUS_ID = "code-write_specification"
 WORKFLOW_CLARIFY_FOCUS_ID = "workflows-clarify_workflows"
 WORKFLOW_CLARIFY_SKILLS = frozenset({"workflows-search", "workflows-create-or-modify"})
 
@@ -107,8 +108,14 @@ def workflow_clarification_skill_scope(
     return None
 
 
+# Focus modes whose own process delegates work to sub-chats, so the tool is offered
+# whatever the preprocessor decided: Deep research splits angles, Write specification
+# checks each assumption and implements each Task in its own sub-chat.
+SUB_CHAT_DELEGATING_FOCUS_IDS = frozenset({DEEP_RESEARCH_FOCUS_ID, WRITE_SPECIFICATION_FOCUS_ID})
+
+
 def should_enable_subchats_for_active_focus(active_focus_id: str | None) -> bool:
-    return active_focus_id == DEEP_RESEARCH_FOCUS_ID
+    return active_focus_id in SUB_CHAT_DELEGATING_FOCUS_IDS
 
 
 def should_force_deep_research_delegation(
@@ -120,7 +127,7 @@ def should_force_deep_research_delegation(
     return (
         chat_depth == 0
         and not is_sub_chat_continuation
-        and should_enable_subchats_for_active_focus(active_focus_id)
+        and active_focus_id == DEEP_RESEARCH_FOCUS_ID
     )
 
 
@@ -159,13 +166,37 @@ def resolve_subchat_enablement(
             or chat_depth == 1)
 
 
+# Tool families the coordinating spec chat hands to sub-chats once the hand-off runs.
+SPEC_HANDOFF_DELEGATED_TOOL_PREFIXES = ("web-", "code-", "images-", "videos-", "news-")
+
+
+def gate_tools_for_spec_handoff(
+    available_tools: list[dict[str, Any]],
+    *,
+    active_focus_id: str | None,
+    chat_depth: int,
+    phase_id: str | None,
+) -> list[dict[str, Any]]:
+    """Keep the top-level Write specification chat a coordinator in its hand-off.
+
+    Assumption checks and Task work run in linked sub-chats, so research and
+    code tools leave the main chat once the hand-off phase is active. Plans,
+    Tasks, start_sub_chats and lifecycle tools stay; sub-chats keep every tool.
+    """
+    if (active_focus_id != WRITE_SPECIFICATION_FOCUS_ID or chat_depth != 0
+            or phase_id != "handoff"):
+        return available_tools
+    return [tool for tool in available_tools
+            if not str(tool.get("function", {}).get("name") or "").startswith(SPEC_HANDOFF_DELEGATED_TOOL_PREFIXES)]
+
+
 def gate_tools_for_deep_research(
     available_tools: list[dict[str, Any]],
     *,
     active_focus_id: str | None,
     start_sub_chats_tool: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    if should_enable_subchats_for_active_focus(active_focus_id):
+    if active_focus_id == DEEP_RESEARCH_FOCUS_ID:
         return [start_sub_chats_tool]
     return available_tools
 

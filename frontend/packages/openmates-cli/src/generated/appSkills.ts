@@ -7124,7 +7124,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "plans",
     "skill_method_py": "create",
     "description_key": "plans.skills.create.description",
-    "description": "Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.",
+    "description": "Request creation of a user-visible plan with optional assumptions; returns plan_id and assumption ids. Durable plan content is client-side encrypted, so a capable connected client must apply the change.",
     "schema": {
       "type": "object",
       "properties": {
@@ -7139,6 +7139,36 @@ export const APP_SKILL_METADATA = [
         "goal": {
           "type": "string",
           "description": "Optional plan goal."
+        },
+        "specification_ref": {
+          "type": "string",
+          "description": "Optional reference to the approved Specification this Plan implements."
+        },
+        "assumptions": {
+          "type": "array",
+          "maxItems": 20,
+          "description": "Open assumptions to investigate before work (for example the Specification's open assumptions). The result returns plan_id and one assumption_id per assumption in order, so sub-chats and tasks can be linked in the same turn; the connected client then saves the encrypted Plan and its assumption rows.\n",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "required_before": {
+                "type": "string",
+                "enum": [
+                  "implementation",
+                  "task_execution",
+                  "completion"
+                ],
+                "default": "implementation"
+              }
+            },
+            "required": [
+              "text"
+            ]
+          }
         }
       },
       "required": [
@@ -8228,6 +8258,10 @@ export const APP_SKILL_METADATA = [
                 "default": true,
                 "description": "Link to the current chat; false leaves the Task unlinked."
               },
+              "plan_id": {
+                "type": "string",
+                "description": "Link this Task to a saved Plan (overrides the top-level plan_id)."
+              },
               "title": {
                 "type": "string"
               },
@@ -8257,6 +8291,10 @@ export const APP_SKILL_METADATA = [
           "type": "boolean",
           "default": true,
           "description": "Default chat-link choice for created Tasks; tasks[] can override it."
+        },
+        "plan_id": {
+          "type": "string",
+          "description": "Default Plan to link the created Tasks to. The Plan must belong to the user and be saved; a missing Plan fails the call.\n"
         },
         "title": {
           "type": "string",
@@ -11130,7 +11168,7 @@ export class PlansAppSkills {
     return this.runSkill<T>("plans", "check", input, options);
   }
   /**
-   * Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
+   * Request creation of a user-visible plan with optional assumptions; returns plan_id and assumption ids. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
    * Description key: plans.skills.create.description
    * Skill: plans/create
    */

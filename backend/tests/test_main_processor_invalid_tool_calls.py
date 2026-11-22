@@ -1329,6 +1329,11 @@ async def test_tool_guidance_matches_final_forwarded_capability(monkeypatch, for
     assert (discipline in primary) is not expose_subchats
     assert (proactive in primary) is (forwarded_kind == "app_skill")
     assert ("### Sub-Chats (Sub-Agents) Orchestration Instruction:" in primary) is expose_subchats
+    if expose_subchats:
+        # Delegation is a general rule for splittable work, not a Deep research special case.
+        assert "two or more independent, substantial parts" in primary
+        assert "Do not delegate simple, short or single-answer requests" in primary
+        assert "For Deep research, explicitly require web-read" not in primary
     assert "A safe answer." in "".join(chunk for chunk in output if isinstance(chunk, str))
 
     if forwarded_kind == "task_create":

@@ -7118,10 +7118,35 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'plans',
   'app_namespace_py': 'plans',
   'app_namespace_ts': 'plans',
-  'description': 'Request creation of a user-visible plan. Durable plan content is client-side '
-                 'encrypted, so a capable connected client must apply the change.',
+  'description': 'Request creation of a user-visible plan with optional assumptions; returns '
+                 'plan_id and assumption ids. Durable plan content is client-side encrypted, so a '
+                 'capable connected client must apply the change.',
   'description_key': 'plans.skills.create.description',
-  'schema': {'properties': {'goal': {'description': 'Optional plan goal.', 'type': 'string'},
+  'schema': {'properties': {'assumptions': {'description': 'Open assumptions to investigate before '
+                                                           "work (for example the Specification's "
+                                                           'open assumptions). The result returns '
+                                                           'plan_id and one assumption_id per '
+                                                           'assumption in order, so sub-chats and '
+                                                           'tasks can be linked in the same turn; '
+                                                           'the connected client then saves the '
+                                                           'encrypted Plan and its assumption '
+                                                           'rows.\n',
+                                            'items': {'properties': {'required_before': {'default': 'implementation',
+                                                                                         'enum': ['implementation',
+                                                                                                  'task_execution',
+                                                                                                  'completion'],
+                                                                                         'type': 'string'},
+                                                                     'text': {'maxLength': 2000,
+                                                                              'type': 'string'}},
+                                                      'required': ['text'],
+                                                      'type': 'object'},
+                                            'maxItems': 20,
+                                            'type': 'array'},
+                            'goal': {'description': 'Optional plan goal.', 'type': 'string'},
+                            'specification_ref': {'description': 'Optional reference to the '
+                                                                 'approved Specification this Plan '
+                                                                 'implements.',
+                                                  'type': 'string'},
                             'summary': {'description': 'Optional plan summary.', 'type': 'string'},
                             'title': {'description': 'Short user-facing plan title.',
                                       'type': 'string'}},
@@ -8309,6 +8334,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                              'description': 'Default chat-link choice for created '
                                                             'Tasks; tasks[] can override it.',
                                              'type': 'boolean'},
+                            'plan_id': {'description': 'Default Plan to link the created Tasks to. '
+                                                       'The Plan must belong to the user and be '
+                                                       'saved; a missing Plan fails the call.\n',
+                                        'type': 'string'},
                             'tasks': {'items': {'properties': {'assignee': {'enum': ['user',
                                                                                      'openmates'],
                                                                             'type': 'string'},
@@ -8325,6 +8354,16 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                                'Task '
                                                                                                'unlinked.',
                                                                                 'type': 'boolean'},
+                                                               'plan_id': {'description': 'Link '
+                                                                                          'this '
+                                                                                          'Task to '
+                                                                                          'a saved '
+                                                                                          'Plan '
+                                                                                          '(overrides '
+                                                                                          'the '
+                                                                                          'top-level '
+                                                                                          'plan_id).',
+                                                                           'type': 'string'},
                                                                'status': {'enum': ['backlog',
                                                                                    'todo',
                                                                                    'in_progress',
@@ -11501,7 +11540,7 @@ class PlansAppSkills:
         return self._run_skill("plans", "check", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Request creation of a user-visible plan. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
+        """Request creation of a user-visible plan with optional assumptions; returns plan_id and assumption ids. Durable plan content is client-side encrypted, so a capable connected client must apply the change.
 
         Description key: plans.skills.create.description
         Skill: plans/create

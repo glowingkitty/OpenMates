@@ -83,6 +83,9 @@ from .handlers.websocket_handlers.project_focus_decision_handler import handle_p
 from .handlers.websocket_handlers.project_focus_catalog_handler import handle_project_focus_catalog_result
 from .handlers.websocket_handlers.project_create_result_handler import handle_project_create_result
 from backend.core.api.app.services.project_create_request_service import outbound_create_event
+from backend.core.api.app.services.plan_create_request_service import (
+    PLAN_CREATE_EVENT, PLAN_CREATE_RESULT_MESSAGE, handle_plan_create_result, outbound_plan_create_event,
+)
 from .handlers.websocket_handlers.workflow_metadata_warmup_handler import (
     accept_workflow_warmup_request, warm_workflow_metadata,
 )
@@ -1347,6 +1350,14 @@ async def listen_for_cache_events(app: FastAPI):
                         outbound = outbound_create_event(payload)
                         for device_id in (manager.get_connections_for_user(user_id) if outbound else []):
                             if manager.can_execute_project_create(user_id, device_id, outbound["chat_id"]):
+                                await manager.send_personal_message(
+                                    {"type": event_type, "payload": outbound}, user_id, device_id,
+                                )
+                    elif event_type == PLAN_CREATE_EVENT:
+                        # Any foreground device that advertises plan_create_requests may create the Plan.
+                        outbound = outbound_plan_create_event(payload)
+                        for device_id in (manager.get_connections_for_user(user_id) if outbound else []):
+                            if manager.can_execute_plan_create(user_id, device_id):
                                 await manager.send_personal_message(
                                     {"type": event_type, "payload": outbound}, user_id, device_id,
                                 )
@@ -3472,6 +3483,7 @@ async def websocket_endpoint(
                             if complete_task_inventory else None)
     supports_project_file_jobs = "project_file_jobs" in connection_capabilities
     supports_project_create_requests = "project_create_requests" in connection_capabilities
+    supports_plan_create_requests = "plan_create_requests" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
     supports_memory_write_jobs = "memory_write_jobs" in connection_capabilities
     supports_chat_orchestration_jobs = "chat_orchestration_jobs" in connection_capabilities
@@ -3524,6 +3536,7 @@ async def websocket_endpoint(
         supports_chat_metadata_recovery=supports_chat_metadata_recovery,
         supports_project_file_jobs=supports_project_file_jobs,
         supports_project_create_requests=supports_project_create_requests,
+        supports_plan_create_requests=supports_plan_create_requests,
         supports_remote_command_jobs=supports_remote_command_jobs,
         supports_memory_write_jobs=supports_memory_write_jobs,
         supports_chat_orchestration_jobs=supports_chat_orchestration_jobs,
@@ -4837,6 +4850,11 @@ async def websocket_endpoint(
                     websocket=websocket, manager=manager, user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash, payload=payload,
                     cache_service=cache_service, directus_service=directus_service,
+                )
+            elif message_type == PLAN_CREATE_RESULT_MESSAGE:
+                await handle_plan_create_result(
+                    manager=manager, user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload, cache_service=cache_service,
                 )
             elif message_type == "focus_mode_rejected":
                 # Handle user rejection of focus mode during the countdown

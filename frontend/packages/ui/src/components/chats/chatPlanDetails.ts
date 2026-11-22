@@ -24,7 +24,7 @@ export async function loadChatPlanDetails(plans: UserPlanViewModel[], chatTasks:
     const state = await loadUserPlanDetailState(plan);
     const tasks = allTasks
       .filter((task) => task.planId === plan.plan_id)
-      .map((task) => ({ taskId: task.task_id, title: task.title, status: task.status }));
+      .map((task) => ({ taskId: task.task_id, title: task.title, status: task.status, linkedSubChatId: task.linkedSubChatId }));
     return [plan.plan_id, {
       tasks,
       assumptions: state.assumptions,
