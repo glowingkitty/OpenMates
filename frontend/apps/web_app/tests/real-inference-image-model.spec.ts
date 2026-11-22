@@ -9,6 +9,8 @@ export {};
  * or an explicit @ai-model override, then captures the actual model response.
  * Avoids TEST_MOCK markers because the production regression was provider/runtime
  * behavior after images.view returned uploaded image bytes.
+ * Runs in the `real_inference` CI group (default smoke: Auto and Gemini 3.8 Flash)
+ * and manually against dev; IMAGE_MODEL_FULL_MATRIX=1 adds models whose keys only dev has.
  */
 
 const path = require('path');
@@ -29,7 +31,9 @@ const {
 	waitForChatReady,
 	waitForAssistantMessage
 } = require('./helpers/chat-test-helpers');
-const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { requireRealInference } = require('./helpers/real-inference-guard');
+
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 
 const IMAGE_FIXTURE = path.resolve(
 	__dirname,
@@ -309,8 +313,9 @@ for (const model of activeModels) {
 			test.slow();
 			test.setTimeout(420000);
 
-			const { email, password, otpKey } = getTestAccount();
-			skipWithoutCredentials(test, email, password, otpKey);
+			const { email } = getTestAccount();
+			requireRealInference('Image model inference', BASE_URL);
+			if (!email) throw new Error('Real-inference CI requires a provisioned test account.');
 
 			const log = createSignupLogger(`IMAGE_MODEL_${model.label.toUpperCase()}_${trial}`);
 			const screenshot = createStepScreenshotter(log, {
@@ -361,8 +366,9 @@ if (process.env.IMAGE_MODEL_AUTO_QUALITY === '1') {
 		page
 	}: { page: any }, testInfo: any) => {
 		test.setTimeout(600000);
-		const { email, password, otpKey } = getTestAccount();
-		skipWithoutCredentials(test, email, password, otpKey);
+		const { email } = getTestAccount();
+		requireRealInference('Image model inference', BASE_URL);
+		if (!email) throw new Error('Real-inference CI requires a provisioned test account.');
 		const log = createSignupLogger('IMAGE_AUTO_OBJECTIVE');
 		const screenshot = createStepScreenshotter(log, { filenamePrefix: 'image-auto-objective' });
 		await page.goto(getE2EDebugUrl('/'));

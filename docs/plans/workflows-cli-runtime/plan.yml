@@ -1059,8 +1059,8 @@ tests:
   - id: T-CLI-E2E-002
     type: playwright
     surface: cli_only
-    file: frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
-    command: python3 scripts/tests.py run --spec cli-workflows-ai-chat-real.spec.ts
+    file: frontend/apps/web_app/tests/real-inference-cli-workflows-ai-chat.spec.ts
+    command: python3 scripts/tests.py run --spec real-inference-cli-workflows-ai-chat.spec.ts
     target: app.dev.openmates.org
     covers: [AC-5, AC-6, AC-7, AC-12, AC-18]
     assertions:
@@ -1075,7 +1075,7 @@ tests:
     green_phase:
       required: false
       expected: pass_after_deploy
-      evidence: { status: passed, command: "python3 scripts/tests.py run -- --spec cli-workflows-ai-chat-real.spec.ts", run_id: "29273901061", subject_commit: "5f340c905", deployment_reference: "dpl_3EnGuCcbQsyAVqL71Y5S2UASmxmm", target: app.dev.openmates.org, timestamp: "2026-07-13T18:13:02Z" }
+      evidence: { status: passed, command: "python3 scripts/tests.py run -- --spec real-inference-cli-workflows-ai-chat.spec.ts", run_id: "29273901061", subject_commit: "5f340c905", deployment_reference: "dpl_3EnGuCcbQsyAVqL71Y5S2UASmxmm", target: app.dev.openmates.org, timestamp: "2026-07-13T18:13:02Z" }
     notes:
       - Playwright is only the authenticated remote process runner; this test invokes the CLI and performs no web UI interaction.
   - id: T-CLI-E2E-003
@@ -1516,7 +1516,7 @@ tasks:
       acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-11, AC-12, AC-13, AC-14, AC-16, AC-17, AC-18]
     expected_files:
       - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
-      - frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-cli-workflows-ai-chat.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-search-controls-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
@@ -1528,7 +1528,7 @@ tasks:
     ownership:
       files:
         - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
-        - frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
+        - frontend/apps/web_app/tests/real-inference-cli-workflows-ai-chat.spec.ts
         - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
         - frontend/apps/web_app/tests/cli-workflows-search-controls-real.spec.ts
         - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts

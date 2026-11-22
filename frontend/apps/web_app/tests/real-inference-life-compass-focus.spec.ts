@@ -84,7 +84,14 @@ async function sendWithModel(page: Page, prompt: string, kind: string): Promise<
   await sendMessage(page, ` ${prompt}`, undefined, undefined, kind, { preserveExistingContent: true });
 }
 
-/** The turn is over when the stop button and typing indicator stay hidden for 5 s. */
+/**
+ * The turn is over when the stop button and typing indicator stay hidden for 12 s:
+ * a focus activation pauses for the 5 s auto-confirm countdown
+ * (FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN) before the reply continues, so a shorter
+ * window ends the turn at the activation message.
+ */
+const IDLE_WINDOW_MS = 12_000;
+
 async function waitForIdle(page: Page): Promise<void> {
   const busy = page.locator('[data-testid="stop-processing-button"]:visible, [data-testid="typing-indicator"]:visible');
   let idleSince = 0;
@@ -94,7 +101,7 @@ async function waitForIdle(page: Page): Promise<void> {
       return false;
     }
     idleSince ||= Date.now();
-    return Date.now() - idleSince >= 5_000;
+    return Date.now() - idleSince >= IDLE_WINDOW_MS;
   }, { timeout: TURN_TIMEOUT, intervals: [1_000] }).toBe(true);
 }
 

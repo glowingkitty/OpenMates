@@ -341,7 +341,7 @@ REVIEWED_BROAD_CHAT_SPECS = frozenset({
     "chat-settings-flow.spec.ts",
     "chat-streaming-render-performance.spec.ts",
     "chat-sync-empty-indexeddb-recovery.spec.ts",
-    "cli-workflows-ai-chat-real.spec.ts",
+    "real-inference-cli-workflows-ai-chat.spec.ts",
     "daily-inspiration-chat-flow.spec.ts",
     "example-chat-clone.spec.ts",
     "example-chat-logout-preserve.spec.ts",

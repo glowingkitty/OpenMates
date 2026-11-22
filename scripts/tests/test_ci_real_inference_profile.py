@@ -51,10 +51,17 @@ def test_without_the_flag_no_key_name_or_allowlist_is_present() -> None:
     assert "OPENMATES_CI_REAL_INFERENCE" not in profile
 
 
-@pytest.mark.parametrize("option", [{"ai_fixtures": True}, {"public_provider": True}, {"storage_capacity": True}])
+@pytest.mark.parametrize("option", [{"ai_fixtures": True}, {"public_provider": True}, {"storage_capacity": True}, {"workflows": True}])
 def test_real_inference_never_mixes_with_replay_profiles(option) -> None:
     with pytest.raises(ValueError, match="never mixed with replay"):
         compose_profile("a" * 40, real_inference=True, **option)
+
+
+def test_the_internal_workflow_runtime_runs_with_real_inference() -> None:
+    profile = compose_profile("a" * 40, real_inference=True, workflow_runtime=True)
+    assert "workflow-scheduler" in profile["services"]
+    assert "workflow" in profile["services"]["core-worker"]["environment"]["CELERY_QUEUES"].split(",")
+    assert profile["services"]["ai-worker"]["environment"]["CELERY_QUEUES"] == "app_ai,app_ai_routing"
 
 
 def test_the_vault_seeds_and_checks_exactly_the_keyed_providers() -> None:

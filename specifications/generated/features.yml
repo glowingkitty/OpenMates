@@ -254,7 +254,6 @@ features:
       - frontend/apps/web_app/tests/composer-model-routing.spec.ts
       - frontend/apps/web_app/tests/default-model-settings.spec.ts
       - frontend/apps/web_app/tests/gpt61-sol-model-picker.spec.ts
-      - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
       - frontend/apps/web_app/tests/mercury3-model-picker.spec.ts
       - frontend/apps/web_app/tests/mistral-large4-model-picker.spec.ts
       - frontend/apps/web_app/tests/model-toggle-settings.spec.ts
@@ -263,6 +262,7 @@ features:
       - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
       - frontend/apps/web_app/tests/provider-temporary-pricing.spec.ts
       - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
+      - frontend/apps/web_app/tests/real-inference-image-model.spec.ts
       - frontend/apps/web_app/tests/storage-capacity-replay.spec.ts
       - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
       - frontend/apps/web_app/tests/voice-call.spec.ts
@@ -13723,7 +13723,7 @@ features:
       - frontend/apps/web_app/tests/components/generated-media-generate-card.spec.ts
       - frontend/apps/web_app/tests/components/images-modify-embed.spec.ts
       - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
-      - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-image-model.spec.ts
       - frontend/apps/web_app/tests/vector-graphic-chat.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/components/embeds/images/__tests__/imageDraft.test.ts
@@ -19240,13 +19240,13 @@ features:
       - frontend/apps/web_app/tests/cli-workflow-data-branches.spec.ts
       - frontend/apps/web_app/tests/cli-workflow-files.spec.ts
       - frontend/apps/web_app/tests/cli-workflow-skill-safety.spec.ts
-      - frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-jobs-search-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-natural-language-guards.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-rain-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-search-controls-real.spec.ts
       - frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
+      - frontend/apps/web_app/tests/real-inference-cli-workflows-ai-chat.spec.ts
       key_unit_tests:
       - frontend/packages/openmates-cli/tests/workflows.test.ts
       - backend/tests/test_workflow_nl_planner.py
@@ -20759,7 +20759,6 @@ features:
       - frontend/apps/web_app/tests/components/video-transcript-media-ccc.spec.ts
       - frontend/apps/web_app/tests/example-chat-brand-naming.spec.ts
       - frontend/apps/web_app/tests/example-chat-hosting-domains.spec.ts
-      - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
       - frontend/apps/web_app/tests/jobs-search-example.spec.ts
       - frontend/apps/web_app/tests/landing-audio-targeted.spec.ts
       - frontend/apps/web_app/tests/landing-home-replacement.spec.ts
@@ -20772,6 +20771,7 @@ features:
       - frontend/apps/web_app/tests/models3d-search.spec.ts
       - frontend/apps/web_app/tests/pdf-flow.spec.ts
       - frontend/apps/web_app/tests/provider-boundary.spec.ts
+      - frontend/apps/web_app/tests/real-inference-image-model.spec.ts
       - frontend/apps/web_app/tests/real-inference-image-upload-svg.spec.ts
       - frontend/apps/web_app/tests/search-parent-preview-stress.spec.ts
       - frontend/apps/web_app/tests/skill-business-trademarks-browser.spec.ts

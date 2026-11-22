@@ -227,7 +227,6 @@
         "cli-file-upload.spec.ts",
         "cli-images.spec.ts",
         "cli-skills-pdf.spec.ts",
-        "cli-workflows-ai-chat-real.spec.ts",
         "cli-workflows-step-test-real.spec.ts",
         "code-repo-embed.spec.ts",
         "cross-client-draft-sync.spec.ts",
@@ -240,7 +239,6 @@
         "file-attachment-code-flow.spec.ts",
         "file-attachment-flow.spec.ts",
         "image-enhance.spec.ts",
-        "image-model-inference-real.spec.ts",
         "message-highlights.spec.ts",
         "message-sync.spec.ts",
         "mindmap-embed.spec.ts",
@@ -644,7 +642,8 @@
         "voice-call-ambient-sounds.spec.ts",
         "voice-call-screen-share.spec.ts",
         "authored-results-media.spec.ts",
-        "real-inference-image-upload-svg.spec.ts"
+        "real-inference-image-upload-svg.spec.ts",
+        "real-inference-image-model.spec.ts"
       ]
     },
     "credential_free_domains": {
@@ -824,7 +823,8 @@
       "specs": [
         "workflow-completion-notifications.spec.ts",
         "workflow-completion-notification-route.spec.ts",
-        "workflows-template-catalog.spec.ts"
+        "workflows-template-catalog.spec.ts",
+        "real-inference-cli-workflows-ai-chat.spec.ts"
       ]
     },
     "upload_audio_services": {
@@ -1350,9 +1350,11 @@
       "enabling_work": "Real provider inference in the run's own isolated stack. Only the protected real-inference GitHub environment (dev branch) supplies the dev-only provider keys, which reach only that run's throwaway Vault; the stack's only egress is the gateway's HTTPS allowlist for those providers. Own batch; never mixed with replay fixtures.",
       "specs": [
         "real-inference-chat-notice-headline.spec.ts",
+        "real-inference-cli-workflows-ai-chat.spec.ts",
         "real-inference-events-question.spec.ts",
         "real-inference-focus-mode-video.spec.ts",
         "real-inference-gemini-chat.spec.ts",
+        "real-inference-image-model.spec.ts",
         "real-inference-image-upload-svg.spec.ts",
         "real-inference-life-compass-focus.spec.ts",
         "real-inference-press-release-project-memory.spec.ts",
@@ -1539,12 +1541,6 @@
         "PLAYWRIGHT_TEST_BASE_URL"
       ]
     },
-    "cli-workflows-ai-chat-real.spec.ts": {
-      "dependency": "workflow_worker_with_live_steps",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: runs AI mode, delivers chat through a client claim, waits, and resumes through CLI respond. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add Workflow scheduler/execution queues and client claim/respond fixtures; inspect app-skill side effects individually.",
-      "user_input_required": true,
-      "source_environment_names": []
-    },
     "cli-workflows-search-controls-real.spec.ts": {
       "dependency": "original_workflow_events_provider_credentials",
       "next_action": "Workflow queue and canonical trigger scanner are implemented. Original web/news steps already use explicit fixture queries, but the Events step is an unmarked auto-provider AI meetup search using live event sources. Enable only after dedicated provider credentials/request caps are authorized; preserve original search/control-step assertions and do not substitute a fixture for the live Events step.",
@@ -1697,15 +1693,6 @@
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
-      ]
-    },
-    "image-model-inference-real.spec.ts": {
-      "dependency": "original_live_inference",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: image-model-inference-real.spec.ts. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "IMAGE_MODEL_FULL_MATRIX",
-        "IMAGE_MODEL_LABELS"
       ]
     },
     "mention-dropdown-settings-memory.spec.ts": {

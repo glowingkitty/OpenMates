@@ -603,8 +603,8 @@ assertions:
       name: test_real_shopping_answer_policy_survives_every_model_dispatch
       surface: rest_api
     - &id070
-      path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 308
+      path: frontend/apps/web_app/tests/real-inference-image-model.spec.ts
+      line: 312
       name: real image inference ${model.label} trial ${trial}
       surface: gui.web
     tests:
@@ -31102,19 +31102,19 @@ assertions:
       name: test_uploaded_image_auto_keeps_google_tier_profile
       surface: rest_api
     - &id3989
-      path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 308
-      name: real image inference ${model.label} trial ${trial}
-      surface: gui.web
-    - &id3990
-      path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 360
-      name: real Auto image objective counts and text-only history
-      surface: gui.web
-    - &id3991
       path: frontend/apps/web_app/tests/mercury3-model-picker.spec.ts
       line: 75
       name: Auto uses current affordable models and recovers Gemini before Mercury
+      surface: gui.web
+    - &id3990
+      path: frontend/apps/web_app/tests/real-inference-image-model.spec.ts
+      line: 312
+      name: real image inference ${model.label} trial ${trial}
+      surface: gui.web
+    - &id3991
+      path: frontend/apps/web_app/tests/real-inference-image-model.spec.ts
+      line: 365
+      name: real Auto image objective counts and text-only history
       surface: gui.web
     - &id3992
       path: frontend/packages/ui/src/services/__tests__/modelRoutingRestrictions.test.ts
@@ -32266,14 +32266,14 @@ assertions:
         back to auto
       surface: gui.web
     - &id4134
-      path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 308
-      name: real image inference ${model.label} trial ${trial}
-      surface: gui.web
-    - &id4135
       path: frontend/apps/web_app/tests/mercury3-model-picker.spec.ts
       line: 75
       name: Auto uses current affordable models and recovers Gemini before Mercury
+      surface: gui.web
+    - &id4135
+      path: frontend/apps/web_app/tests/real-inference-image-model.spec.ts
+      line: 312
+      name: real image inference ${model.label} trial ${trial}
       surface: gui.web
     - &id4136
       path: frontend/packages/openmates-cli/tests/chatModelPreferences.test.ts
@@ -32394,17 +32394,17 @@ assertions:
       name: Claude and OpenAI selectors keep curated models visible and expand recent
         old models
       surface: gui.web
-    - &id4148
+    - &id4147
       path: frontend/apps/web_app/tests/mercury3-model-picker.spec.ts
       line: 12
       name: Mercury 3 is manually selectable through Inception with medium capability
       surface: gui.web
-    - &id4149
+    - &id4148
       path: frontend/apps/web_app/tests/mistral-large4-model-picker.spec.ts
       line: 12
       name: Mistral selector reflects curated capabilities and visibility
       surface: gui.web
-    - &id4150
+    - &id4149
       path: frontend/apps/web_app/tests/native-cache-selected-tools.spec.ts
       line: 172
       name: native cache keeps selected math tools and settled billing across five
@@ -32432,9 +32432,9 @@ assertions:
       line: 4
       name: testActualProviderModelToggleRoutesDraftAndAutoClearsPrefix
       surface: gui.apple
-    - &id4147
-      path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 308
+    - &id4150
+      path: frontend/apps/web_app/tests/real-inference-image-model.spec.ts
+      line: 312
       name: real image inference ${model.label} trial ${trial}
       surface: gui.web
     - &id4154
@@ -32465,14 +32465,14 @@ assertions:
         - *id4144
         - *id4145
         - *id4146
+        - *id4147
         - *id4148
         - *id4149
-        - *id4150
         - *id4151
         - *id4152
         - *id4153
         supporting_tests:
-        - *id4147
+        - *id4150
         - *id4154
     current_direct_proof: false
   ai-model-routing.unavailable.notify-reset-auto:
@@ -50382,8 +50382,8 @@ assertions:
       name: test_multimodal_tool_result_adds_image_safety_before_next_dispatch
       surface: rest_api
     - &id6285
-      path: frontend/apps/web_app/tests/image-model-inference-real.spec.ts
-      line: 308
+      path: frontend/apps/web_app/tests/real-inference-image-model.spec.ts
+      line: 312
       name: real image inference ${model.label} trial ${trial}
       surface: gui.web
     tests:
@@ -132493,7 +132493,7 @@ assertions:
     direct_tests:
     - &id16845
       path: frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts
-      line: 164
+      line: 171
       name: activates, agrees steps as Tasks, saves a Memory on yes and follows up
         in a later chat
       surface: gui.web
@@ -132520,7 +132520,7 @@ assertions:
     direct_tests:
     - &id16846
       path: frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts
-      line: 164
+      line: 171
       name: activates, agrees steps as Tasks, saves a Memory on yes and follows up
         in a later chat
       surface: gui.web
@@ -132539,7 +132539,7 @@ assertions:
     direct_tests:
     - &id16847
       path: frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts
-      line: 164
+      line: 171
       name: activates, agrees steps as Tasks, saves a Memory on yes and follows up
         in a later chat
       surface: gui.web
@@ -132558,7 +132558,7 @@ assertions:
     direct_tests:
     - &id16849
       path: frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts
-      line: 164
+      line: 171
       name: activates, agrees steps as Tasks, saves a Memory on yes and follows up
         in a later chat
       surface: gui.web
@@ -132587,7 +132587,7 @@ assertions:
     direct_tests:
     - &id16850
       path: frontend/apps/web_app/tests/real-inference-life-compass-focus.spec.ts
-      line: 164
+      line: 171
       name: activates, agrees steps as Tasks, saves a Memory on yes and follows up
         in a later chat
       surface: gui.web
@@ -207000,8 +207000,8 @@ assertions:
       name: test_delivery_repository_reuses_refreshed_admin_token_after_unauthorized_read
       surface: rest_api
     - &id26165
-      path: frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
-      line: 32
+      path: frontend/apps/web_app/tests/real-inference-cli-workflows-ai-chat.spec.ts
+      line: 35
       name: runs AI mode, delivers chat through a client claim, waits, and resumes
         through CLI respond
       surface: cli
@@ -209804,7 +209804,7 @@ assertions:
       line: 585
       name: test_disconnected_ask_step_stream_still_settles_and_saves_run
       surface: rest_api
-    - &id26535
+    - &id26534
       path: frontend/apps/web_app/tests/cli-workflows-step-test-real.spec.ts
       line: 33
       name: runs real app-skill and side-effect step tests for a disabled Workflow
@@ -209825,9 +209825,9 @@ assertions:
       line: 847
       name: test_workflow_preview_uses_registered_child_embed_types_without_dispatch
       surface: rest_api
-    - &id26534
-      path: frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
-      line: 32
+    - &id26535
+      path: frontend/apps/web_app/tests/real-inference-cli-workflows-ai-chat.spec.ts
+      line: 35
       name: runs AI mode, delivers chat through a client claim, waits, and resumes
         through CLI respond
       surface: cli
@@ -209898,9 +209898,9 @@ assertions:
         direct_tests:
         - *id26526
         - *id26527
-        - *id26535
-        supporting_tests:
         - *id26534
+        supporting_tests:
+        - *id26535
     current_direct_proof: false
   workflows.ai-ask.authoring-validation:
     specification: feature.workflows@12
@@ -211619,8 +211619,8 @@ assertions:
       name: test_workflow_preview_is_read_only_and_run_deletion_requires_write_scope
       surface: rest_api
     - &id26767
-      path: frontend/apps/web_app/tests/cli-workflows-ai-chat-real.spec.ts
-      line: 32
+      path: frontend/apps/web_app/tests/real-inference-cli-workflows-ai-chat.spec.ts
+      line: 35
       name: runs AI mode, delivers chat through a client claim, waits, and resumes
         through CLI respond
       surface: cli

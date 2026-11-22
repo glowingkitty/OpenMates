@@ -1002,6 +1002,8 @@ def compose_profile(
     real_inference: bool = False,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
+    # Real inference may run the internal Workflow runtime (no outside egress),
+    # never the credential-free weather workflows, whose egress is open.
     if real_inference and (
         ai_fixtures
         or public_provider
@@ -1009,7 +1011,6 @@ def compose_profile(
         or billing_profile is not None
         or voice_camera
         or workflows
-        or workflow_runtime
         or web_read_fixture
         or offline_preview
         or storage_accountability

@@ -4,11 +4,13 @@
  *
  * Keeps a browser device online so Workflow pending chat delivery can be claimed
  * and encrypted by a real client while all Workflow commands run through the CLI.
+ * The ai.ask step uses real inference: the spec runs in the `real_inference` CI
+ * group (isolated stack with the internal Workflow runtime) and manually against dev.
  */
 export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { requireRealInference } = require('./helpers/real-inference-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
 const {
 	createWorkflowCliHome,
@@ -23,14 +25,16 @@ const {
 	writeWorkflowYaml
 } = require('./helpers/workflow-cli-e2e-helpers');
 
-const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const { email: TEST_EMAIL } = getTestAccount();
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 
 test.describe('CLI Workflows AI, chat, and user input', () => {
 	test.setTimeout(420_000);
 
 	// contract-test: supporting surface=cli assertions=workflows.ai-ask.execution,workflows.chat-delivery.pending-private,workflows.message.standard
 	test('runs AI mode, delivers chat through a client claim, waits, and resumes through CLI respond', async ({ page }: { page: any }) => {
-		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+		requireRealInference('CLI workflow AI chat', BASE_URL);
+		if (!TEST_EMAIL) throw new Error('Real-inference CI requires a provisioned test account.');
 
 		const apiUrl = workflowApiUrl();
 		const homeDir = createWorkflowCliHome('workflow-ai-chat');

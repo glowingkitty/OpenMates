@@ -76,7 +76,7 @@ async function askForSvg(page: Page, log: any): Promise<void> {
 		await editor.click({ position: { x: 12, y: 8 } });
 		await focusMessageEditor(editor);
 	});
-	// Place the caret after the image embed (same steps as image-model-inference-real.spec.ts).
+	// Place the caret after the image embed (same steps as real-inference-image-model.spec.ts).
 	await editable.press('ControlOrMeta+End');
 	await editable.press('ArrowRight');
 	await editable.press('Enter');

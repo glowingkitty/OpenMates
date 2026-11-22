@@ -65,7 +65,9 @@ API = "http://localhost:8000"
 APP = "http://localhost:5173"
 # Real signup endpoint permits five email requests per minute per runner IP.
 SIGNUP_INTERVAL_SECONDS = 15
-FIXTURE_CREDITS = 1000
+# Real-inference specs pay real multi-turn chats (one focus-mode run spends
+# about 1,250 credits), so their accounts start with more; replayed specs keep 1,000.
+FIXTURE_CREDITS = 10000 if os.environ.get("OPENMATES_CI_REAL_INFERENCE") == "1" else 1000
 _last_signup_started = None
 CAPACITY_EPOCH_SPECS = frozenset(
     {
