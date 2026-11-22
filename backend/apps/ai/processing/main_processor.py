@@ -284,7 +284,7 @@ from backend.apps.ai.processing.skill_executor import (
     generate_skill_task_id,
     get_skill_timeout
 )
-from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError, SkillRequestRejected
 # Import billing utilities
 from backend.shared.python_utils.billing_utils import (
     calculate_total_credits,
@@ -11267,7 +11267,9 @@ async def handle_main_processing(
                 except RequiredRecoveryOutputError:
                     raise
                 except Exception as skill_error:
-                    if same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS:
+                    # A request refused at validation dispatched nothing: the model gets it as a tool error.
+                    if (same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS
+                            and not isinstance(skill_error, SkillRequestRejected)):
                         # A producer may already have accepted an earlier item. Retrying or
                         # synthesizing an ordinary tool error could dispatch it twice or
                         # let the provider continue without tracking the live job.

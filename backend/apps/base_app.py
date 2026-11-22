@@ -26,7 +26,7 @@ from backend.shared.python_schemas.app_metadata_schemas import (
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.apps.ai.processing.rate_limiting import RateLimitScheduledException
-from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError, SkillRequestRejected
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 
 logger = logging.getLogger(__name__)
@@ -592,6 +592,7 @@ class BaseApp:
                     )
 
                     # Instantiate the Pydantic model from request body
+                    request_validated = False
                     try:
                         request_obj = None
                         validation_errors = []
@@ -615,14 +616,12 @@ class BaseApp:
                                 # None of the Union types matched
                                 error_msg = f"Request body does not match any expected format. Tried: {', '.join([t.__name__ for t in union_types])}"
                                 logger.error(f"{error_msg}. Errors: {'; '.join(validation_errors)}")
-                                raise HTTPException(
-                                    status_code=422,
-                                    detail=error_msg
-                                )
+                                raise SkillRequestRejected(error_msg)
                         else:
                             # Single Pydantic model
                             logger.debug(f"Instantiating {request_model.__name__} from request body for skill '{skill_definition.id}'")
                             request_obj = request_model(**clean_request_body)
+                        request_validated = True
 
                         # If execute() expects a list (requests), extract it from the Pydantic model
                         # Otherwise pass the Pydantic model directly
@@ -669,6 +668,8 @@ class BaseApp:
                             error_details = validation_error.errors()
                         else:
                             error_details = [{"msg": str(validation_error)}]
+                        if not request_validated:
+                            raise SkillRequestRejected(error_details) from validation_error
                         raise HTTPException(
                             status_code=422,
                             detail=error_details
