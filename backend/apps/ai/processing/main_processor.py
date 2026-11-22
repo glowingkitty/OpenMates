@@ -4,6 +4,7 @@
 import asyncio
 import importlib
 import inspect
+import itertools
 import logging
 from typing import Awaitable, Callable, Dict, Any, List, Optional, AsyncIterator, Tuple, TypeVar, Union
 import json
@@ -1256,6 +1257,15 @@ def _internal_llm_policy_payload(request_data: Any) -> Optional[Dict[str, Any]]:
 # retries the same model with clean evidence, then permits one configured alternate.
 # Neither recovery attempt can execute a skill.
 MAX_TOOL_CALL_ITERATIONS = 5
+# Extra iterations per turn for Project file tools run inline in the hosted sandbox
+# (a device-path file operation instead pauses the turn and resumes with a fresh budget).
+MAX_SANDBOX_FILE_ITERATIONS = 30
+
+
+def _is_sandbox_free_iteration(executed_calls: int, sandbox_inline_calls: int, used: int) -> bool:
+    """True when every tool call this iteration executed ran inline in the Project sandbox
+    and the per-turn allowance is not used up; such an iteration keeps the budget unchanged."""
+    return executed_calls > 0 and sandbox_inline_calls == executed_calls and used < MAX_SANDBOX_FILE_ITERATIONS
 MAX_ANSWER_ONLY_RECOVERY_ITERATIONS = 2
 
 # === SKILL CALL BUDGET LIMITS ===
@@ -6911,7 +6921,15 @@ async def handle_main_processing(
         answer_recovery._attempted_models = list(resume_checkpoint["answer_recovery"]["attempted_models"])
         steer_boundary_ready = True
 
-    for iteration in range(start_iteration, max_iterations_with_recovery):
+    # Iterations made only of Project file tools the hosted sandbox ran inline do not use the
+    # iteration budget: on the device path each file operation pauses the turn and its
+    # continuation starts a fresh budget, so a multi-file app fits either way. Bounded per turn.
+    sandbox_free_iterations = 0
+    for iteration in itertools.count(start_iteration):
+        budget_iteration = iteration - sandbox_free_iterations
+        if budget_iteration >= max_iterations_with_recovery:
+            break
+        sandbox_inline_calls = 0
         # A queued steer may join this response only after the entire previous
         # tool batch has completed and before the next provider call is made.
         if steer_boundary_ready:
@@ -6940,7 +6958,7 @@ async def handle_main_processing(
                 logger.exception("%s Queued steer preflight was unavailable", log_prefix)
         if iteration == 0:
             mark_project_reference_setup("first_iteration")
-        logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{max_iterations_with_recovery}, total_skill_calls={total_skill_calls}")
+        logger.info(f"{log_prefix} LLM call iteration {iteration + 1} (budget {budget_iteration + 1}/{max_iterations_with_recovery}), total_skill_calls={total_skill_calls}")
         # Capture newly completed results before context fitting can drop older
         # tool turns. Recovery projects from this preserved evidence, never from
         # another model's already-truncated recovery request.
@@ -6949,12 +6967,12 @@ async def handle_main_processing(
         
         # The fifth and optional recovery calls are answer-only, regardless of
         # remaining skill budget or Deep research routing.
-        if iteration >= MAX_TOOL_CALL_ITERATIONS - 1 and not force_no_tools:
+        if budget_iteration >= MAX_TOOL_CALL_ITERATIONS - 1 and not force_no_tools:
             force_no_tools = True
             if not budget_warning_injected:
                 budget_warning_injected = True
             logger.info(
-                f"{log_prefix} [MAX_ITERATIONS] Last iteration ({iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}) - "
+                f"{log_prefix} [MAX_ITERATIONS] Last iteration ({budget_iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}) - "
                 f"forcing tool_choice='none' to ensure final answer is generated."
             )
         
@@ -8540,7 +8558,7 @@ async def handle_main_processing(
                 and not force_no_tools
                 and toon_result_retry_applies(protocol_guard, iteration_tools)
                 # The retry turn itself must still offer tools.
-                and iteration + 1 < MAX_TOOL_CALL_ITERATIONS - 1
+                and budget_iteration + 1 < MAX_TOOL_CALL_ITERATIONS - 1
             ):
                 # An imitated app result may stand for a real skill call the step
                 # still needs (e.g. Browse filling the user's answer): one retry
@@ -8571,7 +8589,7 @@ async def handle_main_processing(
             detected=protocol_guard.pseudo_tool_call,
             native_call_count=len(tool_calls_for_this_turn) + len(hallucinated_tool_calls_this_turn),
             visible_text=final_buffered_text_for_turn,
-            has_retry_iteration=iteration < max_iterations_with_recovery - 1,
+            has_retry_iteration=budget_iteration < max_iterations_with_recovery - 1,
         )
         if protocol_guard.pseudo_tool_call:
             logger.warning(
@@ -8614,7 +8632,7 @@ async def handle_main_processing(
                 and task_queue_result.get("requires_model_retry")
                 and not force_no_tools
                 and task_queue_guard_retries < TASK_QUEUE_GUARD_MAX_RETRIES
-                and iteration < MAX_TOOL_CALL_ITERATIONS - 1
+                and budget_iteration < MAX_TOOL_CALL_ITERATIONS - 1
             ):
                 task_queue_guard_retries += 1
                 continuation_event = build_task_queue_continuation_event(
@@ -8711,7 +8729,7 @@ async def handle_main_processing(
                     assistant_content=None,
                 )
 
-                has_retry_iteration = iteration < MAX_TOOL_CALL_ITERATIONS - 1
+                has_retry_iteration = budget_iteration < MAX_TOOL_CALL_ITERATIONS - 1
                 if has_retry_iteration:
                     if force_deep_research_delegation:
                         logger.warning(
@@ -9822,6 +9840,7 @@ async def handle_main_processing(
                                         "content": json.dumps(project_result),
                                     })
                                     completed_skill_calls[call_hash] = project_result
+                                    sandbox_inline_calls += 1
                                     continue
                                 awaiting_before_operation = bool(request_data.awaiting_async_skill_continuation)
                                 await cache_async_skill_continuation_context(
@@ -13041,7 +13060,7 @@ async def handle_main_processing(
         if agentic_context.first_party(request_data):
             from backend.shared.python_utils.recent_work_summary_client import mark_response_summary_active
             await mark_response_summary_active(request_data, task_id)
-        if agentic_context.first_party(request_data) and iteration + 1 < max_iterations_with_recovery:
+        if agentic_context.first_party(request_data) and budget_iteration + 1 < max_iterations_with_recovery:
             authority = DirectionAuthority(request_data.user_id, request_data.chat_id,
                                            authoritative_context_turn_id(request_data), agentic_context.goal_revision(request_data.message_history))
             actions = [{"id": message.get("tool_call_id", str(index)), "kind": message.get("role"),
@@ -13067,20 +13086,26 @@ async def handle_main_processing(
             if assessment.outcome == "material_drift":
                 pending_direction = context, assessment
 
+        if _is_sandbox_free_iteration(len(tool_calls_for_this_turn), sandbox_inline_calls,
+                                      sandbox_free_iterations):
+            sandbox_free_iterations += 1
+            steer_boundary_ready = True
+            continue
+
         # === MAX ITERATIONS HANDLING ===
         # If we're on the second-to-last iteration and the LLM is still requesting tools,
         # force the next (final) iteration to generate an answer without tools.
         # This ensures the user ALWAYS gets an answer based on gathered information.
-        if iteration == MAX_TOOL_CALL_ITERATIONS - 2:
+        if budget_iteration == MAX_TOOL_CALL_ITERATIONS - 2:
             # We're on the second-to-last iteration - force the final iteration to answer
             force_no_tools = True
             if not budget_warning_injected:
                 budget_warning_injected = True  # Also inject budget warning
             logger.info(
-                f"{log_prefix} [MAX_ITERATIONS] Approaching max iterations ({iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}). "
+                f"{log_prefix} [MAX_ITERATIONS] Approaching max iterations ({budget_iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}). "
                 f"Next iteration will force tool_choice='none' to generate final answer."
             )
-        elif iteration == MAX_TOOL_CALL_ITERATIONS - 1:
+        elif budget_iteration == MAX_TOOL_CALL_ITERATIONS - 1:
             # We're on the last iteration - if we still have tool calls, that's unexpected
             # (because we should have forced no tools in the previous iteration)
             # Log this as a warning but don't show error to user - we already have tool results

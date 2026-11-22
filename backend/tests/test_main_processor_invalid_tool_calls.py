@@ -951,6 +951,7 @@ async def _run_project_dispatch_batch(monkeypatch, tool_batch):
     cached_context = AsyncMock()
     continuation_module.cache_async_skill_continuation_context = cached_context
     continuation_module.async_skill_continuation_key = lambda operation_id: f"continuation:{operation_id}"
+    continuation_module.release_unoffered_async_recovery_handoff = AsyncMock()
     operation_tasks = types.ModuleType("backend.core.api.app.tasks.project_file_operation_tasks")
     operation_tasks.schedule_project_file_operation_deadlines = Mock()
     monkeypatch.setitem(sys.modules, tasks_package.__name__, tasks_package)
@@ -964,7 +965,9 @@ async def _run_project_dispatch_batch(monkeypatch, tool_batch):
         client=client, get=AsyncMock(return_value=None),
         set=AsyncMock(return_value=True), delete=AsyncMock(return_value=True),
     )
-    directus = SimpleNamespace(project=SimpleNamespace(list_sources=AsyncMock(return_value=[])))
+    # No E2B consent on record: Project file tools keep the device path (projects.sandbox.device-fallback).
+    directus = SimpleNamespace(project=SimpleNamespace(list_sources=AsyncMock(return_value=[])),
+                               get_user_fields_direct=AsyncMock(return_value={}))
     web_execution = AsyncMock(side_effect=AssertionError("Web skill must wait for the file continuation"))
     monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", web_execution)
     user_intent = "Read README and search the web after the Project file result arrives."
