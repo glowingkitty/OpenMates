@@ -8016,7 +8016,7 @@ features:
       - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
       - frontend/packages/ui/src/components/enter_message/services/__tests__/embedContentRedaction.test.ts
       - frontend/packages/ui/src/services/__tests__/piiDisplayAliases.test.ts
-      unit_test_files: 21
+      unit_test_files: 22
     apple:
       status: partial
       source: tests

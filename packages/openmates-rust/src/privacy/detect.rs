@@ -62,6 +62,7 @@ pub(super) fn detect_into(
                     || token_index.overlaps(start, end)
                     || accepted.overlaps(start, end)
                     || pattern.kind == "PHONE" && identifier_index.overlaps(start, end)
+                    || pattern.kind == "PHONE" && in_version_component(text, start)
                     || exclusions.excludes_original(matched.as_str())
                     || !valid(pattern.kind, matched.as_str(), text[end..].chars().next())
                 {
@@ -127,6 +128,18 @@ pub(super) fn detect_into(
         }
     }
     Ok(())
+}
+
+/// A phone match inside one component of a dotted version number (the digit
+/// run it starts in follows a `.` that follows a digit, as in `1.0.30001690`
+/// of a lockfile) is part of that version, never a phone number. The regex has
+/// no left boundary, so without this the tail of a version would be redacted
+/// and the file would no longer parse. Long digit runs (IBANs, account
+/// numbers) are not affected: they are still split into redacted matches.
+/// Mirrors the web detector.
+fn in_version_component(text: &str, start: usize) -> bool {
+    let mut before = text[..start].chars().rev().skip_while(char::is_ascii_digit);
+    before.next() == Some('.') && before.next().is_some_and(|c| c.is_ascii_digit())
 }
 
 /// Detected `(start, end, kind)` byte ranges of `text` that overlap neither

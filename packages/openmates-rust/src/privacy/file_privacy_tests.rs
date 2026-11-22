@@ -156,3 +156,17 @@ fn persisted_blob_round_trips_and_refuses_wrong_chat() {
         "pii_mapping_unavailable"
     );
 }
+
+// contract-test: supporting surface=sdks.rust assertions=pii.surface.semantic-parity
+#[test]
+fn lockfile_versions_are_not_phone_numbers() {
+    let mut p = FilePrivacy::new(true, vec![], &[]).unwrap();
+    let lock = r#""caniuse-lite": "^1.0.30001690", "electron-to-chromium": "1.5.0076543210","#;
+    assert_eq!(p.redact_text(lock).unwrap(), lock);
+    let phone = "call 030 1234 5678 or 0171-123-4567";
+    let redacted = p.redact_text(phone).unwrap();
+    assert!(
+        !redacted.contains("1234 5678") && !redacted.contains("123-4567"),
+        "{redacted}"
+    );
+}
