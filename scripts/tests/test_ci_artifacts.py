@@ -283,3 +283,41 @@ def test_runtime_rejection_is_retained_as_explicit_cold_fallback(tmp_path):
     assert receipt["runtime_reused"] is False
     assert receipt["runtime_cold_fallback"] is True
     assert receipt["runtime_fallback_reason"] == "runtime_manifest_rejected"
+
+
+def test_web_rust_core_bit_changes_key_only_when_on(tmp_path):
+    import hashlib
+
+    off = artifacts.preparation_key(SOURCE)
+    assert artifacts.preparation_key(SOURCE, include_web_rust_core=False) == off
+    # Off key is the pre-speedup computation: no web_rust_core capability at all.
+    payload = {
+        "format_version": artifacts.FORMAT_VERSION,
+        "bundle_format": artifacts.BUNDLE_FORMAT,
+        "producer_contract": artifacts.PRODUCER_CONTRACT,
+        "source_commit": SOURCE,
+        "capabilities": {"cli": True, "upload_runtime": False, "web": True},
+        "build_environment": dict(sorted(artifacts.DEFAULT_BUILD_ENVIRONMENT.items())),
+        "toolchain": dict(sorted(artifacts.DEFAULT_TOOLCHAIN.items())),
+    }
+    assert off == hashlib.sha256(artifacts.canonical_json(payload)).hexdigest()
+    assert artifacts.preparation_key(SOURCE, include_web_rust_core=True) != off
+
+
+def test_web_rust_core_bundle_restores_only_with_matching_bit(tmp_path, monkeypatch):
+    output_file = tmp_path / "out.txt"
+    monkeypatch.setenv("GITHUB_OUTPUT", str(output_file))
+    bundle = tmp_path / "bundle"
+    make_bundle(tmp_path / "src", bundle, include_web_rust_core=True)
+    consumer = tmp_path / "consumer"
+    mismatch = artifacts.restore_bundle(
+        consumer, bundle, SOURCE, candidate_tree=TREE, include_cli=True, include_upload=False
+    )
+    assert mismatch["reused"] is False
+    assert "web_rust_core=false" in output_file.read_text()
+    receipt = artifacts.restore_bundle(
+        consumer, bundle, SOURCE, candidate_tree=TREE, include_cli=True,
+        include_upload=False, include_web_rust_core=True,
+    )
+    assert receipt["reused"] is True
+    assert "web_rust_core=true" in output_file.read_text()

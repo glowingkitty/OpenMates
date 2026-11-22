@@ -71,6 +71,7 @@ def preparation_key(
     include_cli: bool = True,
     include_upload: bool = False,
     include_native_cli: bool = False,
+    include_web_rust_core: bool = False,
     build_environment: Mapping[str, str] | None = None,
     toolchain: Mapping[str, str] | None = None,
 ) -> str:
@@ -100,6 +101,9 @@ def preparation_key(
         ),
         "toolchain": dict(sorted((toolchain or DEFAULT_TOOLCHAIN).items())),
     }
+    if include_web_rust_core:
+        # Only present when on, so keys without the bit stay byte-identical.
+        payload["capabilities"]["web_rust_core"] = True
     if include_native_cli:
         if not include_cli or include_upload:
             raise ValueError(
@@ -185,6 +189,7 @@ def create_bundle(
     include_cli: bool,
     include_upload: bool,
     include_native_cli: bool = False,
+    include_web_rust_core: bool = False,
     runtime_receipt: Path | None = None,
     build_environment: Mapping[str, str] | None = None,
     toolchain: Mapping[str, str] | None = None,
@@ -196,6 +201,7 @@ def create_bundle(
         include_cli=include_cli,
         include_upload=include_upload,
         include_native_cli=include_native_cli,
+        include_web_rust_core=include_web_rust_core,
         build_environment=environment,
         toolchain=selected_toolchain,
     )
@@ -280,6 +286,8 @@ def create_bundle(
         "artifacts": artifacts,
         "runtime_images": runtime_images,
     }
+    if include_web_rust_core:
+        manifest["capabilities"]["web_rust_core"] = True
     if include_native_cli:
         manifest["capabilities"]["native_cli"] = native_available
     temporary = output_dir / f".{MANIFEST_NAME}.tmp"
@@ -307,6 +315,10 @@ def _write_receipt(root: Path, receipt: dict[str, Any]) -> dict[str, Any]:
             "web": "true" if receipt.get("reused") else "false",
             "cli": "true"
             if receipt.get("reused") and receipt.get("capabilities", {}).get("cli")
+            else "false",
+            "web_rust_core": "true"
+            if receipt.get("reused")
+            and receipt.get("capabilities", {}).get("web_rust_core")
             else "false",
             "manifest": str(receipt.get("manifest_path", "")),
             "fallback_reason": str(receipt.get("reason", "")),
@@ -464,6 +476,7 @@ def restore_bundle(
     include_cli: bool,
     include_upload: bool,
     include_native_cli: bool = False,
+    include_web_rust_core: bool = False,
     expected_key: str = "",
     harness_commit: str = "",
     build_environment: Mapping[str, str] | None = None,
@@ -476,6 +489,7 @@ def restore_bundle(
         include_cli=include_cli,
         include_upload=include_upload,
         include_native_cli=include_native_cli,
+        include_web_rust_core=include_web_rust_core,
         build_environment=environment,
         toolchain=selected_toolchain,
     )
@@ -505,6 +519,8 @@ def restore_bundle(
         "toolchain_mismatch": manifest.get("toolchain") != selected_toolchain,
         "native_cli_capability_missing": include_native_cli
         and manifest.get("capabilities", {}).get("native_cli") is not True,
+        "web_rust_core_capability_missing": include_web_rust_core
+        and manifest.get("capabilities", {}).get("web_rust_core") is not True,
         "cli_capability_missing": include_cli
         and not manifest.get("capabilities", {}).get("cli"),
         "upload_capability_missing": include_upload
@@ -727,6 +743,7 @@ def main() -> int:
     key_parser.add_argument("--include-cli", type=boolean, default=True)
     key_parser.add_argument("--include-upload", type=boolean, default=False)
     key_parser.add_argument("--include-native-cli", type=boolean, default=False)
+    key_parser.add_argument("--include-web-rust-core", type=boolean, default=False)
     create = sub.add_parser("create")
     create.add_argument("--source", required=True)
     create.add_argument("--candidate-tree", required=True)
@@ -736,6 +753,7 @@ def main() -> int:
     create.add_argument("--output-dir", type=Path, required=True)
     create.add_argument("--runtime-receipt", type=Path)
     create.add_argument("--include-native-cli", type=boolean, default=False)
+    create.add_argument("--include-web-rust-core", type=boolean, default=False)
     restore = sub.add_parser("restore")
     restore.add_argument("--source", required=True)
     restore.add_argument("--candidate-tree", default="")
@@ -745,6 +763,7 @@ def main() -> int:
     restore.add_argument("--harness-commit", default="")
     restore.add_argument("--input-dir", type=Path, required=True)
     restore.add_argument("--include-native-cli", type=boolean, default=False)
+    restore.add_argument("--include-web-rust-core", type=boolean, default=False)
     native_capability = sub.add_parser("native-capability")
     native_capability.add_argument("--source", required=True)
     native_capability.add_argument("--key", default="")
@@ -772,6 +791,7 @@ def main() -> int:
                 include_cli=args.include_cli,
                 include_upload=args.include_upload,
                 include_native_cli=args.include_native_cli,
+                include_web_rust_core=args.include_web_rust_core,
             )
         )
     elif args.command == "create":
@@ -784,6 +804,7 @@ def main() -> int:
             include_cli=args.include_cli,
             include_upload=args.include_upload,
             include_native_cli=args.include_native_cli,
+            include_web_rust_core=args.include_web_rust_core,
             runtime_receipt=args.runtime_receipt,
         )
         write_producer_results(
@@ -799,6 +820,7 @@ def main() -> int:
             include_cli=args.include_cli,
             include_upload=args.include_upload,
             include_native_cli=args.include_native_cli,
+            include_web_rust_core=args.include_web_rust_core,
             expected_key=args.expected_key,
             harness_commit=args.harness_commit,
         )

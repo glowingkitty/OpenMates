@@ -1288,3 +1288,79 @@ def test_failed_e2b_dispatch_deletes_runner_registration(tmp_path, monkeypatch):
 def test_e2b_runner_outlives_the_workflow_timeout():
     assert e2b_timeout_minutes({"web_rust_core": 1}) == 90
     assert e2b_timeout_minutes({"web_rust_core": 0}) == 60
+
+
+def _prepared_rust_core_submission(tmp_path, monkeypatch, owner_switch, **kwargs):
+    import json as _json
+
+    switch = tmp_path / "speedups.json"
+    switch.write_text(_json.dumps({"owners": owner_switch}))
+    monkeypatch.setenv("OPENMATES_CI_SPEEDUPS_FILE", str(switch))
+    monkeypatch.setattr(
+        "scripts.ci_coordinator.subprocess.check_output",
+        lambda *args, **kw: '{"groups":{"uploads":{"specs":[]}}}',
+    )
+    monkeypatch.setattr("scripts.ci_coordinator.harness_commit", lambda _: "a" * 40)
+    queue = Queue(tmp_path / "queue.db")
+    jobs = enqueue_submission(
+        queue, "owner", "c" * 40, ["first.spec.ts"], "e2e",
+        source_root=tmp_path, prepared_builds=True, **kwargs,
+    )
+    return queue, jobs, queue.status(jobs[0]["preparation_id"])[0]
+
+
+def test_prepared_rust_core_owner_gets_key_bit_and_rust_core_producer(tmp_path, monkeypatch):
+    from scripts.ci_coordinator import _speedups_input
+
+    queue, jobs, producer = _prepared_rust_core_submission(
+        tmp_path, monkeypatch, {"owner": ["prepared-rust-core"]}, web_rust_core=True
+    )
+    assert producer["web_rust_core"] == 1
+    assert jobs[0]["web_rust_core"] == 1
+    assert jobs[0]["preparation_key"] == producer["preparation_key"]
+    assert _speedups_input(producer) == {"ci_speedups": "prepared-rust-core"}
+    assert _speedups_input(jobs[0]) == {"ci_speedups": "prepared-rust-core"}
+
+
+def test_prepared_rust_core_off_owner_is_unchanged(tmp_path, monkeypatch):
+    from scripts.ci_artifacts import preparation_key
+    from scripts.ci_coordinator import _speedups_input
+
+    _, jobs, producer = _prepared_rust_core_submission(
+        tmp_path, monkeypatch, {}, web_rust_core=True
+    )
+    assert producer["web_rust_core"] == 0
+    assert producer["preparation_key"] == preparation_key(
+        "c" * 40, include_cli=True, include_upload=False
+    )
+    assert _speedups_input(producer) == {} and _speedups_input(jobs[0]) == {}
+
+
+def test_prepared_rust_core_switch_change_after_submit_cannot_mismatch(tmp_path, monkeypatch):
+    import json as _json
+    from scripts.ci_coordinator import _speedups_input
+
+    _, jobs, producer = _prepared_rust_core_submission(
+        tmp_path, monkeypatch, {}, web_rust_core=True
+    )
+    (tmp_path / "speedups.json").write_text(
+        _json.dumps({"owners": {"owner": ["prepared-rust-core", "wasm-cache"]}})
+    )
+    # Key has no bit, so the speedup is withheld even though the owner now has it.
+    assert _speedups_input(producer) == {"ci_speedups": "wasm-cache"}
+    assert _speedups_input(jobs[0]) == {"ci_speedups": "wasm-cache"}
+
+
+def test_prepared_rust_core_never_shares_preparation_with_off_key(tmp_path, monkeypatch):
+    import json as _json
+
+    queue, jobs, producer = _prepared_rust_core_submission(
+        tmp_path, monkeypatch, {"owner": ["prepared-rust-core"]}, web_rust_core=True
+    )
+    (tmp_path / "speedups.json").write_text(_json.dumps({}))
+    again = enqueue_submission(
+        queue, "owner", "c" * 40, ["second.spec.ts"], "e2e",
+        source_root=tmp_path, prepared_builds=True, web_rust_core=True,
+    )
+    assert again[0]["preparation_id"] != producer["id"]
+    assert again[0]["preparation_key"] != producer["preparation_key"]

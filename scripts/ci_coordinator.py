@@ -176,13 +176,55 @@ def partition_source_specs(specs: list[str], source: str, source_root: Path):
     return partition(specs, manifest=source_coverage_manifest(source, source_root))
 
 
+PREPARED_RUST_CORE = "prepared-rust-core"
+
+
+def prepared_web_rust_core(job: dict) -> bool:
+    """True when the job's stored preparation key carries the web Rust core bit.
+
+    Derived from the stored key (never from the switch) so a switch change
+    between submit and dispatch cannot mismatch the key the workflow rebuilds.
+    """
+    key = str(job.get("preparation_key") or "")
+    if not key or not job.get("web_rust_core"):
+        return False
+    try:
+        from scripts.ci_artifacts import preparation_key
+    except ModuleNotFoundError:
+        from ci_artifacts import preparation_key
+    cli, upload = bool(job.get("prepare_cli")), bool(job.get("prepare_upload"))
+    for native in (False, True):
+        if native and (not cli or upload):
+            continue
+        try:
+            candidate = preparation_key(
+                job["source"],
+                include_cli=cli,
+                include_upload=upload,
+                include_native_cli=native,
+                include_web_rust_core=True,
+            )
+        except ValueError:
+            return False
+        if candidate == key:
+            return True
+    return False
+
+
 def _speedups_input(job: dict) -> dict:
-    """`ci_speedups` workflow input for this job's owner (scripts/ci_speedups.py); none when all are off."""
+    """`ci_speedups` workflow input for this job's owner (scripts/ci_speedups.py); none when all are off.
+
+    `prepared-rust-core` is kept only when the job's preparation key carries the
+    web Rust core bit, so workflow and key always agree.
+    """
     try:
         from scripts import ci_speedups
     except ModuleNotFoundError:
         import ci_speedups
-    value = ci_speedups.dispatch_value(str(job.get("owner") or ""))
+    names = set(ci_speedups.enabled(str(job.get("owner") or "")))
+    if PREPARED_RUST_CORE in names and not prepared_web_rust_core(job):
+        names.discard(PREPARED_RUST_CORE)
+    value = ",".join(sorted(names))
     return {"ci_speedups": value} if value else {}
 
 
@@ -629,7 +671,7 @@ class Queue:
         web_rust_core: bool = False,
         force_e2b: bool = False,
     ) -> dict:
-        if web_rust_core and mode not in WEB_RUST_CORE_MODES:
+        if web_rust_core and mode not in WEB_RUST_CORE_MODES + ("prepare",):
             raise ValueError("Web Rust core option requires --mode e2e or component")
         if force_e2b and (
             mode not in E2B_FORCE_MODES or owner == DAILY_OWNER
@@ -1781,12 +1823,23 @@ def enqueue_submission(
             and not include_upload
             and source_eligible(source_root, source)
         )
+        try:
+            from scripts import ci_speedups
+        except ModuleNotFoundError:
+            import ci_speedups
+        # Decided once here and frozen in the key; dispatch re-derives it from the key.
+        prepared_rust_core = (
+            mode == "e2e"
+            and web_rust_core
+            and PREPARED_RUST_CORE in ci_speedups.enabled(owner)
+        )
         preparation = {
             "key": preparation_key(
                 source,
                 include_cli=include_cli,
                 include_upload=include_upload,
                 include_native_cli=include_native_cli,
+                include_web_rust_core=prepared_rust_core,
             ),
             "harness_commit": harness_commit(source_root),
             "cli": include_cli,
@@ -1800,6 +1853,7 @@ def enqueue_submission(
             nonce,
             candidate=candidate,
             preparation=preparation,
+            web_rust_core=prepared_rust_core,
         )
         preparation = {**preparation, "id": producer["id"]}
     jobs = [

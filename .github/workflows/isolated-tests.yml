@@ -141,7 +141,7 @@ jobs:
       # Opt-in shared Rust core in the web app: web-rust-core-* specs build the
       # WASM package and a VITE_OPENMATES_RUST_CORE=1 web app in the same job.
       # Component mode with web_rust_core serves the same package from vite dev.
-      CI_LANE_WEB_RUST_CORE: ${{ (inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["web-rust-core-') || inputs.web_rust_core == 'true')) || (inputs.mode == 'component' && inputs.web_rust_core == 'true') }}
+      CI_LANE_WEB_RUST_CORE: ${{ (inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["web-rust-core-') || inputs.web_rust_core == 'true')) || (inputs.mode == 'component' && inputs.web_rust_core == 'true') || (inputs.mode == 'prepare' && inputs.web_rust_core == 'true' && contains(inputs.ci_speedups, 'prepared-rust-core')) }}
       CI_LANE_RUST_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') }}
       CI_LANE_RUST_PRODUCTION_BROWSER: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' }}
       CI_LANE_RUST_BROWSER_CLI: ${{ inputs.mode == 'e2e' && (startsWith(inputs.specs_json, '["rust-core-') || inputs.specs_json == '["web-essential-startup-performance.spec.ts"]') && inputs.specs_json != '["rust-core-browser-session.spec.ts"]' && inputs.specs_json != '["rust-core-browser-password-entry.spec.ts"]' && !contains(inputs.specs_json, 'rust-core-production-') && !contains(inputs.specs_json, 'rust-core-ordinary-login-retention') }}
@@ -426,6 +426,7 @@ jobs:
             --include-cli "${{ inputs.prepare_cli }}" \
             --include-upload "${{ inputs.prepare_upload }}" \
             --include-native-cli "${CI_NATIVE_PREPARED:-false}" \
+            ${{ inputs.web_rust_core == 'true' && contains(inputs.ci_speedups, 'prepared-rust-core') && '--include-web-rust-core true' || '' }} \
             --expected-key "${{ inputs.preparation_key }}" \
             --harness-commit "$CI_HARNESS_COMMIT" \
             --input-dir test-results/ci-preparation-download
@@ -491,8 +492,34 @@ jobs:
         if: env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'
         timeout-minutes: 60
         run: python3 ../tooling/scripts/ci_production_rust_browser.py prepare
+      - name: Use prepared web Rust core build
+        if: env.CI_LANE_WEB_RUST_CORE == 'true' && steps.artifacts.outputs.web_rust_core == 'true' && env.CI_LANE_RUST_PRODUCTION_BROWSER != 'true'
+        run: |
+          # The restored web build already contains the wasm bytes; only the env the later steps read is set.
+          echo "OPENMATES_RUST_CORE_PKG=$PWD/target/web-rust-core-pkg" >> "$GITHUB_ENV"
+          echo "VITE_OPENMATES_RUST_CORE=1" >> "$GITHUB_ENV"
+          echo "RUST-CORE-ON: web build uses the Rust client core (VITE_OPENMATES_RUST_CORE=1, wasm package from prepared build) for $CI_SPECS_JSON"
+      - name: Compute web Rust core package cache key
+        id: wasmkey
+        if: env.CI_LANE_WEB_RUST_CORE == 'true' && contains(inputs.ci_speedups, 'wasm-cache') && (steps.artifacts.outputs.web_rust_core != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true')
+        run: echo "key=web-rust-core-pkg-$(python3 ../tooling/scripts/ci_web_rust_core_key.py "$PWD")" >> "$GITHUB_OUTPUT"
+      - name: Restore cached web Rust core package
+        id: wasmpkg
+        if: steps.wasmkey.outputs.key != ''
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: subject/target/web-rust-core-pkg
+          key: ${{ steps.wasmkey.outputs.key }}
+      - name: Use cached web Rust core package
+        if: steps.wasmpkg.outputs.cache-hit == 'true'
+        run: |
+          echo "OPENMATES_RUST_CORE_PKG=$PWD/target/web-rust-core-pkg" >> "$GITHUB_ENV"
+          echo "VITE_OPENMATES_RUST_CORE=1" >> "$GITHUB_ENV"
+          echo "RUST-CORE-ON: web build uses the Rust client core (VITE_OPENMATES_RUST_CORE=1, wasm package restored (cached package ${STEPS_KEY:0:12})) for $CI_SPECS_JSON"
+        env:
+          STEPS_KEY: ${{ steps.wasmkey.outputs.key }}
       - name: Restore web Rust core dependency cache
-        if: env.CI_LANE_WEB_RUST_CORE == 'true'
+        if: env.CI_LANE_WEB_RUST_CORE == 'true' && (steps.artifacts.outputs.web_rust_core != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true') && steps.wasmpkg.outputs.cache-hit != 'true'
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         env:
           RUSTUP_TOOLCHAIN: '1.98.1'
@@ -503,7 +530,7 @@ jobs:
           cache-on-failure: 'true'
           save-if: ${{ inputs.candidate_patch_sha256 == '' }}
       - name: Build opt-in web Rust core package
-        if: env.CI_LANE_WEB_RUST_CORE == 'true'
+        if: env.CI_LANE_WEB_RUST_CORE == 'true' && (steps.artifacts.outputs.web_rust_core != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true') && steps.wasmpkg.outputs.cache-hit != 'true'
         timeout-minutes: 45
         env:
           RUSTUP_TOOLCHAIN: '1.98.1'
@@ -516,11 +543,17 @@ jobs:
           echo "OPENMATES_RUST_CORE_PKG=$PWD/target/web-rust-core-pkg" >> "$GITHUB_ENV"
           echo "VITE_OPENMATES_RUST_CORE=1" >> "$GITHUB_ENV"
           echo "RUST-CORE-ON: web build uses the Rust client core (VITE_OPENMATES_RUST_CORE=1, wasm package built) for $CI_SPECS_JSON"
+      - name: Save web Rust core package cache
+        if: steps.wasmkey.outputs.key != '' && steps.wasmpkg.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: subject/target/web-rust-core-pkg
+          key: ${{ steps.wasmkey.outputs.key }}
       - name: Generate UI build inputs once
         if: >-
           inputs.mode == 'prepare' ||
           ((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
-           (steps.artifacts.outputs.web != 'true' || steps.images.outputs.api != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true' || env.CI_LANE_WEB_RUST_CORE == 'true'))
+           (steps.artifacts.outputs.web != 'true' || steps.images.outputs.api != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true' || (env.CI_LANE_WEB_RUST_CORE == 'true' && (steps.artifacts.outputs.web_rust_core != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'))))
         run: pnpm --filter @repo/ui build
       - name: Build cached API dependencies and current source
         if: (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.images.outputs.api != 'true'
@@ -612,7 +645,7 @@ jobs:
       - name: Build local web app
         if: >-
           inputs.mode == 'prepare' ||
-          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') && inputs.specs_json != '["cli-memory-readiness.spec.ts"]' || inputs.mode == 'visual-smoke') && (steps.artifacts.outputs.web != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true' || env.CI_LANE_WEB_RUST_CORE == 'true'))
+          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') && inputs.specs_json != '["cli-memory-readiness.spec.ts"]' || inputs.mode == 'visual-smoke') && (steps.artifacts.outputs.web != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true' || (env.CI_LANE_WEB_RUST_CORE == 'true' && (steps.artifacts.outputs.web_rust_core != 'true' || env.CI_LANE_RUST_PRODUCTION_BROWSER == 'true'))))
         env:
           OPENMATES_CI_PRECOMPRESS: '0'
         run: |
@@ -797,7 +830,8 @@ jobs:
             --source "$BUILD_COMMIT_SHA" \
             --include-cli "${{ inputs.prepare_cli }}" \
             --include-upload "${{ inputs.prepare_upload }}" \
-            --include-native-cli "${CI_NATIVE_PREPARED:-false}")"
+            --include-native-cli "${CI_NATIVE_PREPARED:-false}" \
+            ${{ inputs.web_rust_core == 'true' && contains(inputs.ci_speedups, 'prepared-rust-core') && '--include-web-rust-core true' || '' }})"
           test "$actual_key" = "${{ inputs.preparation_key }}"
           python3 ../tooling/scripts/ci_artifacts.py create \
             --source "$BUILD_COMMIT_SHA" \
@@ -806,6 +840,7 @@ jobs:
             --include-cli "${{ inputs.prepare_cli }}" \
             --include-upload "${{ inputs.prepare_upload }}" \
             --include-native-cli "${CI_NATIVE_PREPARED:-false}" \
+            ${{ inputs.web_rust_core == 'true' && contains(inputs.ci_speedups, 'prepared-rust-core') && '--include-web-rust-core true' || '' }} \
             --runtime-receipt test-results/ci-runtime-images.json \
             --output-dir test-results/ci-preparation
       - name: Upload immutable private preparation bundle
@@ -835,10 +870,27 @@ jobs:
         if: inputs.mode == 'backend-probe'
         timeout-minutes: 1
         run: python3 ../tooling/scripts/isolated_worker_broker_probe.py probe
+      - name: Compute Playwright browser cache key
+        id: pwkey
+        if: (inputs.mode == 'component' || (inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') && inputs.specs_json != '["cli-memory-readiness.spec.ts"]') || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke') && contains(inputs.ci_speedups, 'browser-cache')
+        working-directory: subject/frontend/apps/web_app
+        run: |
+          version="$(npx playwright --version | awk '{print $NF}')"
+          echo "key=playwright-browsers-${RUNNER_OS}-${RUNNER_ARCH}-${PLAYWRIGHT_BROWSER_NAME}-${version}" >> "$GITHUB_OUTPUT"
+      - name: Restore Playwright browser cache
+        id: pwcache
+        if: steps.pwkey.outputs.key != ''
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.pwkey.outputs.key }}
       - name: Install browser
         if: inputs.mode == 'component' || (inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') && inputs.specs_json != '["cli-memory-readiness.spec.ts"]') || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke'
         working-directory: subject/frontend/apps/web_app
         timeout-minutes: 10
+        env:
+          BROWSER_CACHE_ON: ${{ steps.pwkey.outputs.key != '' }}
+          BROWSER_CACHE_HIT: ${{ steps.pwcache.outputs.cache-hit == 'true' && 'true' || '' }}
         run: |
           # Change only the disposable GitHub runner; retain Ubuntu's signed
           # package sources and keyrings while avoiding the throttled Azure mirror.
@@ -852,26 +904,51 @@ jobs:
               printf '%s\n' 'http://archive.ubuntu.com/ubuntu' 'http://security.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
             fi
           fi
-          if [[ "$PLAYWRIGHT_BROWSER_NAME" == 'webkit' ]]; then
-            npx playwright install --with-deps webkit
-          else
-            npx playwright install --with-deps chromium
-          fi
-          # Recorder OS dependencies belong to this existing privileged runner
-          # provisioning boundary, never the same-UID native command owner.
-          recorder_missing=false
-          for executable in zutty xdotool Xvfb ffmpeg xsetroot script; do
-            if [[ ! -x "/usr/bin/$executable" ]]; then recorder_missing=true; fi
-          done
-          if [[ ! -r /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf ]]; then recorder_missing=true; fi
-          if [[ "$recorder_missing" == true ]]; then
+          if [[ "$BROWSER_CACHE_ON" == 'true' ]]; then
+            # browser-cache speedup: browser download only on a cache miss, OS
+            # dependencies and recorder packages in one apt update + install.
+            step_start=$SECONDS
+            if [[ "$BROWSER_CACHE_HIT" != 'true' ]]; then
+              npx playwright install "$PLAYWRIGHT_BROWSER_NAME"
+            fi
+            echo "Pre-test timing: browser download (cache hit: ${BROWSER_CACHE_HIT:-no}) $((SECONDS - step_start))s"
+            step_start=$SECONDS
+            playwright_packages="$(npx playwright install-deps --dry-run "$PLAYWRIGHT_BROWSER_NAME" 2>&1 | grep -o 'apt-get install[^"]*' | head -1 | sed 's/^apt-get install//' | tr ' ' '\n' | grep -E '^[a-z0-9][a-z0-9.+:-]*$' | tr '\n' ' ' || true)"
+            if [[ -z "$playwright_packages" ]]; then
+              echo "Could not read Playwright dependency list; falling back to install-deps" >&2
+              npx playwright install-deps "$PLAYWRIGHT_BROWSER_NAME"
+            fi
             sudo apt-get -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false -o Acquire::Retries=0 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
-            sudo apt-get -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false -o Acquire::Retries=0 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install --yes --no-install-recommends zutty fonts-dejavu-core x11-xserver-utils xdotool ffmpeg xvfb util-linux
+            sudo apt-get -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false -o Acquire::Retries=0 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install --yes --no-install-recommends $playwright_packages zutty fonts-dejavu-core x11-xserver-utils xdotool ffmpeg xvfb util-linux
+            echo "Pre-test timing: OS and recorder dependencies $((SECONDS - step_start))s"
+          else
+            if [[ "$PLAYWRIGHT_BROWSER_NAME" == 'webkit' ]]; then
+              npx playwright install --with-deps webkit
+            else
+              npx playwright install --with-deps chromium
+            fi
+            # Recorder OS dependencies belong to this existing privileged runner
+            # provisioning boundary, never the same-UID native command owner.
+            recorder_missing=false
+            for executable in zutty xdotool Xvfb ffmpeg xsetroot script; do
+              if [[ ! -x "/usr/bin/$executable" ]]; then recorder_missing=true; fi
+            done
+            if [[ ! -r /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf ]]; then recorder_missing=true; fi
+            if [[ "$recorder_missing" == true ]]; then
+              sudo apt-get -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false -o Acquire::Retries=0 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
+              sudo apt-get -o Acquire::AllowInsecureRepositories=false -o APT::Get::AllowUnauthenticated=false -o Acquire::Retries=0 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install --yes --no-install-recommends zutty fonts-dejavu-core x11-xserver-utils xdotool ffmpeg xvfb util-linux
+            fi
           fi
           for executable in zutty xdotool Xvfb ffmpeg xsetroot script; do
             test -x "/usr/bin/$executable"
           done
           test -r /usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf
+      - name: Save Playwright browser cache
+        if: steps.pwkey.outputs.key != '' && steps.pwcache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.pwkey.outputs.key }}
       - name: Provision empty runner-local Codex thread
         if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && (contains(inputs.specs_json, 'tasks-flow.spec.ts') || contains(inputs.specs_json, 'project-task-sync.spec.ts')))
         run: node ../tooling/scripts/ci_codex_fixture.mjs start
