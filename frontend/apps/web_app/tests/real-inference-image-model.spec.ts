@@ -270,7 +270,9 @@ async function typePromptAndSendAfterAttachment(
 			{ timeout: 60000, intervals: [1000, 2000, 5000] }
 		)
 		.toBeTruthy();
-	await expect(userMessages.last()).toContainText(message);
+	// The sent bubble renders an @ai-model token as its display mention
+	// ("@Gemini-3.8-Flash"); the requested model is proven by expectedGeneratedBy.
+	await expect(userMessages.last()).toContainText(PROMPT);
 	await expect(userMessages.last().locator('[data-testid="embed-preview"][data-app-id="images"][data-skill-id="view"]').first())
 		.toHaveAttribute('data-status', 'finished');
 	log('Message send accepted after attachment-preserving send.', { assistantCountBeforeSend });
