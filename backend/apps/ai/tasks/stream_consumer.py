@@ -1845,24 +1845,33 @@ def _is_document_fence(language: Optional[str]) -> bool:
 
 
 def _parse_docx_model_fence(content: str) -> Dict[str, Any]:
-    parsed = json.loads(content.strip())
+    """Strictly parse a docx_model fence into a document model.
+
+    Models sometimes double-encode the document (a JSON string whose value is the
+    JSON object); that one extra layer is unwrapped. Anything else that is not a
+    JSON object with a ``blocks`` array raises ValueError.
+    """
+    try:
+        parsed = json.loads(content.strip())
+        if isinstance(parsed, str):
+            parsed = json.loads(parsed.strip())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"docx_model content is not valid JSON: {exc}") from exc
     if not isinstance(parsed, dict):
         raise ValueError("docx_model content must be a JSON object")
     blocks = parsed.get("blocks")
-    if not isinstance(blocks, list):
-        raise ValueError("docx_model must include a blocks array")
+    if not isinstance(blocks, list) or not all(isinstance(b, dict) for b in blocks):
+        raise ValueError("docx_model must include a blocks array of objects")
     return parsed
 
 
 def _extract_document_title_and_filename(language: Optional[str], content: str) -> tuple[Optional[str], Optional[str], Optional[Dict[str, Any]]]:
+    """Return (title, filename, model); raises ValueError for an invalid docx_model fence."""
     if (language or "").lower() == "docx_model":
-        try:
-            docx_model = _parse_docx_model_fence(content)
-            title = docx_model.get("title") if isinstance(docx_model.get("title"), str) else None
-            filename = docx_model.get("filename") if isinstance(docx_model.get("filename"), str) else None
-            return title, filename, docx_model
-        except (json.JSONDecodeError, ValueError):
-            logger.warning("Falling back to legacy document_html conversion for non-JSON document content")
+        docx_model = _parse_docx_model_fence(content)
+        title = docx_model.get("title") if isinstance(docx_model.get("title"), str) else None
+        filename = docx_model.get("filename") if isinstance(docx_model.get("filename"), str) else None
+        return title, filename, docx_model
 
     title_match = re.search(r'<!--\s*title:\s*["\'](.+?)["\']\s*-->', content)
     filename_match = re.search(r'<!--\s*filename:\s*["\'](.+?)["\']\s*-->', content)
@@ -2396,7 +2405,11 @@ async def _apply_diff_block_to_existing_embed(
         if new_version % 32 == 0:
             version_history_rows[-1]["snapshot"] = capped_new_content
         new_content_hash = hashlib.sha256(capped_new_content.encode("utf-8")).hexdigest()
-        doc_title, doc_filename, docx_model = _extract_document_title_and_filename("docx_model", capped_new_content)
+        try:
+            doc_title, doc_filename, docx_model = _extract_document_title_and_filename("docx_model", capped_new_content)
+        except ValueError as exc:
+            logger.warning(f"{log_prefix} [DIFF_BLOCK] Patched document is invalid: {exc}")
+            return _render_diff_visual_card(resolved_ref, diff_content, "result is not a valid document")
         await embed_service.update_document_embed_content(
             embed_id=target_embed_id,
             html_content="",
@@ -8232,7 +8245,13 @@ async def _consume_main_processing_stream(
                                         request_data,
                                         code_content,
                                     )
-                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, capped_document_content)
+                                    document_error: Optional[str] = None
+                                    try:
+                                        doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, capped_document_content)
+                                    except ValueError as exc:
+                                        doc_title, doc_filename, docx_model = None, None, None
+                                        document_error = str(exc)
+                                        logger.warning(f"{log_prefix} Invalid document fence: {document_error}")
                                     
                                     # Create document embed placeholder and finalize immediately
                                     embed_data = await embed_service.create_document_embed_placeholder(
@@ -8252,34 +8271,35 @@ async def _consume_main_processing_stream(
                                         # Store the structured model, then let the docs worker generate artifacts.
                                         await embed_service.update_document_embed_content(
                                             embed_id=current_code_embed_id,
-                                            html_content=capped_document_content,
+                                            html_content="" if (current_code_language or "").lower() == "docx_model" else capped_document_content,
                                             chat_id=request_data.chat_id,
                                             user_id=request_data.user_id,
                                             user_id_hash=request_data.user_id_hash,
                                             user_vault_key_id=user_vault_key_id,
-                                            status="processing",
+                                            status="error" if document_error else "processing",
                                             title=doc_title,
                                             filename=doc_filename,
-                                            docx_model=docx_model,
+                                            docx_model=docx_model if docx_model is not None else {},
                                             learning_mode_metadata=learning_mode_metadata,
                                             log_prefix=log_prefix
                                         )
-                                        await _dispatch_ai_embed_task(
-                                            "apps.docs.tasks.generate_docx",
-                                            args=[{
-                                                "embed_id": current_code_embed_id,
-                                                "chat_id": request_data.chat_id,
-                                                "message_id": request_data.message_id,
-                                                "user_id": request_data.user_id,
-                                                "user_id_hash": request_data.user_id_hash,
-                                                "vault_key_id": user_vault_key_id,
-                                                "title": doc_title,
-                                                "filename": doc_filename,
-                                                "docx_model": docx_model,
-                                                "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
-                                            }],
-                                            queue="app_docs",
-                                        )
+                                        if not document_error:
+                                            await _dispatch_ai_embed_task(
+                                                "apps.docs.tasks.generate_docx",
+                                                args=[{
+                                                    "embed_id": current_code_embed_id,
+                                                    "chat_id": request_data.chat_id,
+                                                    "message_id": request_data.message_id,
+                                                    "user_id": request_data.user_id,
+                                                    "user_id_hash": request_data.user_id_hash,
+                                                    "vault_key_id": user_vault_key_id,
+                                                    "title": doc_title,
+                                                    "filename": doc_filename,
+                                                    "docx_model": docx_model,
+                                                    "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
+                                                }],
+                                                queue="app_docs",
+                                            )
                                         
                                         # Replace document block with embed reference in chunk
                                         embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
@@ -9857,39 +9877,46 @@ async def _consume_main_processing_stream(
                                         request_data,
                                         current_code_content,
                                     )
-                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, capped_document_content)
+                                    document_error = None
+                                    try:
+                                        doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, capped_document_content)
+                                    except ValueError as exc:
+                                        doc_title, doc_filename, docx_model = None, None, None
+                                        document_error = str(exc)
+                                        logger.warning(f"{log_prefix} Invalid document fence: {document_error}")
                                     current_document_title = current_document_title or doc_title
                                       
                                     await embed_service.update_document_embed_content(
                                         embed_id=current_code_embed_id,
-                                        html_content=capped_document_content,
+                                        html_content="" if (current_code_language or "").lower() == "docx_model" else capped_document_content,
                                         chat_id=request_data.chat_id,
                                         user_id=request_data.user_id,
                                         user_id_hash=request_data.user_id_hash,
                                         user_vault_key_id=user_vault_key_id,
-                                        status="processing",
+                                        status="error" if document_error else "processing",
                                         title=current_document_title,
                                         filename=doc_filename,
-                                        docx_model=docx_model,
+                                        docx_model=docx_model if docx_model is not None else {},
                                         learning_mode_metadata=learning_mode_metadata,
                                         log_prefix=log_prefix
                                     )
-                                    await _dispatch_ai_embed_task(
-                                        "apps.docs.tasks.generate_docx",
-                                        args=[{
-                                            "embed_id": current_code_embed_id,
-                                            "chat_id": request_data.chat_id,
-                                            "message_id": request_data.message_id,
-                                            "user_id": request_data.user_id,
-                                            "user_id_hash": request_data.user_id_hash,
-                                            "vault_key_id": user_vault_key_id,
-                                            "title": current_document_title,
-                                            "filename": doc_filename,
-                                            "docx_model": docx_model,
-                                            "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
-                                        }],
-                                        queue="app_docs",
-                                    )
+                                    if not document_error:
+                                        await _dispatch_ai_embed_task(
+                                            "apps.docs.tasks.generate_docx",
+                                            args=[{
+                                                "embed_id": current_code_embed_id,
+                                                "chat_id": request_data.chat_id,
+                                                "message_id": request_data.message_id,
+                                                "user_id": request_data.user_id,
+                                                "user_id_hash": request_data.user_id_hash,
+                                                "vault_key_id": user_vault_key_id,
+                                                "title": current_document_title,
+                                                "filename": doc_filename,
+                                                "docx_model": docx_model,
+                                                "file_path_index": getattr(request_data, "embed_file_path_index", None) or {},
+                                            }],
+                                            queue="app_docs",
+                                        )
                                      
                                     logger.info(
                                         f"{log_prefix} Queued document artifact generation for {current_code_embed_id} with {len(current_code_content)} chars "

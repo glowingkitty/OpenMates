@@ -4151,6 +4151,11 @@ class EmbedService(SlidesEmbedMixin):
                             model_text_parts.append(value)
                         elif isinstance(value, list):
                             model_text_parts.append(" ".join(str(item) for item in value))
+                    runs = block.get("runs") if isinstance(block, dict) else None
+                    if isinstance(runs, list):
+                        model_text_parts.extend(
+                            run["text"] for run in runs if isinstance(run, dict) and isinstance(run.get("text"), str)
+                        )
                 text_content = " ".join(model_text_parts)
             else:
                 text_content = re.sub(r'<[^>]+>', ' ', html_content)

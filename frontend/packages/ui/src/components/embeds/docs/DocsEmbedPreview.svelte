@@ -270,8 +270,8 @@
     });
     
     if (data.decodedContent) {
-      if (data.decodedContent.html !== undefined) {
-        localHtmlContent = data.decodedContent.html || '';
+      if (typeof data.decodedContent.html === 'string' && data.decodedContent.html.trim()) {
+        localHtmlContent = data.decodedContent.html;
       } else if (data.decodedContent.docx_model) {
         localHtmlContent = docxModelToHtml(data.decodedContent.docx_model);
       }

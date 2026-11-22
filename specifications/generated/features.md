@@ -23,7 +23,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
 | CLI | 0 | 0 | 17 | 8 | 27 | 41 | 2 | 2 | 0 | 30 |
 | TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 44 |
-| REST API | 5 | 2 | 33 | 16 | 26 | 16 | 0 | 2 | 0 | 27 |
+| REST API | 5 | 2 | 33 | 16 | 27 | 16 | 0 | 2 | 0 | 26 |
 | npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 54 |
 | PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 55 |
 
@@ -127,7 +127,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Design](#design) | partial 7/28 | impl |  | impl | impl | partial 21/28 | impl | impl | on | on | v0.19.0 |
 | &nbsp;&nbsp;↳ Figma and Penpot designs | partial 4/14 | planned |  | wip | ? | partial 7/14 | wip | wip | | | |
 | [Diagrams](#diagrams) | impl | impl |  | wip | wip | — | impl | wip | on | on | untagged-main |
-| [Docs](#docs) | partial 2/4 | impl |  | — | — | — | impl | impl | on | on | v0.5.0-alpha |
+| [Docs](#docs) | partial 2/5 | impl |  | — | — | not run 0/1 | impl | impl | on | on | v0.5.0-alpha |
 | [Electronics](#electronics) | not run 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.11.0-alpha |
 | [Events](#events) | **FAIL** 2/14 | partial 1/13 |  | impl | impl | **FAIL** 11/13 | impl | impl | partly on | on | v0.5.0-alpha |
 | [File](#file) | impl | impl |  | wip | impl | — | impl | wip | on | on | v0.19.0 |
@@ -1407,19 +1407,20 @@ Create flowcharts, sequences, timelines & more.
 
 Create documents, reports, articles & more.
 
-- Specifications: [feature.doc-editor](../../specifications/features/doc-editor/specification.yml) (draft) · 4 assertion(s)
+- Specifications: [feature.doc-editor](../../specifications/features/doc-editor/specification.yml) (draft) · 5 assertion(s)
 - Apps: `docs`
 - Flags: `app:docs` · dev on · prod on · release v0.5.0-alpha
+- Check intent: REST API: marked not_planned, but tests on rest_api exist
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 2/4 | 2 pass · 0 fail · 0 not run · 2 no test | [docs-editor.spec.ts](../../frontend/apps/web_app/tests/components/docs-editor.spec.ts)<br>[docs-pdf-download.spec.ts](../../frontend/apps/web_app/tests/components/docs-pdf-download.spec.ts)<br>[projects-create-edit-files.spec.ts](../../frontend/apps/web_app/tests/projects-create-edit-files.spec.ts)<br>1 unit test file(s), e.g. [docsEditorHtml.test.ts](../../frontend/packages/ui/src/components/embeds/docs/docsEditorHtml.test.ts) |
+| Web | partial 2/5 | 2 pass · 0 fail · 0 not run · 3 no test | [docs-editor.spec.ts](../../frontend/apps/web_app/tests/components/docs-editor.spec.ts)<br>[docs-pdf-download.spec.ts](../../frontend/apps/web_app/tests/components/docs-pdf-download.spec.ts)<br>[projects-create-edit-files.spec.ts](../../frontend/apps/web_app/tests/projects-create-edit-files.spec.ts)<br>1 unit test file(s), e.g. [docsEditorHtml.test.ts](../../frontend/packages/ui/src/components/embeds/docs/docsEditorHtml.test.ts) |
 | Apple | impl | — | — |
 | CLI | — | — | — |
 | TUI | — | — | — |
-| REST API | — | — | — |
+| REST API | not run 0/1 | 0 pass · 0 fail · 1 not run · 0 no test | 1 unit test file(s), e.g. [test_docx_model_fence.py](../../backend/tests/test_docx_model_fence.py) |
 | npm SDK | impl | — | — |
 | PyPI SDK | impl | — | — |
 

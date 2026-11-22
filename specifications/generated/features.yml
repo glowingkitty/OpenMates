@@ -48,10 +48,10 @@ summary:
       tested: 2
       partial: 33
       failing: 16
-      not_run: 26
+      not_run: 27
       implemented: 16
       planned: 2
-      not_planned: 27
+      not_planned: 26
     sdk_npm:
       partial: 3
       not_run: 20
@@ -12356,7 +12356,7 @@ features:
     - app:docs
     dev: enabled
     prod: enabled
-  assertions: 4
+  assertions: 5
   surfaces:
     web:
       status: partial
@@ -12366,8 +12366,8 @@ features:
         passing: 2
         failing: 0
         not_run: 0
-        missing: 2
-        counted: 4
+        missing: 3
+        counted: 5
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/docs-editor.spec.ts
@@ -12424,19 +12424,21 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: not_planned
-      source: intent
+      status: not_run
+      source: tests
       intent: not_planned
       assertions:
         passing: 0
         failing: 0
-        not_run: 0
+        not_run: 1
         missing: 0
-        counted: 0
+        counted: 1
+      conflict: marked not_planned, but tests on rest_api exist
       key_tests: []
       e2e_tests: []
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - backend/tests/test_docx_model_fence.py
+      unit_test_files: 1
     sdk_npm:
       status: implemented
       source: intent

@@ -761,7 +761,7 @@ specifications:
     version: 1
     status: draft
     path: features/doc-editor
-    fingerprint: c76944a36edce1a74c3c47828d29b7d263d8c23eea6769f1196123654dd64c04
+    fingerprint: 399369f86ecd0f32747ac624f8041c4835e524cc425cc42d35c373e1b2bfb9da
     required_applies_to:
     - gui.web
   feature.embed-user-edits:
@@ -10323,6 +10323,13 @@ assertions:
     specification_id: feature.doc-editor
     type: behavior
     fingerprint: 4936fd664a4ec2a4c5bfee8bdfecca646025c475b3cd6c6316730506b1000f0d
+    required_applies_to:
+    - gui.web
+  doc-editor.preview.structured-model:
+    specification: feature.doc-editor@1
+    specification_id: feature.doc-editor
+    type: behavior
+    fingerprint: f91146f731c05a6cba8eecb46e1e8b572b12a028349a78084a8900edfc98ab2e
     required_applies_to:
     - gui.web
   doc-editor.export.latest-version:
