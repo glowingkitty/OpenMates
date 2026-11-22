@@ -77,7 +77,9 @@ steps:
 			const waitingRun = await waitForWorkflowRunStatus(apiUrl, homeDir, workflowId, acceptedRun.id, ['waiting'], 'AI chat workflow', 240_000);
 			expect(waitingRun.node_runs.some((node: any) => node.node_id === 'ask_ai' && node.status === 'completed')).toBe(true);
 			const chatNode = waitingRun.node_runs.find((node: any) => node.node_id === 'chat');
-			expect(chatNode?.output_summary?.status).toBe('delivery_pending');
+			// The online browser may already have claimed and acknowledged the chat
+			// by the time the run waits; any later state is still the client-claim path.
+			expect(['delivery_pending', 'claimed', 'acknowledged']).toContain(chatNode?.output_summary?.status);
 			expect(chatNode?.output_summary?.delivery_id).toBeTruthy();
 			expect(waitingRun.node_runs.find((node: any) => node.node_id === 'ask_user')?.output_summary?.wait_for_user_input).toBe(true);
 
