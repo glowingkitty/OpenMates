@@ -135293,7 +135293,7 @@ assertions:
     current_direct_proof: false
   focus-modes.project-layering:
     specification: feature.focus-modes@3
-    fingerprint: 2cc25c274ba689a35fa3668005cf569ead4d267513489796bae72b47720184a7
+    fingerprint: e34b5e3c4f2af32965b7db8ea7dc94ba28793a1a86a3e679516f6ea3cab6bcea
     direct_tests:
     - &id17197
       path: frontend/apps/web_app/tests/components/project-focus-specialist.spec.ts

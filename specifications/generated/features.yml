@@ -4997,7 +4997,7 @@ features:
     display for all focus modes.
   specifications:
   - id: feature.focus-modes
-    status: draft
+    status: approved
     path: specifications/features/focus-modes
   apps: []
   product_features: []

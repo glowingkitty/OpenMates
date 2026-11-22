@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.focus-modes
 version: 3
-status: draft
+status: approved
 title: Focus Modes — Shared Operation and Display
 summary: Shared lifecycle, full system instruction application, system history, controls, restoration and historical display
   for all focus modes.
@@ -185,8 +185,9 @@ assertions:
     focus such as Write specification or the planner, or a Focus stored in that Project, is layered on top of the base
     when the user names it or when the request uniquely matches it, for example a request for a new feature matching Write
     specification or a request matching a Project Focus such as Add a new provider. Explicit naming activates at once;
-    a match uses the normal countdown proposal. Both instruction layers apply together. At most one focus is layered at
-    a time; activating another replaces the layered focus, never the base.
+    a match uses the normal countdown proposal. Both instruction layers apply together. At most two focus modes are active
+    at once, the Project base plus one specific focus on top. Activating another focus keeps the Project base, switches
+    the current specific focus off and layers the new one in its place.
   depends_on:
   - examples.project_layering
 - id: focus-modes.layer-end

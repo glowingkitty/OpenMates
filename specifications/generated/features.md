@@ -1590,7 +1590,7 @@ Stay fit, keep moving, stay healthy.
 
 Shared lifecycle, full system instruction application, system history, controls, restoration and historical display for all focus modes.
 
-- Specifications: [feature.focus-modes](../../specifications/features/focus-modes/specification.yml) (draft) · 31 assertion(s)
+- Specifications: [feature.focus-modes](../../specifications/features/focus-modes/specification.yml) (approved) · 31 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.9.0-alpha
 
 <details><summary>Tests per surface</summary>
