@@ -51,3 +51,22 @@ def test_checkpoint_carries_the_allowance_and_the_loop_restores_it() -> None:
     source = inspect.getsource(main_processor.handle_main_processing)
     assert '"sandbox_free_iterations": sandbox_free_iterations,' in source
     assert "sandbox_free_iterations = _resumed_sandbox_free_iterations(resume_checkpoint, start_iteration)" in source
+
+def test_sandbox_command_passes_and_repeated_sandbox_reads_keep_the_budget() -> None:
+    """Proof run 20: three install commands and one repeated sandbox read used the whole
+    four-pass budget, so the requested test never ran. Sandbox commands and repeats of an
+    inline sandbox file call now use the sandbox allowance instead."""
+    source = inspect.getsource(main_processor.handle_main_processing)
+    gate = source.index("parsed_args = _pts.use_project_sandbox(parsed_args)")
+    counter = source.index('if app_id != "system" and not project_sandbox_command:')
+    assert gate < counter  # decided before the research skill budget counts the call
+    assert "project_sandbox_command = sandbox_free_iterations < MAX_SANDBOX_FILE_ITERATIONS" in source
+    assert source.count("_pts.use_project_sandbox(") == 1
+    assert "if call_hash in sandbox_inline_call_hashes:" in source
+    assert "sandbox_inline_call_hashes.add(call_hash)" in source
+    # A pass of sandbox commands pauses for their results: the free check runs before the
+    # same-turn checkpoint so the resume carries the allowance it used.
+    pause = source.index("if async_batch_jobs:\n")
+    checkpoint = source.index('"sandbox_free_iterations": sandbox_free_iterations,')
+    free_check = source.index("_is_sandbox_free_iteration(", pause)
+    assert pause < free_check < checkpoint

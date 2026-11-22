@@ -1257,8 +1257,9 @@ def _internal_llm_policy_payload(request_data: Any) -> Optional[Dict[str, Any]]:
 # retries the same model with clean evidence, then permits one configured alternate.
 # Neither recovery attempt can execute a skill.
 MAX_TOOL_CALL_ITERATIONS = 5
-# Extra iterations per turn for Project file tools run inline in the hosted sandbox
-# (a device-path file operation instead pauses the turn and resumes with a fresh budget).
+# Extra iterations per turn for Project file tools run inline in the hosted sandbox and for
+# commands run in it (a device-path file operation instead pauses the turn and resumes with a
+# fresh budget). Sandbox commands within this allowance also skip the research skill budget.
 MAX_SANDBOX_FILE_ITERATIONS = 30
 
 
@@ -1274,8 +1275,9 @@ def _resumed_sandbox_free_iterations(resume_checkpoint: dict | None, start_itera
 
 
 def _is_sandbox_free_iteration(executed_calls: int, sandbox_inline_calls: int, used: int) -> bool:
-    """True when every tool call this iteration executed ran inline in the Project sandbox
-    and the per-turn allowance is not used up; such an iteration keeps the budget unchanged."""
+    """True when every tool call this iteration ran in the hosted Project sandbox (inline file
+    tools, their deduplicated repeats, or sandbox commands) and the per-turn allowance is not
+    used up; such an iteration keeps the budget unchanged."""
     return executed_calls > 0 and sandbox_inline_calls == executed_calls and used < MAX_SANDBOX_FILE_ITERATIONS
 MAX_ANSWER_ONLY_RECOVERY_ITERATIONS = 2
 
@@ -6938,6 +6940,9 @@ async def handle_main_processing(
     # A same-turn resume (e.g. after a code-run) keeps the inline sandbox allowance already used,
     # otherwise the physical resume iteration would be charged in full against the budget.
     sandbox_free_iterations = _resumed_sandbox_free_iterations(resume_checkpoint, start_iteration)
+    # Hashes of file calls the sandbox ran inline in this run (not checkpointed: after a resume a
+    # repeated call is charged normally, the conservative side).
+    sandbox_inline_call_hashes: set[str] = set()
     for iteration in itertools.count(start_iteration):
         budget_iteration = iteration - sandbox_free_iterations
         if budget_iteration >= max_iterations_with_recovery:
@@ -9638,10 +9643,34 @@ async def handle_main_processing(
                         })
                     }
                     current_message_history.append(tool_response_message)
+                    # Repeating a file call the sandbox already ran inline costs nothing either.
+                    if call_hash in sandbox_inline_call_hashes:
+                        sandbox_inline_calls += 1
                     continue  # Skip to next tool call
                 
+                # --- Hosted-Project code-run: route test runs, drop forged snapshots, pick the sandbox ---
+                # Decided before the budget counters: a command run in the hosted Project sandbox is
+                # bounded by the per-turn sandbox allowance, not by the research skill budget, since
+                # an agentic coding turn installs, builds and tests in several commands.
+                project_sandbox_command = False
+                if app_id == "code" and skill_id == "run" and isinstance(parsed_args, dict):
+                    from backend.apps.ai.processing import project_test_snapshot as _pts
+                    if active_project_focus:
+                        parsed_args = _pts.route_machine_test_run(parsed_args, active_project_sources)
+                    parsed_args = _pts.without_forged_snapshot(parsed_args)
+                    if _pts.is_cloud_command(parsed_args) and active_project_focus:
+                        from backend.apps.ai.processing.project_sandbox_gate import sandbox_applies_to_command
+                        if await sandbox_applies_to_command(
+                            user_id=request_data.user_id, focus=active_project_focus,
+                            directus_service=directus_service, log_prefix=log_prefix,
+                        ):
+                            parsed_args = _pts.use_project_sandbox(parsed_args)
+                            project_sandbox_command = sandbox_free_iterations < MAX_SANDBOX_FILE_ITERATIONS
+                            if project_sandbox_command:
+                                sandbox_inline_calls += 1
+
                 # Update budget counters (only for non-system tools)
-                if app_id != "system":
+                if app_id != "system" and not project_sandbox_command:
                     answer_search_queries = next_answer_search_queries
                     total_skill_calls += requests_in_this_call
                     logger.info(
@@ -9667,17 +9696,6 @@ async def handle_main_processing(
                 
                 # --- Hosted-Project code-run: the Project snapshot comes from the client ---
                 if app_id == "code" and skill_id == "run" and isinstance(parsed_args, dict):
-                    from backend.apps.ai.processing import project_test_snapshot as _pts
-                    if active_project_focus:
-                        parsed_args = _pts.route_machine_test_run(parsed_args, active_project_sources)
-                    parsed_args = _pts.without_forged_snapshot(parsed_args)
-                    if _pts.is_cloud_command(parsed_args) and active_project_focus:
-                        from backend.apps.ai.processing.project_sandbox_gate import sandbox_applies_to_command
-                        if await sandbox_applies_to_command(
-                            user_id=request_data.user_id, focus=active_project_focus,
-                            directus_service=directus_service, log_prefix=log_prefix,
-                        ):
-                            parsed_args = _pts.use_project_sandbox(parsed_args)
                     if _pts.needs_snapshot(parsed_args) and active_project_focus and cache_service:
                         _snapshot = await _pts.take_snapshot(
                             cache_service,
@@ -9853,6 +9871,7 @@ async def handle_main_processing(
                                         "content": json.dumps(project_result),
                                     })
                                     completed_skill_calls[call_hash] = project_result
+                                    sandbox_inline_call_hashes.add(call_hash)
                                     sandbox_inline_calls += 1
                                     continue
                                 awaiting_before_operation = bool(request_data.awaiting_async_skill_continuation)
@@ -13004,6 +13023,11 @@ async def handle_main_processing(
             yield {"__voice_skill_phase__": "finished", "skills": voice_skill_ids}
 
         if async_batch_jobs:
+            # A pass made only of hosted-sandbox commands and inline sandbox file calls keeps the
+            # budget unchanged, like an inline file pass; the resume carries the allowance used.
+            if _is_sandbox_free_iteration(len(tool_calls_for_this_turn), sandbox_inline_calls,
+                                          sandbox_free_iterations):
+                sandbox_free_iterations += 1
             checkpoint = {
                 "version": 1, "turn_id": request_data.message_id,
                 "next_iteration": iteration + 1,
