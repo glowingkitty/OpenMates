@@ -129,7 +129,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Diagrams](#diagrams) | impl | impl |  | wip | wip | — | impl | wip | on | on | untagged-main |
 | [Docs](#docs) | partial 2/5 | impl |  | — | — | not run 0/1 | impl | impl | on | on | v0.5.0-alpha |
 | [Electronics](#electronics) | not run 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.11.0-alpha |
-| [Events](#events) | **FAIL** 2/14 | partial 1/13 |  | impl | impl | **FAIL** 11/13 | impl | impl | partly on | on | v0.5.0-alpha |
+| [Events](#events) | **FAIL** 2/14 | partial 1/13 |  | impl | impl | **FAIL** 11/13 | impl | impl | on | on | v0.5.0-alpha |
 | [File](#file) | impl | impl |  | wip | impl | — | impl | wip | on | on | v0.19.0 |
 | [Finance](#finance) | impl | impl |  | impl | impl | impl | impl | impl | on | on | v0.19.0 |
 | [Fitness](#fitness) | partial 1/2 | impl |  | impl | impl | impl | impl | impl | on | on | v0.1-alpha-1 |
@@ -1480,7 +1480,7 @@ Keep saved event information.
 
 - Specifications: [feature.app-skill.events-search](../../specifications/features/app-skills/events-search/specification.yml) (approved) · 13 assertion(s)
 - Apps: `events`
-- Flags: `app:events`, `skill:events:search` · dev partly on · prod on · release v0.5.0-alpha
+- Flags: `app:events`, `skill:events:search` · dev on · prod on · release v0.5.0-alpha
 
 <details><summary>Tests per surface</summary>
 
@@ -3119,7 +3119,7 @@ The shared workspace header and shell around Chats and the other top-level works
 | Apple | tested 2/2 | 2 pass · 0 fail · 0 not run · 0 no test | [ChatFlowParityUITests.swift](../../apple/OpenMatesUITests/ChatFlowParityUITests.swift)<br>[ChatNavigationParityUITests.swift](../../apple/OpenMatesUITests/ChatNavigationParityUITests.swift)<br>[ChatShellResponsiveParityUITests.swift](../../apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift)<br>[DevComponentPreviewUITests.swift](../../apple/OpenMatesUITests/DevComponentPreviewUITests.swift)<br>[TooltipHelpParityUITests.swift](../../apple/OpenMatesUITests/TooltipHelpParityUITests.swift)<br>[WorkspaceSwitcherUITests.swift](../../apple/OpenMatesUITests/WorkspaceSwitcherUITests.swift)<br>2 unit test file(s), e.g. [ChatManagementSharingParityTests.swift](../../apple/OpenMatesTests/ChatManagementSharingParityTests.swift), [WorkspaceSwitcherLayoutTests.swift](../../apple/OpenMatesTests/WorkspaceSwitcherLayoutTests.swift) |
 | CLI | — | — | — |
 | TUI | **FAIL** 0/1 | 0 pass · 1 fail · 0 not run · 0 no test | [cli-tui-workspace-proof.spec.ts](../../frontend/apps/web_app/tests/cli-tui-workspace-proof.spec.ts)<br>❌ [cli-tui-workspace-proof.spec.ts › records the real terminal Chats, Tasks, Projects, Workflows, and Apps homes](../../frontend/apps/web_app/tests/cli-tui-workspace-proof.spec.ts › records the real terminal Chats, Tasks, Projects, Workflows, and Apps homes) |
-| REST API | **live** 1/1 | 1 pass · 0 fail · 0 not run · 0 no test | 2 unit test file(s), e.g. [test_feature_availability_service.py](../../backend/tests/test_feature_availability_service.py), [test_retired_app_capabilities.py](../../backend/tests/test_retired_app_capabilities.py) |
+| REST API | **live** 1/1 | 1 pass · 0 fail · 0 not run · 0 no test | 3 unit test file(s), e.g. [test_feature_availability_enforcement.py](../../backend/tests/test_feature_availability_enforcement.py), [test_feature_availability_service.py](../../backend/tests/test_feature_availability_service.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 

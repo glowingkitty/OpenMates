@@ -34,16 +34,19 @@ def make_request(config: dict) -> SimpleNamespace:
     return SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(config_manager=FakeConfigManager(config))))
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_application_preview_route_allows_default_enabled_embed() -> None:
     ensure_application_preview_enabled(make_request({}))
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_application_preview_route_allows_admin_enabled_embed() -> None:
     ensure_application_preview_enabled(
         make_request({"feature_overrides": {"enabled": ["embed:code:application"], "disabled": []}})
     )
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_application_preview_route_blocks_admin_disabled_embed() -> None:
     with pytest.raises(HTTPException) as exc_info:
         ensure_application_preview_enabled(
@@ -54,6 +57,7 @@ def test_application_preview_route_blocks_admin_disabled_embed() -> None:
     assert exc_info.value.detail == "FEATURE_DISABLED"
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_projects_route_blocks_default_disabled_platform_feature() -> None:
     with pytest.raises(HTTPException) as exc_info:
         ensure_projects_enabled(make_request({}))
@@ -62,6 +66,7 @@ def test_projects_route_blocks_default_disabled_platform_feature() -> None:
     assert exc_info.value.detail == "FEATURE_DISABLED"
 
 
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_projects_route_allows_admin_enabled_platform_feature() -> None:
     ensure_projects_enabled(
         make_request({"feature_overrides": {"enabled": ["platform:projects"], "disabled": []}})
@@ -74,10 +79,10 @@ def test_projects_route_allows_admin_enabled_platform_feature() -> None:
         (ensure_projects_enabled, "platform:projects"),
         (ensure_plans_enabled, "platform:plans"),
         (ensure_teams_enabled, "platform:teams"),
-        (ensure_workflows_enabled, "platform:workflows"),
         (ensure_tasks_enabled, "platform:tasks"),
     ],
 )
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
 def test_unfinished_platform_guards_block_by_default_and_allow_admin_override(guard, feature_id: str) -> None:
     with pytest.raises(HTTPException) as exc_info:
         guard(make_request({}))
@@ -86,3 +91,14 @@ def test_unfinished_platform_guards_block_by_default_and_allow_admin_override(gu
     assert exc_info.value.detail == "FEATURE_DISABLED"
 
     guard(make_request({"feature_overrides": {"enabled": [feature_id], "disabled": []}}))
+
+
+# contract-test: supporting surface=rest_api assertions=workspace-shell.nav.released-surfaces-visible
+def test_released_workflows_guard_allows_by_default_and_blocks_disabled_override() -> None:
+    ensure_workflows_enabled(make_request({}))
+
+    with pytest.raises(HTTPException) as exc_info:
+        ensure_workflows_enabled(make_request({"feature_overrides": {"enabled": [], "disabled": ["platform:workflows"]}}))
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "FEATURE_DISABLED"

@@ -1287,7 +1287,7 @@ class WorkflowService:
         self.repository = repository or InMemoryWorkflowRepository()
         self.payload_cipher = payload_cipher or VaultWorkflowPayloadCipher()
         self.feature_availability = feature_availability or FeatureAvailabilityService(
-            definitions=[FeatureDefinition(id=WORKFLOW_PLATFORM_FEATURE, kind="platform", default_enabled=False)],
+            definitions=[FeatureDefinition(id=WORKFLOW_PLATFORM_FEATURE, kind="platform", default_enabled=True)],
             config={"feature_overrides": {"enabled": [WORKFLOW_PLATFORM_FEATURE], "disabled": []}},
         )
 
