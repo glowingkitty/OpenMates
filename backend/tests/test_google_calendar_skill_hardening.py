@@ -77,6 +77,8 @@ def test_idempotent_event_id_uses_google_alphabet_and_is_stable() -> None:
     (403, "rateLimitExceeded", {}, "google_calendar_rate_limited", False),
     (429, "rateLimitExceeded", {"Retry-After": "7"}, "google_calendar_rate_limited", False),
     (403, "requiredAccessLevel", {}, "google_calendar_forbidden", False),
+    (403, "accessNotConfigured", {}, "google_calendar_api_disabled", False),
+    (403, "SERVICE_DISABLED", {}, "google_calendar_api_disabled", False),
     (404, "notFound", {}, "google_calendar_not_found", False),
     (409, "duplicate", {}, "google_calendar_duplicate", False),
     (410, "deleted", {}, "google_calendar_gone", False),
@@ -93,6 +95,16 @@ def test_provider_errors_are_classified(status, reason, headers, code, reconnect
     assert error.reconnect_required is reconnect
     if headers:
         assert error.to_result()["retry_after_seconds"] == 7
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.lifecycle.reconnect-revoke
+def test_disabled_calendar_api_is_operator_facing_and_not_retryable() -> None:
+    from backend.shared.providers.google_calendar.errors import classify_status_error
+
+    response = httpx.Response(403, json={"error": {"details": [{"reason": "SERVICE_DISABLED"}]}})
+    result = classify_status_error(response).to_result()
+    assert result["error"] == "google_calendar_api_disabled"
+    assert result["reconnect_required"] is False and result["retryable"] is False
 
 
 # ---------------------------------------------------------------- list / read

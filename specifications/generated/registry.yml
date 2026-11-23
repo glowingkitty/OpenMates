@@ -40,7 +40,7 @@ specifications:
     version: 2
     status: draft
     path: architecture/connected-accounts
-    fingerprint: 28a286d72aaf0f946c32b48cf316fd9a92c94d64715cc10cbfad80a288b90186
+    fingerprint: 06f4ab46bef2e4daff4e0a1c68a0c93b2479c82ef242ed47a358345dbf74ac11
     required_applies_to:
     - rest_api
     - cli
@@ -237,7 +237,7 @@ specifications:
     version: 3
     status: draft
     path: features/app-skills/calendar
-    fingerprint: c8bdba5d383489ec4a1473023ba11d72c7638bbe64f78da72961639c9d8ec9c0
+    fingerprint: d41a9b36fa53ec987e1b4e1d88d1fee8be66830da6f33b1d68e58a4a0ac28e98
     required_applies_to:
     - rest_api
     - cli
@@ -375,6 +375,17 @@ specifications:
     status: draft
     path: features/app-skills/investor-search
     fingerprint: b32b94b6c6b24a2ac06f0975602e5b95a11a262d8412d575ebaaa5a6d71e77b7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  feature.app-skills.mail-gmail:
+    version: 1
+    status: draft
+    path: features/app-skills/mail-gmail
+    fingerprint: 4bcecd4d5458620f9ea384b992bcb1ca4e35102150c9deaaa3d205a7cab6108a
     required_applies_to:
     - rest_api
     - cli
@@ -1726,11 +1737,44 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  connected-accounts.settings.central-page:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: behavior
+    fingerprint: 20d07105fb9d03f74c41a70d7d8736830637ca2238f26e4075c6265f99cb0735
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.settings.app-page-summary:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: behavior
+    fingerprint: ecb56d98f677c5e5f57c4ab1934d4381ab20a36aacbfc92ad17f618ebf7a3890
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.connection.popup-sign-in:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: behavior
+    fingerprint: 7e057697257c8ce15d9a1dc9ef32de5954b5eba368997686341872ae32a55b1c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   connected-accounts.connection.private-reusable:
     specification: architecture.connected-accounts@2
     specification_id: architecture.connected-accounts
     type: privacy
-    fingerprint: 3b361b891abc9f5df4ac1c06874905c69b8d8f32d1468059c8a072e9cf450e02
+    fingerprint: 55210e1ec9c516327c56258e5840178bdf282fa091038bbb3adf8ee8347f0449
     required_applies_to:
     - rest_api
     - cli
@@ -1764,6 +1808,28 @@ assertions:
     specification_id: architecture.connected-accounts
     type: behavior
     fingerprint: 41b697a8ea18a2baf3ceaa1d06925a3233efd401fc4c8ce06917c7fefab38e0c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.lifecycle.last-used:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: behavior
+    fingerprint: b936f553d65488a9714a5a8285bcfba317dea07b5fd4f29aa8ee500447fed6bf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.lifecycle.reconnect-status:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: behavior
+    fingerprint: 191762e522dc86bbfee03b81fa142b4d2792a50f45d3da4f61e61d9c0fce58da
     required_applies_to:
     - rest_api
     - cli
@@ -4211,7 +4277,7 @@ assertions:
     specification: feature.app-skills.calendar@3
     specification_id: feature.app-skills.calendar
     type: security
-    fingerprint: 142d8b1b91fbdcdaf67a49cbeb5f6a4f562df7bd426bd773beb9d7c010f437ab
+    fingerprint: 5b4844493cef7f7edd29aeb215f4e065aa72f9e8efd31ae0731e705413e390b4
     required_applies_to:
     - rest_api
     - cli
@@ -5952,6 +6018,105 @@ assertions:
     specification_id: feature.app-skill.investor-search
     type: security
     fingerprint: ef63cb0b3c7d59bd75e302801a004b84a14b5ea63f75081a7bea15f88d211099
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  mail-gmail.scopes:
+    specification: feature.app-skills.mail-gmail@1
+    specification_id: feature.app-skills.mail-gmail
+    type: security
+    fingerprint: 6e1bf4c48cbd0e69b701626b14abe07f9136185c3eca853cc42301d324322cd2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  mail-gmail.read.search:
+    specification: feature.app-skills.mail-gmail@1
+    specification_id: feature.app-skills.mail-gmail
+    type: behavior
+    fingerprint: 1bb11cfa0b7077db940c1b00e02bee40e5bfcd4f936db1c9abef92a07fbe152a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  mail-gmail.read.thread:
+    specification: feature.app-skills.mail-gmail@1
+    specification_id: feature.app-skills.mail-gmail
+    type: behavior
+    fingerprint: 5f9ac6734a399f894ef1003914706a03853d0a5f255fd0014fc15554c64cd7cd
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  mail-gmail.read.untrusted-content:
+    specification: feature.app-skills.mail-gmail@1
+    specification_id: feature.app-skills.mail-gmail
+    type: security
+    fingerprint: fc1665014e6bcbdaf11827f58570e186d72f6180256e5cbd31cbda07febc0f0c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  mail-gmail.draft.create-only:
+    specification: feature.app-skills.mail-gmail@1
+    specification_id: feature.app-skills.mail-gmail
+    type: security
+    fingerprint: 8ef1736d565115ed77244e28bbb7755018d9b11c6dcb229e2a1ab7f8910dd9da
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  mail-gmail.draft.placeholders:
+    specification: feature.app-skills.mail-gmail@1
+    specification_id: feature.app-skills.mail-gmail
+    type: security
+    fingerprint: b110e39437b0f866ec02e80103ec32d0c1a32a2953f96839bf04694676cc6ee2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  mail-gmail.errors:
+    specification: feature.app-skills.mail-gmail@1
+    specification_id: feature.app-skills.mail-gmail
+    type: behavior
+    fingerprint: cbae2d1811a6c90185516d7a7ddc6fa469c28c9b5a30607d9b64aadd06630f53
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  mail-gmail.no-send:
+    specification: feature.app-skills.mail-gmail@1
+    specification_id: feature.app-skills.mail-gmail
+    type: security
+    fingerprint: 4af18af0c530d65c8a4a66c176eabfe4995e57b699ca5e6d39fd137762b847ee
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  mail-gmail.live-proof:
+    specification: feature.app-skills.mail-gmail@1
+    specification_id: feature.app-skills.mail-gmail
+    type: validation
+    fingerprint: bc980ef6c05562ef8a87d7647963917afedfbaee6ea143582a83a80a9aa74b1d
     required_applies_to:
     - rest_api
     - cli

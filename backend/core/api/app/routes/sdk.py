@@ -2534,6 +2534,7 @@ async def run_sdk_connected_account_skill(
                 message_id=message_id,
                 cache_service=request.app.state.cache_service,
                 encryption_service=request.app.state.encryption_service,
+                directus_service=request.app.state.directus_service,
             )
         result = await call_app_skill(
             app_id=app_id,

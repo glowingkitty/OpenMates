@@ -27,6 +27,10 @@ class ConnectedAccountSkillConfig:
     action: str
     request_field: str = "requests"
     scope_kind: str = "generic"
+    default_runtime_mode: str | None = None
+    # True when the same skill also has a non-connected-account provider (Proton);
+    # the connected-account path then applies only to requests that select Google.
+    provider_selected_by_request: bool = False
 
 
 CONNECTED_ACCOUNT_SKILL_CONFIGS: dict[tuple[str, str], ConnectedAccountSkillConfig] = {
@@ -62,6 +66,20 @@ CONNECTED_ACCOUNT_SKILL_CONFIGS: dict[tuple[str, str], ConnectedAccountSkillConf
         action="delete",
         scope_kind="calendar_events",
     ),
+    # Gmail (official Gmail API). Mail search keeps its Proton path unless a request selects Google.
+    # No send action exists by owner decision (2026-11-22): drafts only.
+    ("mail", "search"): ConnectedAccountSkillConfig(
+        app_id="mail", skill_id="search", provider_id="google", action="read",
+        scope_kind="provider_account", provider_selected_by_request=True,
+    ),
+    ("mail", "read-thread"): ConnectedAccountSkillConfig(
+        app_id="mail", skill_id="read-thread", provider_id="google", action="read",
+        scope_kind="provider_account",
+    ),
+    ("mail", "create-draft"): ConnectedAccountSkillConfig(
+        app_id="mail", skill_id="create-draft", provider_id="google", action="draft",
+        scope_kind="provider_account", default_runtime_mode="always_ask",
+    ),
     ("design", "get_design"): ConnectedAccountSkillConfig(
         app_id="design", skill_id="get_design", provider_id="figma",
         action="read", scope_kind="provider_account",
@@ -85,7 +103,7 @@ def normalize_connected_account_app_id(value: Any) -> str:
 
 def normalize_connected_account_provider_id(value: Any) -> str:
     normalized = str(value or "").strip()
-    if normalized in {"calendar", "google_calendar"}:
+    if normalized in {"calendar", "google_calendar", "mail"}:
         return "google"
     if normalized == "finance":
         return "revolut_business"
@@ -102,6 +120,21 @@ def connected_account_skill_config(app_id: str, skill_id: str) -> ConnectedAccou
 def is_connected_account_skill(app_id: str, skill_id: str) -> bool:
     return (app_id, skill_id) in CONNECTED_ACCOUNT_SKILL_CONFIGS
 
+
+def skill_call_uses_connected_account(app_id: str, skill_id: str, skill_arguments: dict[str, Any]) -> bool:
+    """False for provider-selectable skills (mail search) whose request does not pick Google."""
+
+    config = CONNECTED_ACCOUNT_SKILL_CONFIGS.get((app_id, skill_id))
+    if not config:
+        return False
+    if not config.provider_selected_by_request:
+        return True
+    requests = skill_arguments.get(config.request_field)
+    items = requests if isinstance(requests, list) else [skill_arguments]
+    return any(
+        isinstance(item, dict) and str(item.get("provider") or "").lower() in {"google", "gmail"}
+        for item in items
+    )
 
 def is_connected_account_action_allowed(app_id: str, provider_id: str | None, action: str) -> bool:
     normalized_app = normalize_connected_account_app_id(app_id)

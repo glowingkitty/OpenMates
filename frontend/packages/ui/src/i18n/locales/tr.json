@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Grafik okunuyor…"
+        },
+        "progress_checking": {
+          "text": "Tasarım kontrol ediliyor…"
+        },
+        "progress_adjusting": {
+          "text": "Tasarım nakış için uyarlanıyor…"
+        },
+        "progress_stitching": {
+          "text": "Dikişler ve önizleme oluşturuluyor…"
+        },
+        "progress_saving": {
+          "text": "Makine dosyaları kaydediliyor…"
+        },
         "threads": {
           "text": "İplikler"
         },

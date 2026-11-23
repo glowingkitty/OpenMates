@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "ग्राफ़िक पढ़ा जा रहा है…"
+        },
+        "progress_checking": {
+          "text": "डिज़ाइन जाँचा जा रहा है…"
+        },
+        "progress_adjusting": {
+          "text": "डिज़ाइन को कढ़ाई के लिए ढाला जा रहा है…"
+        },
+        "progress_stitching": {
+          "text": "टाँके और पूर्वावलोकन बनाए जा रहे हैं…"
+        },
+        "progress_saving": {
+          "text": "मशीन फ़ाइलें सहेजी जा रही हैं…"
+        },
         "threads": {
           "text": "धागे"
         },

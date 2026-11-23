@@ -27,6 +27,8 @@ PLAINTEXT_CONNECTED_ACCOUNT_FIELDS: set[str] = {
     "scopes",
     "refresh_token",
     "access_token",
+    # Last use is client-encrypted (encrypted_last_used_at); a plaintext time is refused.
+    "last_used_at",
     "provider_account_id",
     "bridge_password",
     "imap_password",
@@ -492,3 +494,16 @@ def _optional_dict(value: Any) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         raise ValueError("expected object")
     return value
+
+
+RECONNECT_REQUIRED_STATUS = "reconnect_required"
+
+
+async def mark_connected_account_reconnect_required(directus_service: Any, account_id: str) -> None:
+    """Flag an account whose provider grant was rejected (for example invalid_grant)."""
+
+    if not account_id:
+        return
+    await directus_service.update_item(
+        "connected_accounts", account_id, {"connector_status": RECONNECT_REQUIRED_STATUS},
+    )

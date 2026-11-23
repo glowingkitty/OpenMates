@@ -10,28 +10,18 @@
 -->
 
 <script lang="ts">
-    import { onMount } from 'svelte';
     import { discoverableApps } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
-    import { userProfile } from '../../stores/userProfile';
     import AppStoreCard from './AppStoreCard.svelte';
     import AppDailySearchesSettings from './appSettings/AppDailySearchesSettings.svelte';
-    import FigmaConnectedAccounts from './connected_accounts/FigmaConnectedAccounts.svelte';
+    import AppConnectedAccountsSection from './connected_accounts/AppConnectedAccountsSection.svelte';
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import ActiveRemindersList from './appSettings/ActiveRemindersList.svelte';
-    import { SettingsButton, SettingsCard, SettingsConsentToggle, SettingsDetailRow, SettingsInfoBox, SettingsSectionHeading } from './elements';
+    import { SettingsSectionHeading } from './elements';
     import type { AppMetadata, SkillMetadata } from '../../types/apps';
     import { CONTENT_EMBED_CATALOG, type ContentEmbedCatalogItem } from '../../data/embedRegistry.generated';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    import { computeSHA256 } from '../../message_parsing/utils';
-    import {
-        listConnectedAccounts,
-        summarizeConnectedAccountRows,
-        type ConnectedAccountSummary,
-        type EncryptedConnectedAccountRow
-    } from '../../services/connectedAccountStorageService';
-    import { finalizeOAuthHandoffAsConnectedAccount, startGoogleCalendarOAuth } from '../../services/connectedAccountOAuthService';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -59,56 +49,6 @@
     let skills = $derived(app?.skills || []);
     let contentTypes = $derived(CONTENT_EMBED_CATALOG.filter((item) => item.appId === appId));
     let focusModes = $derived(app?.focus_modes || []);
-    let connectedCalendarAccounts = $state<EncryptedConnectedAccountRow[]>([]);
-    let connectedCalendarAccountSummaries = $state<ConnectedAccountSummary[]>([]);
-    let connectedAccountsLoading = $state(false);
-    let connectedAccountAction = $state<'idle' | 'connecting' | 'finalizing'>('idle');
-    let connectedAccountError = $state('');
-    let connectedAccountSuccess = $state('');
-    let finalizedOAuthHandoffId = $state('');
-    let calendarCapabilitySelections = $state<Record<CalendarCapability, boolean>>({
-        read: true,
-        write: true,
-        delete: true
-    });
-
-    type CalendarCapability = 'read' | 'write' | 'delete';
-
-    const CALENDAR_CAPABILITIES: CalendarCapability[] = ['read', 'write', 'delete'];
-
-    let calendarCapabilityOptions = $derived(CALENDAR_CAPABILITIES.map((capability) => ({
-        id: capability,
-        label: $text(`settings.app_store.connected_accounts.capability_${capability}`),
-        description: $text(`settings.app_store.connected_accounts.capability_${capability}_description`),
-        checked: calendarCapabilitySelections[capability]
-    })));
-    let selectedCalendarCapabilities = $derived(
-        CALENDAR_CAPABILITIES.filter((capability) => calendarCapabilitySelections[capability])
-    );
-    let calendarOAuthCapabilitySummary = $derived(
-        selectedCalendarCapabilities.length
-            ? selectedCalendarCapabilities
-                .map((capability) => $text(`settings.app_store.connected_accounts.capability_${capability}`))
-                .join(', ')
-            : $text('settings.app_store.connected_accounts.no_capabilities_selected')
-    );
-    let calendarConnectionStatus = $derived.by(() => {
-        if (connectedAccountsLoading) {
-            return $text('settings.app_store.connected_accounts.loading');
-        }
-        if (connectedCalendarAccounts.length > 0) {
-            return $text('settings.app_store.connected_accounts.connected_count', {
-                values: { count: String(connectedCalendarAccounts.length) }
-            });
-        }
-        return $text('settings.app_store.connected_accounts.not_connected');
-    });
-
-    function updateCalendarCapability(id: string, checked: boolean) {
-        if (!CALENDAR_CAPABILITIES.includes(id as CalendarCapability)) return;
-        calendarCapabilitySelections[id as CalendarCapability] = checked;
-    }
-    
     /**
      * Convert a skill to an app-like metadata object for AppStoreCard.
      * This allows us to reuse AppStoreCard to display skills.
@@ -211,109 +151,6 @@
             direction: 'back',
             icon: 'app',
             title: 'Apps'
-        });
-    }
-
-    onMount(() => {
-        if (appId !== 'calendar' || !isAuthenticated) return;
-        void initializeCalendarConnectedAccounts();
-    });
-
-    $effect(() => {
-        if (appId !== 'calendar' || !isAuthenticated) return;
-        const handoffId = getOAuthHandoffId();
-        const userId = $userProfile.user_id;
-        if (!handoffId || !userId || finalizedOAuthHandoffId === handoffId || connectedAccountAction === 'finalizing') {
-            return;
-        }
-        void initializeCalendarConnectedAccounts();
-    });
-
-    async function initializeCalendarConnectedAccounts() {
-        await finalizeOAuthHandoffFromUrl();
-        await loadConnectedCalendarAccounts(false);
-    }
-
-    async function loadConnectedCalendarAccounts(clearExistingError = true) {
-        connectedAccountsLoading = true;
-        if (clearExistingError) {
-            connectedAccountError = '';
-        }
-        try {
-            const providerHash = await computeSHA256('google_calendar');
-            const rows = await listConnectedAccounts();
-            connectedCalendarAccounts = rows.filter((row) => row.provider_type_hash === providerHash);
-            connectedCalendarAccountSummaries = await summarizeConnectedAccountRows(connectedCalendarAccounts);
-        } catch (error) {
-            console.warn('[AppDetails] Failed to load Calendar connected accounts:', error);
-            connectedAccountError = $text('settings.app_store.connected_accounts.load_error');
-        } finally {
-            connectedAccountsLoading = false;
-        }
-    }
-
-    async function finalizeOAuthHandoffFromUrl() {
-        const handoffId = getOAuthHandoffId();
-        if (!handoffId) return;
-        if (finalizedOAuthHandoffId === handoffId) return;
-        const userId = $userProfile.user_id;
-        if (!userId) {
-            if (!isAuthenticated) {
-                connectedAccountError = $text('settings.app_store.connected_accounts.sign_in_required');
-            }
-            return;
-        }
-        finalizedOAuthHandoffId = handoffId;
-        connectedAccountAction = 'finalizing';
-        connectedAccountError = '';
-        try {
-            await finalizeOAuthHandoffAsConnectedAccount({ userId, handoffId });
-            connectedAccountSuccess = $text('settings.app_store.connected_accounts.connected_success');
-            removeOAuthHandoffQueryParam();
-        } catch (error) {
-            console.warn('[AppDetails] Failed to finalize Calendar OAuth handoff:', error);
-            connectedAccountError = $text('settings.app_store.connected_accounts.finalize_error');
-        } finally {
-            connectedAccountAction = 'idle';
-        }
-    }
-
-    function getOAuthHandoffId(): string | null {
-        if (typeof window === 'undefined') return null;
-        return new URLSearchParams(window.location.search).get('oauth_handoff_id');
-    }
-
-    function removeOAuthHandoffQueryParam() {
-        if (typeof window === 'undefined') return;
-        const url = new URL(window.location.href);
-        url.searchParams.delete('oauth_handoff_id');
-        window.history.replaceState({}, '', url.toString());
-    }
-
-    async function connectGoogleCalendar() {
-        if (selectedCalendarCapabilities.length === 0) return;
-        connectedAccountAction = 'connecting';
-        connectedAccountError = '';
-        connectedAccountSuccess = '';
-        try {
-            const result = await startGoogleCalendarOAuth({
-                capabilities: selectedCalendarCapabilities,
-                returnPath: '/#settings/apps/calendar'
-            });
-            window.location.assign(result.authorization_url);
-        } catch (error) {
-            console.warn('[AppDetails] Failed to start Google Calendar OAuth:', error);
-            connectedAccountAction = 'idle';
-            connectedAccountError = $text('settings.app_store.connected_accounts.start_error');
-        }
-    }
-
-    function openConnectedAccountsSettings() {
-        dispatch('openSettings', {
-            settingsPath: 'privacy/connected-accounts',
-            direction: 'forward',
-            icon: 'privacy',
-            title: $text('settings.privacy.connected_accounts.title')
         });
     }
 </script>
@@ -431,89 +268,10 @@
             </div>
         {/if}
 
-        {#if (section === 'all' || section === 'settings_memories') && isAuthenticated && appId === 'design'}
-            <FigmaConnectedAccounts />
+        {#if (section === 'all' || section === 'settings_memories') && isAuthenticated && (appId === 'calendar' || appId === 'mail' || appId === 'design')}
+            <AppConnectedAccountsSection {appId} on:openSettings={(e) => dispatch('openSettings', e.detail)} />
         {/if}
 
-        {#if (section === 'all' || section === 'settings_memories') && isAuthenticated && appId === 'calendar'}
-            <div class="section" data-testid="calendar-connected-accounts-section">
-                <SettingsSectionHeading title={$text('settings.app_store.connected_accounts.title')} icon="calendar" />
-                <p class="section-description">{$text('settings.app_store.connected_accounts.description')}</p>
-
-                <SettingsCard>
-                    <SettingsDetailRow
-                        label={$text('settings.app_store.connected_accounts.google_calendar_title')}
-                        value={calendarConnectionStatus}
-                    />
-                    <div data-testid="calendar-capability-toggles">
-                        {#each calendarCapabilityOptions as capability (capability.id)}
-                            <SettingsConsentToggle
-                                checked={capability.checked}
-                                consentText={`${capability.label}: ${capability.description}`}
-                                highlightedParts={[capability.label]}
-                                ariaLabel={capability.label}
-                                dataTestid={`calendar-capability-toggle-${capability.id}`}
-                                onChange={(checked) => updateCalendarCapability(capability.id, checked)}
-                            />
-                        {/each}
-                    </div>
-                    <SettingsInfoBox type="info">
-                        <p data-testid="calendar-oauth-capability-summary">
-                            {$text('settings.app_store.connected_accounts.oauth_summary', {
-                                values: { capabilities: calendarOAuthCapabilitySummary }
-                            })}
-                        </p>
-                    </SettingsInfoBox>
-                    <SettingsButton
-                        dataTestid="connect-google-calendar-button"
-                        fullWidth={true}
-                        loading={connectedAccountAction === 'connecting'}
-                        disabled={connectedAccountAction !== 'idle' || selectedCalendarCapabilities.length === 0}
-                        onClick={connectGoogleCalendar}
-                    >
-                        {$text('settings.app_store.connected_accounts.connect_button')}
-                    </SettingsButton>
-                </SettingsCard>
-
-                {#if connectedCalendarAccountSummaries.length > 0}
-                    <SettingsCard>
-                        {#each connectedCalendarAccountSummaries as account (account.id)}
-                            <div data-testid="calendar-connected-account-link">
-                                <SettingsButton
-                                    variant="ghost"
-                                    fullWidth={true}
-                                    dataTestid={`calendar-connected-account-detail-${account.id}`}
-                                    onClick={openConnectedAccountsSettings}
-                                >
-                                    {$text('settings.app_store.connected_accounts.manage_account', {
-                                        values: { label: account.label }
-                                    })}
-                                </SettingsButton>
-                            </div>
-                        {/each}
-                    </SettingsCard>
-                {/if}
-
-                {#if connectedAccountAction === 'finalizing'}
-                    <SettingsInfoBox type="info">
-                        <p>{$text('settings.app_store.connected_accounts.finalizing')}</p>
-                    </SettingsInfoBox>
-                {/if}
-
-                {#if connectedAccountSuccess}
-                    <SettingsInfoBox type="success">
-                        <p>{connectedAccountSuccess}</p>
-                    </SettingsInfoBox>
-                {/if}
-
-                {#if connectedAccountError}
-                    <SettingsInfoBox type="error">
-                        <p>{connectedAccountError}</p>
-                    </SettingsInfoBox>
-                {/if}
-            </div>
-        {/if}
-         
         <!-- Active Reminders section - only shown for reminder app, authenticated users -->
         {#if (section === 'all' || section === 'focus_modes') && isAuthenticated && appId === 'reminder'}
             <div class="section">

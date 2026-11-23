@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "그래픽을 읽는 중…"
+        },
+        "progress_checking": {
+          "text": "디자인을 확인하는 중…"
+        },
+        "progress_adjusting": {
+          "text": "자수용으로 디자인을 조정하는 중…"
+        },
+        "progress_stitching": {
+          "text": "스티치와 미리보기를 만드는 중…"
+        },
+        "progress_saving": {
+          "text": "기계 파일을 저장하는 중…"
+        },
         "threads": {
           "text": "실"
         },

@@ -8101,6 +8101,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Leyendo el gráfico…"
+        },
+        "progress_checking": {
+          "text": "Revisando el diseño…"
+        },
+        "progress_adjusting": {
+          "text": "Adaptando el diseño para bordar…"
+        },
+        "progress_stitching": {
+          "text": "Creando puntadas y vista previa…"
+        },
+        "progress_saving": {
+          "text": "Guardando los archivos de máquina…"
+        },
         "threads": {
           "text": "Hilos"
         },

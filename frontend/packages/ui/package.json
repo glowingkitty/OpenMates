@@ -42,6 +42,10 @@
       "types": "./src/services/recentChatWindowCache.ts",
       "default": "./src/services/recentChatWindowCache.ts"
     },
+    "./services/connectedAccountOAuthReturn": {
+      "types": "./src/services/connectedAccountOAuthReturn.ts",
+      "default": "./src/services/connectedAccountOAuthReturn.ts"
+    },
     "./utils/*": "./src/utils/*",
     "./stores/*": "./src/stores/*",
     "./stores/uiStateStore": {

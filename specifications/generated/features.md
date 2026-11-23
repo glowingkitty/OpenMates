@@ -21,9 +21,9 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | Web | 4 | 0 | 20 | 54 | 11 | 19 | 0 | 0 | 0 | 20 |
 | Apple | 0 | 14 | 36 | 5 | 0 | 39 | 6 | 7 | 0 | 21 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
-| CLI | 0 | 0 | 17 | 8 | 28 | 41 | 2 | 2 | 0 | 30 |
+| CLI | 0 | 0 | 17 | 8 | 29 | 40 | 2 | 2 | 0 | 30 |
 | TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 45 |
-| REST API | 5 | 2 | 34 | 16 | 27 | 16 | 0 | 2 | 0 | 26 |
+| REST API | 5 | 2 | 34 | 16 | 28 | 15 | 0 | 2 | 0 | 26 |
 | npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 55 |
 | PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 56 |
 
@@ -124,8 +124,8 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Create, update and delete | ? | ? |  | ? | ? | **live** 4/4 | ? | ? | | | |
 | &nbsp;&nbsp;↳ Workflows | ? | ? |  | ? | ? | ? | ? | ? | | | |
 | [Code](#code) | **FAIL** 7/41 | partial 9/39 |  | partial 9/39 | impl | partial 17/39 | not run 0/39 | impl | on | on | v0.1-alpha-1 |
-| [Design](#design) | partial 7/30 | partial 1/16 |  | impl | impl | partial 23/30 | impl | impl | on | on | v0.19.0 |
-| &nbsp;&nbsp;↳ Figma and Penpot designs | partial 4/14 | planned |  | wip | ? | partial 7/14 | wip | wip | | | |
+| [Design](#design) | partial 3/30 | partial 1/16 |  | impl | impl | partial 23/30 | impl | impl | on | on | v0.19.0 |
+| &nbsp;&nbsp;↳ Figma and Penpot designs | not run 0/14 | planned |  | wip | ? | partial 7/14 | wip | wip | | | |
 | [Diagrams](#diagrams) | impl | impl |  | wip | wip | — | impl | wip | on | on | untagged-main |
 | [Docs](#docs) | partial 2/5 | impl |  | — | — | not run 0/1 | impl | impl | on | on | v0.5.0-alpha |
 | [Electronics](#electronics) | not run 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.11.0-alpha |
@@ -141,7 +141,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Jobs](#jobs) | **live** 1/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Life coaching](#life-coaching) | not run 0/8 | wip |  | partial 1/7 | impl | — | impl | wip | on | off | unreleased |
 | &nbsp;&nbsp;↳ Life compass focus mode | not run 0/7 | ? |  | partial 1/7 | ? | — | ? | ? | | | |
-| [Mail](#mail) | **FAIL** 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
+| [Mail](#mail) | **FAIL** 0/10 | impl |  | impl | impl | not run 0/9 | impl | impl | on | on | v0.5.0-alpha |
 | [Maps](#maps) | **FAIL** 2/5 | impl |  | partial 1/5 | impl | partial 4/5 | not run 0/5 | not run 0/5 | on | on | v0.5.0-alpha |
 | [Math](#math) | **FAIL** 0/1 | impl |  | impl | impl | impl | impl | impl | on | on | v0.5.0-alpha |
 | [Mind Maps](#mindmaps) | impl | impl |  | — | wip | — | impl | wip | on | on | v0.13.0-alpha |
@@ -205,7 +205,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [App Skill Execution](#app-skill-execution) | **FAIL** 5/27 | partial 3/27 |  | partial 6/27 | **FAIL** 0/1 | **FAIL** 15/27 | partial 1/27 | partial 1/27 | on (no flag) | on (no flag) | v0.5.0-alpha |
 | [Chat Drafts](#drafts) | **FAIL** 5/8 | partial 6/8 | tested 4/4 | impl | impl | partial 1/2 | impl | impl | on (no flag) | on (no flag) | v0.10.0-alpha |
 | [Chat Sync Startup And Incremental Feed](#sync) | **FAIL** 3/18 | **FAIL** 3/18 | not run 0/1 | partial 6/18 | impl | not run 0/18 | not run 0/1 | impl | on (no flag) | on (no flag) | v0.10.0-alpha |
-| [Connected Accounts](#connected-accounts) | partial 3/9 | impl |  | impl | wip | partial 4/9 | impl | impl | on (no flag) | on (no flag) | v0.12.0-alpha |
+| [Connected Accounts](#connected-accounts) | partial 4/14 | impl |  | not run 0/14 | wip | partial 4/14 | impl | impl | on (no flag) | on (no flag) | v0.12.0-alpha |
 | [Deterministic Daily Security Reporting](#security-reporting) | — | — |  | — | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [Object Storage Outage Resilience](#storage-resilience) | — | — |  | not run 0/6 | — | not run 0/6 | — | — | on (no flag) | on (no flag) | unverified |
 | [One Rust Client Core, Three Thin Shells](#client-core) | impl | partial 5/12 |  | impl | impl | — | — | — | on (no flag) | on (no flag) | unverified |
@@ -881,7 +881,7 @@ Connect your calendar so mates can read, create, update, and delete events with 
 | Apple | impl | — | — |
 | CLI | not run 0/19 | 0 pass · 0 fail · 6 not run · 13 no test | 2 unit test file(s), e.g. [calendarEventExport.test.ts](../../frontend/packages/openmates-cli/tests/calendarEventExport.test.ts), [embedRenderers.test.ts](../../frontend/packages/openmates-cli/tests/embedRenderers.test.ts) |
 | TUI | impl | — | — |
-| REST API | partial 13/19 | 13 pass · 0 fail · 0 not run · 6 no test | 12 unit test file(s), e.g. [test_google_calendar_skill_hardening.py](../../backend/tests/test_google_calendar_skill_hardening.py), [test_calendar_event_content.py](../../backend/tests/test_calendar_event_content.py) |
+| REST API | partial 13/19 | 13 pass · 0 fail · 0 not run · 6 no test | 13 unit test file(s), e.g. [test_google_calendar_skill_hardening.py](../../backend/tests/test_google_calendar_skill_hardening.py), [test_calendar_event_content.py](../../backend/tests/test_calendar_event_content.py) |
 | npm SDK | not run 0/19 | 0 pass · 0 fail · 2 not run · 17 no test | 1 unit test file(s), e.g. [calendarEventExport.test.ts](../../frontend/packages/openmates-cli/tests/calendarEventExport.test.ts) |
 | PyPI SDK | not run 0/19 | 0 pass · 0 fail · 3 not run · 16 no test | 1 unit test file(s), e.g. [test_calendar_event.py](../../packages/openmates-python/tests/test_calendar_event.py) |
 
@@ -1231,20 +1231,20 @@ Concise, actionable answers with relevant links, rich embeds and selected images
 
 One provider-neutral account and authorization contract serves Calendar, Code, Finance, and other connected apps.
 
-- Specifications: [architecture.connected-accounts](../../specifications/architecture/connected-accounts/specification.yml) (draft) · 9 assertion(s)
+- Specifications: [architecture.connected-accounts](../../specifications/architecture/connected-accounts/specification.yml) (draft) · 14 assertion(s)
 - Flags: none · dev on (no flag) · prod on (no flag) · release v0.12.0-alpha
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 3/9 | 3 pass · 0 fail · 1 not run · 5 no test | [calendar-connected-accounts.spec.ts](../../frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts)<br>[calendar-permission-flow.spec.ts](../../frontend/apps/web_app/tests/calendar-permission-flow.spec.ts)<br>[connected-account-calendar-settings.spec.ts](../../frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts)<br>3 unit test file(s), e.g. [connectedAccountOAuthService.test.ts](../../frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts), [connectedAccountStorageService.test.ts](../../frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts) |
+| Web | partial 4/14 | 4 pass · 0 fail · 4 not run · 6 no test | [calendar-connected-accounts.spec.ts](../../frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts)<br>[calendar-permission-flow.spec.ts](../../frontend/apps/web_app/tests/calendar-permission-flow.spec.ts)<br>[connected-accounts-before.spec.ts](../../frontend/apps/web_app/tests/components/connected-accounts-before.spec.ts)<br>[connected-accounts-central.spec.ts](../../frontend/apps/web_app/tests/components/connected-accounts-central.spec.ts)<br>[connected-accounts-redesign.spec.ts](../../frontend/apps/web_app/tests/components/connected-accounts-redesign.spec.ts)<br>[figma-connected-accounts.spec.ts](../../frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts)<br>[connected-account-calendar-settings.spec.ts](../../frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts)<br>[proton-local-connector-settings.spec.ts](../../frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts)<br>4 unit test file(s), e.g. [connectedAccountOAuthService.test.ts](../../frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts), [connectedAccountStorageService.test.ts](../../frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts) |
 | Apple | impl | — | — |
-| CLI | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
+| CLI | not run 0/14 | 0 pass · 0 fail · 1 not run · 13 no test | 1 unit test file(s), e.g. [connected-account-ids.test.ts](../../frontend/packages/openmates-cli/tests/connected-account-ids.test.ts) |
 | TUI | wip | — | — |
-| REST API | partial 4/9 | 4 pass · 0 fail · 0 not run · 5 no test | 9 unit test file(s), e.g. [test_connected_account_execution.py](../../backend/tests/test_connected_account_execution.py), [test_calendar_chat_flow_mocked.py](../../backend/tests/test_calendar_chat_flow_mocked.py) |
-| npm SDK | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
-| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
+| REST API | partial 4/14 | 4 pass · 0 fail · 2 not run · 8 no test | 11 unit test file(s), e.g. [test_connected_account_execution.py](../../backend/tests/test_connected_account_execution.py), [test_calendar_chat_flow_mocked.py](../../backend/tests/test_calendar_chat_flow_mocked.py) |
+| npm SDK | impl | 0 pass · 0 fail · 0 not run · 14 no test | — |
+| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 14 no test | — |
 
 </details>
 
@@ -1371,7 +1371,7 @@ Find icons and visual assets, and read your Figma or Penpot designs to build the
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | partial 7/30 | 7 pass · 0 fail · 5 not run · 18 no test | [design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[design-embroidery-progress-card.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts)<br>[figma-connected-accounts.spec.ts](../../frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>6 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [designEmbroideryText.test.ts](../../frontend/packages/ui/src/data/__tests__/designEmbroideryText.test.ts) |
+| Web | partial 3/30 | 3 pass · 0 fail · 7 not run · 20 no test | [design-embroidery-embed.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts)<br>[design-embroidery-progress-card.spec.ts](../../frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts)<br>[design-embroidery-chat.spec.ts](../../frontend/apps/web_app/tests/design-embroidery-chat.spec.ts)<br>6 unit test file(s), e.g. [test_design_embroidery_skill.py](../../backend/tests/test_design_embroidery_skill.py), [designEmbroideryText.test.ts](../../frontend/packages/ui/src/data/__tests__/designEmbroideryText.test.ts) |
 | Apple | partial 1/16 | 1 pass · 0 fail · 0 not run · 15 no test | 1 unit test file(s), e.g. [HostingEmbedModelTests.swift](../../apple/OpenMatesTests/HostingEmbedModelTests.swift) |
 | CLI | impl | 0 pass · 0 fail · 0 not run · 30 no test | — |
 | TUI | impl | — | — |
@@ -1952,21 +1952,22 @@ Members of a Team or Project can edit the same document, sheet or deck at the sa
 
 Draft emails and work with mail.
 
-- Specifications: none, so no cell can be derived from assertions
+- Specifications: [feature.app-skills.mail-gmail](../../specifications/features/app-skills/mail-gmail/specification.yml) (draft) · 9 assertion(s)
 - Apps: `mail`
 - Flags: `app:mail` · dev on · prod on · release v0.5.0-alpha
+- Notes: Gmail through Google's official API (search, read threads, create drafts) uses the shared Google connected account. Sending is deferred by owner decision (2026-11-22). Proton Mail Bridge search stays as is.
 
 <details><summary>Tests per surface</summary>
 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
-| Web | **FAIL** 0/1 | 0 pass · 1 fail · 0 not run · 0 no test | [skill-mail-search.spec.ts](../../frontend/apps/web_app/tests/skill-mail-search.spec.ts)<br>❌ [skill-mail-search.spec.ts](../../frontend/apps/web_app/tests/skill-mail-search.spec.ts) |
+| Web | **FAIL** 0/10 | 0 pass · 1 fail · 0 not run · 9 no test | [skill-mail-search.spec.ts](../../frontend/apps/web_app/tests/skill-mail-search.spec.ts)<br>❌ [skill-mail-search.spec.ts](../../frontend/apps/web_app/tests/skill-mail-search.spec.ts) |
 | Apple | impl | — | — |
-| CLI | impl | — | — |
+| CLI | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
 | TUI | impl | — | — |
-| REST API | impl | — | — |
-| npm SDK | impl | — | — |
-| PyPI SDK | impl | — | — |
+| REST API | not run 0/9 | 0 pass · 0 fail · 8 not run · 1 no test | 1 unit test file(s), e.g. [test_gmail_skills.py](../../backend/tests/test_gmail_skills.py) |
+| npm SDK | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
+| PyPI SDK | impl | 0 pass · 0 fail · 0 not run · 9 no test | — |
 
 </details>
 

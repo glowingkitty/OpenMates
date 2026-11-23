@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fitVisualViewport } from '$lib/actions/fitVisualViewport';
+  import { routeConnectedAccountOAuthReturnToOpener } from '@repo/ui/services/connectedAccountOAuthReturn';
   import { recordRecentReplayDiagnostic } from '@repo/ui/services/recentChatWindowCache';
   import { APPS_WORKSPACE_CHAT_HANDOFF_EVENT, APPS_WORKSPACE_WORKFLOW_HANDOFF_EVENT,
     takeAppsWorkspaceChatHandoff, deliverAppsWorkspaceChatHandoff, isAppsWorkspaceHandoffCurrent, recordAppsWorkspaceHandoffPhase } from '@repo/ui/services/appsWorkspaceChatHandoffService';
@@ -147,6 +148,8 @@
     workspaceHash = hash;
     appsChatNavigation.request = request;
   }
+  // A provider sign-in popup hands its result to the opener tab and closes itself.
+  onMount(() => { void routeConnectedAccountOAuthReturnToOpener(); });
   onMount(() => {
     const workflow = () => {
       // The workflow route consumes its own one-use request after account setup.

@@ -9,9 +9,11 @@
 
 from __future__ import annotations
 
+import json
 import os
 import secrets
 import time
+from base64 import urlsafe_b64decode
 from typing import Any
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
@@ -39,6 +41,13 @@ CALENDAR_READ_SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
 CALENDAR_EVENTS_SCOPE = "https://www.googleapis.com/auth/calendar.events"
 CALENDAR_LIST_READ_SCOPE = "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
 CALENDAR_APP_CREATED_SCOPE = "https://www.googleapis.com/auth/calendar.app.created"
+GMAIL_READ_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+GMAIL_COMPOSE_SCOPE = "https://www.googleapis.com/auth/gmail.compose"
+# Minimal identity scopes, always requested so the connected account can be labelled
+# with the Google account email. The email only travels in the short-lived handoff.
+GOOGLE_IDENTITY_SCOPES = ["openid", "email"]
+SUPPORTED_APP_IDS = {"calendar", "mail"}
+DEFAULT_RETURN_PATHS = {"calendar": "/#settings/apps/calendar", "mail": "/#settings/apps/mail"}
 DEFAULT_DEV_WEBAPP_URL = "https://app.dev.openmates.org"
 DEFAULT_PROD_WEBAPP_URL = "https://app.openmates.org"
 
@@ -46,6 +55,7 @@ DEFAULT_PROD_WEBAPP_URL = "https://app.openmates.org"
 class GoogleCalendarOAuthStartRequest(BaseModel):
     capabilities: list[str] = Field(min_length=1)
     return_path: str | None = None
+    app_id: str = "calendar"
 
 
 class GoogleCalendarOAuthStartResponse(BaseModel):
@@ -106,11 +116,12 @@ def _webapp_url(request: Request) -> str:
     return DEFAULT_DEV_WEBAPP_URL
 
 
-def _sanitize_return_path(return_path: str | None) -> str:
+def _sanitize_return_path(return_path: str | None, app_id: str = "calendar") -> str:
+    default_path = DEFAULT_RETURN_PATHS.get(app_id, DEFAULT_RETURN_PATHS["calendar"])
     if not return_path or not return_path.startswith("/#settings/"):
-        return "/#settings/apps/calendar"
+        return default_path
     if "\n" in return_path or "\r" in return_path:
-        return "/#settings/apps/calendar"
+        return default_path
     if return_path.startswith("/#settings/app_store"):
         return "/#settings/apps" + return_path.removeprefix("/#settings/app_store")
     return return_path
@@ -143,6 +154,57 @@ def google_calendar_scopes_for_capabilities(capabilities: list[str]) -> list[str
     return scopes
 
 
+def google_mail_scopes_for_capabilities(capabilities: list[str]) -> list[str]:
+    """Map Mail capabilities to Gmail scopes. Sending is intentionally unsupported."""
+
+    normalized = {capability.strip().lower() for capability in capabilities}
+    unsupported = normalized - {"read", "draft"}
+    if unsupported:
+        raise ValueError("unsupported Google Mail capability: " + ", ".join(sorted(unsupported)))
+    if not normalized:
+        raise ValueError("at least one Mail capability is required")
+    scopes: list[str] = []
+    if "read" in normalized:
+        scopes.append(GMAIL_READ_SCOPE)
+    if "draft" in normalized:
+        scopes.append(GMAIL_COMPOSE_SCOPE)
+    return scopes
+
+
+def google_scopes_for_app(app_id: str, capabilities: list[str]) -> list[str]:
+    """App scopes for the requested app, without the identity scopes."""
+
+    if app_id == "calendar":
+        return google_calendar_scopes_for_capabilities(capabilities)
+    if app_id == "mail":
+        return google_mail_scopes_for_capabilities(capabilities)
+    raise ValueError("unsupported Google app: " + app_id)
+
+
+def extract_google_account_email(token_response: dict[str, Any]) -> str | None:
+    """Read the account email from the id_token of Google's token response.
+
+    The id_token arrives directly from Google's token endpoint over TLS in the
+    confidential code exchange, so decoding the payload without signature
+    verification is sufficient and avoids a second network call. Any missing or
+    malformed value yields None; connecting must never fail because of a label.
+    """
+
+    id_token = token_response.get("id_token")
+    if not isinstance(id_token, str) or id_token.count(".") != 2:
+        return None
+    payload_part = id_token.split(".")[1]
+    try:
+        payload = json.loads(urlsafe_b64decode(payload_part + "=" * (-len(payload_part) % 4)))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    email = payload.get("email") if isinstance(payload, dict) else None
+    if not isinstance(email, str):
+        return None
+    email = email.strip()
+    return email if "@" in email and len(email) <= 320 else None
+
+
 @router.post("/start", response_model=GoogleCalendarOAuthStartResponse)
 async def start_google_calendar_oauth(
     body: GoogleCalendarOAuthStartRequest,
@@ -152,10 +214,14 @@ async def start_google_calendar_oauth(
 ) -> GoogleCalendarOAuthStartResponse:
     """Create an owner-bound OAuth state and return Google consent URL."""
 
+    app_id = (body.app_id or "calendar").strip().lower()
+    if app_id not in SUPPORTED_APP_IDS:
+        raise HTTPException(status_code=400, detail="unsupported Google app: " + app_id)
     try:
-        scopes = google_calendar_scopes_for_capabilities(body.capabilities)
+        app_scopes = google_scopes_for_app(app_id, body.capabilities)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    scopes = [*app_scopes, *GOOGLE_IDENTITY_SCOPES]
 
     try:
         client_id, _client_secret = await get_google_oauth_credentials()
@@ -167,10 +233,11 @@ async def start_google_calendar_oauth(
     redirect_uri = _redirect_uri(request)
     state_payload = {
         "user_id": current_user.id,
+        "app_id": app_id,
         "capabilities": body.capabilities,
         "scopes": scopes,
         "redirect_uri": redirect_uri,
-        "return_path": _sanitize_return_path(body.return_path),
+        "return_path": _sanitize_return_path(body.return_path, app_id),
         "webapp_url": _webapp_url(request),
         "expires_at": expires_at,
     }
@@ -232,22 +299,37 @@ async def google_calendar_oauth_callback(
     if not refresh_token:
         raise HTTPException(status_code=502, detail="Google OAuth did not return a refresh token")
 
+    app_id = str(state_payload.get("app_id") or "calendar")
     requested_scopes = state_payload.get("scopes") or []
     # OAuth permits scope omission only when the grant matches the request.
     granted_scope = token_response.get("scope", " ".join(requested_scopes))
     granted_scopes = list(dict.fromkeys(granted_scope.split())) if isinstance(granted_scope, str) else []
+    # Google may report the email scope as its full URL form.
+    google_scope_aliases = {"https://www.googleapis.com/auth/userinfo.email": "email"}
+    granted_scopes = [google_scope_aliases.get(scope, scope) for scope in granted_scopes]
     if not set(requested_scopes).issubset(granted_scopes) or not granted_scopes:
         raise HTTPException(
             status_code=403,
             detail={
-                "error": "google_calendar_missing_scope",
-                "message": "Required Calendar permissions were not granted. Reconnect and review Google consent.",
+                "error": "google_calendar_missing_scope" if app_id == "calendar" else "google_mail_missing_scope",
+                "message": "Required Google permissions were not granted. Reconnect and review Google consent.",
             },
         )
 
     vault_key_id = getattr(current_user, "vault_key_id", None)
     if not vault_key_id:
         raise HTTPException(status_code=403, detail="User vault key is required for OAuth handoff")
+
+    account_email = extract_google_account_email(token_response)
+    account_hint: dict[str, Any] = {
+        "provider_id": "google_calendar",
+        "app_id": app_id,
+        "capabilities": state_payload.get("capabilities") or [],
+        "scopes": granted_scopes,
+    }
+    if account_email:
+        account_hint["label"] = account_email
+        account_hint["account_email"] = account_email
 
     handoff_service = ConnectedAccountOAuthHandoffService(
         cache_service=cache_service,
@@ -263,11 +345,7 @@ async def google_calendar_oauth_callback(
             "scopes": granted_scopes,
             "token_type": token_response.get("token_type"),
         },
-        account_hint={
-            "provider_id": "google_calendar",
-            "capabilities": state_payload.get("capabilities") or [],
-            "scopes": granted_scopes,
-        },
+        account_hint=account_hint,
     )
 
     return RedirectResponse(

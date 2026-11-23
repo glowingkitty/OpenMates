@@ -51,6 +51,7 @@ test.describe('Proton local connector settings', () => {
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	// contract-test: direct surface=gui.web assertions=connected-accounts.lifecycle.reconnect-revoke
 	test('shows status without secrets and revokes local connector metadata', async ({ page }: { page: any }) => {
 		const logCheckpoint = createSignupLogger('PROTON_LOCAL_CONNECTOR_SETTINGS');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -90,31 +91,32 @@ test.describe('Proton local connector settings', () => {
 		});
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
-		await page.goto(getE2EDebugUrl('/#settings/privacy/connected-accounts'), { waitUntil: 'domcontentloaded' });
-		const settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="privacy/connected-accounts"]');
+		await page.goto(getE2EDebugUrl('/#settings/account/connected-accounts'), { waitUntil: 'domcontentloaded' });
+		const settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="account/connected-accounts"]');
 		await expect(settingsMenu).toBeVisible({ timeout: 15000 });
 
 		const connectedAccountsPage = settingsMenu.getByTestId('privacy-connected-accounts-page');
 		await expect(connectedAccountsPage).toBeVisible({ timeout: 15000 });
-		const accountItem = connectedAccountsPage.getByTestId('privacy-connected-account-item');
+		const accountItem = connectedAccountsPage.getByTestId('connected-account-entry');
 		await expect(accountItem).toContainText('Proton Mail Local', { timeout: 15000 });
 		await expect(accountItem).toContainText('Proton Mail Bridge');
 		await expect(accountItem).toContainText('Online via CLI');
+		await accountItem.click();
 
 		const details = connectedAccountsPage.getByTestId('privacy-connected-account-detail');
-		await expect(details).toContainText('Mail');
+		await expect(details).toContainText('Proton Mail Bridge');
 		await expect(details).toContainText('Read events, Write events');
 		await expect(connectedAccountsPage).not.toContainText(FORBIDDEN_SECRET_TEXT);
 		await takeStepScreenshot(page, 'proton-local-connector-online');
 
-		await connectedAccountsPage.getByTestId('privacy-connected-account-revoke-button').click();
+		await connectedAccountsPage.getByTestId('connected-account-disconnect').click();
+		await connectedAccountsPage.getByTestId('connected-account-disconnect-confirm-button').click();
 		await expect.poll(() => revokePatchBody, {
 			message: 'local connector revoke PATCH was sent',
 			timeout: 15000,
 		}).not.toBeNull();
 		await expect(connectedAccountsPage).toContainText('Local connector revoked.', { timeout: 15000 });
-		await expect(connectedAccountsPage).toContainText('Revoked');
-		await expect(connectedAccountsPage.getByTestId('privacy-connected-account-revoke-button')).toHaveCount(0);
+		await expect(connectedAccountsPage.getByTestId('connected-account-entry')).toHaveCount(0);
 		await expect(connectedAccountsPage).not.toContainText(FORBIDDEN_SECRET_TEXT);
 		await takeStepScreenshot(page, 'proton-local-connector-revoked');
 	});

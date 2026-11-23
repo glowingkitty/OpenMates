@@ -60,10 +60,20 @@ export function createConnectedAccountsHandlers(value: unknown): UnitHandlers<Co
 			const exports = binding();
 			return call(() => exports.connected_accounts_merge_token_refs(inputs, body));
 		},
+		lastUsedPlan: (payload) => {
+			const input = text(record(payload).input);
+			const exports = binding();
+			return call(() => exports.connected_accounts_plan_last_used(input));
+		},
 		oauthRowPlan: (payload) => {
 			const input = text(record(payload).input);
 			const exports = binding();
 			return call(() => exports.connected_accounts_oauth_row_plan(input));
+		},
+		mergeUpdate: (payload) => {
+			const input = text(record(payload).input);
+			const exports = binding();
+			return call(() => exports.connected_accounts_merge_update(input));
 		},
 		storageGuard: (payload) => {
 			const serialized = text(record(payload).serialized);

@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Membaca grafik…"
+        },
+        "progress_checking": {
+          "text": "Memeriksa desain…"
+        },
+        "progress_adjusting": {
+          "text": "Menyesuaikan desain untuk bordir…"
+        },
+        "progress_stitching": {
+          "text": "Membuat jahitan dan pratinjau…"
+        },
+        "progress_saving": {
+          "text": "Menyimpan file mesin…"
+        },
         "threads": {
           "text": "Benang"
         },

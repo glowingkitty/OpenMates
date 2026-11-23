@@ -15,6 +15,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
+from backend.core.api.app.services.connected_accounts_service import mark_connected_account_reconnect_required
+from backend.shared.python_utils.connected_account_errors import ConnectedAccountTokenExchangeError
 from backend.shared.python_utils.connected_account_registry import is_connected_account_action_allowed
 
 
@@ -56,10 +58,12 @@ class TokenBrokerService:
         exchange_refresh_token: ExchangeRefreshToken,
         turn_token_ref_ttl_seconds: int = DEFAULT_TURN_TOKEN_REF_TTL_SECONDS,
         access_token_handle_ttl_seconds: int = DEFAULT_ACCESS_TOKEN_HANDLE_TTL_SECONDS,
+        directus_service: Any | None = None,
     ) -> None:
         self.cache = cache_service
         self.encryption = encryption_service
         self.exchange_refresh_token = exchange_refresh_token
+        self.directus_service = directus_service
         self.turn_token_ref_ttl_seconds = turn_token_ref_ttl_seconds
         self.access_token_handle_ttl_seconds = access_token_handle_ttl_seconds
 
@@ -178,17 +182,24 @@ class TokenBrokerService:
         if not refresh_token:
             raise PermissionError("turn token ref missing refresh token")
 
-        token_response = await self.exchange_refresh_token(
-            str(refresh_token),
-            {
-                "connected_account_id": payload["connected_account_id"],
-                "app_id": app_id,
-                "provider_id": payload.get("provider_id"),
-                "action": action,
-                "action_scope": requested_scope or stored_scope,
-                "refresh_token_envelope": envelope,
-            },
-        )
+        try:
+            token_response = await self.exchange_refresh_token(
+                str(refresh_token),
+                {
+                    "connected_account_id": payload["connected_account_id"],
+                    "app_id": app_id,
+                    "provider_id": payload.get("provider_id"),
+                    "action": action,
+                    "action_scope": requested_scope or stored_scope,
+                    "refresh_token_envelope": envelope,
+                },
+            )
+        except ConnectedAccountTokenExchangeError as error:
+            if error.reconnect_required and self.directus_service is not None:
+                await mark_connected_account_reconnect_required(
+                    self.directus_service, str(payload["connected_account_id"]),
+                )
+            raise
         access_token = token_response.get("access_token")
         if not access_token:
             raise RuntimeError("provider token exchange did not return access_token")
@@ -358,7 +369,7 @@ def _normalize_app_id(value: Any) -> str:
 
 def _normalize_provider_id(value: Any) -> str:
     normalized = str(value or "").strip()
-    if normalized in {"calendar", "google_calendar"}:
+    if normalized in {"calendar", "google_calendar", "mail"}:
         return "google"
     if normalized == "finance":
         return "revolut_business"

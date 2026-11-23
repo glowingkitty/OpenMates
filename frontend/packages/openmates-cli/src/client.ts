@@ -1,4 +1,10 @@
 import { registerChatMetadataRecovery, filterMetadataReceiptForCurrentVersions, type MetadataReceipt } from "./chatMetadataRecovery.js";
+import {
+  connectedAccountMissingMessage,
+  normalizeConnectedAccountAppId,
+  normalizeConnectedAccountProviderId,
+  resolveConnectedAccountAppId,
+} from "./connectedAccountIds.js";
 import { runRecoveryBatch } from "./recoveryBatch.js";
 import type { BuyerAddress } from "./billingAddress.js";
 import { prepareCliMessagePrivacy, type CompiledCliPrivacy } from "./privacyScan.js";
@@ -4229,12 +4235,10 @@ export class OpenMatesClient {
       const id = String(row.id ?? "");
       if (params.accountId && id !== params.accountId) continue;
       const providerId = String(await decryptConnectedAccountField(row.encrypted_provider_type, masterKey));
-      if (providerId !== params.providerId) continue;
+      if (normalizeConnectedAccountProviderId(providerId) !== normalizeConnectedAccountProviderId(params.providerId)) continue;
       const permissions = await decryptConnectedAccountField(row.encrypted_app_permissions, masterKey);
-      const appId = permissions && typeof permissions === "object" && !Array.isArray(permissions)
-        ? String((permissions as Record<string, unknown>).app_id ?? params.appId)
-        : params.appId;
-      if (appId !== params.appId) continue;
+      const appId = resolveConnectedAccountAppId(permissions, params.appId);
+      if (appId !== normalizeConnectedAccountAppId(params.appId)) continue;
       const label = String(await decryptConnectedAccountField(row.encrypted_account_label, masterKey) ?? providerId);
       const capabilities = normalizeStringArray(await decryptConnectedAccountField(row.encrypted_capabilities, masterKey));
       const directoryHint = await decryptConnectedAccountField(row.encrypted_account_directory_hint, masterKey);
@@ -4247,7 +4251,7 @@ export class OpenMatesClient {
       }
       candidates.push({
         id,
-        providerId,
+        providerId: normalizeConnectedAccountProviderId(providerId),
         appId,
         label,
         accountRef: String(hint.account_ref ?? id),
@@ -4261,7 +4265,7 @@ export class OpenMatesClient {
     if (candidates.length === 0) {
       throw new Error(params.accountId
         ? `Connected account ${params.accountId} was not found for ${params.providerId}.`
-        : `No ${params.providerId} connected account found. Run \`openmates connect-account revolut-business\` first.`);
+        : connectedAccountMissingMessage(params.providerId));
     }
     if (candidates.length > 1 && !params.accountId) {
       throw new Error(`Multiple ${params.providerId} accounts found. Re-run with --connected-account <id>.`);

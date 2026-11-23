@@ -5667,7 +5667,22 @@ export const APP_SKILL_METADATA = [
               },
               "query": {
                 "type": "string",
-                "description": "Optional search text (subject/from/body). Empty means recent-first listing."
+                "description": "Optional search text (subject/from/body). With provider \"google\" the Gmail search syntax works (from:, subject:, has:attachment, label:). Empty means recent-first listing."
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "google"
+                ],
+                "description": "Set to \"google\" to search the user's connected Gmail account (official Gmail API). Omit for the default mail provider."
+              },
+              "connected_account_id": {
+                "type": "string",
+                "description": "Optional connected Google account id when the user has several accounts"
+              },
+              "page_token": {
+                "type": "string",
+                "description": "Continuation token from a previous Gmail search (next_page_token)"
               },
               "mailbox": {
                 "type": "string",

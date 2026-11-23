@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Odczytywanie grafiki…"
+        },
+        "progress_checking": {
+          "text": "Sprawdzanie projektu…"
+        },
+        "progress_adjusting": {
+          "text": "Dopasowywanie projektu do haftu…"
+        },
+        "progress_stitching": {
+          "text": "Tworzenie ściegów i podglądu…"
+        },
+        "progress_saving": {
+          "text": "Zapisywanie plików maszyny…"
+        },
         "threads": {
           "text": "Nici"
         },

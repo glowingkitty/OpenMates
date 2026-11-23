@@ -76,3 +76,43 @@ pub fn merge_turn_token_refs_json(inputs_json: &str, payload_json: &str) -> Resu
     };
     serde_json::to_string(&outcome).map_err(super::protocol)
 }
+
+/// Seconds between two recorded last-use times of one account (10 minutes).
+pub const LAST_USED_MIN_INTERVAL_SECS: i64 = 600;
+
+/// Accounts whose encrypted last-use time is due after a turn minted token refs.
+///
+/// `input_json` is `{"now": <unix seconds>, "used_account_ids": [..],
+/// "accounts": [{"id": "..", "last_used_at": <unix seconds or null>}]}`; the
+/// page decrypts each row's `encrypted_last_used_at` and passes only the
+/// number. Output `{"kind":"ok","touches":[{"id":"..","last_used_at":now}]}`
+/// in first-use order, deduplicated. An account is due when it has a row and
+/// no previous value, a previous value older than 600 s, or one more than
+/// 600 s in the future (clock skew). Used ids without a row are ignored.
+///
+/// # Errors
+/// `protocol` when the input is not JSON of that shape.
+pub fn plan_last_used_touches_json(input_json: &str) -> Result<String, String> {
+    let input: Value = serde_json::from_str(input_json).map_err(super::protocol)?;
+    let now = input.get("now").and_then(Value::as_i64).ok_or_else(|| "protocol".to_string())?;
+    let used = input.get("used_account_ids").and_then(Value::as_array).ok_or_else(|| "protocol".to_string())?;
+    let accounts = input.get("accounts").and_then(Value::as_array).ok_or_else(|| "protocol".to_string())?;
+    let mut seen: Vec<&str> = Vec::new();
+    let mut touches = Vec::new();
+    for id in used {
+        let id = id.as_str().ok_or_else(|| "protocol".to_string())?;
+        if seen.contains(&id) {
+            continue;
+        }
+        seen.push(id);
+        let Some(row) = accounts.iter().find(|row| row.get("id").and_then(Value::as_str) == Some(id)) else {
+            continue;
+        };
+        let previous = row.get("last_used_at").and_then(Value::as_i64);
+        let due = previous.is_none_or(|prev| (now - prev).abs() > LAST_USED_MIN_INTERVAL_SECS);
+        if due {
+            touches.push(json!({"id": id, "last_used_at": now}));
+        }
+    }
+    serde_json::to_string(&json!({"kind": "ok", "touches": touches})).map_err(super::protocol)
+}

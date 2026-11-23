@@ -1291,6 +1291,18 @@
             "text": "Zeige mir ungelesene E-Mails von heute"
           }
         }
+      },
+      "read_thread": {
+        "text": "E-Mail-Verlauf lesen",
+        "description": {
+          "text": "Lies eine Unterhaltung aus deinem verbundenen Gmail-Konto."
+        }
+      },
+      "create_draft": {
+        "text": "E-Mail-Entwurf erstellen",
+        "description": {
+          "text": "Speichere einen E-Mail-Entwurf in deinem verbundenen Gmail-Konto. Es wird nichts gesendet."
+        }
       }
     },
     "maps": {
@@ -10309,6 +10321,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Grafik wird gelesen…"
+        },
+        "progress_checking": {
+          "text": "Design wird geprüft…"
+        },
+        "progress_adjusting": {
+          "text": "Design wird für Stickerei angepasst…"
+        },
+        "progress_stitching": {
+          "text": "Stiche und Vorschau werden erstellt…"
+        },
+        "progress_saving": {
+          "text": "Maschinendateien werden gespeichert…"
+        },
         "threads": {
           "text": "Garne"
         },
@@ -19670,6 +19697,40 @@
         }
       },
       "connected_accounts": {
+        "app_page": {
+          "title": {
+            "text": "Verbundene Konten"
+          },
+          "none": {
+            "text": "Kein Konto verbunden"
+          },
+          "add_link": {
+            "text": "Konto unter Verbundene Konten hinzufügen"
+          },
+          "manage_link": {
+            "text": "Verbundene Konten verwalten"
+          },
+          "status_connected": {
+            "text": "Verbunden"
+          },
+          "status_reconnect": {
+            "text": "Erneute Verbindung nötig"
+          },
+          "email_not_saved": {
+            "text": "E-Mail nicht gespeichert"
+          }
+        },
+        "oauth": {
+          "connected_success": {
+            "text": "Konto verbunden."
+          },
+          "error_provider": {
+            "text": "Die Anmeldung wurde abgebrochen oder vom Anbieter abgelehnt. Es wurde nichts verbunden."
+          },
+          "error_finalize": {
+            "text": "Die Anmeldung wurde abgeschlossen, aber das Konto konnte nicht gespeichert werden. Bitte versuche es erneut."
+          }
+        },
         "title": {
           "text": "Verbundene Konten"
         },
@@ -19735,6 +19796,154 @@
         },
         "finalize_error": {
           "text": "Verbindung mit Google Calendar konnte nicht abgeschlossen werden."
+        },
+        "card": {
+          "status_connected": {
+            "text": "Verbunden"
+          },
+          "status_not_connected": {
+            "text": "Nicht verbunden"
+          },
+          "account_label": {
+            "text": "Konto"
+          },
+          "connected_as": {
+            "text": "Verbunden als {email}"
+          },
+          "google_account": {
+            "text": "Google-Konto"
+          },
+          "legacy_hint": {
+            "text": "Verbinde erneut, um zu sehen, welches Konto verbunden ist."
+          },
+          "permissions_label": {
+            "text": "Berechtigungen"
+          },
+          "manage_permissions": {
+            "text": "Berechtigungen verwalten"
+          },
+          "reconnect": {
+            "text": "Erneut verbinden"
+          },
+          "disconnect": {
+            "text": "Trennen"
+          },
+          "disconnect_confirm": {
+            "text": "{provider} trennen? OpenMates hat dann keinen Zugriff mehr auf dieses Konto."
+          },
+          "disconnect_confirm_button": {
+            "text": "Ja, trennen"
+          },
+          "cancel": {
+            "text": "Abbrechen"
+          },
+          "connect": {
+            "text": "Verbinden"
+          },
+          "disconnected_success": {
+            "text": "Konto getrennt."
+          },
+          "disconnect_error": {
+            "text": "Das Konto konnte nicht getrennt werden. Bitte versuche es erneut."
+          },
+          "provider_gmail": {
+            "text": "Gmail"
+          },
+          "mail_title": {
+            "text": "Gmail-Verbindung"
+          },
+          "mail_description": {
+            "text": "Verbinde dein Gmail-Konto, damit deine Mates deine E-Mails durchsuchen und lesen und Entwürfe vorbereiten können."
+          },
+          "mail_capability_read": {
+            "text": "Lesen"
+          },
+          "mail_capability_read_description": {
+            "text": "E-Mails durchsuchen und Unterhaltungen lesen."
+          },
+          "capability_draft": {
+            "text": "Entwurf"
+          },
+          "mail_capability_draft_description": {
+            "text": "Entwürfe erstellen. Entwürfe bleiben in Gmail, bis du sie selbst sendest."
+          },
+          "mail_send_unavailable": {
+            "text": "Das Senden von E-Mails ist nicht verfügbar: Deine Mates können E-Mails lesen und Entwürfe erstellen, aber nie senden."
+          }
+        },
+        "central": {
+          "add_account": {
+            "text": "Konto hinzufügen"
+          },
+          "add_account_choose": {
+            "text": "Anbieter wählen"
+          },
+          "provider_google": {
+            "text": "Google"
+          },
+          "provider_figma": {
+            "text": "Figma"
+          },
+          "google_access_hint": {
+            "text": "Wähle, wofür dieses Google-Konto genutzt werden darf."
+          },
+          "access_calendar": {
+            "text": "Kalender: Termine lesen und verwalten"
+          },
+          "access_gmail": {
+            "text": "Gmail: E-Mails lesen und Entwürfe erstellen"
+          },
+          "continue_to_provider": {
+            "text": "Weiter mit {provider}"
+          },
+          "add_error": {
+            "text": "Die Anmeldung konnte nicht gestartet werden. Bitte versuche es erneut."
+          },
+          "last_used": {
+            "text": "Zuletzt genutzt {time}"
+          },
+          "never_used": {
+            "text": "Noch nie genutzt"
+          },
+          "needs_reconnect": {
+            "text": "Erneute Verbindung nötig"
+          },
+          "email_not_saved": {
+            "text": "E-Mail nicht gespeichert · verbunden am {date}"
+          },
+          "empty": {
+            "text": "Noch keine Konten verbunden. Nutze „Konto hinzufügen“, um eines zu verbinden."
+          },
+          "back_to_list": {
+            "text": "Zurück zu allen Konten"
+          },
+          "permissions_for_app": {
+            "text": "Berechtigungen für {app}"
+          },
+          "cap_draft": {
+            "text": "Entwürfe erstellen"
+          },
+          "last_used_label": {
+            "text": "Zuletzt genutzt"
+          },
+          "connected_on_label": {
+            "text": "Verbunden am"
+          },
+          "permission_save_error": {
+            "text": "Die Berechtigung konnte nicht gespeichert werden."
+          },
+          "disconnected": {
+            "text": "Konto getrennt."
+          },
+          "reconnect_error": {
+            "text": "Die erneute Verbindung konnte nicht gestartet werden. Bitte versuche es erneut."
+          },
+          "add_gmail_access": {
+            "text": "Gmail-Zugriff hinzufügen"
+          },
+          "add_calendar_access": {
+            "text": "Kalenderzugriff hinzufügen"
+          }
         }
       },
       "focus_modes": {

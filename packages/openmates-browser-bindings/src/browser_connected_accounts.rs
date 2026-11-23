@@ -9,8 +9,12 @@ use openmates_sdk::web_connected_accounts;
 
 /// Rows a send context reads, after the plaintext-field guard.
 #[wasm_bindgen]
-pub fn connected_accounts_select_send_rows(rows_json: &str, account_ids_json: &str) -> Result<String, JsValue> {
-    web_connected_accounts::select_send_rows_json(rows_json, account_ids_json).map_err(|e| JsValue::from_str(&e))
+pub fn connected_accounts_select_send_rows(
+    rows_json: &str,
+    account_ids_json: &str,
+) -> Result<String, JsValue> {
+    web_connected_accounts::select_send_rows_json(rows_json, account_ids_json)
+        .map_err(|e| JsValue::from_str(&e))
 }
 
 /// Directory entries and token-ref plans over decrypted row facts.
@@ -27,14 +31,33 @@ pub fn connected_accounts_summary_plan(input_json: &str) -> Result<String, JsVal
 
 /// Turn-token refs of a broker response completed from the (envelope-free) inputs.
 #[wasm_bindgen]
-pub fn connected_accounts_merge_token_refs(inputs_json: &str, payload_json: &str) -> Result<String, JsValue> {
-    web_connected_accounts::tokens::merge_turn_token_refs_json(inputs_json, payload_json).map_err(|e| JsValue::from_str(&e))
+pub fn connected_accounts_merge_token_refs(
+    inputs_json: &str,
+    payload_json: &str,
+) -> Result<String, JsValue> {
+    web_connected_accounts::tokens::merge_turn_token_refs_json(inputs_json, payload_json)
+        .map_err(|e| JsValue::from_str(&e))
+}
+
+/// Accounts due for an encrypted last-use write (at most once per 10 minutes each).
+#[wasm_bindgen]
+pub fn connected_accounts_plan_last_used(input_json: &str) -> Result<String, JsValue> {
+    web_connected_accounts::tokens::plan_last_used_touches_json(input_json)
+        .map_err(|e| JsValue::from_str(&e))
 }
 
 /// Ordered encrypt/hash steps of an OAuth handoff row (the bundle is a page-filled marker).
 #[wasm_bindgen]
 pub fn connected_accounts_oauth_row_plan(input_json: &str) -> Result<String, JsValue> {
-    web_connected_accounts::oauth::oauth_row_plan_json(input_json).map_err(|e| JsValue::from_str(&e))
+    web_connected_accounts::oauth::oauth_row_plan_json(input_json)
+        .map_err(|e| JsValue::from_str(&e))
+}
+
+/// Merged plaintexts (permissions, directory hint, capabilities) of adding an app to an existing row.
+#[wasm_bindgen]
+pub fn connected_accounts_merge_update(input_json: &str) -> Result<String, JsValue> {
+    web_connected_accounts::oauth::merge_account_update_json(input_json)
+        .map_err(|e| JsValue::from_str(&e))
 }
 
 /// Plaintext-field guard over the page's exact `JSON.stringify` of a storage payload.
@@ -46,7 +69,8 @@ pub fn connected_accounts_storage_guard(serialized: &str) -> Result<String, JsVa
 /// Field plan of a CLI transfer payload over decrypted non-credential facts.
 #[wasm_bindgen]
 pub fn connected_accounts_transfer_plan(input_json: &str) -> Result<String, JsValue> {
-    web_connected_accounts::transfer::transfer_plan_json(input_json).map_err(|e| JsValue::from_str(&e))
+    web_connected_accounts::transfer::transfer_plan_json(input_json)
+        .map_err(|e| JsValue::from_str(&e))
 }
 
 // Doc wording avoids the bare word `i-m-p-o-r-t`: wasm-bindgen copies `///`
@@ -54,5 +78,6 @@ pub fn connected_accounts_transfer_plan(input_json: &str) -> Result<String, JsVa
 /// The CLI command line that loads an encrypted transfer payload.
 #[wasm_bindgen]
 pub fn connected_accounts_transfer_command(encrypted_payload: &str) -> Result<String, JsValue> {
-    web_connected_accounts::transfer::transfer_command_json(encrypted_payload).map_err(|e| JsValue::from_str(&e))
+    web_connected_accounts::transfer::transfer_command_json(encrypted_payload)
+        .map_err(|e| JsValue::from_str(&e))
 }

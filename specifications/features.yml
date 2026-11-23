@@ -979,7 +979,7 @@ features:
     name: "Mail"
     kind: app
     description: "Draft emails and work with mail."
-    specifications: []
+    specifications: [feature.app-skills.mail-gmail]
     apps: [mail]
     release: v0.5.0-alpha
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
@@ -990,6 +990,7 @@ features:
       rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/mail/skills"
       sdk_npm: "src/generated/appSkills.ts apps.mail (generic skill call)"
       sdk_pypi: "generated/app_skills.py apps.mail (generic skill call)"
+    notes: "Gmail through Google's official API (search, read threads, create drafts) uses the shared Google connected account. Sending is deferred by owner decision (2026-11-22). Proton Mail Bridge search stays as is."
     key_tests:
       web: [frontend/apps/web_app/tests/skill-mail-search.spec.ts]
   - id: maps

@@ -51,6 +51,7 @@ async def prepare_connected_account_skill_execution(
     message_id: str,
     cache_service: Any,
     encryption_service: Any,
+    directus_service: Any | None = None,
 ) -> ConnectedAccountExecutionContext:
     """Exchange matching token refs and inject access-token handles for a skill."""
 
@@ -69,6 +70,7 @@ async def prepare_connected_account_skill_execution(
         cache_service=cache_service,
         encryption_service=encryption_service,
         exchange_refresh_token=exchange_refresh_token_for_provider(config.provider_id),
+        directus_service=directus_service,
     )
     token_map: dict[str, str] = {}
     artifacts: list[dict[str, str]] = []

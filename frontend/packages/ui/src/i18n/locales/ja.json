@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "グラフィックを読み込み中…"
+        },
+        "progress_checking": {
+          "text": "デザインを確認中…"
+        },
+        "progress_adjusting": {
+          "text": "刺繍用にデザインを調整中…"
+        },
+        "progress_stitching": {
+          "text": "ステッチとプレビューを作成中…"
+        },
+        "progress_saving": {
+          "text": "マシンファイルを保存中…"
+        },
         "threads": {
           "text": "糸"
         },

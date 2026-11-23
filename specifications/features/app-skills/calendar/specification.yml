@@ -46,6 +46,8 @@ assertions:
       contract. Never treat insufficient scope as an empty calendar. Translate provider
       roles and capabilities explicitly; future providers must not silently emulate
       unsupported operations. Shipped account/provider identifiers remain usable.
+      Consent also carries the identity scopes openid and email, used only to label the
+      connected account with its Google email; they grant no calendar access.
     depends_on: [examples.connection]
   - id: calendar.discovery.target
     type: behavior

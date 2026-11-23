@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Načítám grafiku…"
+        },
+        "progress_checking": {
+          "text": "Kontroluji návrh…"
+        },
+        "progress_adjusting": {
+          "text": "Upravuji návrh pro výšivku…"
+        },
+        "progress_stitching": {
+          "text": "Vytvářím stehy a náhled…"
+        },
+        "progress_saving": {
+          "text": "Ukládám soubory pro stroj…"
+        },
         "threads": {
           "text": "Nitě"
         },

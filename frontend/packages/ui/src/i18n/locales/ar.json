@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "جارٍ قراءة الرسم…"
+        },
+        "progress_checking": {
+          "text": "جارٍ فحص التصميم…"
+        },
+        "progress_adjusting": {
+          "text": "جارٍ تعديل التصميم للتطريز…"
+        },
+        "progress_stitching": {
+          "text": "جارٍ إنشاء الغرز والمعاينة…"
+        },
+        "progress_saving": {
+          "text": "جارٍ حفظ ملفات الآلة…"
+        },
         "threads": {
           "text": "الخيوط"
         },

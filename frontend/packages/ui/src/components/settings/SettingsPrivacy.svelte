@@ -75,7 +75,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
         }
 
         dispatch('openSettings', {
-            settingsPath: 'privacy/connected-accounts',
+            settingsPath: 'account/connected-accounts',
             direction: 'forward',
             icon: 'privacy',
             title: $text('settings.privacy.connected_accounts.title')

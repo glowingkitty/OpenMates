@@ -31,8 +31,8 @@ summary:
     cli:
       partial: 17
       failing: 8
-      not_run: 28
-      implemented: 41
+      not_run: 29
+      implemented: 40
       in_progress: 2
       planned: 2
       not_planned: 30
@@ -48,8 +48,8 @@ summary:
       tested: 2
       partial: 34
       failing: 16
-      not_run: 27
-      implemented: 16
+      not_run: 28
+      implemented: 15
       planned: 2
       not_planned: 26
     sdk_npm:
@@ -11476,9 +11476,9 @@ features:
       - backend/tests/test_google_calendar_skill_hardening.py
       - backend/tests/test_calendar_event_content.py
       - backend/tests/test_mindmap_embed_streaming.py
+      - backend/tests/live/test_google_calendar_permissions_live.py
       - backend/tests/test_calendar_app_contract.py
-      - backend/tests/test_google_calendar_oauth_adapter.py
-      unit_test_files: 12
+      unit_test_files: 13
     sdk_npm:
       status: not_run
       source: tests
@@ -12018,16 +12018,15 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 7
+        passing: 3
         failing: 0
-        not_run: 5
-        missing: 18
+        not_run: 7
+        missing: 20
         counted: 30
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
       - frontend/apps/web_app/tests/components/design-embroidery-progress-card.spec.ts
-      - frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts
       - frontend/apps/web_app/tests/design-embroidery-chat.spec.ts
       key_unit_tests:
       - backend/tests/test_design_embroidery_skill.py
@@ -12157,14 +12156,14 @@ features:
     - design-figma.surface.parity
     surfaces:
       web:
-        status: partial
+        status: not_run
         source: tests
         intent: in_progress
         assertions:
-          passing: 4
+          passing: 0
           failing: 0
-          not_run: 0
-          missing: 10
+          not_run: 2
+          missing: 12
           counted: 14
       apple:
         status: planned
@@ -14190,7 +14189,10 @@ features:
   name: Mail
   kind: app
   description: Draft emails and work with mail.
-  specifications: []
+  specifications:
+  - id: feature.app-skills.mail-gmail
+    status: draft
+    path: specifications/features/app-skills/mail-gmail
   apps:
   - mail
   product_features: []
@@ -14200,7 +14202,7 @@ features:
     - app:mail
     dev: enabled
     prod: enabled
-  assertions: 0
+  assertions: 9
   surfaces:
     web:
       status: failing
@@ -14210,8 +14212,8 @@ features:
         passing: 0
         failing: 1
         not_run: 0
-        missing: 0
-        counted: 1
+        missing: 9
+        counted: 10
       failing_tests:
       - frontend/apps/web_app/tests/skill-mail-search.spec.ts
       key_tests:
@@ -14246,8 +14248,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 0
-        counted: 0
+        missing: 9
+        counted: 9
       key_tests: []
       evidence: openmates apps mail search
       e2e_tests: []
@@ -14269,20 +14271,21 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     rest_api:
-      status: implemented
-      source: intent
+      status: not_run
+      source: tests
       intent: implemented
       assertions:
         passing: 0
         failing: 0
-        not_run: 0
-        missing: 0
-        counted: 0
+        not_run: 8
+        missing: 1
+        counted: 9
       key_tests: []
       evidence: POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/mail/skills
       e2e_tests: []
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - backend/tests/test_gmail_skills.py
+      unit_test_files: 1
     sdk_npm:
       status: implemented
       source: intent
@@ -14291,8 +14294,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 0
-        counted: 0
+        missing: 9
+        counted: 9
       key_tests: []
       evidence: src/generated/appSkills.ts apps.mail (generic skill call)
       e2e_tests: []
@@ -14306,13 +14309,15 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 0
-        counted: 0
+        missing: 9
+        counted: 9
       key_tests: []
       evidence: generated/app_skills.py apps.mail (generic skill call)
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
+  notes: Gmail through Google's official API (search, read threads, create drafts) uses the shared Google connected account.
+    Sending is deferred by owner decision (2026-11-22). Proton Mail Bridge search stays as is.
 - id: maps
   name: Maps
   kind: app
@@ -22766,28 +22771,34 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 9
+  assertions: 14
   surfaces:
     web:
       status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 3
+        passing: 4
         failing: 0
-        not_run: 1
-        missing: 5
-        counted: 9
+        not_run: 4
+        missing: 6
+        counted: 14
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
       - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+      - frontend/apps/web_app/tests/components/connected-accounts-before.spec.ts
+      - frontend/apps/web_app/tests/components/connected-accounts-central.spec.ts
+      - frontend/apps/web_app/tests/components/connected-accounts-redesign.spec.ts
+      - frontend/apps/web_app/tests/components/figma-connected-accounts.spec.ts
       - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+      - frontend/apps/web_app/tests/proton-local-connector-settings.spec.ts
       key_unit_tests:
       - frontend/packages/ui/src/services/__tests__/connectedAccountOAuthService.test.ts
       - frontend/packages/ui/src/services/__tests__/connectedAccountStorageService.test.ts
       - frontend/packages/ui/src/services/__tests__/appsWorkspaceDeepLink.test.ts
-      unit_test_files: 3
+      - frontend/packages/ui/src/services/__tests__/connectedAccountLastUsed.test.ts
+      unit_test_files: 4
     apple:
       status: implemented
       source: intent
@@ -22808,20 +22819,21 @@ features:
       - ipados
       - macos
     cli:
-      status: implemented
-      source: intent
+      status: not_run
+      source: tests
       intent: implemented
       assertions:
         passing: 0
         failing: 0
-        not_run: 0
-        missing: 9
-        counted: 9
+        not_run: 1
+        missing: 13
+        counted: 14
       key_tests: []
       evidence: openmates connect-account / connected-accounts
       e2e_tests: []
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - frontend/packages/openmates-cli/tests/connected-account-ids.test.ts
+      unit_test_files: 1
     tui:
       status: in_progress
       source: intent
@@ -22844,18 +22856,18 @@ features:
       assertions:
         passing: 4
         failing: 0
-        not_run: 0
-        missing: 5
-        counted: 9
+        not_run: 2
+        missing: 8
+        counted: 14
       key_tests: []
       e2e_tests: []
       key_unit_tests:
       - backend/tests/test_connected_account_execution.py
       - backend/tests/test_calendar_chat_flow_mocked.py
+      - backend/tests/test_connected_account_usage_metadata.py
       - backend/tests/test_google_calendar_oauth_adapter.py
       - backend/tests/test_google_calendar_skill_hardening.py
-      - backend/tests/test_sdk_chat_recovery.py
-      unit_test_files: 9
+      unit_test_files: 11
     sdk_npm:
       status: implemented
       source: intent
@@ -22864,8 +22876,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 9
-        counted: 9
+        missing: 14
+        counted: 14
       key_tests: []
       evidence: connectedAccounts facade; run_connected_account_skill
       e2e_tests: []
@@ -22879,8 +22891,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 9
-        counted: 9
+        missing: 14
+        counted: 14
       key_tests: []
       evidence: connectedAccounts facade; run_connected_account_skill
       e2e_tests: []

@@ -14,6 +14,8 @@ import httpx
 
 # Google "reason" values (error.errors[].reason) that mean the token lacks a scope.
 _MISSING_SCOPE_REASONS = frozenset({"insufficientPermissions", "ACCESS_TOKEN_SCOPE_INSUFFICIENT"})
+# Cloud project has the API switched off (operator action, not a user reconnect).
+_API_DISABLED_REASONS = frozenset({"accessNotConfigured", "SERVICE_DISABLED"})
 _RATE_LIMIT_REASONS = frozenset({"rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded"})
 
 RECONNECT_CODES = frozenset({"google_calendar_missing_scope", "google_calendar_reconnect_required"})
@@ -83,6 +85,8 @@ def classify_status_error(response: httpx.Response) -> GoogleCalendarProviderErr
     reasons = _reasons(response)
     if status == 401:
         code = "google_calendar_reconnect_required"
+    elif status == 403 and reasons & _API_DISABLED_REASONS:
+        code = "google_calendar_api_disabled"
     elif status == 403 and reasons & _MISSING_SCOPE_REASONS:
         code = "google_calendar_missing_scope"
     elif status == 429 or (status == 403 and reasons & _RATE_LIMIT_REASONS):

@@ -1,7 +1,7 @@
 //! Replays `web_connected_accounts_ts_vectors.json` (checked against the TypeScript
 //! services by connectedAccountsVectors.test.ts) through the Rust decisions,
 //! with the page adapter's decrypt/attach steps emulated as rustConnectedAccounts.ts does them.
-use super::tokens::merge_turn_token_refs_json;
+use super::tokens::{merge_turn_token_refs_json, plan_last_used_touches_json};
 use super::*;
 
 fn vectors() -> Value {
@@ -190,4 +190,25 @@ fn figma_send_context_maps_provider_and_app_without_action_scope() {
         assert_eq!(plan["tokens"][0]["allowed_actions"], json!(["read"]));
         assert!(plan["tokens"][0].get("action_scope").is_none());
     }
+}
+
+#[test]
+fn last_used_touches_are_due_at_most_every_ten_minutes() {
+    let plan = |input: Value| parsed(&plan_last_used_touches_json(&input.to_string()).unwrap())["touches"].clone();
+    let accounts = json!([
+        {"id": "new", "last_used_at": null},
+        {"id": "fresh", "last_used_at": 9_700},
+        {"id": "edge", "last_used_at": 9_400},
+        {"id": "old", "last_used_at": 9_399},
+        {"id": "future", "last_used_at": 10_601},
+        {"id": "near_future", "last_used_at": 10_600},
+        {"id": "unset"}
+    ]);
+    let used = json!(["new", "fresh", "edge", "old", "old", "future", "near_future", "unset", "ghost"]);
+    let touches = plan(json!({"now": 10_000, "used_account_ids": used, "accounts": accounts}));
+    let ids: Vec<&str> = touches.as_array().unwrap().iter().map(|t| t["id"].as_str().unwrap()).collect();
+    assert_eq!(ids, ["new", "old", "future", "unset"]);
+    assert!(touches.as_array().unwrap().iter().all(|t| t["last_used_at"] == 10_000));
+    assert_eq!(plan(json!({"now": 1, "used_account_ids": [], "accounts": []})), json!([]));
+    assert_eq!(plan_last_used_touches_json("{}").unwrap_err(), "protocol");
 }

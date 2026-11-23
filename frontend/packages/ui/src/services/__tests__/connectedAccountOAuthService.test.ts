@@ -47,7 +47,11 @@ describe('connectedAccountOAuthService', () => {
 			method: 'POST',
 			credentials: 'include',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ capabilities: ['read'], return_path: '/#settings/apps/calendar' })
+			body: JSON.stringify({
+				capabilities: ['read'],
+				return_path: '/#settings/apps/calendar',
+				app_id: 'calendar'
+			})
 		});
 	});
 

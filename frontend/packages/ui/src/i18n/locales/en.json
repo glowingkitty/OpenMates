@@ -1291,6 +1291,18 @@
             "text": "Show me **unread emails** from today"
           }
         }
+      },
+      "read_thread": {
+        "text": "Read Email Thread",
+        "description": {
+          "text": "Read a conversation from your connected Gmail account."
+        }
+      },
+      "create_draft": {
+        "text": "Create Email Draft",
+        "description": {
+          "text": "Save an email draft in your connected Gmail account. Nothing is sent."
+        }
       }
     },
     "maps": {
@@ -10368,6 +10380,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Reading the graphic…"
+        },
+        "progress_checking": {
+          "text": "Checking the design…"
+        },
+        "progress_adjusting": {
+          "text": "Adjusting the design for embroidery…"
+        },
+        "progress_stitching": {
+          "text": "Creating stitches and preview…"
+        },
+        "progress_saving": {
+          "text": "Saving the machine files…"
+        },
         "threads": {
           "text": "Threads"
         },
@@ -20554,6 +20581,40 @@
         }
       },
       "connected_accounts": {
+        "app_page": {
+          "title": {
+            "text": "Connected accounts"
+          },
+          "none": {
+            "text": "No account connected"
+          },
+          "add_link": {
+            "text": "Add account in Connected accounts"
+          },
+          "manage_link": {
+            "text": "Manage connected accounts"
+          },
+          "status_connected": {
+            "text": "Connected"
+          },
+          "status_reconnect": {
+            "text": "Needs reconnect"
+          },
+          "email_not_saved": {
+            "text": "Email not saved"
+          }
+        },
+        "oauth": {
+          "connected_success": {
+            "text": "Account connected."
+          },
+          "error_provider": {
+            "text": "Sign-in was cancelled or refused by the provider. Nothing was connected."
+          },
+          "error_finalize": {
+            "text": "The sign-in finished, but the account could not be saved. Please try again."
+          }
+        },
         "title": {
           "text": "Connected accounts"
         },
@@ -20659,6 +20720,154 @@
           },
           "capability_variables": {
             "text": "Variables"
+          }
+        },
+        "card": {
+          "status_connected": {
+            "text": "Connected"
+          },
+          "status_not_connected": {
+            "text": "Not connected"
+          },
+          "account_label": {
+            "text": "Account"
+          },
+          "connected_as": {
+            "text": "Connected as {email}"
+          },
+          "google_account": {
+            "text": "Google account"
+          },
+          "legacy_hint": {
+            "text": "Reconnect to show which account is connected."
+          },
+          "permissions_label": {
+            "text": "Permissions"
+          },
+          "manage_permissions": {
+            "text": "Manage permissions"
+          },
+          "reconnect": {
+            "text": "Reconnect"
+          },
+          "disconnect": {
+            "text": "Disconnect"
+          },
+          "disconnect_confirm": {
+            "text": "Disconnect {provider}? OpenMates will no longer have access to this account."
+          },
+          "disconnect_confirm_button": {
+            "text": "Yes, disconnect"
+          },
+          "cancel": {
+            "text": "Cancel"
+          },
+          "connect": {
+            "text": "Connect"
+          },
+          "disconnected_success": {
+            "text": "Account disconnected."
+          },
+          "disconnect_error": {
+            "text": "Could not disconnect this account. Please try again."
+          },
+          "provider_gmail": {
+            "text": "Gmail"
+          },
+          "mail_title": {
+            "text": "Gmail connection"
+          },
+          "mail_description": {
+            "text": "Connect your Gmail account so your mates can search and read your mail and prepare drafts."
+          },
+          "mail_capability_read": {
+            "text": "Read"
+          },
+          "mail_capability_read_description": {
+            "text": "Search your mail and read threads."
+          },
+          "capability_draft": {
+            "text": "Draft"
+          },
+          "mail_capability_draft_description": {
+            "text": "Create drafts. Drafts stay in Gmail until you send them yourself."
+          },
+          "mail_send_unavailable": {
+            "text": "Sending emails is not available: your mates can read mail and create drafts, but never send."
+          }
+        },
+        "central": {
+          "add_account": {
+            "text": "Add account"
+          },
+          "add_account_choose": {
+            "text": "Choose a provider"
+          },
+          "provider_google": {
+            "text": "Google"
+          },
+          "provider_figma": {
+            "text": "Figma"
+          },
+          "google_access_hint": {
+            "text": "Choose what this Google account may be used for."
+          },
+          "access_calendar": {
+            "text": "Calendar: read and manage events"
+          },
+          "access_gmail": {
+            "text": "Gmail: read emails and create drafts"
+          },
+          "continue_to_provider": {
+            "text": "Continue with {provider}"
+          },
+          "add_error": {
+            "text": "Could not start the sign-in. Please try again."
+          },
+          "last_used": {
+            "text": "Last used {time}"
+          },
+          "never_used": {
+            "text": "Never used"
+          },
+          "needs_reconnect": {
+            "text": "Needs reconnect"
+          },
+          "email_not_saved": {
+            "text": "Email not saved · connected {date}"
+          },
+          "empty": {
+            "text": "No accounts connected yet. Use \"Add account\" to connect one."
+          },
+          "back_to_list": {
+            "text": "Back to all accounts"
+          },
+          "permissions_for_app": {
+            "text": "{app} permissions"
+          },
+          "cap_draft": {
+            "text": "Create drafts"
+          },
+          "last_used_label": {
+            "text": "Last used"
+          },
+          "connected_on_label": {
+            "text": "Connected on"
+          },
+          "permission_save_error": {
+            "text": "Could not save the permission change."
+          },
+          "disconnected": {
+            "text": "Account disconnected."
+          },
+          "reconnect_error": {
+            "text": "Could not start reconnecting. Please try again."
+          },
+          "add_gmail_access": {
+            "text": "Add Gmail access"
+          },
+          "add_calendar_access": {
+            "text": "Add Calendar access"
           }
         }
       },

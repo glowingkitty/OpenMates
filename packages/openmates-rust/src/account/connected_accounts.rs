@@ -356,6 +356,23 @@ fn string_array(value: &Value) -> Vec<String> {
     }
     out
 }
+/// Canonical provider id: the web app stores Google Calendar accounts as
+/// `google_calendar` but treats them as the `google` provider.
+pub fn normalize_provider_id(provider: &str) -> &str {
+    if provider == "google_calendar" {
+        "google"
+    } else {
+        provider
+    }
+}
+/// Canonical App id: legacy `google_calendar` means the `calendar` App.
+pub fn normalize_app_id(app: &str) -> &str {
+    if app == "google_calendar" {
+        "calendar"
+    } else {
+        app
+    }
+}
 /// One encrypted connected-account row decrypted for a skill run (npm
 /// decryptConnectedAccountForSkill candidate). `None` when it belongs to a
 /// different provider or App. Missing refresh-token material is an error.
@@ -375,20 +392,28 @@ pub fn skill_account_candidate(
         Value::Null => "null".into(),
         other => other.to_string(),
     };
-    if provider != provider_id {
+    let provider = normalize_provider_id(&provider).to_owned();
+    if provider != normalize_provider_id(provider_id) {
         return Ok(None);
     }
     let permissions = decrypt_field(&row["encrypted_app_permissions"], master);
-    let app = if permissions.is_object() {
+    let wanted_app = normalize_app_id(app_id);
+    let app = if permissions["apps"]
+        .as_object()
+        .is_some_and(|apps| apps.keys().any(|k| normalize_app_id(k) == wanted_app))
+    {
+        wanted_app.to_owned()
+    } else if permissions.is_object() {
         match &permissions["app_id"] {
-            Value::Null => app_id.to_owned(),
-            Value::String(s) => s.clone(),
+            Value::Null if permissions["apps"].is_object() => String::new(),
+            Value::Null => wanted_app.to_owned(),
+            Value::String(s) => normalize_app_id(s).to_owned(),
             other => other.to_string(),
         }
     } else {
-        app_id.to_owned()
+        wanted_app.to_owned()
     };
-    if app != app_id {
+    if app != wanted_app {
         return Ok(None);
     }
     let label = match decrypt_field(&row["encrypted_account_label"], master) {
@@ -417,9 +442,11 @@ pub fn skill_account_candidate(
             "Connected account is missing encrypted refresh-token material.",
         ));
     }
-    Ok(Some(json!({"id":id,"provider_id":provider,"app_id":app,"label":label,
+    Ok(Some(
+        json!({"id":id,"provider_id":provider,"app_id":app,"label":label,
         "account_ref":account_ref,"capabilities":capabilities,"runtime_modes":runtime_modes,
-        "refresh_token_bundle":bundle})))
+        "refresh_token_bundle":bundle}),
+    ))
 }
 fn path_segment(value: &str) -> Result<&str> {
     if value.is_empty()
@@ -457,7 +484,9 @@ impl Account<'_> {
             .as_str()
             .filter(|v| !v.is_empty())
             .ok_or(Error::Protocol)?;
-        Ok(json!({"id":id,"provider_id":payload["provider_id"],"app_id":payload["app_id"],"label":payload["label"]}))
+        Ok(
+            json!({"id":id,"provider_id":payload["provider_id"],"app_id":payload["app_id"],"label":payload["label"]}),
+        )
     }
     /// POST /v1/connected-accounts/setup/revolut-business/exchange-code.
     pub async fn exchange_revolut_business_setup_code(
@@ -538,6 +567,100 @@ impl Account<'_> {
     }
 }
 
+/// Per-app action lists of a decrypted `encrypted_app_permissions` value, so a
+/// settings view can list "calendar: read, write; mail: read, draft" without
+/// re-deriving the shape. Reads the multi-app `apps` envelope and the old
+/// single-app `{app_id, allowed_actions}` object (one entry); anything else
+/// yields no apps. App ids go through [`normalize_app_id`].
+pub fn permission_app_actions(permissions: &Value) -> Vec<(String, Vec<String>)> {
+    let actions_of = |entry: &Value| -> Vec<String> {
+        entry["allowed_actions"]
+            .as_array()
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|a| a.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    if let Some(apps) = permissions["apps"].as_object() {
+        return apps
+            .iter()
+            .map(|(app, entry)| (normalize_app_id(app).to_owned(), actions_of(entry)))
+            .collect();
+    }
+    match permissions["app_id"].as_str() {
+        Some(app) => vec![(normalize_app_id(app).to_owned(), actions_of(permissions))],
+        None => vec![],
+    }
+}
+
 #[cfg(test)]
 #[path = "connected_accounts_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod skill_candidate_tests {
+    use super::*;
+
+    fn enc(master: &[u8; 32], v: Value) -> Value {
+        Value::String(crate::work::legacy_encrypt(v.to_string().as_bytes(), master).unwrap())
+    }
+    fn row(master: &[u8; 32], provider: &str, perms: Value) -> Value {
+        json!({"id":"acc1",
+            "encrypted_provider_type": enc(master, json!(provider)),
+            "encrypted_app_permissions": enc(master, perms),
+            "encrypted_refresh_token_bundle": enc(master, json!({"refresh_token":"x"}))})
+    }
+
+    #[test]
+    fn normalizes_ids() {
+        assert_eq!(normalize_provider_id("google_calendar"), "google");
+        assert_eq!(
+            normalize_provider_id("revolut_business"),
+            "revolut_business"
+        );
+        assert_eq!(normalize_app_id("google_calendar"), "calendar");
+    }
+
+    #[test]
+    fn google_calendar_row_matches_google_provider() {
+        let m = [7u8; 32];
+        let r = row(&m, "google_calendar", json!({"app_id":"google_calendar"}));
+        let c = skill_account_candidate(&r, "calendar", "google", &m).unwrap();
+        assert_eq!(c.unwrap()["provider_id"], "google");
+    }
+
+    #[test]
+    fn multi_app_envelope_supports_mail() {
+        let m = [7u8; 32];
+        let r = row(&m, "google", json!({"apps":{"calendar":{},"mail":{}}}));
+        assert!(
+            skill_account_candidate(&r, "mail", "google", &m)
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            skill_account_candidate(&r, "calendar", "google", &m)
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            skill_account_candidate(&r, "design", "google", &m)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn other_provider_is_skipped() {
+        let m = [7u8; 32];
+        let r = row(&m, "figma", json!({"app_id":"design"}));
+        assert!(
+            skill_account_candidate(&r, "calendar", "google", &m)
+                .unwrap()
+                .is_none()
+        );
+    }
+}

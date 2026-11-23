@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Afbeelding lezen…"
+        },
+        "progress_checking": {
+          "text": "Ontwerp controleren…"
+        },
+        "progress_adjusting": {
+          "text": "Ontwerp aanpassen voor borduren…"
+        },
+        "progress_stitching": {
+          "text": "Steken en voorbeeld maken…"
+        },
+        "progress_saving": {
+          "text": "Machinebestanden opslaan…"
+        },
         "threads": {
           "text": "Garens"
         },

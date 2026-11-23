@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "קורא את הגרפיקה…"
+        },
+        "progress_checking": {
+          "text": "בודק את העיצוב…"
+        },
+        "progress_adjusting": {
+          "text": "מתאים את העיצוב לרקמה…"
+        },
+        "progress_stitching": {
+          "text": "יוצר תפרים ותצוגה מקדימה…"
+        },
+        "progress_saving": {
+          "text": "שומר את קובצי המכונה…"
+        },
         "threads": {
           "text": "חוטים"
         },

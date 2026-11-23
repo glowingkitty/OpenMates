@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Đang đọc hình…"
+        },
+        "progress_checking": {
+          "text": "Đang kiểm tra thiết kế…"
+        },
+        "progress_adjusting": {
+          "text": "Đang điều chỉnh thiết kế để thêu…"
+        },
+        "progress_stitching": {
+          "text": "Đang tạo mũi thêu và bản xem trước…"
+        },
+        "progress_saving": {
+          "text": "Đang lưu tệp máy thêu…"
+        },
         "threads": {
           "text": "Chỉ"
         },

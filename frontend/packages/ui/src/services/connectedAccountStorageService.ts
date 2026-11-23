@@ -8,7 +8,7 @@
 
 import { getApiEndpoint } from '../config/api';
 import { computeSHA256 } from '../message_parsing/utils';
-import { decryptWithMasterKey } from './cryptoService';
+import { decryptWithMasterKey, encryptWithMasterKey } from './cryptoService';
 import type { ConnectedAccountSendContext } from './connectedAccountTokenBrokerService';
 import { assertNoConnectedAccountSecretLeak } from './connectedAccountTokenBrokerService';
 
@@ -44,7 +44,8 @@ const STORAGE_FORBIDDEN_FIELDS = [
 	'access_token',
 	'provider_account_id',
 	'client_id',
-	'private_key'
+	'private_key',
+	'last_used_at'
 ];
 
 export interface EncryptedConnectedAccountRow {
@@ -66,6 +67,9 @@ export interface EncryptedConnectedAccountRow {
 	connector_status?: 'online' | 'offline' | 'setup_required' | 'revoked' | string | null;
 	connector_public_metadata?: Record<string, unknown> | null;
 	updated_at?: number;
+	created_at?: number | string | null;
+	/** Client-encrypted last-use time (unix seconds as JSON); the server never sees it in plaintext. */
+	encrypted_last_used_at?: string | null;
 }
 
 export type EncryptedConnectedAccountCreateInput = Omit<
@@ -435,6 +439,40 @@ function normalizeCapabilityList(value: unknown): string[] {
 	return Array.from(new Set(tokens));
 }
 
+/** Decrypted last-use time (unix seconds) of a row; null when it was never recorded. */
+export async function readConnectedAccountLastUsed(row: EncryptedConnectedAccountRow): Promise<number | null> {
+	if (!row.encrypted_last_used_at) return null;
+	const value = await decryptConnectedAccountValue<unknown>(row.encrypted_last_used_at, 'encrypted_last_used_at');
+	return typeof value === 'number' ? value : null;
+}
+
+/**
+ * Records the encrypted last-use time of the accounts a turn just used.
+ * Rust decides which writes are due (at most once per 10 minutes per account);
+ * this only decrypts, encrypts and PATCHes. Rust-core builds only.
+ */
+export async function recordConnectedAccountsLastUsed(accountIds: string[]): Promise<void> {
+	const rust = rustConnectedAccounts();
+	if (!rust || accountIds.length === 0) return;
+	const rows = await listConnectedAccounts();
+	const used = new Set(accountIds);
+	const accounts: { id: string; last_used_at: number | null }[] = [];
+	for (const row of rows) {
+		if (!used.has(row.id)) continue;
+		accounts.push({ id: row.id, last_used_at: await readConnectedAccountLastUsed(row) });
+	}
+	const touches = await (await rust).rustPlanLastUsedTouches({
+		now: Math.floor(Date.now() / 1000),
+		usedAccountIds: accountIds,
+		accounts
+	});
+	for (const touch of touches) {
+		const encrypted = await encryptWithMasterKey(JSON.stringify(touch.last_used_at));
+		if (!encrypted) throw new Error('Failed to encrypt connected account field: encrypted_last_used_at');
+		await updateConnectedAccount({ accountId: touch.id, patch: { encrypted_last_used_at: encrypted } });
+	}
+}
+
 function isLegacyMissingCapabilityList(value: unknown): boolean {
 	if (value === undefined || value === null) return true;
 	if (Array.isArray(value)) return value.length === 0;
@@ -487,6 +525,50 @@ async function parseWriteResponse(
 		throw new Error(`Connected account ${action} response was incomplete`);
 	}
 	return payload;
+}
+
+/** Per-app granted actions of a row, reading both the multi-app envelope and old single-app rows. */
+export async function readConnectedAccountAppActions(
+	row: EncryptedConnectedAccountRow
+): Promise<Record<string, string[]>> {
+	const permissions = await decryptConnectedAccountValue<ConnectedAccountPermissionsEnvelope>(
+		row.encrypted_app_permissions,
+		'encrypted_app_permissions'
+	);
+	if (permissions.apps && typeof permissions.apps === 'object') {
+		return Object.fromEntries(
+			Object.entries(permissions.apps).map(([appId, value]) => [appId, value.allowed_actions ?? []])
+		);
+	}
+	const providerId = await decryptConnectedAccountValue<string>(row.encrypted_provider_type, 'encrypted_provider_type');
+	const appId = normalizeConnectedAccountAppId(permissions.app_id ?? appIdForProvider(providerId));
+	return { [appId]: permissions.allowed_actions ?? [] };
+}
+
+/** Rewrites the granted actions of one app inside the encrypted permission envelope (multi-app form). */
+export async function buildConnectedAccountPermissionsPatch(
+	row: EncryptedConnectedAccountRow,
+	appId: string,
+	allowedActions: string[],
+	encrypt: (plaintext: string) => Promise<string | null>
+): Promise<{ encrypted_app_permissions: string }> {
+	const current = await decryptConnectedAccountValue<ConnectedAccountPermissionsEnvelope>(
+		row.encrypted_app_permissions,
+		'encrypted_app_permissions'
+	);
+	const apps: Record<string, ConnectedAccountAppPermissionEnvelope> = current.apps
+		? { ...current.apps }
+		: {
+				[normalizeConnectedAccountAppId(current.app_id ?? 'calendar')]: {
+					allowed_actions: current.allowed_actions,
+					action_scope: current.action_scope,
+					runtime_modes: current.runtime_modes
+				}
+			};
+	apps[appId] = { ...apps[appId], allowed_actions: allowedActions };
+	const encrypted = await encrypt(JSON.stringify({ apps }));
+	if (!encrypted) throw new Error('Failed to encrypt connected account permissions');
+	return { encrypted_app_permissions: encrypted };
 }
 
 async function decryptConnectedAccountValue<T>(encryptedValue: string, fieldName: string): Promise<T> {

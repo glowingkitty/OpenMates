@@ -25,6 +25,7 @@ from backend.shared.python_utils.app_skill_helpers import (
     wait_for_rate_limit,
 )
 from backend.apps.base_skill import BaseSkill
+from backend.apps.mail.skills.gmail_search import is_google_request, search_gmail
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.connected_accounts_service import (
     build_local_connector_mail_read_request,
@@ -322,6 +323,27 @@ class SearchSkill(BaseSkill):
         )
         if error_response:
             return error_response
+
+        google_requests = [r for r in requests if is_google_request(r)]
+        if google_requests:
+            if len(google_requests) != len(requests):
+                return SearchResponse(
+                    results=[], provider="Gmail",
+                    error="Do not mix Gmail and other mail providers in one search call",
+                )
+            gmail = await search_gmail(
+                requests,
+                connected_account_access_tokens=kwargs.get("connected_account_access_tokens"),
+                gmail_client_factory=kwargs.get("gmail_client_factory"),
+                secrets_manager=secrets_manager,
+                cache_service=kwargs.get("cache_service"),
+            )
+            return SearchResponse(
+                results=gmail["results"], provider="Gmail", error=gmail["error"],
+                suggestions_follow_up_requests=(
+                    self.suggestions_follow_up_requests if not gmail["error"] else None
+                ),
+            )
 
         if not user_id:
             return SearchResponse(results=[], error="Missing authenticated user context for mail search")

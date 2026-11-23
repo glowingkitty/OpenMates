@@ -10893,9 +10893,11 @@ async def handle_main_processing(
                     connected_account_token_artifacts: list[dict[str, str]] = []
                     from backend.apps.ai.processing.connected_account_execution import is_connected_account_skill
 
+                    from backend.shared.python_utils.connected_account_registry import skill_call_uses_connected_account
+
                     if is_connected_account_skill(app_id, skill_id) and (
                         app_id != "finance" or skill_arguments.get("connected_account_requests")
-                    ):
+                    ) and skill_call_uses_connected_account(app_id, skill_id, skill_arguments):
                         from backend.apps.ai.processing.connected_account_execution import (
                             cleanup_connected_account_token_artifacts,
                             connected_account_action_for_skill,
@@ -10918,6 +10920,7 @@ async def handle_main_processing(
                                 message_id=request_data.message_id,
                                 cache_service=cache_service,
                                 encryption_service=encryption_service,
+                                directus_service=directus_service,
                             )
                             skill_arguments = connected_context.skill_arguments
                             connected_account_token_artifacts = connected_context.token_artifacts

@@ -8074,6 +8074,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Чтение графики…"
+        },
+        "progress_checking": {
+          "text": "Проверка дизайна…"
+        },
+        "progress_adjusting": {
+          "text": "Адаптация дизайна для вышивки…"
+        },
+        "progress_stitching": {
+          "text": "Создание стежков и превью…"
+        },
+        "progress_saving": {
+          "text": "Сохранение файлов для машины…"
+        },
         "threads": {
           "text": "Нити"
         },

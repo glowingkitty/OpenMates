@@ -8101,6 +8101,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Lecture du graphique…"
+        },
+        "progress_checking": {
+          "text": "Vérification du motif…"
+        },
+        "progress_adjusting": {
+          "text": "Adaptation du motif pour la broderie…"
+        },
+        "progress_stitching": {
+          "text": "Création des points et de l’aperçu…"
+        },
+        "progress_saving": {
+          "text": "Enregistrement des fichiers machine…"
+        },
         "threads": {
           "text": "Fils"
         },

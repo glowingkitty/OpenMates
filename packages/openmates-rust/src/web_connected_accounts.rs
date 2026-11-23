@@ -28,7 +28,7 @@ use serde_json::{json, Map, Value};
 use js::{coalesce, index, is_str, prop, prop_opt, strict_eq, to_js_string, truthy, utf16_cmp, Lookup};
 
 /// Field names a stored row may never carry in plaintext (`STORAGE_FORBIDDEN_FIELDS`).
-const STORAGE_FORBIDDEN_FIELDS: [&str; 15] = [
+const STORAGE_FORBIDDEN_FIELDS: [&str; 16] = [
     "provider",
     "provider_type",
     "provider_name",
@@ -44,6 +44,7 @@ const STORAGE_FORBIDDEN_FIELDS: [&str; 15] = [
     "provider_account_id",
     "client_id",
     "private_key",
+    "last_used_at",
 ];
 
 /// Field names a directory, summary or token ref may never carry
