@@ -491,15 +491,31 @@ def _weekly_switch_on(monkeypatch, tmp_path):
 
 
 # contract-test: tooling
-def test_new_chats_start_on_sonnet_while_weekly_usage_is_high(tmp_path, monkeypatch):
+def test_new_chats_go_to_codex_while_weekly_usage_is_high(tmp_path, monkeypatch):
     calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
     _weekly_switch_on(monkeypatch, tmp_path)
-    dispatch.launch_claude_chat("title", "prompt")
+    monkeypatch.setenv("OPENMATES_CODEX_CHATS_DIR", str(tmp_path / "codex-chats"))
+    monkeypatch.setattr(dispatch, "codex_not_ready", lambda: "")
+    where = dispatch.launch_claude_chat("title", "Rename the settings button")
     chat = calls[-1][calls[-1].index("--") + 1:]
-    assert chat[chat.index("--model") + 1] == "claude-sonnet-5-5"
+    assert "codex chat" in where and chat[chat.index("--model") + 1] == "gpt-6.2-sol"
+    assert 'model_reasoning_effort="medium"' in chat and "OPENMATES_CHAT_ENGINE=codex" in chat
+    dispatch.launch_claude_chat("sec", "Security fix for the login rate limit")
+    chat = calls[-1][calls[-1].index("--") + 1:]
+    assert chat[chat.index("--model") + 1] == "claude-opus-5-5", "security work stays on Claude"
     dispatch.launch_claude_chat("named", "prompt", model="claude-opus-5-5", explicit_model=True)
     chat = calls[-1][calls[-1].index("--") + 1:]
     assert chat[chat.index("--model") + 1] == "claude-opus-5-5", "a model the owner named is kept"
+
+
+# contract-test: tooling
+def test_codex_not_ready_falls_back_to_sonnet_and_says_so(tmp_path, monkeypatch):
+    calls = _fake_zellij(monkeypatch, "claude [Created 1h ago] \n")
+    _weekly_switch_on(monkeypatch, tmp_path)
+    monkeypatch.setattr(dispatch, "codex_not_ready", lambda: "Codex is not logged in")
+    where = dispatch.launch_claude_chat("title", "Rename the settings button")
+    chat = calls[-1][calls[-1].index("--") + 1:]
+    assert chat[chat.index("--model") + 1] == "claude-sonnet-5-5" and "Codex not ready" in where
 
 
 # contract-test: tooling

@@ -32,14 +32,35 @@ Effort cap (owner, 2026-11-22): no chat runs above `medium`. `cap_effort` lowers
 queued starts. A resumed chat (waiter, WIP wake-up, connector reopen) keeps its
 original effort from its transcript (`chat_effort`), capped at `medium`.
 
-Weekly usage model switch (owner, 2026-11-22): from 70% weekly Claude usage until
-the weekly reset, every new chat started through `launch_claude_chat` or the
-connector starts on `claude-sonnet-5-5`, unless the owner named a model
-(`explicit_model`). Running and resumed chats keep their model. The usage guard
-service (`scripts/claude_usage_guard.py`) records each reading in
+Engine routing (owner, 2026-11-23, replaces the Sonnet switch of 2026-11-22):
+`claude_weekly_model.route()` picks engine and model for every new chat started through
+`launch_claude_chat` or the connector. While more than 30% of the weekly Claude usage is
+left, new chats keep their default (Opus for complex, Sonnet for simple work). From 70%
+used until the weekly reset they start on Codex (`gpt-6.2-sol`), except security and
+encryption work (`CLAUDE_ONLY_RE` on title and prompt), which always stays on Claude. A
+model the owner named always wins (Fable, `gpt-6.2-astra`, any named model). When Codex
+is not ready (`codex_setup.py check` fails, e.g. not logged in) a routed chat starts on
+Sonnet and the launch log says why. Running and resumed chats keep their engine and model.
+The usage guard service (`scripts/claude_usage_guard.py`) records each reading in
 `scripts/claude_weekly_model.py` (state `~/.cache/openmates/usage-guard/weekly-model.json`)
 and sends one short push to the owner when the switch starts and one when it
 ends at the reset; `python3 scripts/claude_weekly_model.py status` shows it.
+
+Codex chats (`scripts/codex_chats.py`): `gpt-6.2-sol` by default, `gpt-6.2-astra` only
+when named, effort fixed at `medium`, opened as a tab of the `claude` zellij session with
+`OPENMATES_CHAT_ID` (= `CLAUDE_CODE_SESSION_ID`) so sessions, waiters, pushes and Task
+links work unchanged. They share the running-chat cap (`claude_idle_chats admit`), are
+stopped by the lifecycle after their ✅/❓ push like Claude chats (`codex_chats.reap`), and
+are mirrored as Claude-format transcripts (`~/.openmates/codex-chats/transcripts/`) for
+list_chats, chat_detail and the briefing. They obey the same rules: `AGENTS.md` is
+generated from `CLAUDE.md`, rules and skills (`scripts/agents_md.py`; CI
+`agents-md-sync.yml` fails on drift), and the fixed `.codex/hooks.json` sends every Codex
+hook event to `scripts/codex_hook_adapter.py`, which runs the matching hooks of
+`.claude/settings.json` (apply_patch is split into one Edit/Write payload per file) plus
+two built-in guards (sub-agents keep model and medium effort; the Codex hooks and config
+cannot be changed or switched off from a chat). Git hooks, the deploy freeze and the push
+rules in `agent_question.py` are engine-independent already. `codex_setup.py check`
+must pass before a Codex chat starts.
 
 Fable (`claude-fable-5-2`) is never a default: `launch_claude_chat` refuses it
 unless the caller relays an explicit user request (`explicit_model=True`), also

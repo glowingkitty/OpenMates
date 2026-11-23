@@ -1,0 +1,34 @@
+# Fails when AGENTS.md (Codex project doc) is out of sync with CLAUDE.md,
+# .claude/rules and .claude/skills. Fix: python3 scripts/agents_md.py generate
+
+name: "AGENTS.md sync"
+
+on:
+  push:
+    paths:
+      - "CLAUDE.md"
+      - "AGENTS.md"
+      - ".claude/rules/**"
+      - ".claude/skills/**"
+      - "scripts/agents_md.py"
+  pull_request:
+    paths:
+      - "CLAUDE.md"
+      - "AGENTS.md"
+      - ".claude/rules/**"
+      - ".claude/skills/**"
+      - "scripts/agents_md.py"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - run: python3 scripts/agents_md.py check

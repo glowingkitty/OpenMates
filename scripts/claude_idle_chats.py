@@ -121,6 +121,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import claude_chat_continue  # noqa: E402  (path set above)
 import claude_chat_pending  # noqa: E402  (path set above)
 import claude_chat_waiters  # noqa: E402  (path set above)
+import codex_chats  # noqa: E402  (path set above)
 import worktree_wip  # noqa: E402  (path set above)
 
 DEFAULTS = {
@@ -1097,6 +1098,9 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
     if args.command != "list" and not args.dry_run:
         for chat in live:
             close_setup_offer(chat, directory)  # declined; the next cycle sees its real state
+        for entry in ([] if UNREADABLE in waiters else
+                      codex_chats.reap(pushed, config["idle_stop_minutes"], set(waiters), now)):
+            log_event(directory, {"event": "codex_stopped", "session_id": entry["chat_id"], "why": entry["why"]})
     idle_minutes = (min(config["pressure_idle_minutes"], config["idle_stop_minutes"])
                     if getattr(args, "pressure", False) else None)
     plan: list[tuple[Chat, Decision]] = []
@@ -1329,9 +1333,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "admit":
         args.command = "reap"
         left, _ = run_cycle(args, config, room=1)
-        if len(left) < int(config["max_running"]):
+        running = len(left) + len(codex_chats.live())  # Codex chats share the slots (TASK-4476)
+        if running < int(config["max_running"]):
             return 0
-        print(f"no room: {len(left)} chats run (max {config['max_running']}) and none may be suspended now "
+        print(f"no room: {running} chats run (max {config['max_running']}) and none may be suspended now "
               "(all working, waiting or recently active)")
         return EXIT_NO_ROOM
     _, failed = run_cycle(args, config)

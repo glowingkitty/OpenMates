@@ -571,7 +571,7 @@ assertions:
       surface: cli
     - &id060
       path: scripts/tests/test_claude_dispatch.py
-      line: 518
+      line: 534
       name: test_ai_test_user_run_starts_chats_directly_and_marco_approved_ones_skip_the_cap
       surface: cli
     tests:

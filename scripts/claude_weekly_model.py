@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
-"""New chats start on Sonnet while the weekly Claude usage is at or above 70% (owner, 2026-11-22).
+"""New chats go to Codex while 30% or less of the weekly Claude usage is left (owner, 2026-11-23).
 
-From the moment the subscription's weekly (seven_day) usage reaches SWITCH_PERCENT until
-the weekly reset, every NEW chat the host starts (claude_dispatch.launch_claude_chat:
-issue and prod-errors chats, the dev connector's start_chat, queued starts) runs on
-SONNET_MODEL, unless the owner named a model explicitly (`explicit_model`). Running and
-resumed chats keep their model.
+Routing rule for every NEW chat the host starts (claude_dispatch.launch_claude_chat: issue
+and prod-errors chats, the dev connector's start_chat, queued starts):
+  * more than 30% of the weekly Claude usage left: Claude, Opus by default (Sonnet when the
+    caller asks for it for simple work), as before;
+  * 30% or less left (SWITCH_PERCENT used) until the weekly reset: Codex on CODEX_MODEL;
+  * always Claude: security work and anything touching encryption (CLAUDE_ONLY_RE on the
+    title and prompt), until the owner decides Codex has proven itself;
+  * an explicit model choice of the owner (Fable, Astra, any named model) always wins.
+This replaces the rule of 2026-11-22 (Sonnet from 70% used). Running and resumed chats
+keep their engine and model.
 
 The usage guard (scripts/claude_usage_guard.py, a user service checking every 5 minutes)
 calls `update` with each reading. The switch is recorded in STATE_NAME next to the guard's
 own records; `update` sends one short ✅ push to the owner when the switch turns on and one
-when it ends at the reset. `sonnet_active` is what launchers read: the recorded switch,
+when it ends at the reset. `switch_active` is what launchers read: the recorded switch,
 off once its reset time has passed.
 
 Commands:
@@ -23,6 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -31,6 +37,12 @@ from zoneinfo import ZoneInfo
 
 SWITCH_PERCENT = 70.0
 SONNET_MODEL = "claude-sonnet-5-5"
+CODEX_MODEL = "gpt-6.2-sol"
+# Security work and encryption stay on Claude (owner, 2026-11-23).
+CLAUDE_ONLY_RE = re.compile(
+    r"\b(security|secur(e|ity)[- ]fix|vulnerab\w*|cve-\d+|exploit\w*|pentest\w*|encrypt\w*|decrypt\w*|"
+    r"crypto\w*|e2ee|end-to-end|cipher\w*|master[- ]key|chat[- ]key|key[- ](mismatch|rotation|derivation|wrap\w*)|"
+    r"zero[- ]knowledge)\b", re.IGNORECASE)
 STATE_NAME = "weekly-model.json"
 PUSH_CHAT_ID = "claude-weekly-model"
 PUSH_TITLE = "Weekly model switch"
@@ -68,19 +80,36 @@ def _resets(record: dict) -> datetime | None:
     return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
 
 
-def sonnet_active(now: datetime | None = None, record: dict | None = None) -> bool:
-    """True while new chats must start on Sonnet: the switch is on and its reset has not passed."""
+def switch_active(now: datetime | None = None, record: dict | None = None) -> bool:
+    """True while new chats go to Codex: the switch is on and its reset has not passed."""
     record = load() if record is None else record
     resets = _resets(record)
     now = now or datetime.now(timezone.utc)
     return bool(record.get("active")) and resets is not None and now < resets
 
 
+sonnet_active = switch_active  # name used by older callers (dev connector)
+
+
+def claude_only(text: str) -> bool:
+    """Security or encryption work: never routed to Codex."""
+    return bool(CLAUDE_ONLY_RE.search(text or ""))
+
+
+def route(default: str, explicit_model: bool = False, text: str = "", now: datetime | None = None) -> tuple[str, str]:
+    """(engine, model) of a new chat: 'claude' or 'codex' per the routing rule in the module doc."""
+    if explicit_model:
+        return ("codex" if default.lower().startswith(("gpt-", "codex")) else "claude"), default
+    if default.lower().startswith(("gpt-", "codex")):
+        return "codex", default
+    if switch_active(now) and not claude_only(text):
+        return "codex", CODEX_MODEL
+    return "claude", default
+
+
 def new_chat_model(default: str, explicit_model: bool = False, now: datetime | None = None) -> str:
-    """The model a new chat starts on: Sonnet while the switch is on, unless the owner named one."""
-    if explicit_model or not sonnet_active(now):
-        return default
-    return SONNET_MODEL
+    """The Claude model a new Claude chat starts on (the switch now moves chats to Codex, not Sonnet)."""
+    return default
 
 
 def _when(resets: datetime) -> str:
@@ -88,12 +117,12 @@ def _when(resets: datetime) -> str:
 
 
 def on_message(used: float, resets: datetime) -> str:
-    return (f"Weekly Claude usage is at {used:.0f}%: new chats start on Sonnet until the weekly "
-            f"reset ({_when(resets)}).")
+    return (f"Weekly Claude usage is at {used:.0f}%: new chats go to Codex until the weekly "
+            f"reset ({_when(resets)}), except security and encryption work.")
 
 
 def off_message() -> str:
-    return "Weekly Claude usage reset: new chats start on Opus again."
+    return "Weekly Claude usage reset: new chats start on Claude again."
 
 
 def push(text: str) -> str:
@@ -120,7 +149,7 @@ def update(used: float, resets: datetime, now: datetime | None = None, notify=pu
     is_on = used >= SWITCH_PERCENT and now < resets
     record.update({"used": used, "checked_at": now.isoformat(timespec="seconds")})
     change = ""
-    if is_on and not sonnet_active(now, record):
+    if is_on and not switch_active(now, record):
         change = "on"
         record.update({"active": True, "since": now.isoformat(timespec="seconds"), "resets_at": resets.isoformat()})
         record["push_error"] = notify(on_message(used, resets))
@@ -142,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
         used, resets = fetch_weekly_usage()
         print(f"used {used:.1f}%, resets {resets.isoformat()}: {update(used, resets) or 'no change'}")
     record = load()
-    print(json.dumps({**record, "sonnet_active": sonnet_active(record=record)}, indent=1, sort_keys=True))
+    print(json.dumps({**record, "codex_active": switch_active(record=record)}, indent=1, sort_keys=True))
     return 0
 
 

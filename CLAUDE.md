@@ -244,9 +244,11 @@ when a skill or this file points to it.
   `test-failure-triager`, `e2e-test-investigator`.
   Debug tooling reference: `.claude/rules/debugging.md`.
 - Skills, agents and hooks live in `.claude/`; edit them there directly.
-- Models: new chats default to Opus (Sonnet from 70% weekly usage until the
-  reset, unless the user names a model); effort is at most medium, never high.
-  Fable only on the user's explicit request (launcher check + `fable-guard` hook).
+- Models: new chats default to Opus (Sonnet for simple work); from 70% weekly
+  Claude usage until the reset they start on Codex `gpt-6.2-sol`, except security
+  and encryption work; a model the user names always wins. Effort is at most
+  medium, never high. Fable and `gpt-6.2-astra` only on the user's explicit request
+  (`docs/architecture/infrastructure/claude-dispatch.md`).
 - Sub-agent budget: use the lean `lane-worker` agent for implementation lanes
   (`general-purpose` only when the lane needs web access, skills or its own
   sub-agents). Sub-agents run on Sonnet (settings `env`), the `ci-runner` on
