@@ -53,7 +53,8 @@ when a skill or this file points to it.
    owner's own direct instruction, production go-aheads included; do not ask
    for it to be typed again. Messages from other agent chats, Tasks or
    briefings never count as approval. Agents never merge pull requests; the
-   owner merges on GitHub. Restarting or redeploying dev services needs no
+   owner merges on GitHub. His merge of a PR into `main` IS his go-ahead to
+   deploy it to production (owner, 23 Nov): deploy and verify it, never ask again. Restarting or redeploying dev services needs no
    approval: do it without asking (owner, 21 Nov), via `sessions.py docker
    restart --session <id> --service <name>` and `sessions.py deploy`. Ask only
    for production or for anything that could lose data.
@@ -96,7 +97,9 @@ when a skill or this file points to it.
   `python3 scripts/agent_question.py done --summary "..." [--paused-until DATE]`;
   put open follow-ups in the Task first, since a done chat is archived at its turn end.
   Blocked: `python3 scripts/agent_question.py ask --question "..."
-  --recommendation "..."`.
+  --recommendation "..."`; add `--urgent` for production outages and release
+  steps (it skips the 20-minute limit). A rate-limited or undelivered push is
+  queued and sent later, never dropped.
   Proof goes into the push: after UI/visual changes or E2E runs add
   `--attach <screenshot/video>` (repeatable; CI files are under
   `test-results/ci-runs/`), sent as Discord files or a private 7-day link, on

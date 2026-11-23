@@ -289,18 +289,27 @@ def test_post_marker_rate_limit_and_fallback_key(root, monkeypatch):
     assert sent[0]["webhook_url"] == "https://example.org/hook"
     marker = json.loads(aq.marker_path(root, "chat-1").read_text())
     assert marker["ts"] == 1000.0 and marker["question"] == "Which region?"
-    with pytest.raises(aq.QuestionError, match="20 minutes"):
-        aq.send(args(), root, "chat-1", 1100.0, post=post)
+    aq.send(args(), root, "chat-1", 1100.0, post=post)  # within 20 minutes: queued, not sent, not dropped
+    assert len(sent) == 1 and len(aq._queue_lines(root)) == 1
     aq.send(args(force=True), root, "chat-1", 1100.0, post=post)
     aq.send(args(), root, "chat-1", 1100.0 + aq.RATE_LIMIT_SECONDS + 1, post=post)
     assert len(sent) == 3
 
 
-def test_unconfirmed_delivery_fails_without_marker(root, monkeypatch):
+def test_unconfirmed_delivery_is_queued_and_flush_sends_it_later(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
-    with pytest.raises(aq.QuestionError, match="not confirmed"):
-        aq.send(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
-    assert not aq.marker_path(root, "chat-1").exists()
+    parsed = args()
+    aq.send(parsed, root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
+    assert parsed.queued and aq.marker_path(root, "chat-1").exists() and not (root / aq.PUSH_LOG).exists()
+    (held,) = aq._queue_lines(root)
+    assert held["due"] == 1.0 + aq.QUEUE_RETRY_SECONDS and "not confirmed" in held["last_error"]
+    assert aq.flush(root, 2.0, post=lambda **_: pytest.fail("not due yet")) == []
+    assert aq.flush(root, 1.0 + aq.QUEUE_RETRY_SECONDS, post=lambda **_: None, sleep=lambda _: None) == []
+    assert aq._queue_lines(root)[0]["attempts"] == 1  # still unconfirmed: kept, retried later
+    sent = aq.flush(root, 1.0 + 2 * aq.QUEUE_RETRY_SECONDS, post=lambda **_: {"message_id": "1"})
+    assert len(sent) == 1 and sent[0].startswith("❓") and aq._queue_lines(root) == []
+    entry = json.loads((root / aq.PUSH_LOG).read_text().splitlines()[-1])
+    assert entry["source"] == "agent_question_queue" and entry["asks"] == "Which region?"
 
 def test_transient_failure_is_retried_then_delivered(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
@@ -309,12 +318,11 @@ def test_transient_failure_is_retried_then_delivered(root, monkeypatch):
     assert waits == list(aq.RETRY_DELAYS) and not results
     assert aq.marker_path(root, "chat-1").exists()
 
-def test_gives_up_after_all_attempts(root, monkeypatch):
+def test_queues_after_all_attempts(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
     calls = []
-    with pytest.raises(aq.QuestionError, match="after 3 attempts"):
-        aq.send(args(), root, "chat-1", 1.0, post=lambda **_: calls.append(1), sleep=lambda _: None)
-    assert len(calls) == 3
+    aq.send(args(), root, "chat-1", 1.0, post=lambda **_: calls.append(1), sleep=lambda _: None)
+    assert len(calls) == 3 and "after 3 attempts" in aq._queue_lines(root)[0]["last_error"]
 
 
 def test_delivered_push_is_logged_for_the_connector(root, monkeypatch):
@@ -335,9 +343,9 @@ def test_done_push_is_logged_and_rate_limited_apart_from_the_question(root, monk
     post = lambda **kw: sent.append(kw["payload"]["content"]) or {"message_id": "1"}  # noqa: E731 - test stub
     aq.send(args(), root, "chat-1", 1000.0, post=post)
     aq.send(done_args(dry_run=False), root, "chat-1", 1100.0, post=post)
-    with pytest.raises(aq.QuestionError, match="already sent a done push"):
-        aq.send(done_args(dry_run=False), root, "chat-1", 1200.0, post=post)
+    aq.send(done_args(dry_run=False), root, "chat-1", 1200.0, post=post)  # second ✅ within 20 min: queued
     assert [m[0] for m in sent] == [aq.ASK, aq.DONE]
+    assert aq._queue_lines(root)[0]["due"] == 1100.0 + aq.RATE_LIMIT_SECONDS
     kinds = [json.loads(line)["kind"] for line in (root / aq.PUSH_LOG).read_text().splitlines()]
     assert kinds == ["ask", "done"]
     assert json.loads(aq.marker_path(root, "chat-1").read_text())["kind"] == aq.DONE
@@ -349,6 +357,19 @@ def test_other_scripts_alerts_are_logged_without_a_kind(root):
 
 def test_failed_push_is_not_logged(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
-    with pytest.raises(aq.QuestionError):
-        aq.send(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
-    assert not (root / aq.PUSH_LOG).exists()
+    aq.send(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
+    assert not (root / aq.PUSH_LOG).exists()  # logged only once flush delivers it
+
+
+def test_urgent_question_is_never_held_by_the_rate_limit(root, monkeypatch):
+    """Owner, 23 Nov: an urgent production question was held by the 20-minute limit."""
+    monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
+    sent = []
+    post = lambda **kw: sent.append(kw["payload"]["content"]) or {"message_id": "1"}  # noqa: E731 - test stub
+    aq.send(args(), root, "chat-1", 1000.0, post=post)
+    aq.send(args(urgent=True, question="Roll back the deploy?"), root, "chat-1", 1100.0, post=post)
+    aq.send(args(question="Production chats fail: restart the AI worker?"), root, "chat-1", 1200.0, post=post)
+    aq.send(args(question="Merge the release PR now?"), root, "chat-1", 1300.0, post=post)
+    assert len(sent) == 4 and aq._queue_lines(root) == []
+    aq.send(args(question="Which colour for the badge?"), root, "chat-1", 1400.0, post=post)
+    assert len(sent) == 4 and len(aq._queue_lines(root)) == 1  # not urgent: queued for later, not dropped

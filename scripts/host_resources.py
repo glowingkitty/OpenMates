@@ -16,6 +16,7 @@ calls `tick()`. Each tick:
    24 h from the hourly size log (scripts/host_disk_usage.py). Cleanup belongs to
    the disk coordinator (scripts/disk_coordinator.py); this guard checks that its
    service runs and watches whether the space comes back (TASK-7646).
+3b. Queued Discord pushes (scripts/agent_question.py flush) are sent once due.
 4. A problem that persists for ALERT_AFTER_SECONDS although self-healing ran sends
    one "feedback needed" Discord push per incident (scripts/agent_question.py);
    recovery is logged as `resources_recovered`. Nothing else alerts.
@@ -274,6 +275,14 @@ def tick(sample: guard.Sample, decision: guard.Decision, directory: Path | None 
     if result.returncode:
         guard.append_event(directory, "inputs_watch_failed", {"code": result.returncode,
                                                                "error": result.stderr.strip()[-300:]})
+
+    # Discord pushes held by the rate limit or an unconfirmed delivery go out once due
+    # (agent_question.py flush; never dropped, owner 23 Nov).
+    result = _script("agent_question.py", "flush")
+    if result.returncode or result.stdout.strip():
+        guard.append_event(directory, "queued_pushes_flushed", {"code": result.returncode,
+                                                                "sent": result.stdout.strip().splitlines()[:20],
+                                                                "error": result.stderr.strip()[-300:]})
 
     disk = disk_levels(repo, state)
     if any(disk.values()):

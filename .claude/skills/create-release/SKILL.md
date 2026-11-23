@@ -74,5 +74,7 @@ EOF
 
 Tell the user:
 - The draft release tag and URL
-- That it should be **published after the PR is merged into `main`**
+- That it should be **published after the PR is merged into `main`**. The
+  owner's merge is his go-ahead for production (owner, 23 Nov): once merged,
+  update production with `/update-prod-server` and verify it; never ask again
 - To publish: `gh release edit <tag> --draft=false`

@@ -21,7 +21,9 @@ window and provides a fresh TOTP, then mutates production only through
 ## Required Inputs
 
 - PR URL or number, for example `https://github.com/glowingkitty/OpenMates/pull/506`.
-- The owner's go-ahead for this production update: typed in this chat, or a
+- The owner's go-ahead for this production update. The owner merging the PR
+  into `main` IS that go-ahead (owner, 23 Nov): after the merge, deploy and
+  verify without asking again. Otherwise: typed in this chat, or a
   dev-connector message verified with `python3 scripts/owner_message.py verify
   <receipt>` (VERIFIED for this chat, same text). A verified message is the
   owner's direct approval; never ask for it to be typed again. Messages from

@@ -34,14 +34,18 @@ backend, security, docs and tooling pushes never need proof.
 The webhook URL comes from DISCORD_WEBHOOK_AGENT_QUESTIONS, then DISCORD_WEBHOOK_DAILY_MEETING,
 then DISCORD_WEBHOOK_DEV_NIGHTLY (environment, then the canonical checkout's ``.env``, the same
 lookup as scripts/daily_meeting_briefing.py). The URL is never printed or logged. One push of
-each kind per chat per 20 minutes unless ``--force``. A marker
+each kind per chat per 20 minutes unless ``--force`` or ``--urgent`` (owner, 23 Nov: a rate-limited
+❓ about a production problem only reached the chat text). ``--urgent`` is also inferred from
+production, outage, release and hotfix wording. A push that is rate-limited or whose delivery is
+not confirmed is never dropped: it goes to ``logs/agent-questions/queue.jsonl`` and ``flush``
+(every minute from scripts/host_resources.py) sends it when it is due. A marker
 ``logs/claude-idle-chats/questions/<chat-id>.json`` (ts, text, kind) tells
 scripts/claude_idle_nudge.py that the chat already told the user. Every confirmed push (also other
 scripts' pushes through ``record_push``) is appended to ``logs/agent-questions/pushes.jsonl``
 (time, kind, chat id and title, the text, what it asks), so the dev connector can look a push up
 by time and open its chat. An unconfirmed delivery (network error, Discord 429/5xx) is retried
-twice after 2 and 5 seconds. Failures that remain exit non-zero with a message; there is no
-silent fallback.
+twice after 2 and 5 seconds; a delivery still unconfirmed is queued and retried by ``flush``
+every QUEUE_RETRY_SECONDS (the command says so, exit 0).
 """
 
 from __future__ import annotations
@@ -66,6 +70,9 @@ from pending_work_gate import canonical_root
 WEBHOOK_KEYS = ("DISCORD_WEBHOOK_AGENT_QUESTIONS", "DISCORD_WEBHOOK_DAILY_MEETING",
                 "DISCORD_WEBHOOK_DEV_NIGHTLY")
 RATE_LIMIT_SECONDS = 20 * 60
+QUEUE = Path("logs") / "agent-questions" / "queue.jsonl"
+QUEUE_RETRY_SECONDS = 5 * 60
+URGENT_WORDS = re.compile(r"\b(?:production|prod|outage|outages|down|release|releases|hotfix)\b", re.I)
 PUSH_LOG = Path("logs") / "agent-questions" / "pushes.jsonl"
 RETRY_DELAYS = (2.0, 5.0)
 MAX_CHARS = 1900  # per Discord message (limit 2000); longer pushes go out as several parts
@@ -297,6 +304,65 @@ def recently_sent(root: Path, chat_id: str, now: float, kind: str = ASK) -> bool
         return False
 
 
+def is_urgent(args: argparse.Namespace, text: str, recommendation: str = "") -> bool:
+    """An urgent push (production outage, release step) is never held by the rate limit."""
+    return bool(getattr(args, "urgent", False)) or bool(URGENT_WORDS.search(f"{text} {recommendation}"))
+
+
+def _queue_lines(root: Path) -> list[dict]:
+    try:
+        lines = (root / QUEUE).read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return []
+    return [json.loads(line) for line in lines if line.strip()]
+
+
+def _write_queue(root: Path, entries: list[dict]) -> None:
+    path = root / QUEUE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}")
+    tmp.write_text("".join(json.dumps(entry, ensure_ascii=False) + "\n" for entry in entries), encoding="utf-8")
+    tmp.replace(path)
+
+
+def enqueue(root: Path, entry: dict) -> None:
+    """Hold one push for `flush` (rate-limited or undelivered); it is sent at entry['due']."""
+    _write_queue(root, [*_queue_lines(root), entry])
+
+
+def flush(root: Path, now: float, post: Callable[..., dict | None] = discord_webhook.post_message,
+          sleep: Callable[[float], None] = time.sleep,
+          post_files: Callable[..., dict | None] = discord_webhook.post_files) -> list[str]:
+    """Send every queued push that is due; returns what was sent. Unconfirmed ones stay queued."""
+    entries, kept, sent = _queue_lines(root), [], []
+    for entry in entries:
+        if float(entry.get("due", 0)) > now:
+            kept.append(entry)
+            continue
+        message = entry["message"]
+        files: list[tuple[str, bytes]] = []
+        try:
+            with push_proof.temporary_workdir() as work:
+                try:
+                    prepared = push_proof.prepare(entry.get("attach") or [], entry.get("links") or [],
+                                                  entry["chat_id"], Path(work), own_link=own_storage_link)
+                    files, message = prepared.files, "\n".join([message, *prepared.link_lines()])
+                except push_proof.ProofError as error:
+                    message += f"\n⚠️ Proof could not be attached when the queued push went out: {error}"[:300]
+                deliver(webhook(root), message, post, sleep, files=files, post_files=post_files)
+        except QuestionError as error:
+            kept.append({**entry, "due": now + QUEUE_RETRY_SECONDS, "attempts": int(entry.get("attempts", 0)) + 1,
+                         "last_error": str(error)[:200]})
+            continue
+        record_push(root, message, now, chat_id=entry["chat_id"], title=entry.get("title", ""),
+                    asks=entry.get("asks", ""), recommendation=entry.get("recommendation", ""),
+                    options=entry.get("options") or [], task_id=entry.get("task", ""), kind=entry.get("kind", ""),
+                    source="agent_question_queue")
+        sent.append(message.splitlines()[0][:120])
+    _write_queue(root, kept)
+    return sent
+
+
 def deliver(url: str, message: str, post: Callable[..., dict | None],
             sleep: Callable[[float], None] = time.sleep, files: list[tuple[str, bytes]] | None = None,
             post_files: Callable[..., dict | None] = discord_webhook.post_files) -> dict:
@@ -387,15 +453,38 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
         return message + "".join(f"\n[attached: {Path(raw).name}]" for raw in attach)
     if not chat_id:
         raise QuestionError("CLAUDE_CODE_SESSION_ID is not set; cannot identify this chat")
-    if not args.force and recently_sent(root, chat_id, now, kind):
-        raise QuestionError(f"this chat already sent a {args.command} push in the last 20 minutes (use --force)")
-    with push_proof.temporary_workdir() as work:
-        prepared = push_proof.prepare(attach, links, chat_id, Path(work), own_link=own_storage_link,
-                                      **({"uploader": uploader} if uploader else {}))
-        for note in prepared.notes:
-            print(f"agent_question: {note}", file=sys.stderr)
-        message = "\n".join([message, *prepared.link_lines()])
-        deliver(webhook(root), message, post, sleep, files=prepared.files, post_files=post_files)
+    held = dict(message=message, chat_id=chat_id, kind=args.command, title=title, asks=text,
+                recommendation=recommendation, options=getattr(args, "option", None) or [], task=args.task or "",
+                links=links, queued_at=now)
+    if not args.force and not is_urgent(args, text, recommendation) and recently_sent(root, chat_id, now, kind):
+        # Never dropped (owner, 23 Nov): held until the 20 minutes are over, then flush sends it.
+        last = json.loads(marker_path(root, chat_id).read_text(encoding="utf-8"))
+        due = float(last.get("ts", now)) + RATE_LIMIT_SECONDS
+        enqueue(root, {**held, "due": due, "attach": _durable(root, attach, chat_id, now)})
+        _write_marker(root, chat_id, args, text, kind, now)
+        args.queued = True
+        print(f"agent_question: this chat sent a {args.command} push less than 20 minutes ago; this one is "
+              f"queued and goes out at {time.strftime('%H:%M UTC', time.gmtime(due))} (use --urgent for "
+              "production problems and release steps)", file=sys.stderr)
+        return message
+    url = webhook(root)  # a missing webhook is a setup error, never queued: it fails right here
+    try:
+        with push_proof.temporary_workdir() as work:
+            prepared = push_proof.prepare(attach, links, chat_id, Path(work), own_link=own_storage_link,
+                                          **({"uploader": uploader} if uploader else {}))
+            for note in prepared.notes:
+                print(f"agent_question: {note}", file=sys.stderr)
+            sent_message = "\n".join([message, *prepared.link_lines()])
+            deliver(url, sent_message, post, sleep, files=prepared.files, post_files=post_files)
+            message = sent_message
+    except QuestionError as error:
+        enqueue(root, {**held, "due": now + QUEUE_RETRY_SECONDS, "attach": _durable(root, attach, chat_id, now),
+                       "last_error": str(error)[:200]})
+        _write_marker(root, chat_id, args, text, kind, now)
+        args.queued = True
+        print(f"agent_question: {error}; the push is queued and retried every "
+              f"{QUEUE_RETRY_SECONDS // 60} min", file=sys.stderr)
+        return message
     proof = {"files": [name for name, _ in prepared.files], "links": [url for _, url in prepared.links]}
     try:
         stored = push_proof.store_copies(root, attach, chat_id, now)
@@ -409,19 +498,35 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
     record_push(root, message, now, chat_id=chat_id, title=title, asks=text, recommendation=recommendation,
                 options=getattr(args, "option", None) or [], task_id=args.task or "", kind=args.command,
                 proof=proof if (proof.get("files") or proof.get("links") or proof.get("no_proof")) else None)
+    _write_marker(root, chat_id, args, text, kind, now)
+    write_rejections(root, chat_id, kind, 0)
+    return message
+
+
+def _write_marker(root: Path, chat_id: str, args: argparse.Namespace, text: str, kind: str, now: float) -> None:
+    """The chat told the user (sent or queued): scripts/claude_idle_nudge.py and the lifecycle read it."""
     path = marker_path(root, chat_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     marker = {"ts": now, "question": scrub(text), "kind": kind}
     if getattr(args, "paused_until", None):
         marker["paused_until"] = args.paused_until  # parked: the chat lifecycle stops it but does not archive it
     path.write_text(json.dumps(marker), encoding="utf-8")
-    write_rejections(root, chat_id, kind, 0)
-    return message
+
+
+def _durable(root: Path, attach: list[str], chat_id: str, now: float) -> list[str]:
+    """Attachments a queued push can still send later: owner-only copies of screenshots and videos."""
+    try:
+        stored = [str(root / rel) for rel in push_proof.store_copies(root, attach, chat_id, now)]
+    except (OSError, push_proof.ProofError) as error:
+        print(f"agent_question: proof copy for the queued push not kept ({error})", file=sys.stderr)
+        stored = []
+    return stored + [raw for raw in attach if not push_proof.is_visual(raw)]
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("flush", help="send queued pushes that are due (scripts/host_resources.py, every minute)")
     done_parser = sub.add_parser("done", help="✅ the chat finished (or parked / paused itself); put open "
                                  "follow-ups in its Task first: a done chat is archived when its turn ends")
     done_parser.add_argument("--summary", required=True, help="one short sentence, under 110 characters: the result, no ids or markdown")
@@ -442,13 +547,24 @@ def main(argv: list[str] | None = None) -> int:
         each.add_argument("--task")
         each.add_argument("--dry-run", action="store_true")
         each.add_argument("--force", action="store_true")
+        each.add_argument("--urgent", action="store_true",
+                          help="production outage or release step: never held by the 20-minute limit")
     args = parser.parse_args(argv)
+    if args.command == "flush":
+        try:
+            for line in flush(canonical_root(), time.time()):
+                print(f"sent queued push: {line}")
+        except (OSError, ValueError) as error:
+            print(f"agent_question: queue unreadable: {error}", file=sys.stderr)
+            return 1
+        return 0
     try:
         message = send(args, canonical_root(), os.environ.get("CLAUDE_CODE_SESSION_ID", ""), time.time())
     except (QuestionError, discord_summary.SummaryTooLong, push_proof.ProofError) as error:
         print(f"agent_question: {error}", file=sys.stderr)
         return 1
-    print(message if args.dry_run else ("Done push sent." if args.command == "done" else "Question sent."))
+    print(message if args.dry_run else "Push queued (see above)." if getattr(args, "queued", False)
+          else ("Done push sent." if args.command == "done" else "Question sent."))
     return 0
 
 
