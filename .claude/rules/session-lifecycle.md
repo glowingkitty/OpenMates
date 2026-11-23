@@ -54,10 +54,14 @@ paths:
 - `sessions.py deploy --title <title> --message <why>` validates, serializes and
   pushes the scoped diff to `dev`. Use `prepare-deploy` only to inspect scope.
   Keep the canonical checkout on `dev`.
-- A chat compacted 4+ times hands off: the compact SessionStart hook counts per chat
-  (`logs/claude-chat-lifecycle/compactions.json`); `scripts/chat_compaction_handoff.py handoff
-  --summary-file <f>` launches a fresh chat, detaches the old chat's `agent_task_id`, and the
-  new chat adopts the session with `sessions.py worktree bind-task`.
+- Claude and Codex hand off after two compactions or 100M cumulative weighted tokens.
+  Codex also uses 80% of its reported context window. Claude counts compact SessionStart
+  events and Codex reads its native rollout. Shared prompt and Stop hooks surface the
+  handoff. Run `scripts/chat_compaction_handoff.py handoff --summary-file <f> [--task <id>]`
+  with Done, Not done, Next step, Open decisions and References. It verifies the Task
+  activity write and releases the Task link before dispatching a successor. The successor
+  claims the Task and adopts the preserved worktree. The lifecycle archives the source
+  chat once idle, without a Discord push for the transfer.
 - Shared dev runtime mutations: `sessions.py docker restart --session <id>
   --service <name>` with its resource leases; not a substitute CI runner.
 - OpenMates Tasks owns status; no local task ledgers. `sessions.py end` is

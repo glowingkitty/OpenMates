@@ -241,6 +241,39 @@ def _rollout_lines(path: Path) -> Iterator[dict[str, Any]]:
                 yield item
 
 
+def rollout_metrics(path: Path, entry: dict | None = None) -> dict:
+    """Read complete new rollout rows and keep the latest cumulative usage counters."""
+    metrics = dict(entry or {})
+    with path.open("rb") as handle:
+        if handle.seek(0, os.SEEK_END) < metrics.get("offset", 0):
+            metrics = {}
+        handle.seek(metrics.get("offset", 0))
+        while line := handle.readline():
+            if not line.endswith(b"\n"):
+                break
+            metrics["offset"] = handle.tell()
+            if b'"compacted"' not in line and b'"token_count"' not in line:
+                continue
+            try:
+                item = json.loads(line)
+            except ValueError:
+                continue
+            if item.get("type") == "compacted":
+                metrics["compactions"] = metrics.get("compactions", 0) + 1
+            payload = item.get("payload") or {}
+            if item.get("type") == "event_msg" and payload.get("type") == "token_count":
+                info = payload.get("info") or {}
+                totals = info.get("total_token_usage") or {}
+                if totals:
+                    cached = totals.get("cached_input_tokens", 0)
+                    uncached = max(0, totals.get("input_tokens", 0) - cached)
+                    metrics["units"] = (uncached + 0.1 * cached + 5 * totals.get("output_tokens", 0)
+                                        + totals.get("cache_write_input_tokens", 0))
+                    metrics["context"] = (info.get("last_token_usage") or {}).get("input_tokens", 0)
+                    metrics["window"] = info.get("model_context_window") or 0
+    return metrics
+
+
 def _texts(content: Any) -> str:
     if isinstance(content, str):
         return content
@@ -365,6 +398,8 @@ def reap(pushed, idle_minutes: float, waiting: set[str], now: float, act: bool =
         if kind not in ("✅", "❓") or now - max(activity, float(marker.get("ts", 0))) < idle_minutes * 60:
             continue
         entry = {"chat_id": chat_id, "pid": info["pid"], "why": "reported done" if kind == "✅" else "asked the owner"}
+        if marker.get("source") == "chat_compaction_handoff":
+            entry["archived"] = True
         if act:
             try:
                 signal_fn(info["pid"], signal.SIGTERM)

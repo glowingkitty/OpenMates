@@ -51,6 +51,7 @@ every QUEUE_RETRY_SECONDS (the command says so, exit 0).
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import re
@@ -523,6 +524,21 @@ def _durable(root: Path, attach: list[str], chat_id: str, now: float) -> list[st
     return stored + [raw for raw in attach if not push_proof.is_visual(raw)]
 
 
+def send_with_loop_brake(args: argparse.Namespace, root: Path, chat_id: str) -> str | None:
+    """Send at most one question for an active loop brake, including queued delivery."""
+    import ci_triage_gate
+
+    brake = ci_triage_gate.active_brake(root, chat_id)
+    if args.dry_run or args.command != "ask" or not brake:
+        return send(args, root, chat_id, time.time())
+    path = ci_triage_gate.brake_path(root, chat_id)
+    with path.with_suffix(".lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if ci_triage_gate.already_asked(root, chat_id, brake):
+            return None
+        return send(args, root, chat_id, time.time())
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -559,10 +575,13 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         return 0
     try:
-        message = send(args, canonical_root(), os.environ.get("CLAUDE_CODE_SESSION_ID", ""), time.time())
+        message = send_with_loop_brake(args, canonical_root(), os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
     except (QuestionError, discord_summary.SummaryTooLong, push_proof.ProofError) as error:
         print(f"agent_question: {error}", file=sys.stderr)
         return 1
+    if message is None:
+        print("The loop-brake question was already sent or queued.")
+        return 0
     print(message if args.dry_run else "Push queued (see above)." if getattr(args, "queued", False)
           else ("Done push sent." if args.command == "done" else "Question sent."))
     return 0

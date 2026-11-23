@@ -43,8 +43,10 @@ when a skill or this file points to it.
    scripts/worktree_wip.py park --session <id> --reason "<why>"`. Turn ends
    snapshot dirty worktrees to `refs/openmates/wip/<session>`; the chat
    lifecycle wakes a chat with unfinished work before stopping it.
-   After the 4th compaction a chat hands off to a fresh chat on the same session and Task
-   (`scripts/chat_compaction_handoff.py`; the hook tells it when).
+   Claude and Codex hand off after the 2nd compaction or an oversized context: it writes a
+   note (done, not done, next step, open decisions, references) and runs
+   `scripts/chat_compaction_handoff.py handoff`, which puts the note in the Task, starts
+   a fresh chat on the same session and Task and archives the old one (hooks say when).
 4. Production changes, destructive data changes and ownership transfers need
    explicit authorization by the owner: typed in this chat, or a message from
    the owner's dev connector (header "[… via the owner's authenticated dev
@@ -181,7 +183,9 @@ when a skill or this file points to it.
 - Existing logs/screenshots/failures are enough to start a fix. After two
   failed attempts with the same approach, reassess; after two failures in a row
   of one spec, submit refuses it until you diagnose the cause and pass
-  `--after-triage "<cause>"`; ask before unrelated
+  `--after-triage "<cause>"`. Loop brake: after three identical failures of the same proof or test, stop and send Marco one ❓
+  push (the failure in one sentence plus your recommendation); only his answer's
+  receipt (`--after-owner-answer <receipt>`) reopens it. Ask before unrelated
   infrastructure repair or material scope growth.
 - Final reply shows proof for the exact deployed commit: per requested flow, the
   latest successful E2E video link plus 1-3 screenshots attached with

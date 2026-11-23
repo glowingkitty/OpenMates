@@ -373,3 +373,24 @@ def test_urgent_question_is_never_held_by_the_rate_limit(root, monkeypatch):
     assert len(sent) == 4 and aq._queue_lines(root) == []
     aq.send(args(question="Which colour for the badge?"), root, "chat-1", 1400.0, post=post)
     assert len(sent) == 4 and len(aq._queue_lines(root)) == 1  # not urgent: queued for later, not dropped
+
+
+def test_loop_brake_questions_are_deduplicated(root, monkeypatch):
+    import ci_triage_gate
+
+    chat = "e26fdb89-6448-4534-b9f5-0ac293c09896"
+    queue = root / "logs/ci-coordinator/queue.sqlite3"
+    brake = ci_triage_gate.register_brake(queue, chat, {"preview": ["a", "b", "c"]})
+    calls = []
+
+    def post(args, folder, chat_id, now):
+        calls.append(args.question)
+        aq._write_marker(folder, chat_id, args, args.question, aq.ASK, now)
+        return "accepted"
+
+    monkeypatch.setattr(aq, "send", post)
+    args = argparse.Namespace(command="ask", question="Retry the preview?", dry_run=False)
+    assert aq.send_with_loop_brake(args, root, chat) == "accepted"
+    assert ci_triage_gate.already_asked(root, chat, brake)
+    assert aq.send_with_loop_brake(args, root, chat) is None
+    assert calls == ["Retry the preview?"]

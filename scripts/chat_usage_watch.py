@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One owner notice when a Claude chat uses unusually many sub-agents or tokens.
+"""One owner notice when a Claude or Codex chat uses unusually many sub-agents or tokens.
 
 Owner decision (22 Nov, TASK-9435): warnings, not caps. Nothing is stopped or
 slowed down; Marco gets one Discord line per chat when it crosses a threshold,
@@ -15,6 +15,11 @@ kept in `logs/claude-chat-lifecycle/usage-watch.json`, so a scan only reads what
 was appended since the last one. The per-minute lifecycle reap calls
 `maybe_scan` (at most every SCAN_EVERY_SECONDS); `scan --dry-run` prints the
 current totals without notifying.
+
+The notice names each chat by its title in plain words (its sessions.py task, else
+its first prompt) and says whether it already handed off to a fresh chat (owner,
+23 Nov). Chats over TOKEN_NOTICE_UNITS are listed under `oversized` in the state
+file; scripts/chat_compaction_handoff.py tells such a chat to hand off now.
 """
 from __future__ import annotations
 
@@ -26,9 +31,13 @@ import sys
 import time
 from pathlib import Path
 
+import codex_chats
+
 PROJECT_DIR = Path.home() / ".claude" / "projects" / "-home-superdev-projects-OpenMates"
 TOKEN_NOTICE_UNITS = 100_000_000
 AGENT_NOTICE_COUNT = 40
+TITLE_CHARS = 80
+HANDOFF_AFTER_COMPACTIONS = 2  # chat_compaction_handoff.HANDOFF_AT
 ACTIVE_WITHIN_SECONDS = 24 * 3600
 SCAN_EVERY_SECONDS = 600
 WEBHOOK_KEYS = ("DISCORD_WEBHOOK_DEV_NIGHTLY", "DISCORD_WEBHOOK_DAILY_MEETING")
@@ -54,8 +63,9 @@ def load_state(path: Path) -> dict:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {"files": {}, "notified": {}, "last_scan": 0}
-    data.setdefault("files", {}), data.setdefault("notified", {}), data.setdefault("last_scan", 0)
+        return {"files": {}, "notified": {}, "oversized": {}, "last_scan": 0}
+    for key, empty in (("files", {}), ("notified", {}), ("oversized", {}), ("last_scan", 0)):
+        data.setdefault(key, empty)
     return data
 
 
@@ -119,8 +129,82 @@ def scan(project_dir: Path, state: dict, now: float) -> dict[str, dict]:
     return totals
 
 
-def notices(totals: dict[str, dict], notified: dict, now: float) -> list[tuple[str, str]]:
+def scan_codex(state: dict, now: float) -> dict[str, dict]:
+    totals = {}
+    files = state["files"]
+    for record in codex_chats.records():
+        path = codex_chats.rollout_path(record.get("thread_id") or "")
+        if path is None:
+            continue
+        try:
+            if now - path.stat().st_mtime > ACTIVE_WITHIN_SECONDS:
+                continue
+            metrics = codex_chats.rollout_metrics(path, files.get(str(path)))
+        except OSError:
+            continue
+        files[str(path)] = metrics
+        totals[record["chat_id"]] = {
+            "units": metrics.get("units", 0), "agents": 0, "title": record.get("title", ""),
+            "compactions": metrics.get("compactions", 0),
+        }
+    return totals
+
+
+def _load(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _transcript_title(transcript: Path) -> tuple[str, str]:
+    title = first_prompt = ""
+    try:
+        with transcript.open(encoding="utf-8", errors="replace") as handle:
+            for _, line in zip(range(400), handle):
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    continue
+                if record.get("type") == "custom-title" and record.get("customTitle"):
+                    title = str(record["customTitle"])
+                content = (record.get("message") or {}).get("content") if record.get("type") == "user" else None
+                if isinstance(content, list):
+                    content = " ".join(b.get("text", "") for b in content if isinstance(b, dict))
+                if isinstance(content, str) and content.strip() and not content.lstrip().startswith("<"):
+                    first_prompt = first_prompt or content
+    except OSError:
+        pass
+    return title, first_prompt
+
+
+def chat_title(chat: str, root: Path, project_dir: Path, title: str = "") -> str:
+    """The chat in plain words: its sessions.py task text, else its first prompt, else ''."""
+    sessions = _load(root / ".claude" / "sessions.json").get("sessions") or {}
+    text = next((str(info.get("task") or "") for info in sessions.values()
+                 if isinstance(info, dict) and info.get("agent_task_id") == chat and info.get("task")), "")
+    transcript_title, first_prompt = _transcript_title(project_dir / f"{chat}.jsonl") if not title else ("", "")
+    text = " ".join((title or transcript_title or text or first_prompt).split())
+    return text if len(text) <= TITLE_CHARS else text[:TITLE_CHARS - 1].rstrip() + "…"
+
+
+def handoff_state(chat: str, root: Path, units: float, compactions: int = 0) -> str:
+    """Whether the chat already handed off to a fresh chat (scripts/chat_compaction_handoff.py)."""
+    lifecycle = root / "logs" / "claude-chat-lifecycle"
+    if chat in _load(lifecycle / "handed_off.json"):
+        return "It already handed off to a fresh chat."
+    count = int(_load(lifecycle / "compactions.json").get(chat, 0) or 0)
+    count = max(count, compactions)
+    if count >= HANDOFF_AFTER_COMPACTIONS or units >= TOKEN_NOTICE_UNITS:
+        return "No handoff yet; it is told to hand off to a fresh chat now."
+    return f"No handoff yet (compacted {count} times, handoff after {HANDOFF_AFTER_COMPACTIONS})."
+
+
+def notices(totals: dict[str, dict], notified: dict, now: float, *, root: Path | None = None,
+            project_dir: Path = PROJECT_DIR) -> list[tuple[str, str]]:
     """(chat, text) for each chat that crossed a threshold and was not told about yet."""
+    root = root or canonical_root()
     out = []
     for chat, total in sorted(totals.items()):
         if chat in notified:
@@ -132,8 +216,10 @@ def notices(totals: dict[str, dict], notified: dict, now: float) -> list[tuple[s
             reasons.append(f"{total['agents']} sub-agents")
         if reasons:
             notified[chat] = now
-            out.append((chat, f"Chat {chat[:8]} uses unusually much: {' and '.join(reasons)}. "
-                              f"Nothing was stopped. Look: python3 scripts/agent_peers.py history {chat}"))
+            title = chat_title(chat, root, project_dir, total.get("title") or "")
+            name = f"\"{title}\"" if title else "Untitled work chat"
+            out.append((chat, f"{name} uses unusually much: {' and '.join(reasons)}. "
+                              f"{handoff_state(chat, root, total['units'], total.get('compactions', 0))}"))
     return out
 
 
@@ -151,14 +237,19 @@ def run(now: float, *, dry_run: bool = False, project_dir: Path = PROJECT_DIR, p
     path = state_path()
     state = load_state(path)
     totals = scan(project_dir, state, now)
+    totals.update(scan_codex(state, now))
     if dry_run:
         return [f"{chat[:8]} {t['units'] / 1e6:7.1f}M {t['agents']:4d} agents"
                 for chat, t in sorted(totals.items(), key=lambda kv: -kv[1]["units"])]
-    found = notices(totals, state["notified"], now)
+    state["oversized"] = {chat: round(t["units"]) for chat, t in totals.items() if t["units"] >= TOKEN_NOTICE_UNITS}
+    found = notices(totals, state["notified"], now, project_dir=project_dir)
     sent = []
     if found:  # one Discord message per scan, however many chats crossed
         ok = post("\n".join(text for _, text in found))
         sent = [f"{chat[:8]} notified={ok}" for chat, _ in found]
+        if not ok:
+            for chat, _ in found:
+                state["notified"].pop(chat, None)
     state["last_scan"] = now
     save_state(path, state)
     return sent

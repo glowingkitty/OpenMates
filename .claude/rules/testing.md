@@ -157,7 +157,15 @@ it until you diagnose the cause (`ci_coordinator.py failures <ids>`,
 `test-failure-triager`, `e2e-test-investigator`) and pass
 `--after-triage "<cause found and what this run changes>"`
 (`scripts/ci_triage_gate.py`, notes in `logs/ci-coordinator/triage-notes.jsonl`,
-switch `logs/ci-coordinator/triage-gate.json`). Ask before unrelated infrastructure repair, uncertain expected
+switch `logs/ci-coordinator/triage-gate.json`). Loop brake (owner, 23 Nov): at
+the third identical failure in a row, Claude and Codex stop retrying. For
+coordinated CI, `wait` reports the brake and `submit` refuses even with
+`--after-triage`. For proofs outside the coordinator, compare the failure
+diagnostics yourself. Send Marco ONE ❓
+push (`agent_question.py ask`, the failure in one sentence plus your
+recommendation) and end the turn; resubmit only with `--after-owner-answer
+<receipt>` of his dev-connector answer, which `owner_message.py` must verify
+for this chat. Ask before unrelated infrastructure repair, uncertain expected
 behavior or material scope growth; keep the patch and evidence.
 
 ## E2E recording delivery (web, component, CLI)

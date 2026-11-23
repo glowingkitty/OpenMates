@@ -1110,6 +1110,9 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
         for entry in ([] if UNREADABLE in waiters else
                       codex_chats.reap(pushed, config["idle_stop_minutes"], set(waiters), now)):
             log_event(directory, {"event": "codex_stopped", "session_id": entry["chat_id"], "why": entry["why"]})
+            if entry.get("archived"):
+                registry[entry["chat_id"]] = {"state": "archived", "archived_at": _utc(now),
+                                                "last_activity": _utc(now)}
     idle_minutes = (min(config["pressure_idle_minutes"], config["idle_stop_minutes"])
                     if getattr(args, "pressure", False) else None)
     plan: list[tuple[Chat, Decision]] = []

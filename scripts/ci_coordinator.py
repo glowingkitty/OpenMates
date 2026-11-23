@@ -2048,6 +2048,24 @@ def wait_for_jobs(
         sleep(min(poll, remaining))
 
 
+def loop_brake_evidence(queue, root, owner, mode, targets):
+    """Fetch the few missing receipts needed to distinguish repeats from new failures."""
+    from ci_results import fetch
+    import ci_triage_gate
+
+    candidates = ci_triage_gate.evidence_candidates(queue.path, owner, mode, targets)
+    for key in sorted(candidates):
+        if (root / "test-results/ci-runs" / key / "receipt.json").is_file():
+            continue
+        row = queue.status(key)
+        if row and row[0].get("run_id"):
+            try:
+                queue.result(GitHub(root), key, root, fetch)
+            except (OSError, RuntimeError, ValueError) as error:
+                print(f"Loop brake evidence for {key} is unavailable: {error}", file=sys.stderr)
+    return ci_triage_gate.braked_targets(queue.path, owner, mode, targets)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
@@ -2059,6 +2077,11 @@ def main():
         "--after-triage",
         default="",
         help="the diagnosed cause, required to run a target again after it failed twice in a row (scripts/ci_triage_gate.py)",
+    )
+    submit.add_argument(
+        "--after-owner-answer",
+        default="",
+        help="dev-connector receipt of the owner's answer, required after the loop brake (3 failures in a row)",
     )
     submit.add_argument(
         "--keep-queued-generations",
@@ -2235,7 +2258,10 @@ def main():
         except ModuleNotFoundError:
             import ci_triage_gate
         try:
-            ci_triage_gate.check(queue.path, args.session, args.mode, args.spec, args.after_triage)
+            loop_brake_evidence(queue, root, args.session, args.mode, args.spec)
+            ci_triage_gate.check(queue.path, args.session, args.mode, args.spec, args.after_triage,
+                                 owner_answer=args.after_owner_answer,
+                                 chat_id=os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
         except ValueError as refusal:
             print(str(refusal), file=sys.stderr)
             return 2
@@ -2382,6 +2408,20 @@ def main():
             print_receipt(receipts[0], as_json=args.json)
         else:
             print_set_summary(args.ids, states, receipts, as_json=args.json)
+        import ci_triage_gate
+
+        brakes = {}
+        for row in rows:
+            if row["state"] == "failure":
+                targets = row["specs"]
+                if isinstance(targets, str):
+                    targets = json.loads(targets)
+                brakes.update(loop_brake_evidence(queue, root, row["owner"], row["mode"], targets))
+        if brakes:
+            chat_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+            brake = ci_triage_gate.register_brake(queue.path, chat_id, brakes)
+            asked = ci_triage_gate.already_asked(root, chat_id, brake)
+            print(ci_triage_gate.brake_refusal(brakes, asked=asked), file=sys.stderr)
         return 0 if all(state == "success" for state in states) else 1
     elif args.action == "failures":
         from ci_failures import collect, render
