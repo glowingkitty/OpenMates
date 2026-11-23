@@ -105,6 +105,10 @@ when a skill or this file points to it.
    the helper refuses it; never ask them to run git commands.
 
 ## Discover, specify, prove
+
+- Attach screenshots and other images to the chat or connector message as image
+  inputs. If direct attachment is unavailable, pass the original file path and
+  open it with the chat's image viewer. Use the image itself to verify visual work.
 - Discover first: source, tests, Specifications, `docs/architecture/`, prior
   decisions. Never ask what the repo can answer. When a material decision
   remains, ask one question per message with `Recommendation:` (evidence-based,

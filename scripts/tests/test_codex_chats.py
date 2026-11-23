@@ -42,8 +42,9 @@ def test_launch_command_fixes_model_effort_and_identity(home):
     assert f"OPENMATES_CHAT_ID={record['chat_id']}" in command and f"CLAUDE_CODE_SESSION_ID={record['chat_id']}" in command
     assert 'model_reasoning_effort="medium"' in command and "features.hooks=true" in command
     assert command[-1] == "do it" and command[command.index("--model") + 1] == "gpt-6.2-sol"
-    resumed = codex_chats.tab_command(record, "next", resume_thread=THREAD)
+    resumed = codex_chats.tab_command(record, "next", resume_thread=THREAD, images=("/tmp/screen shot.png",))
     assert resumed[resumed.index("resume") + 1] == THREAD
+    assert resumed[-3:] == ["--image=/tmp/screen shot.png", "--", "next"]
 
 
 # contract-test: tooling
@@ -75,6 +76,34 @@ def test_usage_without_readings_says_so(home):
 
 
 # contract-test: tooling
+def test_mirror_keeps_app_server_images_on_the_user_message(home):
+    record = codex_chats.new_record("Read screenshot", "gpt-6.2-sol", "medium", "/repo", False)
+    record["thread_id"] = THREAD
+    codex_chats.save(record)
+    _rollout(home, [
+        {"type": "response_item", "payload": {"type": "message", "role": "user", "content": [
+            {"type": "input_text", "text": "<image name=[Image #1]>"},
+            {"type": "input_image", "image_url": "data:image/png;base64,AA=="},
+            {"type": "input_text", "text": "</image>"},
+            {"type": "input_text", "text": "What do you see?"},
+        ]}},
+        {"type": "event_msg", "payload": {"type": "user_message", "message": "What do you see?"}},
+        {"type": "response_item", "payload": {"type": "message", "role": "assistant", "content": [
+            {"type": "output_text", "text": "A screenshot."},
+        ]}},
+    ])
+    mirrored = codex_chats.mirror(record["chat_id"])
+    rows = [json.loads(line) for line in mirrored.read_text().splitlines()]
+    assert [row["type"] for row in rows] == ["custom-title", "user", "assistant"]
+    assert rows[1]["uuid"]
+    assert rows[1]["message"]["content"] == [
+        {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "AA=="}},
+        {"type": "text", "text": "What do you see?"},
+    ]
+    assert mirrored.stat().st_mode & 0o077 == 0
+
+
+# contract-test: tooling
 def test_send_targets_the_running_chats_pane(monkeypatch):
     monkeypatch.setattr(codex_chats, "live", lambda: {THREAD: {"pid": 123}})
     env = {"OPENMATES_CHAT_ID": THREAD, "ZELLIJ_SESSION_NAME": "project", "ZELLIJ_PANE_ID": "7"}
@@ -93,6 +122,13 @@ def test_send_targets_the_running_chats_pane(monkeypatch):
     env["OPENMATES_CHAT_ID"] = "another-chat"
     assert codex_chats.type_into(THREAD, "hello", zellij=run) == "its terminal pane could not be confirmed"
     assert len(calls) == 2
+    env["OPENMATES_CHAT_ID"] = THREAD
+    calls.clear()
+    assert codex_chats.type_into(THREAD, "read image", zellij=run, images=("/tmp/screen shot.png",)) == "ok"
+    action, flag, pane, *payload = calls[1]
+    assert (action, flag, pane) == ("write", "--pane-id", "terminal_7")
+    assert bytes(map(int, payload)) == b"\x1b[200~/tmp/screen shot.png\x1b[201~"
+    assert calls[-1] == ("write", "--pane-id", "terminal_7", "13")
 
 
 # contract-test: tooling

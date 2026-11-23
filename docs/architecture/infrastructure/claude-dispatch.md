@@ -68,6 +68,26 @@ rules in `agent_question.py` are engine-independent already. `codex_setup.py che
 must pass before a Codex chat starts; a stale `AGENTS.md` only warns there, it never
 refuses a start (owner, 23 Nov).
 
+### Screenshot delivery
+
+Claude Code's app uses its Remote Control connection to submit image blocks.
+The connector reads those blocks and saved push proof through `view_attachment`.
+Connector starts and follow-ups can take inline image bytes or a reference to an
+existing push or chat attachment. The broker keeps the original upload in the
+host owner's private attachment directory. Claude Code can open those files with
+`Read` when the connector uses its text-only launch or relay.
+
+Codex starts and resumes attach the files with the CLI's `--image` option. For
+a running terminal chat the connector pastes each local path separately, which
+the Codex composer turns into an image attachment. App-server clients can submit
+`image` or `localImage` items in a turn. The Codex transcript mirror exposes
+embedded image blocks to the connector's existing attachment viewer. When a
+client can only send a path, Codex can open the original with its image viewer.
+
+The Claude app's Remote Control sessions belong to Claude Code. Forward images
+from that app to a Codex chat through the connector. Native Codex app access uses
+the Codex host connection.
+
 Fable (`claude-fable-5-2`) is never a default: `launch_claude_chat` refuses it
 unless the caller relays an explicit user request (`explicit_model=True`), also
 when an environment override names it, and marks such chats with

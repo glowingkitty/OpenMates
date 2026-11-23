@@ -37,6 +37,7 @@ import json
 import os
 import re
 import shlex
+import tempfile
 import time
 import uuid
 from datetime import datetime, timezone
@@ -153,7 +154,8 @@ def chat_env(record: dict[str, Any]) -> dict[str, str]:
             "OPENMATES_CODEX_CHATS_DIR": str(state_dir()), "CLAUDE_CHAT_TITLE": record["title"]}
 
 
-def codex_args(record: dict[str, Any], prompt: str = "", resume_thread: str = "") -> list[str]:
+def codex_args(record: dict[str, Any], prompt: str = "", resume_thread: str = "",
+               images: tuple[str, ...] = ()) -> list[str]:
     """Codex TUI arguments: fixed model and effort, no approval prompts, no OS sandbox.
 
     Parity with Claude chats, which run in auto mode without an OS sandbox: the repository
@@ -173,18 +175,20 @@ def codex_args(record: dict[str, Any], prompt: str = "", resume_thread: str = ""
         "-c", "features.hooks=true",
         "--cd", record["cwd"],
     ]
+    args.extend(f"--image={path}" for path in images)
     if prompt:
-        args.append(prompt)
+        args.extend(("--", prompt) if images else (prompt,))
     return args
 
 
-def tab_command(record: dict[str, Any], prompt: str = "", resume_thread: str = "") -> list[str]:
+def tab_command(record: dict[str, Any], prompt: str = "", resume_thread: str = "",
+                images: tuple[str, ...] = ()) -> list[str]:
     """Command for the chat's zellij tab: user bins first on PATH plus the chat identity."""
     user_bins = [str(Path.home() / ".npm-global/bin"), str(Path.home() / ".local/bin")]
     inherited = [p for p in os.environ.get("PATH", os.defpath).split(os.pathsep) if p and p not in user_bins]
     env = [f"{k}={v}" for k, v in sorted(chat_env(record).items())]
     return ["/usr/bin/env", f"PATH={os.pathsep.join([*user_bins, *inherited])}", *env,
-            *codex_args(record, prompt, resume_thread)]
+            *codex_args(record, prompt, resume_thread, images)]
 
 
 # ── Live state ───────────────────────────────────────────────────────────────
@@ -282,21 +286,64 @@ def _texts(content: Any) -> str:
     return "\n".join(p for p in parts if p)
 
 
+def _message_blocks(content: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    blocks = []
+    for block in content:
+        if block.get("type") in ("input_text", "output_text"):
+            text = block.get("text", "")
+            if text and not text.startswith(("<image name=", "</image>")):
+                blocks.append({"type": "text", "text": text})
+        elif block.get("type") == "input_image":
+            header, _, data = (block.get("image_url") or "").partition(",")
+            if header.startswith("data:image/") and header.endswith(";base64") and data:
+                blocks.append({"type": "image", "source": {"type": "base64",
+                               "media_type": header.removeprefix("data:").removesuffix(";base64"), "data": data}})
+    if blocks and all(block["type"] == "image" for block in blocks):
+        blocks.insert(0, {"type": "text", "text": "Attached image"})
+    return blocks
+
+
 def to_claude_records(items: Iterator[dict[str, Any]], record: dict[str, Any]) -> list[dict[str, Any]]:
     """Codex session items as Claude Code transcript records (what the connector reads)."""
     chat_id, cwd, model = record["chat_id"], record.get("cwd", ""), f"codex:{record.get('model', DEFAULT_MODEL)}"
     out: list[dict[str, Any]] = [{"type": "custom-title", "customTitle": record.get("title", ""), "sessionId": chat_id}]
-    for item in items:
+    previous_message: tuple[str, str, str, int] | None = None
+    for index, item in enumerate(items):
         stamp, payload = item.get("timestamp"), item.get("payload") or {}
         if not isinstance(payload, dict):
             continue
         base = {"timestamp": stamp, "sessionId": chat_id, "cwd": cwd, "engine": "codex"}
         kind, ptype = item.get("type"), payload.get("type")
-        if kind == "event_msg" and ptype == "user_message" and payload.get("message"):
-            out.append({**base, "type": "user", "message": {"role": "user", "content": str(payload["message"])}})
-        elif kind == "event_msg" and ptype == "agent_message" and payload.get("message"):
-            out.append({**base, "type": "assistant", "message": {
-                "role": "assistant", "model": model, "content": [{"type": "text", "text": str(payload["message"])}]}})
+        role = payload.get("role")
+        is_message = kind == "response_item" and ptype == "message" and role in ("user", "assistant")
+        is_event = kind == "event_msg" and ptype in ("user_message", "agent_message")
+        if is_message or is_event:
+            if is_event:
+                role = "user" if ptype == "user_message" else "assistant"
+                text = str(payload.get("message") or "")
+                blocks = [{"type": "text", "text": text}] if text else []
+            else:
+                content = payload.get("content") or []
+                if (role == "user" and len(content) == 2
+                        and content[0].get("text", "").startswith("# AGENTS.md instructions for ")
+                        and content[1].get("text", "").startswith("<environment_context>")):
+                    continue  # Initial workspace context is recorded as a synthetic user message.
+                blocks = _message_blocks(content)
+                text = _texts(blocks)
+            if not blocks:
+                continue
+            message = {"role": role, "content": blocks}
+            row_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{chat_id}:{index}"))
+            if role == "assistant":
+                message["model"] = model
+            row = {**base, "type": role, "uuid": row_id, "message": message}
+            if previous_message and previous_message[:2] == (role, text) and previous_message[2] != kind:
+                if is_message:
+                    out[previous_message[3]] = row  # Prefer the record with the original content blocks.
+                previous_message = None
+                continue
+            previous_message = (role, text, kind, len(out))
+            out.append(row)
         elif kind == "response_item" and ptype in ("function_call", "custom_tool_call", "local_shell_call"):
             name = str(payload.get("name") or ptype)
             raw = payload.get("arguments") or payload.get("input") or payload.get("action") or {}
@@ -344,9 +391,15 @@ def mirror(chat_id: str) -> Path | None:
         return target
     rows = to_claude_records(_rollout_lines(source), record)
     target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(".tmp")
-    tmp.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
-    tmp.replace(target)
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=target.parent, delete=False) as handle:
+        tmp = Path(handle.name)
+        try:
+            for row in rows:
+                handle.write(json.dumps(row) + "\n")
+            handle.close()
+            tmp.replace(target)
+        finally:
+            tmp.unlink(missing_ok=True)
     return target
 
 
@@ -410,7 +463,7 @@ def reap(pushed, idle_minutes: float, waiting: set[str], now: float, act: bool =
     return stopped
 
 
-def type_into(chat_id: str, text: str, zellij=None) -> str:
+def type_into(chat_id: str, text: str, zellij=None, *, images: tuple[str, ...] = ()) -> str:
     """Type a message into a live Codex chat's tab and submit it ('ok' or why not).
 
     Codex queues a message typed while a turn runs and takes it as the next prompt.
@@ -426,10 +479,16 @@ def type_into(chat_id: str, text: str, zellij=None) -> str:
         return "its terminal pane could not be confirmed"
     run = zellij or (lambda *a: subprocess.run(["zellij", "--session", session, "action", *a],
                                                capture_output=True, text=True, timeout=30, check=False))
-    for action, value in (("write-chars", " ".join(text.split("\n"))), ("write", "13")):
-        if action == "write":
+    actions = [("write-chars", [" ".join(text.split("\n"))])]
+    for path in images:
+        # The Codex composer attaches a single image path received as a bracketed paste.
+        paste = f"\x1b[200~{path}\x1b[201~".encode()
+        actions.append(("write", [str(byte) for byte in paste]))
+    actions.append(("write", ["13"]))
+    for index, (action, args) in enumerate(actions):
+        if index == len(actions) - 1:
             time.sleep(0.5)  # Let Codex finish interpreting the paste before submitting it.
-        result = run(action, "--pane-id", f"terminal_{pane}", value)
+        result = run(action, "--pane-id", f"terminal_{pane}", *args)
         if result.returncode:
             return f"zellij {action} failed: {(result.stderr or '').strip()[:160]}"
     return "ok"

@@ -266,13 +266,15 @@ def admit_new_chat() -> str | None:
 
 
 def queue_launch(title: str, prompt: str, model: str, effort: str, explicit_model: bool, why: str,
-                 change_scope: str = "", engine: str = "claude", *, live_voice: bool = False) -> Path:
+                 change_scope: str = "", engine: str = "claude", *, live_voice: bool = False,
+                 images: tuple[str, ...] = ()) -> Path:
     PENDING_DIR.mkdir(parents=True, exist_ok=True)
     path = PENDING_DIR / f"{_now():%Y%m%dT%H%M%S%f}.json"
     staged = path.with_suffix(".tmp")
     staged.write_text(json.dumps({"title": title, "prompt": prompt, "model": model, "effort": effort,
                                   "explicit_model": explicit_model, "queued_at": _now().isoformat(), "why": why,
-                                  "change_scope": change_scope, "engine": engine, "live_voice": live_voice}),
+                                  "change_scope": change_scope, "engine": engine, "live_voice": live_voice,
+                                  "images": images}),
                       encoding="utf-8")
     staged.replace(path)
     _record_launch({"kind": "queued", "title": title, "model": model, "why": why, "file": path.name})
@@ -297,6 +299,7 @@ def _start_pending(limit: int, force: bool) -> list[dict[str, Any]]:
             results.append({"file": path.name, "status": "still queued", "why": why})
             break
         explicit = bool(entry.get("explicit_model"))
+        media = {"images": tuple(entry["images"])} if entry.get("images") else {}
         task_prompt = entry["prompt"].removesuffix(f"\n\n{PUSH_RULE}")
         engine, model = claude_weekly_model.route(entry["model"], explicit, f"{entry['title']}\n{task_prompt}",
                                                   live_voice=bool(entry.get("live_voice")))
@@ -305,11 +308,11 @@ def _start_pending(limit: int, force: bool) -> list[dict[str, Any]]:
             if unavailable:
                 results.append({"file": path.name, "status": "still queued", "why": unavailable})
                 continue
-            where = _open_codex_tab(entry["title"], entry["prompt"], model, explicit, entry.get("change_scope", ""))
+            where = _open_codex_tab(entry["title"], entry["prompt"], model, explicit, entry.get("change_scope", ""), **media)
         else:
             where = _open_chat_tab(entry["title"], entry["prompt"], model, entry["effort"],
                                    entry.get("change_scope", ""), explicit_model=explicit,
-                                   live_voice=bool(entry.get("live_voice")))
+                                   live_voice=bool(entry.get("live_voice")), **media)
         path.unlink()
         outcome = {"file": path.name, "status": "launched", "session": where, "title": entry["title"]}
         _record_launch({"kind": "pending", "model": entry["model"], "forced": force, **outcome})
@@ -320,6 +323,7 @@ def _start_pending(limit: int, force: bool) -> list[dict[str, Any]]:
 def launch_claude_chat(
     title: str, prompt: str, model: str = CLAUDE_MODEL, effort: str = CLAUDE_EFFORT, explicit_model: bool = False,
     change_scope: str = "", force: bool = False, *, live_voice: bool = False, admitted: bool = False,
+    images: tuple[str, ...] = (),
 ) -> str:
     """Open the chat as an interactive Remote Control session in its own tab of the
     persistent zellij session; returns `<session>/<tab title>`.
@@ -352,13 +356,16 @@ def launch_claude_chat(
     if force and not why:
         _record_launch({"kind": "forced", "title": title, "model": model, "why": "owner force: slot limit skipped"})
     if why:
-        path = queue_launch(title, prompt, model, effort, explicit_model, why, change_scope, engine, live_voice=live_voice)
+        media = {"images": images} if images else {}
+        path = queue_launch(title, prompt, model, effort, explicit_model, why, change_scope, engine,
+                            live_voice=live_voice, **media)
         raise ChatQueued(f"queued, not started yet ({why}); it starts once its engine and a slot are available "
                          f"(queue entry {path.name})")
+    media = {"images": images} if images else {}
     if engine == "codex":
-        return _open_codex_tab(title, prompt, model, explicit_model, change_scope)
+        return _open_codex_tab(title, prompt, model, explicit_model, change_scope, **media)
     return _open_chat_tab(title, prompt, model, effort, change_scope,
-                          explicit_model=explicit_model, live_voice=live_voice)
+                          explicit_model=explicit_model, live_voice=live_voice, **media)
 
 
 def chat_effort(transcript: Path) -> str:
@@ -432,11 +439,20 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, titl
     return "ok"
 
 
+def attachment_prompt(prompt: str, images: tuple[str, ...]) -> str:
+    """Give a chat that received text-only input a way to open the original image files."""
+    if not images:
+        return prompt
+    paths = json.dumps(images, ensure_ascii=False)
+    return f"{prompt}\n\nOpen these attached images with your image viewing tool before answering: {paths}"
+
+
 def _open_chat_tab(title: str, prompt: str, model: str, effort: str, change_scope: str = "",
-                   *, explicit_model: bool = False, live_voice: bool = False) -> str:
+                   *, explicit_model: bool = False, live_voice: bool = False, images: tuple[str, ...] = ()) -> str:
     effort = cap_effort(effort)  # queued entries written before the cap run at most medium too
     command = _chat_command(
-        "--remote-control", title, "--model", model, "--effort", effort, "--permission-mode", "auto", prompt,
+        "--remote-control", title, "--model", model, "--effort", effort, "--permission-mode", "auto",
+        attachment_prompt(prompt, images),
     )
     if explicit_model or live_voice:
         exemption = "owner-model" if explicit_model else "live-voice"
@@ -486,13 +502,14 @@ def _codex_ready() -> None:
         raise DispatchError(f"Codex is not ready: {why}")
 
 
-def _open_codex_tab(title: str, prompt: str, model: str, explicit_model: bool, change_scope: str = "") -> str:
+def _open_codex_tab(title: str, prompt: str, model: str, explicit_model: bool, change_scope: str = "",
+                    *, images: tuple[str, ...] = ()) -> str:
     """Start a Codex chat in its own tab of the zellij session; returns `<session>/<tab title>`."""
     _codex_ready()
     record = codex_chats.new_record(title, model, codex_chats.MAX_EFFORT, str(REPO_ROOT), explicit_model)
     record["prompt"] = prompt[:4000]
     codex_chats.save(record)
-    command = codex_chats.tab_command(record, prompt)
+    command = codex_chats.tab_command(record, prompt, images=images)
     if change_scope:
         command.insert(2, f"OPENMATES_CHANGE_SCOPE={change_scope}")
     ensure_zellij_session()
@@ -501,13 +518,14 @@ def _open_codex_tab(title: str, prompt: str, model: str, explicit_model: bool, c
     return f"{ZELLIJ_SESSION}/{title} (codex chat {record['chat_id']})"
 
 
-def resume_codex_chat(chat_id: str, prompt: str, title: str = "", admitted: bool = False) -> str:
+def resume_codex_chat(chat_id: str, prompt: str, title: str = "", admitted: bool = False,
+                      *, images: tuple[str, ...] = ()) -> str:
     """Reopen a stopped Codex chat with `prompt` as its next message ('ok' or why not)."""
     if why := codex_wait_reason():
         return why
     record = codex_chats.load(chat_id) or {}
     if chat_id in codex_chats.live():
-        return codex_chats.type_into(chat_id, prompt)
+        return codex_chats.type_into(chat_id, prompt, images=images)
     thread = str(record.get("thread_id") or "")
     if not thread:
         return "its Codex thread is unknown (it never ran a turn)"
@@ -520,7 +538,7 @@ def resume_codex_chat(chat_id: str, prompt: str, title: str = "", admitted: bool
     title = title or f"finish {chat_id[:8]}"
     ensure_zellij_session()
     _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", str(record["cwd"]), "--",
-            *codex_chats.tab_command(record, prompt, resume_thread=thread))
+            *codex_chats.tab_command(record, prompt, resume_thread=thread, images=images))
     _record_launch({"kind": "codex-resume", "title": title, "model": record.get("model"), "chat": chat_id})
     return "ok"
 
