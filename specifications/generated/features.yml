@@ -4,9 +4,9 @@ schema_version: 2
 source: specifications/features.yml
 results_as_of: '2026-11-16'
 summary:
-  features: 127
-  enabled_on_prod: 111
-  enabled_on_dev: 116
+  features: 128
+  enabled_on_prod: 112
+  enabled_on_dev: 117
   status_by_surface:
     web:
       live: 4
@@ -14,7 +14,7 @@ summary:
       failing: 54
       not_run: 11
       implemented: 19
-      not_planned: 19
+      not_planned: 20
     apple:
       tested: 14
       partial: 36
@@ -22,7 +22,7 @@ summary:
       implemented: 39
       in_progress: 6
       planned: 7
-      not_planned: 20
+      not_planned: 21
     watchos:
       tested: 7
       partial: 3
@@ -31,7 +31,7 @@ summary:
     cli:
       partial: 17
       failing: 8
-      not_run: 27
+      not_run: 28
       implemented: 41
       in_progress: 2
       planned: 2
@@ -42,13 +42,13 @@ summary:
       not_run: 1
       implemented: 57
       in_progress: 10
-      not_planned: 44
+      not_planned: 45
     rest_api:
       live: 5
       tested: 2
       partial: 34
       failing: 16
-      not_run: 26
+      not_run: 27
       implemented: 16
       planned: 2
       not_planned: 26
@@ -56,13 +56,13 @@ summary:
       partial: 3
       not_run: 20
       implemented: 50
-      not_planned: 54
+      not_planned: 55
     sdk_pypi:
       partial: 3
       not_run: 18
       implemented: 42
       in_progress: 9
-      not_planned: 55
+      not_planned: 56
 unmapped:
   specifications: []
   apps: []
@@ -24785,6 +24785,130 @@ features:
       e2e_tests: []
       key_unit_tests: []
       unit_test_files: 0
+    sdk_npm:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    sdk_pypi:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+- id: ai-test-users
+  name: AI Test User Reports And Debug Chats
+  kind: internal
+  description: Daily AI test users report issues; one Discord message splits DEV and PRODUCTION issues, functional errors
+    start debug chats, test reports send no emails.
+  specifications:
+  - id: architecture.ai-test-users
+    status: draft
+    path: specifications/architecture/ai-test-users
+  apps: []
+  product_features: []
+  release: unverified
+  flags:
+    ids: []
+    dev: no_flag
+    prod: no_flag
+  assertions: 5
+  surfaces:
+    web:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    apple:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+      platforms:
+      - ios
+      - ipados
+      - macos
+    cli:
+      status: not_run
+      source: tests
+      intent: implemented
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 3
+        missing: 2
+        counted: 5
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests:
+      - scripts/tests/test_ai_test_users_triage.py
+      - scripts/tests/test_ai_test_users_message.py
+      - scripts/tests/test_claude_dispatch.py
+      unit_test_files: 3
+    tui:
+      status: not_planned
+      source: intent
+      intent: not_planned
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 0
+        missing: 0
+        counted: 0
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests: []
+      unit_test_files: 0
+    rest_api:
+      status: not_run
+      source: tests
+      intent: implemented
+      assertions:
+        passing: 0
+        failing: 0
+        not_run: 1
+        missing: 4
+        counted: 5
+      key_tests: []
+      e2e_tests: []
+      key_unit_tests:
+      - backend/tests/test_issue_report_contact_email.py
+      unit_test_files: 1
     sdk_npm:
       status: not_planned
       source: intent

@@ -10,6 +10,7 @@ exercise the behavior without importing the full FastAPI/Celery route graph.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Optional
 
 
@@ -55,12 +56,38 @@ async def resolve_account_contact_email(
         return None
 
 
-async def reporter_is_test_account(directus_service: Any, user_id: Optional[str]) -> bool:
-    """True when the reporting account carries the AI test-user label (`users.is_test_account`).
+# AI test-user accounts sign up as `omtestuser-<16 hex>@inboxkitten.com` (production, and dev when the
+# server admits that domain) or with that prefix at a Mailosaur test inbox (dev); see
+# scripts/ai_test_users_accounts.py. Mailosaur inboxes only ever belong to test accounts.
+AI_TEST_USER_LOCAL_PART = re.compile(r"^omtestuser-[0-9a-f]{16}$")
+AI_TEST_USER_DOMAINS = ("inboxkitten.com",)
+TEST_INBOX_DOMAIN = "mailosaur.net"
+
+
+def is_ai_test_user_email(email: Optional[str]) -> bool:
+    """True for a contact address of an AI test-user account (or any Mailosaur test inbox)."""
+    local, _, domain = (email or "").strip().lower().rpartition("@")
+    if not local or not domain:
+        return False
+    if domain == TEST_INBOX_DOMAIN or domain.endswith("." + TEST_INBOX_DOMAIN):
+        return True
+    return domain in AI_TEST_USER_DOMAINS and bool(AI_TEST_USER_LOCAL_PART.match(local))
+
+
+async def reporter_is_test_account(
+    directus_service: Any, user_id: Optional[str], contact_email: Optional[str] = None
+) -> bool:
+    """True when the report comes from an AI test-user account.
 
     Owner, 20 Nov 2026: test accounts never send issue emails (admin notice and reporter
-    confirmation); their reports are still stored and readable. A failed lookup counts as a
-    real user, so a real report never loses its email; the failure is logged."""
+    confirmation); their reports are still stored and readable. Owner, 23 Nov 2026: only real
+    users' reports email Marco, so two independent signals count: the `users.is_test_account`
+    label, and the AI test-user contact address (which also covers accounts whose label is
+    missing, e.g. a gift card created without `marks_test_account`). A failed label lookup
+    falls back to the address check alone.
+    """
+    if is_ai_test_user_email(contact_email):
+        return True
     if not user_id:
         return False
     fields = await directus_service.get_user_fields_direct(user_id, ["is_test_account"])

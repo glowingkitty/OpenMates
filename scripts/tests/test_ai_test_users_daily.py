@@ -133,7 +133,7 @@ def test_summary_turns_into_an_alert_naming_every_problem():
     assert issues == ["dev/cook 1 report not filed", "dev/german signup_failed (code input missing)",
                       "dev/privacy judge failed", "1 test account not deleted"]
     text = message_text.run_message("AI test users daily run 2026-11-21", results, issues)
-    assert text.startswith("❌") and "Problems: dev/cook 1 report not filed" in text
+    assert text.startswith("❌") and "Harness problems: dev/cook 1 report not filed" in text
     clean = [{"target": "dev", "persona": "cook", "status": "max_steps", "reports": []},
              {"target": "prod", "persona": "student", "status": "prod_disabled"}]
     assert reporting.problems(clean) == []

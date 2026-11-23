@@ -35,10 +35,12 @@ scope:
     Report issue: up to 5 screenshots on web, API, storage and the admin/debug
     readers; the legacy single field stays accepted (Apple, CLI).
   - >-
-    Reports only collect findings (owner, 20 Nov 2026 evening): no
-    investigation chat starts from a test-user report. Test accounts send no
-    issue emails; real issue emails carry the first ~60 characters of the
-    title as subject.
+    Debug chats (owner, 23 Nov 2026, replacing the 20 Nov "reports only
+    collect findings" rule): clear functional errors start an investigation
+    chat by themselves after a duplicate check against open Tasks and chats;
+    subjective findings wait for Marco's approval in the run message. Test
+    accounts (label or AI test-user account address) send no issue emails;
+    real issue emails carry the first ~60 characters of the title as subject.
   - >-
     Production gift card batch: backend/scripts/create_test_gift_card_batch.py
     run by Marco inside the production api container over SSH; codes land in a

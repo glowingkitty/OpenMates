@@ -144,8 +144,27 @@ server with `zellij attach claude` and switch to its tab. Close the tab (or
 
 ## AI test-user reports
 
-Issue requests in `queue/` may carry `"origin": "ai_test_user"` and `"env": "dev"|"prod"`
-(any other origin is rejected). The AI test-user orchestrator writes them with
+Owner, 23 Nov 2026: after each daily run, `scripts/ai_test_users_triage.py` sorts every
+issue (kept findings grouped by cause per environment):
+
+- Clear functional errors start a chat by themselves: console errors or exceptions, hangs
+  or timeouts, raw JSON or code shown instead of an embed, failed sends, crashes, broken
+  flows. The run calls `claude_dispatch.launch_test_user_chat(issue_id, short_id, env)`
+  directly (same title, prompt, small-fix scope and daily cap as the queue path).
+- Subjective UI, design or wording findings, slow but finished answers and findings the
+  environment may explain (suspect) never start a chat. The run message lists them as
+  waiting for Marco's approval; `python3 scripts/ai_test_users.py debug --env <env> --issue
+  <short>` starts the chat once he approves (outside the daily cap).
+- Before a chat starts, open OpenMates Tasks, running Claude chats (`agent_peers.peers`) and
+  the debug chats the pipeline started in the last 2 days
+  (`~/.openmates/ai-test-users/debug-chats.jsonl`) are checked for the same issue id, short
+  id or a similar title; a match is linked in the message instead of a new chat. When the
+  Tasks cannot be listed, no chat starts and the message says so.
+- `python3 scripts/ai_test_users.py message --run <run-id>` is a dry run of a run's message
+  (routes and coverage are real; nothing starts).
+
+Issue requests in `queue/` may also carry `"origin": "ai_test_user"` and `"env": "dev"|"prod"`
+(any other origin is rejected), written with
 `claude_dispatch.queue_test_user_issue(issue_id, short_id, env)` (atomic write).
 
 Rule: an AI test user never triggers feature work or large changes. Its investigation chat
@@ -157,7 +176,7 @@ the owner questions mid-chat.
 
 - Cap: at most 3 such chats per UTC day (`test-user-issues-state.json` next to the launch
   log). Above it the queue file moves to `processed/deferred/` and the launch log records a
-  `deferred` line; the orchestrator lists deferred ones in its summary.
+  `deferred` line; the run message shows a deferred issue as "no debug chat yet".
 - Enforcement: the chat starts with `OPENMATES_CHANGE_SCOPE=small-fix`. `sessions.py start`
   stores `change_scope` on the session (never dropped afterwards) and `sessions.py deploy`
   refuses when `scripts/change_scope.py` finds more than 6 changed files, more than 150

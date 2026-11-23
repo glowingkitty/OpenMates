@@ -101,3 +101,24 @@ def test_issue_email_subject_uses_the_first_part_of_the_title():
     assert short == "Voice and video call abruptly disconnects with transcript…"
     escaped = "A" * 57 + "&amp;B"
     assert "&" not in short_issue_subject_title(escaped)
+
+
+# contract-test: supporting surface=rest_api assertions=ai-test-users.reports.no-issue-emails
+@pytest.mark.anyio
+async def test_ai_test_user_account_address_skips_issue_emails_on_dev_and_production():
+    """Owner, 23 Nov 2026: only real users' reports email Marco; AI test-user reports are still filed.
+
+    Dev test users sign up at a Mailosaur test inbox, production ones as omtestuser-<hex>@inboxkitten.com;
+    the address alone marks them even when the account label is missing."""
+    from backend.core.api.app.utils.issue_report_contact_email import is_ai_test_user_email, reporter_is_test_account
+
+    unlabelled = FakeUserFields({"is_test_account": None})
+    dev = "omtestuser-0123456789abcdef@ae20drx9.mailosaur.net"
+    prod = "omtestuser-fedcba9876543210@inboxkitten.com"
+    assert await reporter_is_test_account(unlabelled, "user-123", dev) is True
+    assert await reporter_is_test_account(unlabelled, "user-123", prod) is True
+    assert await reporter_is_test_account(FakeUserFields(None), "user-123", prod.upper()) is True
+    for real in ("someone@example.org", "omtestuser-0123456789abcdef@example.org", "friend@inboxkitten.com",
+                 "omtestuser-short@inboxkitten.com", "", None):
+        assert is_ai_test_user_email(real) is False
+        assert await reporter_is_test_account(unlabelled, "user-123", real) is False

@@ -7,6 +7,14 @@ specifications:
     fingerprint: a5c321a50b45bd0d5e4f2a05cf40a56f8451137fb21d465064420f69aff8af6a
     required_applies_to:
     - cli
+  architecture.ai-test-users:
+    version: 1
+    status: draft
+    path: architecture/ai-test-users
+    fingerprint: 03204e73b0ae7dc88d24a519148e7da36a5b9e87fa33f44c85dd5b46129f7aca
+    required_applies_to:
+    - rest_api
+    - cli
   architecture.app-skill-execution:
     version: 1
     status: draft
@@ -1234,6 +1242,46 @@ assertions:
     type: invariant
     fingerprint: a33d7d281463428c45a24dc6eeee2c83a66120e8954628eeb10129ba70c6d437
     required_applies_to:
+    - cli
+  ai-test-users.message.dev-production-issues:
+    specification: architecture.ai-test-users@1
+    specification_id: architecture.ai-test-users
+    type: behavior
+    fingerprint: c4549101198c77ea3564b19b234838b266639e266d89fde85ddffd66cddf0860
+    required_applies_to:
+    - rest_api
+    - cli
+  ai-test-users.debug.functional-errors-start-chats:
+    specification: architecture.ai-test-users@1
+    specification_id: architecture.ai-test-users
+    type: behavior
+    fingerprint: df33b6d92c62fb94fe25bd321c5e5ca4614478f2df0435034a06dd2af9ad3c4d
+    required_applies_to:
+    - rest_api
+    - cli
+  ai-test-users.debug.no-duplicate-chats:
+    specification: architecture.ai-test-users@1
+    specification_id: architecture.ai-test-users
+    type: behavior
+    fingerprint: 1b9344ac664e5971430b8ddffa12556131836d719e14bb64a591e4ec3ca07e30
+    required_applies_to:
+    - rest_api
+    - cli
+  ai-test-users.judge.sticky-overlay-not-a-defect:
+    specification: architecture.ai-test-users@1
+    specification_id: architecture.ai-test-users
+    type: behavior
+    fingerprint: 859b0bf89c9729e166856ed9cdf2c065fd3191911d8903f11a6c81cc2e7b950b
+    required_applies_to:
+    - rest_api
+    - cli
+  ai-test-users.reports.no-issue-emails:
+    specification: architecture.ai-test-users@1
+    specification_id: architecture.ai-test-users
+    type: privacy
+    fingerprint: 53515fcd341b4ef784f8f2c875fa9e2c1ada641efb16af18f038660652cd7a1e
+    required_applies_to:
+    - rest_api
     - cli
   app-skills.images.reference-handoff:
     specification: architecture.app-skill-execution@1

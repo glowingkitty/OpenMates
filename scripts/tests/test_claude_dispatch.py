@@ -512,3 +512,20 @@ def test_resumed_chats_keep_their_model_while_weekly_usage_is_high(tmp_path, mon
     tab = next(call for call in calls if "new-tab" in call)
     chat = tab[tab.index("--") + 1:]
     assert chat[chat.index("--model") + 1] == "claude-opus-5-5"
+
+
+# contract-test: supporting surface=cli assertions=ai-test-users.debug.functional-errors-start-chats
+def test_ai_test_user_run_starts_chats_directly_and_marco_approved_ones_skip_the_cap(isolated_state):
+    """Owner, 23 Nov 2026: the run starts functional-error chats itself (daily cap 3); `debug` starts a chat
+    Marco approved even when the cap is reached."""
+    seen = []
+    launcher = lambda title, prompt, change_scope="": seen.append((title, change_scope)) or "claude/tab"  # noqa: E731
+    for n in range(3):
+        out = dispatch.launch_test_user_chat(ISSUE_ID, f"ABCD{n + 2}", "dev", launcher)
+        assert out == {"chat_title": f"AI test user issue ABCD{n + 2}: investigate", "status": "started",
+                       "session": "claude/tab"}
+    capped = dispatch.launch_test_user_chat(ISSUE_ID, "ABCDE", "prod", launcher)
+    assert capped["status"] == "deferred" and "daily cap of 3" in capped["note"]
+    approved = dispatch.launch_test_user_chat(ISSUE_ID, "ABCDE", "prod", launcher, ignore_cap=True)
+    assert approved["status"] == "started" and seen[-1] == ("AI test user issue ABCDE: investigate", "small-fix")
+    assert len(seen) == 4

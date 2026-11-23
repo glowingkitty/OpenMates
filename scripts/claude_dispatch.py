@@ -468,6 +468,39 @@ def _count_test_user_chat() -> None:
                                     encoding="utf-8")
 
 
+def test_user_chat_title(short_id: str) -> str:
+    return f"AI test user issue {short_id}: investigate"
+
+
+def launch_test_user_chat(issue_id: str, short_id: str, env: str, launcher: Launcher = launch_issue_chat,
+                          record: bool = True, ignore_cap: bool = False) -> dict[str, Any]:
+    """Start the investigation chat for one AI test-user report (owner, 23 Nov 2026: functional errors start
+    one by themselves, others once Marco approves them). Returns status started | queued | deferred | failed,
+    the chat title and a note. `ignore_cap` is for chats Marco approved; the daily cap covers automatic ones."""
+    if not UUID_RE.match(issue_id) or not SHORT_ID_RE.match(short_id) or env not in TEST_USER_ENVS:
+        raise DispatchError("invalid test-user issue request")
+    title = test_user_chat_title(short_id)
+    outcome: dict[str, Any] = {"chat_title": title}
+    if not ignore_cap and ai_user_chats_today() >= MAX_TEST_USER_CHATS_PER_DAY:
+        outcome.update(status="deferred", note=f"daily cap of {MAX_TEST_USER_CHATS_PER_DAY} automatic chats reached")
+    else:
+        try:
+            outcome.update(status="started",
+                           session=launcher(title, ai_user_issue_prompt(issue_id, short_id, env),
+                                            change_scope=CHANGE_SCOPE_SMALL_FIX))
+        except ChatQueued as exc:
+            outcome.update(status="queued", note=str(exc))
+        except (DispatchError, subprocess.TimeoutExpired) as exc:
+            outcome.update(status="failed", note=str(exc)[:200])
+        if outcome["status"] in ("started", "queued") and not ignore_cap:
+            _count_test_user_chat()
+    if record:
+        _record_launch({"kind": "issue", "model": ISSUE_CLAUDE_MODEL, "origin": TEST_USER_ORIGIN, "env": env,
+                        "issue_id": issue_id, "short_issue_id": short_id,
+                        **{k: v for k, v in outcome.items() if k != "chat_title"}})
+    return outcome
+
+
 def ai_user_issue_prompt(issue_id: str, short_id: str, env: str) -> str:
     prod_note = (" The report comes from PRODUCTION: investigation is read-only there; any fix is made on dev only."
                  if env == "prod" else "")
@@ -523,22 +556,16 @@ def dispatch_issues(launcher: Launcher = launch_issue_chat, dry_run: bool = Fals
                 results.append(outcome)
                 continue
             if origin == TEST_USER_ORIGIN:
-                if ai_user_chats_today() >= MAX_TEST_USER_CHATS_PER_DAY:
-                    outcome.update(status="deferred", note="daily cap of AI test-user investigation chats reached")
-                else:
-                    outcome["session"] = launcher(
-                        f"AI test user issue {short_id}: investigate",
-                        ai_user_issue_prompt(issue_id, short_id, env),
-                        change_scope=CHANGE_SCOPE_SMALL_FIX)
-                    outcome["status"] = "launched"
-                    _count_test_user_chat()
+                started = launch_test_user_chat(issue_id, short_id, env, launcher, record=False)
+                outcome.update(status={"started": "launched"}.get(started["status"], started["status"]),
+                               **{k: v for k, v in started.items() if k in ("session", "note")})
+                if started["status"] == "queued":
+                    raise ChatQueued(started["note"])
             else:
                 outcome["session"] = launcher(f"Issue {short_id}: investigate & fix", issue_prompt(issue_id, short_id))
                 outcome["status"] = "launched"
         except ChatQueued as exc:
             outcome.update(status="queued", note=str(exc))  # moved to PENDING_DIR; starts from there
-            if outcome.get("origin") == TEST_USER_ORIGIN:
-                _count_test_user_chat()
         except (DispatchError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
             outcome.update(status="failed", error=str(exc))
         target = PROCESSED_DIR / {"launched": "ok", "queued": "ok", "deferred": "deferred"}.get(outcome["status"], "failed")

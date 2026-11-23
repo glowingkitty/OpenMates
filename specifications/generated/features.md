@@ -14,18 +14,18 @@ Flags: dev/prod enablement from committed config (`backend_config.dev.yml` / `ba
 Apple covers the shared iOS, iPadOS and macOS app (TestFlight); Watch is shown where relevant.
 Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface apple`.
 
-**127 features** · enabled on prod: 111 · enabled on dev: 116
+**128 features** · enabled on prod: 112 · enabled on dev: 117
 
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Web | 4 | 0 | 20 | 54 | 11 | 19 | 0 | 0 | 0 | 19 |
-| Apple | 0 | 14 | 36 | 5 | 0 | 39 | 6 | 7 | 0 | 20 |
+| Web | 4 | 0 | 20 | 54 | 11 | 19 | 0 | 0 | 0 | 20 |
+| Apple | 0 | 14 | 36 | 5 | 0 | 39 | 6 | 7 | 0 | 21 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
-| CLI | 0 | 0 | 17 | 8 | 27 | 41 | 2 | 2 | 0 | 30 |
-| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 44 |
-| REST API | 5 | 2 | 34 | 16 | 26 | 16 | 0 | 2 | 0 | 26 |
-| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 54 |
-| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 55 |
+| CLI | 0 | 0 | 17 | 8 | 28 | 41 | 2 | 2 | 0 | 30 |
+| TUI | 2 | 0 | 0 | 13 | 1 | 57 | 10 | 0 | 0 | 45 |
+| REST API | 5 | 2 | 34 | 16 | 27 | 16 | 0 | 2 | 0 | 26 |
+| npm SDK | 0 | 0 | 3 | 0 | 20 | 50 | 0 | 0 | 0 | 55 |
+| PyPI SDK | 0 | 0 | 3 | 0 | 18 | 42 | 9 | 0 | 0 | 56 |
 
 ## Core product
 
@@ -239,6 +239,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | Feature | Web | Apple | Watch | CLI | TUI | REST API | npm SDK | PyPI SDK | Dev | Prod | Release |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | [AI Request Observability](#ai-request-observability) | not run 0/2 | — |  | not run 0/10 | — | partial 2/7 | — | — | on (no flag) | on (no flag) | untagged-main |
+| [AI Test User Reports And Debug Chats](#ai-test-users) | — | — |  | not run 0/5 | — | not run 0/5 | — | — | on (no flag) | on (no flag) | unverified |
 | [Automated Security Monitoring and Guarded Remediation](#security-monitoring) | — | — |  | impl | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [Cost-Safe Daily AI Inference Testing](#daily-ai-test-inference) | not run 0/2 | — |  | partial 3/10 | — | — | — | — | on (no flag) | on (no flag) | v0.19.0 |
 | [Daily Test Orchestration And Recovery](#test-orchestration) | — | — |  | not run 0/8 | — | — | — | — | on (no flag) | on (no flag) | unverified |
@@ -386,6 +387,28 @@ Content-free metrics and traces for AI request latency, tokens, tools and cost.
 | CLI | not run 0/10 | 0 pass · 0 fail · 3 not run · 7 no test | 2 unit test file(s), e.g. [test_ai_request_observability.py](../../backend/tests/test_ai_request_observability.py), [test_debug_trace.py](../../backend/tests/test_tracing/test_debug_trace.py) |
 | TUI | — | — | — |
 | REST API | partial 2/7 | 2 pass · 0 fail · 5 not run · 0 no test | [telemetry-proxy-api.spec.ts](../../frontend/apps/web_app/tests/telemetry-proxy-api.spec.ts)<br>5 unit test file(s), e.g. [test_ai_request_observability.py](../../backend/tests/test_ai_request_observability.py), [test_privacy_filter.py](../../backend/tests/test_tracing/test_privacy_filter.py) |
+| npm SDK | — | — | — |
+| PyPI SDK | — | — | — |
+
+</details>
+
+### AI Test User Reports And Debug Chats
+<a id="ai-test-users"></a>
+
+Daily AI test users report issues; one Discord message splits DEV and PRODUCTION issues, functional errors start debug chats, test reports send no emails.
+
+- Specifications: [architecture.ai-test-users](../../specifications/architecture/ai-test-users/specification.yml) (draft) · 5 assertion(s)
+- Flags: none · dev on (no flag) · prod on (no flag) · release unverified
+
+<details><summary>Tests per surface</summary>
+
+| Surface | Status | Assertions | Proof |
+|---|---|---|---|
+| Web | — | — | — |
+| Apple | — | — | — |
+| CLI | not run 0/5 | 0 pass · 0 fail · 3 not run · 2 no test | 3 unit test file(s), e.g. [test_ai_test_users_triage.py](../../scripts/tests/test_ai_test_users_triage.py), [test_ai_test_users_message.py](../../scripts/tests/test_ai_test_users_message.py) |
+| TUI | — | — | — |
+| REST API | not run 0/5 | 0 pass · 0 fail · 1 not run · 4 no test | 1 unit test file(s), e.g. [test_issue_report_contact_email.py](../../backend/tests/test_issue_report_contact_email.py) |
 | npm SDK | — | — | — |
 | PyPI SDK | — | — | — |
 

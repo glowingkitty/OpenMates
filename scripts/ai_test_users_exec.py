@@ -150,8 +150,8 @@ def read_result(summary: dict, result_file: Path, email: str, cfg: Settings) -> 
         summary.update({k: result.get(k) for k in (
             "status", "steps", "harness_usd", "e2b", "error", "judge_error", "credits_start", "credits_end",
             "answer_quality", "demo_candidate", "goal_outcomes", "video_offset_seconds")})
-        summary["findings"] = [{**{k: f.get(k) for k in ("title", "severity", "step", "video_seconds", "kept",
-                                                         "at_epoch")},
+        summary["findings"] = [{**{k: f.get(k) for k in ("title", "severity", "category", "step",
+                                                         "video_seconds", "kept", "at_epoch")},
                                 "evidence": str(f.get("evidence") or "")[:300]}
                                for f in findings]
         summary["findings_total"] = len(findings)

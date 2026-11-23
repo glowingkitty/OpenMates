@@ -3061,12 +3061,15 @@ async def report_issue(
                 logger.warning(f"Invalid email format in issue report: {email_str[:50]}")
                 sanitized_email = None
 
+        # Only the server-resolved account address may mark a report as an AI test user's (never a typed one).
+        account_contact_email = None
         if current_user and not sanitized_email:
             sanitized_email = await resolve_account_contact_email(
                 directus_service,
                 encryption_service,
                 current_user.id,
             )
+            account_contact_email = sanitized_email
             if sanitized_email:
                 logger.info(
                     "Resolved authenticated issue report contact email from account contact record for user %s",
@@ -3355,7 +3358,7 @@ async def report_issue(
 
         # Test accounts (AI test users) never send issue emails; their reports are still stored.
         send_email_notification = issue_data.send_email_notification and not await reporter_is_test_account(
-            directus_service, reported_by_user_id
+            directus_service, reported_by_user_id, account_contact_email
         )
 
         # Always dispatch the report-processing task. Durable diagnostic YAML

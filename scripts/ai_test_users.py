@@ -10,11 +10,13 @@ app's own issue reporting, and deletes its account. A Gemini judge and Jev revie
   python3 scripts/ai_test_users.py daily [--date YYYY-MM-DD] [--dry-run]
   python3 scripts/ai_test_users.py run [--target dev|prod] [--personas all|id,id] [--parallel 10]
   python3 scripts/ai_test_users.py tasks --run DIR [--exclude persona#n,...] [--dry-run]
+  python3 scripts/ai_test_users.py message --run RUN_ID        # dry run of the run's Discord message
+  python3 scripts/ai_test_users.py debug --env dev|prod --issue SHORT_ID   # Marco approved an issue
 
 `daily` follows the rotation in `ai_test_users_schedule.py` (Monday to Friday 3 dev + 2 prod personas; no
 scheduled run on Saturday or Sunday), retries failed account deletions, writes run.json and report.md, and sends the run's one
-Discord message (`ai_test_users_message.py`). Reports only collect findings: no debug chat starts from them
-(owner, 20 Nov 2026). Prod runs need the flag file
+Discord message (`ai_test_users_message.py`). Clear functional errors start a debugging chat by themselves;
+subjective findings wait for Marco's approval (`ai_test_users_triage.py`, owner, 23 Nov 2026). Prod runs need the flag file
 ~/.openmates/ai-test-users/prod-enabled and a gift card code in prod-gift-cards.txt. Everything is written
 to ~/.openmates/ai-test-users/<run-id>/ (outside the repository). Cap: 3 USD per daily run.
 """
@@ -38,6 +40,7 @@ import ai_test_users_accounts as accounts  # noqa: E402 - sibling script modules
 import ai_test_users_exec as execution  # noqa: E402
 import ai_test_users_message as message_text  # noqa: E402
 import ai_test_users_report as reporting  # noqa: E402
+import ai_test_users_triage as triage  # noqa: E402
 import ai_test_users_scenarios as scenarios
 import ai_test_users_video as video  # noqa: E402
 import ai_test_users_schedule as schedule  # noqa: E402
@@ -141,11 +144,51 @@ def command_daily(args: argparse.Namespace) -> int:
     run = finish_run(run_id, run_dir, plan["kind"], day.isoformat(), results, areas, estimate, cap, started,
                      deletions)
     log(f"done: {run_dir / 'report.md'} total {run['totals']['total_usd']} USD")
+    issues = triage_run(run, run_dir, dispatch=True)
     if reporting.push_due(accounts.HOME, day.isoformat()):
         message_text.push(message_text.run_message(f"AI test users daily run {day.isoformat()}", results,
-                                                   run["problems"]))
+                                                   run["problems"], issues=issues))
         reporting.mark_pushed(accounts.HOME, day.isoformat())
     return 0
+
+
+def triage_run(run: dict, run_dir: Path, dispatch: bool) -> list[dict]:
+    """Route the run's issues, link open Tasks and chats that cover them, start the automatic debug chats
+    (`dispatch`), and keep the outcome in run.json (owner, 23 Nov 2026)."""
+    try:
+        tasks = open_tasks()
+    except (RuntimeError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
+        log(f"open Tasks could not be checked for duplicates: {exc}")
+        tasks = None  # no automatic chat starts without the duplicate check
+    issues = triage.triage(run["personas"], accounts.HOME, dispatch, tasks=tasks, chats=triage.running_chats())
+    for issue in issues:
+        log(f"{issue['env']} {issue.get('short_issue_id') or '-'}: {issue['debug']['status']} ({issue['title'][:80]})")
+    if dispatch:
+        run["issues"] = [{k: i.get(k) for k in ("env", "title", "short_issue_id", "issue_id", "debug")} for i in issues]
+        (run_dir / "run.json").write_text(json.dumps(run, indent=1, ensure_ascii=False))
+    return issues
+
+
+def command_message(args: argparse.Namespace) -> int:
+    """Dry run of an earlier run's push: routes, Task/chat coverage and the Discord payload; starts nothing."""
+    run_dir = accounts.home() / args.run
+    run = json.loads((run_dir / "run.json").read_text())
+    issues = triage_run(run, run_dir, dispatch=False)
+    text = message_text.run_message(f"AI test users daily run {run['date']}", run["personas"],
+                                    run.get("problems") or [], run.get("flows"), issues=issues)
+    print(json.dumps(message_text.discord_payload(text), indent=1, ensure_ascii=False))
+    return 0
+
+
+def command_debug(args: argparse.Namespace) -> int:
+    """Marco approved an issue that waited for approval: start its debugging chat (no daily cap)."""
+    import claude_dispatch
+    import issues as issue_api
+
+    issue_id = issue_api.resolve_issue_identifier(args.env, args.issue)
+    outcome = claude_dispatch.launch_test_user_chat(issue_id, args.issue.upper(), args.env, ignore_cap=True)
+    log(f"{args.env} {args.issue}: {outcome['status']} {outcome.get('chat_title', '')} {outcome.get('note', '')}")
+    return 0 if outcome["status"] in ("started", "queued") else 1
 
 
 DAILY_UNIT = "ai-test-users.service"
@@ -285,6 +328,8 @@ def cluster_findings(findings: list[dict], groups: list[list[str]]) -> list[list
 def open_tasks() -> list[dict]:
     result = subprocess.run(["openmates", "tasks", "list", "--json"], capture_output=True, text=True, timeout=120,
                             check=False)
+    if result.returncode:
+        raise RuntimeError(f"openmates tasks list failed: {(result.stderr or result.stdout).strip()[-200:]}")
     data = json.loads(result.stdout or "[]")
     rows = data.get("tasks", data) if isinstance(data, dict) else data
     return [t for t in rows if isinstance(t, dict) and str(t.get("status", "")).lower() not in ("done", "skipped")]
@@ -415,6 +460,11 @@ def main(argv: list[str] | None = None) -> int:
     daily.add_argument("--total-cap-usd", type=float, default=None, help="override the daily cap")
     videos = sub.add_parser("videos", help="upload an earlier run's recordings and link them in its report")
     videos.add_argument("--run", required=True)
+    message = sub.add_parser("message", help="dry run of an earlier run's Discord message (starts no chat)")
+    message.add_argument("--run", required=True)
+    debug = sub.add_parser("debug", help="start the debugging chat for an issue Marco approved")
+    debug.add_argument("--env", choices=("dev", "prod"), required=True)
+    debug.add_argument("--issue", required=True, help="short issue id from the run message")
     tasks = sub.add_parser("tasks")
     tasks.add_argument("--run", required=True)
     tasks.add_argument("--exclude", default="", help="finding ids a reviewer rejected (persona#n,...)")
@@ -423,7 +473,8 @@ def main(argv: list[str] | None = None) -> int:
     tasks.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     return {"run": command_run, "daily": command_daily, "tasks": command_tasks,
-            "notify-failure": command_notify_failure, "videos": command_videos}[args.command](args)
+            "notify-failure": command_notify_failure, "videos": command_videos,
+            "message": command_message, "debug": command_debug}[args.command](args)
 
 
 if __name__ == "__main__":
