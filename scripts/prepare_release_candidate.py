@@ -50,6 +50,7 @@ CORE_SERVICES = (
     "reminder-worker",
     "task-scheduler",
     "app-ai-worker",
+    "app-ai-routing-worker",
 )
 BACKEND_RUNTIME_PATHS = ("backend", "shared", "frontend/packages/ui/src/i18n")
 RELEASE_STATUS_CONTEXT = "Dev Release Candidate / Prepared"

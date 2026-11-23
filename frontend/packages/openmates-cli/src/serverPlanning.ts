@@ -181,6 +181,7 @@ const CORE_WORKER_SERVICES = [
   "workflow-worker",
   "task-scheduler",
   "app-ai-worker",
+  "app-ai-routing-worker",
   "app-images-worker",
   "app-music-worker",
   "app-videos-worker",
