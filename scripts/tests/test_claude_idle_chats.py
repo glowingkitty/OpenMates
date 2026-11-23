@@ -643,3 +643,19 @@ def test_block_reason_ignores_blocks_before_a_later_turn(tmp_path):
         {"type": "user", "message": {"content": "hi"}},
     ]) + "\n")
     assert lc.submit_block_reason(str(transcript)) == ""
+
+
+def test_wake_sees_unsent_text_in_a_box_taller_than_the_pane(tmp_path, monkeypatch):
+    calls: list = []
+    monkeypatch.setattr(lc, "_sleep", lambda seconds: None)
+    monkeypatch.setattr(lc, "state_dir", lambda: tmp_path)
+    import chat_usage_watch
+    monkeypatch.setattr(chat_usage_watch, "send", lambda text: True)
+    text = "[chat lifecycle] Background work of this chat finished; output /tmp/x/tasks/b1oqw8apj.output. Read it."
+    tall = ("  finished; output /tmp/x/tas\n  ks/b1oqw8apj.output. Read it.\n"
+            "────────────────────────────────────────────────\n  ⏵⏵ auto mode on\n")
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [BOX.format(""), tall]))
+    assert not lc.wake(chat(pane_id="7", zellij_session="claude"), text)
+    submitted = ("❯ " + text + "\n  ⎿ working\n────\n❯ \n────\n  ⏵⏵ auto mode on\n")
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [BOX.format(""), submitted]))
+    assert lc.wake(chat(pane_id="7", zellij_session="claude"), text)

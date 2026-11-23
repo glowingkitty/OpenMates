@@ -820,14 +820,23 @@ _sleep = time.sleep  # tests replace it
 
 
 def _box_holds(screen: str, text: str) -> bool:
-    """Whether the prompt box still shows the start of `text` (an unsent prompt)."""
+    """Whether the prompt box (between the last two rules) still shows part of `text`.
+
+    A long wake-up wraps into a box taller than the pane, so its `❯` line and top rule
+    scroll off (5281c1ea, 63fbd09b on 2026-11-23): then everything above the bottom rule
+    is box. Wrapping splits words anywhere, so both sides are compared without spaces."""
     import claude_chat_inputs  # imports this module, so not at the top
 
-    shown, head = " ".join(claude_chat_inputs.input_text(screen).split()), " ".join(text.split())[:30]
-    if shown.startswith(claude_chat_inputs.PASTE_MARK):
+    lines = screen.splitlines()
+    rules = [index for index, line in enumerate(lines) if claude_chat_inputs._rule(line)]
+    if not rules:
+        return False
+    top = rules[-2] + 1 if len(rules) > 1 else 0
+    box = "".join(line.strip() for line in lines[top:rules[-1]]).removeprefix("\u276f")
+    box, wanted = "".join(box.split()), "".join(text.split())
+    if box.startswith(claude_chat_inputs.PASTE_MARK.replace(" ", "")):
         return True  # long text is shown collapsed as "[Pasted text #1 ...]"
-    size = min(len(shown), len(head))
-    return size >= min(8, len(head)) > 0 and shown[:size] == head[:size]
+    return len(box) >= min(8, len(wanted)) > 0 and (box in wanted or wanted in box)
 
 
 def submit_block_reason(transcript: str) -> str:
