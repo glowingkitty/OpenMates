@@ -26,6 +26,7 @@ export {};
  */
 
 const fs = require('node:fs');
+const JSZip = require('jszip');
 const path = require('node:path');
 
 const { test, expect, attachConsoleListeners, attachNetworkListeners } = require('./console-monitor');
@@ -41,11 +42,21 @@ const {
 	startNewChat,
 	sendMessage,
 	deleteActiveChat,
-	focusMessageEditor
+	focusMessageEditor,
+	createIsolatedBrowserContext,
+	declareTestState
 } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount(1);
+const SECOND_BROWSER_STATE = declareTestState({
+	auth: 'sign in independently',
+	browserStorage: 'fresh',
+	account: 'same leased dev test account',
+	chat: 'open the embroidery chat created by the first browser',
+	notifications: 'unchanged',
+	securityReminders: 'unchanged',
+});
 
 const MODEL_QUERY = 'gemini-3.8-flash';
 const MODEL_NAME = /Gemini 3\.8 Flash/i;
@@ -113,14 +124,17 @@ async function sendSvgFileWithGemini(page: any, file: string, prompt: string, lo
  * json embed reference block (TASK-1610: the mention used to be joined with a space, which pushed
  * the embed reference into the middle of a line).
  */
-async function expectUserMessageShowsFileNotRawReference(page: any, log: any, screenshot: any) {
+async function expectUserMessageShowsFileNotRawReference(page: any, log: any, screenshot: any, label = 'user-message-file-card') {
 	const userMessage = page.getByTestId('message-user').last();
 	await expect(userMessage).toBeVisible({ timeout: 30_000 });
-	await expect(userMessage.locator('[data-testid="embed-preview"]').first()).toBeVisible({ timeout: 60_000 });
+	await userMessage.scrollIntoViewIfNeeded();
+	const image = userMessage.getByRole('img', { name: /\.svg$/i }).first();
+	await expect(image).toBeVisible({ timeout: 60_000 });
+	await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
 	await expect(userMessage).not.toContainText('embed_id');
 	await expect(userMessage.locator('pre code')).toHaveCount(0);
 	log('user message shows the uploaded file as a card, no raw embed reference');
-	await screenshot(page, 'user-message-file-card', { fullPage: false });
+	await screenshot(page, label, { fullPage: false });
 }
 
 /**
@@ -229,6 +243,45 @@ async function expectEmbroideryResult(page: any, overlay: any, log: any, screens
 	await screenshot(page, 'embroidery-all-downloaded', { fullPage: false });
 }
 
+/** The chat-wide archive must contain the same machine bytes as an individual Files download. */
+async function expectChatSettingsMachineFiles(page: any, overlay: any, screenshot: any) {
+	await overlay.getByTestId('embed-minimize').click();
+	await expect(overlay).toBeHidden();
+	await page.getByTestId('chat-details-button').click();
+	const settings = page.getByTestId('settings-menu');
+	await settings.getByTestId('chat-settings-tab-files').click();
+	const files = settings.getByTestId('chat-settings-tabpanel-files');
+	const rows = files.getByTestId('chat-settings-file-row');
+	for (const format of FORMATS) {
+		await expect(rows.filter({ hasText: new RegExp(`\\.${format}\\b`, 'i') })).toBeVisible();
+	}
+	await screenshot(page, 'chat-settings-machine-files', { fullPage: false });
+
+	const [pes] = await Promise.all([
+		page.waitForEvent('download', { timeout: 60_000 }),
+		rows.filter({ hasText: /\.pes\b/i }).click(),
+	]);
+	expect(await pes.failure()).toBeNull();
+	expect(pes.suggestedFilename()).toMatch(/\.pes$/i);
+	const pesBytes = fs.readFileSync(await pes.path());
+	expect(pesBytes.subarray(0, 4).toString()).toBe('#PES');
+
+	const [bundle] = await Promise.all([
+		page.waitForEvent('download', { timeout: 90_000 }),
+		files.getByTestId('chat-settings-download-files').click(),
+	]);
+	expect(await bundle.failure()).toBeNull();
+	expect(bundle.suggestedFilename()).toMatch(/\.zip$/i);
+	const archive = await JSZip.loadAsync(fs.readFileSync(await bundle.path()));
+	for (const format of FORMATS) {
+		const paths = Object.keys(archive.files).filter((name) => name.startsWith('files/') && name.endsWith(`.${format}`));
+		expect(paths).toHaveLength(1);
+		const bytes = await archive.file(paths[0]).async('nodebuffer');
+		expect(bytes.length).toBeGreaterThan(0);
+		if (format === 'pes') expect(bytes).toEqual(pesBytes);
+	}
+}
+
 async function cleanUp(page: any, overlay: any, log: any) {
 	if (process.env.KEEP_EMBROIDERY_CHAT !== '1') {
 		if (await overlay.isVisible().catch(() => false)) {
@@ -264,8 +317,8 @@ test('assistant turns a vector graphic into embroidery files that show and downl
 	}
 });
 
-// contract-test: direct surface=gui.web assertions=design-embroidery.request.vector-source,design-embroidery.prepare.sew-on-border,design-embroidery.result.view-and-download,design-embroidery.progress.input-and-stages,design-embroidery.result.meaningful-title,chats.rendering.embed-references-never-raw
-test('assistant sews an uploaded SVG file with the requested hoop and border', async ({ page }, testInfo) => {
+// contract-test: direct surface=gui.web assertions=design-embroidery.request.vector-source,design-embroidery.prepare.sew-on-border,design-embroidery.result.view-and-download,design-embroidery.progress.input-and-stages,design-embroidery.result.meaningful-title,chats.rendering.embed-references-never-raw,design-embroidery.result.chat-files
+test('assistant sews an uploaded SVG file with the requested hoop and border', async ({ page, browser }, testInfo) => {
 	test.setTimeout(1_200_000);
 	test.skip(!SOURCE_SVG || !SOURCE_PROMPT, 'needs E2E_EMBROIDERY_SOURCE_SVG and E2E_EMBROIDERY_PROMPT');
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -281,7 +334,29 @@ test('assistant sews an uploaded SVG file with the requested hoop and border', a
 		await sendSvgFileWithGemini(page, SOURCE_SVG, SOURCE_PROMPT, log, screenshot);
 		await expectUserMessageShowsFileNotRawReference(page, log, screenshot);
 		await expectEmbroideryProgressCard(page, log, screenshot);
-		await expectEmbroideryResult(page, overlay, log, screenshot, testInfo);
+		await expectReplyFromGemini(page, log);
+		const chatUrl = new URL(page.url());
+		expect(new URLSearchParams(chatUrl.hash.slice(1)).get('chat-id')).toBeTruthy();
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expectUserMessageShowsFileNotRawReference(page, log, screenshot, 'user-message-after-reload');
+
+		const secondBrowser = await createIsolatedBrowserContext(browser, SECOND_BROWSER_STATE, {
+			baseURL: chatUrl.origin,
+			viewport: { width: 390, height: 844 },
+			recordVideo: { dir: testInfo.outputPath('second-browser') },
+		});
+		try {
+			const secondPage = await secondBrowser.newPage();
+			await loginToTestAccount(secondPage, log, screenshot);
+			await secondPage.goto(chatUrl.href, { waitUntil: 'domcontentloaded' });
+			await expectUserMessageShowsFileNotRawReference(secondPage, log, screenshot, 'user-message-second-browser');
+			await secondPage.getByTestId('message-assistant').last().scrollIntoViewIfNeeded();
+			const secondOverlay = secondPage.getByTestId('embed-fullscreen-overlay').last();
+			await expectEmbroideryResult(secondPage, secondOverlay, log, screenshot, testInfo);
+			await expectChatSettingsMachineFiles(secondPage, secondOverlay, screenshot);
+		} finally {
+			await secondBrowser.close();
+		}
 	} finally {
 		await cleanUp(page, overlay, log);
 	}

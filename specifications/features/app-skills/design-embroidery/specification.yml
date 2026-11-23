@@ -162,6 +162,10 @@ assertions:
     type: behavior
     must: The result card shows the stitch preview, the size, the estimated sewing time and the estimated thread length; while converting it shows that the conversion is running. Opened, the result shows the large stitch preview with a switch to the prepared graphic, the thread list in sewing order with the estimated thread length and minutes of each thread, the numbers including the stitch count, the hoop fit and the notes, a short remark that sewing time and thread length are estimates which vary with the machine and its settings, one clearly visible download that saves all five machine files together as one ZIP file, and one download per machine format whose saved file carries the matching file extension. A failed conversion shows the reason in plain words and offers no downloads. The size, hoop, fabric and border shown can be changed there; applying a change asks the assistant for a new conversion of the same graphic and leaves the existing result untouched.
     depends_on: [models.EmbroideryResult, models.EmbroideryRequest, examples.view]
+  - id: design-embroidery.result.chat-files
+    type: behavior
+    must: On the web, the Files tab in a saved chat's settings lists each finished embroidery machine file (DST, PES, EXP, JEF and VP3). Each entry downloads that file, and Download files bundles all five with the chat's other files.
+    depends_on: [models.EmbroideryResult.files, examples.chat_files]
   - id: design-embroidery.progress.input-and-stages
     type: behavior
     must: As soon as a conversion starts, its card shows the input graphic and the design.embroidery icon (a needle), never the generic AI icon, and then names the current step in plain words as it changes, in this order and skipping steps that do not run - reading the graphic, checking the design, adjusting it with the model, creating the stitches and preview, saving the machine files. The steps never carry keys, file keys or download links.
@@ -205,4 +209,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [convert, invalid_source, prepare, border, fit_hoop, rework, failure, view, billing]
+  required_groups: [convert, invalid_source, prepare, border, fit_hoop, rework, failure, view, chat_files, billing]

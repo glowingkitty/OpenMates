@@ -10,6 +10,7 @@ import { findRawEmbedReferenceNodes, repairInlineEmbedFences, reportRawEmbedRefe
 
 const EMBED_ID = "ea6cc310-1c03-4250-a642-a4051d99d6d1";
 const FENCE = `\`\`\`json\n{"type": "image", "embed_id": "${EMBED_ID}"}\n\`\`\``;
+const PRETTY_FENCE = `\`\`\`json\n${JSON.stringify({ type: "image", embed_id: EMBED_ID }, null, 2)}\n\`\`\``;
 const BROKEN = `@ai-model:gemini-3.8-flash:google ${FENCE}\n\n Turn this into an embroidery patch for my 200 x 300 mm hoop`;
 
 function collect(node: any, out: any[] = []): any[] {
@@ -31,11 +32,12 @@ describe("user message with a model mention before an uploaded file", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=chats.rendering.embed-references-never-raw
-  it("renders the stored broken message as an embed, not raw JSON", () => {
+  it.each([FENCE, PRETTY_FENCE])("renders a stored inline embed reference and its following prompt (%s)", (fence) => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-    const doc = parse_message(BROKEN, "read", { unifiedParsingEnabled: true, role: "user" });
+    const doc = parse_message(BROKEN.replace(FENCE, fence), "read", { unifiedParsingEnabled: true, role: "user" });
     const nodes = collect(doc);
     expect(nodes.some((node) => node.type === "codeBlock")).toBe(false);
+    expect(nodes.some((node) => node.text?.includes("Turn this into an embroidery patch"))).toBe(true);
     expect(nodes.some((node) => JSON.stringify(node.attrs ?? {}).includes(EMBED_ID))).toBe(true);
     expect(findRawEmbedReferenceNodes(doc)).toEqual([]);
     expect(errors.mock.calls.some((call) => String(call[0]).includes(RAW_EMBED_RENDER_LOG_TAG))).toBe(false);

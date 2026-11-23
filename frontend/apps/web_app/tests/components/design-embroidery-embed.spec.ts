@@ -12,6 +12,10 @@ import { waitForComponentPreview } from '../helpers/component-preview';
  * Downloads use the inline `previewDownloadText` of the fixture (the real app
  * fetches and decrypts the encrypted file from storage); the follow-up
  * interpretation request is intercepted and asserted, never answered by a real service.
+ *
+ * Reference PNG: none, since the Files tab uses its existing row layout.
+ * Rendered screenshot: the Files tab proof contains all five machine formats.
+ * Accepted differences: the existing Files tab now lists one row per format.
  */
 
 const PREVIEW = '/dev/preview/embeds/design/DesignEmbroideryEmbedPreview?chrome=0';
@@ -326,4 +330,53 @@ test('a result without a border shows no border number', async ({ page }) => {
   await waitForComponentPreview(page);
   await expect(page.getByTestId('design-embroidery-size')).toBeVisible();
   await expect(page.getByTestId('design-embroidery-border-info')).toHaveCount(0);
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.embed-references-never-raw
+test('a saved user attachment after a model mention uses its image preview', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const params = new URLSearchParams({
+    chrome: '0', theme: 'light', background: '#dbeafe', width: '390',
+    props: JSON.stringify({
+      isFirstMessage: true,
+      content: [
+        '@ai-model:gemini-3.8-flash:google ```json',
+        JSON.stringify({ type: 'image', embed_id: 'preview-voice-artifact-source' }, null, 2),
+        '```',
+        '',
+        '  Turn this drawing into an embroidery patch.',
+      ].join('\n'),
+    }),
+  });
+  await page.goto(`/dev/preview/ChatMessage?${params}`);
+  await waitForComponentPreview(page);
+  const message = page.getByRole('article');
+  const image = message.getByRole('img', { name: /\.jpg$/ });
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+  await expect(message).toContainText('Turn this drawing into an embroidery patch.');
+  await expect(message).not.toContainText('embed_id');
+  await expect(message.locator('pre')).toHaveCount(0);
+  await testInfo.attach('saved-upload-phone', { body: await message.screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=design-embroidery.result.chat-files
+test('chat settings presents an individual download for each machine format', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/dev/preview/chats/ChatSettingsPreviewHarness?chrome=0&theme=light&background=%23dbeafe&width=390&variant=embroideryFiles');
+  await waitForComponentPreview(page);
+  const files = page.getByTestId('chat-settings-tabpanel-files');
+  const rows = files.getByTestId('chat-settings-file-row');
+  await expect(rows).toHaveCount(FORMATS.length);
+  await expect(files.getByTestId('chat-settings-download-files')).toContainText('5 downloadable items');
+  for (const format of FORMATS) {
+    await expect(rows.filter({ hasText: `fox-patch.${format}` })).toBeVisible();
+  }
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    rows.filter({ hasText: 'fox-patch.pes' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('fox-patch.pes');
+  expect(await download.failure()).toBeNull();
+  await testInfo.attach('chat-settings-embroidery-files-phone', { body: await files.screenshot(), contentType: 'image/png' });
 });

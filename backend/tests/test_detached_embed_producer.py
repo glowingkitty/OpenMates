@@ -258,27 +258,28 @@ async def test_recovery_dispatch_helper_never_sends_without_admitted_context():
 
 # contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
 @pytest.mark.asyncio
-async def test_worker_uses_authoritative_context_and_holds_sealed_retry(monkeypatch):
+@pytest.mark.parametrize("task_name", [TASK_NAME, "apps.design.tasks.skill_embroidery"])
+async def test_worker_uses_authoritative_context_and_holds_sealed_retry(monkeypatch, task_name):
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "secret")
     async def resolve(operation, data):
         assert operation == "resolve_output_producer"
         assert data["kwargs_binding"] == dispatch.bind_task_invocation(
-            task_name=TASK_NAME, task_uuid=TASK_ID, args=[], kwargs={"arguments": ARGS},
+            task_name=task_name, task_uuid=TASK_ID, args=[], kwargs={"arguments": ARGS},
         )
         return _resolved()
     monkeypatch.setattr(worker, "_transaction", resolve)
     header = {dispatch.PRODUCER_HEADER: {"version": 1, "intent_id": TASK_ID}}
     producer, context = await worker.verify_output_producer(
-        task_name=TASK_NAME, task_id=TASK_ID, args=(), kwargs={"arguments": ARGS}, headers=header,
+        task_name=task_name, task_id=TASK_ID, args=(), kwargs={"arguments": ARGS}, headers=header,
     )
     assert producer.classification == "registered_ai"
-    assert producer.kwargs_binding and producer.task_name == TASK_NAME
+    assert producer.kwargs_binding and producer.task_name == task_name
     assert context and context.owner_hash == OWNER_HASH and context.public_key == "public-key"
     async def sealed(*_): return _resolved("SEALED")
     monkeypatch.setattr(worker, "_transaction", sealed)
     with pytest.raises(worker.ProducerHold, match="sealed_result_recovery_pending"):
         await worker.verify_output_producer(
-            task_name=TASK_NAME, task_id=TASK_ID, args=(), kwargs={"arguments": ARGS}, headers=header,
+            task_name=task_name, task_id=TASK_ID, args=(), kwargs={"arguments": ARGS}, headers=header,
         )
 
 

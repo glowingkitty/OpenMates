@@ -167,6 +167,12 @@ view:
       about 30, 46, 19 and 5 minutes beside the four threads, and a short remark below the list says that sewing
       time and thread length are estimates which vary with the machine and its settings.
 
+chat_files:
+  - id: saved-embroidery-machine-files
+    given: A saved web chat contains an uploaded fox drawing and a finished embroidery conversion.
+    when: The user opens the chat settings Files tab and chooses the PES file, then Download files.
+    then: The PES entry saves the embroidery file. The chat ZIP contains the DST, PES, EXP, JEF and VP3 files alongside its other contents.
+
 billing:
   - id: plain-conversion-one-minute
     given: A conversion without model rework that keeps the sandbox running for 21 seconds.

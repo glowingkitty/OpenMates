@@ -61,6 +61,7 @@ export const zipChatCases: ZipChatCase[] = [
 			images: [{ filename: 'img.png', blob: blob('img-1') }, { filename: 'img_2.jpg', blob: blob('img-2') }],
 			generatedAudio: [{ filename: 'voice.mp3', blob: blob('gen-1') }],
 			staticFiles: [{ filename: 'doc.pdf', blob: blob('static-1') }],
+			generatedFiles: [{ filename: 'patch.pes', blob: blob('machine-1') }],
 			audio: [
 				{ filename: 'recording_01.webm', blob: blob('audio-1'), transcript: 'hello transcript' },
 				{ filename: 'noext', blob: blob('audio-2'), transcript: 'second transcript' },

@@ -4,6 +4,7 @@ export default { tab: 'plan', shared: false };
 export const variants = {
   tasks: { tab: 'tasks', shared: false },
   files: { tab: 'files', shared: false },
+  embroideryFiles: { tab: 'files', embroidery: true },
   usage: { tab: 'usage', shared: false },
   share: { tab: 'share', shared: false },
   shared: { tab: 'share', shared: true },

@@ -1,0 +1,19 @@
+schema_version: 2
+profile: concise
+id: embroidery-saved-result-recovery
+title: Restore embroidery results in saved chats
+status: implementing
+goal: Fix the root causes so that this and similar chats render correctly after reload and on another device, including existing broken chats if the data allows.
+specifications:
+  - feature.app-skill.design-embroidery@1
+  - feature.chats@7
+scope:
+  - Read legacy multiline upload references when rendering the saved message.
+  - Use the existing durable producer protocol for completed embroidery results.
+  - List each machine file and include all five files in the web chat archive.
+  - Recover the reported dev chat only if the saved parent, message, owner and original encrypted files verify.
+checks:
+  - Run the targeted producer and browser regression suites.
+  - Verify the original dev chat from a fresh signed-in browser and check its image, embroidery preview, individual download and archive.
+decisions:
+  - Any one-chat repair uses the original result ID and bytes. Recover the missing child through normal authenticated client-side encryption and canonical persistence. Add only the missing row and retain the original messages, parent and storage objects. Stop if canonical persistence rejects the recovery.

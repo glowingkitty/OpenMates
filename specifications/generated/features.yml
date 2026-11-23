@@ -3080,9 +3080,9 @@ features:
       source: tests
       intent: implemented
       assertions:
-        passing: 10
+        passing: 11
         failing: 15
-        not_run: 5
+        not_run: 4
         missing: 2
         counted: 32
       failing_tests:
@@ -3199,6 +3199,7 @@ features:
       - frontend/apps/web_app/tests/components/chat-presentation-animation.spec.ts
       - frontend/apps/web_app/tests/components/chat-response-scroll.spec.ts
       - frontend/apps/web_app/tests/components/chat-sent-message-visibility.spec.ts
+      - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
       - frontend/apps/web_app/tests/components/diagram-html-embed.spec.ts
       - frontend/apps/web_app/tests/components/diagram-html-real-examples.spec.ts
       - frontend/apps/web_app/tests/components/docs-public-model.spec.ts
@@ -12012,18 +12013,18 @@ features:
     - app:design
     dev: enabled
     prod: enabled
-  assertions: 30
+  assertions: 31
   surfaces:
     web:
       status: partial
       source: tests
       intent: implemented
       assertions:
-        passing: 3
+        passing: 4
         failing: 0
         not_run: 7
         missing: 20
-        counted: 30
+        counted: 31
       key_tests: []
       e2e_tests:
       - frontend/apps/web_app/tests/components/design-embroidery-embed.spec.ts
@@ -12044,8 +12045,8 @@ features:
         passing: 1
         failing: 0
         not_run: 0
-        missing: 15
-        counted: 16
+        missing: 16
+        counted: 17
       key_tests: []
       evidence: apple/OpenMates/Sources/Features/Embeds/Renderers/DesignEmbroideryEmbedRenderer.swift, app:design:search_icons
       e2e_tests: []
@@ -12064,8 +12065,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 30
-        counted: 30
+        missing: 31
+        counted: 31
       key_tests: []
       evidence: openmates apps design search_icons|export-icon
       e2e_tests: []
@@ -12113,8 +12114,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 30
-        counted: 30
+        missing: 31
+        counted: 31
       key_tests: []
       evidence: sdk.design facade (npm)
       e2e_tests: []
@@ -12128,8 +12129,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 30
-        counted: 30
+        missing: 31
+        counted: 31
       key_tests: []
       evidence: sdk.design facade (py)
       e2e_tests: []

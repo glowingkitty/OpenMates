@@ -8,6 +8,11 @@
 
 import type { Message } from '../../types/chat';
 import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
+import { decodeToonContent } from '../../services/embedResolver';
+import { hasMediaEncryptionMetadata } from '../../services/encryption/mediaEncryption';
+import { normalizeEmbedType } from '../../data/embedRegistry.generated';
+import { EMBROIDERY_FORMATS, readEmbroideryDesign } from '../embeds/design/embroideryDesign';
+import { readEmbroideryFile } from '../embeds/design/embroideryDownload';
 import { extractEmbedIdsFromContent, getEmbedFileReferences, type ChatFileReference } from '../../demo_chats/exampleChatFiles';
 
 const DOWNLOADABLE_TYPES = new Set([
@@ -51,6 +56,7 @@ export interface ChatFileRow {
   skillId?: string | null;
   url?: string | null;
   mimeType?: string | null;
+  readBlob?: () => Promise<Blob>;
 }
 
 export function extractChatEmbedRefs(messages: Message[]): string[] {
@@ -83,6 +89,7 @@ function isDownloadable(file: UploadedFileSearchResult): boolean {
   const type = String(file.type ?? '').toLowerCase();
   const nodeType = String(file.nodeType ?? '').toLowerCase();
   if (type === 'web' || type.startsWith('web-')) return false;
+  if (normalizeEmbedType(type) === 'design-embroidery') return false;
   return DOWNLOADABLE_TYPES.has(type) || DOWNLOADABLE_TYPES.has(nodeType);
 }
 
@@ -108,7 +115,9 @@ async function expandChatEmbedRefs(refs: string[]): Promise<string[]> {
       const content = typeof record.content === 'string' || (record.content && typeof record.content === 'object')
         ? record.content as string | Record<string, unknown>
         : record;
-      for (const childId of extractEmbedIdsFromContent(content)) {
+      const childIds = [...extractEmbedIdsFromContent(content), ...(Array.isArray(record.embed_ids) ? record.embed_ids : [])];
+      for (const childId of childIds) {
+        if (typeof childId !== 'string') continue;
         const childRef = `embed:${childId.replace(/^embed:/, '')}`;
         if (!expanded.has(childRef)) queue.push(childRef);
       }
@@ -119,11 +128,39 @@ async function expandChatEmbedRefs(refs: string[]): Promise<string[]> {
   return Array.from(expanded);
 }
 
-async function loadStaticExampleFileRows(contentRef: string): Promise<ChatFileRow[]> {
+async function loadEmbedFileRows(contentRef: string): Promise<ChatFileRow[]> {
   const embed = await embedStore.get(contentRef);
   if (!embed || typeof embed !== 'object') return [];
   const embedId = contentRef.replace(/^embed:/, '');
   const record = embed as Record<string, unknown>;
+  if (typeof record.type === 'string' && normalizeEmbedType(record.type) === 'design-embroidery') {
+    const content = typeof record.content === 'string' ? await decodeToonContent(record.content) : record.content;
+    if (!content || typeof content !== 'object' || Array.isArray(content)) return [];
+    const status = typeof record.status === 'string' ? record.status : undefined;
+    const design = readEmbroideryDesign(content as Record<string, unknown>, status);
+    if (design.status !== 'finished') return [];
+    // Match the filenames offered in the embroidery result.
+    const baseName = design.title.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48).replace(/-+$/, '') || 'embroidery-design';
+    return EMBROIDERY_FORMATS.flatMap((format): ChatFileRow[] => {
+      const file = design.files[format];
+      if (!file || !design.aesKey || !hasMediaEncryptionMetadata(file, file.aes_nonce ?? design.aesNonce)) return [];
+      const label = format.toUpperCase();
+      return [{
+        embedId,
+        contentRef: `${contentRef}:${format}`,
+        title: `${baseName}.${format}`,
+        subtitle: label,
+        type: 'design-embroidery',
+        nodeType: 'design-embroidery',
+        iconName: 'embroidery',
+        createdAt: Number(record.createdAt) || 0,
+        updatedAt: Number(record.updatedAt) || 0,
+        metadata: label,
+        readBlob: () => readEmbroideryFile(design, format),
+      }];
+    });
+  }
   const rows = getEmbedFileReferences({
     embedId,
     type: typeof record.type === 'string' ? record.type : null,
@@ -142,7 +179,7 @@ export async function loadChatFileRows(messages: Message[]): Promise<ChatFileRow
   const refs = await expandChatEmbedRefs(extractChatEmbedRefs(messages));
   if (refs.length === 0) return [];
   const files = await embedStore.getUploadedFilesByContentRefs(refs);
-  const rows = files
+  const rows: ChatFileRow[] = files
     .filter(isDownloadable)
     .map((file) => ({ ...file, metadata: buildMetadata(file) }));
   const listedRefs = new Set(rows.map((row) => row.contentRef));
@@ -151,12 +188,13 @@ export async function loadChatFileRows(messages: Message[]): Promise<ChatFileRow
     if (listedRefs.has(ref)) continue;
     const embedId = ref.replace(/^embed:/, '');
     if (listedEmbedIds.has(embedId)) continue;
-    const staticRows = await loadStaticExampleFileRows(ref);
-    for (const staticRow of staticRows) {
-      if (listedRefs.has(staticRow.contentRef) || listedEmbedIds.has(staticRow.embedId)) continue;
-      rows.push(staticRow);
-      listedRefs.add(staticRow.contentRef);
-      listedEmbedIds.add(staticRow.embedId);
+    const embedRows = await loadEmbedFileRows(ref);
+    if (embedRows.some((row) => listedEmbedIds.has(row.embedId))) continue;
+    for (const row of embedRows) {
+      if (listedRefs.has(row.contentRef)) continue;
+      rows.push(row);
+      listedRefs.add(row.contentRef);
+      listedEmbedIds.add(row.embedId);
     }
   }
   return rows;

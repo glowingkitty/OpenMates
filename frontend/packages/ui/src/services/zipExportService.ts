@@ -24,6 +24,7 @@ import {
 import { tipTapToCanonicalMarkdown, tipTapToReadableMarkdown } from "../message_parsing/serializers";
 import { parseCodeEmbedContent } from "../components/embeds/code/codeEmbedContent";
 import { fetchAndDecryptImage } from "../components/embeds/images/imageEmbedCrypto";
+import { loadChatFileRows } from "../components/chats/chatSettingsFiles";
 import { hasMediaEncryptionMetadata } from "./encryption/mediaEncryption";
 import {
   generateImageFilename,
@@ -59,6 +60,7 @@ export interface ChatZipFiles {
   transcripts: Awaited<ReturnType<typeof getVideoTranscriptEmbedsForChat>>;
   images: Awaited<ReturnType<typeof getImageEmbedsForChat>>;
   generatedAudio: Awaited<ReturnType<typeof getStaticGeneratedAudioFilesForChat>>;
+  generatedFiles: { filename: string; blob: Blob }[];
   staticFiles: Awaited<ReturnType<typeof getStaticExampleFilesForChat>>;
   audio: Awaited<ReturnType<typeof getAudioRecordingsForChat>>;
   pdfs: Awaited<ReturnType<typeof getPDFEmbedsForChat>>;
@@ -1442,6 +1444,16 @@ export async function getPDFEmbedsForChat(messages: Message[]): Promise<
   }
 }
 
+async function getGeneratedFilesForChat(messages: Message[]): Promise<ChatZipFiles["generatedFiles"]> {
+  const rows = await loadChatFileRows(messages);
+  const usedNames = new Set<string>();
+  return Promise.all(rows.flatMap((row) => {
+    if (!row.readBlob) return [];
+    const filename = uniqueFilename(row.title, usedNames);
+    return [row.readBlob().then((blob) => ({ filename, blob }))];
+  }));
+}
+
 /** Loads every embed-backed file of a chat in the order the zip lists them. */
 export async function collectChatZipFiles(messages: Message[]): Promise<ChatZipFiles> {
   const code = await getCodeEmbedsForChat(messages);
@@ -1451,7 +1463,8 @@ export async function collectChatZipFiles(messages: Message[]): Promise<ChatZipF
   const staticFiles = await getStaticExampleFilesForChat(messages);
   const audio = await getAudioRecordingsForChat(messages);
   const pdfs = await getPDFEmbedsForChat(messages);
-  return { code, transcripts, images, generatedAudio, staticFiles, audio, pdfs };
+  const generatedFiles = await getGeneratedFilesForChat(messages);
+  return { code, transcripts, images, generatedAudio, generatedFiles, staticFiles, audio, pdfs };
 }
 
 /** Triggers the browser download of a generated zip blob. */

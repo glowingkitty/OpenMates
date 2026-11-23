@@ -15,6 +15,7 @@
   import ChatSettingsShareSection from './ChatSettingsShareSection.svelte';
   import { loadChatFileRows, type ChatFileRow } from './chatSettingsFiles';
   import { buildChatUsageRows, loadChatUsageRows, loadChatUsageTotal, totalKnownCredits, usageEntriesToChatUsageRows, usageRowsToCsv, usageRowsToYaml, type ChatUsageRow } from './chatUsageRows';
+  import { saveBlob } from '../embeds/design/embroideryDownload';
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { notificationStore } from '../../stores/notificationStore';
   import { completeUserTask, createUserTask, listUserTasks, reorderUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
@@ -415,7 +416,16 @@
     URL.revokeObjectURL(url);
   }
 
-  function downloadFileReference(file: ChatFileRow): void {
+  async function downloadFileReference(file: ChatFileRow): Promise<void> {
+    if (file.readBlob) {
+      try {
+        saveBlob(await file.readBlob(), file.title);
+      } catch (error) {
+        console.error('[ChatSettingsPage] Failed to download chat file:', error);
+        notificationStore.error('Could not download file.');
+      }
+      return;
+    }
     if (file.url) {
       const link = document.createElement('a');
       link.href = file.url;
@@ -617,7 +627,7 @@
                 title={file.title}
                 subtitleBottom={file.metadata}
                 data-testid="chat-settings-file-row"
-                onClick={() => downloadFileReference(file)}
+                onClick={() => void downloadFileReference(file)}
               />
             {/each}
           </div>
