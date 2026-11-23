@@ -234,7 +234,8 @@ test("late home data cannot repopulate decrypted state after account reset",asyn
 test("every workspace has shared colored inspiration and Apps shows web headings without a composer",()=>{
   for(const workspace of ["chats","projects","workflows","tasks","apps"] as const){
     const state=createInitialTuiState();state.workspace=workspace;state.screen=workspace;state.focus="content";
-    state.inspirations=[inspiration];state.apps=[app("web","Web")];
+    // Apps and Workflows have no built-in fallback (start-screen redesign): the server supplies each workspace's inspirations.
+    state.inspirations=[{...inspiration,surface:workspace}];state.apps=[app("web","Web")];
     if(workspace!=="chats")assert.ok(workspaceInspirations(state).length);
     const frame=renderTuiFrame(state,120,32,{colorMode:"truecolor"});
     assert.match(stripAnsi(frame),/DAILY INSPIRATION/);assert.ok(frame.includes("\x1b[48;2;"));
