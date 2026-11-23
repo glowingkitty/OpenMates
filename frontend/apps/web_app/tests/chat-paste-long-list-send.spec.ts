@@ -2,8 +2,8 @@
 /**
  * Regression (issue WRPEB): pasting a long CV with bullet and numbered lists
  * threw "RangeError: Unknown node type: listItem" in the composer, the send
- * hung for minutes and Cancel stayed stuck. The pasted text must stay in the
- * composer as plain markdown lines and send normally with a reply.
+ * hung for minutes and Cancel stayed stuck. After "Paste as text" the CV must
+ * stay in the composer as plain markdown lines and send normally with a reply.
  */
 export {};
 const { test, expect } = require('./helpers/cookie-audit');
@@ -35,7 +35,7 @@ const proofContract = defineVideoProof({
   devices: ['web-laptop'],
   domain: 'app.dev.openmates.org',
   transcript: [
-    { id: 'pasted', text: 'The pasted CV with its bullet and numbered lists stays in the message field.', checkpoint: 'cv-pasted', devices: ['web-laptop'] },
+    { id: 'pasted', text: 'The long CV first becomes a document card; Paste as text puts it with its bullet and numbered lists into the message field.', checkpoint: 'cv-pasted', devices: ['web-laptop'] },
     { id: 'sent', text: 'The message sends right away and the assistant replies; the message field is empty again.', checkpoint: 'cv-sent', devices: ['web-laptop'] },
   ],
   assertions: [
@@ -76,6 +76,12 @@ test('a pasted long CV with bullet and numbered lists stays text and sends with 
       target.dispatchEvent(new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }));
     }, text);
 
+    // A paste this long is classified as a document card first (message-input
+    // gated-send rule). "Paste as text" puts the list lines into the composer
+    // itself: the path that threw "Unknown node type: listItem".
+    await expect(editor.locator('[data-testid="embed-full-width-wrapper"][data-embed-type="docs-doc"]')).toBeVisible({ timeout: 15000 });
+    await page.getByTestId('paste-as-text-chip').click();
+    await expect(editor.locator('[data-testid="embed-full-width-wrapper"]')).toHaveCount(0, { timeout: 10000 });
     await proof.assert('chats.paste.lists-stay-text', async () => {
       await expect(composer).toContainText('Please review my CV', { timeout: 10000 });
       await expect(composer).toContainText('- Led design project 24');
@@ -84,17 +90,21 @@ test('a pasted long CV with bullet and numbered lists stays text and sends with 
     await testInfo.attach('cv-pasted', { body: await composer.screenshot(), contentType: 'image/png' });
     await proof.checkpoint('cv-pasted');
 
-    // The replay marker is typed after the paste: a long paste can become a
-    // document card, and the mock server reads only the typed message text.
+    // The replay marker is typed at the end of the text, after classification
+    // has settled, so the mock server finds it in the sent message.
     await editor.click();
     await page.keyboard.press('Control+End');
     await page.keyboard.insertText(withMockMarker(' What do you think?', 'chat_flow_capital', 'fast'));
+    await expect(composer).toContainText('What do you think?');
     await page.getByTestId('composer-send-button').filter({ visible: true }).first().click();
     await proof.assert('chats.paste.lists-send', async () => {
       await expect(page.getByTestId('message-user')).toHaveCount(1, { timeout: 30000 });
       await expect(page.getByTestId('message-user').first()).toContainText('Please review my CV');
       await expect(page.getByTestId('message-assistant')).toHaveCount(1, { timeout: 90000 });
-      await expect(page.getByTestId('message-assistant').first().getByTestId('message-content')).not.toBeEmpty();
+      // The long user bubble is shortened ("Show full message"), so the typed
+      // words are proven by the reply: the mock answers (naming Berlin) only
+      // when the typed marker reached the server; an error reply never does.
+      await expect(page.getByTestId('message-assistant').first()).toContainText('Berlin', { timeout: 90000 });
       await expect(page.getByTestId('message-assistant').first()).not.toContainText('encountered an error');
       await expect(page.getByTestId('queued-edit-cancel')).toHaveCount(0);
       await expect(editor).toHaveText('');
