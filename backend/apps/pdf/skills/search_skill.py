@@ -42,6 +42,7 @@ from backend.apps.pdf.utils.final_gate import (
     require_final_pdf,
 )
 from cryptography.exceptions import InvalidTag
+from backend.shared.python_utils.pdf_ocr_readiness import PdfNotReadyError
 
 logger = logging.getLogger(__name__)
 
@@ -539,6 +540,16 @@ class SearchSkill(BaseSkill):
                 truncated=truncated,
             ).dict()
 
+        except PdfNotReadyError as e:
+            # Expected while upload processing is still running: the user is told
+            # to ask again, so this is not a server error.
+            logger.info(f"{log_prefix} pdf.search: PDF not ready yet")
+            return SearchResponse(
+                success=False,
+                file_path=file_path,
+                query=query,
+                error=f"Search failed: {e}",
+            ).dict()
         except (
             RuntimeError, ValueError, KeyError, TypeError, OSError, httpx.HTTPError, InvalidTag,
         ) as e:

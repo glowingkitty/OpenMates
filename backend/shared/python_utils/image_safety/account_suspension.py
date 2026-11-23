@@ -242,9 +242,11 @@ async def suspend_account_for_strikes(
     )
     return {"state": state, "until": until}
 
+# The service role may not read directus_users.date_created (Directus 403);
+# signup_started_at is the readable account-creation time.
 REVIEW_FIELDS = (
     "id,safety_suspension_category,safety_suspension_started_at,safety_decision,"
-    "safety_review_reminded_at,date_created,subscription_status"
+    "safety_review_reminded_at,signup_started_at,subscription_status"
 )
 
 async def list_pending_reviews(directus_service: Any) -> list:

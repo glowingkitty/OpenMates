@@ -55,12 +55,20 @@ def make_cache(language=LANG):
     type(cache).client = property(lambda self: _client())
     cache.get_user_by_id = AsyncMock(return_value={"language": language, "subscription_status": "active"})
     cache.delete = AsyncMock()
+    cache.get = AsyncMock(return_value=None)  # no cached user_tokens map
+    cache.publish_event = AsyncMock()  # force-logout broadcast after suspension
     cache.redis = redis
     return cache
 
 
+def make_directus():
+    # Suspension revokes every session first; the user has no session rows here.
+    return MagicMock(logout_all_sessions=AsyncMock(), update_user=AsyncMock(return_value=True),
+                     get_items=AsyncMock(return_value=[]))
+
+
 def make_task(cache):
-    return SimpleNamespace(_cache_service=cache, _directus_service=MagicMock(logout_all_sessions=AsyncMock(), update_user=AsyncMock(return_value=True)))
+    return SimpleNamespace(_cache_service=cache, _directus_service=make_directus())
 
 
 def make_rejection(category):
@@ -261,7 +269,7 @@ async def test_upload_endpoint_follows_the_same_ladder_and_never_deletes():
     from backend.core.api.app.routes.internal_api import ContentSafetyRejectRequest, content_safety_reject
 
     cache = make_cache("en")
-    directus = MagicMock(logout_all_sessions=AsyncMock(), update_user=AsyncMock(return_value=True))
+    directus = make_directus()
     payload = ContentSafetyRejectRequest(user_id="user-1", rejection_reason="sexual_activity=0.95")
     with patch.object(account_suspension, "alert_admin", new=AsyncMock()) as alert, \
          patch("backend.core.api.app.tasks.celery_config.app.send_task") as send_task:

@@ -255,7 +255,9 @@ async def get_session(
             include_personal_memories = False
             
         if not session_id:
-             logger.error("session_id missing from /session request body. Cannot generate device hash.")
+             # A client request without session_id (old or stale client): a request
+             # problem, not a server fault, so it is a warning rather than an error.
+             logger.warning("session_id missing from /session request body. Cannot generate device hash.")
              return SessionResponse(
                 success=False, 
                 message="Internal server error - session_id is missing", 

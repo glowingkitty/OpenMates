@@ -200,14 +200,18 @@ async def test_jev_errors_keep_bm25_order(monkeypatch):
 
 @pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=pdf-processing.readiness.complete-before-answer
-async def test_search_and_read_never_return_partial_content(monkeypatch):
+async def test_search_and_read_never_return_partial_content(monkeypatch, caplog):
     pages = {"1": {"markdown": "alpha"}}
     for skill in (_search(monkeypatch, pages, {"status": "processing"}), _read(monkeypatch, pages, {"status": "processing"})):
         args = (REF, "alpha") if isinstance(skill, SearchSkill) else (REF,)
-        result = await skill.execute(*args, **_kwargs())
+        caplog.clear()
+        with caplog.at_level("INFO"):
+            result = await skill.execute(*args, **_kwargs())
         assert result["success"] is False
         assert "not finished processing" in result["error"]
         assert not result.get("matches") and not result.get("content")
+        # Not-ready is an expected, user-facing state, never a server ERROR.
+        assert not [r for r in caplog.records if r.levelname == "ERROR"]
     failed = _read(monkeypatch, pages, {"status": "error", "error": "OCR failed"})
     result = await failed.execute(REF, **_kwargs())
     assert result["success"] is False and "OCR failed" in result["error"]

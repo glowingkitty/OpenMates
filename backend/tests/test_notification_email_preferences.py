@@ -204,3 +204,29 @@ async def test_contact_without_verification_proof_is_not_provisioned() -> None:
     )
     directus.create_item.assert_not_awaited()
     directus.update_user.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=notifications.delivery.email-enabled
+async def test_parallel_contact_store_conflict_is_expected_and_resolved_by_update() -> None:
+    """Prod 21 Nov: two parallel stores for one signup; the losing insert hit the
+    hashed_email unique constraint. That conflict is expected (no ERROR) and the
+    store finishes through the update of the same row."""
+    directus = AsyncMock()
+    encryption = AsyncMock()
+    directus.get_items.return_value = []
+    directus.create_item.return_value = (False, {
+        "status_code": 400,
+        "text": 'Value for field "hashed_email" in collection "account_contact_emails" has to be unique.',
+    })
+    directus.update_item.return_value = True
+    directus.get_user_fields_direct.return_value = {"vault_key_id": "user-vault-key"}
+    directus.update_user.return_value = True
+    encryption.encrypt_with_user_key.return_value = ("user-ciphertext", "v1")
+
+    assert await store_account_lifecycle_contact_email(
+        directus, encryption, user_id="user-1", hashed_email="hash-1",
+        email="verified@example.test", verified_at="2026-10-01T00:00:00Z",
+    )
+    assert directus.create_item.await_args.kwargs["expected_unique_conflict_field"] == "hashed_email"
+    directus.update_item.assert_awaited_once()

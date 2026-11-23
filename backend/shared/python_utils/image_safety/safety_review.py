@@ -223,7 +223,7 @@ async def review_detail(directus_service: Any, user: Dict[str, Any]) -> Dict[str
         "scores": decision.get("scores") or {},
         "threshold": decision.get("threshold"),
         "purpose_verdict": decision.get("purpose_verdict"),
-        "account_created": user.get("date_created"),
+        "account_created": user.get("signup_started_at"),
         "plan": user.get("subscription_status") or "free",
         "earlier_strikes": decision.get("earlier_strikes"),
         "appeals": shown,

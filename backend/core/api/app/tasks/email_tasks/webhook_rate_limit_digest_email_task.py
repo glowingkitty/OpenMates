@@ -81,8 +81,8 @@ async def _async_process_webhook_rate_limit_digest() -> bool:
 
         cache_service = CacheService()  # no async initialize(); connects lazily via .client
 
-        directus_service = DirectusService()
-        await directus_service.initialize()
+        # DirectusService has no async initialize(); it is ready after construction.
+        directus_service = DirectusService(cache_service=cache_service, encryption_service=encryption_service)
 
         client = await cache_service.client
         if not client:
