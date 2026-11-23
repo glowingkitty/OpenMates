@@ -422,8 +422,10 @@ for (const scenario of SCENARIOS) {
 
           const notifications = (await recorded(page)).notifications;
           log(`notifications: ${JSON.stringify(notifications)}`);
-          const problems = notifications.filter((entry) => /notification-(error|warning)/.test(entry.cls)
-            || /canonical embed revision/i.test(entry.text));
+          // The account's own 2FA/passkey nag appears at login when the test account has neither;
+          // it is account state, not a call problem (other specs treat it the same way).
+          const problems = notifications.filter((entry) => (/notification-(error|warning)/.test(entry.cls)
+            && !entry.text.startsWith('Security Reminder')) || /canonical embed revision/i.test(entry.text));
           expect(problems, 'no error or warning notification during the call').toEqual([]);
           expect(consoleErrors.filter((text) => /canonical embed revision/i.test(text)),
             'no canonical embed revision error').toEqual([]);
