@@ -8,9 +8,10 @@ from fastapi import Request, HTTPException, status
 import logging
 import time
 import hashlib
-from typing import Tuple, Dict, Any, Optional, TYPE_CHECKING
+from typing import Tuple, Dict, Any, Mapping, Optional, TYPE_CHECKING
 
 from backend.core.api.app.middleware.session_cookie_publication import queue_rotated_session_cookie
+from backend.core.api.app.schemas.user import AI_PREFERENCE_FIELDS, ai_preference_fields
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.utils.session_refresh import refresh_session_token, complete_refresh_rotation, resolve_session_credential
@@ -28,6 +29,22 @@ logger = logging.getLogger(__name__)
 EXTENDED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
 DEFAULT_SESSION_TOKEN_LIST_TTL_SECONDS = 7 * 24 * 60 * 60
 SESSION_SECURITY_COUNTRY_FIELD = "security_country_code"
+
+
+async def read_ai_preferences_for_auth(
+    directus_service: DirectusService,
+    user_id: str,
+    cached_profile: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Read the authenticated owner's saved settings independently of the session cache."""
+    # Profile snapshots can predate a settings write on this or another device.
+    saved = await directus_service.get_user_fields_direct(
+        user_id, list(AI_PREFERENCE_FIELDS), no_cache=True,
+    )
+    if not isinstance(saved, Mapping):
+        logger.warning("Using cached AI preferences because the saved settings read failed")
+        return ai_preference_fields(cached_profile)
+    return ai_preference_fields(saved)
 
 
 def _normalized_security_country(country_code: Optional[str]) -> Optional[str]:

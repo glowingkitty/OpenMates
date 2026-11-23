@@ -245,6 +245,7 @@ features:
       - frontend/apps/web_app/tests/provider-temporary-pricing.spec.ts › key-free public catalog filters unavailable models
         and generated details show Mistral promotion
       key_tests: []
+      evidence: default-model-settings.spec.ts verifies a saved tier selection after session refresh and the return to Auto
       e2e_tests:
       - frontend/apps/web_app/tests/ai-model-settings.spec.ts
       - frontend/apps/web_app/tests/ai-server-region-preference.spec.ts
@@ -358,7 +359,7 @@ features:
       - backend/tests/test_preprocessor_jev.py
       - backend/tests/test_preprocessor.py
       - backend/tests/test_main_factual_prompt.py
-      unit_test_files: 31
+      unit_test_files: 32
     sdk_npm:
       status: implemented
       source: intent

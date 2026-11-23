@@ -18,6 +18,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_direct
 from backend.core.api.app.routes.auth_routes.auth_common import (
     get_session_security_country,
     preserve_rotated_session_metadata,
+    read_ai_preferences_for_auth,
     session_country_changed,
     set_session_security_country,
     verify_authenticated_user,
@@ -661,6 +662,7 @@ async def get_session(
                 language=user_data.get("language", 'en'),
                 darkmode=user_data.get("darkmode", False),
                 ui_font=user_data.get("ui_font", "lexend"),
+                **await read_ai_preferences_for_auth(directus_service, user_id, user_data),
                 invoice_counter=user_data.get("invoice_counter", 0),
                 credential_version=user_data.get("credential_version"),
                 encrypted_settings=user_data.get("encrypted_settings"),

@@ -75,6 +75,7 @@ features:
     release: v0.5.0-alpha
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
     evidence:
+      web: "default-model-settings.spec.ts verifies a saved tier selection after session refresh and the return to Auto"
       sdk_npm: "sdk.ts model option + default_ai_model_*; sdk.py ask(model=), AiModelDefaults"
       sdk_pypi: "sdk.ts model option + default_ai_model_*; sdk.py ask(model=), AiModelDefaults"
   - id: answer-safety-check
