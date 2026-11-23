@@ -33,6 +33,8 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ci_e2b_template  # noqa: E402
+import ci_speedups  # noqa: E402
 import agent_question  # noqa: E402 - sibling module; path set up above
 import discord_webhook  # noqa: E402
 import e2b_dev_capacity  # noqa: E402
@@ -147,7 +149,8 @@ def spawn_launcher(argv: list[str], log: Path) -> subprocess.Popen:
 
 
 def start(repo: str, token: str, timeout_minutes: int, root: Path, *, no_job_seconds: int = NO_JOB_SECONDS,
-          ready_wait: float = READY_WAIT_SECONDS, mode: str = "", specs: list[str] | None = None) -> dict | None:
+          ready_wait: float = READY_WAIT_SECONDS, mode: str = "", specs: list[str] | None = None,
+          owner: str = "", source: str = "") -> dict | None:
     """Register a JIT runner and start its sandbox. None when no sandbox could be started.
 
     `mode` and `specs` are recorded in the runner state so memory reports name the job.
@@ -168,6 +171,8 @@ def start(repo: str, token: str, timeout_minutes: int, root: Path, *, no_job_sec
     argv = [python, str(SCRIPT), "launch", "--repo", repo, "--label", label, "--runner-id", str(runner_id),
             "--timeout-minutes", str(timeout_minutes), "--config-file", str(cfg),
             "--no-job-seconds", str(no_job_seconds)]
+    if owner and source:
+        argv += ["--owner", owner, "--source", source]
     write_state(label, state="starting", runner_id=runner_id, runner_name=runner_name, repo=repo,
                 mode=mode, specs=list(specs or []))
     launcher = spawn_launcher(argv, state_root() / f"{label}.log")
@@ -226,6 +231,22 @@ def sandbox_errors() -> tuple[type[BaseException], ...]:
     return (OSError, RuntimeError, SandboxException, TimeoutException)
 
 
+def choose_template(owner: str, source: str, *, enabled=None, exists=None, alias=None) -> tuple[str, str]:
+    """(template alias, reason): the dependency template for `source` when the owner has 'e2b-template' on
+    and it exists, else the plain template exactly as before."""
+    if not owner or not source:
+        return TEMPLATE_ALIAS, "plain: no owner/source"
+    try:
+        if "e2b-template" not in (enabled or ci_speedups.enabled)(owner):
+            return TEMPLATE_ALIAS, "plain: e2b-template off"
+        name = (alias or ci_e2b_template.source_alias)(source, base_steps(), RUNNER_VERSION)
+        if (exists or ci_e2b_template.template_exists)(name):
+            return name, "deps template"
+        return TEMPLATE_ALIAS, f"plain: {name} not built"
+    except sandbox_errors() + (ValueError, subprocess.SubprocessError, ImportError) as exc:
+        return TEMPLATE_ALIAS, f"plain: template lookup failed ({type(exc).__name__})"
+
+
 def run_launch(args: argparse.Namespace, *, create_sandbox=None, now=time.monotonic, sleep=time.sleep) -> int:
     """Own one sandbox for one job. Always cleans up and records spend."""
     from_args = args
@@ -248,7 +269,10 @@ def run_launch(args: argparse.Namespace, *, create_sandbox=None, now=time.monoto
     final = "failed"
     peak_mb = 0
     try:
-        sandbox = (create_sandbox or create_e2b_sandbox)(from_args.timeout_minutes + DEADLINE_EXTRA_MINUTES, label)
+        template, why = choose_template(getattr(args, "owner", ""), getattr(args, "source", ""))
+        write_state(label, template=template, template_reason=why)
+        sandbox = (create_sandbox or create_e2b_sandbox)(from_args.timeout_minutes + DEADLINE_EXTRA_MINUTES, label,
+                                                         template)
         sandbox.files.write("/home/user/.jit", jit)
         del jit
         sandbox.commands.run("chmod 600 /home/user/.jit; (pgrep -x dockerd >/dev/null || sudo -n sh -c "
@@ -326,12 +350,12 @@ def report_memory(label: str, state: dict, *, post=None) -> bool:
     return True
 
 
-def create_e2b_sandbox(timeout_minutes: int, label: str):
+def create_e2b_sandbox(timeout_minutes: int, label: str, template: str = TEMPLATE_ALIAS):
     from e2b import Sandbox
 
     import heavy_remote
 
-    return Sandbox.create(template=TEMPLATE_ALIAS, timeout=timeout_minutes * 60, api_key=heavy_remote.e2b_api_key(),
+    return Sandbox.create(template=template, timeout=timeout_minutes * 60, api_key=heavy_remote.e2b_api_key(),
                           metadata={"purpose": "ci-runner", "label": label})
 
 
@@ -347,27 +371,31 @@ APT_PACKAGES = ["sudo", "git", "curl", "wget", "jq", "zip", "unzip", "zstd", "xz
 RUSTUP_PATH = "/home/user/.cargo/bin"
 
 
+def base_steps() -> list[tuple[str, str]]:
+    """(user, shell command) steps of the plain runner template; also part of the dependency hash."""
+    tarball = f"actions-runner-linux-x64-{RUNNER_VERSION}.tar.gz"
+    url = f"https://github.com/actions/runner/releases/download/v{RUNNER_VERSION}/{tarball}"
+    return [
+        ("root", "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "
+                 + " ".join(APT_PACKAGES) + " && rm -rf /var/lib/apt/lists/*"),
+        ("root", "id user >/dev/null 2>&1 || useradd -m -s /bin/bash user; "
+                 "echo 'user ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/user && chmod 440 /etc/sudoers.d/user; "
+                 "getent group docker >/dev/null || groupadd docker; usermod -aG docker user"),
+        ("root", f"mkdir -p {RUNNER_DIR} && curl -fsSL {url} | tar xz -C {RUNNER_DIR} && "
+                 f"{RUNNER_DIR}/bin/installdependencies.sh && chown -R user:user /home/user"),
+        ("user", "curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none"),
+        # The runner reads PATH for every job from `.path`; keep rustup/cargo on it like the hosted image.
+        ("user", f"echo '{RUSTUP_PATH}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > {RUNNER_DIR}/.path"),
+    ]
+
+
 def template_definition():
     from e2b import Template
 
-    tarball = f"actions-runner-linux-x64-{RUNNER_VERSION}.tar.gz"
-    url = f"https://github.com/actions/runner/releases/download/v{RUNNER_VERSION}/{tarball}"
-    return (
-        Template().from_image("ubuntu:24.04")
-        .set_user("root")
-        .run_cmd("apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "
-                 + " ".join(APT_PACKAGES) + " && rm -rf /var/lib/apt/lists/*")
-        .run_cmd("id user >/dev/null 2>&1 || useradd -m -s /bin/bash user; "
-                 "echo 'user ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/user && chmod 440 /etc/sudoers.d/user; "
-                 "getent group docker >/dev/null || groupadd docker; usermod -aG docker user")
-        .run_cmd(f"mkdir -p {RUNNER_DIR} && curl -fsSL {url} | tar xz -C {RUNNER_DIR} && "
-                 f"{RUNNER_DIR}/bin/installdependencies.sh && chown -R user:user /home/user")
-        .set_user("user")
-        .set_workdir("/home/user")
-        .run_cmd("curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none")
-        # The runner reads PATH for every job from `.path`; keep rustup/cargo on it like the hosted image.
-        .run_cmd(f"echo '{RUSTUP_PATH}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > {RUNNER_DIR}/.path")
-    )
+    template = Template().from_image("ubuntu:24.04")
+    for user, command in base_steps():
+        template = template.set_user(user).run_cmd(command)
+    return template.set_user("user").set_workdir("/home/user")
 
 
 def build_template() -> int:
@@ -409,7 +437,10 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
-    sub.add_parser("template")
+    template = sub.add_parser("template")
+    template.add_argument("--deps", action="store_true", help="build the dependency-hash template instead")
+    template.add_argument("--commit", help="with --deps: commit to hash (default origin/dev)")
+    sub.add_parser("warm", help="build the dependency template for origin/dev only when missing (timer)")
     sub.add_parser("memory", help="finished runs by peak memory against the 8 GB sandbox limit")
     launch = sub.add_parser("launch")
     launch.add_argument("--repo", required=True)
@@ -417,6 +448,8 @@ def main(argv: list[str]) -> int:
     launch.add_argument("--runner-id", type=int, required=True)
     launch.add_argument("--timeout-minutes", type=int, required=True)
     launch.add_argument("--config-file", required=True)
+    launch.add_argument("--owner", default="")
+    launch.add_argument("--source", default="")
     launch.add_argument("--no-job-seconds", type=int, default=NO_JOB_SECONDS)
     args = parser.parse_args(argv)
     if args.cmd == "launch":
@@ -426,7 +459,11 @@ def main(argv: list[str]) -> int:
         return print_status()
     if args.cmd == "memory":
         return print_memory()
+    if args.cmd == "warm":
+        return ci_e2b_template.warm()
     if args.cmd == "template":
+        if args.deps:
+            return ci_e2b_template.build_deps_template(ci_e2b_template.resolve_commit(args.commit))
         return build_template()
     return run_launch(args)
 

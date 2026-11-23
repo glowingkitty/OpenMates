@@ -31,7 +31,8 @@ from pathlib import Path
 # wasm-cache: restore the web Rust core wasm package from a content-addressed cache.
 # browser-cache: restore Playwright browsers from a cache keyed on the Playwright version.
 # prepared-rust-core: the prepare job ships the Rust-core web build; consumers skip rebuilds.
-KNOWN = frozenset({"wasm-cache", "browser-cache", "prepared-rust-core"})
+# e2b-template: E2B overflow jobs start from a prepared dependency template (scripts/ci_e2b_template.py).
+KNOWN = frozenset({"wasm-cache", "browser-cache", "prepared-rust-core", "e2b-template"})
 ROOT = Path(__file__).resolve().parents[1]
 
 

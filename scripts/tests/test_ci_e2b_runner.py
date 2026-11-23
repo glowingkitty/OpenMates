@@ -195,3 +195,58 @@ def test_launch_records_oom_and_reports_heavy_spec(tmp_path, monkeypatch, env):
     assert len(posted) == 1 and "heavy.spec.ts" in posted[0]["payload"]["content"]
     alert = (tmp_path / "memory-alerts.jsonl").read_text().strip().splitlines()
     assert len(alert) == 1 and '"notified": true' in alert[0]
+
+
+# ---- dependency-hash templates ------------------------------------------------
+
+import ci_e2b_template as tpl  # noqa: E402
+
+INPUTS = {"files": {"pnpm-lock.yaml": "a"}, "node": "24.22.1", "pnpm": "10.23.0", "playwright": "1.60.0",
+          "rust": "1.98.1", "wasm_bindgen": "0.2.129", "recorder": ["ffmpeg"]}
+
+
+def test_hash_stable_and_sensitive():
+    base = runner.base_steps()
+    one = tpl.definition_digest(base, INPUTS, "2.338.2")
+    assert one == tpl.definition_digest(base, dict(reversed(list(INPUTS.items()))), "2.338.2")
+    assert len(one) == 12 and tpl.is_deps_alias(tpl.alias_for(one))
+    assert one != tpl.definition_digest(base, {**INPUTS, "playwright": "1.61.0"}, "2.338.2")
+    assert one != tpl.definition_digest(base, INPUTS, "2.339.0")
+    assert one != tpl.definition_digest(base[:-1], INPUTS, "2.338.2")
+
+
+def test_playwright_node_pnpm_parsing():
+    assert tpl.playwright_version("x\n  '@playwright/test@1.60.0':\n    y") == "1.60.0"
+    assert tpl.node_version('A = 1\nNODE_VERSION = "v24.22.1"\n') == "24.22.1"
+    assert tpl.package_manager('{"packageManager": "pnpm@10.23.0"}') == "10.23.0"
+
+
+def test_choose_template_on_off_and_fallback():
+    alias = lambda *_a: "openmates-ci-runner-abcdef012345"  # noqa: E731
+    on = lambda owner: frozenset({"e2b-template"})  # noqa: E731
+    assert runner.choose_template("o", "sha", enabled=on, exists=lambda n: True, alias=alias) == (alias(), "deps template")
+    assert runner.choose_template("o", "sha", enabled=lambda o: frozenset(), exists=lambda n: True, alias=alias)[0] == runner.TEMPLATE_ALIAS
+    name, why = runner.choose_template("o", "sha", enabled=on, exists=lambda n: False, alias=alias)
+    assert name == runner.TEMPLATE_ALIAS and "not built" in why
+    def boom(*_a):
+        raise ValueError("no lockfile")
+    assert runner.choose_template("o", "sha", enabled=on, exists=lambda n: True, alias=boom)[0] == runner.TEMPLATE_ALIAS
+    assert runner.choose_template("", "sha", enabled=on)[0] == runner.TEMPLATE_ALIAS
+
+
+def test_launch_records_template(tmp_path, env, monkeypatch):
+    monkeypatch.setattr(runner, "choose_template", lambda owner, source: ("openmates-ci-runner-aaaaaaaaaaaa", "deps template"))
+    seen = []
+    box = FakeSandbox(["exit worker 1"])
+    runner.run_launch(launch_args(tmp_path, owner="o", source="s"), create_sandbox=lambda *a: seen.append(a[2]) or box,
+                      now=Clock().now, sleep=lambda *_: None)
+    assert seen == ["openmates-ci-runner-aaaaaaaaaaaa"]
+    assert runner.read_state("openmates-e2b-t")["template"] == "openmates-ci-runner-aaaaaaaaaaaa"
+
+
+def test_prune_keeps_newest_three_and_only_deps_templates():
+    rows = [{"id": f"t{i}", "alias": f"openmates-ci-runner-{i:012x}", "created": f"2026-11-0{i}"} for i in range(1, 6)]
+    rows.append({"id": "plain", "alias": "openmates-ci-runner", "created": "2020"})
+    gone = []
+    removed = tpl.prune(rows, 3, gone.append)
+    assert gone == ["t2", "t1"] and len(removed) == 2

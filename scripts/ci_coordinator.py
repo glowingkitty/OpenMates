@@ -1323,6 +1323,8 @@ class Queue:
                 Path(__file__).resolve().parents[1],
                 mode=job["mode"],
                 specs=json.loads(job["specs"]),
+                owner=str(job["owner"]),
+                source=str(job["source"]),
             )
             if registration is None:
                 return

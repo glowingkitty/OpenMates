@@ -1176,7 +1176,7 @@ class FakeE2B:
     def available(self):
         return self.free
 
-    def start(self, repo, token, timeout_minutes, root, *, mode="", specs=None):
+    def start(self, repo, token, timeout_minutes, root, *, mode="", specs=None, owner="", source=""):
         self.started.append((repo, token, timeout_minutes))
         self.meta = {"mode": mode, "specs": specs}
         if not self.accept:
