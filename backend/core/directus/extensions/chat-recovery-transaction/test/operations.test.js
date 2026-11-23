@@ -1217,6 +1217,71 @@ test('activation retires epoch-zero output producers idle for a day, never a liv
     .every((row) => row.invalidated_at.getTime() === now.getTime()));
 });
 
+test('activation retires epoch-zero batch claims idle for a day, never a live one', async () => {
+  const now = new Date('2029-01-03T00:00:00Z');
+  const hoursAgo = (hours) => new Date(now.getTime() - hours * 60 * 60_000);
+  const claim = (id, state, created, claimed = null) => ({
+    id, task_identity: `task-${id}`, state, created_at: created, claimed_at: claimed,
+    worker_completed: false, persistence_observed: false, invalidated_at: null,
+  });
+  const database = fakeDatabase({
+    chat_recovery_protocol_state: [{
+      id: 'chat-recovery', protocol_epoch: 0, sends_paused: true,
+      legacy_in_flight: 0, active_legacy_tasks: [], legacy_task_lifecycle: [],
+    }],
+    chat_recovery_legacy_output_producers: [],
+    chat_recovery_legacy_batch_claims: [
+      claim('stale-prepared', 'PREPARED', hoursAgo(25)),
+      claim('stale-claimed', 'CLAIMED', hoursAgo(48), hoursAgo(30)),
+      claim('stale-claimed-unstamped', 'CLAIMED', hoursAgo(26)),
+      claim('live-claimed', 'CLAIMED', hoursAgo(30), hoursAgo(1)),
+      claim('recent-completed', 'COMPLETED', hoursAgo(2)),
+      claim('finished', 'COMPLETED', hoursAgo(72), hoursAgo(71)),
+    ],
+  });
+  const states = () => Object.fromEntries(database.rows.chat_recovery_legacy_batch_claims
+    .map((row) => [row.id, row.state]));
+  const activate = () => executeOperation(database, 'activate_protocol_epoch', {
+    protocol_version: 1, target_epoch: 1,
+  }, now);
+  // A claim taken an hour ago is still live: activation keeps waiting and the
+  // failed transaction leaves every row untouched.
+  await assert.rejects(activate(), (error) => error.code === 'legacy_batches_pending');
+  assert.equal(database.rows.chat_recovery_protocol_state[0].protocol_epoch, 0);
+  assert.equal(states()['stale-prepared'], 'PREPARED');
+  assert.equal(states()['live-claimed'], 'CLAIMED');
+  database.rows.chat_recovery_legacy_batch_claims
+    .find((row) => row.id === 'live-claimed').state = 'COMPLETED';
+  assert.equal((await activate()).protocol_epoch, 1);
+  assert.deepEqual(states(), {
+    'stale-prepared': 'INVALIDATED', 'stale-claimed': 'INVALIDATED',
+    'stale-claimed-unstamped': 'INVALIDATED', 'live-claimed': 'COMPLETED',
+    'recent-completed': 'COMPLETED', finished: 'COMPLETED',
+  });
+  assert.ok(database.rows.chat_recovery_legacy_batch_claims
+    .filter((row) => row.state === 'INVALIDATED')
+    .every((row) => row.invalidated_at.getTime() === now.getTime()));
+});
+
+test('activation keeps waiting on an epoch-zero batch claim prepared exactly a day ago', async () => {
+  const now = new Date('2029-01-03T00:00:00Z');
+  const database = fakeDatabase({
+    chat_recovery_protocol_state: [{
+      id: 'chat-recovery', protocol_epoch: 0, sends_paused: true,
+      legacy_in_flight: 0, active_legacy_tasks: [], legacy_task_lifecycle: [],
+    }],
+    chat_recovery_legacy_output_producers: [],
+    chat_recovery_legacy_batch_claims: [{
+      id: 'recent', task_identity: 'task-recent', state: 'PREPARED',
+      created_at: new Date('2029-01-02T00:00:00Z'), claimed_at: null, invalidated_at: null,
+    }],
+  });
+  await assert.rejects(executeOperation(database, 'activate_protocol_epoch', {
+    protocol_version: 1, target_epoch: 1,
+  }, now), (error) => error.code === 'legacy_batches_pending');
+  assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].state, 'PREPARED');
+});
+
 test('activation never retires an epoch-zero producer while sends are still open', async () => {
   const now = new Date('2029-01-03T00:00:00Z');
   const database = fakeDatabase({
