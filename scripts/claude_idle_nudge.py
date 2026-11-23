@@ -4,7 +4,7 @@
 A chat that ends its turn with "it's running, I'll continue when it finishes" is not woken
 by anything; it stays idle until the user types. This script sends one automatic message to
 such chats. A chat qualifies only when ALL hold:
-  * it is a Remote Control worker whose recorded state is idle,
+  * it is an interactive pane chat whose recorded state is idle,
   * it has been idle between --min-minutes (default 20) and --max-minutes (default 50; the
     upper bound keeps the one-hour prompt cache warm),
   * it has no child process other than tool (MCP) servers,
@@ -13,7 +13,7 @@ such chats. A chat qualifies only when ALL hold:
   * there is evidence of owed work: CI jobs of its sessions.py sessions that are non-terminal
     or reached a terminal state after its last activity, or its last assistant text contains a
     waiting phrase and does not end with a question mark.
-The chat that runs the script is never nudged. Delivery reuses claude_usage_guard.deliver.
+The chat that runs the script is never nudged. Delivery types into the existing chat pane only.
 Decisions are appended to logs/claude-idle-chats/events.jsonl.
 
 Commands:
@@ -31,9 +31,8 @@ import sys
 import time
 from pathlib import Path
 
-import claude_usage_guard
 from agent_peers import transcripts
-from claude_idle_chats import TOOL_SERVER_MARKER, Chat, live_chats, load_config, log_event
+from claude_idle_chats import TOOL_SERVER_MARKER, Chat, live_chats, load_config, log_event, waiting_on_billing, wake
 from pending_work_gate import TERMINAL, canonical_root, chat_sessions
 
 DEFAULT_MIN_MINUTES = 20.0
@@ -132,8 +131,10 @@ def nudge_key(chat: Chat) -> str:
 def decide(chat: Chat, now: float, min_s: float, max_s: float, own: str, *, question_ts: float,
            nudged: bool, finished: list[str], running: list[str], last_text: str) -> tuple[bool, str]:
     """Pure rule: should this chat get the wake-up message? Returns (nudge, reason)."""
-    if chat.kind != "rc_worker":
-        return False, "not a Remote Control worker"
+    if chat.kind != "pane" or chat.protected:
+        return False, "no eligible interactive chat pane"
+    if chat.pushed_question or chat.pushed_done or chat.waiters or waiting_on_billing(chat):
+        return False, "chat is waiting or finished"
     if own and chat.session_id == own:
         return False, "this chat runs the script"
     if chat.status != "idle":
@@ -168,7 +169,7 @@ def message_text(idle_minutes: int, finished: list[str]) -> str:
 
 
 def run(command: str, dry_run: bool, min_minutes: float, max_minutes: float, root: Path, claude_home: Path,
-        now: float | None = None, agents: list[dict] | None = None, sender=claude_usage_guard.deliver) -> int:
+        now: float | None = None, sender=wake) -> int:
     now = time.time() if now is None else now
     own = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
     log_dir = root / "logs" / "claude-idle-chats"
@@ -191,23 +192,11 @@ def run(command: str, dry_run: bool, min_minutes: float, max_minutes: float, roo
         if dry_run:
             print(f"would nudge {label}: {reason}\n  {text}")
             continue
-        try:
-            rows = agents if agents is not None else claude_usage_guard.list_background_agents()
-            row = next((r for r in rows if r.get("sessionId") == chat.session_id), None)
-            if row is None:
-                raise claude_usage_guard.DeliveryFailed("chat not listed by claude agents")
-            target = {"name": row["name"], "sessionId": chat.session_id, "status": row.get("status", ""),
-                      "kind": row.get("kind", ""),
-                      "permissionMode": claude_usage_guard.chat_permission_mode(paths.get(chat.session_id))}
-            mode, _warning = claude_usage_guard.sender_mode([target])
-            sender([target], text, root, mode)
-            save_nudge(root, nudge_key(chat), now)
-            nudges[nudge_key(chat)] = now
-            event = "nudged"
-        except claude_usage_guard.DeliveryFailed as error:
-            failed += 1
-            event = "nudge_failed"
-            reason = f"{reason}; {error}"
+        sent = sender(chat, text)
+        save_nudge(root, nudge_key(chat), now)
+        nudges[nudge_key(chat)] = now
+        event = "nudged" if sent else "nudge_unavailable"
+        failed += not sent
         print(f"{event} {label}: {reason}")
         log_event(log_dir, {"event": event, "reason": reason, "session_id": chat.session_id,
                             "name": chat.name, "pid": chat.pid, "finished_jobs": finished})

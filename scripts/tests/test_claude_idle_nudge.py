@@ -17,7 +17,7 @@ MIN, MAX = 20 * 60, 50 * 60
 
 
 def chat(**overrides) -> Chat:
-    values = dict(pid=1, session_id="chat-a", name="n", status="idle", kind="rc_worker",
+    values = dict(pid=1, session_id="chat-a", name="n", status="idle", kind="pane",
                   last_activity=NOW - 30 * 60, children=["npx figma-mcp"])
     values.update(overrides)
     return Chat(**values)
@@ -40,7 +40,9 @@ def test_idle_window_bounds():
 
 def test_blockers():
     assert not decide(chat(status="busy"))
-    assert not decide(chat(kind="pane"))
+    assert not decide(chat(kind="rc_worker"))
+    assert not decide(chat(protected=True))
+    assert not decide(chat(last_speaker="assistant", last_text="CI blocked by GitHub billing."))
     assert not decide(chat(children=["/bin/bash -c cargo test"]))
     assert not decide(chat(session_id="other"))
     assert not decide(question_ts=NOW - 60)
@@ -80,14 +82,12 @@ def test_ci_evidence_and_run_nudges_once(tmp_path, monkeypatch):
     monkeypatch.setattr(nudge, "transcripts", lambda _root: {})
     monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
     sent = []
-    agents = [{"sessionId": "chat-a", "name": "n", "status": "idle", "kind": "x"}]
+    def sender(target, text):
+        sent.append((target.session_id, text))
+        return True
 
-    def sender(targets, text, _root, mode):
-        sent.append((targets[0]["name"], text))
-        return ""
-
-    assert nudge.run("nudge", False, 20, 50, root, home, now=NOW, agents=agents, sender=sender) == 0
-    assert nudge.run("nudge", False, 20, 50, root, home, now=NOW, agents=agents, sender=sender) == 0
+    assert nudge.run("nudge", False, 20, 50, root, home, now=NOW, sender=sender) == 0
+    assert nudge.run("nudge", False, 20, 50, root, home, now=NOW, sender=sender) == 0
     assert len(sent) == 1 and "job9" in sent[0][1] and "30 minutes" in sent[0][1]
     events = (root / "logs/claude-idle-chats/events.jsonl").read_text().splitlines()
     assert json.loads(events[0])["event"] == "nudged"
@@ -100,3 +100,18 @@ def test_dry_run_sends_nothing(tmp_path, monkeypatch, capsys):
     nudge.run("nudge", True, 20, 50, root, home, now=NOW, sender=lambda *a: (_ for _ in ()).throw(AssertionError))
     assert "would nudge" in capsys.readouterr().out
     assert not (root / "logs/claude-idle-chats/nudges.json").exists()
+
+
+def test_unavailable_target_is_recorded_once(tmp_path, monkeypatch):
+    home, root = write_world(tmp_path)
+    monkeypatch.setattr(nudge, "live_chats", lambda _home, _config: [chat()])
+    monkeypatch.setattr(nudge, "transcripts", lambda _root: {})
+    attempts = []
+
+    def sender(target, _text):
+        attempts.append(target.session_id)
+        return False
+
+    assert nudge.run("nudge", False, 20, 50, root, home, now=NOW, sender=sender) == 1
+    assert nudge.run("nudge", False, 20, 50, root, home, now=NOW + 60, sender=sender) == 0
+    assert attempts == ["chat-a"]

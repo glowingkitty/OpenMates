@@ -133,6 +133,7 @@ DEFAULTS = {
     "free_slots": 4,  # slots the wake leaves free for new chats
     "cap_question_idle_hours": 4.0,
     "pressure_idle_minutes": 15.0,
+    "protected_chat_ids": [],  # operator pin, including across reap and capacity checks
     "zellij_sessions": ["claude"],  # more via config.json
 }
 TERM_WAIT_SECONDS = 20.0
@@ -209,6 +210,8 @@ class Chat:
     pushed_done: str = ""  # "done" (✅ after the last prompt) or "parked" (✅ with --paused-until)
     agents: list[str] = field(default_factory=list)  # background sub-agents still at work (claude_chat_continue)
     transcript: str = ""  # path of its main transcript
+    protected: bool = False
+    process_start: str = ""
 
 
 @dataclass
@@ -236,6 +239,8 @@ def ends_with_question(text: str) -> bool:
 
 
 def hard_blocker(chat: Chat, own_session_id: str, now: float | None = None) -> str | None:
+    if chat.protected:
+        return "protected by operator"
     if chat.kind == "terminal":
         return "not a managed chat (started by hand in a terminal)"
     if own_session_id and chat.session_id == own_session_id:
@@ -252,7 +257,7 @@ def hard_blocker(chat: Chat, own_session_id: str, now: float | None = None) -> s
     now = time.time() if now is None else now
     if waiting := [waiter for waiter in chat.waiters if waiter.blocks_stop(now)]:
         return "waits on " + "; ".join(waiter.label(now) for waiter in waiting[:3])
-    if chat.undelivered:
+    if chat.undelivered and not waiting_on_billing(chat):
         return f"background job finished but its result never reached the chat ({chat.undelivered[0]['task_id']})"
     if chat.last_speaker == "user":
         return "its last message has no reply"
@@ -270,6 +275,8 @@ def decide(chat: Chat, now: float, config: dict, own_session_id: str, idle_minut
         return Decision("keep", f"idle {idle / 60:.0f} min, limit {limit / 60:.0f} min")
     # The chat's own push decides; the wording of its reply is only a guess. A ✅ chat whose report
     # merely mentions "waiting on your answer" (2026-11-20) is done; only a closing "?" keeps it open.
+    if waiting_on_billing(chat):
+        return Decision("stop", BILLING_QUESTION)
     if chat.pushed_done and not chat.pushed_question and not ends_with_question(chat.last_text):
         if chat.pushed_done == "done" and not chat.waiters:
             return Decision("archive", "reported done with a ✅ push, nothing open")
@@ -308,14 +315,35 @@ def cap_victims(chats: list[Chat], now: float, config: dict, own_session_id: str
     return (sorted(plain, key=by_idle) + sorted(asking, key=by_idle))[:excess]
 
 
+BILLING_QUESTION = "CI is blocked by GitHub billing. Waiting on Marco."
+BILLING_BLOCK_RE = re.compile(
+    r"\b(?:blocked|refuses?|refused|prevented|skipped|failed|did not start|never started)\b",
+    re.I,
+)
+
+
+def waiting_on_billing(chat: Chat) -> bool:
+    """Recognize an assistant's CI billing blocker as an owner wait."""
+    if chat.last_speaker != "assistant":
+        return False
+    text = chat.last_text.casefold()
+    return ("billing" in text or "spending limit" in text) and (
+        "github" in text or "actions" in text or "ci " in text
+    ) and bool(BILLING_BLOCK_RE.search(text))
+
+
 def asks(chat: Chat) -> bool:
-    return bool(chat.pushed_question) or (chat.last_speaker == "assistant" and asks_something(chat.last_text))
+    return bool(chat.pushed_question) or waiting_on_billing(chat) or (
+        chat.last_speaker == "assistant" and asks_something(chat.last_text)
+    )
 
 
 def open_question(chat: Chat) -> str:
     """What the chat asks the user: its ❓ push, else the end of its last reply ('' when nothing)."""
     if chat.pushed_question:
         return chat.pushed_question
+    if waiting_on_billing(chat):
+        return BILLING_QUESTION
     return " ".join(chat.last_text.split())[-300:] if asks(chat) else ""
 
 
@@ -487,9 +515,12 @@ def transcript_pending(claude_home: Path, session_id: str) -> claude_chat_pendin
     return claude_chat_pending.Pending()
 
 
-def classify(args: list[str], zellij_env: dict[str, str], sessions: list[str]) -> str:
+def classify(args: list[str], zellij_env: dict[str, str], sessions: list[str], kind: str = "") -> str:
     command = " ".join(args)
-    if all(marker in command for marker in WORKER_MARKERS):
+    if "--bg-spare" in args:
+        return "terminal"
+    # Background PTYs inherit the launching chat's ZELLIJ_* environment.
+    if kind in {"bg", "background"} or all(marker in command for marker in WORKER_MARKERS):
         return "rc_worker"
     if zellij_env.get("ZELLIJ_PANE_ID") and zellij_env.get("ZELLIJ_SESSION_NAME") in sessions:
         return "pane"
@@ -524,7 +555,8 @@ def live_chats(claude_home: Path, config: dict, waiters: dict[str, list] | None 
         if not isinstance(pid, int) or not Path(f"/proc/{pid}").exists():
             continue
         # A recycled pid belongs to another program: the start time must match.
-        if str(record.get("procStart", "")) != _proc_start(pid):
+        process_start = _proc_start(pid)
+        if not process_start or str(record.get("procStart", "")) != process_start:
             continue
         session_id = str(record.get("sessionId", ""))
         args = _cmdline_args(pid)
@@ -532,13 +564,16 @@ def live_chats(claude_home: Path, config: dict, waiters: dict[str, list] | None 
         newest, speaker, text = transcript_state(claude_home, session_id)
         state_change = float(record.get("statusUpdatedAt") or record.get("startedAt") or 0) / 1000
         pending = transcript_pending(claude_home, session_id)
+        kind = classify(args, zellij_env, config["zellij_sessions"], str(record.get("kind", "")))
         chat = Chat(
             pid=pid, session_id=session_id, name=str(record.get("name", "")),
-            status=str(record.get("status", "")), kind=classify(args, zellij_env, config["zellij_sessions"]),
+            status=str(record.get("status", "")), kind=kind,
             last_activity=max(state_change, newest), waiting_for=str(record.get("waitingFor") or ""),
             children=_children(pid), last_speaker=speaker, last_text=text,
             title=_flag(args, "--remote-control"), cwd=str(record.get("cwd") or ""),
-            zellij_session=zellij_env.get("ZELLIJ_SESSION_NAME", ""), pane_id=zellij_env.get("ZELLIJ_PANE_ID", ""),
+            zellij_session=zellij_env.get("ZELLIJ_SESSION_NAME", "") if kind == "pane" else "",
+            pane_id=zellij_env.get("ZELLIJ_PANE_ID", "") if kind == "pane" else "",
+            protected=session_id in config.get("protected_chat_ids", []), process_start=process_start,
             model=_flag(args, "--model"), undelivered=pending.undelivered, refusal_kept=pending.refusal_kept,
             refusal_at=pending.refusal_at, waiters=waiters.get(session_id) or waiters.get(UNREADABLE) or [],
         )
@@ -617,11 +652,15 @@ def record_stop(registry: dict[str, dict], chat: Chat, state: str, reason: str) 
 
 def refresh_registry(registry: dict[str, dict], live: list[Chat], now: float, config: dict) -> None:
     """Live again means resumed; stopped and idle past done_hours means done (to archive)."""
-    live_ids = {chat.session_id for chat in live}
-    for session_id in [sid for sid, entry in registry.items() if sid in live_ids and entry["state"] != "archived"]:
-        del registry[session_id]
+    for chat in live:
+        entry = registry.get(chat.session_id)
+        if entry and entry["state"] != "archived" and not (
+            entry.get("reason") == BILLING_QUESTION and waiting_on_billing(chat)
+        ):
+            del registry[chat.session_id]
     for entry in registry.values():
-        if entry["state"] == "stopped" and now - _iso(entry["last_activity"]) > config["done_hours"] * 3600:
+        if (entry["state"] == "stopped" and entry.get("reason") != BILLING_QUESTION
+                and now - _iso(entry["last_activity"]) > config["done_hours"] * 3600):
             entry["state"] = "done"
 
 
@@ -880,6 +919,14 @@ def alert_unsent(chat: Chat, reason: str, directory: Path, now: float, post=None
     return bool(sent)
 
 
+def accepts_chat_prompt(screen: str) -> bool:
+    """A chat composer is present and Claude is outside its agent/session picker."""
+    tail = "\n".join(screen.splitlines()[-12:]).casefold()
+    return any(line.lstrip().startswith("❯") for line in tail.splitlines()) and not any(
+        marker in tail for marker in ("describe a task for a new session", "enter to open", "space to reply")
+    )
+
+
 def wake(chat: Chat, text: str = "") -> bool:
     """Type a wake prompt (default: its undelivered results) into the chat's pane; True when submitted.
 
@@ -890,10 +937,14 @@ def wake(chat: Chat, text: str = "") -> bool:
     afterwards is logged (`wake_unsent`, with the hook's block notice when there is one),
     alerted on Discord once an hour per chat, and returns False so the caller retries.
     """
+    if chat.kind != "pane" or not chat.pane_id or chat.protected or waiting_on_billing(chat):
+        return False
+    if chat.process_start and chat.process_start != _proc_start(chat.pid):
+        return False
     pane = f"terminal_{chat.pane_id}"
     for _ in range(30):
         screen = zellij(chat.zellij_session, "dump-screen", "--pane-id", pane)
-        if screen.returncode:
+        if screen.returncode or not accepts_chat_prompt(screen.stdout):
             return False
         if not input_line(screen.stdout):
             break
@@ -932,6 +983,8 @@ def stalled_chats(live: list[Chat], registry: dict[str, dict], claude_home: Path
     for chat in live:
         title = chat.title or chat.name
         quiet = now - chat.last_activity
+        if chat.protected or waiting_on_billing(chat):
+            continue
         if chat.undelivered:
             key = f"{chat.session_id} {','.join(item['task_id'] for item in chat.undelivered)}"
             if (act and key not in woken and chat.kind == "pane" and chat.status == "idle"
@@ -984,7 +1037,7 @@ def continue_unfinished(chats: list[Chat], directory: Path, now: float, keep: se
     handed_off = load_marks(directory, "handed_off.json")
     stalled = []
     for chat in chats:
-        if chat.session_id in handed_off:
+        if chat.session_id in handed_off or chat.protected or waiting_on_billing(chat):
             continue
         mark = marks.get(chat.session_id) or {}
         worked = bool(mark) and bool(chat.transcript) and claude_chat_continue.worked_since(
@@ -992,12 +1045,17 @@ def continue_unfinished(chats: list[Chat], directory: Path, now: float, keep: se
         step = claude_chat_continue.next_wake(marks, chat.session_id, chat.last_activity, now, worked)
         if step == "wait":
             continue
-        if step == "wake" and chat.kind == "pane" and wake(chat, claude_chat_continue.CONTINUE_PROMPT):
+        unavailable = mark.get("unavailable_turn") == chat.last_activity
+        if (step == "wake" and not unavailable and chat.kind == "pane"
+                and wake(chat, claude_chat_continue.CONTINUE_PROMPT)):
             claude_chat_continue.record_wake(marks, chat.session_id, chat.last_activity, now)
             log_event(directory, {"event": "woken_to_continue", "session_id": chat.session_id,
                                   "title": chat.title or chat.name,
                                   "count": marks[chat.session_id]["count"]})
             continue
+        if step == "wake" and not unavailable:
+            marks[chat.session_id] = {**mark, "unavailable_turn": chat.last_activity}
+            log_event(directory, {"event": "continue_wake_unavailable", "session_id": chat.session_id})
         why = (f"ended {claude_chat_continue.MAX_WAKES} turns in a row without ✅, question or waiter "
                "although woken to continue" if step == "stalled"
                else "ended its turn without ✅, question or waiter and cannot be woken here (no zellij pane)"
@@ -1046,7 +1104,8 @@ def guard_unfinished(plan: list[tuple[Chat, Decision]], directory: Path, now: fl
         woken_at = _iso(marks[key]) if key in marks else 0.0
         if not pressure and woken_at and now - woken_at < FINISH_GRACE_MINUTES * 60:
             continue  # woken to finish; give it the grace period
-        if not pressure and not woken_at and chat.kind == "pane" and wake(chat, worktree_wip.finish_prompt(entries)):
+        if (not pressure and not woken_at and not waiting_on_billing(chat) and chat.kind == "pane"
+                and wake(chat, worktree_wip.finish_prompt(entries))):
             marks[key] = _utc(now)
             log_event(directory, {"event": "woken_to_finish", "session_id": chat.session_id,
                                   "title": chat.title or chat.name, "worktrees": [e["session_id"] for e in entries]})
@@ -1118,7 +1177,11 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
     plan: list[tuple[Chat, Decision]] = []
     continuing: list[Chat] = []
     for chat in live:
-        decision = decide(chat, now, config, own, idle_minutes)
+        prior = registry.get(chat.session_id, {})
+        if prior.get("reason") == BILLING_QUESTION and waiting_on_billing(chat):
+            decision = Decision("keep", BILLING_QUESTION, hard=True)
+        else:
+            decision = decide(chat, now, config, own, idle_minutes)
         if args.command == "list":
             print(f"{decision.action:5}  {chat.title or chat.name} ({chat.session_id[:8]}, pid {chat.pid}, "
                   f"{chat.kind}): {decision.reason}")
@@ -1135,7 +1198,8 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
     chosen = {chat.session_id for chat, _ in plan}
     remaining = [chat for chat in live if chat.session_id not in chosen]
     for chat in cap_victims(remaining, now, config, own, room):
-        plan.append((chat, Decision("stop", f"over the cap of {config['max_running']} running chats")))
+        if registry.get(chat.session_id, {}).get("reason") != BILLING_QUESTION:
+            plan.append((chat, Decision("stop", f"over the cap of {config['max_running']} running chats")))
     plan, flagged = guard_unfinished(plan, directory, now, pressure=bool(getattr(args, "pressure", False)),
                                      dry_run=args.dry_run)
     failed, stopped = 0, set()
@@ -1154,7 +1218,7 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
         if ok:
             stopped.add(chat.session_id)
             state = "archived" if exited else "stopped" if decision.action == "stop" else "done"
-            record_stop(registry, chat, state, decision.reason)
+            record_stop(registry, chat, state, BILLING_QUESTION if waiting_on_billing(chat) else decision.reason)
             if decision.action == "archive":
                 registry[chat.session_id]["reported_done"] = True  # the connector archives it without approval
             if exited:
@@ -1231,8 +1295,11 @@ def wake_waiting(waiters: dict[str, list], left: list[Chat], registry: dict[str,
         return outcome
 
     free = int(config["max_running"]) - len(left) - int(config["free_slots"])
+    owner_waits = {chat.session_id for chat in left if chat.protected or waiting_on_billing(chat)}
+    owner_waits.update(chat_id for chat_id, entry in registry.items() if entry.get("reason") == BILLING_QUESTION)
+    active_waiters = {chat_id: items for chat_id, items in waiters.items() if chat_id not in owner_waits}
     delivered, failures = claude_chat_waiters.deliver(
-        waiters, {chat.session_id: chat for chat in left}, registry, directory, now, type_into=wake,
+        active_waiters, {chat.session_id: chat for chat in left}, registry, directory, now, type_into=wake,
         resume=reopen, room=max(0, min(int(config["wake_batch"]), free)),
         log=lambda event: log_event(directory, event), asks=asks, priority=task_priorities())
     claude_chat_waiters.remember(directory, waiters, delivered)
@@ -1259,7 +1326,7 @@ def input_line(screen: str) -> str:
 def held_prompts(live: list[Chat]) -> list[Chat]:
     """Idle pane chats whose last turn is a prompt the hook refused, oldest refusal first."""
     return sorted((chat for chat in live if chat.kind == "pane" and chat.status == "idle" and not chat.waiting_for
-                   and chat.last_speaker == "user" and chat.last_text.startswith(REFUSED_PREFIX)
+                   and not chat.protected and chat.last_speaker == "user" and chat.last_text.startswith(REFUSED_PREFIX)
                    and chat.refusal_kept is not False and not chat.undelivered),
                   key=lambda chat: chat.last_activity)
 
@@ -1277,8 +1344,8 @@ def release(claude_home: Path, config: dict, limit: int) -> int:
             continue  # one Enter per refusal: pressing it every minute changed nothing on 2026-11-14
         pane = f"terminal_{chat.pane_id}"
         screen = zellij(chat.zellij_session, "dump-screen", "--pane-id", pane)
-        if screen.returncode:
-            print(f"skipped {label}: zellij dump-screen failed: {screen.stderr.strip()[:120]}")
+        if screen.returncode or not accepts_chat_prompt(screen.stdout):
+            print(f"skipped {label}: no chat composer")
             continue
         import claude_chat_inputs  # imports this module, so not at the top
 

@@ -113,3 +113,22 @@ def test_a_chat_that_handed_off_is_never_nudged_to_continue(tmp_path, monkeypatc
     (tmp_path / "handed_off.json").write_text(json.dumps({CHAT_ID: {"successor": "pane 7"}}))
     assert lc.continue_unfinished([working_chat()], tmp_path, NOW, {CHAT_ID}) == []
     assert typed == []
+
+
+
+def test_unavailable_pane_is_reported_once_until_activity_changes(tmp_path, monkeypatch):
+    attempts = []
+
+    def wake(chat, _text):
+        attempts.append(chat.session_id)
+        return False
+
+    monkeypatch.setattr(lc, "wake", wake)
+    chat = working_chat()
+    for now in (NOW, NOW + 1000):
+        assert lc.continue_unfinished([chat], tmp_path, now, {CHAT_ID})
+    assert attempts == [CHAT_ID]
+    assert len((tmp_path / "events.jsonl").read_text().splitlines()) == 1
+    chat.last_activity = NOW + 1100
+    assert lc.continue_unfinished([chat], tmp_path, NOW + 1200, {CHAT_ID})
+    assert attempts == [CHAT_ID, CHAT_ID]

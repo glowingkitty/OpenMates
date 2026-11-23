@@ -167,6 +167,9 @@ def test_classify_covers_remote_control_workers_and_zellij_panes_only():
     assert lc.classify(worker, {}, sessions) == "rc_worker"
     pane = {"ZELLIJ_PANE_ID": "47", "ZELLIJ_SESSION_NAME": "claude"}
     assert lc.classify(["claude", "--remote-control", "T"], pane, sessions) == "pane"
+    assert lc.classify(["claude", "--resume", "/tmp/chat.jsonl"], pane, sessions, "bg") == "rc_worker"
+    assert lc.classify(["claude bg-spare", "--bg-spare"], pane, sessions, "bg") == "terminal"
+
     assert lc.classify(["claude"], {**pane, "ZELLIJ_SESSION_NAME": "my-own"}, sessions) == "terminal"
     assert lc.classify(["claude"], {}, sessions) == "terminal"
 
@@ -659,3 +662,34 @@ def test_wake_sees_unsent_text_in_a_box_taller_than_the_pane(tmp_path, monkeypat
     submitted = ("❯ " + text + "\n  ⎿ working\n────\n❯ \n────\n  ⏵⏵ auto mode on\n")
     monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [BOX.format(""), submitted]))
     assert lc.wake(chat(pane_id="7", zellij_session="claude"), text)
+
+
+def test_wake_does_not_submit_into_new_session_composer(monkeypatch):
+    calls = []
+    screen = BOX.format("describe a task for a new session")
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [screen]))
+    assert not lc.wake(chat(pane_id="7", zellij_session="socialhub"), "Continue")
+    assert calls == [("dump-screen", "--pane-id", "terminal_7")]
+
+
+def test_ci_billing_block_is_an_owner_wait_even_with_finished_background_work():
+    blocked = chat(last_speaker="assistant", last_text="CI is blocked by GitHub billing.",
+                   undelivered=[{"task_id": "ci"}])
+    decision = lc.decide(blocked, blocked.last_activity + 3600, dict(lc.DEFAULTS), "")
+    assert decision.action == "stop"
+    assert not decision.reopen
+    assert lc.open_question(blocked) == lc.BILLING_QUESTION
+
+
+
+def test_billing_wait_survives_worker_restarts_and_does_not_age_into_done():
+    blocked = chat(last_speaker="assistant", last_text="GitHub Actions did not start because of the spending limit.")
+    registry = {}
+    lc.record_stop(registry, blocked, "stopped", lc.BILLING_QUESTION)
+    now = blocked.last_activity + 48 * 3600
+    lc.refresh_registry(registry, [blocked], now, dict(lc.DEFAULTS))
+    assert registry[blocked.session_id]["state"] == "stopped"
+    assert registry[blocked.session_id]["open_question"] == lc.BILLING_QUESTION
+    blocked.last_speaker = "user"
+    lc.refresh_registry(registry, [blocked], now, dict(lc.DEFAULTS))
+    assert blocked.session_id not in registry
