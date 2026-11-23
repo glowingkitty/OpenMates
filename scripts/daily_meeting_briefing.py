@@ -683,6 +683,14 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
             out += ["", "Core features:"] + [f"- {feature}" for feature in product["features"]]
     out += ["", MEETING_SCRIPT.replace("{date}", today.isoformat()), "", *_meeting_adjustments(ev.get("goals") or {})]
     focus_text = re.sub(r"^(#{1,2}) ", "### ", ev.get("focus_file", "").strip(), flags=re.M)
+    out += [
+        "## Product video recording gate", "",
+        "Ask Marco to record a flow only after reviewing a clean, sound-on end-to-end video of that flow "
+        "on production. Sign up a clearly marked throwaway production account with an AI test user gift "
+        "card code, exclude it from stats and delete it after the run, including failed runs. Check for "
+        "broken behavior, slow responses, UI glitches and wrong embeds. Assign each failing flow to "
+        "a Task owner for a fix and rerun.", "",
+    ]
     out += ["## 1. Focus file (FOCUS.md)", "", focus_text or "_FOCUS.md missing._", ""]
     out += _goals_section(ev.get("goals") or {}, today)
     ideas = tasks.get("idea_inbox") or []

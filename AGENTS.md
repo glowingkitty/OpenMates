@@ -225,6 +225,14 @@ when a skill or this file points to it.
   request answered with that provider's data). A passing test, screenshots or a
   log are not a substitute; without the video the work is not done. Only the
   user can waive it. Details: `.claude/rules/testing.md`.
+- Before asking Marco to record any user flow for a product video, prove that
+  exact flow end to end on production and record video with sound. Sign up a
+  throwaway production account using the AI test users' gift card codes. Clearly
+  mark it as a test account, exclude it from stats, and delete it after the run,
+  including failed runs. Review the recording for broken behavior, slow
+  responses, UI glitches and wrong embeds. Ask Marco to record only after the
+  run is clean. For each failing flow, create or update a Task and assign an
+  owner to fix and rerun it. Do not turn a failed flow into a question for Marco.
 
 ## Planning and Tasks
 - Ordinary work: inline goal + acceptance criteria. Durable `docs/plans/<slug>/plan.yml`
