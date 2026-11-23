@@ -617,3 +617,17 @@ def test_queued_claude_work_is_re_routed_under_reserve(tmp_path, monkeypatch):
     monkeypatch.setattr(dispatch, "_open_codex_tab", lambda *args: seen.append(args) or "codex")
     assert dispatch.start_pending()[0]["status"] == "launched"
     assert seen[0][2] == "gpt-6.2-sol"
+
+
+# contract-test: tooling
+def test_queue_reroutes_on_weekly_switch_using_only_task_content(tmp_path, monkeypatch):
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: "No free slot")
+    with pytest.raises(dispatch.ChatQueued):
+        dispatch.launch_claude_chat("Update buttons", "Rename settings buttons")
+    _weekly_switch_on(monkeypatch, tmp_path)
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: None)
+    monkeypatch.setattr(dispatch, "codex_not_ready", lambda: "")
+    seen = []
+    monkeypatch.setattr(dispatch, "_open_codex_tab", lambda *args: seen.append(args) or "Codex tab")
+    assert dispatch.start_pending()[0]["session"] == "Codex tab"
+    assert seen[0][2] == "gpt-6.2-sol"

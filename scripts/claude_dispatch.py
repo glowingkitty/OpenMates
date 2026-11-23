@@ -297,7 +297,8 @@ def _start_pending(limit: int, force: bool) -> list[dict[str, Any]]:
             results.append({"file": path.name, "status": "still queued", "why": why})
             break
         explicit = bool(entry.get("explicit_model"))
-        engine, model = claude_weekly_model.route(entry["model"], explicit, f"{entry['title']}\n{entry['prompt']}",
+        task_prompt = entry["prompt"].removesuffix(f"\n\n{PUSH_RULE}")
+        engine, model = claude_weekly_model.route(entry["model"], explicit, f"{entry['title']}\n{task_prompt}",
                                                   live_voice=bool(entry.get("live_voice")))
         if engine == "codex":
             unavailable = codex_wait_reason()
