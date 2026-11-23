@@ -227,6 +227,7 @@ jobs:
           sparse-checkout: |
             scripts
             .github/workflows
+            .github/requirements
           persist-credentials: false
       - name: Require private preparation transport ticket
         if: >-
