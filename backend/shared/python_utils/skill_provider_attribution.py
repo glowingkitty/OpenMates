@@ -5,6 +5,10 @@ from __future__ import annotations
 from typing import Any, Optional
 
 
+# Events conference sources are all served by the one Pretalx provider config.
+_PRETALX_CONFERENCE_PROVIDERS = frozenset({"gpn", "gpn24", "39c3", "38c3", "37c3"})
+
+
 def resolve_skill_usage_provider_id(
     app_id: str,
     skill_id: str,
@@ -42,5 +46,8 @@ def resolve_skill_usage_provider_id(
         return executed_provider_id if executed_provider_id in declared_provider_ids else None
 
     if providers:
-        return providers[0].name
+        first_provider = providers[0].name
+        if app_id == "events" and first_provider.lower() in _PRETALX_CONFERENCE_PROVIDERS:
+            return "pretalx"
+        return first_provider
     return None
