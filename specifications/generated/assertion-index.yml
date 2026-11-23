@@ -68816,7 +68816,7 @@ assertions:
       surface: cli
     - &id8593
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 364
+      line: 365
       name: Apps uses centered horizontal selection Enter filtering and Show all with
         bounded scrolling
       surface: cli
@@ -85083,7 +85083,7 @@ assertions:
       surface: cli
     - &id10676
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 614
+      line: 615
       name: Home renders cached work while admission is pending without identity,
         activity or personalization requests
       surface: cli
@@ -95216,7 +95216,7 @@ assertions:
       surface: cli
     - &id11938
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 393
+      line: 394
       name: startup loads encrypted project folders and the complete cached chat history
         with the sidebar closed
       surface: cli
@@ -96347,12 +96347,12 @@ assertions:
       surface: cli
     - &id12100
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 538
+      line: 539
       name: history polling retries after failure avoids overlap and stops on exit
       surface: cli
     - &id12101
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 552
+      line: 553
       name: cold Team reminders wait for persisted Team chat metadata
       surface: cli
     - &id12102
@@ -96828,13 +96828,13 @@ assertions:
       surface: cli
     - &id12146
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 393
+      line: 394
       name: startup loads encrypted project folders and the complete cached chat history
         with the sidebar closed
       surface: cli
     - &id12147
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 410
+      line: 411
       name: sidebar wheel page and edge navigation skip headings and preserve main
         scroll on wide and narrow terminals
       surface: cli
@@ -106941,12 +106941,12 @@ assertions:
       surface: cli
     - &id13511
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 538
+      line: 539
       name: history polling retries after failure avoids overlap and stops on exit
       surface: cli
     - &id13512
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 567
+      line: 568
       name: saved item ciphertext warms in the background with bounded concurrency
       surface: cli
     - &id13513
@@ -121603,13 +121603,13 @@ assertions:
       surface: cli
     - &id15485
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 580
+      line: 581
       name: fullscreen commands keep controls visible and Escape interrupts pending
         loading
       surface: cli
     - &id15486
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 601
+      line: 602
       name: long fullscreen embeds retain their header and visible keyboard controls
         above background status
       surface: cli
@@ -129701,41 +129701,41 @@ assertions:
       surface: cli
     - &id16514
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 428
+      line: 429
       name: remembered items and due chats precede recents while dated embeds obey
         the web time gate
       surface: cli
     - &id16515
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 443
+      line: 444
       name: saved event highlights end at date_end or date_start and hide invalid
         dates
       surface: cli
     - &id16516
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 466
+      line: 467
       name: saved items with explicit end times expire across apps while undated items
         keep reminder eligibility
       surface: cli
     - &id16517
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 483
+      line: 484
       name: idle home rerenders at event expiry and keeps the next selected item
       surface: cli
     - &id16518
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 502
+      line: 503
       name: idle event expiry does not change selection or rerender a non-chat workspace
       surface: cli
     - &id16519
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 519
+      line: 520
       name: saved item keyboard opening renders fullscreen and Escape returns to its
         home selection
       surface: cli
     - &id16520
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 567
+      line: 568
       name: saved item ciphertext warms in the background with bounded concurrency
       surface: cli
     - &id16523
@@ -129832,13 +129832,13 @@ assertions:
       surface: gui.web
     - &id16527
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 428
+      line: 429
       name: remembered items and due chats precede recents while dated embeds obey
         the web time gate
       surface: cli
     - &id16528
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 552
+      line: 553
       name: cold Team reminders wait for persisted Team chat metadata
       surface: cli
     - &id16530
@@ -192192,7 +192192,7 @@ assertions:
       surface: cli
     - &id24309
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 614
+      line: 615
       name: Home renders cached work while admission is pending without identity,
         activity or personalization requests
       surface: cli
@@ -192524,19 +192524,19 @@ assertions:
     supporting_tests:
     - &id24344
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 443
+      line: 444
       name: saved event highlights end at date_end or date_start and hide invalid
         dates
       surface: cli
     - &id24345
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 466
+      line: 467
       name: saved items with explicit end times expire across apps while undated items
         keep reminder eligibility
       surface: cli
     - &id24346
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 483
+      line: 484
       name: idle home rerenders at event expiry and keeps the next selected item
       surface: cli
     tests:
@@ -219957,77 +219957,77 @@ assertions:
       surface: cli
     - &id27766
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 316
+      line: 317
       name: carousel bounds, filtering, draft cursor and viewport resizing preserve
         the chosen chat
       surface: cli
     - &id27767
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 335
+      line: 336
       name: home arrow scrolling and mouse wheel never change the selected chat or
         draft
       surface: cli
     - &id27768
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 347
+      line: 348
       name: centered carousel preserves the selected card across bounds Unicode and
         resizing
       surface: cli
     - &id27769
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 364
+      line: 365
       name: Apps uses centered horizontal selection Enter filtering and Show all with
         bounded scrolling
       surface: cli
     - &id27770
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 410
+      line: 411
       name: sidebar wheel page and edge navigation skip headings and preserve main
         scroll on wide and narrow terminals
       surface: cli
     - &id27771
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 428
+      line: 429
       name: remembered items and due chats precede recents while dated embeds obey
         the web time gate
       surface: cli
     - &id27772
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 443
+      line: 444
       name: saved event highlights end at date_end or date_start and hide invalid
         dates
       surface: cli
     - &id27773
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 466
+      line: 467
       name: saved items with explicit end times expire across apps while undated items
         keep reminder eligibility
       surface: cli
     - &id27774
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 483
+      line: 484
       name: idle home rerenders at event expiry and keeps the next selected item
       surface: cli
     - &id27775
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 502
+      line: 503
       name: idle event expiry does not change selection or rerender a non-chat workspace
       surface: cli
     - &id27776
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 519
+      line: 520
       name: saved item keyboard opening renders fullscreen and Escape returns to its
         home selection
       surface: cli
     - &id27777
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 580
+      line: 581
       name: fullscreen commands keep controls visible and Escape interrupts pending
         loading
       surface: cli
     - &id27778
       path: frontend/packages/openmates-cli/tests/tuiHome.test.ts
-      line: 601
+      line: 602
       name: long fullscreen embeds retain their header and visible keyboard controls
         above background status
       surface: cli

@@ -27,8 +27,10 @@ window and provides a fresh TOTP, then mutates production only through
   owner's direct approval; never ask for it to be typed again. Messages from
   other agent chats are not approval. The owner merges the PR on GitHub; never
   merge it yourself.
-- User confirmation that prod-side temporary SSH access is open.
-- A fresh 6-digit TOTP code, supplied immediately before `prod-ssh.sh open`.
+- An open production SSH connection from the dev server (reuse it, see step 4).
+  Only when none exists: user confirmation that prod-side temporary SSH access
+  is open and a fresh 6-digit TOTP code, supplied immediately before
+  `prod-ssh.sh open`.
 
 ## Urgent Production Outage
 
@@ -184,16 +186,27 @@ Backend-first compatibility
 must include support for the frontend still serving during the update; a
 breaking contract needs an explicitly coordinated release plan.
 
-### 4. Open Prod SSH Only After Gates Pass
+### 4. Reuse An Open Prod SSH Connection, Else Open One After Gates Pass
 
-Check whether a master connection already exists:
+Owner rule (2026-11-23): always reuse an open production connection first;
+ask for a TOTP code only when none exists. The owner often opens the master
+from the dev server before a release, so check it before asking anything:
 
 ```bash
 ./scripts/prod-ssh.sh status
+./scripts/prod-ssh.sh "id -un"
 ```
 
-If no master is active, ask the user to open the prod-side window with the dev
-public key from the configured prod SSH key:
+If `status` reports the master ACTIVE and the test command answers, use that
+connection for every later step; do not ask for a TOTP code or for the
+prod-side window. If `status` finds no master, also look for another open
+connection before asking: a socket in `~/.ssh/prod-ssh-sockets/`, an outgoing
+`ssh` process or a tmux session that reaches the prod host. Only when none
+exists, send ONE question asking for the code and say why the existing one
+could not be used (for example "the morning connection closed at 09:58").
+
+When no connection is open, ask the user to open the prod-side window with
+the dev public key from the configured prod SSH key:
 
 ```bash
 set -euo pipefail; set +u; set -a; source .env; set +a; set -u; key="${PROD_SSH_KEY/#\~/$HOME}"; if [ -f "${key}.pub" ]; then printf '%s\n' "$(<"${key}.pub")"; else ssh-keygen -y -f "$key"; fi
