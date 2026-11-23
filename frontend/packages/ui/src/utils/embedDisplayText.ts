@@ -71,7 +71,8 @@ export function deriveEmbedDisplayTextFromRef(embedRef: string): string {
   if (!ref) return "Open result";
 
   const domainMatch = ref.match(DOMAIN_PREFIX_RE);
-  if (domainMatch) return `according to ${domainMatch[1]}`;
+  // Bare domain: the connective belongs to the sentence, in the reply language.
+  if (domainMatch) return domainMatch[1];
 
   const base = stripEmbedRefSuffix(ref).replace(/\s*\(\d+\)$/, "").trim();
   const connectionMatch = base.match(CONNECTION_REF_RE);

@@ -468,11 +468,18 @@ class TestDeriveEmbedDisplayText:
 
     # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_domain_ref_uses_domain(self):
-        assert derive_display_text_from_embed_ref("computerweekly.com-Kzy") == "according to computerweekly.com"
+        assert derive_display_text_from_embed_ref("computerweekly.com-Kzy") == "computerweekly.com"
 
     # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_web_fallback_uses_domain_instead_of_full_article_title(self):
-        assert derive_embed_display_title({"type": "website", "title": "A very long article title", "url": "https://www.wired.com/story/test"}, "wired.com-Ab1") == "according to wired.com"
+        assert derive_embed_display_title({"type": "website", "title": "A very long article title", "url": "https://www.wired.com/story/test"}, "wired.com-Ab1") == "wired.com"
+
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+    def test_web_fallback_has_no_english_prefix_for_non_english_answers(self):
+        """Prod 7ETA7: a German 'laut [..]' citation must not become 'laut according to mdr.de'."""
+        label = derive_embed_display_title({"type": "website", "url": "https://www.mdr.de/nachrichten/x"}, "mdr.de-k2P")
+        assert label == "mdr.de"
+        assert "according" not in derive_display_text_from_embed_ref("mdr.de-k2P")
 
     # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_connection_ref_uses_carrier_and_time(self):
@@ -639,8 +646,8 @@ class TestFixBadEmbedDisplayText:
         )
 
         assert result == (
-            "Sources: [according to cnbc.com](embed:cnbc.com-vcZ), "
-            "[according to secondtalent.com](embed:secondtalent.com-RFp)"
+            "Sources: [cnbc.com](embed:cnbc.com-vcZ), "
+            "[secondtalent.com](embed:secondtalent.com-RFp)"
         )
 
     # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
@@ -684,7 +691,7 @@ class TestFixBadEmbedDisplayText:
         )
 
         assert result == (
-            "Source: [according to example.com](embed:example.com-X7z)\n\n"
+            "Source: [example.com](embed:example.com-X7z)\n\n"
             f"> Literal quote {grouped_cite}\n\n"
             f"Inline code `{grouped_cite}`\n\n"
             f"```text\nLiteral fenced code {grouped_cite}\n```"
