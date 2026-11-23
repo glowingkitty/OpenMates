@@ -259,6 +259,7 @@ def debug_status(debug: dict) -> str:
         "no_report": "no debug chat: no report was filed",
         "failed": f"debug chat failed to start ({debug.get('note', 'unknown error')})",
         "approval": f"waiting for your approval, {debug.get('why')}",
+        "deploy_time": "no debug chat: filed during a production update (deploy-time, retest before acting)",
     }.get(status, str(status))
 
 

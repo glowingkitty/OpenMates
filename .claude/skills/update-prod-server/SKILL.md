@@ -310,6 +310,14 @@ secrets unless the user explicitly asks.
 
 ### 6. Update Prod
 
+First tell the AI test users that production is updating, so no production run
+starts or overlaps the update (`scripts/ai_test_users_deploy_guard.py`; runs
+also wait 45 minutes after the API start):
+
+```bash
+python3 scripts/ai_test_users_deploy_guard.py begin --reason "release <PR or MERGE_SHA>"
+```
+
 Run the backend-only update:
 
 ```bash
@@ -494,10 +502,12 @@ its own permission settings, and if the permission classifier still blocks the
 command, stop and hand the exact command to the owner instead of working around
 it.
 
-Close the prod master connection when finished:
+Close the prod master connection when finished, and clear the AI test-user
+update marker (also after a failed or rolled-back update):
 
 ```bash
 ./scripts/prod-ssh.sh close
+python3 scripts/ai_test_users_deploy_guard.py end
 ```
 
 ## Completion Summary

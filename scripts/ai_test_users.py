@@ -37,6 +37,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ai_test_users_accounts as accounts  # noqa: E402 - sibling script modules
+import ai_test_users_deploy_guard as deploy_guard  # noqa: E402
 import ai_test_users_exec as execution  # noqa: E402
 import ai_test_users_message as message_text  # noqa: E402
 import ai_test_users_report as reporting  # noqa: E402
@@ -95,6 +96,33 @@ def run_groups(groups: dict[str, list[dict]], run_id: str, run_dir: Path, cfg: e
         return list(pool.map(lambda j: execution.run_persona(j[0], j[1], run_id, run_dir, cfg), jobs))
 
 
+def prod_update_wait(wait: bool) -> str | None:
+    """None when a production run may start; else why not (the daily run pauses up to 90 min first)."""
+    try:
+        if wait:
+            return deploy_guard.wait_until_clear(log=log)
+        return deploy_guard.blocker(deploy_guard.current())
+    except deploy_guard.GuardUnavailable as exc:
+        return f"production update state unknown: {exc}"
+
+
+def mark_prod_update_overlap(run: dict, run_dir: Path, started_at: datetime) -> None:
+    """Mark a run whose prod personas overlapped a production update (owner, 23 Nov 2026)."""
+    if not any(r.get("target") == "prod" for r in run["personas"]):
+        return
+    try:
+        reason = deploy_guard.overlap(started_at, datetime.now(UTC), deploy_guard.current())
+    except deploy_guard.GuardUnavailable as exc:
+        reason = f"production update state unknown after the run: {exc}"
+    if not reason:
+        return
+    run["prod_update_overlap"] = reason
+    run["problems"].append(f"PRODUCTION issues of this run are deploy-time ({reason}); no debug chats for them")
+    (run_dir / "run.json").write_text(json.dumps(run, indent=1, ensure_ascii=False))
+    (run_dir / "report.md").write_text(reporting.report_markdown(run, run_dir))
+    log(f"run overlapped a production update: {reason}")
+
+
 def finish_run(run_id: str, run_dir: Path, kind: str, day: str, results: list[dict], areas: list[str],
                estimate: float, cap: float, started: float, deletions: list[dict]) -> dict:
     message_text.mark_suspects(results, base=accounts.HOME)
@@ -134,15 +162,26 @@ def command_daily(args: argparse.Namespace) -> int:
         return 0
     if not dev_test_account.server_is_development():
         raise SystemExit("the AI test users run from the development server.")
+    prod_skipped = prod_update_wait(wait=True) if "prod" in groups else None
+    if prod_skipped:
+        log(f"prod personas skipped: {prod_skipped}")
+        groups.pop("prod")
+        if not groups:
+            return 0
     run_id = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     run_dir = accounts.home() / run_id
     run_dir.mkdir(parents=True)
     started = time.monotonic()
+    started_at = datetime.now(UTC)
     with dev_stack_lease(run_id):
         results = run_groups(groups, run_id, run_dir, cfg, args.parallel)
         deletions = execution.retry_deletions(run_id, run_dir, cfg)
     run = finish_run(run_id, run_dir, plan["kind"], day.isoformat(), results, areas, estimate, cap, started,
                      deletions)
+    if prod_skipped:
+        run["problems"].append(f"PRODUCTION personas skipped: {prod_skipped}")
+        (run_dir / "run.json").write_text(json.dumps(run, indent=1, ensure_ascii=False))
+    mark_prod_update_overlap(run, run_dir, started_at)
     log(f"done: {run_dir / 'report.md'} total {run['totals']['total_usd']} USD")
     issues = triage_run(run, run_dir, dispatch=True)
     if reporting.push_due(accounts.HOME, day.isoformat()):
@@ -160,11 +199,24 @@ def triage_run(run: dict, run_dir: Path, dispatch: bool) -> list[dict]:
     except (RuntimeError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
         log(f"open Tasks could not be checked for duplicates: {exc}")
         tasks = None  # no automatic chat starts without the duplicate check
-    issues = triage.triage(run["personas"], accounts.HOME, dispatch, tasks=tasks, chats=triage.running_chats())
+    chats = triage.running_chats()
+    if run.get("prod_update_overlap"):
+        # Deploy-time PRODUCTION issues start no chat; they are retested after the update instead.
+        dev = [r for r in run["personas"] if r.get("target") != "prod"]
+        prod = [r for r in run["personas"] if r.get("target") == "prod"]
+        issues = triage.triage(dev, accounts.HOME, dispatch, tasks=tasks, chats=chats)
+        deploy_time = triage.triage(prod, accounts.HOME, False, tasks=tasks, chats=chats)
+        for issue in deploy_time:
+            issue["debug"]["status"] = "deploy_time"
+            issue["during_prod_update"] = True
+        issues += deploy_time
+    else:
+        issues = triage.triage(run["personas"], accounts.HOME, dispatch, tasks=tasks, chats=chats)
     for issue in issues:
         log(f"{issue['env']} {issue.get('short_issue_id') or '-'}: {issue['debug']['status']} ({issue['title'][:80]})")
     if dispatch:
-        run["issues"] = [{k: i.get(k) for k in ("env", "title", "short_issue_id", "issue_id", "debug")} for i in issues]
+        run["issues"] = [{k: i.get(k) for k in ("env", "title", "short_issue_id", "issue_id", "debug",
+                                                "during_prod_update")} for i in issues]
         (run_dir / "run.json").write_text(json.dumps(run, indent=1, ensure_ascii=False))
     return issues
 
@@ -230,6 +282,10 @@ def copy_worker_into_container() -> str:
 def command_run(args: argparse.Namespace) -> int:
     if args.target == "prod" and not accounts.prod_enabled():
         raise SystemExit("prod_disabled: create ~/.openmates/ai-test-users/prod-enabled first")
+    if args.target == "prod" and not args.during_prod_update:
+        blocked = prod_update_wait(wait=False)
+        if blocked:
+            raise SystemExit(f"prod_update: {blocked} (rerun later, or pass --during-prod-update on purpose)")
     if not dev_test_account.server_is_development():
         raise SystemExit("AI test users run from the development server.")
     personas = scenarios.personas_for(args.scenario, args.repeat, args.flows) if args.scenario else select(args.personas)
@@ -246,12 +302,14 @@ def command_run(args: argparse.Namespace) -> int:
     run_dir.mkdir(parents=True)
     log(f"run {run_id}: {len(personas)} personas on {args.target}, budget cap {budget:.2f} USD, output {run_dir}")
     started = time.monotonic()
+    started_at = datetime.now(UTC)
     with dev_stack_lease(run_id):
         results = run_groups({args.target: personas}, run_id, run_dir, cfg, args.parallel)
         deletions = execution.retry_deletions(run_id, run_dir, cfg)
     run = finish_run(run_id, run_dir, "manual", datetime.now(UTC).date().isoformat(), results,
                      schedule.areas_for([p["id"] for p in personas], PERSONAS), budget, args.total_cap_usd,
                      started, deletions)
+    mark_prod_update_overlap(run, run_dir, started_at)
     log(f"done: {run_dir / 'run.json'} total {run['totals']['total_usd']} USD")
     title = f"AI test users manual run on {args.target} {run['date']}"
     if args.scenario:
@@ -451,6 +509,8 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--repeat", type=int, default=2, help="accounts per scenario flow (flaky = mixed results)")
     run.add_argument("--notify", action="store_true",
                      help="send the run summary push (an alert listing the problems when anything failed)")
+    run.add_argument("--during-prod-update", action="store_true",
+                     help="start a prod run although production is updating (its issues are still marked)")
     notify = sub.add_parser("notify-failure")
     notify.add_argument("--unit", default=DAILY_UNIT)
     daily = sub.add_parser("daily")
