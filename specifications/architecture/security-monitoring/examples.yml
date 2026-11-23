@@ -239,6 +239,16 @@ images:
   when: The daily image scan runs.
   then: The brotli finding is recorded with its path inside the image and that image's digest. The openobserve
     runtime check is reported as incomplete coverage, not as clean.
+github_alerts:
+- id: not-affected-dependabot-alert-still-listed
+  assertion_ids:
+  - security-monitoring.github-alerts.every-alert-listed
+  given: GitHub shows a critical Dependabot alert for an example crate in three lockfiles, and triage recorded
+    it as not affected because the vulnerable function is never called; a secret scanning alert matched a test
+    run label.
+  when: The daily email is sent.
+  then: The email lists the critical alert once with its three manifests, alert numbers, fixed version and the
+    not-reachable reason, and lists the secret alert as a false positive with its file paths and no secret value.
 reboots:
 - id: dev-reboot-waits-for-tests
   assertion_ids:

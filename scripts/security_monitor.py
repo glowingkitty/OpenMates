@@ -107,6 +107,8 @@ def cmd_hourly(settings: Settings) -> int:
                 print(json.dumps({"outcome": "skipped", "reason": "previous hourly run still active"}))
                 return 0
             report = dispatch.run_hourly(settings)
+            alerts = dispatch.run_github_alerts(settings)
+            report.planned.extend(alerts.get("errors", []))
     print(json.dumps({"run_id": report.run_id, "outcome": report.outcome, "dry_run": settings.dry_run,
                       "no_agents": settings.no_agents, **report.summary(), "planned": report.planned}, indent=1, sort_keys=True))
     return 0 if report.outcome in {"complete", "incomplete"} else 1
@@ -130,6 +132,7 @@ def cmd_inventory(settings: Settings) -> int:
 def cmd_digest(settings: Settings) -> int:
     store = Store.open(settings.state_db, dry_run=settings.dry_run)
     try:
+        dispatch.run_github_alerts(settings, store=store)
         result = health.run_digest(settings, store, dispatch.build_notifier(settings, store))
     finally:
         store.close()

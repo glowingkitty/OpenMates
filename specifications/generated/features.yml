@@ -24329,7 +24329,7 @@ features:
     ids: []
     dev: no_flag
     prod: no_flag
-  assertions: 17
+  assertions: 18
   surfaces:
     web:
       status: not_planned
@@ -24371,8 +24371,8 @@ features:
         passing: 0
         failing: 0
         not_run: 0
-        missing: 17
-        counted: 17
+        missing: 18
+        counted: 18
       key_tests: []
       evidence: openmates server monitoring run|status|digest
       e2e_tests: []

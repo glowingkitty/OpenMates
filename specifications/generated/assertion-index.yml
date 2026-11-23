@@ -14550,7 +14550,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.triage.untrusted-input:
     specification: architecture.security-monitoring@1
-    fingerprint: ba9e505695bbe30e7d50bb13963bb97324bb9a9bc0ca9cfffa01c20c8d9d6c36
+    fingerprint: a698b06c691a7c80a0ae1200c5cf842cd5455f184595995563ba139049003b5a
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14558,7 +14558,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.release-age.routine:
     specification: architecture.security-monitoring@1
-    fingerprint: 52444ee10bbc7765f4e450a6d4616cfe5f5ec4898467e955ffa3b5ddd159ce27
+    fingerprint: f24e456253afb2339326d44f2452bdb2fd0bbc5e412b4f06415b9b38ef65e14e
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14566,7 +14566,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.release-age.install-time:
     specification: architecture.security-monitoring@1
-    fingerprint: 94c796a963c0f59533f69b3ecf50a2220ad91fa02518be51affbdee44794a921
+    fingerprint: d9970b70fa38a1f81a98503021bee71024d96a7f91c34698a507d425dee17570
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14574,7 +14574,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.release-age.security-priority:
     specification: architecture.security-monitoring@1
-    fingerprint: 0013fe598d11d6dcf73bcc19312fc5819d20fdbb904938de9854d5a128f94afe
+    fingerprint: c31d82ab85fb5e32dd525f9b3b899da514e0a084825f569a0dbfefbf43822fdc
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14590,7 +14590,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.notifications.deterministic-dual-channel:
     specification: architecture.security-monitoring@1
-    fingerprint: b4bce644a98e3236fc4c241b03e3d4cadcef1fd675e4c58bd33a2e417fe2b3cd
+    fingerprint: faf70f86a1d9c427bf10eda90e59d7a1ecd6298144ca9e31f2fd78b71ed6c93a
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14598,7 +14598,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.health.no-silent-failure:
     specification: architecture.security-monitoring@1
-    fingerprint: acadf6e0e1cee72963ce3d2d4424ab5ffdf886ba5396441c6a6e17d4c2f3a58e
+    fingerprint: e2e8130a652ab07f4cb1ec607fb256da1c5156df930a76f8fb3d998d12db9836
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14606,7 +14606,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.config-guard.hooks-and-settings:
     specification: architecture.security-monitoring@1
-    fingerprint: 4f42de1805429a6178beb79ce54e08955c4215a4a5506bf9223e2bb0f440ec2a
+    fingerprint: 2dcd6d5dde8764ec3b331ebb554d9975a59356ea36e9fc2c2c062933e00b5735
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14614,7 +14614,15 @@ assertions:
     current_direct_proof: false
   security-monitoring.images.running-digests:
     specification: architecture.security-monitoring@1
-    fingerprint: d017563d431d3f5912ef4ef583d44afcd91ff04443f76ece8a994c766b75535f
+    fingerprint: 85e6a6cf7db34b231d061da02c2af0aa37f741ff9dcb442d305f0eede19b7f03
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  security-monitoring.github-alerts.every-alert-listed:
+    specification: architecture.security-monitoring@1
+    fingerprint: 638205a43ba48d4a211cfd75c06e023feaf33de1c8882d3d086190f962219241
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14622,7 +14630,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.os.reboot-windows:
     specification: architecture.security-monitoring@1
-    fingerprint: ec68cc9d68bc79b23989200dfd2b0cc9eca73793f6bf5ff0107cab606b40dbe7
+    fingerprint: c52254014dd2d8ad05344b04e87e7ba9a5b4e529f502ef2a74b469888ea64613
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -14630,7 +14638,7 @@ assertions:
     current_direct_proof: false
   security-monitoring.content.boundary:
     specification: architecture.security-monitoring@1
-    fingerprint: cad9deea2e8382a0a69a5158e0542dded9a657ed3d7790213c593b4f691f2d9f
+    fingerprint: 1c02a57b0e68b4c9ad29d8fc05897a7101ccc1fc5e3cbc24a89a3b00fb47e7c5
     direct_tests: []
     supporting_tests: []
     tests: []
