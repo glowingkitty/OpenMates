@@ -45,6 +45,11 @@ interface RuntimeOptions {
 	device: ProofDevice;
 	attach: (name: string, options: {body: Buffer; contentType: string}) => Promise<void>;
 	captureFrame?: () => Promise<Buffer>;
+	/**
+	 * The checkpoints this test covers when one contract is split across several tests of the
+	 * same device; attach() then requires only their assertions and cues. Omitted: all of them.
+	 */
+	checkpoints?: string[];
 }
 
 function requireText(value: unknown, label: string): asserts value is string {
@@ -169,11 +174,12 @@ function createVideoProofRuntime(definition: VideoProofDefinition, options: Runt
 			events.push({id, kind: 'checkpoint', at_ms: atMs, captured_at_epoch_ms: capturedAtEpochMs});
 		},
 		async attach(): Promise<void> {
-			for (const assertion of contract.assertions.filter((item) => item.devices.includes(options.device))) {
+			const covers = (checkpoint: string) => !options.checkpoints || options.checkpoints.includes(checkpoint);
+			for (const assertion of contract.assertions.filter((item) => item.devices.includes(options.device) && covers(item.checkpoint))) {
 				if (!executedAssertions.has(assertion.id)) throw new Error(`Video proof assertion ${assertion.id} was not executed`);
 				if (!reachedCheckpoints.has(assertion.checkpoint)) throw new Error(`Video proof checkpoint ${assertion.checkpoint} was not reached`);
 			}
-			for (const cue of contract.transcript.filter((item) => item.devices.includes(options.device))) {
+			for (const cue of contract.transcript.filter((item) => item.devices.includes(options.device) && covers(item.checkpoint))) {
 				if (!reachedCheckpoints.has(cue.checkpoint)) throw new Error(`Video proof checkpoint ${cue.checkpoint} was not reached`);
 			}
 			const payload = {

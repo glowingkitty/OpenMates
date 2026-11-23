@@ -29,6 +29,9 @@ const STORAGE_DIAGNOSTIC = /CLIENT_DECRYPT|decryption failed|DUPLICATE PREVENTED
 
 const L = ['web-laptop'];
 const B = ['web-laptop', 'web-phone'];
+// The laptop flow and the later Specification chat are two tests on one device: each attaches
+// only its own checkpoints (run on e907a42: the flow passed, then failed on the Spec check).
+const SPEC_PLAN_CHECKPOINTS = ['cloud-spec-plan'];
 const proofContract = defineVideoProof({
   id: 'agentic-cloud-project-web-real',
   title: 'Cloud agentic coding from the web app: recipe app, build, recorded test and commit in a hosted Project',
@@ -286,6 +289,8 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     await page.setViewportSize({ width: 1440, height: 900 });
     const proof = createVideoProofRuntime(proofContract, {
       device: 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot({ type: 'png' }),
+      checkpoints: proofContract.transcript.map((cue: { checkpoint: string }) => cue.checkpoint)
+        .filter((checkpoint: string) => !SPEC_PLAN_CHECKPOINTS.includes(checkpoint)),
     });
     watchStorage(page, testInfo);
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
@@ -437,6 +442,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     await page.setViewportSize({ width: 1440, height: 900 });
     const proof = createVideoProofRuntime(proofContract, {
       device: 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot({ type: 'png' }),
+      checkpoints: SPEC_PLAN_CHECKPOINTS,
     });
     watchStorage(page, testInfo);
     await loginToTestAccount(page);
