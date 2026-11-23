@@ -116,7 +116,7 @@
       "zod": "^4.6.6"
     }
   },
-  "version": "0.32.0",
+  "version": "0.33.0",
   "description": "[![OpenMates header image](./docs/images/openmates_header.png)](https://openmates.org)",
   "main": "index.js",
   "directories": {
