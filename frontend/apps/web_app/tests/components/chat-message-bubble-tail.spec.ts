@@ -9,7 +9,7 @@ const tailStyle = (element: Element, selector: string) => {
     left: style.left, clipPath: style.clipPath };
 };
 
-for (const width of [390, 820]) {
+for (const width of [320, 375, 390, 430, 820]) {
   for (const theme of ['light', 'dark']) {
     // contract-test: direct surface=gui.web assertions=video-call.chat.assistant-identity
     test(`Assistant and user bubble tails attach to the bubble at ${width}px in ${theme}`, async ({ page }, testInfo) => {
@@ -25,18 +25,20 @@ for (const width of [390, 820]) {
         const selector = variant === 'assistant' ? '.mate-message-content' : '.user-message-content';
         const tail = await message.evaluate(tailStyle, selector);
         if (variant === 'assistant' && width <= 500) {
-          // Stacked: avatar above, tail is an unrotated upward triangle overlapping the bubble's top edge.
-          expect(tail, JSON.stringify(tail)).toMatchObject({ transform: 'none' });
-          expect(tail.width).toBe('20px');
-          expect(tail.height).toBe('13px');
-          expect(tail.top).toBe('-10px');
-          expect(tail.left).toBe('20px');
+          // Stacked: avatar above; the tail is an unrotated upward triangle centred under the avatar.
+          expect(tail.transform).toBe('none');
+          const avatar = (await message.getByRole('img', { name: 'OpenMates', exact: true }).boundingBox())!;
+          const bubble = (await message.getByTestId('mate-message-content').boundingBox())!;
+          const tailCentre = bubble.x + Number.parseFloat(tail.left) + Number.parseFloat(tail.width) / 2;
+          expect(Math.abs(tailCentre - (avatar.x + avatar.width / 2)), JSON.stringify({ tail, avatar, bubble })).toBeLessThanOrEqual(1);
+          expect(Number.parseFloat(tail.top) + Number.parseFloat(tail.height)).toBeGreaterThan(0);
         } else if (variant === 'assistant') {
           expect(tail.width).toBe('13px');
           expect(tail.left).toBe('-10px');
         }
-        await testInfo.attach(`${variant}-${width}-${theme}`, {
-          body: await message.screenshot(), contentType: 'image/png' });
+        const shot = testInfo.outputPath(`tail-${variant}-${width}-${theme}.png`);
+        await message.screenshot({ path: shot });
+        await testInfo.attach(`${variant}-${width}-${theme}`, { path: shot, contentType: 'image/png' });
       }
     });
   }

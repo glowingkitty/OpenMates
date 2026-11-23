@@ -4100,10 +4100,10 @@
      upward triangle on the bubble's top edge, overlapping it by 3px to stay attached. */
   .chat-message.assistant.mobile-stacked .mate-message-content.assistant-response-bubble::before {
     transform: none;
-    inset-inline-start: 20px;
-    top: -10px;
-    width: 20px;
-    height: 13px;
+    inset-inline-start: 5.5px; /* centred under the 25px avatar: 12.5px - width / 2 */
+    top: -7px;
+    width: 14px;
+    height: 10px;
     clip-path: polygon(0 100%, 100% 100%, 50% 0);
   }
   .assistant-response-active::after {
