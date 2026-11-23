@@ -161,7 +161,7 @@ when a skill or this file points to it.
   at 70% of our E2B limit, queueing there when full; the rest runs locally with a
   class-sized memory cap); the Bash guard blocks direct runs. Product E2E and full suites use isolated GitHub CI: `sessions.py
   ci-source` → `ci_coordinator.py submit --mode <rust-check|vitest|pytest|e2e|…>`
-  → `ci_coordinator.py wait <id>`. Direct: lint, `tsc`, `cargo fmt`, light
+  → `ci_coordinator.py wait <id> [<id> ...]` (one wait per set, one notification). Direct: lint, `tsc`, `cargo fmt`, light
   script pytest.
 - CI cost: for a UI-only or otherwise narrow change, first run only the
   cheapest proving check (component spec, lint, the one affected spec); submit
@@ -176,7 +176,9 @@ when a skill or this file points to it.
 - Overloaded host (`scripts/host_load_guard.py`): new sessions/sub-agents are
   refused; run `host_load_guard.py wait` once instead of polling.
 - Existing logs/screenshots/failures are enough to start a fix. After two
-  failed attempts with the same approach, reassess; ask before unrelated
+  failed attempts with the same approach, reassess; after two failures in a row
+  of one spec, submit refuses it until you diagnose the cause and pass
+  `--after-triage "<cause>"`; ask before unrelated
   infrastructure repair or material scope growth.
 - Final reply shows proof for the exact deployed commit: per requested flow, the
   latest successful E2E video link plus 1-3 screenshots attached with
@@ -253,9 +255,12 @@ when a skill or this file points to it.
   one a single bounded deliverable; split long lanes into fresh agents with a
   short handoff instead of one agent running for hundreds of turns. Ask for
   terse handbacks (outcome, commit, verification, blockers), no log dumps.
-  A hook warns a sub-agent at 50 tool calls and stops its tools at 70: size
-  each brief to fit, and start a fresh lane from the handback instead of
-  resuming a stopped one. Sub-agents cannot create sessions or worktrees.
+  No hard caps on sub-agents or tokens (owner, 22 Nov): a hook reminds a
+  sub-agent from 50 tool calls on to hand back a short summary, and Marco gets
+  one notice when a chat uses unusually many sub-agents or tokens
+  (`scripts/chat_usage_watch.py`); nothing is stopped. Built-in Explore and
+  Plan agents are pinned to Sonnet by `subagent-model-guard`. Sub-agents
+  cannot create sessions or worktrees.
 - Reading code: to find where something lives, first run `python3
   scripts/code_map.py find "<area>: <what changes>"` (a focused query you write,
   not the user's message); it returns 5 files with a confidence. Low confidence
