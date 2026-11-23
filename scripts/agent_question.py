@@ -373,7 +373,13 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
     reasons = push_proof.proof_reasons(root, chat_id)
     if reasons and not any(push_proof.is_visual(raw) for raw in attach) and not links and not no_proof:
         raise QuestionError(push_proof.refusal(reasons))
-    if no_proof and not any(push_proof.is_visual(raw) for raw in attach) and not links:
+    videos = push_proof.video_reasons(root, chat_id)
+    has_video = any(push_proof.is_video(raw) for raw in attach) or any(push_proof.is_video_link(u) for u in links)
+    if videos and not has_video and not no_proof:
+        raise QuestionError(push_proof.video_refusal(videos))
+    if videos and not has_video and no_proof:
+        message += f"\n⚠️ No video of the Playwright run: {discord_summary.clean_text(scrub(no_proof))[:160]}"
+    elif no_proof and not any(push_proof.is_visual(raw) for raw in attach) and not links:
         message += f"\n⚠️ No screenshot or video: {discord_summary.clean_text(scrub(no_proof))[:160]}"
     if args.dry_run:
         for raw in attach:
@@ -391,6 +397,13 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
         message = "\n".join([message, *prepared.link_lines()])
         deliver(webhook(root), message, post, sleep, files=prepared.files, post_files=post_files)
     proof = {"files": [name for name, _ in prepared.files], "links": [url for _, url in prepared.links]}
+    try:
+        stored = push_proof.store_copies(root, attach, chat_id, now)
+    except (OSError, push_proof.ProofError) as error:  # the push is out; a missing copy only costs the replay
+        print(f"agent_question: proof copy not kept ({error})", file=sys.stderr)
+        stored = []
+    if stored:
+        proof["stored"] = stored
     if no_proof and prepared.empty:
         proof = {"no_proof": scrub(no_proof)}
     record_push(root, message, now, chat_id=chat_id, title=title, asks=text, recommendation=recommendation,

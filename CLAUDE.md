@@ -99,7 +99,9 @@ when a skill or this file points to it.
   top of the short text. Files the user asked for (ZIP, machine files, PDF) go
   with `--attach` too, as downloads. A push without proof is refused (`--no-proof
   "<why>"` only when there is truly nothing to show). Research, backend,
-  security and tooling pushes need none. Proof videos of voice and audio flows
+  security and tooling pushes need none. Every Playwright run in GitHub CI or E2B
+  records a video; a chat that ran one attaches that video to its push, deployed
+  or not (the script refuses a screenshot alone). Proof videos of voice and audio flows
   carry the browser's sound in sync (`withProofAudio`, `.claude/rules/testing.md`):
   attach the `*-with-audio.webm`.
   Good: "Production is healthy: both alerts were false alarms (Brevo stats

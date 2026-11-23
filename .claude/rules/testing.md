@@ -190,7 +190,12 @@ behavior or material scope growth; keep the patch and evidence.
    `proof_video_audio.py mux-all <folder>` muxes it on the host. The spec audit
    asks for it; opt out only with `// proof-audio: not_required reason=<why>`.
    Check the sound is there: `proof_video_audio.py loudness <video>`.
-5. Keep Playwright video on for all attempts. CLI E2E needs real terminal
+5. Keep Playwright video on for all attempts: every Playwright run in GitHub CI
+   or E2B records one (`playwright.config.ts` refuses `PLAYWRIGHT_VIDEO_MODE=off`
+   under `CI`). A chat that ran Playwright (CI e2e/component/visual-smoke job or a
+   heavy_slot run) attaches the video to its push, whether or not anything was
+   deployed; `agent_question.py` refuses a screenshot alone (owner, 23 Nov).
+   Voice and audio flows attach the `*-with-audio.webm`. CLI E2E needs real terminal
    recordings (`cli-tui-proof-helpers.ts` / `cli_video_capture.py`). Dev-host
    real-inference recordings: `response_media.py <video> --output markdown`.
 6. Edited/captioned proof videos only when requested (`/create-demo-video`,
