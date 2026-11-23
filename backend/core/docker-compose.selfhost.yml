@@ -1,3 +1,4 @@
+# Canonical core service definitions. After editing, run python3 scripts/sync_core_compose.py.
 name: openmates-core
 
 x-openmates-api-image: &openmates-api-image
@@ -588,13 +589,13 @@ services:
     restart: unless-stopped
     environment:
       ADMIN_LOG_API_KEY: "${SECRET__CORE_SERVER__ADMIN_LOG_API_KEY:-}"
-      COMPOSE_PROJECT: "openmates"
+      COMPOSE_PROJECT: "openmates-core"
       COMPOSE_FILE: "backend/core/docker-compose.selfhost.yml"
       SERVICES_ALLOWED: "api,task-worker,reminder-worker,task-scheduler,cache,admin-sidecar"
       SERVICE_UPDATE_ALL: "true"
       SERVICE_UPDATE_TARGET: "api"
       SERVICE_UPDATE_EXTRAS: "vault-setup,cms-setup"
-      CLEAR_CACHE_ON_UPDATE: "${CLEAR_CACHE_ON_UPDATE:-true}"
+      CLEAR_CACHE_ON_UPDATE: "${CLEAR_CACHE_ON_UPDATE:-false}"
       CACHE_VOLUME_NAME: "openmates-cache-data"
       GIT_WORK_DIR: "${GIT_WORK_DIR}"
       ADMIN_NOTIFY_EMAIL: "${ADMIN_NOTIFY_EMAIL:-}"

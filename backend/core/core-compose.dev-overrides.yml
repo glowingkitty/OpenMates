@@ -1,0 +1,784 @@
+# Source-build differences applied to docker-compose.selfhost.yml by scripts/sync_core_compose.py.
+# Mappings merge by key, lists replace, and null drops an inherited field.
+# Custom worker commands inherit the queue list from the canonical service environment.
+# Local ports and dev-server-only credentials and mounts live in docker-compose.override.yml.
+services:
+  api:
+    build:
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile
+    environment:
+      TRANSLATIONS_DIR: /translations
+      OPENMATES_CLOUD_OVERLAY_ENABLED: ${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: ${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}
+      OPENMATES_DEPLOYMENT_MODE: ${OPENMATES_DEPLOYMENT_MODE:-self_host}
+      MOCK_EXTERNAL_APIS: 'true'
+      APPLICATION_PREVIEW_ORIGIN: ${APPLICATION_PREVIEW_ORIGIN}
+      BACKEND_CONFIG_FILE: null
+      CORE_SIDECAR_URL: null
+      PROVIDER_CONFIG_DIR: null
+    volumes:
+      - apps-recommendations-data:/app/data/apps-recommendations
+      - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - app-packages-runner-socket:/run/app-packages-runner:ro
+      - ./api/logs:/app/logs
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../frontend/apps/web_app/static/newsletter-assets:/app/frontend/apps/web_app/static/newsletter-assets:ro
+      - ../../docs:/app/docs:ro
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      - ../../backend/config:/config
+      - ../../.cursor:/app/.cursor
+      - ../../test-results:/app/test-results
+      - /home/superdev/.local/bin/cloudflared:/usr/local/bin/cloudflared:ro
+    image: null
+    extra_hosts: null
+  cms:
+    build:
+      context: ./directus
+      dockerfile: Dockerfile
+    image: openmates-directus:dev
+    volumes:
+      - ./directus/uploads:/directus/uploads
+    healthcheck:
+      test:
+        - CMD
+        - su-exec
+        - node:node
+        - /usr/local/bin/openmates-directus-health
+  cms-setup:
+    build:
+      context: ./directus/setup
+      dockerfile: Dockerfile
+    environment:
+      STORAGE_QUERY_MIGRATION_PATH: /usr/src/app/migrations/migrate_storage_query_indexes.sql
+      STORAGE_BILLING_MIGRATION_PATH: /usr/src/app/migrations/migrate_storage_billing_indexes.sql
+      STORAGE_USAGE_METERING_MIGRATION_PATH: /usr/src/app/migrations/migrate_storage_usage_metering_indexes.sql
+      APPS_WORKSPACE_RESULT_MIGRATION_PATH: /usr/src/app/migrations/migrate_apps_workspace_result_indexes.sql
+    volumes:
+      - ./directus/schemas:/usr/src/app/schemas:ro
+      - ./directus/setup/migrate_personal_privacy_generation.sql:/usr/src/app/migrations/migrate_personal_privacy_generation.sql:ro
+      - ./directus/setup/migrate_chat_recovery_unique_indexes.sql:/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql:ro
+      - ./directus/setup/migrate_chat_recovery_outputs_indexes.sql:/usr/src/app/migrations/migrate_chat_recovery_outputs_indexes.sql:ro
+      - ./directus/setup/migrate_storage_replication_indexes.sql:/usr/src/app/migrations/migrate_storage_replication_indexes.sql:ro
+      - ./directus/setup/migrate_storage_query_indexes.sql:/usr/src/app/migrations/migrate_storage_query_indexes.sql:ro
+      - ./directus/setup/migrate_storage_billing_indexes.sql:/usr/src/app/migrations/migrate_storage_billing_indexes.sql:ro
+      - ./directus/setup/migrate_storage_usage_metering_indexes.sql:/usr/src/app/migrations/migrate_storage_usage_metering_indexes.sql:ro
+      - ./directus/setup/migrate_chat_message_archive_indexes.sql:/usr/src/app/migrations/migrate_chat_message_archive_indexes.sql:ro
+      - ./directus/setup/migrate_workflow_runtime_indexes.sql:/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql:ro
+      - ./directus/setup/migrate_user_chat_preferences_indexes.sql:/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql:ro
+      - ./directus/setup/migrate_account_chat_keys.sql:/usr/src/app/migrations/migrate_account_chat_keys.sql:ro
+      - ./directus/setup/migrate_notification_email_preferences.sql:/usr/src/app/migrations/migrate_notification_email_preferences.sql:ro
+      - ./directus/setup/migrate_apps_workspace_result_indexes.sql:/usr/src/app/migrations/migrate_apps_workspace_result_indexes.sql:ro
+      - ./directus/setup/migrate_user_task_indexes.sql:/usr/src/app/migrations/migrate_user_task_indexes.sql:ro
+      - ./directus/setup/migrate_chat_sync_feed.sql:/usr/src/app/migrations/migrate_chat_sync_feed.sql:ro
+      - ./directus/setup/migrate_user_work_control_indexes.sql:/usr/src/app/migrations/migrate_user_work_control_indexes.sql:ro
+      - ./directus/setup/migrate_user_specification_indexes.sql:/usr/src/app/migrations/migrate_user_specification_indexes.sql:ro
+      - ./directus/setup/migrate_usage_overview_indexes.sql:/usr/src/app/migrations/migrate_usage_overview_indexes.sql:ro
+      - ./directus/setup/migrate_project_owner_context.sql:/usr/src/app/migrations/migrate_project_owner_context.sql:ro
+      - ./directus/setup/migrate_encrypted_slug_indexes.sql:/usr/src/app/migrations/migrate_encrypted_slug_indexes.sql:ro
+      - ./directus/setup/migrate_sub_chat_orchestration_indexes.sql:/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql:ro
+      - ./directus/setup/migrate_remove_ai_memories.sql:/usr/src/app/migrations/migrate_remove_ai_memories.sql:ro
+      - ./directus/setup/migrate_remove_quick_tips.sql:/usr/src/app/migrations/migrate_remove_quick_tips.sql:ro
+    deploy:
+      restart_policy:
+        condition: none
+    image: null
+  task-worker:
+    build: &task-worker-build
+      context: ../../
+      dockerfile: backend/core/api/Dockerfile.celery
+    environment:
+      TRANSLATIONS_DIR: /translations
+      OPENMATES_CLOUD_OVERLAY_ENABLED: ${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: ${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}
+      OPENMATES_DEPLOYMENT_MODE: ${OPENMATES_DEPLOYMENT_MODE:-self_host}
+      MOCK_EXTERNAL_APIS: 'true'
+      CELERY_AUTOSCALE_MAX: ${CELERY_AUTOSCALE_MAX:-10}
+      CELERY_AUTOSCALE_MIN: ${CELERY_AUTOSCALE_MIN:-3}
+      E2E_TEST_DEV_ENABLED: ${E2E_TEST_DEV_ENABLED:-true}
+      E2E_TEST_DEV_BASE_URL: ${E2E_TEST_DEV_BASE_URL:-https://app.dev.openmates.org}
+      E2E_TEST_PROD_ENABLED: ${E2E_TEST_PROD_ENABLED:-false}
+      E2E_TEST_PROD_BASE_URL: ${E2E_TEST_PROD_BASE_URL:-https://openmates.org}
+      BACKEND_CONFIG_FILE: null
+      PYTHONDONTWRITEBYTECODE: null
+      LOG_LEVEL: null
+      PROVIDER_CONFIG_DIR: null
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /app/data/apps-recommendations && chmod 700 /app/data/apps-recommendations && chown -R celeryuser:celeryuser /app/data/apps-recommendations /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=${CELERY_AUTOSCALE_MAX} \
+        --max-tasks-per-child=50 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+    volumes:
+      - apps-recommendations-data:/app/data/apps-recommendations
+      - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    mem_limit: null
+    image: null
+    extra_hosts: null
+  user-init-worker:
+    <<: &extend-dev-task-worker
+      extends:
+        service: task-worker
+      env_file: null
+      depends_on: null
+      networks: null
+      user: null
+      restart: null
+      extra_hosts: null
+      mem_limit: null
+      image: null
+      volumes: null
+    environment:
+      <<: &inherit-dev-task-worker-env
+        DRAGONFLY_URL: null
+        CMS_URL: null
+        BACKEND_CONFIG_FILE: null
+        VAULT_URL: null
+        PYTHONPATH: null
+        DIRECTUS_TOKEN: null
+        PROVIDER_CONFIG_DIR: null
+        OPENMATES_CLOUD_OVERLAY_PACKAGE: null
+        SERVER_ENVIRONMENT: null
+        PYTHONDONTWRITEBYTECODE: null
+        OPENMATES_CLOUD_OVERLAY_ENABLED: null
+        LOG_LEVEL: null
+        DRAGONFLY_PASSWORD: null
+        MOCK_EXTERNAL_APIS: null
+        OPENMATES_DEPLOYMENT_MODE: null
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=$${CELERY_AUTOSCALE_MAX} \
+        --max-tasks-per-child=50 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+  core-worker:
+    <<: *extend-dev-task-worker
+    environment:
+      <<: *inherit-dev-task-worker-env
+      CELERY_AUTOSCALE_MAX: ${CELERY_AUTOSCALE_MAX:-10}
+      CELERY_AUTOSCALE_MIN: ${CELERY_AUTOSCALE_MIN:-3}
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=${CELERY_AUTOSCALE_MAX} \
+        --max-tasks-per-child=50 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+  user-tasks-worker:
+    <<: *extend-dev-task-worker
+    environment:
+      <<: *inherit-dev-task-worker-env
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=$${CELERY_AUTOSCALE_MAX} \
+        --max-tasks-per-child=50 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+  reminder-worker:
+    <<: *extend-dev-task-worker
+    environment:
+      <<: *inherit-dev-task-worker-env
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
+        find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=$${CELERY_AUTOSCALE_MAX} \
+        --max-tasks-per-child=50 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+  workflow-worker:
+    build: *task-worker-build
+    environment:
+      TRANSLATIONS_DIR: /translations
+      OPENMATES_CLOUD_OVERLAY_ENABLED: ${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: ${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}
+      OPENMATES_DEPLOYMENT_MODE: ${OPENMATES_DEPLOYMENT_MODE:-self_host}
+      MOCK_EXTERNAL_APIS: 'true'
+      BACKEND_CONFIG_FILE: null
+      PROVIDER_CONFIG_DIR: null
+      PYTHONDONTWRITEBYTECODE: null
+      LOG_LEVEL: null
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=$${CELERY_AUTOSCALE_MAX} \
+        --max-tasks-per-child=50 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+    volumes:
+      - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - app-packages-runner-socket:/run/app-packages-runner:ro
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    mem_limit: null
+    image: null
+    extra_hosts: null
+  task-scheduler:
+    build: *task-worker-build
+    environment:
+      TRANSLATIONS_DIR: /translations
+      OPENMATES_CLOUD_OVERLAY_ENABLED: ${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: ${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}
+      OPENMATES_DEPLOYMENT_MODE: ${OPENMATES_DEPLOYMENT_MODE:-self_host}
+      MOCK_EXTERNAL_APIS: 'true'
+      PYTHONDONTWRITEBYTECODE: null
+      BACKEND_CONFIG_FILE: null
+      VAULT_URL: null
+      LOG_LEVEL: null
+      PROVIDER_CONFIG_DIR: null
+    command:
+      - sh
+      - -c
+      - |
+        exec python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule
+    volumes:
+      - ../../backend:/app/backend
+      - ./api/logs:/app/logs
+      - celerybeat-schedule-data:/celerybeat-data
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    image: null
+    user: null
+    extra_hosts: null
+  app-ai-worker:
+    build: *task-worker-build
+    environment:
+      TRANSLATIONS_DIR: /translations
+      OPENMATES_CLOUD_OVERLAY_ENABLED: ${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: ${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}
+      OPENMATES_DEPLOYMENT_MODE: ${OPENMATES_DEPLOYMENT_MODE:-self_host}
+      MOCK_EXTERNAL_APIS: 'true'
+      CELERY_AUTOSCALE_MAX: ${CELERY_AUTOSCALE_MAX:-10}
+      CELERY_AUTOSCALE_MIN: ${CELERY_AUTOSCALE_MIN:-3}
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=${CELERY_AUTOSCALE_MAX} \
+        --max-tasks-per-child=50 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+    volumes:
+      - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - app-packages-runner-socket:/run/app-packages-runner:ro
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    mem_limit: null
+    image: null
+    extra_hosts: null
+  app-ai-routing-worker:
+    build: *task-worker-build
+    environment:
+      TRANSLATIONS_DIR: /translations
+      OPENMATES_CLOUD_OVERLAY_ENABLED: ${OPENMATES_CLOUD_OVERLAY_ENABLED:-false}
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: ${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}
+      OPENMATES_DEPLOYMENT_MODE: ${OPENMATES_DEPLOYMENT_MODE:-self_host}
+      MOCK_EXTERNAL_APIS: 'true'
+      CELERY_AUTOSCALE_MIN: '2'
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=${APP_AI_ROUTING_CONCURRENCY:-2} \
+        --max-tasks-per-child=50 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+    volumes: &app-ai-routing-worker-volumes
+      - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    mem_limit: null
+    image: null
+    extra_hosts: null
+  app-images-worker:
+    build: *task-worker-build
+    environment:
+      TRANSLATIONS_DIR: /translations
+      MOCK_EXTERNAL_APIS: 'true'
+      CELERY_AUTOSCALE_MAX: ${CELERY_AUTOSCALE_MAX:-10}
+      CELERY_AUTOSCALE_MIN: ${CELERY_AUTOSCALE_MIN:-3}
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: null
+      OPENMATES_CLOUD_OVERLAY_ENABLED: null
+      OPENMATES_DEPLOYMENT_MODE: null
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=${CELERY_AUTOSCALE_MAX} \
+        --max-tasks-per-child=50 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+    volumes: &app-images-worker-volumes
+      - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+      - ../../config/media_encryption_rollout.yml:/app/config/media_encryption_rollout.yml:ro
+    mem_limit: null
+    image: null
+    extra_hosts: null
+  app-music-worker:
+    build: *task-worker-build
+    environment:
+      TRANSLATIONS_DIR: /translations
+      CELERY_AUTOSCALE_MAX: ${CELERY_AUTOSCALE_MAX:-5}
+      CELERY_AUTOSCALE_MIN: ${CELERY_AUTOSCALE_MIN:-1}
+      CELERY_METRICS_PORT: '9109'
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: null
+      OPENMATES_CLOUD_OVERLAY_ENABLED: null
+      MOCK_EXTERNAL_APIS: null
+      OPENMATES_DEPLOYMENT_MODE: null
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=${CELERY_AUTOSCALE_MAX} \
+        --max-tasks-per-child=20 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+    volumes:
+      - ../../backend:/app/backend
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../frontend/apps/web_app/static/audio/assistant-acknowledgements:/app/frontend/apps/web_app/static/audio/assistant-acknowledgements:ro
+      - ../../shared:/shared
+      - ../../config/media_encryption_rollout.yml:/app/config/media_encryption_rollout.yml:ro
+    mem_limit: null
+    image: null
+    extra_hosts: null
+  app-videos-worker:
+    build: *task-worker-build
+    environment:
+      TRANSLATIONS_DIR: /translations
+      MOCK_EXTERNAL_APIS: 'true'
+      CELERY_AUTOSCALE_MAX: ${CELERY_VIDEOS_AUTOSCALE_MAX:-2}
+      CELERY_AUTOSCALE_MIN: ${CELERY_VIDEOS_AUTOSCALE_MIN:-1}
+      CELERY_METRICS_PORT: '9110'
+      E2B_REMOTION_TEMPLATE: ${E2B_REMOTION_TEMPLATE:-openmates-remotion-renderer-dev}
+      CELERY_VIDEOS_AUTOSCALE_MAX: null
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: null
+      OPENMATES_CLOUD_OVERLAY_ENABLED: null
+      OPENMATES_DEPLOYMENT_MODE: null
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=${CELERY_VIDEOS_AUTOSCALE_MAX:-2} \
+        --max-tasks-per-child=10 \
+        --max-memory-per-child=1000000 \
+        --prefetch-multiplier=1
+    volumes: *app-images-worker-volumes
+    mem_limit: null
+    image: null
+    extra_hosts: null
+  app-pdf-worker:
+    build: *task-worker-build
+    environment:
+      TRANSLATIONS_DIR: /translations
+      CELERY_AUTOSCALE_MAX: '4'
+      CELERY_AUTOSCALE_MIN: '1'
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: null
+      OPENMATES_CLOUD_OVERLAY_ENABLED: null
+      MOCK_EXTERNAL_APIS: null
+      OPENMATES_DEPLOYMENT_MODE: null
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=2 \
+        --max-tasks-per-child=10 \
+        --max-memory-per-child=1000000 \
+        --prefetch-multiplier=1
+    volumes: *app-ai-routing-worker-volumes
+    mem_limit: null
+    image: null
+    extra_hosts: null
+  app-docs-worker:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.docs
+    environment:
+      TRANSLATIONS_DIR: /translations
+      CELERY_AUTOSCALE_MAX: '3'
+      CELERY_AUTOSCALE_MIN: '1'
+      CELERY_METRICS_PORT: '9105'
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: null
+      OPENMATES_CLOUD_OVERLAY_ENABLED: null
+      MOCK_EXTERNAL_APIS: null
+      OPENMATES_DEPLOYMENT_MODE: null
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=2 \
+        --max-tasks-per-child=10 \
+        --max-memory-per-child=1000000 \
+        --prefetch-multiplier=1
+    volumes: *app-ai-routing-worker-volumes
+    mem_limit: null
+    image: null
+    extra_hosts: null
+  app-code-worker:
+    build: *task-worker-build
+    environment:
+      TRANSLATIONS_DIR: /translations
+      CELERY_AUTOSCALE_MAX: '2'
+      CELERY_AUTOSCALE_MIN: '1'
+      CELERY_METRICS_PORT: '9107'
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: null
+      OPENMATES_CLOUD_OVERLAY_ENABLED: null
+      MOCK_EXTERNAL_APIS: null
+      OPENMATES_DEPLOYMENT_MODE: null
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=2 \
+        --max-tasks-per-child=20 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+    volumes: *app-images-worker-volumes
+    mem_limit: null
+    image: null
+    extra_hosts: null
+  app-social-media-worker:
+    build: *task-worker-build
+    environment:
+      TRANSLATIONS_DIR: /translations
+      CELERY_AUTOSCALE_MAX: '4'
+      CELERY_AUTOSCALE_MIN: '1'
+      CELERY_METRICS_PORT: '9106'
+      OPENMATES_CLOUD_OVERLAY_PACKAGE: null
+      OPENMATES_CLOUD_OVERLAY_ENABLED: null
+      MOCK_EXTERNAL_APIS: null
+      OPENMATES_DEPLOYMENT_MODE: null
+    command:
+      - sh
+      - -c
+      - |
+        chown -R celeryuser:celeryuser /vault-data && \
+        mkdir -p /app/logs /app/backend/core/api/logs && \
+        chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+        chmod -R 777 /app/logs /app/backend/core/api/logs && \
+        exec gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+        --loglevel=info \
+        --queues=@canonical-celery-queues@ \
+        --concurrency=2 \
+        --max-tasks-per-child=50 \
+        --max-memory-per-child=600000 \
+        --prefetch-multiplier=1
+    volumes: *app-ai-routing-worker-volumes
+    mem_limit: null
+    image: null
+    extra_hosts: null
+  app-packages-runner:
+    image: python:3.13-slim
+    command:
+      - python3
+      - /runner/runner.py
+    volumes:
+      - ../../backend/core/app_packages_runner:/runner:ro
+      - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
+      - app-packages-runner-socket:/run/app-packages-runner
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - /runner/runner.py
+        - --healthcheck
+  cache:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: ${CACHE_MEMORY_LIMIT:-3.2G}
+  vault-setup:
+    build:
+      context: ./vault/setup
+      dockerfile: Dockerfile
+    volumes:
+      - ./vault/setup:/app
+      - vault-setup-data:/app/data
+      - ../../.env:/app/dotenv:rw
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 5
+    command: |
+      sh -c "echo 'Waiting for Vault to be ready...' &&
+             sleep 10 &&
+             python setup_vault.py &&
+             echo 'Setup complete.'"
+    image: null
+  openobserve:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1536M
+  prometheus:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    command:
+      - |
+        sed "s|\$${SERVER_ENVIRONMENT}|$${SERVER_ENVIRONMENT:-development}|g" /etc/prometheus/prometheus.yml > /tmp/prometheus.runtime.yml
+        exec /bin/prometheus --config.file=/tmp/prometheus.runtime.yml --storage.tsdb.path=/prometheus --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://localhost:9090/-/healthy
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  alertmanager:
+    image: prom/alertmanager:v0.31.1
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager
+    env_file:
+      - ../../.env
+    command:
+      - "if [ -z \"$$INTERNAL_API_SHARED_TOKEN\" ]; then\n  echo \"FATAL: INTERNAL_API_SHARED_TOKEN is empty \u2014 alertmanager\
+        \ cannot authenticate to the internal webhook. Set it in .env.\" >&2\n  exit 1\nfi\ncase \"$${SERVER_ENVIRONMENT:-development}\"\
+        \ in\n  production) urgent_webhook=\"$${DISCORD_WEBHOOK_URGENT_PRODUCTION:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION:-}}\"\
+        \ ;;\n  self_host) urgent_webhook=\"$${DISCORD_WEBHOOK_URGENT_SELF_HOST:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL:-}}}\"\
+        \ ;;\n  *) urgent_webhook=\"$${DISCORD_WEBHOOK_URGENT_DEVELOPMENT:-$${OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT:-}}\"\
+        \ ;;\nesac\nsed \"s|\\$${INTERNAL_API_SHARED_TOKEN}|$$INTERNAL_API_SHARED_TOKEN|g\" /etc/alertmanager/alertmanager.yml\
+        \ > /tmp/alertmanager.runtime.yml\nif [ -n \"$$urgent_webhook\" ]; then\n  sed -i \"s|\\$${DISCORD_WEBHOOK_URGENT_SCOPED}|$$urgent_webhook|g\"\
+        \ /tmp/alertmanager.runtime.yml\nelse\n  sed -i '/URGENT_DISCORD_ROUTE_START/,/URGENT_DISCORD_ROUTE_END/d; /URGENT_DISCORD_RECEIVER_START/,/URGENT_DISCORD_RECEIVER_END/d'\
+        \ /tmp/alertmanager.runtime.yml\nfi\nif grep -q '\\$${' /tmp/alertmanager.runtime.yml; then\n  echo \"FATAL: unresolved\
+        \ \\$${...} placeholder remains in /tmp/alertmanager.runtime.yml after substitution.\" >&2\n  grep -n '\\$${' /tmp/alertmanager.runtime.yml\
+        \ >&2\n  exit 1\nfi\nexec /bin/alertmanager --config.file=/tmp/alertmanager.runtime.yml --storage.path=/alertmanager\n"
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://localhost:9093/-/healthy
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    deploy: &cadvisor-deploy
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    command:
+      - --housekeeping_interval=30s
+      - --docker_only=true
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.project
+      - --disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://localhost:8080/healthz
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  node-exporter:
+    deploy: &node-exporter-deploy
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+  promtail:
+    image: grafana/promtail:3.4.2
+    deploy: *cadvisor-deploy
+    volumes:
+      - ./monitoring/promtail:/etc/promtail
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./api/logs:/var/log/api:ro
+  admin-sidecar:
+    build:
+      context: ../../
+      dockerfile: backend/admin_sidecar/Dockerfile
+    environment:
+      COMPOSE_PROJECT: openmates
+      COMPOSE_FILE: backend/core/docker-compose.yml
+      SERVICES_ALLOWED: api,task-worker,task-scheduler,cache,admin-sidecar
+      CLEAR_CACHE_ON_UPDATE: ${CLEAR_CACHE_ON_UPDATE:-true}
+    deploy: *node-exporter-deploy
+    image: null
+  webapp:
+    build:
+      context: ../../
+      dockerfile: frontend/apps/web_app/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_ENV: ${VITE_ENV:-self_hosted}
+        VITE_UPLOAD_URL: ${VITE_UPLOAD_URL:-}
+    image: null
+volumes:
+  preview-cache:
+    name: openmates-preview-cache
+  api-logs: null
+  directus-uploads: null

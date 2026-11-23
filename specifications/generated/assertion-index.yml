@@ -135347,22 +135347,22 @@ assertions:
       surface: gui.apple
     - &id17170
       path: backend/tests/test_celery_queue_consumers.py
-      line: 55
+      line: 56
       name: test_routing_table_includes_the_focus_timer_queue
       surface: rest_api
     - &id17171
       path: backend/tests/test_celery_queue_consumers.py
-      line: 61
+      line: 62
       name: test_every_routed_queue_has_a_worker
       surface: rest_api
     - &id17172
       path: backend/tests/test_celery_queue_consumers.py
-      line: 68
+      line: 69
       name: test_routing_worker_declares_its_queue
       surface: rest_api
     - &id17173
       path: backend/tests/test_celery_queue_consumers.py
-      line: 75
+      line: 76
       name: test_routing_worker_is_in_every_runtime_control_plane
       surface: rest_api
     - &id17174

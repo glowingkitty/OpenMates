@@ -23251,6 +23251,7 @@ features:
         missing: 4
         counted: 10
       key_tests: []
+      evidence: .github/workflows/selfhost-smoke-rust.yml (image-mode update starts the AI routing worker)
       e2e_tests:
       - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
       key_unit_tests:

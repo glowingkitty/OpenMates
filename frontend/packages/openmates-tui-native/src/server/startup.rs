@@ -170,6 +170,7 @@ fn runtime_rows(bytes: &[u8]) -> Result<Vec<Value>> {
         let name = row["Service"].as_str().ok_or(Error::Protocol)?;
         let known = CORE.contains(&name)
             || WORKERS.contains(&name)
+            || name == ROUTING_WORKER
             || matches!(
                 name,
                 "admin-sidecar"
