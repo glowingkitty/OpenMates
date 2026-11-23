@@ -62,6 +62,16 @@
         ]
       },
       {
+        "matcher": "SendMessage",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 $(git rev-parse --show-toplevel)/scripts/chat_mailbox.py hook-pre",
+            "timeout": 15
+          }
+        ]
+      },
+      {
         "matcher": "Agent|Task",
         "hooks": [
           {
@@ -242,6 +252,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "python3 $(git rev-parse --show-toplevel)/scripts/chat_mailbox.py hook-prompt",
+            "timeout": 10
+          },
+          {
+            "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/peer-chats.sh",
             "timeout": 10
           }
@@ -276,6 +291,11 @@
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/host-load-gate.sh prompt",
             "timeout": 600,
             "statusMessage": "Waiting: the dev server is short on memory. Your prompt runs by itself once it frees up (at most 9 min)."
+          },
+          {
+            "type": "command",
+            "command": "python3 $(git rev-parse --show-toplevel)/scripts/chat_mailbox.py hook-prompt",
+            "timeout": 10
           },
           {
             "type": "command",

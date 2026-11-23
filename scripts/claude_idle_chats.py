@@ -1071,6 +1071,11 @@ def run_cycle(args: argparse.Namespace, config: dict, room: int = 0) -> tuple[li
         close_dead_panes(list(config["zellij_sessions"]), directory, now, protected=protected)
         waiters.pop(UNREADABLE, None)
         wake_failures = wake_waiting(waiters, left, registry, directory, now, config)
+        try:  # chat mailbox: stale messages wake their recipient; an error here never breaks reap
+            import chat_mailbox  # noqa: E402  (sibling script)
+            chat_mailbox.deliver_stale(now=now, chats=left, log=lambda event: log_event(directory, event))
+        except Exception as error:  # noqa: BLE001  (best effort side channel)
+            log_event(directory, {"event": "mailbox_error", "error": str(error)[:200]})
         stalled = stalled_chats(left, registry, args.claude_home, now, directory, act=True)
         live_map = {chat.session_id: chat for chat in left}
         for entry in (continue_stalled + unfinished_stalled(registry) + wake_failures

@@ -58,3 +58,4 @@ paths:
   --service <name>` with its resource leases; not a substitute CI runner.
 - OpenMates Tasks owns status; no local task ledgers. `sessions.py end` is
   optional maintenance and invents no proof or approval requirements.
+- Chat-to-chat `SendMessage` (peer name or `session_...`) is queued by `scripts/chat_mailbox.py` and shown at the recipient's next turn; `URGENT:` sends at once, sub-agent ids are untouched, and mail unread after 120 minutes wakes a running recipient once via the reap pass.

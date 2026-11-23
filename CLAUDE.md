@@ -67,7 +67,9 @@ when a skill or this file points to it.
    chat have no waiter. Waiting on another chat or an outside event: register
    it (`python3 scripts/claude_chat_waiters.py add --on "<what>"`, the other side
    runs `fire`); the chat lifecycle never stops a waiting chat as idle and reopens
-   it when the wait ends. Report outcome, commit and verification.
+   it when the wait ends. A `SendMessage` to another chat waits in its mailbox
+   (shown at its next turn); start it with `URGENT:` only to wake it now.
+   Report outcome, commit and verification.
 7. Root operations on the dev server: `scripts/agent_root.sh <verb>` (fixed
    allowlist: Caddy validate/reload/apply, start/status of named units,
    AppArmor profile reload). Ask the user to run a command by hand only when
