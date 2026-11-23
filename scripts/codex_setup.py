@@ -63,6 +63,10 @@ def config_problems(repo: Path, home: Path) -> list[str]:
     flat = text.replace(" ", "")
     if "hooks=true" not in flat:
         found.append(f"{home / 'config.toml'} does not switch hooks on ([features] hooks = true)")
+    if 'sandbox_mode="danger-full-access"' not in flat:
+        # Codex's default bubblewrap sandbox fails on this host ("bwrap: loopback: Failed RTM_NEWADDR"):
+        # every shell call of a chat then fails. The host is isolated; the repository hooks are the guard.
+        found.append(f'{home / "config.toml"} has no sandbox_mode = "danger-full-access" (every command would fail in bwrap)')
     canonical = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=repo,
                                capture_output=True, text=True, check=False).stdout.strip()
     root = str(Path(canonical).parent) if canonical else str(repo)

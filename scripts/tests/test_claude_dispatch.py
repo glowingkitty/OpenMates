@@ -545,3 +545,29 @@ def test_ai_test_user_run_starts_chats_directly_and_marco_approved_ones_skip_the
     approved = dispatch.launch_test_user_chat(ISSUE_ID, "ABCDE", "prod", launcher, ignore_cap=True)
     assert approved["status"] == "started" and seen[-1] == ("AI test user issue ABCDE: investigate", "small-fix")
     assert len(seen) == 4
+
+
+# contract-test: tooling
+def test_force_start_skips_the_slot_check_and_queued_chats_drain_when_room(isolated_state, monkeypatch):
+    """2026-11-23: run=now still queued a start at 20 running; queued entries had no drain at all."""
+    full = lambda: "no room: 20 chats run (max 20)"  # noqa: E731
+    monkeypatch.setattr(dispatch, "admit_new_chat", full)
+    opened = []
+    monkeypatch.setattr(dispatch, "_open_chat_tab", lambda *a, **k: opened.append(a[0]) or "claude/tab")
+    monkeypatch.setattr(dispatch.claude_weekly_model, "route", lambda model, *_: ("claude", model))
+    with pytest.raises(dispatch.ChatQueued):
+        dispatch.launch_claude_chat("Normal start", "work", explicit_model=True)
+    assert opened == []
+    assert dispatch.launch_claude_chat("Emergency start", "work", explicit_model=True, force=True) == "claude/tab"
+    assert opened == ["Emergency start"]
+    assert dispatch.start_pending()[0]["status"] == "still queued"  # the cap still holds the queue
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: pytest.fail("forced drain checked the cap"))
+    assert dispatch.start_pending(force=True)[0]["status"] == "launched"
+    assert opened == ["Emergency start", "Normal start"]
+    monkeypatch.setattr(dispatch, "admit_new_chat", full)
+    with pytest.raises(dispatch.ChatQueued):
+        dispatch.launch_claude_chat("Automatic drain", "work", explicit_model=True)
+    monkeypatch.setattr(dispatch, "admit_new_chat", lambda: None)
+    assert dispatch.main(["drain"]) == 0
+    assert opened == ["Emergency start", "Normal start", "Automatic drain"]
+    assert dispatch.start_pending() == []  # nothing left to drain

@@ -554,6 +554,8 @@ def live_chats(claude_home: Path, config: dict, waiters: dict[str, list] | None 
         pid = record.get("pid")
         if not isinstance(pid, int) or not Path(f"/proc/{pid}").exists():
             continue
+        if record.get("spare"):
+            continue  # a pre-warmed daemon spare is no chat and holds no slot
         # A recycled pid belongs to another program: the start time must match.
         process_start = _proc_start(pid)
         if not process_start or str(record.get("procStart", "")) != process_start:
@@ -669,8 +671,10 @@ def counts(live: list[Chat], registry: dict[str, dict], now: float, config: dict
     limit = config["idle_stop_minutes"] * 60
     working = sum(1 for chat in live if chat.status != "idle" or now - chat.last_activity <= limit)
     states = [entry["state"] for entry in registry.values()]
+    codex_running = len(codex_chats.live())  # Codex chats hold slots too: admit, status and overview agree
     return {
-        "at": _utc(now), "running": len(live), "max_running": int(config["max_running"]),
+        "at": _utc(now), "running": len(live) + codex_running, "running_claude": len(live),
+        "running_codex": codex_running, "max_running": int(config["max_running"]),
         "working": working, "idle_running": len(live) - working,
         "idle_stopped": states.count("stopped"), "done_to_archive": states.count("done"),
         "archived": states.count("archived"), "queued_new_chats": queued,
@@ -1419,7 +1423,18 @@ def main(argv: list[str] | None = None) -> int:
               "(all working, waiting or recently active)")
         return EXIT_NO_ROOM
     _, failed = run_cycle(args, config)
+    if args.command == "reap" and not args.dry_run and queued_launches():
+        failed += not drain_queue()
     return 1 if failed else 0
+
+
+def drain_queue() -> bool:
+    """Start queued chats after a lifecycle cycle has freed slots."""
+    result = subprocess.run([sys.executable, str(SCRIPT_ROOT / "scripts" / "claude_dispatch.py"), "drain"],
+                            capture_output=True, text=True, timeout=300, check=False)
+    log_event(state_dir(), {"event": "queue_drained" if result.returncode == 0 else "queue_drain_failed",
+                            "output": (result.stdout or result.stderr).strip()[-300:]})
+    return result.returncode == 0
 
 
 def mark(session_id: str, state: str | None) -> int:

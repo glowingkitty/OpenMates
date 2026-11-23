@@ -36,6 +36,7 @@ Tests: scripts/tests/test_claude_dispatch.py
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import re
@@ -266,20 +267,30 @@ def queue_launch(title: str, prompt: str, model: str, effort: str, explicit_mode
                  change_scope: str = "", engine: str = "claude") -> Path:
     PENDING_DIR.mkdir(parents=True, exist_ok=True)
     path = PENDING_DIR / f"{_now():%Y%m%dT%H%M%S%f}.json"
-    path.write_text(json.dumps({"title": title, "prompt": prompt, "model": model, "effort": effort,
-                                "explicit_model": explicit_model, "queued_at": _now().isoformat(), "why": why,
-                                "change_scope": change_scope, "engine": engine}),
-                    encoding="utf-8")
+    staged = path.with_suffix(".tmp")
+    staged.write_text(json.dumps({"title": title, "prompt": prompt, "model": model, "effort": effort,
+                                  "explicit_model": explicit_model, "queued_at": _now().isoformat(), "why": why,
+                                  "change_scope": change_scope, "engine": engine}),
+                      encoding="utf-8")
+    staged.replace(path)
     _record_launch({"kind": "queued", "title": title, "model": model, "why": why, "file": path.name})
     return path
 
 
-def start_pending(limit: int = MAX_ISSUE_LAUNCHES_PER_RUN) -> list[dict[str, Any]]:
-    """Start queued chats, oldest first, while the cap has room."""
+def start_pending(limit: int = MAX_ISSUE_LAUNCHES_PER_RUN, force: bool = False) -> list[dict[str, Any]]:
+    """Start queued chats oldest first. Force skips the slot check."""
+    if not PENDING_DIR.is_dir():
+        return []
+    with (PENDING_DIR.parent / "pending.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return _start_pending(limit, force)
+
+
+def _start_pending(limit: int, force: bool) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
-    for path in sorted(PENDING_DIR.glob("*.json"))[:limit] if PENDING_DIR.is_dir() else []:
+    for path in sorted(PENDING_DIR.glob("*.json"))[:limit]:
         entry = json.loads(path.read_text(encoding="utf-8"))
-        why = admit_new_chat()
+        why = None if force else admit_new_chat()
         if why:
             results.append({"file": path.name, "status": "still queued", "why": why})
             break
@@ -291,14 +302,14 @@ def start_pending(limit: int = MAX_ISSUE_LAUNCHES_PER_RUN) -> list[dict[str, Any
                                    entry.get("change_scope", ""))
         path.unlink()
         outcome = {"file": path.name, "status": "launched", "session": where, "title": entry["title"]}
-        _record_launch({"kind": "pending", "model": entry["model"], **outcome})
+        _record_launch({"kind": "pending", "model": entry["model"], "forced": force, **outcome})
         results.append(outcome)
     return results
 
 
 def launch_claude_chat(
     title: str, prompt: str, model: str = CLAUDE_MODEL, effort: str = CLAUDE_EFFORT, explicit_model: bool = False,
-    change_scope: str = "",
+    change_scope: str = "", force: bool = False,
 ) -> str:
     """Open the chat as an interactive Remote Control session in its own tab of the
     persistent zellij session; returns `<session>/<tab title>`.
@@ -311,8 +322,11 @@ def launch_claude_chat(
     Interactive sessions stay connected until the tab is closed.
 
     When the cap of running chats is reached and no idle chat may be suspended, the
-    chat is queued (PENDING_DIR) and ChatQueued says so; the `issues` cron run starts
+    chat is queued (PENDING_DIR) and ChatQueued says so; the lifecycle starts
     it once a slot frees. A chat is never dropped.
+
+    `force` (the owner's emergency start: connector run="now", scripts/force_chat.py) skips the
+    slot check entirely; the launch log records it.
     """
     engine, model = claude_weekly_model.route(model, explicit_model, f"{title}\n{prompt}")
     fallback = ""
@@ -329,7 +343,9 @@ def launch_claude_chat(
         model = claude_weekly_model.new_chat_model(model, explicit_model)
         effort = cap_effort(effort)
     prompt = with_push_rule(prompt)
-    why = admit_new_chat()
+    why = None if force else admit_new_chat()
+    if force:
+        _record_launch({"kind": "forced", "title": title, "model": model, "why": "owner force: slot limit skipped"})
     if why:
         path = queue_launch(title, prompt, model, effort, explicit_model, why, change_scope, engine)
         raise ChatQueued(f"queued, not started yet ({why}); it starts by itself within minutes of a slot "
@@ -758,11 +774,19 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     issues = sub.add_parser("issues", help="Dispatch queued admin issue reports (dev)")
     issues.add_argument("--dry-run", action="store_true")
+    drain = sub.add_parser("drain", help="Start queued chats while the slot cap has room (the lifecycle runs it every minute)")
+    drain.add_argument("--force", action="store_true", help="start them whatever the cap says")
+    drain.add_argument("--limit", type=int, default=MAX_ISSUE_LAUNCHES_PER_RUN)
     prod = sub.add_parser("prod-errors", help="Hourly production chat-failure check")
     prod.add_argument("--since-minutes", type=int, default=70)
     prod.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
+    if args.command == "drain":
+        results = start_pending(args.limit, args.force)
+        if results:
+            print(json.dumps(results))
+        return 1 if any(r["status"] == "failed" for r in results) else 0
     if args.command == "issues":
         results = [] if args.dry_run else start_pending()
         results += dispatch_issues(dry_run=args.dry_run)

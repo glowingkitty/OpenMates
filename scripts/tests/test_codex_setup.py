@@ -32,7 +32,10 @@ def test_host_config_must_switch_hooks_on_and_trust_the_checkout(tmp_path):
     assert codex_setup.config_problems(REPO, tmp_path)  # missing
     root = Path(codex_setup.subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
                                            cwd=REPO, capture_output=True, text=True).stdout.strip()).parent
-    (tmp_path / "config.toml").write_text(f'[features]\nhooks = true\n\n[projects."{root}"]\ntrust_level = "trusted"\n')
+    table = f'[features]\nhooks = true\n\n[projects."{root}"]\ntrust_level = "trusted"\n'
+    (tmp_path / "config.toml").write_text(table)
+    assert any("danger-full-access" in problem for problem in codex_setup.config_problems(REPO, tmp_path))
+    (tmp_path / "config.toml").write_text('sandbox_mode = "danger-full-access"\n' + table)
     assert codex_setup.config_problems(REPO, tmp_path) == []
 
 
