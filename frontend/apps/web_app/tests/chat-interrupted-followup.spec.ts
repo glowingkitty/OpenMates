@@ -72,6 +72,8 @@ test.describe('Interrupted personal chat follow-ups', () => {
         expect(frames.filter(f => f.direction === 'sent' && f.type === 'ai_response_completed'
           && f.payload?.message?.message_id === taskId)).toHaveLength(0);
         expect(frames.some(f => f.direction === 'received' && f.payload?.code === 'recovery_persistence_required')).toBe(false);
+        expect(frames.filter(f => f.direction === 'received' && f.type === 'ai_task_failed'
+          && (f.payload?.task_id === taskId || f.payload?.chat_id === chatId))).toHaveLength(0);
         if (partial) await expect(page.getByTestId('message-assistant').first()).toContainText('This partial response must survive interruption.');
         // Cold client storage must reconstruct both accepted user turns and the
         // follow-up answer from encrypted canonical history, without duplicates.

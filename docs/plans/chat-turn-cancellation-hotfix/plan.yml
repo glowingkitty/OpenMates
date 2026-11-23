@@ -1,0 +1,23 @@
+schema_version: 2
+profile: concise
+id: chat-turn-cancellation-hotfix
+title: Keep chat cancellation distinct from processing failures
+status: implementing
+goal: >-
+  Find the production chat failures, fix the causes that stop users from
+  receiving replies first, and prepare one hotfix pull request with before
+  and after dev evidence.
+specifications:
+  - feature.chats@7
+  - feature.chat-processing-feedback
+scope:
+  in:
+    - Preserve encrypted partial replies and queued follow-ups after a confirmed stop.
+    - End an in-flight turn when the account deletion transaction rejects its recovery output.
+    - Preserve real timeout alerts and propagate unexpected recovery errors.
+  out:
+    - Production database changes and new access grants.
+checks:
+  - Cancellation and account-fence regressions pass in isolated backend CI.
+  - The interrupted chat and queued follow-up pass on the dev stack in browser E2E.
+  - The mergeable hotfix includes the exact verified changes and private video evidence.

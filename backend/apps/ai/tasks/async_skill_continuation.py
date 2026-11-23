@@ -31,6 +31,7 @@ from backend.apps.ai.utils.embeds_map_view import (
 )
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
+from backend.shared.python_utils.ai_task_cancellation import record_cancellation_intent
 from backend.shared.python_utils.queued_turn_marker import is_queued_turn_pending, queued_turn_pending_key
 
 logger = logging.getLogger(__name__)
@@ -429,6 +430,7 @@ async def cancel_async_recovery_handoff_source(
     finally:
         await directus.close()
     if stopped and authority.get("claimed"):
+        await record_cancellation_intent(cache, user_id, chat_id, authority["delivery_id"])
         _get_celery_app().control.revoke(authority["delivery_id"], terminate=True, signal="SIGUSR1")
     return stopped
 
@@ -1151,6 +1153,7 @@ async def cancel_same_turn_source(
         f"same_turn_skill:logical_delivery:{metadata['logical_task_id']}",
     )
     if current_delivery and current_delivery != source_task_id:
+        await record_cancellation_intent(cache_service, user_id, chat_id, current_delivery)
         _get_celery_app().control.revoke(current_delivery, terminate=True, signal="SIGUSR1")
     return True
 

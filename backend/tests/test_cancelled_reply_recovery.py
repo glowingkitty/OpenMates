@@ -8,6 +8,7 @@ import pytest
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.tasks import ask_skill_task, stream_consumer
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.shared.python_utils.chat_completion_recovery import derive_recovery_keypair, open_recovery_envelope
 from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
@@ -139,3 +140,40 @@ async def test_stop_intent_precedes_celery_revoked_state(monkeypatch, intent, st
     cache.close.assert_awaited_once()
     if intent:
         result.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("states,expected", [
+    (["PROGRESS", "REVOKED"], True),
+    (["PROGRESS"] * 6, False),
+])
+# contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+async def test_soft_limit_waits_for_worker_revocation_receipt(monkeypatch, states, expected):
+    turn, _ = request()
+    cache = SimpleNamespace(get=AsyncMock(return_value=None), close=AsyncMock())
+    monkeypatch.setattr(ask_skill_task, "CacheService", lambda: cache)
+    result = Mock(side_effect=[SimpleNamespace(state=state) for state in states])
+    monkeypatch.setattr(ask_skill_task.celery_config.app, "AsyncResult", result)
+    monkeypatch.setattr(ask_skill_task.asyncio, "sleep", AsyncMock())
+
+    assert await ask_skill_task._was_task_cancelled(
+        turn, turn.recovery_task_id, after_soft_limit=True,
+    ) is expected
+    assert result.call_count == len(states)
+
+
+@pytest.mark.parametrize("status,code,expected", [
+    (409, "account_recovery_fenced", True),
+    (409, "replay_output_mismatch", False),
+    (404, "inference_task_not_found", False),
+])
+# contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+def test_only_confirmed_account_deletion_stops_failure_handling(status, code, expected):
+    rejection = ChatRecoveryProtocolError(status, code)
+    try:
+        try:
+            raise RequiredRecoveryOutputError("Finished embed recovery save failed") from rejection
+        except RequiredRecoveryOutputError as error:
+            raise RuntimeError("Main processing stream execution failed") from error
+    except RuntimeError as error:
+        assert ask_skill_task._was_account_recovery_fenced(error) is expected
