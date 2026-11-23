@@ -329,6 +329,25 @@ async def test_only_context_index_and_matching_owner_authorize_references(author
     assert "Foreign private source" not in json.dumps(child)
 
 
+
+# contract-test: direct surface=rest_api assertions=authored-results.groups.same-response-and-reuse,authored-results.media.safe-and-attributed
+@pytest.mark.parametrize("written", ["embed:{ref}", " {ref} ", "`embed:{ref}`", "<embed:{ref}>"])
+@pytest.mark.asyncio
+async def test_source_reference_copied_in_link_form_still_resolves(authored_service, written):
+    """Regression LF4MY: source refs copied as `embed:<ref>` were dropped as unavailable."""
+    h = authored_service
+    carrier = await h.create()
+    known = str(uuid.uuid4())
+    await h.put_reference(known, {"type": "document", "title": "Authorized source"})
+    h.service.authoring_reference_index = {"known.pdf": known}
+    item = valid_authored_item()
+    item["sources"] = [{"embed_ref": written.format(ref="known.pdf")}, {"embed_ref": "embed:unknown.pdf"}]
+    assert await h.update(carrier, [item])
+    parent = await h.content(carrier)
+    child = await h.content(parent["embed_ids"][0])
+    assert [source["embed_ref"] for source in child["authoring"]["sources"]] == [written.format(ref="known.pdf")]
+    assert sum(w["code"] == "unavailable_source_reference" for w in parent["validation"]["warnings"]) == 1
+
 async def _image_reference(h, *, reference="venue.jpg", owner_hash=OWNER_HASH):
     embed_id = str(uuid.uuid4())
     key = base64.b64encode(b"k" * 32).decode()
