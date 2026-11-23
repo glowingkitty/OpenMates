@@ -244,6 +244,11 @@
             "type": "command",
             "command": "$(git rev-parse --show-toplevel)/.claude/hooks/reinject-session.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 $(git rev-parse --show-toplevel)/scripts/chat_compaction_handoff.py hook",
+            "timeout": 5
           }
         ]
       },

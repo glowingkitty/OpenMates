@@ -889,8 +889,12 @@ def continue_unfinished(chats: list[Chat], directory: Path, now: float, keep: se
     listed as stalled for the owner. `keep`: chats still marked (the rest are forgotten)."""
     marks = load_marks(directory, CONTINUE_MARKS)
     marks = {chat_id: mark for chat_id, mark in marks.items() if chat_id in keep}
+    # Chats that handed off to a fresh chat (scripts/chat_compaction_handoff.py) are done here.
+    handed_off = load_marks(directory, "handed_off.json")
     stalled = []
     for chat in chats:
+        if chat.session_id in handed_off:
+            continue
         mark = marks.get(chat.session_id) or {}
         worked = bool(mark) and bool(chat.transcript) and claude_chat_continue.worked_since(
             Path(chat.transcript), float(mark.get("at", 0)))

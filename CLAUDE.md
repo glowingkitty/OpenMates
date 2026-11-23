@@ -43,6 +43,8 @@ when a skill or this file points to it.
    scripts/worktree_wip.py park --session <id> --reason "<why>"`. Turn ends
    snapshot dirty worktrees to `refs/openmates/wip/<session>`; the chat
    lifecycle wakes a chat with unfinished work before stopping it.
+   After the 4th compaction a chat hands off to a fresh chat on the same session and Task
+   (`scripts/chat_compaction_handoff.py`; the hook tells it when).
 4. Production changes, destructive data changes and ownership transfers need
    explicit authorization by the owner: typed in this chat, or a message from
    the owner's dev connector (header "[… via the owner's authenticated dev

@@ -105,3 +105,11 @@ def test_a_running_background_sub_agent_keeps_the_chat(tmp_path):
             "content": "<task-notification>\n<task-id>ad37</task-id>\n<status>completed</status>"}}) + "\n")
     assert cc.running_agents(transcript, started, NOW) == []
     assert cc.running_agents(transcript, started, NOW + 4 * 3600) == []  # a hung agent stops holding it
+
+
+def test_a_chat_that_handed_off_is_never_nudged_to_continue(tmp_path, monkeypatch):
+    typed = []
+    monkeypatch.setattr(lc, "wake", lambda chat, text="": typed.append(text) or True)
+    (tmp_path / "handed_off.json").write_text(json.dumps({CHAT_ID: {"successor": "pane 7"}}))
+    assert lc.continue_unfinished([working_chat()], tmp_path, NOW, {CHAT_ID}) == []
+    assert typed == []

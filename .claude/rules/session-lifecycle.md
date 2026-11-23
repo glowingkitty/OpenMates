@@ -54,6 +54,10 @@ paths:
 - `sessions.py deploy --title <title> --message <why>` validates, serializes and
   pushes the scoped diff to `dev`. Use `prepare-deploy` only to inspect scope.
   Keep the canonical checkout on `dev`.
+- A chat compacted 4+ times hands off: the compact SessionStart hook counts per chat
+  (`logs/claude-chat-lifecycle/compactions.json`); `scripts/chat_compaction_handoff.py handoff
+  --summary-file <f>` launches a fresh chat, detaches the old chat's `agent_task_id`, and the
+  new chat adopts the session with `sessions.py worktree bind-task`.
 - Shared dev runtime mutations: `sessions.py docker restart --session <id>
   --service <name>` with its resource leases; not a substitute CI runner.
 - OpenMates Tasks owns status; no local task ledgers. `sessions.py end` is
